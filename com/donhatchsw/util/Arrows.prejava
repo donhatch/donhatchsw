@@ -3,63 +3,75 @@
 // which have multiple source points and multiple destination points.
 //
 
-//
-// ISSUES:
-//     - it works well if an asset is both a src and dst
-//       as long as there is at least one other src and one other dst,
-//       otherwise, it's not really sensible-- should show a loop I think.
-//     - do something special for src with multiplicity, or dst with multiplicity?
-//       (argh, I went to special effort to not let an asset be added multiple times... this makes things more sane when deleting a membership, but don't we want to express that in general? I need to make sure I handle it)
-//     - the only thing that has no representation at all
-//       is a no-src no-dst event
-//     - need asset radius? not sure how important
-//     - think about whether I can jitter or something
-//           to handle multiple events with exact same srcs and dsts
-//     - arrowheads on single-sources? not sure (I made it a parameter)
-//
-// XXX to do for test:
-//     - middle mouse should also be way to connect things (same as ctrl-left)
-//     - help should go to a help window, not stdout
-//     - should adjust radius of what gets shown in red:
-//              if control is down, use select radius (obj affected by click)
-//              if shift is down, use infinity (obj affected by 'D')
-//              if neither is down, use delete radius (obj affected by 'd')
-//              if ctrl-dragging, use appropriate drop radius
-//     - grey out Clean Circle and/or Clean&Center when already clean
-//     - do NOT steal focus on startup!! dang it!
-//         - and what the hell is that beep on startup??? damn!!!
-//     - thicken lines? nah...
-//     - should be passing around tooFarSqrd, not tooFar, maybe
-//
-//      
-//#include "macros.h"
-
-
-class AssetGraphStuff
+/**
+ * Utilities for drawing events
+ * which have multiple source points and multiple destination points.
+ * <p>
+ * ISSUES:
+ * <ul>
+ *     <li> it works well if an asset is both a src and dst
+ *          as long as there is at least one other src and one other dst,
+ *          otherwise, it's not really sensible-- should show a loop I think.
+ *     <li> do something special for src with multiplicity,
+ *          or dst with multiplicity?
+ *          (argh, I went to special effort to not let an asset be added multiple times... this makes things more sane when deleting a membership, but don't we want to express that in general? I need to make sure I handle it)
+ *     <li> the only thing that has no representation at all
+ *          is a no-src no-dst event
+ *     <li> need asset radius? not sure how important
+ *     <li> think about whether I can jitter or something
+ *          to handle multiple events with exact same srcs and dsts
+ *     <li> arrowheads on single-sources? not sure (I made it a parameter)
+ * </ul>
+ * XXX to do for test:
+ * <ul>
+ *     <li> middle mouse should also be way to connect things (same as ctrl-left)
+ *     <li> help should go to a help window, not stdout
+ *     <li> should adjust radius of what gets shown in red:
+ *       <ul>
+ *           <li> if control is down, use select radius (obj affected by click)
+ *           <li> if shift is down, use infinity (obj affected by 'D')
+ *           <li> if neither is down, use delete radius (obj affected by 'd')
+ *           <li> if ctrl-dragging, use appropriate drop radius
+ *       </ul>
+ *     <li> grey out Clean Circle and/or Clean&Center when already clean
+ *     <li> do NOT steal focus on startup!! dang it!
+ *        <ul>
+ *         <li> and what the hell is that beep on startup??? damn!!!
+ *        </ul>
+ *     <li> thicken lines? nah...
+ *     <li> should be passing around tooFarSqrd, not tooFar, maybe
+ * </ul>
+ */
+public class AssetGraphStuff
 {
-    //
-    // Get curves representing an event
-    // with zero or more sources and zero or more destinations.
-    //
-    // Policy of the array returned:
-    // the first nSrcs curves will be the "legs"
-    // of the srces, the next nDsts curves will be the "legs" of the dsts,
-    // the next curve (if any) will be the "handle" or common part
-    // in the middle, the rest is any arrow head decoration
-    // (which may not be curves at all).  In this way,
-    // it's possible to select a particular src or dst of an event.
-    //
+    /**
+     * Get curves representing an event
+     * with zero or more sources and zero or more destinations.
+     * <p>
+     * Policy of the array returned:
+     * the first nSrcs curves will be the "legs"
+     * of the srces, the next nDsts curves will be the "legs" of the dsts,
+     * the next curve (if any) will be the "handle" or common part
+     * in the middle, the rest is any arrow head decoration
+     * (which may not be curves at all).  In this way,
+     * it's possible to select a particular src or dst of an event.
+     * <p>
+     * XXX see code for parameter descriptions
+     */
     public static java.awt.Shape[] getCurves(
-              double srcs[][/*2*/], int srcInds[], // inds may be null
-              double dsts[][/*2*/], int dstInds[], // inds may be null
-              double srcRadii[], // keep arrows this far away
-              double dstRadii[], // keep arrows this far away
-              double arrowHeadLength,
+            double srcs[][/*2*/], int srcInds[], // inds may be null
+            double dsts[][/*2*/], int dstInds[], // inds may be null
+            double srcRadii[], // keep arrows this far away (XXX unimplemented)
+            double dstRadii[], // keep arrows this far away (XXX unimplemented)
+            double arrowHeadLength,
 
-              double graphCenterForSingle[/*2*/],
-              double arrowLengthForSingle,
-              boolean doArrowHeadOnSingleSrc)
+            double graphCenterForSingle[/*2*/],
+            double arrowLengthForSingle,
+            boolean doArrowHeadOnSingleSrc)
     {
+        // XXX nSrcs,nDsts should really be params,
+        // XXX to allow caller to re-use a big array
+        // XXX without having to reallocate to exact size each time
         int nSrcs = (srcInds != null ? srcInds.length : srcs.length);
         int nDsts = (dstInds != null ? dstInds.length : dsts.length);
 
@@ -372,6 +384,10 @@ class AssetGraphStuff
     private static class FuzzyPoint {
         double x, y, rSqrd;
     }
+    /**
+     * Get a bounding ball of a CubicCurve2D.
+     * Not necessarily very tight.
+     */
     public static void getCurveBoundingBall(java.awt.geom.CubicCurve2D curve,
                                             FuzzyPoint result)
     {
@@ -401,7 +417,11 @@ class AssetGraphStuff
 
 
 
-    private static boolean getClosestPointOnCubicCurve(
+    /**
+     * Gets the closest point on a CubicCurve2D,
+     * within a specified tolerance.
+     */
+    public static boolean getClosestPointOnCubicCurve(
                                double x, double y,
                                java.awt.geom.CubicCurve2D curve,
                                double tooFar,
@@ -535,11 +555,11 @@ class AssetGraphStuff
     } // _getClosestPointOnCubicCurve
 
 
-    //
-    // Gets the closest point on an array of curves.
-    // ignores any shapes that are not of type CubicCurve2D.
-    //
-    private static int[/*2*/] getClosestPointOnCubicCurves(
+    /**
+     * Gets the closest point on an array of curves.
+     * ignores any shapes that are not of type CubicCurve2D.
+     */
+    public static int[/*2*/] getClosestPointOnCubicCurves(
                                    double x, double y,
                                    java.awt.Shape curves[][],
                                    double tooFar,
@@ -642,6 +662,17 @@ class AssetGraphStuff
     //-----------------------------------------------------------------------
     // Little drawing utils...
     //
+        /**
+         * Draws a string with arbitrary justification.
+         * <p>
+         * xJustify : -1,0,1 -> L,C,R
+         * <br>
+         * yJustify : -1,0,1 -> T,C,B
+         * <br>
+         * and anything in between.
+         * <br>
+         * XXX fix param descriptions for javadoc
+         */
         public static void drawString(java.awt.Graphics2D g2d,
                                       String s, double x, double y, 
                                       double xJustify, // -1,0,1 -> L,C,R
@@ -665,18 +696,26 @@ class AssetGraphStuff
                               (float)(y + fm.getAscent()*(1.-yJustify)*.5));
                             // XXX centered height seems to come out a bit low-- maybe fiddle with leading?
         }
+        /** Calls drawString with xJustify=0 and yJustify=0. */
         public static void drawStringCentered(java.awt.Graphics2D g2d, String s, double x, double y)
         {
             drawString(g2d, s, x, y, 0, 0);
         }
+        /** calls drawString with xJustify=1 and yJustify=0. */
         public static void drawStringRightJustified(java.awt.Graphics2D g2d, String s, double x, double y)
         {
             drawString(g2d, s, x, y, 1, 0);
         }
+        /** Calls drawString with xJustify=-1 and yJustify=0. */
         public static void drawStringLeftJustified(java.awt.Graphics2D g2d, String s, double x, double y)
         {
             drawString(g2d, s, x, y, -1, 0);
         }
+        /**
+         * Calls drawString with appropriate justification params
+         * so that the string is placed margin pixels away
+         * from the point, in the direction specified by dirAngle (in radians).
+         */
         static void drawStringNextToPoint(java.awt.Graphics2D g2d, String labelText, double x, double y, double dirAngle, double margin)
         {
             double xJustify = -Math.cos(dirAngle);
@@ -692,6 +731,9 @@ class AssetGraphStuff
                        xJustify, yJustify);
         } // drawStringNextToPoint
 
+        /**
+         * Draw a little square.
+         */
         public static void drawSquare(java.awt.Graphics2D g2d,
                                       double x, double y, double r)
         {
@@ -699,8 +741,10 @@ class AssetGraphStuff
             g2d.draw(square);
         } // drawSquare
 
-        // draw showing subdivision points, for debugging.
-        // if nLevels is 0, just draw normally.
+        /**
+         * Draw a curve showing binary subdivision points, for debugging.
+         * If nLevels is 0, just draw normally.
+         */
         public static void drawCurveSubdivided(java.awt.Graphics2D g2d, java.awt.geom.CubicCurve2D curve, int nLevels)
         {
             if (nLevels > 0)
@@ -1899,10 +1943,9 @@ class AssetGraphStuff
             return assets;
         } // makeCircle
 
-        //
-        // A neat-o function,
-        // maybe should be exposed.
-        //
+        /**
+         * A neat-o function,
+         */
         private static double[][/*2*/] cleanUpCircle(double oldCircle[][/*2*/], 
                                                      double newCenter[]) // may be null
         {
@@ -1948,6 +1991,9 @@ class AssetGraphStuff
             return newCircle;
         } // cleanUpCircle
 
+        /**
+         * Returns the median of an array of doubles.
+         */
         private static double median(final double A[])
         {
             int n = A.length;
@@ -2455,6 +2501,9 @@ class AssetGraphStuff
 
 
 
+    /**
+     * Little demonstration program.
+     */
     public static void main(String args[])
     {
         System.out.println("in main");
