@@ -13,10 +13,10 @@
 //     - arrowheads on single-sources? not sure (I made it a parameter)
 //
 // XXX to do for test:
-//     - middle mouse should also be way to connect things (same as control-left)
-//     - help should go to a help window, not stdout
 //     - all the requestFocus()s are lame, should be one when the mouse
 //          enters the canvas.  and the buttons shouldn't obscure the drawing area, either.  when we do it right, should be able to hold down the space bar on the + button and have it work.
+//     - middle mouse should also be way to connect things (same as control-left)
+//     - help should go to a help window, not stdout
 //     - should adjust radius of what gets shown in red:
 //              if control is down, use select radius (obj affected by click)
 //              if shift is down, use infinity (obj affected by 'D')
@@ -714,345 +714,853 @@ class AssetGraphUtils
             }
         } // drawCurveSubdivided
 
-    public static class MyPanel
+    public static class MyDemoPanel
         extends javax.swing.JPanel
     {
         int paintCount = 0;
 
-        // PAINT
-        public void paintComponent(java.awt.Graphics g)
+        public class MyCanvas
+            extends javax.swing.JPanel
         {
-            if (eventVerbose >= 2) System.out.println("    in paint");
-
-            if (false)
+            // PAINT
+            public void paintComponent(java.awt.Graphics g)
             {
-                // pause the second time, so I can ponder the resize
-                // that happens after the first paint for some reason
-                if (paintCount++ == 1)
-                {
-                    try {
-                        Thread.sleep(2000);
-                    } catch (InterruptedException e) { }
-                }
-            }
+                if (eventVerbose >= 2) System.out.println("    in paintComponent");
 
-            // we delay creating assets till now, when we know window size...
-            if (assets == null)
-            {
-                int nAssets = 18;
-                assets = makeCircle(nAssets, getWidth()/2, getHeight()/2, Math.min(getWidth(), getHeight()) / 3);
-                connections = new int[][/*2*/][] {
-                    {{5},{4}},
-                    {{6},{3,2}},
-                    {{7,8},{1}},
-                    {{9,10},{17,0}},
-                    {{11},{}},
-                    {{},{16}},
-                    {{12,13},{}},
-                    {{},{14,15}},
-                };
-            }
-
-            if (nFramesUntilFuture > 0
-             && futureAssets != null)
-            {
-                // I guess we can tolerate an asset being added...
-                assert(futureAssets.length <= assets.length);
-                for (int i = 0; i < futureAssets.length; ++i)
-                {
-                    double a = scheduleUntilFuture[scheduleUntilFuture.length-1-nFramesUntilFuture];
-                    double b = scheduleUntilFuture[scheduleUntilFuture.length-nFramesUntilFuture];
-                    double t = (b-a)/(1.-a);
-                    assets[i] = lerp(assets[i], futureAssets[i], t);
-                }
-                connectionCurves = null; // dirty
-                --nFramesUntilFuture;
-                repaint(); // so we'll come back around again
-            }
-
-            clear(g);
-            java.awt.Graphics2D g2d = (java.awt.Graphics2D)g;
-
-
-            if (mouseState == STATE_MOVING)
-            {
                 if (false)
                 {
-                    g2d.setColor(java.awt.Color.blue);
-                    drawSquare(g2d, curX, curY, selectRadiusPixels);
-                }
-            }
-
-            g2d.setColor(java.awt.Color.black);
-
-            if (mode == MODE_ONE_CURVE)
-            {
-                for (int i = 0; i < controlPoints.length; ++i)
-                {
-                    double x = controlPoints[i][0];
-                    double y = controlPoints[i][1];
-                    double r = 3;
-                    drawSquare(g2d, x, y, r);
-                }
-                java.awt.geom.CubicCurve2D curve = new java.awt.geom.CubicCurve2D.Double(
-                        controlPoints[0][0],
-                        controlPoints[0][1],
-                        controlPoints[1][0],
-                        controlPoints[1][1],
-                        controlPoints[2][0],
-                        controlPoints[2][1],
-                        controlPoints[3][0],
-                        controlPoints[3][1]);
-                java.awt.Stroke oldStroke = g2d.getStroke();
-                g2d.setStroke(new java.awt.BasicStroke(2)); // line thickness = 2
-                //g2d.draw(curve);
-                drawCurveSubdivided(g2d, curve, nDebugSubdivisionLevels);
-                g2d.setStroke(oldStroke);
-
-                FuzzyPoint closestPoint = new FuzzyPoint();
-                boolean result = getClosestPointOnCubicCurve(
-                                     curX, curY,
-                                     curve,
-
-                                     Double.POSITIVE_INFINITY, // tooFar
-                                     //selectRadiusPixels // tooFar
-
-                                     maxFuzzyRadiusPixels,
-                                     closestPoint,
-                                     this.verbose);
-                if (result)
-                {
-                    double x = closestPoint.x;
-                    double y = closestPoint.y;
-                    double r = Math.sqrt(closestPoint.rSqrd);
-                    g2d.setColor(java.awt.Color.red);
-                    drawSquare(g2d, x, y, 1);
-                    drawSquare(g2d, x, y, r); // dot in the middle
-                }
-            }
-            else if (mode == MODE_ASSETS)
-            {
-
-                if (connectionCurves == null)
-                    recalculateCurves();
-                for (int i = 0; i < assets.length; ++i)
-                {
-                    drawSquare(g2d, assets[i][0],assets[i][1], 2);
+                    // pause the second time, so I can ponder the resize
+                    // that happens after the first paint for some reason
+                    if (paintCount++ == 1)
+                    {
+                        try {
+                            Thread.sleep(2000);
+                        } catch (InterruptedException e) { }
+                    }
                 }
 
-                boolean doAntiAlias = true; // XXX need an option to toggle
-                if (doAntiAlias)
+                // we delay creating assets till now, when we know window size...
+                if (assets == null)
                 {
-                    g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
-                                         java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-                    // XXX not sure if the following does anything?
+                    int nAssets = 18;
+                    assets = makeCircle(nAssets, canvas.getWidth()/2, canvas.getHeight()/2, Math.min(canvas.getWidth(), canvas.getHeight()) / 3);
+                    connections = new int[][/*2*/][] {
+                        {{5},{4}},
+                        {{6},{3,2}},
+                        {{7,8},{1}},
+                        {{9,10},{17,0}},
+                        {{11},{}},
+                        {{},{16}},
+                        {{12,13},{}},
+                        {{},{14,15}},
+                    };
+                }
+
+                if (nFramesUntilFuture > 0
+                 && futureAssets != null)
+                {
+                    // I guess we can tolerate an asset being added...
+                    assert(futureAssets.length <= assets.length);
+                    for (int i = 0; i < futureAssets.length; ++i)
+                    {
+                        double a = scheduleUntilFuture[scheduleUntilFuture.length-1-nFramesUntilFuture];
+                        double b = scheduleUntilFuture[scheduleUntilFuture.length-nFramesUntilFuture];
+                        double t = (b-a)/(1.-a);
+                        assets[i] = lerp(assets[i], futureAssets[i], t);
+                    }
+                    connectionCurves = null; // dirty
+                    --nFramesUntilFuture;
+                    repaint(); // so we'll come back around again
+                }
+
+                clear(g);
+                java.awt.Graphics2D g2d = (java.awt.Graphics2D)g;
+
+
+                if (mouseState == STATE_MOVING)
+                {
                     if (false)
-                        g2d.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING,
-                                             java.awt.RenderingHints.VALUE_RENDER_QUALITY);
-                }
-
-                int lineThickness = 1;
-                java.awt.Stroke oldStroke = g2d.getStroke();
-                g2d.setStroke(new java.awt.BasicStroke(lineThickness));
-                for (int i = 0; i < connectionCurves.length; ++i)
-                {
-                    for (int j = 0; j < connectionCurves[i].length; ++j)
                     {
-                        //g2d.draw(connectionCurves[i][j]);
-                        if (connectionCurves[i][j] instanceof java.awt.geom.CubicCurve2D)
-                            drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[i][j],nDebugSubdivisionLevels);
-                        else
-                            g2d.draw(connectionCurves[i][j]);
+                        g2d.setColor(java.awt.Color.blue);
+                        drawSquare(g2d, curX, curY, selectRadiusPixels);
                     }
                 }
-                g2d.setStroke(oldStroke);
-                if (doAntiAlias)
-                {
-                    g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
-                                         java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
-                }
 
-                if (mouseState != STATE_NOTHING)
+                g2d.setColor(java.awt.Color.black);
+
+                if (mode == MODE_ONE_CURVE)
                 {
-                    // Just draw a nonobtrusive dot on the closest thing
+                    for (int i = 0; i < controlPoints.length; ++i)
+                    {
+                        double x = controlPoints[i][0];
+                        double y = controlPoints[i][1];
+                        double r = 3;
+                        drawSquare(g2d, x, y, r);
+                    }
+                    java.awt.geom.CubicCurve2D curve = new java.awt.geom.CubicCurve2D.Double(
+                            controlPoints[0][0],
+                            controlPoints[0][1],
+                            controlPoints[1][0],
+                            controlPoints[1][1],
+                            controlPoints[2][0],
+                            controlPoints[2][1],
+                            controlPoints[3][0],
+                            controlPoints[3][1]);
+                    java.awt.Stroke oldStroke = g2d.getStroke();
+                    g2d.setStroke(new java.awt.BasicStroke(2)); // line thickness = 2
+                    //g2d.draw(curve);
+                    drawCurveSubdivided(g2d, curve, nDebugSubdivisionLevels);
+                    g2d.setStroke(oldStroke);
+
                     FuzzyPoint closestPoint = new FuzzyPoint();
-                    int closestIndices[/*2*/] = getClosestPointOnCubicCurves(
-                                                    curX, curY,
-                                                    connectionCurves,
-            
-                                                    //selectRadiusPixels
-                                                    Double.POSITIVE_INFINITY,
+                    boolean result = getClosestPointOnCubicCurve(
+                                         curX, curY,
+                                         curve,
 
-                                                    maxFuzzyRadiusPixels,
-                                                    closestPoint);
-                    if (closestIndices[0] != -1)
-                    {
-                        double x = closestPoint.x;
-                        double y = closestPoint.y;
-                        double r = Math.sqrt(closestPoint.rSqrd);
-                        g2d.setColor(java.awt.Color.black);
-                        drawSquare(g2d, x, y, r); // dot in the middle
-                        drawSquare(g2d, x, y, 1); // dot in the middle
-                    }
-                }
+                                         Double.POSITIVE_INFINITY, // tooFar
+                                         //selectRadiusPixels // tooFar
 
-                if (showLabels)
-                {
-                    g2d.setColor(java.awt.Color.blue);
-                    double center[/*2*/] = average(assets, null);
-                    for (int i = 0; i < assets.length; ++i)
-                    {
-                        String labelText = "Asset "+i;
-                        double x = assets[i][0];
-                        double y = assets[i][1];
-                        double dirAngle = Math.atan2(y-center[1], x-center[0]);
-                        drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
-                    }
-                }
-
-                if (mouseState != STATE_NOTHING) // XXX probably not right
-                {
-                    boolean isCtrlDragging = (mouseState==STATE_CTRL_DRAGGING_NOTHING||mouseState==STATE_CTRL_DRAGGING_EVENT||mouseState==STATE_CTRL_DRAGGING_ASSET);
-                    //double tooFar = Double.POSITIVE_INFINITY;
-                    double tooFar = isCtrlDragging ? selectRadiusPixels : deleteRadiusPixels;
-                    FuzzyPoint closestPoint = new FuzzyPoint();
-                    int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
-                                                    curX, curY,
-                                                    assets,
-                                                    connectionCurves,
-                                                    tooFar,
-                                                    maxFuzzyRadiusPixels,
-                                                    closestPoint,
-                                                    mouseState==STATE_DRAGGING_ASSET);
-                    //printArray("indicesOfClosestThing", indicesOfClosestThing);
-                    if (indicesOfClosestThing[0] != -1) // an asset
-                    {
-                        double x = closestPoint.x;
-                        double y = closestPoint.y;
-                        double r = Math.sqrt(closestPoint.rSqrd);
-                        g2d.setColor(java.awt.Color.red);
-                        drawSquare(g2d, x, y, 5);
-                        if (showLabels)
-                        {
-                            int ind = indicesOfClosestThing[0];
-                            String labelText = "Asset " + ind;
-
-                            double center[/*2*/] = average(assets, null);
-                            double dirAngle = Math.atan2(y-center[1], x-center[0]);
-                            drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
-
-                        }
-                    }
-                    if (indicesOfClosestThing[1] != -1) // a curve
+                                         maxFuzzyRadiusPixels,
+                                         closestPoint,
+                                         verbose);
+                    if (result)
                     {
                         double x = closestPoint.x;
                         double y = closestPoint.y;
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 1);
+                        drawSquare(g2d, x, y, r); // dot in the middle
+                    }
+                }
+                else if (mode == MODE_ASSETS)
+                {
 
-                        // Re-draw the asset in red (XXX this doesn't look great when antialiasing... should suppress drawing it in black to begin with)
+                    if (connectionCurves == null)
+                        recalculateCurves();
+                    for (int i = 0; i < assets.length; ++i)
+                    {
+                        drawSquare(g2d, assets[i][0],assets[i][1], 2);
+                    }
+
+                    boolean doAntiAlias = true; // XXX need an option to toggle
+                    if (doAntiAlias)
+                    {
+                        g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                                             java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                        // XXX not sure if the following does anything?
+                        if (false)
+                            g2d.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING,
+                                                 java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+                    }
+
+                    int lineThickness = 1;
+                    java.awt.Stroke oldStroke = g2d.getStroke();
+                    g2d.setStroke(new java.awt.BasicStroke(lineThickness));
+                    for (int i = 0; i < connectionCurves.length; ++i)
+                    {
+                        for (int j = 0; j < connectionCurves[i].length; ++j)
                         {
-                            drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[indicesOfClosestThing[1]][indicesOfClosestThing[2]],nDebugSubdivisionLevels);
+                            //g2d.draw(connectionCurves[i][j]);
+                            if (connectionCurves[i][j] instanceof java.awt.geom.CubicCurve2D)
+                                drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[i][j],nDebugSubdivisionLevels);
+                            else
+                                g2d.draw(connectionCurves[i][j]);
                         }
+                    }
+                    g2d.setStroke(oldStroke);
+                    if (doAntiAlias)
+                    {
+                        g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                                             java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
+                    }
 
-                        if (showLabels)
+                    if (mouseState != STATE_NOTHING)
+                    {
+                        // Just draw a nonobtrusive dot on the closest thing
+                        FuzzyPoint closestPoint = new FuzzyPoint();
+                        int closestIndices[/*2*/] = getClosestPointOnCubicCurves(
+                                                        curX, curY,
+                                                        connectionCurves,
+                
+                                                        //selectRadiusPixels
+                                                        Double.POSITIVE_INFINITY,
+
+                                                        maxFuzzyRadiusPixels,
+                                                        closestPoint);
+                        if (closestIndices[0] != -1)
                         {
-                            int ind = indicesOfClosestThing[1];
-                            String labelText = "Event " + arrayToString(connections[ind][0])+ "->" + arrayToString(connections[ind][1]) + "";
-                            //
-                            // Try to analyze which leg we have
-                            //
-                            {
-                                int event[][] = connections[ind];
-                                int legInd = indicesOfClosestThing[2];
-                                int nSrcs = event[0].length;
-                                int nDsts = event[1].length;
-                                if (legInd < nSrcs)
-                                {
-                                    labelText = "Asset "+event[0][legInd]+" as src of "+labelText;
-                                }
-                                else if (legInd < nSrcs+nDsts)
-                                {
-                                    labelText = "Asset "+event[1][legInd-nSrcs]+" as dst of "+labelText;
-                                }
-                            }
-                            double center[/*2*/] = average(assets, null);
+                            double x = closestPoint.x;
+                            double y = closestPoint.y;
+                            double r = Math.sqrt(closestPoint.rSqrd);
+                            g2d.setColor(java.awt.Color.black);
+                            drawSquare(g2d, x, y, r); // dot in the middle
+                            drawSquare(g2d, x, y, 1); // dot in the middle
+                        }
+                    }
+
+                    if (showLabels)
+                    {
+                        g2d.setColor(java.awt.Color.blue);
+                        double center[/*2*/] = average(assets, null);
+                        for (int i = 0; i < assets.length; ++i)
+                        {
+                            String labelText = "Asset "+i;
+                            double x = assets[i][0];
+                            double y = assets[i][1];
                             double dirAngle = Math.atan2(y-center[1], x-center[0]);
-                            // XXX Bleah, putting it on the opposite side of the label assets is cool because less collisions, but on the other hand it's cool when one merges smoothly into the other
-                            //dirAngle += Math.PI; // put it on opposite side, towards the center
                             drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
                         }
                     }
 
-                } // mouseState != STATE_NOTHING
-
-                if (mouseState == STATE_CTRL_DRAGGING_ASSET)
-                {
-                    double x = assets[indexOfThingBeingDragged][0];
-                    double y = assets[indexOfThingBeingDragged][1];
-                    g2d.setColor(java.awt.Color.green);
-                    drawSquare(g2d, x, y, 5);
-                    g2d.setColor(java.awt.Color.lightGray); // XXX dotted?
-                    g2d.draw(new java.awt.geom.Line2D.Double(x, y, curX, curY));
-                }
-                else if (mouseState == STATE_CTRL_DRAGGING_EVENT)
-                {
-                    g2d.setColor(java.awt.Color.green);
-                    java.awt.geom.CubicCurve2D curve = (java.awt.geom.CubicCurve2D)connectionCurves[indexOfThingBeingDragged][subIndexOfThingBeingDragged];
-                    drawCurveSubdivided(g2d,curve,nDebugSubdivisionLevels);
-                    // Find some point on the curve. XXX maybe should have saved the closest point when we originally selected it?
-                    double x, y;
+                    if (mouseState != STATE_NOTHING) // XXX probably not right
                     {
-                        java.awt.geom.CubicCurve2D left = new java.awt.geom.CubicCurve2D.Double();
-                        java.awt.geom.CubicCurve2D right = new java.awt.geom.CubicCurve2D.Double();
-                        curve.subdivide(left, right);
-                        x = left.getX2();
-                        y = left.getY2();
+                        boolean isCtrlDragging = (mouseState==STATE_CTRL_DRAGGING_NOTHING||mouseState==STATE_CTRL_DRAGGING_EVENT||mouseState==STATE_CTRL_DRAGGING_ASSET);
+                        //double tooFar = Double.POSITIVE_INFINITY;
+                        double tooFar = isCtrlDragging ? selectRadiusPixels : deleteRadiusPixels;
+                        FuzzyPoint closestPoint = new FuzzyPoint();
+                        int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
+                                                        curX, curY,
+                                                        assets,
+                                                        connectionCurves,
+                                                        tooFar,
+                                                        maxFuzzyRadiusPixels,
+                                                        closestPoint,
+                                                        mouseState==STATE_DRAGGING_ASSET);
+                        //printArray("indicesOfClosestThing", indicesOfClosestThing);
+                        if (indicesOfClosestThing[0] != -1) // an asset
+                        {
+                            double x = closestPoint.x;
+                            double y = closestPoint.y;
+                            double r = Math.sqrt(closestPoint.rSqrd);
+                            g2d.setColor(java.awt.Color.red);
+                            drawSquare(g2d, x, y, 5);
+                            if (showLabels)
+                            {
+                                int ind = indicesOfClosestThing[0];
+                                String labelText = "Asset " + ind;
+
+                                double center[/*2*/] = average(assets, null);
+                                double dirAngle = Math.atan2(y-center[1], x-center[0]);
+                                drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
+
+                            }
+                        }
+                        if (indicesOfClosestThing[1] != -1) // a curve
+                        {
+                            double x = closestPoint.x;
+                            double y = closestPoint.y;
+                            double r = Math.sqrt(closestPoint.rSqrd);
+                            g2d.setColor(java.awt.Color.red);
+                            drawSquare(g2d, x, y, 1);
+
+                            // Re-draw the asset in red (XXX this doesn't look great when antialiasing... should suppress drawing it in black to begin with)
+                            {
+                                drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[indicesOfClosestThing[1]][indicesOfClosestThing[2]],nDebugSubdivisionLevels);
+                            }
+
+                            if (showLabels)
+                            {
+                                int ind = indicesOfClosestThing[1];
+                                String labelText = "Event " + arrayToString(connections[ind][0])+ "->" + arrayToString(connections[ind][1]) + "";
+                                //
+                                // Try to analyze which leg we have
+                                //
+                                {
+                                    int event[][] = connections[ind];
+                                    int legInd = indicesOfClosestThing[2];
+                                    int nSrcs = event[0].length;
+                                    int nDsts = event[1].length;
+                                    if (legInd < nSrcs)
+                                    {
+                                        labelText = "Asset "+event[0][legInd]+" as src of "+labelText;
+                                    }
+                                    else if (legInd < nSrcs+nDsts)
+                                    {
+                                        labelText = "Asset "+event[1][legInd-nSrcs]+" as dst of "+labelText;
+                                    }
+                                }
+                                double center[/*2*/] = average(assets, null);
+                                double dirAngle = Math.atan2(y-center[1], x-center[0]);
+                                // XXX Bleah, putting it on the opposite side of the label assets is cool because less collisions, but on the other hand it's cool when one merges smoothly into the other
+                                //dirAngle += Math.PI; // put it on opposite side, towards the center
+                                drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
+                            }
+                        }
+
+                    } // mouseState != STATE_NOTHING
+
+                    if (mouseState == STATE_CTRL_DRAGGING_ASSET)
+                    {
+                        double x = assets[indexOfThingBeingDragged][0];
+                        double y = assets[indexOfThingBeingDragged][1];
+                        g2d.setColor(java.awt.Color.green);
+                        drawSquare(g2d, x, y, 5);
+                        g2d.setColor(java.awt.Color.lightGray); // XXX dotted?
+                        g2d.draw(new java.awt.geom.Line2D.Double(x, y, curX, curY));
                     }
-                    g2d.setColor(java.awt.Color.lightGray); // XXX dotted?
-                    g2d.draw(new java.awt.geom.Line2D.Double(x, y, curX, curY));
-                }
+                    else if (mouseState == STATE_CTRL_DRAGGING_EVENT)
+                    {
+                        g2d.setColor(java.awt.Color.green);
+                        java.awt.geom.CubicCurve2D curve = (java.awt.geom.CubicCurve2D)connectionCurves[indexOfThingBeingDragged][subIndexOfThingBeingDragged];
+                        drawCurveSubdivided(g2d,curve,nDebugSubdivisionLevels);
+                        // Find some point on the curve. XXX maybe should have saved the closest point when we originally selected it?
+                        double x, y;
+                        {
+                            java.awt.geom.CubicCurve2D left = new java.awt.geom.CubicCurve2D.Double();
+                            java.awt.geom.CubicCurve2D right = new java.awt.geom.CubicCurve2D.Double();
+                            curve.subdivide(left, right);
+                            x = left.getX2();
+                            y = left.getY2();
+                        }
+                        g2d.setColor(java.awt.Color.lightGray); // XXX dotted?
+                        g2d.draw(new java.awt.geom.Line2D.Double(x, y, curX, curY));
+                    }
 
-            } // mode == MODE_ASSETS
+                } // mode == MODE_ASSETS
 
-            if (eventVerbose >= 2) System.out.println("    out paint");
-        } // paint
+                if (eventVerbose >= 2) System.out.println("    out paintComponent");
+            } // paintComponent
+
+            public MyCanvas()
+            {
+                //
+                // Add listeners for everything
+                // in the canvas...
+                //
+                this.addComponentListener(new java.awt.event.ComponentListener() {
+                    public void componentResized(java.awt.event.ComponentEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in componentResized: "+e);
+                        int oldWidth = curWidth;
+                        int oldHeight = curHeight;
+                        int newWidth = e.getComponent().getWidth();
+                        int newHeight = e.getComponent().getHeight();
+                        int oldSize = Math.min(oldWidth, oldHeight);
+                        int newSize = Math.min(newWidth, newHeight);
+
+                        if (oldWidth != -1)
+                        {
+                            if (eventVerbose >= 1) System.out.println("Resizing "+oldWidth+"x"+oldHeight+" -> "+newWidth+"x"+newHeight+"");
+                            // XXX this is silly, shouldn't need to recalculate connectionCurves, should just tweak the window transform matrix
+                            transform(assets,
+                                      oldWidth/2., oldHeight/2.,
+                                      (double)newSize/oldSize,
+                                      newWidth/2., newHeight/2.);
+                            if (futureAssets != null)
+                                transform(futureAssets, oldWidth/2., oldHeight/2.,
+                                                        (double)newSize/oldSize,
+                                                        newWidth/2., oldWidth/2.);
+                            connectionCurves = null; // dirty;
+                            repaint();
+                        }
+
+                        curWidth = newWidth;
+                        curHeight = newHeight;
+
+                        if (eventVerbose >= 1) System.out.println("    out componentResized");
+                    }
+                    public void componentMoved(java.awt.event.ComponentEvent e)
+                    {
+                        if (eventVerbose >= 0) System.out.println("    in componentMoved");
+                        if (eventVerbose >= 0) System.out.println("    out componentMoved");
+                    }
+                    public void componentShown(java.awt.event.ComponentEvent e)
+                    {
+                        if (eventVerbose >= 2) System.out.println("    in componentShown");
+                        if (eventVerbose >= 2) System.out.println("    out componentShown");
+                    }
+                    public void componentHidden(java.awt.event.ComponentEvent e)
+                    {
+                        if (eventVerbose >= 2) System.out.println("    in componentHidden");
+                        if (eventVerbose >= 2) System.out.println("    out componentHidden");
+                    }
+                });
+                this.addMouseMotionListener(new java.awt.event.MouseMotionListener() {
+                    public void mouseMoved(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 2) System.out.println("    in mouseMoved to "+e.getX()+","+e.getY()+"");
+                        curX = e.getX();
+                        curY = e.getY();
+                        if (mouseState == STATE_NOTHING)
+                            mouseState = STATE_MOVING;
+                        repaint();
+                        if (eventVerbose >= 2) System.out.println("    out mouseMoved");
+                    }
+                    public void mouseDragged(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseDragged to "+e.getX()+","+e.getY()+"");
+
+                        int prevX = curX;
+                        int prevY = curY;
+                        curX = e.getX();
+                        curY = e.getY();
+                        if (mode == MODE_ONE_CURVE)
+                        {
+                            if (indexOfThingBeingDragged != -1)
+                            {
+                                controlPoints[indexOfThingBeingDragged][0] += curX - prevX;
+                                controlPoints[indexOfThingBeingDragged][1] += curY - prevY;
+                            }
+                        }
+                        else if (mode == MODE_ASSETS)
+                        {
+                            if (mouseState == STATE_DRAGGING_ASSET)
+                            {
+                                if (indexOfThingBeingDragged != -1)
+                                {
+                                    assets[indexOfThingBeingDragged][0] += curX - prevX;
+                                    assets[indexOfThingBeingDragged][1] += curY - prevY;
+                                    connectionCurves = null; // dirty
+                                }
+                            }
+                            else if (mouseState == STATE_DRAGGING_EVENT)
+                            {
+                                // dragging an event doesn't really do anything.
+                            }
+                            else if (mouseState == STATE_DRAGGING_NOTHING)
+                            {
+                                // pan the whole scene.
+                                // XXX this is silly, shouldn't need to recalculate connectionCurves, should just tweak the window transform matrix
+                                double dx = curX-prevX;
+                                double dy = curY-prevY;
+                                pan(assets, dx, dy);
+                                if (futureAssets != null)
+                                    pan(futureAssets, dx, dy);
+                                connectionCurves = null; // dirty;
+                            }
+                        }
+
+                        repaint();
+                        if (eventVerbose >= 1) System.out.println("    out mouseDragged");
+                    }
+                });
+                this.addMouseListener(new java.awt.event.MouseListener() {
+                    public void mouseClicked(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseClicked at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseClicked");
+                    }
+                    public void mousePressed(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mousePressed at "+e.getX()+","+e.getY()+"");
+
+                        // Set controlPointBeingDragged to the closest
+                        // control point
+                        if (mode == MODE_ONE_CURVE)
+                        {
+                            indexOfThingBeingDragged = findClosest(curX, curY, controlPoints, selectRadiusPixels);
+                            //System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged);
+                        }
+                        else if (mode == MODE_ASSETS)
+                        {
+                            double tooFar = selectRadiusPixels;
+                            FuzzyPoint closestPoint = new FuzzyPoint();
+                            int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
+                                                            curX, curY,
+                                                            assets,
+                                                            connectionCurves,
+                                                            tooFar,
+                                                            maxFuzzyRadiusPixels,
+                                                            closestPoint,
+                                                            true);
+                            //printArray("indicesOfClosestThing", indicesOfClosestThing);
+                            //PRINT(e.isControlDown());
+                            if (indicesOfClosestThing[0] != -1)
+                            {
+                                mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_ASSET : STATE_DRAGGING_ASSET);
+                                indexOfThingBeingDragged = indicesOfClosestThing[0];
+                                subIndexOfThingBeingDragged = -1;
+                            }
+                            else if (indicesOfClosestThing[1] != -1)
+                            {
+                                mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_EVENT : STATE_DRAGGING_EVENT);
+                                indexOfThingBeingDragged = indicesOfClosestThing[1];
+                                subIndexOfThingBeingDragged = indicesOfClosestThing[2];
+                            }
+                            else
+                            {
+                                mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_NOTHING : STATE_DRAGGING_NOTHING); // panning
+                                indexOfThingBeingDragged = -1;
+                                subIndexOfThingBeingDragged = -1;
+                            }
+                            //System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged+","+subIndexOfThingBeingDragged+"");
+                        }
+                        repaint();
+
+                        if (eventVerbose >= 1) System.out.println("    out mousePressed");
+                    }
+                    public void mouseReleased(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
+                        if (curX != e.getX()
+                         || curY != e.getY())
+                        {
+                            System.out.println("I'M CONFUSED: current position was "+curX+","+curY+", but mouse released at "+e.getX()+","+e.getY()+"");
+                        }
+                        assert(curX == e.getX()); // XXX not sure this is reliable
+                        assert(curY == e.getY()); // XXX not sure this is reliable
+                        curX = e.getX();
+                        curY = e.getY();
+                        if (mode == MODE_ASSETS)
+                        {
+                            double tooFar = dropRadiusPixels;
+                            FuzzyPoint closestPoint = new FuzzyPoint();
+                            if (connectionCurves == null)
+                                recalculateCurves();
+                            int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
+                                                            curX, curY,
+                                                            assets,
+                                                            connectionCurves,
+                                                            tooFar,
+                                                            maxFuzzyRadiusPixels,
+                                                            closestPoint,
+                                                            true);
+                            //printArray("indicesOfClosestThing", indicesOfClosestThing);
+
+                            if (mouseState == STATE_DRAGGING_ASSET)
+                            {
+                                // Finished dragging an asset
+                                if (autoClean)
+                                    scheduleCleanup(doCenterWhenAutoClean);
+                            }
+                            else if (mouseState == STATE_DRAGGING_NOTHING)
+                            {
+                                // Finished panning
+                                if (autoClean)
+                                    scheduleCleanup(doCenterWhenAutoClean);
+                            }
+                            else if (mouseState == STATE_CTRL_DRAGGING_ASSET)
+                            {
+                                // attach the asset, as src,
+                                // to the event or other asset (or the "nothing")
+                                // we just dragged it to.
+                                if (indicesOfClosestThing[0] != -1)
+                                {
+                                    // to an asset
+                                    System.out.println("dragged an asset to another asset");
+                                    printArray("connections", connections);
+                                    int newEvent[][] = {{indexOfThingBeingDragged},{indicesOfClosestThing[0]}};
+                                    connections = (int[][][])append(connections, newEvent);
+                                    printArray("connections", connections);
+                                    connectionCurves = null; // dirty
+                                }
+                                else if (indicesOfClosestThing[1] != -1)
+                                {
+                                    // to an event
+                                    System.out.println("dragged an asset to an event");
+                                    printArray("connections", connections);
+                                    if (indexOf(connections[indicesOfClosestThing[1]][0], indexOfThingBeingDragged) == -1)
+                                        connections[indicesOfClosestThing[1]][0] =
+                                                (int[])append(connections[indicesOfClosestThing[1]][0], new Integer(indexOfThingBeingDragged));
+                                    else
+                                        System.out.println("\007This asset is already a src of this event!"); // XXX bell
+                                    printArray("connections", connections);
+                                    connectionCurves = null; // dirty
+                                }
+                                else
+                                {
+                                    // to nothingness
+                                    System.out.println("dragged an asset to nothing");
+                                    printArray("connections", connections);
+                                    int newEvent[][] = {{indexOfThingBeingDragged},{}};
+                                    connections = (int[][][])append(connections, newEvent);
+                                    printArray("connections", connections);
+                                    connectionCurves = null; // dirty
+                                }
+                            }
+                            else if (mouseState == STATE_CTRL_DRAGGING_EVENT)
+                            {
+                                // if event was dragged to an asset,
+                                // add that asset to the event.
+                                // if event was dragged to another event,
+                                // merge the events.
+                                if (indicesOfClosestThing[0] != -1)
+                                {
+                                    // to an asset
+                                    System.out.println("dragged an event to an asset");
+                                    printArray("connections", connections);
+                                    if (indexOf(connections[indexOfThingBeingDragged][1], indicesOfClosestThing[0]) == -1)
+                                        connections[indexOfThingBeingDragged][1] = (int[])append(connections[indexOfThingBeingDragged][1], new Integer(indicesOfClosestThing[0]));
+                                    else
+                                        System.out.println("\007This asset is already a dst of this event!"); // XXX bell
+                                    printArray("connections", connections);
+                                    connectionCurves = null; // dirty
+                                }
+                                else if (indicesOfClosestThing[1] != -1)
+                                {
+                                    // to an event
+                                    System.out.println("dragged an event to an event");
+                                    int i0 = indexOfThingBeingDragged;
+                                    int i1 = indicesOfClosestThing[1];
+                                    printArray("connections", connections);
+                                    connections[i0][0] = (int[])concat(connections[i0][0], connections[i1][0]);
+                                    connections[i0][1] = (int[])concat(connections[i0][1], connections[i1][1]);
+                                    connections = (int[][][])deleteElement(connections, i1);
+                                    printArray("connections", connections);
+                                    connectionCurves = null; // dirty
+                                }
+                                else
+                                {
+                                    // to nothingness
+                                    System.out.println("dragged an event to nothing");
+                                }
+                            }
+                            else if (mouseState == STATE_CTRL_DRAGGING_NOTHING)
+                            {
+                                // if "nothing" was dragged to an asset,
+                                // make a new event with no srcs
+                                // and just that asset as its destination.
+                                if (indicesOfClosestThing[0] != -1)
+                                {
+                                    // to an asset
+                                    System.out.println("dragged nothingness to an asset");
+                                    printArray("connections", connections);
+
+                                    int newEvent[][] = {{},{indicesOfClosestThing[0]}};
+                                    connections = (int[][][])append(connections, newEvent);
+                                    printArray("connections", connections);
+                                    connectionCurves = null; // dirty
+                                }
+                                else if (indicesOfClosestThing[1] != -1)
+                                {
+                                    // to an event
+                                    System.out.println("dragged nothingness to an event (that does nothing)");
+                                }
+                                else
+                                {
+                                    // to nothingness
+                                    System.out.println("dragged nothingness to nothing (that does nothing)");
+                                }
+                            }
+                        }
+                        indexOfThingBeingDragged = -1;
+                        subIndexOfThingBeingDragged = -1;
+                        mouseState = STATE_NOTHING;
+                        repaint();
+
+                        if (eventVerbose >= 1) System.out.println("    out mouseReleased");
+                    }
+                    public void mouseEntered(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
+                        mouseState = STATE_MOVING;
+                        repaint();
+                        if (eventVerbose >= 1) System.out.println("    out mouseEntered");
+                    }
+                    public void mouseExited(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseExited at "+e.getX()+","+e.getY()+"");
+                        mouseState = STATE_NOTHING;
+                        repaint();
+                        if (eventVerbose >= 1) System.out.println("    out mouseExited");
+                    }
+                });
+                this.addKeyListener(new java.awt.event.KeyListener() {
+                    public void keyPressed(java.awt.event.KeyEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in keyPressed");
+                        char c = e.getKeyChar();
+                        switch(c)
+                        {
+                            case 'h':
+                            case '?':
+                                help();
+                                break;
+
+                            case '+': case '=':
+                            case '-':
+                                zoom(c);
+                                break;
+
+                            case 'l':
+                                setShowLabels(!showLabels);
+                                break;
+
+                            case 's':
+                                doArrowHeadOnSingleSrc ^= true;
+                                connectionCurves = null; // dirty
+                                repaint();
+                                break;
+                            case 'm': // switch between MODE_ASSETS and MODE_ONE_CURVE
+                                mode = 1-mode;
+                                repaint();
+                                break;
+                            case 'a': // toggle autoClean
+                                if (mode == MODE_ASSETS)
+                                {
+                                    autoClean ^= true;
+                                    if (autoClean)
+                                        scheduleCleanup(doCenterWhenAutoClean);
+                                    autoCleanCheckBox.setSelected(autoClean);
+                                    cleanCircleButton.setEnabled(!autoClean);
+                                    cleanAndCenterButton.setEnabled(!autoClean);
+                                }
+                                repaint();
+                                break;
+                            case 'C': // clean up circle and re-center
+                            case 'c': // clean up circle and don't re-center
+                                {
+                                    if (mode == MODE_ASSETS)
+                                    {
+                                        scheduleCleanup(c=='C');
+                                        connectionCurves = null; // dirty
+                                    }
+                                }
+                                repaint();
+                                break;
+                            case 'n': // add a new asset
+                                if (mode == MODE_ASSETS)
+                                {
+                                    assets = (double[][])append(assets, new double[] {curX, curY});
+                                    // no need to dirty curves since this is added on the end and isn't a part of any curve
+                                    if (autoClean)
+                                        scheduleCleanup(doCenterWhenAutoClean);
+                                }
+                                repaint();
+                                break;
+                            case java.awt.event.KeyEvent.VK_DELETE:
+                            case 'D': // delete closest asset at any distance
+                            case 'd': // delete an asset within deleteRadiusPixels
+                                if (mode == MODE_ASSETS)
+                                {
+                                    // delete closest thing
+                                    // (asset, event, or membership)
+                                    double tooFar = (c=='D' ? Double.POSITIVE_INFINITY : deleteRadiusPixels);
+                                    FuzzyPoint closestPoint = new FuzzyPoint();
+                                    int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
+                                                                    curX, curY,
+                                                                    assets,
+                                                                    connectionCurves,
+                                                                    tooFar,
+                                                                    maxFuzzyRadiusPixels,
+                                                                    closestPoint,
+                                                                    false);
+                                    if (indicesOfClosestThing[0] != -1)
+                                    {
+                                        int ind = indicesOfClosestThing[0]; // asset index to delete
+                                        System.out.println("    deleting asset "+ind+"/"+assets.length+"");
+                                        assets = (double[][])deleteElement(assets, ind);
+                                        if (futureAssets != null
+                                         && ind < futureAssets.length)
+                                            futureAssets = (double[][])deleteElement(futureAssets, ind);
+                                        printArray("connections", connections);
+                                        {
+                                            for (int i = 0; i < connections.length; ++i)
+                                            for (int j = 0; j < connections[i].length; ++j)
+                                            {
+                                                int nNew = 0;
+                                                for (int kOld = 0; kOld < connections[i][j].length; ++kOld)
+                                                {
+                                                    int old = connections[i][j][kOld];
+                                                    if (old != ind)
+                                                        connections[i][j][nNew++] = (old>ind ? old-1 : old);
+                                                }
+                                                connections[i][j] = (int[])subarray(connections[i][j], 0, nNew);
+                                            }
+                                        }
+                                        printArray("connections", connections);
+
+                                        if (autoClean)
+                                            scheduleCleanup(doCenterWhenAutoClean);
+                                    }
+                                    else if (indicesOfClosestThing[1] != -1)
+                                    {
+                                        // XXX should just delete the connection
+                                        int ind = indicesOfClosestThing[1];
+                                        int legInd = indicesOfClosestThing[2];
+                                        int event[][] = connections[ind];
+                                        int nSrcs = event[0].length;
+                                        int nDsts = event[1].length;
+                                        if (legInd < nSrcs)
+                                        {
+                                            System.out.println("    deleting asset "+connections[ind][0][legInd]+" from srcs of Event "+arrayToString(connections[ind]));
+                                            connections[ind][0] = (int[])deleteElement(connections[ind][0], legInd);
+                                        }
+                                        else if (legInd < nSrcs+nDsts)
+                                        {
+                                            System.out.println("    deleting asset "+connections[ind][1][legInd-nSrcs]+" from dsts of Event "+arrayToString(connections[ind]));
+                                            connections[ind][1] = (int[])deleteElement(connections[ind][1], legInd-nSrcs);
+                                        }
+                                        else
+                                        {
+                                            System.out.println("    deleting event "+ind+"/"+connections.length+" (closest subpart was "+legInd+")");
+                                            connections = (int[][][])deleteElement(connections, ind);
+                                        }
+                                    }
+                                }
+                                connectionCurves = null; // dirty
+                                repaint();
+                                break;
+                            case 's'-'a'+1: // ctrl-s -- save
+                                save("DUMP.txt");
+                                break;
+                            case 'l'-'a'+1: // ctrl-l -- load
+                                // dirties and repaints if it succeeds...
+                                load("DUMP.txt");
+                                break;
+
+                            case 'q':
+                            case 'Q':
+                            case 'q'-'a'+1: // ctrl-q
+                            case 'c'-'a'+1: // ctrl-c
+                                System.out.println("Chow!");
+                                System.exit(0);
+                                break;
+
+                            case 65535:
+                                // XXX empirically, shift and ctrl-- weird
+                                break;
+                            default:
+                                {
+                                    System.out.println("Unknown key '"+c+"'("+(int)c+")");
+                                }
+                                break;
+                        }
+                        if (eventVerbose >= 1) System.out.println("    out keyPressed");
+                    }
+                    public void keyReleased(java.awt.event.KeyEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in keyReleased");
+                        if (eventVerbose >= 1) System.out.println("    out keyReleased");
+                    }
+                    public void keyTyped(java.awt.event.KeyEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in keyTyped");
+                        if (eventVerbose >= 1) System.out.println("    out keyTyped");
+                    }
+                });
+                requestFocus(); // XXX doesn't do anything?
+            } // MyCanvas ctor
+
+
+            // XXX needed?
+            public boolean isFocusTraversable() { return true; }
+
+
+        } // MyCanvas
+
+        public MyCanvas canvas = new MyCanvas(); // XXX weird place for this maybe
 
         // super.paintComponent clears offscreen pixmap,
         // since we're using double buffering by default.
+        // XXX what the heck did that mean?  I took this from an example off the web and I don't understand what it means.
         protected void clear(java.awt.Graphics g)
         {
             super.paintComponent(g);
         }
 
-        public MyPanel()
+        public MyDemoPanel()
         {
             super();
 
             //
             // Make the layout manager be a BorderLayout...
             //
-            setLayout(new java.awt.BorderLayout());
-            /*
-            javax.swing.BoxLayout boxLayout = new javax.swing.BoxLayout(this, javax.swing.BoxLayout.Y_AXIS);
-            this.setLayout(boxLayout);
-            */
+            setLayout(new java.awt.GridBagLayout());
 
             //
             // Add children...
-            //
-
-//      [Assets|One Curve] Mode
-//      [ ] Arrowhead on single-srcs
-
-//      [ ] Label assets
-//      [ ] Auto Clean Circle
-//      [ ] Auto Clean And Center   (nah, I think auto clean should do this)
-//      [Clean Circle] [Clean and Center]
-//      [Save DUMP.txt] [Load DUMP.txt]
-//      [+] [-]
-//      [Help]
             //
 
             javax.swing.JPanel buttonRow1 = new javax.swing.JPanel();
@@ -1066,7 +1574,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('+');
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow1.add(child);
@@ -1077,7 +1585,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('-');
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow1.add(child);
@@ -1092,7 +1600,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         scheduleCleanup(false); // don't re-center
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow1.add(child);
@@ -1103,7 +1611,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         scheduleCleanup(true); // do re-center
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow1.add(child);
@@ -1114,7 +1622,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         setAutoClean(child.isSelected());
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow1.add(child);
@@ -1129,7 +1637,7 @@ class AssetGraphUtils
                     {
                         setShowLabels(child.isSelected());
                         repaint();
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow1.add(child);
@@ -1144,7 +1652,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         save("DUMP.txt");
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow2.add(child);
@@ -1155,7 +1663,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         load("DUMP.txt");
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow2.add(child);
@@ -1166,7 +1674,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         help();
-                        requestFocus(); // try to give main panel focus again
+                        canvas.requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonRow2.add(child);
@@ -1185,526 +1693,37 @@ class AssetGraphUtils
                 buttonBars.setLayout(new javax.swing.BoxLayout(buttonBars, javax.swing.BoxLayout.Y_AXIS));
                 buttonBars.add(buttonRow1);
                 buttonBars.add(buttonRow2);
-                this.add(buttonBars, java.awt.BorderLayout.SOUTH);
+
+                {
+                    java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
+                    canvas.setPreferredSize(new java.awt.Dimension(500,500)); // XXX strange place to put this -- should it go in main?
+                    c.gridy = 0;
+                    c.fill = java.awt.GridBagConstraints.BOTH; // stretch component to fill space
+                    c.weightx = 1.; // stretch space horizontally
+                    c.weighty = 1.; // stretch space vertically
+                    this.add(canvas, c);
+                }
+                {
+                    java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
+                    c.gridy = 1;
+                    c.fill = java.awt.GridBagConstraints.BOTH; // stretch component to fill space
+                    c.weightx = 1.; // stretch space horizontally
+                    c.weighty = 0.; // don't stretch space vertically
+                    this.add(buttonBars, c);
+                }
             }
 
 
 
-            //
-            // Add listeners for everything
-            // in the main panel...
-            //
-            this.addComponentListener(new java.awt.event.ComponentListener() {
-                public void componentResized(java.awt.event.ComponentEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in componentResized: "+e);
-                    int oldWidth = curWidth;
-                    int oldHeight = curHeight;
-                    int newWidth = e.getComponent().getWidth();
-                    int newHeight = e.getComponent().getHeight();
-                    int oldSize = Math.min(oldWidth, oldHeight);
-                    int newSize = Math.min(newWidth, newHeight);
-
-                    if (oldWidth != -1)
-                    {
-                        if (eventVerbose >= 1) System.out.println("Resizing "+oldWidth+"x"+oldHeight+" -> "+newWidth+"x"+newHeight+"");
-                        // XXX this is silly, shouldn't need to recalculate connectionCurves, should just tweak the window transform matrix
-                        transform(assets,
-                                  oldWidth/2., oldHeight/2.,
-                                  (double)newSize/oldSize,
-                                  newWidth/2., newHeight/2.);
-                        if (futureAssets != null)
-                            transform(futureAssets, oldWidth/2., oldHeight/2.,
-                                                    (double)newSize/oldSize,
-                                                    newWidth/2., oldWidth/2.);
-                        connectionCurves = null; // dirty;
-                        repaint();
-                    }
-
-                    curWidth = newWidth;
-                    curHeight = newHeight;
-
-                    if (eventVerbose >= 1) System.out.println("    out componentResized");
-                }
-                public void componentMoved(java.awt.event.ComponentEvent e)
-                {
-                    if (eventVerbose >= 0) System.out.println("    in componentMoved");
-                    if (eventVerbose >= 0) System.out.println("    out componentMoved");
-                }
-                public void componentShown(java.awt.event.ComponentEvent e)
-                {
-                    if (eventVerbose >= 2) System.out.println("    in componentShown");
-                    if (eventVerbose >= 2) System.out.println("    out componentShown");
-                }
-                public void componentHidden(java.awt.event.ComponentEvent e)
-                {
-                    if (eventVerbose >= 2) System.out.println("    in componentHidden");
-                    if (eventVerbose >= 2) System.out.println("    out componentHidden");
-                }
-            });
-            this.addMouseMotionListener(new java.awt.event.MouseMotionListener() {
-                public void mouseMoved(java.awt.event.MouseEvent e)
-                {
-                    if (eventVerbose >= 2) System.out.println("    in mouseMoved to "+e.getX()+","+e.getY()+"");
-                    curX = e.getX();
-                    curY = e.getY();
-                    if (mouseState == STATE_NOTHING)
-                        mouseState = STATE_MOVING;
-                    repaint();
-                    if (eventVerbose >= 2) System.out.println("    out mouseMoved");
-                }
-                public void mouseDragged(java.awt.event.MouseEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in mouseDragged to "+e.getX()+","+e.getY()+"");
-
-                    int prevX = curX;
-                    int prevY = curY;
-                    curX = e.getX();
-                    curY = e.getY();
-                    if (mode == MODE_ONE_CURVE)
-                    {
-                        if (indexOfThingBeingDragged != -1)
-                        {
-                            controlPoints[indexOfThingBeingDragged][0] += curX - prevX;
-                            controlPoints[indexOfThingBeingDragged][1] += curY - prevY;
-                        }
-                    }
-                    else if (mode == MODE_ASSETS)
-                    {
-                        if (mouseState == STATE_DRAGGING_ASSET)
-                        {
-                            if (indexOfThingBeingDragged != -1)
-                            {
-                                assets[indexOfThingBeingDragged][0] += curX - prevX;
-                                assets[indexOfThingBeingDragged][1] += curY - prevY;
-                                connectionCurves = null; // dirty
-                            }
-                        }
-                        else if (mouseState == STATE_DRAGGING_EVENT)
-                        {
-                            // dragging an event doesn't really do anything.
-                        }
-                        else if (mouseState == STATE_DRAGGING_NOTHING)
-                        {
-                            // pan the whole scene.
-                            // XXX this is silly, shouldn't need to recalculate connectionCurves, should just tweak the window transform matrix
-                            double dx = curX-prevX;
-                            double dy = curY-prevY;
-                            pan(assets, dx, dy);
-                            if (futureAssets != null)
-                                pan(futureAssets, dx, dy);
-                            connectionCurves = null; // dirty;
-                        }
-                    }
-
-                    repaint();
-                    if (eventVerbose >= 1) System.out.println("    out mouseDragged");
-                }
-            });
-            this.addMouseListener(new java.awt.event.MouseListener() {
-                public void mouseClicked(java.awt.event.MouseEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in mouseClicked at "+e.getX()+","+e.getY()+"");
-                    if (eventVerbose >= 1) System.out.println("    out mouseClicked");
-                }
-                public void mousePressed(java.awt.event.MouseEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in mousePressed at "+e.getX()+","+e.getY()+"");
-
-                    // Set controlPointBeingDragged to the closest
-                    // control point
-                    if (mode == MODE_ONE_CURVE)
-                    {
-                        indexOfThingBeingDragged = findClosest(curX, curY, controlPoints, selectRadiusPixels);
-                        //System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged);
-                    }
-                    else if (mode == MODE_ASSETS)
-                    {
-                        double tooFar = selectRadiusPixels;
-                        FuzzyPoint closestPoint = new FuzzyPoint();
-                        int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
-                                                        curX, curY,
-                                                        assets,
-                                                        connectionCurves,
-                                                        tooFar,
-                                                        maxFuzzyRadiusPixels,
-                                                        closestPoint,
-                                                        true);
-                        //printArray("indicesOfClosestThing", indicesOfClosestThing);
-                        //PRINT(e.isControlDown());
-                        if (indicesOfClosestThing[0] != -1)
-                        {
-                            mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_ASSET : STATE_DRAGGING_ASSET);
-                            indexOfThingBeingDragged = indicesOfClosestThing[0];
-                            subIndexOfThingBeingDragged = -1;
-                        }
-                        else if (indicesOfClosestThing[1] != -1)
-                        {
-                            mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_EVENT : STATE_DRAGGING_EVENT);
-                            indexOfThingBeingDragged = indicesOfClosestThing[1];
-                            subIndexOfThingBeingDragged = indicesOfClosestThing[2];
-                        }
-                        else
-                        {
-                            mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_NOTHING : STATE_DRAGGING_NOTHING); // panning
-                            indexOfThingBeingDragged = -1;
-                            subIndexOfThingBeingDragged = -1;
-                        }
-                        //System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged+","+subIndexOfThingBeingDragged+"");
-                    }
-                    repaint();
-
-                    if (eventVerbose >= 1) System.out.println("    out mousePressed");
-                }
-                public void mouseReleased(java.awt.event.MouseEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
-                    if (curX != e.getX()
-                     || curY != e.getY())
-                    {
-                        System.out.println("I'M CONFUSED: current position was "+curX+","+curY+", but mouse released at "+e.getX()+","+e.getY()+"");
-                    }
-                    assert(curX == e.getX()); // XXX not sure this is reliable
-                    assert(curY == e.getY()); // XXX not sure this is reliable
-                    curX = e.getX();
-                    curY = e.getY();
-                    if (mode == MODE_ASSETS)
-                    {
-                        double tooFar = dropRadiusPixels;
-                        FuzzyPoint closestPoint = new FuzzyPoint();
-                        if (connectionCurves == null)
-                            recalculateCurves();
-                        int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
-                                                        curX, curY,
-                                                        assets,
-                                                        connectionCurves,
-                                                        tooFar,
-                                                        maxFuzzyRadiusPixels,
-                                                        closestPoint,
-                                                        true);
-                        //printArray("indicesOfClosestThing", indicesOfClosestThing);
-
-                        if (mouseState == STATE_DRAGGING_ASSET)
-                        {
-                            // Finished dragging an asset
-                            if (autoClean)
-                                scheduleCleanup(doCenterWhenAutoClean);
-                        }
-                        else if (mouseState == STATE_DRAGGING_NOTHING)
-                        {
-                            // Finished panning
-                            if (autoClean)
-                                scheduleCleanup(doCenterWhenAutoClean);
-                        }
-                        else if (mouseState == STATE_CTRL_DRAGGING_ASSET)
-                        {
-                            // attach the asset, as src,
-                            // to the event or other asset (or the "nothing")
-                            // we just dragged it to.
-                            if (indicesOfClosestThing[0] != -1)
-                            {
-                                // to an asset
-                                System.out.println("dragged an asset to another asset");
-                                printArray("connections", connections);
-                                int newEvent[][] = {{indexOfThingBeingDragged},{indicesOfClosestThing[0]}};
-                                connections = (int[][][])append(connections, newEvent);
-                                printArray("connections", connections);
-                                connectionCurves = null; // dirty
-                            }
-                            else if (indicesOfClosestThing[1] != -1)
-                            {
-                                // to an event
-                                System.out.println("dragged an asset to an event");
-                                printArray("connections", connections);
-                                if (indexOf(connections[indicesOfClosestThing[1]][0], indexOfThingBeingDragged) == -1)
-                                    connections[indicesOfClosestThing[1]][0] =
-                                            (int[])append(connections[indicesOfClosestThing[1]][0], new Integer(indexOfThingBeingDragged));
-                                else
-                                    System.out.println("\007This asset is already a src of this event!"); // XXX bell
-                                printArray("connections", connections);
-                                connectionCurves = null; // dirty
-                            }
-                            else
-                            {
-                                // to nothingness
-                                System.out.println("dragged an asset to nothing");
-                                printArray("connections", connections);
-                                int newEvent[][] = {{indexOfThingBeingDragged},{}};
-                                connections = (int[][][])append(connections, newEvent);
-                                printArray("connections", connections);
-                                connectionCurves = null; // dirty
-                            }
-                        }
-                        else if (mouseState == STATE_CTRL_DRAGGING_EVENT)
-                        {
-                            // if event was dragged to an asset,
-                            // add that asset to the event.
-                            // if event was dragged to another event,
-                            // merge the events.
-                            if (indicesOfClosestThing[0] != -1)
-                            {
-                                // to an asset
-                                System.out.println("dragged an event to an asset");
-                                printArray("connections", connections);
-                                if (indexOf(connections[indexOfThingBeingDragged][1], indicesOfClosestThing[0]) == -1)
-                                    connections[indexOfThingBeingDragged][1] = (int[])append(connections[indexOfThingBeingDragged][1], new Integer(indicesOfClosestThing[0]));
-                                else
-                                    System.out.println("\007This asset is already a dst of this event!"); // XXX bell
-                                printArray("connections", connections);
-                                connectionCurves = null; // dirty
-                            }
-                            else if (indicesOfClosestThing[1] != -1)
-                            {
-                                // to an event
-                                System.out.println("dragged an event to an event");
-                                int i0 = indexOfThingBeingDragged;
-                                int i1 = indicesOfClosestThing[1];
-                                printArray("connections", connections);
-                                connections[i0][0] = (int[])concat(connections[i0][0], connections[i1][0]);
-                                connections[i0][1] = (int[])concat(connections[i0][1], connections[i1][1]);
-                                connections = (int[][][])deleteElement(connections, i1);
-                                printArray("connections", connections);
-                                connectionCurves = null; // dirty
-                            }
-                            else
-                            {
-                                // to nothingness
-                                System.out.println("dragged an event to nothing");
-                            }
-                        }
-                        else if (mouseState == STATE_CTRL_DRAGGING_NOTHING)
-                        {
-                            // if "nothing" was dragged to an asset,
-                            // make a new event with no srcs
-                            // and just that asset as its destination.
-                            if (indicesOfClosestThing[0] != -1)
-                            {
-                                // to an asset
-                                System.out.println("dragged nothingness to an asset");
-                                printArray("connections", connections);
-
-                                int newEvent[][] = {{},{indicesOfClosestThing[0]}};
-                                connections = (int[][][])append(connections, newEvent);
-                                printArray("connections", connections);
-                                connectionCurves = null; // dirty
-                            }
-                            else if (indicesOfClosestThing[1] != -1)
-                            {
-                                // to an event
-                                System.out.println("dragged nothingness to an event (that does nothing)");
-                            }
-                            else
-                            {
-                                // to nothingness
-                                System.out.println("dragged nothingness to nothing (that does nothing)");
-                            }
-                        }
-                    }
-                    indexOfThingBeingDragged = -1;
-                    subIndexOfThingBeingDragged = -1;
-                    mouseState = STATE_NOTHING;
-                    repaint();
-
-                    if (eventVerbose >= 1) System.out.println("    out mouseReleased");
-                }
-                public void mouseEntered(java.awt.event.MouseEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
-                    mouseState = STATE_MOVING;
-                    repaint();
-                    if (eventVerbose >= 1) System.out.println("    out mouseEntered");
-                }
-                public void mouseExited(java.awt.event.MouseEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in mouseExited at "+e.getX()+","+e.getY()+"");
-                    mouseState = STATE_NOTHING;
-                    repaint();
-                    if (eventVerbose >= 1) System.out.println("    out mouseExited");
-                }
-            });
-            this.addKeyListener(new java.awt.event.KeyListener() {
-                public void keyPressed(java.awt.event.KeyEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in keyPressed");
-                    char c = e.getKeyChar();
-                    switch(c)
-                    {
-                        case 'h':
-                        case '?':
-                            help();
-                            break;
-
-                        case '+': case '=':
-                        case '-':
-                            zoom(c);
-                            break;
-
-                        case 'l':
-                            setShowLabels(!showLabels);
-                            break;
-
-                        case 's':
-                            doArrowHeadOnSingleSrc ^= true;
-                            connectionCurves = null; // dirty
-                            repaint();
-                            break;
-                        case 'm': // switch between MODE_ASSETS and MODE_ONE_CURVE
-                            mode = 1-mode;
-                            repaint();
-                            break;
-                        case 'a': // toggle autoClean
-                            if (mode == MODE_ASSETS)
-                            {
-                                autoClean ^= true;
-                                if (autoClean)
-                                    scheduleCleanup(doCenterWhenAutoClean);
-                                autoCleanCheckBox.setSelected(autoClean);
-                                cleanCircleButton.setEnabled(!autoClean);
-                                cleanAndCenterButton.setEnabled(!autoClean);
-                            }
-                            repaint();
-                            break;
-                        case 'C': // clean up circle and re-center
-                        case 'c': // clean up circle and don't re-center
-                            {
-                                if (mode == MODE_ASSETS)
-                                {
-                                    scheduleCleanup(c=='C');
-                                    connectionCurves = null; // dirty
-                                }
-                            }
-                            repaint();
-                            break;
-                        case 'n': // add a new asset
-                            if (mode == MODE_ASSETS)
-                            {
-                                assets = (double[][])append(assets, new double[] {curX, curY});
-                                // no need to dirty curves since this is added on the end and isn't a part of any curve
-                                if (autoClean)
-                                    scheduleCleanup(doCenterWhenAutoClean);
-                            }
-                            repaint();
-                            break;
-                        case java.awt.event.KeyEvent.VK_DELETE:
-                        case 'D': // delete closest asset at any distance
-                        case 'd': // delete an asset within deleteRadiusPixels
-                            if (mode == MODE_ASSETS)
-                            {
-                                // delete closest thing
-                                // (asset, event, or membership)
-                                double tooFar = (c=='D' ? Double.POSITIVE_INFINITY : deleteRadiusPixels);
-                                FuzzyPoint closestPoint = new FuzzyPoint();
-                                int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
-                                                                curX, curY,
-                                                                assets,
-                                                                connectionCurves,
-                                                                tooFar,
-                                                                maxFuzzyRadiusPixels,
-                                                                closestPoint,
-                                                                false);
-                                if (indicesOfClosestThing[0] != -1)
-                                {
-                                    int ind = indicesOfClosestThing[0]; // asset index to delete
-                                    System.out.println("    deleting asset "+ind+"/"+assets.length+"");
-                                    assets = (double[][])deleteElement(assets, ind);
-                                    if (futureAssets != null
-                                     && ind < futureAssets.length)
-                                        futureAssets = (double[][])deleteElement(futureAssets, ind);
-                                    printArray("connections", connections);
-                                    {
-                                        for (int i = 0; i < connections.length; ++i)
-                                        for (int j = 0; j < connections[i].length; ++j)
-                                        {
-                                            int nNew = 0;
-                                            for (int kOld = 0; kOld < connections[i][j].length; ++kOld)
-                                            {
-                                                int old = connections[i][j][kOld];
-                                                if (old != ind)
-                                                    connections[i][j][nNew++] = (old>ind ? old-1 : old);
-                                            }
-                                            connections[i][j] = (int[])subarray(connections[i][j], 0, nNew);
-                                        }
-                                    }
-                                    printArray("connections", connections);
-
-                                    if (autoClean)
-                                        scheduleCleanup(doCenterWhenAutoClean);
-                                }
-                                else if (indicesOfClosestThing[1] != -1)
-                                {
-                                    // XXX should just delete the connection
-                                    int ind = indicesOfClosestThing[1];
-                                    int legInd = indicesOfClosestThing[2];
-                                    int event[][] = connections[ind];
-                                    int nSrcs = event[0].length;
-                                    int nDsts = event[1].length;
-                                    if (legInd < nSrcs)
-                                    {
-                                        System.out.println("    deleting asset "+connections[ind][0][legInd]+" from srcs of Event "+arrayToString(connections[ind]));
-                                        connections[ind][0] = (int[])deleteElement(connections[ind][0], legInd);
-                                    }
-                                    else if (legInd < nSrcs+nDsts)
-                                    {
-                                        System.out.println("    deleting asset "+connections[ind][1][legInd-nSrcs]+" from dsts of Event "+arrayToString(connections[ind]));
-                                        connections[ind][1] = (int[])deleteElement(connections[ind][1], legInd-nSrcs);
-                                    }
-                                    else
-                                    {
-                                        System.out.println("    deleting event "+ind+"/"+connections.length+" (closest subpart was "+legInd+")");
-                                        connections = (int[][][])deleteElement(connections, ind);
-                                    }
-                                }
-                            }
-                            connectionCurves = null; // dirty
-                            repaint();
-                            break;
-                        case 's'-'a'+1: // ctrl-s -- save
-                            save("DUMP.txt");
-                            break;
-                        case 'l'-'a'+1: // ctrl-l -- load
-                            // dirties and repaints if it succeeds...
-                            load("DUMP.txt");
-                            break;
-
-                        case 'q':
-                        case 'Q':
-                        case 'q'-'a'+1: // ctrl-q
-                        case 'c'-'a'+1: // ctrl-c
-                            System.out.println("Chow!");
-                            System.exit(0);
-                            break;
-
-                        case 65535:
-                            // XXX empirically, shift and ctrl-- weird
-                            break;
-                        default:
-                            {
-                                System.out.println("Unknown key '"+c+"'("+(int)c+")");
-                            }
-                            break;
-                    }
-                    if (eventVerbose >= 1) System.out.println("    out keyPressed");
-                }
-                public void keyReleased(java.awt.event.KeyEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in keyReleased");
-                    if (eventVerbose >= 1) System.out.println("    out keyReleased");
-                }
-                public void keyTyped(java.awt.event.KeyEvent e)
-                {
-                    if (eventVerbose >= 1) System.out.println("    in keyTyped");
-                    if (eventVerbose >= 1) System.out.println("    out keyTyped");
-                }
-            });
 
             // need this or the main part can't get keystrokes if there's a button bar
-        } // MyPanel() ctor
+        } // MyDemoPanel() ctor
 
         public boolean isFocusTraversable() { return true; }
 
         private void scheduleCleanup(boolean doCenter)
         {
-            double newCenter[] = (doCenter ? new double[] {getWidth()/2, getHeight()/2} : null);
+            double newCenter[] = (doCenter ? new double[] {canvas.getWidth()/2, canvas.getHeight()/2} : null);
             scheduleFutureAssets(cleanUpCircle(assets, newCenter));
         } // scheduleCleanup
         private void scheduleFutureAssets(double newFutureAssets[][])
@@ -1754,7 +1773,7 @@ class AssetGraphUtils
                 // drift towards centered--
                 // expand from center of object,
                 // but shrink towards center of screen!
-                center =  new double[] {getWidth()/2,getHeight()/2};
+                center =  new double[] {canvas.getWidth()/2,canvas.getHeight()/2};
             }
             for (int i = 0; i < assets.length; ++i)
                 assets[i] = lerp(center, assets[i], scale);
@@ -2361,7 +2380,7 @@ class AssetGraphUtils
             PRINTARRAY(parseArray("{{{2,3},{},{4,5,6}},{{5,6}}}", int[][][].class));
         }
         */
-    } // class MyPanel
+    } // class MyDemoPanel
 
 
 
@@ -2370,13 +2389,13 @@ class AssetGraphUtils
         System.out.println("in main");
         String title = "Asset Graph Utilities";
         javax.swing.JFrame frame = new javax.swing.JFrame(title);
-        frame.setBackground(java.awt.Color.black);
         frame.setForeground(java.awt.Color.white);
+        frame.setBackground(java.awt.Color.black);
         //int w = 900, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
         int w = 600, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
         frame.setSize(w, h);
-        final MyPanel myPanel = new MyPanel();
-        frame.setContentPane(myPanel);
+        final MyDemoPanel myDemoPanel = new MyDemoPanel();
+        frame.setContentPane(myDemoPanel);
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent event)
             {
@@ -2385,7 +2404,7 @@ class AssetGraphUtils
             }
         });
         frame.setVisible(true);
-        myPanel.requestFocus();
+        myDemoPanel.canvas.requestFocus(); // XXX needed?
         System.out.println("out main");
     } // main
 
