@@ -18,11 +18,11 @@
 //              if control is down, use select radius (obj affected by click)
 //              if shift is down, use infinity (obj affected by 'D')
 //              if neither is down, use delete radius (obj affected by 'd')
+//              if ctrl-dragging, use appropriate drop radius
 //     - middle mouse should also be way to connect things (same as control-left)
 //     - do NOT steal focus on startup!! dang it!
-//         - and what the hell is that beep on startup??? 
+//         - and what the hell is that beep on startup??? damn!!!
 //     - thicken lines? nah...
-//     - highlight close thing that would be selected or dropped onto or deleted
 //     - should be passing around tooFarSqrd, not tooFar, maybe
 //
 //   GUI: (button bar)
