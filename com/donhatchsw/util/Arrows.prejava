@@ -19,14 +19,10 @@
 //              if shift is down, use infinity (obj affected by 'D')
 //              if neither is down, use delete radius (obj affected by 'd')
 //     - middle mouse should also be way to connect things (same as control-left)
-//     - bleah, drag 11:00 asset to its event, it thinks it was dropped onto the asset... need to make distances more sane!  unfortunately I'm having trouble reconciling different sized distances and preferences of assets over events and stuff
-//     - be able to delete just a single part of the event
 //     - do NOT steal focus on startup!! dang it!
-//     - and what the hell is that beep on startup???
+//         - and what the hell is that beep on startup??? 
 //     - thicken lines? nah...
-//     - label all assets? might help for debugging
-//              yes, would actually help to have option to label ALL assets
-//     - save/load?
+//     - save/load? (^S/^L)
 //     - highlight close thing that would be selected or dropped onto or deleted
 //     - should be passing around tooFarSqrd, not tooFar, maybe
 //
@@ -940,7 +936,7 @@ class AssetGraphUtils
                                                     tooFar,
                                                     maxFuzzyRadiusPixels,
                                                     closestPoint,
-                                                    false);
+                                                    mouseState==STATE_DRAGGING_ASSET);
                     //printArray("indicesOfClosestThing", indicesOfClosestThing);
                     if (indicesOfClosestThing[0] != -1) // an asset
                     {
@@ -1444,6 +1440,7 @@ class AssetGraphUtils
                         case 'l': // just do em both at once
                             showAssetLabels = showHoverLabel =
                                 !(showAssetLabels || showHoverLabel);
+                            repaint();
                             break;
 
                         case 's':
@@ -1558,6 +1555,11 @@ class AssetGraphUtils
                             connectionCurves = null; // dirty
                             repaint();
                             break;
+                        case 's'-'a'+1: // ctrl-s -- save
+                            System.out.println("double assets[][/*2*/] = "+arrayToString(assets)+";");
+                            System.out.println("int connections[][/*2*/][] = "+arrayToString(connections)+";");
+                            break;
+
                         case 'q':
                         case 'Q':
                         case 'q'-'a'+1: // ctrl-q
