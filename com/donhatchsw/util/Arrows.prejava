@@ -731,9 +731,9 @@ public class AssetGraphStuff
         /**
          * Draws a string with arbitrary justification.
          * <p>
-         * xJustify : -1,0,1 -> L,C,R
+         * xJustify : -1,0,1 -> Left,Center,Right
          * <br>
-         * yJustify : -1,0,1 -> T,C,B
+         * yJustify : -1,0,1 -> Top,Center,Bottom  (if y increases from top to bottom)
          * <br>
          * and anything in between.
          * <br>
@@ -784,16 +784,24 @@ public class AssetGraphStuff
          */
         static void drawStringNextToPoint(java.awt.Graphics2D g2d, String labelText, double x, double y, double dirAngle, double margin)
         {
-            double xJustify = -Math.cos(dirAngle);
-            double yJustify = -Math.sin(dirAngle);
+            double cos = Math.cos(dirAngle);
+            double sin = Math.sin(dirAngle);
+
+            if (false)
+            {
+                g2d.draw(new java.awt.geom.Line2D.Double(x, y, x+cos*margin, y+sin*margin));
+            }
+
+            double xJustify = -cos;
+            double yJustify = -sin;
             double max = Math.max(Math.abs(xJustify),
                                   Math.abs(yJustify));
             xJustify /= max;
             yJustify /= max;
             // Now xJustify,yJustify lie on the unit square
             drawString(g2d, labelText,
-                       x - xJustify*margin,
-                       y - yJustify*margin,
+                       x + cos*margin,
+                       y + sin*margin,
                        xJustify, yJustify);
         } // drawStringNextToPoint
 
@@ -1126,7 +1134,7 @@ public class AssetGraphStuff
 
                                 double center[/*2*/] = average(assets, null);
                                 double dirAngle = Math.atan2(y-center[1], x-center[0]);
-                                drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
+                                drawStringNextToPoint(g2d, labelText, x, y, dirAngle, srcRadii[0]+5);
 
                             }
                         }
