@@ -26,6 +26,9 @@
  * </ul>
  * XXX to do for test:
  * <ul>
+ *     <li> hold down shift-D in the middle-- gets assertion failures (curves==null)?? doesn't happen when slow.
+ *     <li> Clean&center (and Auto Clean) doesn't seem to do anything when only 2 assets
+ *     <li> asset fail in mouseReleased, in one-curve mode when I position a control point near the edge
  *     <li> middle mouse should also be way to connect things (same as ctrl-left)
  *     <li> help should go to a help window, not stdout
  *     <li> should adjust radius of what gets shown in red:
@@ -1260,12 +1263,18 @@ public class AssetGraphStuff
                         int prevY = curY;
                         curX = e.getX();
                         curY = e.getY();
+                        double dx = curX-prevX;
+                        double dy = curY-prevY;
                         if (mode == MODE_ONE_CURVE)
                         {
                             if (indexOfThingBeingDragged != -1)
                             {
-                                controlPoints[indexOfThingBeingDragged][0] += curX - prevX;
-                                controlPoints[indexOfThingBeingDragged][1] += curY - prevY;
+                                controlPoints[indexOfThingBeingDragged][0] += dx;
+                                controlPoints[indexOfThingBeingDragged][1] += dy;
+                            }
+                            else
+                            {
+                                pan(controlPoints, dx, dy);
                             }
                         }
                         else if (mode == MODE_ASSETS)
@@ -1274,8 +1283,8 @@ public class AssetGraphStuff
                             {
                                 if (indexOfThingBeingDragged != -1)
                                 {
-                                    assets[indexOfThingBeingDragged][0] += curX - prevX;
-                                    assets[indexOfThingBeingDragged][1] += curY - prevY;
+                                    assets[indexOfThingBeingDragged][0] += dx;
+                                    assets[indexOfThingBeingDragged][1] += dy;
                                     connectionCurves = null; // dirty
                                 }
                             }
@@ -1287,8 +1296,6 @@ public class AssetGraphStuff
                             {
                                 // pan the whole scene.
                                 // XXX this is silly, shouldn't need to recalculate connectionCurves, should just tweak the window transform matrix
-                                double dx = curX-prevX;
-                                double dy = curY-prevY;
                                 pan(assets, dx, dy);
                                 pan(futureAssets, dx, dy);
                                 connectionCurves = null; // dirty;
@@ -1357,15 +1364,26 @@ public class AssetGraphStuff
                     public void mouseReleased(java.awt.event.MouseEvent e)
                     {
                         if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
+
+                        //
+                        // Sometimes this will fail,
+                        // notably when the mouse is being dragged
+                        // back onto the window... curX,curY
+                        // are out of the window
+                        // but the event's coords are in the window.
                         if (curX != e.getX()
                          || curY != e.getY())
                         {
                             System.out.println("I'M CONFUSED: current position was "+curX+","+curY+", but mouse released at "+e.getX()+","+e.getY()+"");
+                            // Should we set curX,curY to the release position
+                            // in this case?  Not sure...
+                            // I'm saying no.
+                            if (false)
+                            {
+                                curX = e.getX();
+                                curY = e.getY();
+                            }
                         }
-                        assert(curX == e.getX()); // XXX not sure this is reliable
-                        assert(curY == e.getY()); // XXX not sure this is reliable
-                        curX = e.getX();
-                        curY = e.getY();
                         if (mode == MODE_ASSETS)
                         {
                             double tooFar = dropRadiusPixels;
@@ -2051,7 +2069,7 @@ public class AssetGraphStuff
 
         private void zoom(char c) // '-' or '+'/'='
         {
-            double center[] = average(assets, null);
+            double center[] = average(mode==MODE_ONE_CURVE ? controlPoints : assets, null);
             double scale = Math.pow(2., .1);
             if (c == '-')
             {
@@ -2062,8 +2080,12 @@ public class AssetGraphStuff
                 // but shrink towards center of screen!
                 center =  new double[] {canvas.getWidth()/2,canvas.getHeight()/2};
             }
-            for (int i = 0; i < assets.length; ++i)
-                assets[i] = lerp(center, assets[i], scale);
+            if (mode == MODE_ONE_CURVE)
+                for (int i = 0; i < controlPoints.length; ++i)
+                    controlPoints[i] = lerp(center, controlPoints[i], scale);
+            else if (mode == MODE_ASSETS)
+                for (int i = 0; i < assets.length; ++i)
+                    assets[i] = lerp(center, assets[i], scale);
             connectionCurves = null; // dirty
             repaint();
         } // zoom
@@ -2746,7 +2768,7 @@ public class AssetGraphStuff
         if (args.length == 2)
         {
             w = Integer.parseInt(args[0]);
-            h = Integer.parseInt(args[0]);
+            h = Integer.parseInt(args[1]);
         }
 
         myDemoPanel.canvas.setPreferredSize(new java.awt.Dimension(w,h)); // XXX hmm, is it strange for a preferred size to be set by the caller? oh well
