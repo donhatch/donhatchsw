@@ -22,7 +22,6 @@
 //     - do NOT steal focus on startup!! dang it!
 //         - and what the hell is that beep on startup??? 
 //     - thicken lines? nah...
-//     - save/load? (^S/^L)
 //     - highlight close thing that would be selected or dropped onto or deleted
 //     - should be passing around tooFarSqrd, not tooFar, maybe
 //
@@ -1556,8 +1555,89 @@ class AssetGraphUtils
                             repaint();
                             break;
                         case 's'-'a'+1: // ctrl-s -- save
-                            System.out.println("double assets[][/*2*/] = "+arrayToString(assets)+";");
-                            System.out.println("int connections[][/*2*/][] = "+arrayToString(connections)+";");
+                            {
+                                String fileName = "DUMP.txt"; // XXX dup below
+                                //System.out.println("double assets[][/*2*/] = "+arrayToString(assets)+";");
+                                //System.out.println("int connections[][/*2*/][] = "+arrayToString(connections)+";");
+                                System.out.print("Saving to "+fileName+"... ");
+                                System.out.flush();
+                                try {
+                                    java.io.PrintWriter writer = new java.io.PrintWriter(new java.io.BufferedWriter(new java.io.FileWriter(fileName)));
+                                    writer.println("double assets[][/*2*/] = "+arrayToString(assets)+";");
+                                    writer.println("int connections[][/*2*/][] = "+arrayToString(connections)+";");
+                                    writer.flush();
+                                    writer.close();
+                                }
+                                catch (Exception exc)
+                                {
+                                    System.out.println("save to file "+fileName+" failed:" + exc);
+                                }
+                                System.out.println("done.");
+                            }
+                            break;
+                        case 'l'-'a'+1: // ctrl-l -- load
+                            {
+                                String fileName = "DUMP.txt"; // dup above
+                                System.out.print("Loading from "+fileName+"... ");
+                                System.out.flush();
+                                try {
+                                    java.io.LineNumberReader reader = new java.io.LineNumberReader(new java.io.FileReader(fileName)); // LineNumberReader is already a buffered reader
+                                    String buf = "";
+                                    String line;
+                                    while ((line = reader.readLine()) != null)
+                                        buf += line + "\n";
+                                    reader.close();
+
+                                    //PRINT(buf);
+                                    int firstBrace = buf.indexOf('{');
+                                    int firstSemiColon = buf.indexOf(';');
+                                    int secondBrace = buf.indexOf('{', firstSemiColon+1);
+                                    int secondSemiColon = buf.indexOf(';',firstSemiColon+1);
+                                    if (firstBrace != -1
+                                     && firstSemiColon != -1
+                                     && secondBrace != -1
+                                     && secondSemiColon != -1
+                                     && firstBrace < firstSemiColon
+                                     && secondBrace < secondSemiColon)
+                                    {
+                                        String assetsContents = buf.substring(firstBrace, firstSemiColon);
+                                        //PRINT(assetsContents);
+                                        String connectionsContents = buf.substring(secondBrace, secondSemiColon);
+                                        //PRINT(connectionsContents);
+
+                                        double newAssets[][] = (double[][])parseArray(assetsContents, double[][].class);
+                                        int newConnections[][][] = (int[][][])parseArray(connectionsContents, int[][][].class);
+                                        if (newAssets != null
+                                         && newConnections != null)
+                                        {
+                                            // XXX should validate more!
+
+
+                                            // cute-- if same length, ease in
+                                            PRINT(newAssets.length);
+                                            PRINT(assets.length);
+                                            if (newAssets.length == assets.length)
+                                                scheduleFutureAssets(newAssets);
+                                            else
+                                                assets = newAssets;
+                                            connections = newConnections;
+
+                                            connectionCurves = null; // dirty
+                                            repaint();
+                                        }
+                                    }
+                                    else
+                                    {
+                                        System.out.print("(DAMN, messed up) ");
+                                        System.out.flush();
+                                    }
+                                }
+                                catch (Exception exc)
+                                {
+                                    System.out.println("load from file "+fileName+" failed:" + exc);
+                                }
+                                System.out.println("done.");
+                            }
                             break;
 
                         case 'q':
@@ -1595,8 +1675,11 @@ class AssetGraphUtils
         private void scheduleCleanup(boolean doCenter)
         {
             double newCenter[] = (doCenter ? new double[] {getWidth()/2, getHeight()/2} : null);
-            futureAssets = cleanUpCircle(assets, newCenter);
-
+            scheduleFutureAssets(cleanUpCircle(assets, newCenter));
+        } // scheduleCleanup
+        private void scheduleFutureAssets(double newFutureAssets[][])
+        {
+            futureAssets = newFutureAssets;
             nFramesUntilFuture = 100; // XXX needs configuration-- with antialiasing, it's a LOT slower and 100 is appropriate, without, 1000 is appropriate, on my home machine
             scheduleUntilFuture = new double[nFramesUntilFuture+1];
             for (int i = 0; i <= nFramesUntilFuture; ++i)
