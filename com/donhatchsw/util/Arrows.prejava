@@ -9,8 +9,9 @@
 //     - center it initially and when window resized
 //     - antialiased lines?
 //     - thicken lines? nah...
-//     - label assets
+//     - label assets? might help for debugging
 //     - gui elements for +, -, clean up circle
+//     - autoclean? (when n, d, or move)
 
 
 class AssetGraphUtils
@@ -35,6 +36,48 @@ class AssetGraphUtils
         if (nSrcs == 0 && nDsts == 0)
         {
             return new java.awt.Shape[0];
+        }
+        else if (nSrcs == 1 && nDsts == 0)
+        {
+            // Make an arrow from this src to nothingness
+            int nCurves = 1;
+            java.awt.Shape curves[] = new java.awt.Shape[nCurves];
+            double src[] = (srcInds != null ? srcs[srcInds[0]] : srcs[0]);
+            double dst[] = lerp(graphCenterForSingle, src,
+                                 1. + arrowLengthForSingle/dist(graphCenterForSingle[0],graphCenterForSingle[1], src[0],src[1]));
+            int iCurve = 0;
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                                            src[0], src[1],
+                                            src[0], src[1],
+                                            dst[0], dst[1],
+                                            dst[0], dst[1]);
+            assert(iCurve == nCurves);
+            return curves;
+        }
+        else if (nDsts == 1 && nSrcs == 0)
+        {
+            // Make an arrow from nothingness to this dst
+            int nCurves = 3;
+            java.awt.Shape curves[] = new java.awt.Shape[nCurves];
+            double dst[] = (dstInds != null ? dsts[dstInds[0]] : dsts[0]);
+            double src[] = lerp(graphCenterForSingle, dst,
+                                 1. + arrowLengthForSingle/dist(graphCenterForSingle[0],graphCenterForSingle[1], dst[0],dst[1]));
+            int iCurve = 0;
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                                            src[0], src[1],
+                                            src[0], src[1],
+                                            dst[0], dst[1],
+                                            dst[0], dst[1]);
+            curves[iCurve++] = arrowHeadSide(src[0], src[1],
+                                             dst[0], dst[1],
+                                             arrowHeadLength,
+                                             Math.PI*5/6);
+            curves[iCurve++] = arrowHeadSide(src[0], src[1],
+                                             dst[0], dst[1],
+                                             arrowHeadLength,
+                                             -Math.PI*5/6);
+            assert(iCurve == nCurves);
+            return curves;
         }
         else if (nDsts == 0)
         {
@@ -91,8 +134,12 @@ class AssetGraphUtils
             double centerCenter[/*2*/] = lerp(srcCenter, dstCenter, .5);
             double A[/*2*/] = lerp(srcCenter, centerCenter, .5);
             double B[/*2*/] = lerp(dstCenter, centerCenter, .5);
-            double controlA[/*2*/] = lerp(A, srcCenter, 1./3.);
-            double controlB[/*2*/] = lerp(B, dstCenter, 1./3.);
+
+            //double controlA[/*2*/] = lerp(A, srcCenter, 1./3.);
+            //double controlB[/*2*/] = lerp(B, dstCenter, 1./3.);
+            // XXX experimenting... it's nicer (more curvy) when closer to srcCenter, but then sometimes the arrow heads and up cramped
+            double controlA[/*2*/] = lerp(A, srcCenter, .5);
+            double controlB[/*2*/] = lerp(B, dstCenter, .5);
             if (nSrcs + nDsts == 3)
             {
                 // hack, sort of... just put A and B right in the center;
@@ -706,6 +753,8 @@ class AssetGraphUtils
                     {
                         double tooFar = dropRadiusPixels;
                         FuzzyPoint closestPoint = new FuzzyPoint();
+                        if (connectionCurves == null)
+                            recalculateCurves();
                         int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
                                                         curX, curY,
                                                         assets,
@@ -744,6 +793,10 @@ class AssetGraphUtils
                             {
                                 // to nothingness
                                 System.out.println("dragged an asset to nothing");
+                                PRINTARRAY(connections);
+                                connections = (int[][][])append(connections, new int[][] {{indexOfThingBeingDragged},{}});
+                                PRINTARRAY(connections);
+                                connectionCurves = null; // dirty
                             }
                         }
                         else if (mouseState == STATE_CTRL_DRAGGING_EVENT)
@@ -755,7 +808,7 @@ class AssetGraphUtils
                             if (indicesOfClosestThing[0] != -1)
                             {
                                 // to an asset
-                                System.out.println("dragged an event to another asset");
+                                System.out.println("dragged an event to an asset");
                                 PRINTARRAY(connections);
                                 connections[indexOfThingBeingDragged][1] = (int[])append(connections[indexOfThingBeingDragged][1], new Integer(indicesOfClosestThing[0]));
                                 PRINTARRAY(connections);
@@ -788,17 +841,21 @@ class AssetGraphUtils
                             if (indicesOfClosestThing[0] != -1)
                             {
                                 // to an asset
-                                System.out.println("dragged nothingness to another asset");
+                                System.out.println("dragged nothingness to an asset");
+                                PRINTARRAY(connections);
+                                connections = (int[][][])append(connections, new int[][] {{},{indicesOfClosestThing[0]}});
+                                PRINTARRAY(connections);
+                                connectionCurves = null; // dirty
                             }
                             else if (indicesOfClosestThing[1] != -1)
                             {
                                 // to an event
-                                System.out.println("dragged nothingness to an event");
+                                System.out.println("dragged nothingness to an event (that does nothing)");
                             }
                             else
                             {
                                 // to nothingness
-                                System.out.println("dragged nothingness an event to nothing");
+                                System.out.println("dragged nothingness to nothing (that does nothing)");
                             }
                         }
                     }
@@ -834,13 +891,14 @@ class AssetGraphUtils
                         case '?':
                             System.out.println("");
                             System.out.println("    Mouse:");
-                            System.out.println("            Left drag asset -- move asset");
-                            System.out.println("            Ctrl-Left drag asset -> asset -- new event");
-                            System.out.println("            Ctrl-Left drag asset -> event -- add the asset to the event as another src");
-                            System.out.println("            Ctrl-Left drag event -> asset -- add the asset to the event as another dst");
-                            System.out.println("            Ctrl-Left drag event -> event -- merge the events");
-                            System.out.println("            Ctrl-Left drag asset -> nothingness -- new event with just the single src");
-                            System.out.println("            Ctrl-Left drag nothingness -> asset -- new event with just the single dst");
+                            System.out.println("            Left-drag - move asset or pan whole picture");
+                            System.out.println("            Ctrl-Left drag - connect something:");
+                            System.out.println("                asset -> asset -- new event from src to dst");
+                            System.out.println("                asset -> event -- add the asset to the event as another src");
+                            System.out.println("                event -> asset -- add the asset to the event as another dst");
+                            System.out.println("                event -> event -- merge the events");
+                            System.out.println("                asset -> nothingness -- new event with just the single src");
+                            System.out.println("                nothingness -> asset -- new event with just the single dst");
 
                             System.out.println("    Keys:");
                             System.out.println("            n -- new asset");
@@ -856,7 +914,9 @@ class AssetGraphUtils
                         case '+': case '=':
                         case '-':
                             {
-                                double scale = (c=='-' ? Math.sqrt(.5) : Math.sqrt(2.));
+                                double scale = Math.pow(2., .1);
+                                if (c == '-')
+                                    scale = 1./scale;
                                 double center[] = average(assets, null);
                                 for (int i = 0; i < assets.length; ++i)
                                     assets[i] = lerp(center, assets[i], scale);
@@ -1118,6 +1178,7 @@ class AssetGraphUtils
             }
             else
             {
+                assert(curves != null);
                 closestCurveIndices = getClosestPointOnCubicCurves(
                                             curX, curY,
                                             curves,
@@ -1187,15 +1248,13 @@ class AssetGraphUtils
             //
             // For when mode is MODE_ASSETS...
             //
-                double graphCenter[] = {100,100};
-                double graphRadius = 90;
                 double srcRadii[] = {10}; // how far to keep arrow feet away
                 double dstRadii[] = {10}; // how far to keep arrow heads away
                 double arrowHeadLength = 10;
-                double arrowLengthForSingle = 20;
+                double arrowLengthForSingle = 40;
 
                 int nAssets = 18;
-                double assets[][] = makeCircle(nAssets, graphCenter[0], graphCenter[1], graphRadius);
+                double assets[][] = makeCircle(nAssets, 100, 100, 90);
                 int connections[][/*2*/][] = {
                     {{5},{4}},
                     {{6},{3,2}},
@@ -1230,7 +1289,7 @@ class AssetGraphUtils
                                 srcRadii,
                                 dstRadii,
                                 arrowHeadLength,
-                                graphCenter,
+                                average(assets,null),
                                 arrowLengthForSingle);
                 assert(connectionCurves[i] != null);
             }
@@ -1248,6 +1307,7 @@ class AssetGraphUtils
             int n = java.lang.reflect.Array.getLength(array);
             Object newArray = java.lang.reflect.Array.newInstance(
                                     array.getClass().getComponentType(), n-1);
+            PRINT(ind);
             System.arraycopy(array, 0, newArray, 0, ind);
             System.arraycopy(array, ind+1, newArray, ind, n-1-ind);
             return newArray;
