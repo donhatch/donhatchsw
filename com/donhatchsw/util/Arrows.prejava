@@ -1,13 +1,16 @@
 #include "macros.h" // XXX get rid
 //
 // XXX to do:
-//     - do NOT steal focus on startup!!
+//     - closest point in multiple curves isn't right yet
+//     - do NOT steal focus on startup!! dang it!
+//     - and what is the beep???
 //     - think about whether I can jitter or something
-//     - to handle multiple events with exact same srcs and dsts
+//           to handle multiple events with exact same srcs and dsts
 //     - center it initially and when window resized
-//     - need focus (isfocustraversible?)
-//     - thicken lines?
-//     - implement arrow heads
+//     - antialiased lines?
+//     - thicken lines? nah...
+//     - label assets
+//     - gui elements for +, -, clean up circle
 
 
 class AssetGraphUtils
@@ -207,12 +210,12 @@ class AssetGraphUtils
     } // getFuzzyPointContainingCurve
 
 
-    private static boolean getClosestPointOnCubicCurves(
-                               double x, double y,
-                               java.awt.Shape curves[][],
-                               double tooFarSqrd,
-                               double maxFuzzyRadius,
-                               FuzzyPoint closestPoint) // output
+    private static int[/*2*/] getClosestPointOnCubicCurves(
+                                   double x, double y,
+                                   java.awt.Shape curves[][],
+                                   double tooFar,
+                                   double maxFuzzyRadius,
+                                   FuzzyPoint closestPoint) // output
     {
         int bestI = -1;
         int bestJ = -1;
@@ -227,7 +230,7 @@ class AssetGraphUtils
             {
                 java.awt.geom.CubicCurve2D curve = (java.awt.geom.CubicCurve2D)curves[i][j];
                 if (getClosestPointOnCubicCurve(x, y, curve,
-                                                tooFarSqrd,
+                                                tooFar,
                                                 maxFuzzyRadius,
                                                 closestPoint,
                                                 0)) // verbose
@@ -237,30 +240,26 @@ class AssetGraphUtils
                     bestX = closestPoint.x;
                     bestY = closestPoint.y;
                     bestRSqrd = closestPoint.rSqrd;
-                    double newTooFarSqrd = distSqrd(x, y, bestX, bestY);
-                    assert(newTooFarSqrd < tooFarSqrd); // it shouldn't have succeeded otherwise
-                    tooFarSqrd = newTooFarSqrd;
+                    double newTooFar = dist(x, y, bestX, bestY);
+                    // XXX argh, the following fails, need fuzzy comparison I think
+                    //assert(newTooFar < tooFar); // it shouldn't have succeeded otherwise
+                    tooFar = newTooFar;
                 }
             }
         }
-        if (bestI != -1)
-        {
-            closestPoint.x = bestX;
-            closestPoint.y = bestY;
-            closestPoint.rSqrd = bestRSqrd;
-            return true;
-        }
-        else
-        {
-            return false;
-        }
+
+        closestPoint.x = bestX;
+        closestPoint.y = bestY;
+        closestPoint.rSqrd = bestRSqrd;
+
+        return new int[] {bestI, bestJ};
     } // getClosestPointOnCubicCurves
 
 
     private static boolean getClosestPointOnCubicCurve(
                                double x, double y,
                                java.awt.geom.CubicCurve2D curve,
-                               double tooFarSqrd,
+                               double tooFar,
                                double maxFuzzyRadius,
                                FuzzyPoint closestPoint, // output
                                int verbose)
@@ -271,7 +270,7 @@ class AssetGraphUtils
         // in all recursive calls, the caller already knows the bounding ball).
         getFuzzyPointContainingCurve(curve, closestPoint);
         int nSubdivsCalled[] = {0};
-        boolean result = _getClosestPointOnCubicCurve(x,y, curve, tooFarSqrd,
+        boolean result = _getClosestPointOnCubicCurve(x,y, curve, tooFar,
                                                       maxFuzzyRadius,
                                                       closestPoint,
                                                       nSubdivsCalled);
@@ -285,7 +284,7 @@ class AssetGraphUtils
     private static boolean _getClosestPointOnCubicCurve(
                                double x, double y,
                                java.awt.geom.CubicCurve2D curve,
-                               double tooFarSqrd,
+                               double tooFar,
                                double maxFuzzyRadius,
                                FuzzyPoint closestPoint, // input/output
                                int nSubdivsCalled[/*1*/]) // output statistics
@@ -298,11 +297,11 @@ class AssetGraphUtils
             // fuzzy point is small enough, no need to subdivide further,
             // and closestPoint is already filled in.
             //System.out.println("    SMALL ENOUGH");
-            return distSqrd < tooFarSqrd;
+            return distSqrd < tooFar*tooFar;
         }
         double minPossibleDist = Math.sqrt(distSqrd)
                                - Math.sqrt(closestPoint.rSqrd);
-        if (minPossibleDist*minPossibleDist >= tooFarSqrd)
+        if (minPossibleDist*minPossibleDist >= tooFar*tooFar)
         {
             //System.out.println("    TOO FAR");
             return false;
@@ -335,17 +334,17 @@ class AssetGraphUtils
         }
 
         boolean leftResult = _getClosestPointOnCubicCurve(x, y, left,
-                                                          tooFarSqrd,
+                                                          tooFar,
                                                           maxFuzzyRadius,
                                                           leftPoint,
                                                           nSubdivsCalled);
         if (leftResult)
         {
-            tooFarSqrd = Math.min(tooFarSqrd,
-                                  distSqrd(x,y, leftPoint.x,leftPoint.y));
+            tooFar = Math.min(tooFar,
+                              dist(x,y, leftPoint.x,leftPoint.y)); // XXX inefficient
         }
         boolean rightResult = _getClosestPointOnCubicCurve(x, y, right,
-                                                           tooFarSqrd,
+                                                           tooFar,
                                                            maxFuzzyRadius,
                                                            rightPoint,
                                                            nSubdivsCalled);
@@ -478,15 +477,14 @@ class AssetGraphUtils
                 g2d.setStroke(oldStroke);
 
                 FuzzyPoint closestPoint = new FuzzyPoint();
-                double maxFuzzyRadius = .5; // half a pixel
                 boolean result = getClosestPointOnCubicCurve(
                                      curX, curY,
                                      curve,
 
-                                     Double.POSITIVE_INFINITY, // tooFarSqrd
-                                     //selectRadiusPixels*selectRadiusPixels,
+                                     Double.POSITIVE_INFINITY, // tooFar
+                                     //selectRadiusPixels
 
-                                     maxFuzzyRadius,
+                                     maxFuzzyRadiusPixels,
                                      closestPoint,
                                      this.verbose);
                 if (result)
@@ -521,25 +519,56 @@ class AssetGraphUtils
 
                 g2d.setStroke(oldStroke);
 
-                FuzzyPoint closestPoint = new FuzzyPoint();
-                double maxFuzzyRadius = .5; // half a pixel
-                boolean result = getClosestPointOnCubicCurves(
-                                        curX, curY,
-                                        connectionCurves,
-
-                                        //selectRadiusPixels*selectRadiusPixels,
-                                        Double.POSITIVE_INFINITY,
-
-                                        maxFuzzyRadius,
-                                        closestPoint);
-                if (result)
                 {
-                    double x = closestPoint.x;
-                    double y = closestPoint.y;
-                    double r = Math.sqrt(closestPoint.rSqrd);
-                    g2d.setColor(java.awt.Color.red);
-                    drawSquare(g2d, x, y, 1);
-                    drawSquare(g2d, x, y, r); // dot in the middle
+                    FuzzyPoint closestPoint = new FuzzyPoint();
+                    int closestIndices[/*2*/] = getClosestPointOnCubicCurves(
+                                                    curX, curY,
+                                                    connectionCurves,
+            
+                                                    //selectRadiusPixels
+                                                    Double.POSITIVE_INFINITY,
+
+                                                    maxFuzzyRadiusPixels,
+                                                    closestPoint);
+                    if (closestIndices[0] != -1)
+                    {
+                        double x = closestPoint.x;
+                        double y = closestPoint.y;
+                        double r = Math.sqrt(closestPoint.rSqrd);
+                        g2d.setColor(java.awt.Color.red);
+                        drawSquare(g2d, x, y, r); // dot in the middle
+                        drawSquare(g2d, x, y, 1); // dot in the middle
+                    }
+                }
+
+                {
+                    double tooFar = Double.POSITIVE_INFINITY;
+                    FuzzyPoint closestPoint = new FuzzyPoint();
+                    int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
+                                                    curX, curY,
+                                                    assets,
+                                                    connectionCurves,
+                                                    tooFar,
+                                                    maxFuzzyRadiusPixels,
+                                                    closestPoint,
+                                                    false);
+                    //PRINTARRAY(indicesOfClosestThing);
+                    if (indicesOfClosestThing[0] != -1) // an asset
+                    {
+                        double x = closestPoint.x;
+                        double y = closestPoint.y;
+                        double r = Math.sqrt(closestPoint.rSqrd);
+                        g2d.setColor(java.awt.Color.green);
+                        drawSquare(g2d, x, y, 5);
+                    }
+                    if (indicesOfClosestThing[1] != -1) // a curve
+                    {
+                        double x = closestPoint.x;
+                        double y = closestPoint.y;
+                        double r = Math.sqrt(closestPoint.rSqrd);
+                        g2d.setColor(java.awt.Color.red);
+                        drawSquare(g2d, x, y, 5);
+                    }
                 }
             }
 
@@ -599,7 +628,7 @@ class AssetGraphUtils
                         else if (mouseState == STATE_DRAGGING_NOTHING)
                         {
                             // pan the whole scene.
-                            // XXX this is silly, shouldn't need to recalculate connectionCurves, shoul just tweak the window transform matrix
+                            // XXX this is silly, shouldn't need to recalculate connectionCurves, should just tweak the window transform matrix
                             pan(assets, curX-prevX, curY-prevY);
                             if (futureAssets != null)
                                 pan(futureAssets, curX-prevX, curY-prevY);
@@ -630,14 +659,37 @@ class AssetGraphUtils
                     }
                     else if (mode == MODE_ASSETS)
                     {
+                        double tooFar = selectRadiusPixels;
+                        FuzzyPoint closestPoint = new FuzzyPoint();
+                        int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
+                                                        curX, curY,
+                                                        assets,
+                                                        connectionCurves,
+                                                        tooFar,
+                                                        maxFuzzyRadiusPixels,
+                                                        closestPoint,
+                                                        true);
+                        PRINTARRAY(indicesOfClosestThing);
+                        PRINT(e.isControlDown());
+                        if (indicesOfClosestThing[0] != -1)
                         {
-                            indexOfThingBeingDragged = findClosest(curX, curY, assets, selectRadiusPixels);
-                            if (indexOfThingBeingDragged != -1)
-                                mouseState = STATE_DRAGGING_ASSET;
-                            else
-                                mouseState = STATE_DRAGGING_NOTHING; // panning
+                            mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_ASSET : STATE_DRAGGING_ASSET);
+                            indexOfThingBeingDragged = indicesOfClosestThing[0];
+                            subIndexOfThingBeingDragged = -1;
                         }
-                        System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged);
+                        else if (indicesOfClosestThing[1] != -1)
+                        {
+                            mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_EVENT : STATE_DRAGGING_EVENT);
+                            indexOfThingBeingDragged = indicesOfClosestThing[1];
+                            subIndexOfThingBeingDragged = indicesOfClosestThing[2];
+                        }
+                        else
+                        {
+                            mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_NOTHING : STATE_DRAGGING_NOTHING); // panning
+                            indexOfThingBeingDragged = -1;
+                            subIndexOfThingBeingDragged = -1;
+                        }
+                        System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged+","+subIndexOfThingBeingDragged+"");
                     }
                     repaint();
 
@@ -646,7 +698,114 @@ class AssetGraphUtils
                 public void mouseReleased(java.awt.event.MouseEvent e)
                 {
                     if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
+                    assert(curX == e.getX()); // XXX not sure this is reliable
+                    assert(curY == e.getY()); // XXX not sure this is reliable
+                    curX = e.getX();
+                    curY = e.getY();
+                    if (mode == MODE_ASSETS)
+                    {
+                        double tooFar = dropRadiusPixels;
+                        FuzzyPoint closestPoint = new FuzzyPoint();
+                        int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
+                                                        curX, curY,
+                                                        assets,
+                                                        connectionCurves,
+                                                        tooFar,
+                                                        maxFuzzyRadiusPixels,
+                                                        closestPoint,
+                                                        true);
+                        PRINTARRAY(indicesOfClosestThing);
+
+                        if (mouseState == STATE_CTRL_DRAGGING_ASSET)
+                        {
+                            // attach the asset, as src,
+                            // to the event or other asset (or the "nothing")
+                            // we just dragged it to.
+                            if (indicesOfClosestThing[0] != -1)
+                            {
+                                // to an asset
+                                System.out.println("dragged an asset to another asset");
+                                PRINTARRAY(connections);
+                                connections = (int[][][])append(connections, new int[][] {{indexOfThingBeingDragged},{indicesOfClosestThing[0]}});
+                                PRINTARRAY(connections);
+                                connectionCurves = null; // dirty
+                            }
+                            else if (indicesOfClosestThing[1] != -1)
+                            {
+                                // to an event
+                                System.out.println("dragged an asset to an event");
+                                PRINTARRAY(connections);
+                                connections[indicesOfClosestThing[1]][0] =
+                                        (int[])append(connections[indicesOfClosestThing[1]][0], new Integer(indexOfThingBeingDragged));
+                                PRINTARRAY(connections);
+                                connectionCurves = null; // dirty
+                            }
+                            else
+                            {
+                                // to nothingness
+                                System.out.println("dragged an asset to nothing");
+                            }
+                        }
+                        else if (mouseState == STATE_CTRL_DRAGGING_EVENT)
+                        {
+                            // if event was dragged to an asset,
+                            // add that asset to the event.
+                            // if event was dragged to another event,
+                            // merge the events.
+                            if (indicesOfClosestThing[0] != -1)
+                            {
+                                // to an asset
+                                System.out.println("dragged an event to another asset");
+                                PRINTARRAY(connections);
+                                connections[indexOfThingBeingDragged][1] = (int[])append(connections[indexOfThingBeingDragged][1], new Integer(indicesOfClosestThing[0]));
+                                PRINTARRAY(connections);
+                                connectionCurves = null; // dirty
+                            }
+                            else if (indicesOfClosestThing[1] != -1)
+                            {
+                                // to an event
+                                System.out.println("dragged an event to an event");
+                                int i0 = indexOfThingBeingDragged;
+                                int i1 = indicesOfClosestThing[1];
+                                PRINTARRAY(connections);
+                                connections[i0][0] = (int[])concat(connections[i0][0], connections[i1][0]);
+                                connections[i0][1] = (int[])concat(connections[i0][1], connections[i1][1]);
+                                connections = (int[][][])deleteElement(connections, i1);
+                                PRINTARRAY(connections);
+                                connectionCurves = null; // dirty
+                            }
+                            else
+                            {
+                                // to nothingness
+                                System.out.println("dragged an event to nothing");
+                            }
+                        }
+                        else if (mouseState == STATE_CTRL_DRAGGING_NOTHING)
+                        {
+                            // if "nothing" was dragged to an asset,
+                            // make a new event with no srcs
+                            // and just that asset as its destination.
+                            if (indicesOfClosestThing[0] != -1)
+                            {
+                                // to an asset
+                                System.out.println("dragged nothingness to another asset");
+                            }
+                            else if (indicesOfClosestThing[1] != -1)
+                            {
+                                // to an event
+                                System.out.println("dragged nothingness to an event");
+                            }
+                            else
+                            {
+                                // to nothingness
+                                System.out.println("dragged nothingness an event to nothing");
+                            }
+                        }
+                    }
                     indexOfThingBeingDragged = -1;
+                    subIndexOfThingBeingDragged = -1;
+                    repaint();
+
                     if (eventVerbose >= 1) System.out.println("    out mouseReleased");
                 }
                 public void mouseEntered(java.awt.event.MouseEvent e)
@@ -671,6 +830,29 @@ class AssetGraphUtils
                     char c = e.getKeyChar();
                     switch(c)
                     {
+                        case 'h':
+                        case '?':
+                            System.out.println("");
+                            System.out.println("    Mouse:");
+                            System.out.println("            Left drag asset -- move asset");
+                            System.out.println("            Ctrl-Left drag asset -> asset -- new event");
+                            System.out.println("            Ctrl-Left drag asset -> event -- add the asset to the event as another src");
+                            System.out.println("            Ctrl-Left drag event -> asset -- add the asset to the event as another dst");
+                            System.out.println("            Ctrl-Left drag event -> event -- merge the events");
+                            System.out.println("            Ctrl-Left drag asset -> nothingness -- new event with just the single src");
+                            System.out.println("            Ctrl-Left drag nothingness -> asset -- new event with just the single dst");
+
+                            System.out.println("    Keys:");
+                            System.out.println("            n -- new asset");
+                            System.out.println("     Delete/d -- delete nearest asset or event");
+                            System.out.println("            c -- clean up circle (after n, d, and dragging assets around)");
+                            System.out.println("            - -- zoom out");
+                            System.out.println("          =/+ -- zoom in");
+                            System.out.println("            m -- toggle mode between asset graph and single cubic curve");
+                            System.out.println("          ?/h -- show this help message");
+                            System.out.println("");
+                            break;
+
                         case '+': case '=':
                         case '-':
                             {
@@ -711,10 +893,7 @@ class AssetGraphUtils
                         case 'n': // add a new asset
                             if (mode == MODE_ASSETS)
                             {
-                                double newAssets[][] = new double[assets.length+1][];
-                                System.arraycopy(assets, 0, newAssets, 0, assets.length);
-                                newAssets[assets.length] = new double[] {curX, curY};
-                                assets = newAssets;
+                                assets = (double[][])append(assets, new double[] {curX, curY});
                             }
                             // no need to dirty curves since this is added on the end and isn't a part of any curve
                             repaint();
@@ -725,9 +904,19 @@ class AssetGraphUtils
                             {
                                 // delete closest thing
                                 // (asset, event, or membership)
-                                int ind = findClosest(curX, curY, assets, deleteRadiusPixels);
-                                if (ind != -1)
+                                double tooFar = deleteRadiusPixels;
+                                FuzzyPoint closestPoint = new FuzzyPoint();
+                                int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
+                                                                curX, curY,
+                                                                assets,
+                                                                connectionCurves,
+                                                                tooFar,
+                                                                maxFuzzyRadiusPixels,
+                                                                closestPoint,
+                                                                false);
+                                if (indicesOfClosestThing[0] != -1)
                                 {
+                                    int ind = indicesOfClosestThing[0]; // asset index to delete
                                     assets = (double[][])deleteElement(assets, ind);
                                     if (futureAssets != null)
                                         futureAssets = (double[][])deleteElement(futureAssets, ind);
@@ -751,12 +940,21 @@ class AssetGraphUtils
                                         }
                                     }
                                 }
+                                else if (indicesOfClosestThing[1] != -1)
+                                {
+                                    System.out.println("    deleting an event or connection or something");
+                                    // XXX should just delete the connection
+                                    connections = (int[][][])deleteElement(connections, indicesOfClosestThing[1]);
+                                }
                             }
                             connectionCurves = null; // dirty
                             repaint();
                             break;
                         default:
-                            System.out.println("Unknown key '"+c+"'("+(int)c+")");
+                            if (c != 65535) // XXX empirically, shift and ctrl-- weird
+                            {
+                                System.out.println("Unknown key '"+c+"'("+(int)c+")");
+                            }
                             break;
                     }
                     if (eventVerbose >= 1) System.out.println("    out keyPressed");
@@ -890,13 +1088,63 @@ class AssetGraphUtils
                 }
             }
             return bestI;
-        } // class
+        } // findClosest
+
+        //
+        // If closest thing is an asset,
+        // return its index in [0] and set [1] and [2] to -1.
+        // If closest thing is a curve segment of an event,
+        // then set [1] and [2] to its indices and set [0]
+        // to zero.
+        //
+        private static int[/*3*/] getIndicesOfClosestThing(
+                                      double curX, double curY,
+                                      double assets[][/*2*/],
+                                      java.awt.Shape curves[][],
+                                      double tooFar,
+                                      double maxFuzzyRadius,
+                                      FuzzyPoint closestPoint, // output
+                                      boolean assetsShouldTakePrecedenceIfFound)
+        {
+            int closestAssetIndex = findClosest(curX, curY, assets, tooFar);
+            //PRINT(closestAssetIndex);
+            //PRINT(assetsShouldTakePrecedenceIfFound);
+            if (closestAssetIndex != -1)
+                tooFar = dist(curX,curY,assets[closestAssetIndex][0],assets[closestAssetIndex][1]);
+            int closestCurveIndices[];
+            if (closestAssetIndex != -1 && assetsShouldTakePrecedenceIfFound)
+            {
+                closestCurveIndices = new int[] {-1,-1};
+            }
+            else
+            {
+                closestCurveIndices = getClosestPointOnCubicCurves(
+                                            curX, curY,
+                                            curves,
+                                            tooFar,
+                                            maxFuzzyRadiusPixels,
+                                            closestPoint);
+            }
+            if (closestCurveIndices[0] != -1)
+                return new int[] {-1, closestCurveIndices[0], closestCurveIndices[1]};
+            else if (closestAssetIndex != -1)
+            {
+                closestPoint.x = assets[closestAssetIndex][0];
+                closestPoint.y = assets[closestAssetIndex][1];
+                closestPoint.rSqrd = 0.;
+                return new int[] {closestAssetIndex, -1, -1};
+            }
+            else
+                return new int[] {-1,-1,-1};
+        } // getIndicesOfClosestThing
+
 
 
         // How close does the mouse have to be to select something?
         private static final double selectRadiusPixels = 10;
         private static final double dropRadiusPixels = 20;
         private static final double deleteRadiusPixels = 10000; // just allow deleting from arbitrary distance
+        private static final double maxFuzzyRadiusPixels = .5; // how precisely to get closest point on curves
 
 
         private int curX = 0;
@@ -1004,6 +1252,39 @@ class AssetGraphUtils
             System.arraycopy(array, ind+1, newArray, ind, n-1-ind);
             return newArray;
         } // deleteElement
+        /**
+         * Returns a newly allocated array
+         * consisting of the old array with the "last" object appended.
+         * <br>
+         * array can have scalar components,
+         * in which case last should be of the corresponding wrapper type.
+         */
+        public static Object append(Object array,
+                                    Object last)
+        {
+            int n = java.lang.reflect.Array.getLength(array);
+            Object result = java.lang.reflect.Array.newInstance(
+                                    array.getClass().getComponentType(), n+1);
+            System.arraycopy(array, 0, result, 0, n);
+            java.lang.reflect.Array.set(result, n, last);
+            return result;
+        } // append
+        /**
+         * Returns a newly allocated array
+         * that is the concatenation of the given arrays.
+         */
+        public static Object concat(Object array0,
+                                    Object array1)
+        {
+            int n0 = java.lang.reflect.Array.getLength(array0);
+            int n1 = java.lang.reflect.Array.getLength(array1);
+            Object newArray = java.lang.reflect.Array.newInstance(
+                                        array0.getClass().getComponentType(),
+                                        n0 + n1);
+            System.arraycopy(array0, 0, newArray, 0, n0);
+            System.arraycopy(array1, 0, newArray, n0, n1);
+            return newArray;
+        } // concat
 
     } // class MyPanel
 
@@ -1023,6 +1304,7 @@ class AssetGraphUtils
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent event)
             {
+                System.out.println("Chow!");
                 System.exit(0);
             }
         });
