@@ -4,7 +4,8 @@
 
 //
 // XXX to do:
-//     - problem when just one asset and a from event and a to event
+//     - middle mouse should also be way to connect things
+//     - problem when just one asset and a from event and a to event (I think)
 //     - need asset radius? not sure how important
 //     - do NOT steal focus on startup!! dang it!
 //     - and what the hell is that beep on startup???
@@ -21,15 +22,15 @@
 //
 //   GUI:
 //      [ ] Auto Clean Circle
-//      [ ] Auto Clean And Center
+//      [ ] Auto Clean And Center   (nah, I think auto clean should do this)
 //      [Clean Circle] [Clean and Center]
 //      [Save DUMP.txt] [Load DUMP.txt]
 //      [+] [-]
 //      [ ] Label assets
 //      [Assets|One Curve] Mode
+//      [ ] Arrowhead on single-srcs
 //      [Quit]
 //      [Help]
-//      [ ] Arrowhead on single-srcs
 //      
 
 
@@ -1065,6 +1066,7 @@ class AssetGraphUtils
                             System.out.println("            s -- toggle arrowheads on single-src events");
                             System.out.println("            m -- toggle mode between asset graph and single cubic curve");
                             System.out.println("          ?/h -- show this help message");
+                            System.out.println("    Escape/Ctrl-c/Ctrl-q/q/Q -- quit");
                             System.out.println("");
                             break;
 
@@ -1182,8 +1184,18 @@ class AssetGraphUtils
                             connectionCurves = null; // dirty
                             repaint();
                             break;
+                        case 'q':
+                        case 'Q':
+                        case 'q'-'a'+1: // ctrl-q
+                        case 'c'-'a'+1: // ctrl-c
+                            System.out.println("Chow!");
+                            System.exit(0);
+                            break;
+
+                        case 65535:
+                            // XXX empirically, shift and ctrl-- weird
+                            break;
                         default:
-                            if (c != 65535) // XXX empirically, shift and ctrl-- weird
                             {
                                 System.out.println("Unknown key '"+c+"'("+(int)c+")");
                             }
