@@ -1,7 +1,10 @@
 #include "macros.h" // XXX get rid
+#undef PRINTARRAY
+#define PRINTARRAY(x) System.out.println(#x + " = " + arrayToString(x))
+
 //
 // XXX to do:
-//     - closest point in multiple curves isn't right yet
+//     - need asset radius
 //     - do NOT steal focus on startup!! dang it!
 //     - and what is the beep???
 //     - think about whether I can jitter or something
@@ -11,7 +14,10 @@
 //     - thicken lines? nah...
 //     - label assets? might help for debugging
 //     - gui elements for +, -, clean up circle
-//     - autoclean? (when n, d, or move)
+//     - autoclean! (when n, d, or move)
+//     - save/load?
+//     - clever centering zoom
+//     - arrowheads on single-sources? not sure
 
 
 class AssetGraphUtils
@@ -144,11 +150,11 @@ class AssetGraphUtils
             {
                 // hack, sort of... just put A and B right in the center;
                 // average of the 3 sites.
+                // this means the bar will be zero-length.
                 A = B = lerp(srcCenter, dstCenter, (double)nDsts/(nSrcs+nDsts));
             }
 
             int iCurve = 0;
-            // Straight line between A and B...
             for (int iSrc = 0; iSrc < nSrcs; ++iSrc)
             {
                 double src[/*2*/] = (srcInds != null ? srcs[srcInds[iSrc]] : srcs[iSrc]);
@@ -158,19 +164,19 @@ class AssetGraphUtils
                                             controlA[0], controlA[1],
                                             A[0], A[1]);
             }
-            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
-                A[0], A[1],
-                A[0], A[1],
-                B[0], B[1],
-                B[0], B[1]);
             for (int iDst = 0; iDst < nDsts; ++iDst)
             {
                 double dst[/*2*/] = (dstInds != null ? dsts[dstInds[iDst]] : dsts[iDst]);
                 curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
+                                            B[0], B[1],
                                             controlB[0], controlB[1],
-                                            B[0], B[1]);
+                                            dst[0], dst[1],
+                                            dst[0], dst[1]);
+            }
+            // Arrowheads...
+            for (int iDst = 0; iDst < nDsts; ++iDst)
+            {
+                double dst[/*2*/] = (dstInds != null ? dsts[dstInds[iDst]] : dsts[iDst]);
                 // XXX note, controlB is kind of a hack... but it sorta works most of the time.
                 curves[iCurve++] = arrowHeadSide(controlB[0], controlB[1],
                                                  dst[0], dst[1],
@@ -181,6 +187,13 @@ class AssetGraphUtils
                                                  arrowHeadLength,
                                                  -Math.PI*5/6);
             }
+
+            // Straight line between A and B...
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                A[0], A[1],
+                A[0], A[1],
+                B[0], B[1],
+                B[0], B[1]);
             assert(iCurve == nCurves);
             return curves;
         }
@@ -229,8 +242,8 @@ class AssetGraphUtils
     static class FuzzyPoint {
         double x, y, rSqrd;
     }
-    static void getFuzzyPointContainingCurve(java.awt.geom.CubicCurve2D curve,
-                                             FuzzyPoint result)
+    static void getCurveBoundingBall(java.awt.geom.CubicCurve2D curve,
+                                     FuzzyPoint result)
     {
         // A CubicCurve2D is always contained inside
         // the bounding box of its 4 definining points...
@@ -249,12 +262,12 @@ class AssetGraphUtils
         double distSqrd1 = distSqrd(x,y, x1,y1);
         double distSqrd2 = distSqrd(x,y, x2,y2);
         double distSqrd3 = distSqrd(x,y, x3,y3);
-        double rSqrd = min4(distSqrd0,distSqrd1,distSqrd2,distSqrd3);
+        double rSqrd = max4(distSqrd0,distSqrd1,distSqrd2,distSqrd3);
 
         result.x = x;
         result.y = y;
         result.rSqrd = rSqrd;
-    } // getFuzzyPointContainingCurve
+    } // getCurveBoundingBall
 
 
     private static int[/*2*/] getClosestPointOnCubicCurves(
@@ -288,8 +301,12 @@ class AssetGraphUtils
                     bestY = closestPoint.y;
                     bestRSqrd = closestPoint.rSqrd;
                     double newTooFar = dist(x, y, bestX, bestY);
-                    // XXX argh, the following fails, need fuzzy comparison I think
-                    //assert(newTooFar < tooFar); // it shouldn't have succeeded otherwise
+                    // XXX argh, the following fails, need fuzzy comparison I think? or else I messed up my logic
+                    if (newTooFar >= tooFar)
+                    {
+                        System.out.println("uh oh, newTooFar = "+newTooFar+", tooFar = "+tooFar+"");
+                    }
+                    assert(newTooFar < tooFar); // it shouldn't have succeeded otherwise
                     tooFar = newTooFar;
                 }
             }
@@ -315,28 +332,37 @@ class AssetGraphUtils
         // has been filled in with a bounding ball...
         // (this is an optimization because
         // in all recursive calls, the caller already knows the bounding ball).
-        getFuzzyPointContainingCurve(curve, closestPoint);
+        getCurveBoundingBall(curve, closestPoint);
         int nSubdivsCalled[] = {0};
+        //System.out.println("========");
         boolean result = _getClosestPointOnCubicCurve(x,y, curve, tooFar,
                                                       maxFuzzyRadius,
                                                       closestPoint,
-                                                      nSubdivsCalled);
+                                                      nSubdivsCalled,
+
+                                                      null
+                                                      //"." use this instead to debug
+
+                                                      );
         if (verbose >= 1) System.out.println("    num subdivs called = "+nSubdivsCalled[0]+"");
         return result;
     } // getClosestPointOnCubicCurve
 
     // Recursive work function of getClosestPointOnCubicCurve().
     // closestPoint must be initialized to a bounding ball
-    // of the curve (caller can do this using getFuzzyPointContaining).
+    // of the curve (caller can do this using getCurveBoundingBall).
     private static boolean _getClosestPointOnCubicCurve(
                                double x, double y,
                                java.awt.geom.CubicCurve2D curve,
                                double tooFar,
                                double maxFuzzyRadius,
                                FuzzyPoint closestPoint, // input/output
-                               int nSubdivsCalled[/*1*/]) // output statistics
+                               int nSubdivsCalled[/*1*/], // output statistics
+                               String addressForDebugging)
     {
-        // Caller has filled in closestPoint with
+        if (addressForDebugging != null)
+            System.out.println("Looking at: "+addressForDebugging);
+        // Caller has already filled in closestPoint with
         // a bounding ball of the curve...
         double distSqrd = distSqrd(x,y, closestPoint.x,closestPoint.y);
         if (closestPoint.rSqrd <= maxFuzzyRadius*maxFuzzyRadius)
@@ -348,11 +374,15 @@ class AssetGraphUtils
         }
         double minPossibleDist = Math.sqrt(distSqrd)
                                - Math.sqrt(closestPoint.rSqrd);
+        if (minPossibleDist < 0)
+            minPossibleDist = 0;
+        //PRINT(minPossibleDist);
         if (minPossibleDist*minPossibleDist >= tooFar*tooFar)
         {
             //System.out.println("    TOO FAR");
             return false;
         }
+        //System.out.println("    SUBDIVIDING");
 
         //
         // Subdivide
@@ -365,36 +395,46 @@ class AssetGraphUtils
         FuzzyPoint leftPoint = new FuzzyPoint();
         FuzzyPoint rightPoint = new FuzzyPoint();
 
-        getFuzzyPointContainingCurve(left, leftPoint);
-        getFuzzyPointContainingCurve(right, rightPoint);
+        getCurveBoundingBall(left, leftPoint);
+        getCurveBoundingBall(right, rightPoint);
 
         double leftDistSqrd = distSqrd(x,y,leftPoint.x,leftPoint.y);
         double rightDistSqrd = distSqrd(x,y,rightPoint.x,rightPoint.y);
 
         //System.out.println("    dists = "+Math.sqrt(leftDistSqrd)+","+Math.sqrt(rightDistSqrd));
+        boolean swapped = false; // for debugging
         if (rightDistSqrd < leftDistSqrd)
         //if (rightDistSqrd > leftDistSqrd) // XXX WRONG! testing, should be grossly inefficient
         {
             // Swap left and right so that left is closer
             { java.awt.geom.CubicCurve2D temp = left; left = right; right = temp; }
             { FuzzyPoint temp = leftPoint; leftPoint = rightPoint; rightPoint = temp; }
+            swapped = true;
         }
 
         boolean leftResult = _getClosestPointOnCubicCurve(x, y, left,
                                                           tooFar,
                                                           maxFuzzyRadius,
                                                           leftPoint,
-                                                          nSubdivsCalled);
+                                                          nSubdivsCalled,
+                                                          addressForDebugging != null ? "    "+addressForDebugging+(swapped?"l":"L"):null);
         if (leftResult)
         {
-            tooFar = Math.min(tooFar,
-                              dist(x,y, leftPoint.x,leftPoint.y)); // XXX inefficient
+            double newTooFar = dist(x, y, leftPoint.x, leftPoint.y);
+            // XXX argh, the following fails, need fuzzy comparison I think? or else I messed up my logic
+            if (newTooFar >= tooFar)
+            {
+                System.out.println("uh oh, newTooFar = "+newTooFar+", tooFar = "+tooFar+"");
+            }
+            assert(newTooFar < tooFar); // it shouldn't have succeeded otherwise
+            tooFar = newTooFar;
         }
         boolean rightResult = _getClosestPointOnCubicCurve(x, y, right,
                                                            tooFar,
                                                            maxFuzzyRadius,
                                                            rightPoint,
-                                                           nSubdivsCalled);
+                                                           nSubdivsCalled,
+                                                           addressForDebugging != null ? "    "+addressForDebugging+(swapped?"r":"R"):null);
         if (rightResult)
         {
             closestPoint.x = rightPoint.x;
@@ -419,6 +459,14 @@ class AssetGraphUtils
     //
     // Little utils...
     //
+    private static double max4(double a, double b, double c, double d)
+    {
+        double max = a;
+        if (b > max) max = b;
+        if (c > max) max = c;
+        if (d > max) max = d;
+        return max;
+    } // max4
     private static double min4(double a, double b, double c, double d)
     {
         double min = a;
@@ -463,6 +511,27 @@ class AssetGraphUtils
             java.awt.geom.Rectangle2D.Double square = new java.awt.geom.Rectangle2D.Double(x-r, y-r, 2*r, 2*r);
             g2d.draw(square);
         } // drawSquare
+
+        // draw showing subdivision points, for debugging.
+        // if nLevels is 0, just draw normally.
+        static void drawCurveSubdivided(java.awt.Graphics2D g2d, java.awt.geom.CubicCurve2D curve, int nLevels)
+        {
+            if (nLevels > 0)
+            {
+                java.awt.geom.CubicCurve2D left = new java.awt.geom.CubicCurve2D.Double();
+                java.awt.geom.CubicCurve2D right = new java.awt.geom.CubicCurve2D.Double();
+                curve.subdivide(left, right);
+                drawCurveSubdivided(g2d, left, nLevels-1);
+                drawCurveSubdivided(g2d, right, nLevels-1);
+                // both should end up in same place...
+                drawSquare(g2d, left.getX2(),left.getY2(), 2);
+                drawSquare(g2d, right.getX1(),right.getY1(), 4);
+            }
+            else
+            {
+                g2d.draw(curve);
+            }
+        } // drawCurveSubdivided
 
     public static class MyPanel
         extends javax.swing.JPanel
@@ -520,7 +589,8 @@ class AssetGraphUtils
                         controlPoints[3][1]);
                 java.awt.Stroke oldStroke = g2d.getStroke();
                 g2d.setStroke(new java.awt.BasicStroke(2)); // line thickness = 2
-                g2d.draw(curve);
+                //g2d.draw(curve);
+                drawCurveSubdivided(g2d, curve, nDebugSubdivisionLevels);
                 g2d.setStroke(oldStroke);
 
                 FuzzyPoint closestPoint = new FuzzyPoint();
@@ -560,7 +630,11 @@ class AssetGraphUtils
                 {
                     for (int j = 0; j < connectionCurves[i].length; ++j)
                     {
-                        g2d.draw(connectionCurves[i][j]);
+                        //g2d.draw(connectionCurves[i][j]);
+                        if (connectionCurves[i][j] instanceof java.awt.geom.CubicCurve2D)
+                            drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[i][j],nDebugSubdivisionLevels);
+                        else
+                            g2d.draw(connectionCurves[i][j]);
                     }
                 }
 
@@ -614,7 +688,7 @@ class AssetGraphUtils
                         double y = closestPoint.y;
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
-                        drawSquare(g2d, x, y, 5);
+                        drawSquare(g2d, x, y, 2);
                     }
                 }
             }
@@ -745,6 +819,11 @@ class AssetGraphUtils
                 public void mouseReleased(java.awt.event.MouseEvent e)
                 {
                     if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
+                    if (curX != e.getX()
+                     || curY != e.getY())
+                    {
+                        System.out.println("I'M CONFUSED: current position was "+curX+","+curY+", but mouse released at "+e.getX()+","+e.getY()+"");
+                    }
                     assert(curX == e.getX()); // XXX not sure this is reliable
                     assert(curY == e.getY()); // XXX not sure this is reliable
                     curX = e.getX();
@@ -914,10 +993,17 @@ class AssetGraphUtils
                         case '+': case '=':
                         case '-':
                             {
+                                double center[] = average(assets, null);
                                 double scale = Math.pow(2., .1);
                                 if (c == '-')
+                                {
                                     scale = 1./scale;
-                                double center[] = average(assets, null);
+                                    // Attempt clever way to make everything
+                                    // drift towards centered--
+                                    // expand from center of object,
+                                    // but shrink towards center of screen!
+                                    center =  new double[] {getWidth()/2,getHeight()/2};
+                                }
                                 for (int i = 0; i < assets.length; ++i)
                                     assets[i] = lerp(center, assets[i], scale);
                             }
@@ -1213,6 +1299,7 @@ class AssetGraphUtils
 
         private int eventVerbose = 0;
         private int verbose = 0;
+        private int nDebugSubdivisionLevels = 0; // set to higher to see curve subdivisions
 
         private static final int MODE_ONE_CURVE = 0;
         private static final int MODE_ASSETS = 1;
@@ -1260,7 +1347,6 @@ class AssetGraphUtils
                     {{6},{3,2}},
                     {{7,8},{1}},
                     {{9,10},{17,0}},
-                    //{{9,0},{17,10}},
                     {{11},{}},
                     {{},{16}},
                     {{12,13},{}},
@@ -1346,7 +1432,7 @@ class AssetGraphUtils
             return newArray;
         } // concat
 
-        /* // what the hell? why can't I compile these?
+        // XXX wtf? jikes chokes on both of these using 1.5 libraries
         public static String arrayToString(Object array)
         {
             StringBuffer sb = new StringBuffer();
@@ -1370,7 +1456,6 @@ class AssetGraphUtils
                 sb.append("}");
             }
         }
-        */
     } // class MyPanel
 
 
