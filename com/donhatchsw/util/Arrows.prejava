@@ -706,7 +706,7 @@ class AssetGraph
         private int curX = 0;
         private int curY = 0;
 
-        private int eventVerbose = 1;
+        private int eventVerbose = 0;
         private int verbose = 0;
 
         private static final int MODE_ONE_CURVE = 0;
