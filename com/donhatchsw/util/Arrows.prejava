@@ -88,6 +88,12 @@ class AssetGraph
             double B[/*2*/] = lerp(dstCenter, centerCenter, .5);
             double controlA[/*2*/] = lerp(A, srcCenter, 1./3.);
             double controlB[/*2*/] = lerp(B, dstCenter, 1./3.);
+            if (nSrcs + nDsts == 3)
+            {
+                // hack, sort of... just put A and B right in the center;
+                // average of the 3 sites.
+                A = B = lerp(srcCenter, dstCenter, (double)nDsts/(nSrcs+nDsts));
+            }
 
             int iCurve = 0;
             // Straight line between A and B...
@@ -463,6 +469,11 @@ class AssetGraph
             clear(g);
             java.awt.Graphics2D g2d = (java.awt.Graphics2D)g;
 
+            g2d.setColor(java.awt.Color.blue);
+            drawSquare(g2d, curX, curY, 5);
+
+            g2d.setColor(java.awt.Color.black);
+
             if (mode == MODE_ONE_CURVE)
             {
                 for (int i = 0; i < controlPoints.length; ++i)
@@ -483,27 +494,32 @@ class AssetGraph
                         controlPoints[3][1]);
                 g2d.draw(curve);
 
-                g2d.setColor(java.awt.Color.blue);
-                drawSquare(g2d, curX, curY, 2);
-
                 FuzzyPoint closestPoint = new FuzzyPoint();
                 double maxFuzzyRadius = .5; // half a pixel
                 boolean result = getClosestPointOnCubicCurve(
                                      curX, curY,
                                      curve,
-                                     Double.POSITIVE_INFINITY, // tooFarSqrd
+
+                                     //Double.POSITIVE_INFINITY, // tooFarSqrd
+                                     selectRadiusPixels*selectRadiusPixels,
+
                                      maxFuzzyRadius,
                                      closestPoint,
                                      this.verbose);
-                double x = closestPoint.x;
-                double y = closestPoint.y;
-                double r = Math.sqrt(closestPoint.rSqrd);
-                g2d.setColor(java.awt.Color.red);
-                drawSquare(g2d, x, y, 1);
-                drawSquare(g2d, x, y, r); // dot in the middle
+                if (result)
+                {
+                    double x = closestPoint.x;
+                    double y = closestPoint.y;
+                    double r = Math.sqrt(closestPoint.rSqrd);
+                    g2d.setColor(java.awt.Color.red);
+                    drawSquare(g2d, x, y, 1);
+                    drawSquare(g2d, x, y, r); // dot in the middle
+                }
             }
             else if (mode == MODE_ASSETS)
             {
+                if (connectionCurves == null)
+                    recalculateCurves();
                 for (int i = 0; i < assets.length; ++i)
                 {
                     drawSquare(g2d, assets[i][0],assets[i][1], 2);
@@ -521,15 +537,21 @@ class AssetGraph
                 boolean result = getClosestPointOnCubicCurves(
                                         curX, curY,
                                         connectionCurves,
-                                        Double.POSITIVE_INFINITY, // tooFarSqrd
+
+                                        //selectRadiusPixels*selectRadiusPixels,
+                                        Double.POSITIVE_INFINITY,
+
                                         maxFuzzyRadius,
                                         closestPoint);
-                double x = closestPoint.x;
-                double y = closestPoint.y;
-                double r = Math.sqrt(closestPoint.rSqrd);
-                g2d.setColor(java.awt.Color.red);
-                drawSquare(g2d, x, y, 1);
-                drawSquare(g2d, x, y, r); // dot in the middle
+                if (result)
+                {
+                    double x = closestPoint.x;
+                    double y = closestPoint.y;
+                    double r = Math.sqrt(closestPoint.rSqrd);
+                    g2d.setColor(java.awt.Color.red);
+                    drawSquare(g2d, x, y, 1);
+                    drawSquare(g2d, x, y, r); // dot in the middle
+                }
             }
 
             if (eventVerbose >= 2) System.out.println("    out paint");
@@ -562,10 +584,22 @@ class AssetGraph
                     int prevY = curY;
                     curX = e.getX();
                     curY = e.getY();
-                    if (indexOfThingBeingDragged != -1)
+                    if (mode == MODE_ONE_CURVE)
                     {
-                        controlPoints[indexOfThingBeingDragged][0] += curX - prevX;
-                        controlPoints[indexOfThingBeingDragged][1] += curY - prevY;
+                        if (indexOfThingBeingDragged != -1)
+                        {
+                            controlPoints[indexOfThingBeingDragged][0] += curX - prevX;
+                            controlPoints[indexOfThingBeingDragged][1] += curY - prevY;
+                        }
+                    }
+                    else if (mode == MODE_ASSETS)
+                    {
+                        if (indexOfThingBeingDragged != -1)
+                        {
+                            assets[indexOfThingBeingDragged][0] += curX - prevX;
+                            assets[indexOfThingBeingDragged][1] += curY - prevY;
+                            connectionCurves = null; // dirty
+                        }
                     }
 
                     repaint();
@@ -586,12 +620,12 @@ class AssetGraph
                     // control point
                     if (mode == MODE_ONE_CURVE)
                     {
-                        indexOfThingBeingDragged = findClosest(curX, curY, controlPoints);
+                        indexOfThingBeingDragged = findClosest(curX, curY, controlPoints, selectRadiusPixels);
                         System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged);
                     }
                     else if (mode == MODE_ASSETS)
                     {
-                        indexOfThingBeingDragged = findClosest(curX, curY, assets);
+                        indexOfThingBeingDragged = findClosest(curX, curY, assets, selectRadiusPixels);
                         System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged);
                     }
                     repaint();
@@ -646,10 +680,10 @@ class AssetGraph
             return assets;
         } // makeCircle
 
-        private static int findClosest(double x, double y, double points[][/*2*/])
+        private static int findClosest(double x, double y, double points[][/*2*/], double tooFar)
         {
             int bestI = -1;
-            double bestDistSqrd = Double.POSITIVE_INFINITY;
+            double bestDistSqrd = tooFar*tooFar;
 
             for (int i = 0; i < points.length; ++i)
             {
@@ -664,6 +698,11 @@ class AssetGraph
         } // class
 
 
+        // How close does the mouse have to be to select something?
+        private static final double selectRadiusPixels = 5;
+        private static final double dropRadiusPixels = 5;
+
+
         private int curX = 0;
         private int curY = 0;
 
@@ -672,7 +711,8 @@ class AssetGraph
 
         private static final int MODE_ONE_CURVE = 0;
         private static final int MODE_ASSETS = 1;
-        private int mode = MODE_ASSETS;
+        //private int mode = MODE_ASSETS;
+        private int mode = MODE_ONE_CURVE;
 
         private static final int STATE_NOTHING = 0;
         private static final int STATE_CTRL_NOTHING = 1;
@@ -719,21 +759,25 @@ class AssetGraph
                     {{12,13},{}},
                     {{},{14,15}},
                 };
-                java.awt.geom.CubicCurve2D connectionCurves[][] = new java.awt.geom.CubicCurve2D[connections.length][];
-                {
-                    for (int i = 0; i < connections.length; ++i)
-                    {
-                        connectionCurves[i] = getCurves(
-                                        assets,connections[i][0],
-                                        assets,connections[i][1],
-                                        srcRadii,
-                                        dstRadii,
-                                        arrowHeadLength,
-                                        graphCenter,
-                                        arrowLengthForSingle);
-                        assert(connectionCurves[i] != null);
-                    }
-                }
+                java.awt.geom.CubicCurve2D connectionCurves[][] = null; // dirty; calculated on demand
+
+        private void recalculateCurves()
+        {
+            connectionCurves = new java.awt.geom.CubicCurve2D[connections.length][];
+            for (int i = 0; i < connections.length; ++i)
+            {
+                connectionCurves[i] = getCurves(
+                                assets,connections[i][0],
+                                assets,connections[i][1],
+                                srcRadii,
+                                dstRadii,
+                                arrowHeadLength,
+                                graphCenter,
+                                arrowLengthForSingle);
+                assert(connectionCurves[i] != null);
+            }
+        } // calculateCurves
+
     } // class MyPanel
 
 
