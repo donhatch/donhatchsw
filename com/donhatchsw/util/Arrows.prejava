@@ -11,7 +11,7 @@
 //     - arrowheads on single-sources? not sure
 //
 // XXX to do for test:
-//     - show list of current event at bottom
+//     - make a bar for 3-prong events and 2-src events and 2-dst events! (everyone else has a bar!)
 //     - button bar
 //     - middle mouse should also be way to connect things
 //     - rubber band when connecting things
@@ -817,6 +817,12 @@ class AssetGraphUtils
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 2);
+
+                        // Re-draw the asset in red (XXX this doesn't look great when antialiasing... should suppress drawing it in black to begin with
+                        {
+                            drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[indicesOfClosestThing[1]][indicesOfClosestThing[2]],nDebugSubdivisionLevels);
+                        }
+
                         if (showHoverLabel)
                         {
                             int ind = indicesOfClosestThing[1];
@@ -1329,9 +1335,27 @@ class AssetGraphUtils
                                 }
                                 else if (indicesOfClosestThing[1] != -1)
                                 {
-                                    System.out.println("    deleting event "+indicesOfClosestThing[1]+"/"+connections.length+" (closest subpart was "+indicesOfClosestThing[2]+")");
                                     // XXX should just delete the connection
-                                    connections = (int[][][])deleteElement(connections, indicesOfClosestThing[1]);
+                                    int ind = indicesOfClosestThing[1];
+                                    int legInd = indicesOfClosestThing[2];
+                                    int event[][] = connections[ind];
+                                    int nSrcs = event[0].length;
+                                    int nDsts = event[1].length;
+                                    if (legInd < nSrcs)
+                                    {
+                                        System.out.println("    deleting asset "+connections[ind][0][legInd]+" from srcs of Event "+arrayToString(connections[ind]));
+                                        connections[ind][0] = (int[])deleteElement(connections[ind][0], legInd);
+                                    }
+                                    else if (legInd < nSrcs+nDsts)
+                                    {
+                                        System.out.println("    deleting asset "+connections[ind][1][legInd-nSrcs]+" from dsts of Event "+arrayToString(connections[ind]));
+                                        connections[ind][1] = (int[])deleteElement(connections[ind][1], legInd-nSrcs);
+                                    }
+                                    else
+                                    {
+                                        System.out.println("    deleting event "+ind+"/"+connections.length+" (closest subpart was "+legInd+")");
+                                        connections = (int[][][])deleteElement(connections, ind);
+                                    }
                                 }
                             }
                             connectionCurves = null; // dirty
