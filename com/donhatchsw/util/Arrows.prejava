@@ -1346,6 +1346,31 @@ class AssetGraphUtils
             return newArray;
         } // concat
 
+        /* // what the hell? why can't I compile these?
+        public static String arrayToString(Object array)
+        {
+            StringBuffer sb = new StringBuffer();
+            appendArrayToString(array, sb);
+            return sb.toString();
+        }
+        public static void appendArrayToString(Object array, StringBuffer sb)
+        {
+            if (!array.getClass().isArray())
+                sb.append(array);
+            else
+            {
+                int n = java.lang.reflect.Array.getLength(array);
+                sb.append("{");
+                for (int i = 0; i < n; ++i)
+                {
+                    if (i > 0)
+                        sb.append(",");
+                    appendArrayToString(java.lang.reflect.Array.get(array,i), sb);
+                }
+                sb.append("}");
+            }
+        }
+        */
     } // class MyPanel
 
 
