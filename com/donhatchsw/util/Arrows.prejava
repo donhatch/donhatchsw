@@ -13,6 +13,7 @@
 //     - arrowheads on single-sources? not sure (I made it a parameter)
 //
 // XXX to do for test:
+//     - help should go to a help window, not stdout
 //     - button bar
 //     - should adjust radius of what gets shown in red:
 //              if control is down, use select radius (obj affected by click)
@@ -25,20 +26,6 @@
 //     - thicken lines? nah...
 //     - should be passing around tooFarSqrd, not tooFar, maybe
 //
-//   GUI: (button bar)
-//      [ ] Auto Clean Circle
-//      [ ] Auto Clean And Center   (nah, I think auto clean should do this)
-//      [Clean Circle] [Clean and Center]
-//      [Save DUMP.txt] [Load DUMP.txt]
-//      [+] [-]
-//      [ ] Label assets
-//      [Assets|One Curve] Mode
-//      [ ] Arrowhead on single-srcs
-//      [ ] label assets
-//      [ ] label events (with full dump!) (but how to find where to label it?)
-//                                               (oh maybe show it below?)
-//      [Quit]
-//      [Help]
 //      
 
 #include "macros.h"
@@ -1050,35 +1037,120 @@ class AssetGraphUtils
             //
             // Add children...
             //
+
+//      [ ] Auto Clean Circle
+//      [ ] Auto Clean And Center   (nah, I think auto clean should do this)
+//      [Clean Circle] [Clean and Center]
+//      [Save DUMP.txt] [Load DUMP.txt]
+//      [+] [-]
+//      [ ] Label assets
+//      [Assets|One Curve] Mode
+//      [ ] Arrowhead on single-srcs
+//      [ ] label assets
+//      [ ] label events (with full dump!) (but how to find where to label it?)
+//                                               (oh maybe show it below?)
+//      [Help]
+            //
             javax.swing.JPanel buttonBar = new javax.swing.JPanel();
             buttonBar.setBackground(java.awt.Color.lightGray); // so it stands out
 
             {
-                javax.swing.JButton plusButton = new javax.swing.JButton("+");
-                plusButton.addActionListener(new java.awt.event.ActionListener() {
+                javax.swing.AbstractButton child = new javax.swing.JButton("+");
+                child.addActionListener(new java.awt.event.ActionListener() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('+');
                     }
                 });
-                buttonBar.add(plusButton);
+                buttonBar.add(child);
             }
             {
-                javax.swing.JButton minusButton = new javax.swing.JButton("-");
-                minusButton.addActionListener(new java.awt.event.ActionListener() {
+                javax.swing.AbstractButton child = new javax.swing.JButton("-");
+                child.addActionListener(new java.awt.event.ActionListener() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('-');
                     }
                 });
-                buttonBar.add(minusButton);
+                buttonBar.add(child);
             }
 
-            add(buttonBar, java.awt.BorderLayout.SOUTH); // ignores SOUTH?
+            final javax.swing.JButton cleanCircleButton = new javax.swing.JButton("Clean Circle");
+            final javax.swing.JButton cleanAndCenterButton = new javax.swing.JButton("Clean&Center");
+            cleanCircleButton.setEnabled(!autoClean);
+            cleanAndCenterButton.setEnabled(!autoClean);
+
+            {
+                javax.swing.AbstractButton child = cleanCircleButton;
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        scheduleCleanup(false); // don't re-center
+                    }
+                });
+                buttonBar.add(child);
+            }
+            {
+                javax.swing.AbstractButton child = cleanAndCenterButton;
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        scheduleCleanup(true); // do re-center
+                    }
+                });
+                buttonBar.add(child);
+            }
+            {
+                final javax.swing.JCheckBox child = new javax.swing.JCheckBox("Auto Clean", autoClean);
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        autoClean = child.isSelected();
+                        if (autoClean)
+                            scheduleCleanup(doCenterWhenAutoClean);
+                        cleanCircleButton.setEnabled(!autoClean);
+                        cleanAndCenterButton.setEnabled(!autoClean);
+                    }
+                });
+                buttonBar.add(child);
+            }
+            {
+                javax.swing.AbstractButton child = new javax.swing.JButton("Save DUMP.txt");
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        save("DUMP.txt");
+                    }
+                });
+                buttonBar.add(child);
+            }
+            {
+                javax.swing.AbstractButton child = new javax.swing.JButton("Load DUMP.txt");
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        load("DUMP.txt");
+                    }
+                });
+                buttonBar.add(child);
+            }
+            {
+                javax.swing.AbstractButton child = new javax.swing.JButton("Help");
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        help();
+                    }
+                });
+                buttonBar.add(child);
+            }
+
+            add(buttonBar, java.awt.BorderLayout.SOUTH);
 
 
             //
-            // Add listeners for everything...
+            // Add listeners for everything
+            // in the main panel...
             //
             this.addComponentListener(new java.awt.event.ComponentListener() {
                 public void componentResized(java.awt.event.ComponentEvent e)
@@ -1417,31 +1489,7 @@ class AssetGraphUtils
                     {
                         case 'h':
                         case '?':
-                            System.out.println("");
-                            System.out.println("    Mouse:");
-                            System.out.println("            Left-drag - move asset or pan whole picture");
-                            System.out.println("            Ctrl-Left drag - connect something:");
-                            System.out.println("                asset -> asset -- new event from src to dst");
-                            System.out.println("                asset -> event -- add the asset to the event as another src");
-                            System.out.println("                event -> asset -- add the asset to the event as another dst");
-                            System.out.println("                event -> event -- merge the events");
-                            System.out.println("                asset -> nothingness -- new event with just the single src");
-                            System.out.println("                nothingness -> asset -- new event with just the single dst");
-
-                            System.out.println("    Keys:");
-                            System.out.println("            n -- new asset");
-                            System.out.println("     Delete/d -- delete asset or event");
-                            System.out.println("            D -- delete nearest asset or event at any distance");
-                            System.out.println("            c -- clean up circle (after n, d, and dragging assets around)");
-                            System.out.println("            C -- clean up circle and re-center");
-                            System.out.println("            - -- zoom out");
-                            System.out.println("          =/+ -- zoom in");
-                            System.out.println("            s -- toggle arrowheads on single-src events");
-                            System.out.println("            l -- toggle labels");
-                            System.out.println("            m -- toggle mode between asset graph and single cubic curve");
-                            System.out.println("          ?/h -- show this help message");
-                            System.out.println("    Escape/Ctrl-c/Ctrl-q/q/Q -- quit");
-                            System.out.println("");
+                            help();
                             break;
 
                         case '+': case '=':
@@ -1615,7 +1663,11 @@ class AssetGraphUtils
                     if (eventVerbose >= 1) System.out.println("    out keyTyped");
                 }
             });
+
+            // need this or the main part can't get keystrokes if there's a button bar
         } // MyPanel() ctor
+
+        public boolean isFocusTraversable() { return true; }
 
         private void scheduleCleanup(boolean doCenter)
         {
@@ -1639,6 +1691,7 @@ class AssetGraphUtils
                 //scheduleUntilFuture[i] = (3 - 2*x)*x*x; // cubic ease in/out
                 scheduleUntilFuture[i] = x; // linear
             }
+            repaint();
         } // scheduleCleanup
 
         private void zoom(char c) // '-' or '+'/'='
@@ -1659,6 +1712,35 @@ class AssetGraphUtils
             connectionCurves = null; // dirty
             repaint();
         } // zoom
+
+        private void help()
+        {
+            System.out.println("");
+            System.out.println("    Mouse:");
+            System.out.println("            Left-drag - move asset or pan whole picture");
+            System.out.println("            Ctrl-Left drag - connect something:");
+            System.out.println("                asset -> asset -- new event from src to dst");
+            System.out.println("                asset -> event -- add the asset to the event as another src");
+            System.out.println("                event -> asset -- add the asset to the event as another dst");
+            System.out.println("                event -> event -- merge the events");
+            System.out.println("                asset -> nothingness -- new event with just the single src");
+            System.out.println("                nothingness -> asset -- new event with just the single dst");
+
+            System.out.println("    Keys:");
+            System.out.println("            n -- new asset");
+            System.out.println("     Delete/d -- delete asset or event");
+            System.out.println("            D -- delete nearest asset or event at any distance");
+            System.out.println("            c -- clean up circle (after n, d, and dragging assets around)");
+            System.out.println("            C -- clean up circle and re-center");
+            System.out.println("            - -- zoom out");
+            System.out.println("          =/+ -- zoom in");
+            System.out.println("            s -- toggle arrowheads on single-src events");
+            System.out.println("            l -- toggle labels");
+            System.out.println("            m -- toggle mode between asset graph and single cubic curve");
+            System.out.println("          ?/h -- show this help message");
+            System.out.println("    Escape/Ctrl-c/Ctrl-q/q/Q -- quit");
+            System.out.println("");
+        } // help
 
 
 
