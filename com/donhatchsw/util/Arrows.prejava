@@ -1978,6 +1978,118 @@ class AssetGraphUtils
             System.out.println(name + " = " + arrayToString(array));
         } // printArray
 
+        private Object _parseArray(String s,
+                                   Class type,
+                                   int _index[/*1*/]) // input/output
+        {
+            //System.out.println("in _parseArray(s=\""+s+"\", type = "+type+", index = "+_index[0]+"");
+            int len = s.length();
+            int index = _index[0];
+            int origIndex = index; // in case of failure
+            if (type == int.class
+             || type == double.class)
+            {
+                String numBuf = "";
+                while (index < len
+                    && "-.0123456789eE".indexOf(s.charAt(index)) != -1)
+                {
+                    numBuf += s.charAt(index);
+                    index++;
+                }
+                _index[0] = index;
+                try {
+                    if (type == int.class)
+                        return Integer.valueOf(numBuf);
+                    else // type == double.class
+                        return Double.valueOf(numBuf);
+                } catch (NumberFormatException e)
+                {
+                    _index[0] = origIndex;
+                    return null;
+                }
+            }
+            else if (type.isArray())
+            {
+                if (s.indexOf("null", index) == index)
+                {
+                    index += 4;
+                    _index[0] = index;
+                    return null; // success
+                }
+                if (index < len
+                 && s.charAt(index) == '{')
+                {
+                    Class componentType = type.getComponentType();
+                    Object result = java.lang.reflect.Array.newInstance(
+                                                            componentType, 0);
+                    index++;
+                    while (index < len
+                        && s.charAt(index) != '}')
+                    {
+                        _index[0] = index;
+                        Object item = _parseArray(s, componentType, _index);
+                        if (_index[0] == index) // if it failed
+                        {
+                            _index[0] = origIndex;
+                            return null; // failure
+                        }
+                        index = _index[0];
+
+                        result = append(result, item);
+
+                        if (index < len
+                         && s.charAt(index) == ',')
+                            index++;
+                    }
+                    if (index == len
+                     || s.charAt(index) != '}')
+                    {
+                        _index[0] = origIndex;
+                        return null; // failure
+                    }
+                    index++;
+                    _index[0] = index;
+                    return result;
+                }
+                else
+                {
+                    _index[0] = origIndex;
+                    return null; // failure
+                }
+            }
+            else
+            {
+                // XXX unrecognized type... warning?
+                return null;
+            }
+        } // _parseArray
+
+        // not really efficient, but who cares.
+        // XXX sort of lame, can't tell the different
+        // XXX between null success and failure
+        public Object parseArray(String s, Class type)
+        {
+            int index[] = {0};
+            Object result =  _parseArray(s, type, index);
+            return result;
+        }
+
+        /*
+        {
+            PRINTARRAY(parseArray("null", int[][][].class));
+            PRINTARRAY(parseArray("{}", int.class));
+            PRINTARRAY(parseArray("{}", int[].class));
+            PRINTARRAY(parseArray("{}", int[][][].class));
+            PRINTARRAY(parseArray("{4}", int[].class));
+            PRINTARRAY(parseArray("{{}}", int[][].class));
+            PRINTARRAY(parseArray("{{}}", int[][][].class));
+            PRINTARRAY(parseArray("{{},{}}", int[][][].class));
+            PRINTARRAY(parseArray("{{{}}}", int[][][].class));
+            PRINTARRAY(parseArray("{{{}},{}}", int[][][].class));
+            PRINTARRAY(parseArray("{{{2}},{}}", int[][][].class));
+            PRINTARRAY(parseArray("{{{2,3},{},{4,5,6}},{{5,6}}}", int[][][].class));
+        }
+        */
 
     } // class MyPanel
 
@@ -2006,4 +2118,4 @@ class AssetGraphUtils
         System.out.println("out main");
     } // main
 
-} // class AssetGraph
+} // class AssetGraphUtils
