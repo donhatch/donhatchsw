@@ -1,14 +1,18 @@
 //
 // ISSUE:
-//     - not really sensible when a single event is both a src and dst?
+//     - not really sensible when a single event is both a src and dst
+//       of the same event?  or src with multiplicity, or dst with multiplicity?
+//       (argh, I went to special effort to not let an asset be added multiple times... this makes things more sane when deleting a membership, but don't we want to express that in general? I need to make sure I handle it)
+//     - the only thing that has no representation at all
+//       is a no-src no-dst event
 //     - need asset radius? not sure how important
 //     - think about whether I can jitter or something
 //           to handle multiple events with exact same srcs and dsts
 //     - arrowheads on single-sources? not sure
 //
 // XXX to do for test:
-//     - get rid of dependencies on preprocessor
 //     - rubber band when connecting things
+//     - bleah, drag 11:00 asset to its event, it thinks it was dropped onto the asset... need to make this more sane!
 //     - be able to delete just a single part of the event
 //     - middle mouse should also be way to connect things
 //     - do NOT steal focus on startup!! dang it!
@@ -38,9 +42,17 @@
 
 class AssetGraphUtils
 {
-
     //
-    // Get curves representing an event.
+    // Get curves representing an event
+    // with zero or more sources and zero or more destinations.
+    //
+    // Policy of the array returned:
+    // the first nSrcs curves will be the "legs"
+    // of the srces, the next nDsts curves will be the "legs" of the dsts,
+    // the next curve (if any) will be the "handle" or common part
+    // in the middle, the rest is any arrow head decoration
+    // (which may not be curves at all).  In this way,
+    // it's possible to select a particular src or dst of an event.
     //
     public static java.awt.Shape[] getCurves(
               double srcs[][/*2*/], int srcInds[], // inds may be null
@@ -58,6 +70,7 @@ class AssetGraphUtils
 
         if (nSrcs == 0 && nDsts == 0)
         {
+            // XXX represent this somehow?
             return new java.awt.Shape[0];
         }
         else if (nSrcs == 1 && nDsts == 0)
@@ -941,7 +954,6 @@ class AssetGraphUtils
                             {
                                 // to an event
                                 System.out.println("dragged an asset to an event");
-                                System.out.println("WARNING: not checking this asset is already a src of this event");
                                 printArray("connections", connections);
                                 if (indexOf(connections[indicesOfClosestThing[1]][0], indexOfThingBeingDragged) == -1)
                                     connections[indicesOfClosestThing[1]][0] =
@@ -955,7 +967,6 @@ class AssetGraphUtils
                             {
                                 // to nothingness
                                 System.out.println("dragged an asset to nothing");
-                                System.out.println("WARNING: not checking whether there's already an event like this");
                                 printArray("connections", connections);
                                 int newEvent[][] = {{indexOfThingBeingDragged},{}};
                                 connections = (int[][][])append(connections, newEvent);
@@ -1168,7 +1179,7 @@ class AssetGraphUtils
                                     if (futureAssets != null
                                      && ind < futureAssets.length)
                                         futureAssets = (double[][])deleteElement(futureAssets, ind);
-                                    PRINTARRAY(connections);
+                                    printArray("connections", connections);
                                     {
                                         for (int i = 0; i < connections.length; ++i)
                                         for (int j = 0; j < connections[i].length; ++j)
@@ -1183,7 +1194,7 @@ class AssetGraphUtils
                                             connections[i][j] = (int[])subarray(connections[i][j], 0, nNew);
                                         }
                                     }
-                                    PRINTARRAY(connections);
+                                    printArray("connections", connections);
 
                                     if (autoClean)
                                         scheduleCleanup(doCenterWhenAutoClean);
