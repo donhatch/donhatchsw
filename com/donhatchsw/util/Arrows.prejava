@@ -13,9 +13,7 @@
 //     - arrowheads on single-sources? not sure (I made it a parameter)
 //
 // XXX to do for test:
-//     - all the requestFocus()s are lame, should be one when the mouse
-//          enters the canvas.  and the buttons shouldn't obscure the drawing area, either.  when we do it right, should be able to hold down the space bar on the + button and have it work.
-//     - middle mouse should also be way to connect things (same as control-left)
+//     - middle mouse should also be way to connect things (same as ctrl-left)
 //     - help should go to a help window, not stdout
 //     - should adjust radius of what gets shown in red:
 //              if control is down, use select radius (obj affected by click)
@@ -31,7 +29,7 @@
 
 #include "macros.h"
 
-class AssetGraphUtils
+class AssetGraphStuff
 {
     //
     // Get curves representing an event
@@ -1344,6 +1342,9 @@ class AssetGraphUtils
                     public void mouseEntered(java.awt.event.MouseEvent e)
                     {
                         if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
+
+                        canvas.requestFocus();
+
                         mouseState = STATE_MOVING;
                         repaint();
                         if (eventVerbose >= 1) System.out.println("    out mouseEntered");
@@ -1530,7 +1531,6 @@ class AssetGraphUtils
                         if (eventVerbose >= 1) System.out.println("    out keyTyped");
                     }
                 });
-                requestFocus(); // XXX doesn't do anything?
             } // MyCanvas ctor
 
 
@@ -1574,7 +1574,8 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('+');
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow1.add(child);
@@ -1585,7 +1586,8 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('-');
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow1.add(child);
@@ -1600,7 +1602,8 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         scheduleCleanup(false); // don't re-center
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow1.add(child);
@@ -1611,7 +1614,8 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         scheduleCleanup(true); // do re-center
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow1.add(child);
@@ -1622,7 +1626,8 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         setAutoClean(child.isSelected());
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow1.add(child);
@@ -1637,7 +1642,8 @@ class AssetGraphUtils
                     {
                         setShowLabels(child.isSelected());
                         repaint();
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow1.add(child);
@@ -1652,7 +1658,8 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         save("DUMP.txt");
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow2.add(child);
@@ -1663,7 +1670,8 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         load("DUMP.txt");
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow2.add(child);
@@ -1674,7 +1682,8 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         help();
-                        canvas.requestFocus(); // try to give main panel focus again
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
                     }
                 });
                 buttonRow2.add(child);
@@ -1696,7 +1705,6 @@ class AssetGraphUtils
 
                 {
                     java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
-                    canvas.setPreferredSize(new java.awt.Dimension(500,500)); // XXX strange place to put this -- should it go in main?
                     c.gridy = 0;
                     c.fill = java.awt.GridBagConstraints.BOTH; // stretch component to fill space
                     c.weightx = 1.; // stretch space horizontally
@@ -1713,10 +1721,19 @@ class AssetGraphUtils
                 }
             }
 
-
-
-
-            // need this or the main part can't get keystrokes if there's a button bar
+            //
+            // Make the help window
+            //
+            {
+                helpWindow = new javax.swing.JFrame("Asset Graph Stuff Help");
+                String htmlHelpMessage = "<html><pre>";
+                for (int i = 0; i < helpMessage.length; ++i)
+                    htmlHelpMessage += helpMessage[i] + "  \n";
+                htmlHelpMessage += "</pre></html>";
+                helpWindow.getContentPane().add(new javax.swing.JLabel(htmlHelpMessage));
+                helpWindow.pack();
+                //helpWindow.setVisible(true); // uncomment when debugging it
+            }
         } // MyDemoPanel() ctor
 
         public boolean isFocusTraversable() { return true; }
@@ -1781,33 +1798,50 @@ class AssetGraphUtils
             repaint();
         } // zoom
 
+        static final String helpMessage[] = {
+            "",
+            "    Mouse:",
+            "            Left-drag - move asset or pan whole picture",
+            "            Ctrl-Left drag - connect something:",
+            "                asset -> asset -- new event from src to dst",
+            "                asset -> event -- add the asset to the event as another src",
+            "                event -> asset -- add the asset to the event as another dst",
+            "                event -> event -- merge the events",
+            "                asset -> nothingness -- new event with just the single src",
+            "                nothingness -> asset -- new event with just the single dst",
+
+            "    Keys:",
+            "            n -- new asset",
+            "     Delete/d -- delete asset or event",
+            "            D -- delete nearest asset or event at any distance",
+            "            s -- toggle arrowheads on single-src events",
+            "            m -- toggle mode between asset graph and single cubic curve",
+            "",
+            "          =/+ -- zoom in",
+            "            - -- zoom out",
+            "            c -- clean up circle (after n, d, and dragging assets around)",
+            "            C -- clean up circle and re-center",
+            "            a -- toggle auto-clean",
+            "            l -- toggle labels",
+            "",
+            "       Ctrl-s -- save to DUMP.txt",
+            "       Ctrl-l -- load from DUMP.txt",
+            "          ?/h -- show this help message",
+            "    Escape/Ctrl-c/Ctrl-q/q/Q -- quit",
+            "",
+        }; // helpMessage
+
         private void help()
         {
-            System.out.println("");
-            System.out.println("    Mouse:");
-            System.out.println("            Left-drag - move asset or pan whole picture");
-            System.out.println("            Ctrl-Left drag - connect something:");
-            System.out.println("                asset -> asset -- new event from src to dst");
-            System.out.println("                asset -> event -- add the asset to the event as another src");
-            System.out.println("                event -> asset -- add the asset to the event as another dst");
-            System.out.println("                event -> event -- merge the events");
-            System.out.println("                asset -> nothingness -- new event with just the single src");
-            System.out.println("                nothingness -> asset -- new event with just the single dst");
+            helpWindow.setVisible(true);
+            helpWindow.setState(java.awt.Frame.NORMAL); // not ICONIFIED
 
-            System.out.println("    Keys:");
-            System.out.println("            n -- new asset");
-            System.out.println("     Delete/d -- delete asset or event");
-            System.out.println("            D -- delete nearest asset or event at any distance");
-            System.out.println("            c -- clean up circle (after n, d, and dragging assets around)");
-            System.out.println("            C -- clean up circle and re-center");
-            System.out.println("            - -- zoom out");
-            System.out.println("          =/+ -- zoom in");
-            System.out.println("            s -- toggle arrowheads on single-src events");
-            System.out.println("            l -- toggle labels");
-            System.out.println("            m -- toggle mode between asset graph and single cubic curve");
-            System.out.println("          ?/h -- show this help message");
-            System.out.println("    Escape/Ctrl-c/Ctrl-q/q/Q -- quit");
-            System.out.println("");
+            if (false)
+            {
+                for (int i = 0; i < helpMessage.length; ++i)
+                    System.out.println(helpMessage[i]);
+            }
+
         } // help
 
 
@@ -1849,7 +1883,7 @@ class AssetGraphUtils
             int n = oldCircle.length;
             if (n <= 2)
                 return oldCircle;
-            double oldCenter[/*2*/] = AssetGraphUtils.average(oldCircle,null);
+            double oldCenter[/*2*/] = AssetGraphStuff.average(oldCircle,null);
             if (newCenter == null)
                 newCenter = oldCenter;
             double distsFromCenter[] = new double[n];
@@ -2009,12 +2043,14 @@ class AssetGraphUtils
         boolean autoClean = false;
         boolean doCenterWhenAutoClean = true; // not sure what it should be; a preference maybe.  actually now that I tried false I think it has to be true, maybe can get rid
         boolean showLabels = false;
+        boolean allButtonsRelinqushFocusToCanvas = true; // XXX seems to be what I want-- allows using keys right after clicking a button.  I think that's what I want, anyway.
 
         // these track autoClean and showLabels
         javax.swing.JCheckBox autoCleanCheckBox;
         javax.swing.JCheckBox showLabelsCheckBox;
         javax.swing.JButton cleanCircleButton;
         javax.swing.JButton cleanAndCenterButton;
+        javax.swing.JFrame helpWindow;
 
         private static final int MODE_ONE_CURVE = 0;
         private static final int MODE_ASSETS = 1;
@@ -2387,13 +2423,12 @@ class AssetGraphUtils
     public static void main(String args[])
     {
         System.out.println("in main");
-        String title = "Asset Graph Utilities";
+        String title = "Asset Graph Stuff";
+
         javax.swing.JFrame frame = new javax.swing.JFrame(title);
         frame.setForeground(java.awt.Color.white);
         frame.setBackground(java.awt.Color.black);
-        //int w = 900, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
-        int w = 600, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
-        frame.setSize(w, h);
+
         final MyDemoPanel myDemoPanel = new MyDemoPanel();
         frame.setContentPane(myDemoPanel);
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
@@ -2403,9 +2438,16 @@ class AssetGraphUtils
                 System.exit(0);
             }
         });
+
+
+
+        myDemoPanel.canvas.setPreferredSize(new java.awt.Dimension(500,500)); // XXX hmm, is it strange for a preferred size to be set by the caller?
+        frame.pack();
         frame.setVisible(true);
-        myDemoPanel.canvas.requestFocus(); // XXX needed?
+
+        myDemoPanel.canvas.requestFocus(); // seems to be needed initially
+
         System.out.println("out main");
     } // main
 
-} // class AssetGraphUtils
+} // class AssetGraphStuff
