@@ -17,7 +17,8 @@ AssetGraphStuff.jar: AssetGraphStuff.prejava Makefile
 	cp *.class scratch
 	cp AssetGraphStuff.prejava scratch/AssetGraphStuff.java
 	cp Makefile scratch
-	(cd scratch; ${JAVAROOT}/bin/jar -cfm ../AssetGraphStuff.jar ../META-INF/MANIFEST.MF *.class AssetGraphStuff.java Makefile)
+	cp -a RCS scratch
+	(cd scratch; ${JAVAROOT}/bin/jar -cfm ../AssetGraphStuff.jar ../META-INF/MANIFEST.MF *.class AssetGraphStuff.java Makefile RCS)
 clean:
 	/bin/rm -rf *.jar *.class scratch *.java.lines *.html *.css
 
