@@ -13,16 +13,15 @@
 //     - arrowheads on single-sources? not sure (I made it a parameter)
 //
 // XXX to do for test:
+//     - middle mouse should also be way to connect things (same as control-left)
 //     - help should go to a help window, not stdout
 //     - all the requestFocus()s are lame, should be one when the mouse
 //          enters the canvas.  and the buttons shouldn't obscure the drawing area, either.  when we do it right, should be able to hold down the space bar on the + button and have it work.
-//     - button bar
 //     - should adjust radius of what gets shown in red:
 //              if control is down, use select radius (obj affected by click)
 //              if shift is down, use infinity (obj affected by 'D')
 //              if neither is down, use delete radius (obj affected by 'd')
 //              if ctrl-dragging, use appropriate drop radius
-//     - middle mouse should also be way to connect things (same as control-left)
 //     - do NOT steal focus on startup!! dang it!
 //         - and what the hell is that beep on startup??? damn!!!
 //     - thicken lines? nah...
@@ -1035,6 +1034,10 @@ class AssetGraphUtils
             // Make the layout manager be a BorderLayout...
             //
             setLayout(new java.awt.BorderLayout());
+            /*
+            javax.swing.BoxLayout boxLayout = new javax.swing.BoxLayout(this, javax.swing.BoxLayout.Y_AXIS);
+            this.setLayout(boxLayout);
+            */
 
             //
             // Add children...
@@ -1051,10 +1054,11 @@ class AssetGraphUtils
 //      [+] [-]
 //      [Help]
             //
-            javax.swing.JPanel buttonBar = new javax.swing.JPanel() {
-                public boolean isFocusTraversable() { return false; }
-            };
-            buttonBar.setBackground(java.awt.Color.lightGray); // so it stands out
+
+            javax.swing.JPanel buttonRow1 = new javax.swing.JPanel();
+            buttonRow1.setBackground(java.awt.Color.lightGray); // so it stands out
+            javax.swing.JPanel buttonRow2 = new javax.swing.JPanel();
+            buttonRow2.setBackground(java.awt.Color.lightGray); // so it stands out
 
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("+");
@@ -1065,7 +1069,7 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow1.add(child);
             }
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("-");
@@ -1076,7 +1080,7 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow1.add(child);
             }
 
             cleanCircleButton = new javax.swing.JButton("Clean Circle");
@@ -1091,7 +1095,7 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow1.add(child);
             }
             {
                 javax.swing.AbstractButton child = cleanAndCenterButton;
@@ -1102,7 +1106,7 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow1.add(child);
             }
             {
                 final javax.swing.JCheckBox child = new javax.swing.JCheckBox("Auto Clean", autoClean);
@@ -1113,7 +1117,7 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow1.add(child);
 
                 // We need to keep track of it to keep it in sync...
                 autoCleanCheckBox = child;
@@ -1128,7 +1132,7 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow1.add(child);
 
                 // We need to keep track of it to keep it in sync...
                 showLabelsCheckBox = child;
@@ -1143,7 +1147,7 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow2.add(child);
             }
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("Load DUMP.txt");
@@ -1154,7 +1158,7 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow2.add(child);
             }
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("Help");
@@ -1165,9 +1169,8 @@ class AssetGraphUtils
                         requestFocus(); // try to give main panel focus again
                     }
                 });
-                buttonBar.add(child);
+                buttonRow2.add(child);
             }
-
 
             //
             // Make sure gui elements are in sync
@@ -1177,7 +1180,14 @@ class AssetGraphUtils
             setShowLabels(showLabels);
 
 
-            add(buttonBar, java.awt.BorderLayout.SOUTH);
+            {
+                javax.swing.JPanel buttonBars = new javax.swing.JPanel();
+                buttonBars.setLayout(new javax.swing.BoxLayout(buttonBars, javax.swing.BoxLayout.Y_AXIS));
+                buttonBars.add(buttonRow1);
+                buttonBars.add(buttonRow2);
+                this.add(buttonBars, java.awt.BorderLayout.SOUTH);
+            }
+
 
 
             //
@@ -2362,7 +2372,8 @@ class AssetGraphUtils
         javax.swing.JFrame frame = new javax.swing.JFrame(title);
         frame.setBackground(java.awt.Color.black);
         frame.setForeground(java.awt.Color.white);
-        int w = 900, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
+        //int w = 900, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
+        int w = 600, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
         frame.setSize(w, h);
         final MyPanel myPanel = new MyPanel();
         frame.setContentPane(myPanel);
