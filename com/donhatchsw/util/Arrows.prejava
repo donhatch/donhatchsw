@@ -19,9 +19,9 @@
 //     - be able to delete just a single part of the event
 //     - do NOT steal focus on startup!! dang it!
 //     - and what the hell is that beep on startup???
-//     - center it initially and when window resized, I think
 //     - thicken lines? nah...
 //     - label assets? might help for debugging
+//              yes, would actually help to have option to label ALL assets
 //     - save/load?
 //     - highlight close thing that would be selected or dropped onto or deleted
 //     - should be passing around tooFarSqrd, not tooFar, maybe
@@ -178,6 +178,11 @@ class AssetGraphUtils
                                             dst[0], dst[1],
                                             dstCenter[0], dstCenter[1],
                                             dstCenter[0], dstCenter[1]);
+            }
+            // (all the arrow heads must come last)
+            for (int iDst = 0; iDst < nDsts; ++iDst)
+            {
+                double dst[/*2*/] = (dstInds != null ? dsts[dstInds[iDst]] : dsts[iDst]);
                 curves[iCurve++] = arrowHeadSide(dstCenter[0], dstCenter[1],
                                                  dst[0], dst[1],
                                                  arrowHeadLength,
@@ -235,7 +240,7 @@ class AssetGraphUtils
                                             dst[0], dst[1],
                                             dst[0], dst[1]);
             }
-            // Arrowheads...
+            // (all the arrow heads must come last)
             for (int iDst = 0; iDst < nDsts; ++iDst)
             {
                 double dst[/*2*/] = (dstInds != null ? dsts[dstInds[iDst]] : dsts[iDst]);
@@ -603,10 +608,41 @@ class AssetGraphUtils
     public static class MyPanel
         extends javax.swing.JPanel
     {
+        int paintCount = 0;
+
         // PAINT
         public void paintComponent(java.awt.Graphics g)
         {
             if (eventVerbose >= 2) System.out.println("    in paint");
+
+            if (false)
+            {
+                // pause the second time, so I can ponder the resize
+                // that happens after the first paint for some reason
+                if (paintCount++ == 1)
+                {
+                    try {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e) { }
+                }
+            }
+
+            // we delay creating assets till now, when we know window size...
+            if (assets == null)
+            {
+                int nAssets = 18;
+                assets = makeCircle(nAssets, getWidth()/2, getHeight()/2, Math.min(getWidth(), getHeight()) / 3);
+                connections = new int[][/*2*/][] {
+                    {{5},{4}},
+                    {{6},{3,2}},
+                    {{7,8},{1}},
+                    {{9,10},{17,0}},
+                    {{11},{}},
+                    {{},{16}},
+                    {{12,13},{}},
+                    {{},{14,15}},
+                };
+            }
 
             if (nFramesUntilFuture > 0
              && futureAssets != null)
@@ -767,9 +803,12 @@ class AssetGraphUtils
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 5);
-                        int ind = indicesOfClosestThing[0];
-                        String labelText = "Asset " + ind;
-                        g2d.drawString(labelText, (int)(x+10), (int)y);
+                        if (showHoverLabel)
+                        {
+                            int ind = indicesOfClosestThing[0];
+                            String labelText = "Asset " + ind;
+                            g2d.drawString(labelText, (int)(x+10), (int)y);
+                        }
                     }
                     if (indicesOfClosestThing[1] != -1) // a curve
                     {
@@ -778,26 +817,29 @@ class AssetGraphUtils
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 2);
-                        int ind = indicesOfClosestThing[1];
-                        String labelText = "Event " + arrayToString(connections[ind][0])+ "->" + arrayToString(connections[ind][1]) + "";
-                        //
-                        // Try to analyze which leg we have
-                        //
+                        if (showHoverLabel)
                         {
-                            int event[][] = connections[ind];
-                            int legInd = indicesOfClosestThing[2];
-                            int nSrcs = event[0].length;
-                            int nDsts = event[1].length;
-                            if (legInd < nSrcs)
+                            int ind = indicesOfClosestThing[1];
+                            String labelText = "Event " + arrayToString(connections[ind][0])+ "->" + arrayToString(connections[ind][1]) + "";
+                            //
+                            // Try to analyze which leg we have
+                            //
                             {
-                                labelText = "Asset "+event[0][legInd]+" as src of "+labelText;
+                                int event[][] = connections[ind];
+                                int legInd = indicesOfClosestThing[2];
+                                int nSrcs = event[0].length;
+                                int nDsts = event[1].length;
+                                if (legInd < nSrcs)
+                                {
+                                    labelText = "Asset "+event[0][legInd]+" as src of "+labelText;
+                                }
+                                else if (legInd < nSrcs+nDsts)
+                                {
+                                    labelText = "Asset "+event[1][legInd-nSrcs]+" as dst of "+labelText;
+                                }
                             }
-                            else if (legInd < nSrcs+nDsts)
-                            {
-                                labelText = "Asset "+event[1][legInd-nSrcs]+" as dst of "+labelText;
-                            }
+                            g2d.drawString(labelText, (int)(x+10), (int)y);
                         }
-                        g2d.drawString(labelText, (int)(x+10), (int)y);
                     }
                 }
             }
@@ -815,6 +857,54 @@ class AssetGraphUtils
         public MyPanel()
         {
             super();
+            this.addComponentListener(new java.awt.event.ComponentListener() {
+                public void componentResized(java.awt.event.ComponentEvent e)
+                {
+                    if (eventVerbose >= 1) System.out.println("    in componentResized: "+e);
+                    int oldWidth = curWidth;
+                    int oldHeight = curHeight;
+                    int newWidth = e.getComponent().getWidth();
+                    int newHeight = e.getComponent().getHeight();
+                    int oldSize = Math.min(oldWidth, oldHeight);
+                    int newSize = Math.min(newWidth, newHeight);
+
+                    if (oldWidth != -1)
+                    {
+                        if (eventVerbose >= 1) System.out.println("Resizing "+oldWidth+"x"+oldHeight+" -> "+newWidth+"x"+newHeight+"");
+                        // XXX this is silly, shouldn't need to recalculate connectionCurves, should just tweak the window transform matrix
+                        transform(assets,
+                                  oldWidth/2., oldHeight/2.,
+                                  (double)newSize/oldSize,
+                                  newWidth/2., newHeight/2.);
+                        if (futureAssets != null)
+                            transform(futureAssets, oldWidth/2., oldHeight/2.,
+                                                    (double)newSize/oldSize,
+                                                    newWidth/2., oldWidth/2.);
+                        connectionCurves = null; // dirty;
+                        repaint();
+                    }
+
+                    curWidth = newWidth;
+                    curHeight = newHeight;
+
+                    if (eventVerbose >= 1) System.out.println("    out componentResized");
+                }
+                public void componentMoved(java.awt.event.ComponentEvent e)
+                {
+                    if (eventVerbose >= 0) System.out.println("    in componentMoved");
+                    if (eventVerbose >= 0) System.out.println("    out componentMoved");
+                }
+                public void componentShown(java.awt.event.ComponentEvent e)
+                {
+                    if (eventVerbose >= 2) System.out.println("    in componentShown");
+                    if (eventVerbose >= 2) System.out.println("    out componentShown");
+                }
+                public void componentHidden(java.awt.event.ComponentEvent e)
+                {
+                    if (eventVerbose >= 2) System.out.println("    in componentHidden");
+                    if (eventVerbose >= 2) System.out.println("    out componentHidden");
+                }
+            });
             this.addMouseMotionListener(new java.awt.event.MouseMotionListener() {
                 public void mouseMoved(java.awt.event.MouseEvent e)
                 {
@@ -861,9 +951,11 @@ class AssetGraphUtils
                         {
                             // pan the whole scene.
                             // XXX this is silly, shouldn't need to recalculate connectionCurves, should just tweak the window transform matrix
-                            pan(assets, curX-prevX, curY-prevY);
+                            double dx = curX-prevX;
+                            double dy = curY-prevY;
+                            pan(assets, dx, dy);
                             if (futureAssets != null)
-                                pan(futureAssets, curX-prevX, curY-prevY);
+                                pan(futureAssets, dx, dy);
                             connectionCurves = null; // dirty;
                         }
                     }
@@ -1148,6 +1240,10 @@ class AssetGraphUtils
                             repaint();
                             break;
 
+                        case 'l':
+                            showHoverLabel ^= true;
+                            repaint();
+                            break;
                         case 's':
                             doArrowHeadOnSingleSrc ^= true;
                             connectionCurves = null; // dirty
@@ -1294,15 +1390,22 @@ class AssetGraphUtils
             }
         } // scheduleCleanup
 
+        private static void transform(double points[][/*2*/],
+                                      double oldX, double oldY,
+                                      double scale,
+                                      double newX, double newY)
+        {
+            for (int i = 0; i < points.length; ++i)
+            {
+                points[i][0] = (points[i][0] - oldX)*scale + newX;
+                points[i][1] = (points[i][1] - oldY)*scale + newY;
+            }
+        } // transform
         private static void pan(double points[][/*2*/],
                                 double dx,
                                 double dy)
         {
-            for (int i = 0; i < points.length; ++i)
-            {
-                points[i][0] += dx;
-                points[i][1] += dy;
-            }
+            transform(points, 0, 0, 1., dx, dy);
         } // pan
 
 
@@ -1475,12 +1578,16 @@ class AssetGraphUtils
 
         private int curX = 0;
         private int curY = 0;
+        private int curWidth = -1;
+        private int curHeight = -1;
 
         private int eventVerbose = 0;
         private int verbose = 0;
         private int nDebugSubdivisionLevels = 0; // set to higher to see curve subdivisions
         boolean autoClean = false;
         boolean doCenterWhenAutoClean = true; // not sure what it should be; a preference maybe.  actually now that I tried false I think it has to be true, maybe can get rid
+        boolean showHoverLabel = false;
+        boolean showAssetLabels = false;
 
         private static final int MODE_ONE_CURVE = 0;
         private static final int MODE_ASSETS = 1;
@@ -1522,18 +1629,8 @@ class AssetGraphUtils
                 double arrowLengthForSingle = 40;
                 boolean doArrowHeadOnSingleSrc = false; // XXX need way to toggle
 
-                int nAssets = 18;
-                double assets[][] = makeCircle(nAssets, 100, 100, 90);
-                int connections[][/*2*/][] = {
-                    {{5},{4}},
-                    {{6},{3,2}},
-                    {{7,8},{1}},
-                    {{9,10},{17,0}},
-                    {{11},{}},
-                    {{},{16}},
-                    {{12,13},{}},
-                    {{},{14,15}},
-                };
+                double assets[][] = null; // create in first paint()
+                int connections[][/*2*/][] = null; // create in first paint()
 
                 // If easing in to a reconfiguration,
                 // we set futureAssets and a number of frames
@@ -1670,7 +1767,7 @@ class AssetGraphUtils
         javax.swing.JFrame frame = new javax.swing.JFrame(title);
         frame.setBackground(java.awt.Color.black);
         frame.setForeground(java.awt.Color.white);
-        int w = 300, h = 300;
+        int w = 600, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
         frame.setSize(w, h);
         final MyPanel myPanel = new MyPanel();
         frame.setContentPane(myPanel);
