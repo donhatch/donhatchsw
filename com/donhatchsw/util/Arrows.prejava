@@ -6,6 +6,7 @@
 //     - to handle multiple events with exact same srcs and dsts
 //     - center it initially and when window resized
 //     - need focus (isfocustraversible?)
+//     - thicken lines?
 
 class AssetGraph
 {
@@ -466,11 +467,29 @@ class AssetGraph
         public void paintComponent(java.awt.Graphics g)
         {
             if (eventVerbose >= 2) System.out.println("    in paint");
+
+            if (nFramesUntilFuture > 0
+             && futureAssets != null)
+            {
+                // I guess we can tolerate an asset being added...
+                assert(futureAssets.length <= assets.length);
+                for (int i = 0; i < futureAssets.length; ++i)
+                {
+                    assets[i] = lerp(assets[i], futureAssets[i], 1./nFramesUntilFuture);
+                }
+                connectionCurves = null; // dirty
+                --nFramesUntilFuture;
+                repaint(); // so we'll come back around again
+            }
+
             clear(g);
             java.awt.Graphics2D g2d = (java.awt.Graphics2D)g;
 
-            g2d.setColor(java.awt.Color.blue);
-            drawSquare(g2d, curX, curY, 5);
+            if (mouseState == STATE_MOVING)
+            {
+                g2d.setColor(java.awt.Color.blue);
+                drawSquare(g2d, curX, curY, selectRadiusPixels);
+            }
 
             g2d.setColor(java.awt.Color.black);
 
@@ -492,7 +511,10 @@ class AssetGraph
                         controlPoints[2][1],
                         controlPoints[3][0],
                         controlPoints[3][1]);
+                java.awt.Stroke oldStroke = g2d.getStroke();
+                g2d.setStroke(new java.awt.BasicStroke(2)); // line thickness = 2
                 g2d.draw(curve);
+                g2d.setStroke(oldStroke);
 
                 FuzzyPoint closestPoint = new FuzzyPoint();
                 double maxFuzzyRadius = .5; // half a pixel
@@ -500,8 +522,8 @@ class AssetGraph
                                      curX, curY,
                                      curve,
 
-                                     //Double.POSITIVE_INFINITY, // tooFarSqrd
-                                     selectRadiusPixels*selectRadiusPixels,
+                                     Double.POSITIVE_INFINITY, // tooFarSqrd
+                                     //selectRadiusPixels*selectRadiusPixels,
 
                                      maxFuzzyRadius,
                                      closestPoint,
@@ -524,6 +546,10 @@ class AssetGraph
                 {
                     drawSquare(g2d, assets[i][0],assets[i][1], 2);
                 }
+
+                int lineThickness = 1;
+                java.awt.Stroke oldStroke = g2d.getStroke();
+                g2d.setStroke(new java.awt.BasicStroke(lineThickness));
                 for (int i = 0; i < connectionCurves.length; ++i)
                 {
                     for (int j = 0; j < connectionCurves[i].length; ++j)
@@ -531,6 +557,8 @@ class AssetGraph
                         g2d.draw(connectionCurves[i][j]);
                     }
                 }
+
+                g2d.setStroke(oldStroke);
 
                 FuzzyPoint closestPoint = new FuzzyPoint();
                 double maxFuzzyRadius = .5; // half a pixel
@@ -665,11 +693,15 @@ class AssetGraph
                 public void mouseEntered(java.awt.event.MouseEvent e)
                 {
                     if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
+                    mouseState = STATE_MOVING;
+                    repaint();
                     if (eventVerbose >= 1) System.out.println("    out mouseEntered");
                 }
                 public void mouseExited(java.awt.event.MouseEvent e)
                 {
                     if (eventVerbose >= 1) System.out.println("    in mouseExited at "+e.getX()+","+e.getY()+"");
+                    mouseState = STATE_NOTHING;
+                    repaint();
                     if (eventVerbose >= 1) System.out.println("    out mouseExited");
                 }
             });
@@ -677,6 +709,86 @@ class AssetGraph
                 public void keyPressed(java.awt.event.KeyEvent e)
                 {
                     if (eventVerbose >= 1) System.out.println("    in keyPressed");
+                    char c = e.getKeyChar();
+                    switch(c)
+                    {
+                        case '+': case '=':
+                        case '-':
+                            {
+                                double scale = (c=='-' ? Math.sqrt(.5) : Math.sqrt(2.));
+                                double center[] = avg(assets, null);
+                                for (int i = 0; i < assets.length; ++i)
+                                    assets[i] = lerp(center, assets[i], scale);
+                            }
+                            connectionCurves = null; // dirty
+                            repaint();
+                            break;
+
+                        case 'm': // switch between MODE_ASSETS and MODE_ONE_CURVE
+                            mode = 1-mode;
+                            repaint();
+                            break;
+                        case 'c':
+                            futureAssets = cleanUpCircle(assets);
+                            nFramesUntilFuture = 1000;
+                            connectionCurves = null; // dirty
+                            repaint();
+                            break;
+                        case 'n': // add a new asset
+                            if (mode == MODE_ASSETS)
+                            {
+                                double newAssets[][] = new double[assets.length+1][];
+                                System.arraycopy(assets, 0, newAssets, 0, assets.length);
+                                newAssets[assets.length] = new double[] {curX, curY};
+                                assets = newAssets;
+                            }
+                            // no need to dirty curves since this is added on the end and isn't a part of any curve
+                            repaint();
+                            break;
+                        case java.awt.event.KeyEvent.VK_DELETE:
+                        case 'd': // delete an asset
+                            if (mode == MODE_ASSETS)
+                            {
+                                // delete closest thing
+                                // (asset, event, or membership)
+                                int ind = findClosest(curX, curY, assets, deleteRadiusPixels);
+                                if (ind != -1)
+                                {
+                                    {
+                                        double newAssets[][] = new double[assets.length-1][];
+                                        for (int i = 0; i < newAssets.length; ++i)
+                                            newAssets[i] = assets[i>=ind ? i+1 : i];
+                                        assets = newAssets;
+                                    }
+
+                                    {
+                                        for (int i = 0; i < connections.length; ++i)
+                                        for (int j = 0; j < connections[i].length; ++j)
+                                        {
+                                            int nNew = 0;
+                                            for (int kOld = 0; kOld < connections[i][j].length; ++kOld)
+                                            {
+                                                int old = connections[i][j][kOld];
+                                                if (old != ind)
+                                                    connections[i][j][nNew++] = (old>ind ? old-1 : old);
+                                            }
+                                            if (nNew != connections[i][j].length)
+                                            {
+                                                connections[i][j] = (int[])subarray(connections[i][j], 0, nNew);
+                                            }
+
+
+                                        }
+                                    }
+                                }
+                            }
+                            connectionCurves = null; // dirty
+                            repaint();
+                            break;
+                        default:
+                            System.out.println("Unknown key '"+c+"'("+(int)c+")");
+                            break;
+                    }
                     if (eventVerbose >= 1) System.out.println("    out keyPressed");
                 }
                 public void keyReleased(java.awt.event.KeyEvent e)
@@ -704,6 +816,83 @@ class AssetGraph
             return assets;
         } // makeCircle
 
+        private static double[][/*2*/] cleanUpCircle(double oldCircle[][/*2*/])
+        {
+            int n = oldCircle.length;
+            if (n <= 2)
+                return oldCircle;
+            double center[/*2*/] = AssetGraph.avg(oldCircle,null);
+            double distsFromCenter[] = new double[n];
+            for (int i = 0; i < n; ++i)
+                distsFromCenter[i] = dist(center[0],center[1],oldCircle[i][0], oldCircle[i][1]);
+            double newRadius = median(distsFromCenter);
+
+            final double angs[] = new double[n];
+            for (int i = 0; i < n; ++i)
+                angs[i] = Math.atan2(oldCircle[i][1]-center[1],
+                                     oldCircle[i][0]-center[0]);
+            int inds[] = getSortedInds(angs);
+
+            //
+            // We want ang0
+            // such that ang0 + 2*Math.PI*i/n  is as close as possible 
+            // to angs[inds[i]] for all i.
+            //
+            double ang0 = 0.;
+            {
+                double totalAdjustmentNeeded = 0.;
+                for (int i = 0; i < n; ++i)
+                    totalAdjustmentNeeded += angs[inds[i]]
+                                           - (ang0 + 2*Math.PI*i/n);
+                ang0 += totalAdjustmentNeeded / n;
+            }
+
+            double newCircle[][] = new double[n][2];
+            for (int i = 0; i < n; ++i)
+            {
+                double oldAng = angs[inds[i]];
+                double newAng = ang0 + 2*Math.PI*i/n;
+                newCircle[inds[i]][0] = center[0] + newRadius*Math.cos(newAng);
+                newCircle[inds[i]][1] = center[1] + newRadius*Math.sin(newAng);
+            }
+            return newCircle;
+        } // cleanUpCircle
+
+        private static double median(final double A[])
+        {
+            int n = A.length;
+            int inds[] = getSortedInds(A);
+            if (n == 0)
+                return 0.;
+            else if (n % 2 == 0)
+                return (A[inds[n/2-1]] + A[inds[n/2]]) / 2;
+            else
+                return A[inds[(n-1)/2]];
+        } // median
+
+        // Return a list of indices into A,
+        // such that A[inds[0]] <= A[inds[1]] <= ... <= A[inds[n-1]].
+        private static int[] getSortedInds(final double A[])
+        {
+            int n = A.length;
+            Integer Inds[] = new Integer[n];
+            for (int i = 0; i < n; ++i)
+                Inds[i] = new Integer(i);
+            java.util.Arrays.sort(Inds, new java.util.Comparator() {
+                public int compare(Object aObj, Object bObj)
+                {
+                    int a = ((Integer)aObj).intValue();
+                    int b = ((Integer)bObj).intValue();
+                    return A[a] < A[b] ? -1 :
+                           A[a] > A[b] ? 1 : 0;
+                }
+            });
+            int inds[] = new int[n];
+            for (int i = 0; i < n; ++i)
+                inds[i] = Inds[i].intValue();
+            return inds;
+        } // getSortedInds
+
         private static int findClosest(double x, double y, double points[][/*2*/], double tooFar)
         {
             int bestI = -1;
@@ -723,8 +912,9 @@ class AssetGraph
 
 
         // How close does the mouse have to be to select something?
-        private static final double selectRadiusPixels = 5;
-        private static final double dropRadiusPixels = 5;
+        private static final double selectRadiusPixels = 10;
+        private static final double dropRadiusPixels = 20;
+        private static final double deleteRadiusPixels = 10000; // just allow deleting from arbitrary distance
 
 
         private int curX = 0;
@@ -787,6 +977,15 @@ class AssetGraph
                     {{12,13},{}},
                     {{},{14,15}},
                 };
+
+                // If easing in to a reconfiguration,
+                // we set futureAssets and a number of frames
+                // in which to ease into it.
+                // XXX need to guarantee nothing changes
+                // XXX while animating, or need to destroy futureAssets!
+                double futureAssets[][] = null;
+                int nFramesUntilFuture = 0;
+
                 java.awt.geom.CubicCurve2D connectionCurves[][] = null; // dirty; calculated on demand
 
         private void recalculateCurves()
@@ -805,6 +1004,14 @@ class AssetGraph
                 assert(connectionCurves[i] != null);
             }
         } // calculateCurves
+
+        private static Object subarray(Object array, int start, int n)
+        {
+            Object subarray = java.lang.reflect.Array.newInstance(
+                                    array.getClass().getComponentType(), n);
+            System.arraycopy(array, start, subarray, 0, n);
+            return subarray;
+        } // subarray
 
     } // class MyPanel
 
@@ -828,6 +1035,7 @@ class AssetGraph
             }
         });
         frame.setVisible(true);
+        myPanel.requestFocus();
         System.out.println("out main");
     } // main
 
