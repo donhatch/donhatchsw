@@ -18,6 +18,7 @@
 //     - save/load?
 //     - clever centering zoom
 //     - arrowheads on single-sources? not sure
+//     - should be passing around tooFarSqrd, not tooFar
 
 
 class AssetGraphUtils
@@ -300,14 +301,9 @@ class AssetGraphUtils
                     bestX = closestPoint.x;
                     bestY = closestPoint.y;
                     bestRSqrd = closestPoint.rSqrd;
-                    double newTooFar = dist(x, y, bestX, bestY);
-                    // XXX argh, the following fails, need fuzzy comparison I think? or else I messed up my logic
-                    if (newTooFar >= tooFar)
-                    {
-                        System.out.println("uh oh, newTooFar = "+newTooFar+", tooFar = "+tooFar+"");
-                    }
-                    assert(newTooFar < tooFar); // it shouldn't have succeeded otherwise
-                    tooFar = newTooFar;
+                    double newTooFarSqrd = distSqrd(x, y, bestX, bestY);
+                    assert(newTooFarSqrd < tooFar*tooFar); // it shouldn't have succeeded otherwise
+                    tooFar = Math.sqrt(newTooFarSqrd);
                 }
             }
         }
@@ -420,14 +416,9 @@ class AssetGraphUtils
                                                           addressForDebugging != null ? "    "+addressForDebugging+(swapped?"l":"L"):null);
         if (leftResult)
         {
-            double newTooFar = dist(x, y, leftPoint.x, leftPoint.y);
-            // XXX argh, the following fails, need fuzzy comparison I think? or else I messed up my logic
-            if (newTooFar >= tooFar)
-            {
-                System.out.println("uh oh, newTooFar = "+newTooFar+", tooFar = "+tooFar+"");
-            }
-            assert(newTooFar < tooFar); // it shouldn't have succeeded otherwise
-            tooFar = newTooFar;
+            double newTooFarSqrd = distSqrd(x, y, leftPoint.x, leftPoint.y);
+            assert(newTooFarSqrd < tooFar*tooFar); // it shouldn't have succeeded otherwise
+            tooFar = Math.sqrt(newTooFarSqrd);
         }
         boolean rightResult = _getClosestPointOnCubicCurve(x, y, right,
                                                            tooFar,
@@ -440,6 +431,7 @@ class AssetGraphUtils
             closestPoint.x = rightPoint.x;
             closestPoint.y = rightPoint.y;
             closestPoint.rSqrd = rightPoint.rSqrd;
+            //System.out.println("    RETURNING RIGHTRESULT");
             return true;
         }
         else if (leftResult)
@@ -447,6 +439,7 @@ class AssetGraphUtils
             closestPoint.x = leftPoint.x;
             closestPoint.y = leftPoint.y;
             closestPoint.rSqrd = leftPoint.rSqrd;
+            //System.out.println("    RETURNING LEFTRESULT");
             return true;
         }
         else
@@ -776,7 +769,7 @@ class AssetGraphUtils
                     if (mode == MODE_ONE_CURVE)
                     {
                         indexOfThingBeingDragged = findClosest(curX, curY, controlPoints, selectRadiusPixels);
-                        System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged);
+                        //System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged);
                     }
                     else if (mode == MODE_ASSETS)
                     {
@@ -790,8 +783,8 @@ class AssetGraphUtils
                                                         maxFuzzyRadiusPixels,
                                                         closestPoint,
                                                         true);
-                        PRINTARRAY(indicesOfClosestThing);
-                        PRINT(e.isControlDown());
+                        //PRINTARRAY(indicesOfClosestThing);
+                        //PRINT(e.isControlDown());
                         if (indicesOfClosestThing[0] != -1)
                         {
                             mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_ASSET : STATE_DRAGGING_ASSET);
@@ -810,7 +803,7 @@ class AssetGraphUtils
                             indexOfThingBeingDragged = -1;
                             subIndexOfThingBeingDragged = -1;
                         }
-                        System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged+","+subIndexOfThingBeingDragged+"");
+                        //System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged+","+subIndexOfThingBeingDragged+"");
                     }
                     repaint();
 
@@ -842,7 +835,7 @@ class AssetGraphUtils
                                                         maxFuzzyRadiusPixels,
                                                         closestPoint,
                                                         true);
-                        PRINTARRAY(indicesOfClosestThing);
+                        //PRINTARRAY(indicesOfClosestThing);
 
                         if (mouseState == STATE_CTRL_DRAGGING_ASSET)
                         {
@@ -983,6 +976,7 @@ class AssetGraphUtils
                             System.out.println("            n -- new asset");
                             System.out.println("     Delete/d -- delete nearest asset or event");
                             System.out.println("            c -- clean up circle (after n, d, and dragging assets around)");
+                            System.out.println("            C -- clean up circle and re-center");
                             System.out.println("            - -- zoom out");
                             System.out.println("          =/+ -- zoom in");
                             System.out.println("            m -- toggle mode between asset graph and single cubic curve");
@@ -1015,22 +1009,26 @@ class AssetGraphUtils
                             mode = 1-mode;
                             repaint();
                             break;
-                        case 'c':
-                            futureAssets = cleanUpCircle(assets);
-
-                            nFramesUntilFuture = 1000;
-                            scheduleUntilFuture = new double[nFramesUntilFuture+1];
-                            for (int i = 0; i <= nFramesUntilFuture; ++i)
+                        case 'C': // clean up circle and re-center
+                        case 'c': // clean up circle and don't re-center
                             {
-                                double x = (double)i/nFramesUntilFuture;
-                                // Fooey, these ease ones aren't ready for prime time; they cause speed discontinuity if you start one animation when a previous one hasn't completed yet.  Maybe need to put all assets on their own schedule, so one can be moving fast (in the middle of its trajectory) while another is moving slow (at the beginning or end of its trajectory?
-                                // gnuplot:
-                                //    plot [0:1] (3-2*x)*x*x, (1-cos(x*pi))/2, x<=.5?2*x*x : 1-2*(1-x)*(1-x)
-                                //scheduleUntilFuture[i] = (x<=.5?2*x*x : 1-2*(1-x)*(1-x)); // piecewise quadratic
-                                //scheduleUntilFuture[i] = (1-Math.cos(x*Math.PI))/2; // sin-like
+                                double newCenter[] = (c=='C' ? new double[] {getWidth()/2, getHeight()/2} : null);
+                                futureAssets = cleanUpCircle(assets, newCenter);
 
-                                //scheduleUntilFuture[i] = (3 - 2*x)*x*x; // cubic ease in/out
-                                scheduleUntilFuture[i] = x; // linear
+                                nFramesUntilFuture = 1000;
+                                scheduleUntilFuture = new double[nFramesUntilFuture+1];
+                                for (int i = 0; i <= nFramesUntilFuture; ++i)
+                                {
+                                    double x = (double)i/nFramesUntilFuture;
+                                    // Fooey, these ease ones aren't ready for prime time; they cause speed discontinuity if you start one animation when a previous one hasn't completed yet.  Maybe need to put all assets on their own schedule, so one can be moving fast (in the middle of its trajectory) while another is moving slow (at the beginning or end of its trajectory?
+                                    // gnuplot:
+                                    //    plot [0:1] (3-2*x)*x*x, (1-cos(x*pi))/2, x<=.5?2*x*x : 1-2*(1-x)*(1-x)
+                                    //scheduleUntilFuture[i] = (x<=.5?2*x*x : 1-2*(1-x)*(1-x)); // piecewise quadratic
+                                    //scheduleUntilFuture[i] = (1-Math.cos(x*Math.PI))/2; // sin-like
+
+                                    //scheduleUntilFuture[i] = (3 - 2*x)*x*x; // cubic ease in/out
+                                    scheduleUntilFuture[i] = x; // linear
+                                }
                             }
 
                             connectionCurves = null; // dirty
@@ -1064,7 +1062,8 @@ class AssetGraphUtils
                                 {
                                     int ind = indicesOfClosestThing[0]; // asset index to delete
                                     assets = (double[][])deleteElement(assets, ind);
-                                    if (futureAssets != null)
+                                    if (futureAssets != null
+                                     && ind < futureAssets.length)
                                         futureAssets = (double[][])deleteElement(futureAssets, ind);
                                     {
                                         for (int i = 0; i < connections.length; ++i)
@@ -1142,21 +1141,24 @@ class AssetGraphUtils
             return assets;
         } // makeCircle
 
-        private static double[][/*2*/] cleanUpCircle(double oldCircle[][/*2*/])
+        private static double[][/*2*/] cleanUpCircle(double oldCircle[][/*2*/], 
+                                                     double newCenter[])
         {
             int n = oldCircle.length;
             if (n <= 2)
                 return oldCircle;
-            double center[/*2*/] = AssetGraphUtils.average(oldCircle,null);
+            double oldCenter[/*2*/] = AssetGraphUtils.average(oldCircle,null);
+            if (newCenter == null)
+                newCenter = oldCenter;
             double distsFromCenter[] = new double[n];
             for (int i = 0; i < n; ++i)
-                distsFromCenter[i] = dist(center[0],center[1],oldCircle[i][0], oldCircle[i][1]);
+                distsFromCenter[i] = dist(oldCenter[0],oldCenter[1],oldCircle[i][0], oldCircle[i][1]);
             double newRadius = median(distsFromCenter);
 
             final double angs[] = new double[n];
             for (int i = 0; i < n; ++i)
-                angs[i] = Math.atan2(oldCircle[i][1]-center[1],
-                                     oldCircle[i][0]-center[0]);
+                angs[i] = Math.atan2(oldCircle[i][1]-oldCenter[1],
+                                     oldCircle[i][0]-oldCenter[0]);
             int inds[] = getSortedInds(angs);
 
             //
@@ -1178,8 +1180,8 @@ class AssetGraphUtils
             {
                 double oldAng = angs[inds[i]];
                 double newAng = ang0 + 2*Math.PI*i/n;
-                newCircle[inds[i]][0] = center[0] + newRadius*Math.cos(newAng);
-                newCircle[inds[i]][1] = center[1] + newRadius*Math.sin(newAng);
+                newCircle[inds[i]][0] = newCenter[0] + newRadius*Math.cos(newAng);
+                newCircle[inds[i]][1] = newCenter[1] + newRadius*Math.sin(newAng);
             }
             return newCircle;
         } // cleanUpCircle
@@ -1393,7 +1395,6 @@ class AssetGraphUtils
             int n = java.lang.reflect.Array.getLength(array);
             Object newArray = java.lang.reflect.Array.newInstance(
                                     array.getClass().getComponentType(), n-1);
-            PRINT(ind);
             System.arraycopy(array, 0, newArray, 0, ind);
             System.arraycopy(array, ind+1, newArray, ind, n-1-ind);
             return newArray;
