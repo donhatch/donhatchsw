@@ -1,5 +1,5 @@
 //
-// ISSUE:
+// ISSUES:
 //     - it works well if an asset is both a src and dst
 //       as long as there is at least one other src and one other dst,
 //       otherwise, it's not really sensible-- should show a loop I think.
@@ -358,17 +358,17 @@ class AssetGraphStuff
 
 
     //========================================================================
-    // The rest of this is for main()
+    // The rest of this is for main(), which is a little demonstration program.
     //
 
     // A fuzzy point, i.e. a closed unit disk with center x,y and radius r.
     // We store r*r instead of r, since r itself is hardly
     // ever needed so this saves computing a lot of square roots.
-    static class FuzzyPoint {
+    private static class FuzzyPoint {
         double x, y, rSqrd;
     }
-    static void getCurveBoundingBall(java.awt.geom.CubicCurve2D curve,
-                                     FuzzyPoint result)
+    public static void getCurveBoundingBall(java.awt.geom.CubicCurve2D curve,
+                                            FuzzyPoint result)
     {
         // A CubicCurve2D is always contained inside
         // the bounding box of its 4 definining points...
