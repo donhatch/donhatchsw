@@ -1974,7 +1974,7 @@ public class AssetGraphStuff
                 scheduleUntilFuture[i] = x; // linear
             }
             repaint();
-        } // scheduleCleanup
+        } // scheduleFutureAssets
 
         private void setAutoClean(boolean newAutoClean)
         {
@@ -2164,9 +2164,17 @@ public class AssetGraphStuff
             Integer Inds[] = new Integer[n];
             for (int i = 0; i < n; ++i)
                 Inds[i] = new Integer(i);
-            java.util.Arrays.sort(Inds, new java.util.Comparator<Integer>() {
-                //public int compare(Object aObj, Object bObj)  // for 1.4, and use Comparator
-                public int compare(Integer aObj, Integer bObj) // for 1.5, and use Comparator<Integer>
+            //java.util.Arrays.sort(Inds, new java.util.Comparator<Integer>() // for >= 1.5
+            java.util.Arrays.sort(Inds, new java.util.Comparator() // for <= 1.4
+            {
+                public int compare(Object aObj, Object bObj)  // for <= 1.4
+                {
+                    int a = ((Integer)aObj).intValue();
+                    int b = ((Integer)bObj).intValue();
+                    return A[a] < A[b] ? -1 :
+                           A[a] > A[b] ? 1 : 0;
+                }
+                public int compare(Integer aObj, Integer bObj) // for >= 1.5
                 {
                     int a = ((Integer)aObj).intValue();
                     int b = ((Integer)bObj).intValue();
