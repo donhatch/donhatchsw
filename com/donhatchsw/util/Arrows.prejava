@@ -11,7 +11,6 @@
 //     - arrowheads on single-sources? not sure
 //
 // XXX to do for test:
-//     - make a bar for 3-prong events and 2-src events and 2-dst events! (everyone else has a bar!)
 //     - button bar
 //     - middle mouse should also be way to connect things
 //     - rubber band when connecting things
@@ -140,10 +139,39 @@ class AssetGraphUtils
             assert(iCurve == nCurves);
             return curves;
         }
+        else if (nSrcs == 2 && nDsts == 0)
+        {
+            // Just two sources and that's it--- special-case so we get a bar.
+            int nCurves = nSrcs + 1;
+            java.awt.Shape curves[] = new java.awt.Shape[nCurves];
+            double src0[/*2*/] = (srcInds != null ? srcs[srcInds[0]] : srcs[0]);
+            double src1[/*2*/] = (srcInds != null ? srcs[srcInds[1]] : srcs[1]);
+            double A[] = lerp(src0, src1, 1./3.);
+            double B[] = lerp(src0, src1, 2./3.);
+            int iCurve = 0;
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                                                src0[0], src0[1],
+                                                src0[0], src0[1],
+                                                A[0], A[1],
+                                                A[0], A[1]);
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                                                B[0], B[1],
+                                                B[0], B[1],
+                                                src1[0], src1[1],
+                                                src1[0], src1[1]);
+            // bar must go last
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                                                A[0], A[1],
+                                                A[0], A[1],
+                                                B[0], B[1],
+                                                B[0], B[1]);
+            assert(iCurve == nCurves);
+            return curves;
+        }
         else if (nDsts == 0)
         {
             //
-            // Only srcs, and at least two of them
+            // Only srcs, and at least three of them
             //
             int nCurves = nSrcs;
             java.awt.Shape curves[] = new java.awt.Shape[nCurves];
@@ -161,10 +189,52 @@ class AssetGraphUtils
             assert(iCurve == nCurves);
             return curves;
         }
+        else if (nDsts == 2 && nSrcs == 0)
+        {
+            // Just two dsts and that's it--- special-case so we get a bar.
+            int nCurves = 1 + 3*nDsts;
+            java.awt.Shape curves[] = new java.awt.Shape[nCurves];
+            double dst0[/*2*/] = (dstInds != null ? dsts[dstInds[0]] : dsts[0]);
+            double dst1[/*2*/] = (dstInds != null ? dsts[dstInds[1]] : dsts[1]);
+            double A[] = lerp(dst0, dst1, 1./3.);
+            double B[] = lerp(dst0, dst1, 2./3.);
+            int iCurve = 0;
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                                                dst0[0], dst0[1],
+                                                dst0[0], dst0[1],
+                                                A[0], A[1],
+                                                A[0], A[1]);
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                                                B[0], B[1],
+                                                B[0], B[1],
+                                                dst1[0], dst1[1],
+                                                dst1[0], dst1[1]);
+            // bar must go last
+            curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
+                                                A[0], A[1],
+                                                A[0], A[1],
+                                                B[0], B[1],
+                                                B[0], B[1]);
+            // and then arrowheads even laster
+            for (int iDst = 0; iDst < nDsts; ++iDst)
+            {
+                double dst[/*2*/] = (dstInds != null ? dsts[dstInds[iDst]] : dsts[iDst]);
+                curves[iCurve++] = arrowHeadSide(A[0], A[1],
+                                                 dst[0], dst[1],
+                                                 arrowHeadLength,
+                                                 Math.PI*5/6);
+                curves[iCurve++] = arrowHeadSide(A[0], A[1],
+                                                 dst[0], dst[1],
+                                                 arrowHeadLength,
+                                                 -Math.PI*5/6);
+            }
+            assert(iCurve == nCurves);
+            return curves;
+        }
         else if (nSrcs == 0)
         {
             //
-            // Only dsts, and at least two of them
+            // Only dsts, and at least three of them
             //
             int nCurves = nDsts*3;
             java.awt.Shape curves[] = new java.awt.Shape[nCurves];
@@ -668,8 +738,11 @@ class AssetGraphUtils
 
             if (mouseState == STATE_MOVING)
             {
-                g2d.setColor(java.awt.Color.blue);
-                drawSquare(g2d, curX, curY, selectRadiusPixels);
+                if (false)
+                {
+                    g2d.setColor(java.awt.Color.blue);
+                    drawSquare(g2d, curX, curY, selectRadiusPixels);
+                }
             }
 
             g2d.setColor(java.awt.Color.black);
