@@ -1899,8 +1899,12 @@ class AssetGraphStuff
             return assets;
         } // makeCircle
 
+        //
+        // A neat-o function,
+        // maybe should be exposed.
+        //
         private static double[][/*2*/] cleanUpCircle(double oldCircle[][/*2*/], 
-                                                     double newCenter[])
+                                                     double newCenter[]) // may be null
         {
             int n = oldCircle.length;
             if (n <= 2)
@@ -1978,6 +1982,7 @@ class AssetGraphStuff
                 inds[i] = Inds[i].intValue();
             return inds;
         } // getSortedInds
+
 
         private static int findClosest(double x, double y, double points[][/*2*/], double tooFar)
         {
