@@ -1812,7 +1812,8 @@ public class AssetGraphStuff
         private void scheduleFutureAssets(double newFutureAssets[][])
         {
             futureAssets = newFutureAssets;
-            nFramesUntilFuture = 100; // XXX needs configuration-- with antialiasing, it's a LOT slower and 100 is appropriate, without, 1000 is appropriate, on my home machine
+            nFramesUntilFuture = 100; // XXX needs configuration-- with antialiasing, it's a LOT slower and 100 is appropriate, without, 1000 is appropriate, on my home machine... and over vnc, 50 is better
+            //nFramesUntilFuture = 50;
             scheduleUntilFuture = new double[nFramesUntilFuture+1];
             for (int i = 0; i <= nFramesUntilFuture; ++i)
             {
