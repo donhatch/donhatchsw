@@ -1041,6 +1041,45 @@ class AssetGraphUtils
         public MyPanel()
         {
             super();
+
+            //
+            // Make the layout manager be a BorderLayout...
+            //
+            setLayout(new java.awt.BorderLayout());
+
+            //
+            // Add children...
+            //
+            javax.swing.JPanel buttonBar = new javax.swing.JPanel();
+            buttonBar.setBackground(java.awt.Color.lightGray); // so it stands out
+
+            {
+                javax.swing.JButton plusButton = new javax.swing.JButton("+");
+                plusButton.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        zoom('+');
+                    }
+                });
+                buttonBar.add(plusButton);
+            }
+            {
+                javax.swing.JButton minusButton = new javax.swing.JButton("-");
+                minusButton.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        zoom('-');
+                    }
+                });
+                buttonBar.add(minusButton);
+            }
+
+            add(buttonBar, java.awt.BorderLayout.SOUTH); // ignores SOUTH?
+
+
+            //
+            // Add listeners for everything...
+            //
             this.addComponentListener(new java.awt.event.ComponentListener() {
                 public void componentResized(java.awt.event.ComponentEvent e)
                 {
@@ -1407,23 +1446,7 @@ class AssetGraphUtils
 
                         case '+': case '=':
                         case '-':
-                            {
-                                double center[] = average(assets, null);
-                                double scale = Math.pow(2., .1);
-                                if (c == '-')
-                                {
-                                    scale = 1./scale;
-                                    // Attempt clever way to make everything
-                                    // drift towards centered--
-                                    // expand from center of object,
-                                    // but shrink towards center of screen!
-                                    center =  new double[] {getWidth()/2,getHeight()/2};
-                                }
-                                for (int i = 0; i < assets.length; ++i)
-                                    assets[i] = lerp(center, assets[i], scale);
-                            }
-                            connectionCurves = null; // dirty
-                            repaint();
+                            zoom(c);
                             break;
 
                         /*
@@ -1617,6 +1640,27 @@ class AssetGraphUtils
                 scheduleUntilFuture[i] = x; // linear
             }
         } // scheduleCleanup
+
+        private void zoom(char c) // '-' or '+'/'='
+        {
+            double center[] = average(assets, null);
+            double scale = Math.pow(2., .1);
+            if (c == '-')
+            {
+                scale = 1./scale;
+                // Attempt clever way to make everything
+                // drift towards centered--
+                // expand from center of object,
+                // but shrink towards center of screen!
+                center =  new double[] {getWidth()/2,getHeight()/2};
+            }
+            for (int i = 0; i < assets.length; ++i)
+                assets[i] = lerp(center, assets[i], scale);
+            connectionCurves = null; // dirty
+            repaint();
+        } // zoom
+
+
 
         private static void transform(double points[][/*2*/],
                                       double oldX, double oldY,
