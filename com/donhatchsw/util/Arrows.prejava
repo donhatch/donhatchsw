@@ -594,11 +594,29 @@ class AssetGraph
                     }
                     else if (mode == MODE_ASSETS)
                     {
-                        if (indexOfThingBeingDragged != -1)
+                        if (mouseState == STATE_DRAGGING_ASSET)
                         {
-                            assets[indexOfThingBeingDragged][0] += curX - prevX;
-                            assets[indexOfThingBeingDragged][1] += curY - prevY;
-                            connectionCurves = null; // dirty
+                            if (indexOfThingBeingDragged != -1)
+                            {
+                                assets[indexOfThingBeingDragged][0] += curX - prevX;
+                                assets[indexOfThingBeingDragged][1] += curY - prevY;
+                                connectionCurves = null; // dirty
+                            }
+                        }
+                        else if (mouseState == STATE_DRAGGING_EVENT)
+                        {
+                            // dragging an event doesn't really do anything.
+                        }
+                        else if (mouseState == STATE_DRAGGING_NOTHING)
+                        {
+                            // pan the whole scene.
+                            // XXX this is silly, shouldn't need to recalculate connectionCurves, shoul just tweak the window transform matrix
+                            for (int i = 0; i < assets.length; ++i)
+                            {
+                                assets[i][0] += curX - prevX;
+                                assets[i][1] += curY - prevY;
+                            }
+                            connectionCurves = null; // dirty;
                         }
                     }
 
@@ -625,7 +643,13 @@ class AssetGraph
                     }
                     else if (mode == MODE_ASSETS)
                     {
-                        indexOfThingBeingDragged = findClosest(curX, curY, assets, selectRadiusPixels);
+                        {
+                            indexOfThingBeingDragged = findClosest(curX, curY, assets, selectRadiusPixels);
+                            if (indexOfThingBeingDragged != -1)
+                                mouseState = STATE_DRAGGING_ASSET;
+                            else
+                                mouseState = STATE_DRAGGING_NOTHING; // panning
+                        }
                         System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged);
                     }
                     repaint();
@@ -711,20 +735,24 @@ class AssetGraph
 
         private static final int MODE_ONE_CURVE = 0;
         private static final int MODE_ASSETS = 1;
-        //private int mode = MODE_ASSETS;
-        private int mode = MODE_ONE_CURVE;
+        private int mode = MODE_ASSETS;
+        //private int mode = MODE_ONE_CURVE;
 
         private static final int STATE_NOTHING = 0;
-        private static final int STATE_CTRL_NOTHING = 1;
-        private static final int STATE_DRAGGING_ASSET = 2;
-        private static final int STATE_CTRL_DRAGGING_ASSET = 3;
-        private static final int STATE_DRAGGING_EVENT = 4;
-        private static final int STATE_CTRL_DRAGGING_EVENT = 5;
-        private static final int STATE_DRAGGING_NOTHING = 6;
-        private static final int STATE_CTRL_DRAGGING_NOTHING = 7;
+        private static final int STATE_MOVING = 1;
+        private static final int STATE_CTRL_MOVING = 2;
+        private static final int STATE_DRAGGING_ASSET = 3;
+        private static final int STATE_CTRL_DRAGGING_ASSET = 4;
+        private static final int STATE_DRAGGING_EVENT = 5;
+        private static final int STATE_CTRL_DRAGGING_EVENT = 6;
+        private static final int STATE_DRAGGING_NOTHING = 7;
+        private static final int STATE_CTRL_DRAGGING_NOTHING = 8;
 
-        int indexOfThingBeingDragged = -1;
-        int subIndexOfThingBeingDragged = -1;
+        private int mouseState = STATE_NOTHING;
+
+            // these mean something when mouseState is ...DRAGGING...
+            private int indexOfThingBeingDragged = -1;
+            private int subIndexOfThingBeingDragged = -1;
 
 
             //
