@@ -4,21 +4,35 @@
 
 //
 // XXX to do:
-//     - need asset radius
+//     - delete everything except top thing, then delete 2nd asset... hangs?
+//     - antialiased lines?
+//     - need asset radius? not sure how important
 //     - do NOT steal focus on startup!! dang it!
-//     - and what is the beep???
+//     - and what the hell is that beep on startup???
 //     - think about whether I can jitter or something
 //           to handle multiple events with exact same srcs and dsts
-//     - center it initially and when window resized
-//     - antialiased lines?
+//     - center it initially and when window resized, I think
 //     - thicken lines? nah...
 //     - label assets? might help for debugging
-//     - gui elements for +, -, clean up circle
 //     - autoclean! (when n, d, or move)
 //     - save/load?
-//     - clever centering zoom
-//     - arrowheads on single-sources? not sure
-//     - should be passing around tooFarSqrd, not tooFar
+//     - arrowheads on single-sources? not sure, maybe option
+//     - should be passing around tooFarSqrd, not tooFar, maybe
+//     - rubber band when connecting things
+//     - highlight close thing that would be selected or dropped onto or deleted
+//
+//   GUI:
+//      [ ] Auto Clean Circle
+//      [ ] Auto Clean And Center
+//      [Clean Circle] [Clean and Center]
+//      [Save DUMP.txt] [Load DUMP.txt]
+//      [+] [-]
+//      [ ] Label assets
+//      [Assets|One Curve] Mode
+//      [Quit]
+//      [Help]
+//      [ ] Arrowhead on single-srcs
+//      
 
 
 class AssetGraphUtils
@@ -35,7 +49,8 @@ class AssetGraphUtils
               double arrowHeadLength,
 
               double graphCenterForSingle[/*2*/],
-              double arrowLengthForSingle)
+              double arrowLengthForSingle,
+              boolean doArrowHeadOnSingleSrc)
     {
         int nSrcs = (srcInds != null ? srcInds.length : srcs.length);
         int nDsts = (dstInds != null ? dstInds.length : dsts.length);
@@ -46,40 +61,57 @@ class AssetGraphUtils
         }
         else if (nSrcs == 1 && nDsts == 0)
         {
-            // Make an arrow from this src to nothingness
-            int nCurves = 1;
+            //
+            // Just one src and that's all.
+            // Make an arrow from the src to nothingness.
+            //
+            int nCurves = doArrowHeadOnSingleSrc ? 3 : 1;
             java.awt.Shape curves[] = new java.awt.Shape[nCurves];
             double src[] = (srcInds != null ? srcs[srcInds[0]] : srcs[0]);
-            double dst[] = lerp(graphCenterForSingle, src,
+            double nothingness[] = lerp(graphCenterForSingle, src,
                                  1. + arrowLengthForSingle/dist(graphCenterForSingle[0],graphCenterForSingle[1], src[0],src[1]));
             int iCurve = 0;
             curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
                                             src[0], src[1],
                                             src[0], src[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1]);
+                                            nothingness[0], nothingness[1],
+                                            nothingness[0], nothingness[1]);
+            if (doArrowHeadOnSingleSrc)
+            {
+                curves[iCurve++] = arrowHeadSide(src[0], src[1],
+                                                 nothingness[0], nothingness[1],
+                                                 arrowHeadLength,
+                                                 Math.PI*5/6);
+                curves[iCurve++] = arrowHeadSide(src[0], src[1],
+                                                 nothingness[0], nothingness[1],
+                                                 arrowHeadLength,
+                                                 -Math.PI*5/6);
+            }
             assert(iCurve == nCurves);
             return curves;
         }
         else if (nDsts == 1 && nSrcs == 0)
         {
-            // Make an arrow from nothingness to this dst
+            //
+            // Just one dst and that's all.
+            // Make an arrow from nothingness to the dst.
+            //
             int nCurves = 3;
             java.awt.Shape curves[] = new java.awt.Shape[nCurves];
             double dst[] = (dstInds != null ? dsts[dstInds[0]] : dsts[0]);
-            double src[] = lerp(graphCenterForSingle, dst,
+            double nothingness[] = lerp(graphCenterForSingle, dst,
                                  1. + arrowLengthForSingle/dist(graphCenterForSingle[0],graphCenterForSingle[1], dst[0],dst[1]));
             int iCurve = 0;
             curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
-                                            src[0], src[1],
-                                            src[0], src[1],
+                                            nothingness[0], nothingness[1],
+                                            nothingness[0], nothingness[1],
                                             dst[0], dst[1],
                                             dst[0], dst[1]);
-            curves[iCurve++] = arrowHeadSide(src[0], src[1],
+            curves[iCurve++] = arrowHeadSide(nothingness[0], nothingness[1],
                                              dst[0], dst[1],
                                              arrowHeadLength,
                                              Math.PI*5/6);
-            curves[iCurve++] = arrowHeadSide(src[0], src[1],
+            curves[iCurve++] = arrowHeadSide(nothingness[0], nothingness[1],
                                              dst[0], dst[1],
                                              arrowHeadLength,
                                              -Math.PI*5/6);
@@ -88,7 +120,9 @@ class AssetGraphUtils
         }
         else if (nDsts == 0)
         {
-            // Only srcs
+            //
+            // Only srcs, and at least two of them
+            //
             int nCurves = nSrcs;
             java.awt.Shape curves[] = new java.awt.Shape[nCurves];
             double srcCenter[/*2*/] = average(srcs, srcInds);
@@ -107,7 +141,9 @@ class AssetGraphUtils
         }
         else if (nSrcs == 0)
         {
-            // Only dsts
+            //
+            // Only dsts, and at least two of them
+            //
             int nCurves = nDsts*3;
             java.awt.Shape curves[] = new java.awt.Shape[nCurves];
             double dstCenter[/*2*/] = average(dsts, dstInds);
@@ -134,6 +170,9 @@ class AssetGraphUtils
         }
         else // nSrcs > 0 && nDsts > 0
         {
+            //
+            // At least one src and at least one dst
+            //
             int nCurves = nSrcs + 1 + nDsts*3;
             java.awt.Shape curves[] = new java.awt.Shape[nCurves];
             double srcCenter[/*2*/] = average(srcs, srcInds);
@@ -554,6 +593,7 @@ class AssetGraphUtils
             clear(g);
             java.awt.Graphics2D g2d = (java.awt.Graphics2D)g;
 
+
             if (mouseState == STATE_MOVING)
             {
                 g2d.setColor(java.awt.Color.blue);
@@ -616,6 +656,17 @@ class AssetGraphUtils
                     drawSquare(g2d, assets[i][0],assets[i][1], 2);
                 }
 
+                boolean doAntiAlias = true; // XXX need an option to toggle
+                if (doAntiAlias)
+                {
+                    g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                                         java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                    // XXX not sure if the following does anything?
+                    if (false)
+                        g2d.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING,
+                                             java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+                }
+
                 int lineThickness = 1;
                 java.awt.Stroke oldStroke = g2d.getStroke();
                 g2d.setStroke(new java.awt.BasicStroke(lineThickness));
@@ -629,9 +680,14 @@ class AssetGraphUtils
                         else
                             g2d.draw(connectionCurves[i][j]);
                     }
-                }
 
+                }
                 g2d.setStroke(oldStroke);
+                if (doAntiAlias)
+                {
+                    g2d.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                                         java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
+                }
 
                 {
                     FuzzyPoint closestPoint = new FuzzyPoint();
@@ -672,7 +728,7 @@ class AssetGraphUtils
                         double x = closestPoint.x;
                         double y = closestPoint.y;
                         double r = Math.sqrt(closestPoint.rSqrd);
-                        g2d.setColor(java.awt.Color.green);
+                        g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 5);
                     }
                     if (indicesOfClosestThing[1] != -1) // a curve
@@ -979,6 +1035,7 @@ class AssetGraphUtils
                             System.out.println("            C -- clean up circle and re-center");
                             System.out.println("            - -- zoom out");
                             System.out.println("          =/+ -- zoom in");
+                            System.out.println("            s -- toggle arrowheads on single-src events");
                             System.out.println("            m -- toggle mode between asset graph and single cubic curve");
                             System.out.println("          ?/h -- show this help message");
                             System.out.println("");
@@ -1005,6 +1062,11 @@ class AssetGraphUtils
                             repaint();
                             break;
 
+                        case 's':
+                            doArrowHeadOnSingleSrc ^= true;
+                            connectionCurves = null; // dirty
+                            repaint();
+                            break;
                         case 'm': // switch between MODE_ASSETS and MODE_ONE_CURVE
                             mode = 1-mode;
                             repaint();
@@ -1015,7 +1077,7 @@ class AssetGraphUtils
                                 double newCenter[] = (c=='C' ? new double[] {getWidth()/2, getHeight()/2} : null);
                                 futureAssets = cleanUpCircle(assets, newCenter);
 
-                                nFramesUntilFuture = 1000;
+                                nFramesUntilFuture = 100; // XXX needs configuration-- with antialiasing, it's a LOT slower and 100 is appropriate, without, 1000 is appropriate, on my home machine
                                 scheduleUntilFuture = new double[nFramesUntilFuture+1];
                                 for (int i = 0; i <= nFramesUntilFuture; ++i)
                                 {
@@ -1341,6 +1403,7 @@ class AssetGraphUtils
                 double dstRadii[] = {10}; // how far to keep arrow heads away
                 double arrowHeadLength = 10;
                 double arrowLengthForSingle = 40;
+                boolean doArrowHeadOnSingleSrc = false; // XXX need way to toggle
 
                 int nAssets = 18;
                 double assets[][] = makeCircle(nAssets, 100, 100, 90);
@@ -1378,7 +1441,8 @@ class AssetGraphUtils
                                 dstRadii,
                                 arrowHeadLength,
                                 average(assets,null),
-                                arrowLengthForSingle);
+                                arrowLengthForSingle,
+                                doArrowHeadOnSingleSrc);
                 assert(connectionCurves[i] != null);
             }
         } // calculateCurves
