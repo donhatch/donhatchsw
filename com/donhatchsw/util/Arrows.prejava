@@ -1,26 +1,26 @@
-#include "macros.h" // XXX get rid
-#undef PRINTARRAY
-#define PRINTARRAY(x) System.out.println(#x + " = " + arrayToString(x))
-
 //
-// XXX to do:
-//     - middle mouse should also be way to connect things
-//     - problem when just one asset and a from event and a to event (I think)
+// ISSUE:
+//     - not really sensible when a single event is both a src and dst?
 //     - need asset radius? not sure how important
-//     - do NOT steal focus on startup!! dang it!
-//     - and what the hell is that beep on startup???
 //     - think about whether I can jitter or something
 //           to handle multiple events with exact same srcs and dsts
+//     - arrowheads on single-sources? not sure
+//
+// XXX to do for test:
+//     - get rid of dependencies on preprocessor
+//     - rubber band when connecting things
+//     - be able to delete just a single part of the event
+//     - middle mouse should also be way to connect things
+//     - do NOT steal focus on startup!! dang it!
+//     - and what the hell is that beep on startup???
 //     - center it initially and when window resized, I think
 //     - thicken lines? nah...
 //     - label assets? might help for debugging
 //     - save/load?
-//     - arrowheads on single-sources? not sure, maybe option
-//     - should be passing around tooFarSqrd, not tooFar, maybe
-//     - rubber band when connecting things
 //     - highlight close thing that would be selected or dropped onto or deleted
+//     - should be passing around tooFarSqrd, not tooFar, maybe
 //
-//   GUI:
+//   GUI: (button bar)
 //      [ ] Auto Clean Circle
 //      [ ] Auto Clean And Center   (nah, I think auto clean should do this)
 //      [Clean Circle] [Clean and Center]
@@ -29,10 +29,12 @@
 //      [ ] Label assets
 //      [Assets|One Curve] Mode
 //      [ ] Arrowhead on single-srcs
+//      [ ] labels
 //      [Quit]
 //      [Help]
 //      
 
+//#include "macros.h"
 
 class AssetGraphUtils
 {
@@ -737,7 +739,7 @@ class AssetGraphUtils
                                                     maxFuzzyRadiusPixels,
                                                     closestPoint,
                                                     false);
-                    //PRINTARRAY(indicesOfClosestThing);
+                    //printArray("indicesOfClosestThing", indicesOfClosestThing);
                     if (indicesOfClosestThing[0] != -1) // an asset
                     {
                         double x = closestPoint.x;
@@ -854,7 +856,7 @@ class AssetGraphUtils
                                                         maxFuzzyRadiusPixels,
                                                         closestPoint,
                                                         true);
-                        //PRINTARRAY(indicesOfClosestThing);
+                        //printArray("indicesOfClosestThing", indicesOfClosestThing);
                         //PRINT(e.isControlDown());
                         if (indicesOfClosestThing[0] != -1)
                         {
@@ -906,7 +908,7 @@ class AssetGraphUtils
                                                         maxFuzzyRadiusPixels,
                                                         closestPoint,
                                                         true);
-                        //PRINTARRAY(indicesOfClosestThing);
+                        //printArray("indicesOfClosestThing", indicesOfClosestThing);
 
                         if (mouseState == STATE_DRAGGING_ASSET)
                         {
@@ -929,28 +931,35 @@ class AssetGraphUtils
                             {
                                 // to an asset
                                 System.out.println("dragged an asset to another asset");
-                                PRINTARRAY(connections);
-                                connections = (int[][][])append(connections, new int[][] {{indexOfThingBeingDragged},{indicesOfClosestThing[0]}});
-                                PRINTARRAY(connections);
+                                printArray("connections", connections);
+                                int newEvent[][] = {{indexOfThingBeingDragged},{indicesOfClosestThing[0]}};
+                                connections = (int[][][])append(connections, newEvent);
+                                printArray("connections", connections);
                                 connectionCurves = null; // dirty
                             }
                             else if (indicesOfClosestThing[1] != -1)
                             {
                                 // to an event
                                 System.out.println("dragged an asset to an event");
-                                PRINTARRAY(connections);
-                                connections[indicesOfClosestThing[1]][0] =
-                                        (int[])append(connections[indicesOfClosestThing[1]][0], new Integer(indexOfThingBeingDragged));
-                                PRINTARRAY(connections);
+                                System.out.println("WARNING: not checking this asset is already a src of this event");
+                                printArray("connections", connections);
+                                if (indexOf(connections[indicesOfClosestThing[1]][0], indexOfThingBeingDragged) == -1)
+                                    connections[indicesOfClosestThing[1]][0] =
+                                            (int[])append(connections[indicesOfClosestThing[1]][0], new Integer(indexOfThingBeingDragged));
+                                else
+                                    System.out.println("\007This asset is already a src of this event!"); // XXX bell
+                                printArray("connections", connections);
                                 connectionCurves = null; // dirty
                             }
                             else
                             {
                                 // to nothingness
                                 System.out.println("dragged an asset to nothing");
-                                PRINTARRAY(connections);
-                                connections = (int[][][])append(connections, new int[][] {{indexOfThingBeingDragged},{}});
-                                PRINTARRAY(connections);
+                                System.out.println("WARNING: not checking whether there's already an event like this");
+                                printArray("connections", connections);
+                                int newEvent[][] = {{indexOfThingBeingDragged},{}};
+                                connections = (int[][][])append(connections, newEvent);
+                                printArray("connections", connections);
                                 connectionCurves = null; // dirty
                             }
                         }
@@ -964,9 +973,12 @@ class AssetGraphUtils
                             {
                                 // to an asset
                                 System.out.println("dragged an event to an asset");
-                                PRINTARRAY(connections);
-                                connections[indexOfThingBeingDragged][1] = (int[])append(connections[indexOfThingBeingDragged][1], new Integer(indicesOfClosestThing[0]));
-                                PRINTARRAY(connections);
+                                printArray("connections", connections);
+                                if (indexOf(connections[indexOfThingBeingDragged][1], indicesOfClosestThing[0]) == -1)
+                                    connections[indexOfThingBeingDragged][1] = (int[])append(connections[indexOfThingBeingDragged][1], new Integer(indicesOfClosestThing[0]));
+                                else
+                                    System.out.println("\007This asset is already a dst of this event!"); // XXX bell
+                                printArray("connections", connections);
                                 connectionCurves = null; // dirty
                             }
                             else if (indicesOfClosestThing[1] != -1)
@@ -975,11 +987,11 @@ class AssetGraphUtils
                                 System.out.println("dragged an event to an event");
                                 int i0 = indexOfThingBeingDragged;
                                 int i1 = indicesOfClosestThing[1];
-                                PRINTARRAY(connections);
+                                printArray("connections", connections);
                                 connections[i0][0] = (int[])concat(connections[i0][0], connections[i1][0]);
                                 connections[i0][1] = (int[])concat(connections[i0][1], connections[i1][1]);
                                 connections = (int[][][])deleteElement(connections, i1);
-                                PRINTARRAY(connections);
+                                printArray("connections", connections);
                                 connectionCurves = null; // dirty
                             }
                             else
@@ -997,9 +1009,11 @@ class AssetGraphUtils
                             {
                                 // to an asset
                                 System.out.println("dragged nothingness to an asset");
-                                PRINTARRAY(connections);
-                                connections = (int[][][])append(connections, new int[][] {{},{indicesOfClosestThing[0]}});
-                                PRINTARRAY(connections);
+                                printArray("connections", connections);
+
+                                int newEvent[][] = {{},{indicesOfClosestThing[0]}};
+                                connections = (int[][][])append(connections, newEvent);
+                                printArray("connections", connections);
                                 connectionCurves = null; // dirty
                             }
                             else if (indicesOfClosestThing[1] != -1)
@@ -1542,6 +1556,15 @@ class AssetGraphUtils
             java.lang.reflect.Array.set(result, n, last);
             return result;
         } // append
+
+        public static int indexOf(int array[], int last)
+        {
+            for (int i = 0; i < array.length; ++i)
+                if (array[i] == last)
+                    return i;
+            return -1;
+        } // indexOf
+
         /**
          * Returns a newly allocated array
          * that is the concatenation of the given arrays.
@@ -1568,7 +1591,9 @@ class AssetGraphUtils
         }
         public static void appendArrayToString(Object array, StringBuffer sb)
         {
-            if (!array.getClass().isArray())
+            if (array == null)
+                sb.append("null");
+            else if (!array.getClass().isArray())
                 sb.append(array);
             else
             {
@@ -1583,6 +1608,16 @@ class AssetGraphUtils
                 sb.append("}");
             }
         }
+
+        // When using the C preprocessor, I use this all the time:
+        //  #define PRINTARRAY(x) System.out.println(#x + " = " + arrayToString(x))
+        // The following function is the best I can do without it.
+        public static void printArray(String name, Object array)
+        {
+            System.out.println(name + " = " + arrayToString(array));
+        } // printArray
+
+
     } // class MyPanel
 
 
