@@ -2742,8 +2742,14 @@ public class AssetGraphStuff
             }
         });
 
-        //myDemoPanel.canvas.setPreferredSize(new java.awt.Dimension(800,800)); // XXX hmm, is it strange for a preferred size to be set by the caller? oh well
-        myDemoPanel.canvas.setPreferredSize(new java.awt.Dimension(400,400)); // XXX hmm, is it strange for a preferred size to be set by the caller? oh well
+        int w = 800, h = 800;
+        if (args.length == 2)
+        {
+            w = Integer.parseInt(args[0]);
+            h = Integer.parseInt(args[0]);
+        }
+
+        myDemoPanel.canvas.setPreferredSize(new java.awt.Dimension(w,h)); // XXX hmm, is it strange for a preferred size to be set by the caller? oh well
         frame.pack();
         frame.setLocation(50,50); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place.
         frame.setVisible(true);
