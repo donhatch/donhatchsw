@@ -11,10 +11,12 @@
 //     - arrowheads on single-sources? not sure
 //
 // XXX to do for test:
+//     - show list of current event at bottom
+//     - button bar
+//     - middle mouse should also be way to connect things
 //     - rubber band when connecting things
 //     - bleah, drag 11:00 asset to its event, it thinks it was dropped onto the asset... need to make this more sane!
 //     - be able to delete just a single part of the event
-//     - middle mouse should also be way to connect things
 //     - do NOT steal focus on startup!! dang it!
 //     - and what the hell is that beep on startup???
 //     - center it initially and when window resized, I think
@@ -33,12 +35,14 @@
 //      [ ] Label assets
 //      [Assets|One Curve] Mode
 //      [ ] Arrowhead on single-srcs
-//      [ ] labels
+//      [ ] label assets
+//      [ ] label events (with full dump!) (but how to find where to label it?)
+//                                               (oh maybe show it below?)
 //      [Quit]
 //      [Help]
 //      
 
-//#include "macros.h"
+#include "macros.h"
 
 class AssetGraphUtils
 {
@@ -680,6 +684,7 @@ class AssetGraphUtils
             }
             else if (mode == MODE_ASSETS)
             {
+
                 if (connectionCurves == null)
                     recalculateCurves();
                 for (int i = 0; i < assets.length; ++i)
@@ -719,6 +724,7 @@ class AssetGraphUtils
                                          java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
                 }
 
+                if (mouseState != STATE_NOTHING)
                 {
                     FuzzyPoint closestPoint = new FuzzyPoint();
                     int closestIndices[/*2*/] = getClosestPointOnCubicCurves(
@@ -741,6 +747,7 @@ class AssetGraphUtils
                     }
                 }
 
+                if (mouseState != STATE_NOTHING)
                 {
                     double tooFar = Double.POSITIVE_INFINITY;
                     FuzzyPoint closestPoint = new FuzzyPoint();
@@ -760,6 +767,9 @@ class AssetGraphUtils
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 5);
+                        int ind = indicesOfClosestThing[0];
+                        String labelText = "Asset " + ind;
+                        g2d.drawString(labelText, (int)(x+10), (int)y);
                     }
                     if (indicesOfClosestThing[1] != -1) // a curve
                     {
@@ -768,6 +778,26 @@ class AssetGraphUtils
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 2);
+                        int ind = indicesOfClosestThing[1];
+                        String labelText = "Event " + arrayToString(connections[ind][0])+ "->" + arrayToString(connections[ind][1]) + "";
+                        //
+                        // Try to analyze which leg we have
+                        //
+                        {
+                            int event[][] = connections[ind];
+                            int legInd = indicesOfClosestThing[2];
+                            int nSrcs = event[0].length;
+                            int nDsts = event[1].length;
+                            if (legInd < nSrcs)
+                            {
+                                labelText = "Asset "+event[0][legInd]+" as src of "+labelText;
+                            }
+                            else if (legInd < nSrcs+nDsts)
+                            {
+                                labelText = "Asset "+event[1][legInd-nSrcs]+" as dst of "+labelText;
+                            }
+                        }
+                        g2d.drawString(labelText, (int)(x+10), (int)y);
                     }
                 }
             }
@@ -791,6 +821,8 @@ class AssetGraphUtils
                     if (eventVerbose >= 2) System.out.println("    in mouseMoved to "+e.getX()+","+e.getY()+"");
                     curX = e.getX();
                     curY = e.getY();
+                    if (mouseState == STATE_NOTHING)
+                        mouseState = STATE_MOVING;
                     repaint();
                     if (eventVerbose >= 2) System.out.println("    out mouseMoved");
                 }
@@ -1494,7 +1526,6 @@ class AssetGraphUtils
                 double assets[][] = makeCircle(nAssets, 100, 100, 90);
                 int connections[][/*2*/][] = {
                     {{5},{4}},
-                    /*
                     {{6},{3,2}},
                     {{7,8},{1}},
                     {{9,10},{17,0}},
@@ -1502,7 +1533,6 @@ class AssetGraphUtils
                     {{},{16}},
                     {{12,13},{}},
                     {{},{14,15}},
-                    */
                 };
 
                 // If easing in to a reconfiguration,
