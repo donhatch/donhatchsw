@@ -14,6 +14,8 @@
 //
 // XXX to do for test:
 //     - help should go to a help window, not stdout
+//     - all the requestFocus()s are lame, should be one when the mouse
+//          enters the canvas.  and the buttons shouldn't obscure the drawing area, either.  when we do it right, should be able to hold down the space bar on the + button and have it work.
 //     - button bar
 //     - should adjust radius of what gets shown in red:
 //              if control is down, use select radius (obj affected by click)
@@ -895,7 +897,7 @@ class AssetGraphUtils
                     }
                 }
 
-                if (showAssetLabels)
+                if (showLabels)
                 {
                     g2d.setColor(java.awt.Color.blue);
                     double center[/*2*/] = average(assets, null);
@@ -931,7 +933,7 @@ class AssetGraphUtils
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 5);
-                        if (showHoverLabel)
+                        if (showLabels)
                         {
                             int ind = indicesOfClosestThing[0];
                             String labelText = "Asset " + ind;
@@ -955,7 +957,7 @@ class AssetGraphUtils
                             drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[indicesOfClosestThing[1]][indicesOfClosestThing[2]],nDebugSubdivisionLevels);
                         }
 
-                        if (showHoverLabel)
+                        if (showLabels)
                         {
                             int ind = indicesOfClosestThing[1];
                             String labelText = "Event " + arrayToString(connections[ind][0])+ "->" + arrayToString(connections[ind][1]) + "";
@@ -1038,20 +1040,20 @@ class AssetGraphUtils
             // Add children...
             //
 
+//      [ ] Label assets
+//      [Assets|One Curve] Mode
+//      [ ] Arrowhead on single-srcs
+
 //      [ ] Auto Clean Circle
 //      [ ] Auto Clean And Center   (nah, I think auto clean should do this)
 //      [Clean Circle] [Clean and Center]
 //      [Save DUMP.txt] [Load DUMP.txt]
 //      [+] [-]
-//      [ ] Label assets
-//      [Assets|One Curve] Mode
-//      [ ] Arrowhead on single-srcs
-//      [ ] label assets
-//      [ ] label events (with full dump!) (but how to find where to label it?)
-//                                               (oh maybe show it below?)
 //      [Help]
             //
-            javax.swing.JPanel buttonBar = new javax.swing.JPanel();
+            javax.swing.JPanel buttonBar = new javax.swing.JPanel() {
+                public boolean isFocusTraversable() { return false; }
+            };
             buttonBar.setBackground(java.awt.Color.lightGray); // so it stands out
 
             {
@@ -1060,6 +1062,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('+');
+                        requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonBar.add(child);
@@ -1070,15 +1073,14 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('-');
+                        requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonBar.add(child);
             }
 
-            final javax.swing.JButton cleanCircleButton = new javax.swing.JButton("Clean Circle");
-            final javax.swing.JButton cleanAndCenterButton = new javax.swing.JButton("Clean&Center");
-            cleanCircleButton.setEnabled(!autoClean);
-            cleanAndCenterButton.setEnabled(!autoClean);
+            cleanCircleButton = new javax.swing.JButton("Clean Circle");
+            cleanAndCenterButton = new javax.swing.JButton("Clean&Center");
 
             {
                 javax.swing.AbstractButton child = cleanCircleButton;
@@ -1086,6 +1088,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         scheduleCleanup(false); // don't re-center
+                        requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonBar.add(child);
@@ -1096,6 +1099,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         scheduleCleanup(true); // do re-center
+                        requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonBar.add(child);
@@ -1105,21 +1109,38 @@ class AssetGraphUtils
                 child.addActionListener(new java.awt.event.ActionListener() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
-                        autoClean = child.isSelected();
-                        if (autoClean)
-                            scheduleCleanup(doCenterWhenAutoClean);
-                        cleanCircleButton.setEnabled(!autoClean);
-                        cleanAndCenterButton.setEnabled(!autoClean);
+                        setAutoClean(child.isSelected());
+                        requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonBar.add(child);
+
+                // We need to keep track of it to keep it in sync...
+                autoCleanCheckBox = child;
             }
+            {
+                final javax.swing.JCheckBox child = new javax.swing.JCheckBox("Labels");
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        setShowLabels(child.isSelected());
+                        repaint();
+                        requestFocus(); // try to give main panel focus again
+                    }
+                });
+                buttonBar.add(child);
+
+                // We need to keep track of it to keep it in sync...
+                showLabelsCheckBox = child;
+            }
+
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("Save DUMP.txt");
                 child.addActionListener(new java.awt.event.ActionListener() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         save("DUMP.txt");
+                        requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonBar.add(child);
@@ -1130,6 +1151,7 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         load("DUMP.txt");
+                        requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonBar.add(child);
@@ -1140,10 +1162,20 @@ class AssetGraphUtils
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         help();
+                        requestFocus(); // try to give main panel focus again
                     }
                 });
                 buttonBar.add(child);
             }
+
+
+            //
+            // Make sure gui elements are in sync
+            // (checkbox states and enabledness)
+            //
+            setAutoClean(autoClean);
+            setShowLabels(showLabels);
+
 
             add(buttonBar, java.awt.BorderLayout.SOUTH);
 
@@ -1497,20 +1529,8 @@ class AssetGraphUtils
                             zoom(c);
                             break;
 
-                        /*
                         case 'l':
-                            showHoverLabel ^= true;
-                            repaint();
-                            break;
-                        case 'L':
-                            showAssetLabels ^= true;
-                            repaint();
-                            break;
-                        */
-                        case 'l': // just do em both at once
-                            showAssetLabels = showHoverLabel =
-                                !(showAssetLabels || showHoverLabel);
-                            repaint();
+                            setShowLabels(!showLabels);
                             break;
 
                         case 's':
@@ -1528,6 +1548,9 @@ class AssetGraphUtils
                                 autoClean ^= true;
                                 if (autoClean)
                                     scheduleCleanup(doCenterWhenAutoClean);
+                                autoCleanCheckBox.setSelected(autoClean);
+                                cleanCircleButton.setEnabled(!autoClean);
+                                cleanAndCenterButton.setEnabled(!autoClean);
                             }
                             repaint();
                             break;
@@ -1693,6 +1716,22 @@ class AssetGraphUtils
             }
             repaint();
         } // scheduleCleanup
+
+        private void setAutoClean(boolean newAutoClean)
+        {
+            autoClean = newAutoClean;
+            if (autoClean)
+                scheduleCleanup(doCenterWhenAutoClean);
+            cleanCircleButton.setEnabled(!autoClean);
+            cleanAndCenterButton.setEnabled(!autoClean);
+            autoCleanCheckBox.setSelected(autoClean);
+        } // setAutoClean
+        private void setShowLabels(boolean newShowLabels)
+        {
+            showLabels = newShowLabels;
+            showLabelsCheckBox.setSelected(showLabels);
+            repaint();
+        } // setShowLabels
 
         private void zoom(char c) // '-' or '+'/'='
         {
@@ -1940,8 +1979,13 @@ class AssetGraphUtils
         private int nDebugSubdivisionLevels = 0; // set to higher to see curve subdivisions
         boolean autoClean = false;
         boolean doCenterWhenAutoClean = true; // not sure what it should be; a preference maybe.  actually now that I tried false I think it has to be true, maybe can get rid
-        boolean showHoverLabel = false;
-        boolean showAssetLabels = false;
+        boolean showLabels = false;
+
+        // these track autoClean and showLabels
+        javax.swing.JCheckBox autoCleanCheckBox;
+        javax.swing.JCheckBox showLabelsCheckBox;
+        javax.swing.JButton cleanCircleButton;
+        javax.swing.JButton cleanAndCenterButton;
 
         private static final int MODE_ONE_CURVE = 0;
         private static final int MODE_ASSETS = 1;
@@ -2318,7 +2362,7 @@ class AssetGraphUtils
         javax.swing.JFrame frame = new javax.swing.JFrame(title);
         frame.setBackground(java.awt.Color.black);
         frame.setForeground(java.awt.Color.white);
-        int w = 600, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
+        int w = 900, h = 600; // XXX hmm, would rather set preferred size of panel and let frame adapt to fit it?
         frame.setSize(w, h);
         final MyPanel myPanel = new MyPanel();
         frame.setContentPane(myPanel);
