@@ -213,13 +213,14 @@ class AssetGraphUtils
             // XXX experimenting... it's nicer (more curvy) when closer to srcCenter, but then sometimes the arrow heads and up cramped
             double controlA[/*2*/] = lerp(A, srcCenter, .5);
             double controlB[/*2*/] = lerp(B, dstCenter, .5);
-            if (nSrcs + nDsts == 3)
-            {
-                // hack, sort of... just put A and B right in the center;
-                // average of the 3 sites.
-                // this means the bar will be zero-length.
-                A = B = lerp(srcCenter, dstCenter, (double)nDsts/(nSrcs+nDsts));
-            }
+
+
+            // hack sort of... if only one src or only one dst
+            // but more of the other, put the split right at the global center.
+            if (nSrcs == 1 && nDsts >= 2)
+                B = lerp(srcCenter, dstCenter, (double)nDsts/(nSrcs+nDsts));
+            if (nDsts == 1 && nSrcs >= 2)
+                A = lerp(srcCenter, dstCenter, (double)nDsts/(nSrcs+nDsts));
 
             int iCurve = 0;
             for (int iSrc = 0; iSrc < nSrcs; ++iSrc)
@@ -571,7 +572,7 @@ class AssetGraphUtils
         static void drawSquare(java.awt.Graphics2D g2d,
                                double x, double y, double r)
         {
-            java.awt.geom.Rectangle2D.Double square = new java.awt.geom.Rectangle2D.Double(x-r, y-r, 2*r, 2*r);
+            java.awt.geom.Rectangle2D.Double square = new java.awt.geom.Rectangle2D.Double(x-r, y-r, 2.*r, 2.*r);
             g2d.draw(square);
         } // drawSquare
 
@@ -816,7 +817,7 @@ class AssetGraphUtils
                         double y = closestPoint.y;
                         double r = Math.sqrt(closestPoint.rSqrd);
                         g2d.setColor(java.awt.Color.red);
-                        drawSquare(g2d, x, y, 2);
+                        drawSquare(g2d, x, y, 1);
 
                         // Re-draw the asset in red (XXX this doesn't look great when antialiasing... should suppress drawing it in black to begin with
                         {
