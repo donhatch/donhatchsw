@@ -13,9 +13,11 @@
 //     - arrowheads on single-sources? not sure (I made it a parameter)
 //
 // XXX to do for test:
-//     - delete radius not so big?  (or, capital D is the big one, I think)
-//     - show thing being dragged in green
 //     - button bar
+//     - should adjust radius of what gets shown in red:
+//              if control is down, use select radius (obj affected by click)
+//              if shift is down, use infinity (obj affected by 'D')
+//              if neither is down, use delete radius (obj affected by 'd')
 //     - middle mouse should also be way to connect things (same as control-left)
 //     - bleah, drag 11:00 asset to its event, it thinks it was dropped onto the asset... need to make distances more sane!  unfortunately I'm having trouble reconciling different sized distances and preferences of assets over events and stuff
 //     - be able to delete just a single part of the event
@@ -1394,7 +1396,8 @@ class AssetGraphUtils
 
                             System.out.println("    Keys:");
                             System.out.println("            n -- new asset");
-                            System.out.println("     Delete/d -- delete nearest asset or event");
+                            System.out.println("     Delete/d -- delete asset or event");
+                            System.out.println("            D -- delete nearest asset or event at any distance");
                             System.out.println("            c -- clean up circle (after n, d, and dragging assets around)");
                             System.out.println("            C -- clean up circle and re-center");
                             System.out.println("            - -- zoom out");
