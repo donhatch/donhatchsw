@@ -7,11 +7,16 @@
 //     - center it initially and when window resized
 //     - need focus (isfocustraversible?)
 //     - thicken lines?
+//     - implement arrow heads
+
 
 class AssetGraphUtils
 {
 
-    public static java.awt.geom.CubicCurve2D[] getCurves(
+    //
+    // Get curves representing an event.
+    //
+    public static java.awt.Shape[] getCurves(
               double srcs[][/*2*/], int srcInds[], // inds may be null
               double dsts[][/*2*/], int dstInds[], // inds may be null
               double srcRadii[], // keep arrows this far away
@@ -26,13 +31,13 @@ class AssetGraphUtils
 
         if (nSrcs == 0 && nDsts == 0)
         {
-            return new java.awt.geom.CubicCurve2D[0];
+            return new java.awt.Shape[0];
         }
         else if (nDsts == 0)
         {
             // Only srcs
             int nCurves = nSrcs;
-            java.awt.geom.CubicCurve2D curves[] = new java.awt.geom.CubicCurve2D[nCurves];
+            java.awt.Shape curves[] = new java.awt.Shape[nCurves];
             double srcCenter[/*2*/] = average(srcs, srcInds);
             int iCurve = 0;
             for (int iSrc = 0; iSrc < nSrcs; ++iSrc)
@@ -51,7 +56,7 @@ class AssetGraphUtils
         {
             // Only dsts
             int nCurves = nDsts*3;
-            java.awt.geom.CubicCurve2D curves[] = new java.awt.geom.CubicCurve2D[nCurves];
+            java.awt.Shape curves[] = new java.awt.Shape[nCurves];
             double dstCenter[/*2*/] = average(dsts, dstInds);
             int iCurve = 0;
             for (int iDst = 0; iDst < nDsts; ++iDst)
@@ -62,18 +67,14 @@ class AssetGraphUtils
                                             dst[0], dst[1],
                                             dstCenter[0], dstCenter[1],
                                             dstCenter[0], dstCenter[1]);
-                // XXX arrowhead!  this is place holder for now
-                // XXX and dup code below
-                curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1]);
-                curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1]);
+                curves[iCurve++] = arrowHeadSide(dstCenter[0], dstCenter[1],
+                                                 dst[0], dst[1],
+                                                 arrowHeadLength,
+                                                 Math.PI*5/6);
+                curves[iCurve++] = arrowHeadSide(dstCenter[0], dstCenter[1],
+                                                 dst[0], dst[1],
+                                                 arrowHeadLength,
+                                                 -Math.PI*5/6);
             }
             assert(iCurve == nCurves);
             return curves;
@@ -81,7 +82,7 @@ class AssetGraphUtils
         else // nSrcs > 0 && nDsts > 0
         {
             int nCurves = nSrcs + 1 + nDsts*3;
-            java.awt.geom.CubicCurve2D curves[] = new java.awt.geom.CubicCurve2D[nCurves];
+            java.awt.Shape curves[] = new java.awt.Shape[nCurves];
             double srcCenter[/*2*/] = average(srcs, srcInds);
             double dstCenter[/*2*/] = average(dsts, dstInds);
             double centerCenter[/*2*/] = lerp(srcCenter, dstCenter, .5);
@@ -120,24 +121,33 @@ class AssetGraphUtils
                                             dst[0], dst[1],
                                             controlB[0], controlB[1],
                                             B[0], B[1]);
-                // XXX arrowhead!  this is place holder for now
-                // XXX and dup code above
-                curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1]);
-                curves[iCurve++] = new java.awt.geom.CubicCurve2D.Double(
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1],
-                                            dst[0], dst[1]);
+                // XXX note, controlB is kind of a hack... but it sorta works most of the time.
+                curves[iCurve++] = arrowHeadSide(controlB[0], controlB[1],
+                                                 dst[0], dst[1],
+                                                 arrowHeadLength,
+                                                 Math.PI*5/6);
+                curves[iCurve++] = arrowHeadSide(controlB[0], controlB[1],
+                                                 dst[0], dst[1],
+                                                 arrowHeadLength,
+                                                 -Math.PI*5/6);
             }
             assert(iCurve == nCurves);
             return curves;
         }
     } // getCurves
 
+
+        private static java.awt.Shape arrowHeadSide(double x0, double y0,
+                                                    double x1, double y1,
+                                                    double arrowHeadLength,
+                                                    double angDelta)
+        {
+            double ang = Math.atan2(y1-y0,x1-x0);
+            double newAng = ang + angDelta;
+            double x = x1 + arrowHeadLength * Math.cos(newAng);
+            double y = y1 + arrowHeadLength * Math.sin(newAng);
+            return new java.awt.geom.Line2D.Double(x1,y1, x,y);
+        } // leftArrowHead
 
         private static double[] average(double points[][/*dim*/], int inds[])
         {
@@ -199,7 +209,7 @@ class AssetGraphUtils
 
     private static boolean getClosestPointOnCubicCurves(
                                double x, double y,
-                               java.awt.geom.CubicCurve2D curves[][],
+                               java.awt.Shape curves[][],
                                double tooFarSqrd,
                                double maxFuzzyRadius,
                                FuzzyPoint closestPoint) // output
@@ -213,20 +223,24 @@ class AssetGraphUtils
         for (int i = 0; i < curves.length; ++i)
         for (int j = 0; j < curves[i].length; ++j)
         {
-            if (getClosestPointOnCubicCurve(x, y, curves[i][j],
-                                            tooFarSqrd,
-                                            maxFuzzyRadius,
-                                            closestPoint,
-                                            0)) // verbose
+            if (curves[i][j] instanceof java.awt.geom.CubicCurve2D)
             {
-                bestI = i;
-                bestJ = j;
-                bestX = closestPoint.x;
-                bestY = closestPoint.y;
-                bestRSqrd = closestPoint.rSqrd;
-                double newTooFarSqrd = distSqrd(x, y, bestX, bestY);
-                assert(newTooFarSqrd < tooFarSqrd); // it shouldn't have succeeded otherwise
-                tooFarSqrd = newTooFarSqrd;
+                java.awt.geom.CubicCurve2D curve = (java.awt.geom.CubicCurve2D)curves[i][j];
+                if (getClosestPointOnCubicCurve(x, y, curve,
+                                                tooFarSqrd,
+                                                maxFuzzyRadius,
+                                                closestPoint,
+                                                0)) // verbose
+                {
+                    bestI = i;
+                    bestJ = j;
+                    bestX = closestPoint.x;
+                    bestY = closestPoint.y;
+                    bestRSqrd = closestPoint.rSqrd;
+                    double newTooFarSqrd = distSqrd(x, y, bestX, bestY);
+                    assert(newTooFarSqrd < tooFarSqrd); // it shouldn't have succeeded otherwise
+                    tooFarSqrd = newTooFarSqrd;
+                }
             }
         }
         if (bestI != -1)
@@ -419,7 +433,10 @@ class AssetGraphUtils
                 assert(futureAssets.length <= assets.length);
                 for (int i = 0; i < futureAssets.length; ++i)
                 {
-                    assets[i] = lerp(assets[i], futureAssets[i], 1./nFramesUntilFuture);
+                    double a = scheduleUntilFuture[scheduleUntilFuture.length-1-nFramesUntilFuture];
+                    double b = scheduleUntilFuture[scheduleUntilFuture.length-nFramesUntilFuture];
+                    double t = (b-a)/(1.-a);
+                    assets[i] = lerp(assets[i], futureAssets[i], t);
                 }
                 connectionCurves = null; // dirty
                 --nFramesUntilFuture;
@@ -583,11 +600,9 @@ class AssetGraphUtils
                         {
                             // pan the whole scene.
                             // XXX this is silly, shouldn't need to recalculate connectionCurves, shoul just tweak the window transform matrix
-                            for (int i = 0; i < assets.length; ++i)
-                            {
-                                assets[i][0] += curX - prevX;
-                                assets[i][1] += curY - prevY;
-                            }
+                            pan(assets, curX-prevX, curY-prevY);
+                            if (futureAssets != null)
+                                pan(futureAssets, curX-prevX, curY-prevY);
                             connectionCurves = null; // dirty;
                         }
                     }
@@ -674,7 +689,22 @@ class AssetGraphUtils
                             break;
                         case 'c':
                             futureAssets = cleanUpCircle(assets);
+
                             nFramesUntilFuture = 1000;
+                            scheduleUntilFuture = new double[nFramesUntilFuture+1];
+                            for (int i = 0; i <= nFramesUntilFuture; ++i)
+                            {
+                                double x = (double)i/nFramesUntilFuture;
+                                // Fooey, these ease ones aren't ready for prime time; they cause speed discontinuity if you start one animation when a previous one hasn't completed yet.  Maybe need to put all assets on their own schedule, so one can be moving fast (in the middle of its trajectory) while another is moving slow (at the beginning or end of its trajectory?
+                                // gnuplot:
+                                //    plot [0:1] (3-2*x)*x*x, (1-cos(x*pi))/2, x<=.5?2*x*x : 1-2*(1-x)*(1-x)
+                                //scheduleUntilFuture[i] = (x<=.5?2*x*x : 1-2*(1-x)*(1-x)); // piecewise quadratic
+                                //scheduleUntilFuture[i] = (1-Math.cos(x*Math.PI))/2; // sin-like
+
+                                //scheduleUntilFuture[i] = (3 - 2*x)*x*x; // cubic ease in/out
+                                scheduleUntilFuture[i] = x; // linear
+                            }
+
                             connectionCurves = null; // dirty
                             repaint();
                             break;
@@ -698,13 +728,9 @@ class AssetGraphUtils
                                 int ind = findClosest(curX, curY, assets, deleteRadiusPixels);
                                 if (ind != -1)
                                 {
-                                    {
-                                        double newAssets[][] = new double[assets.length-1][];
-                                        for (int i = 0; i < newAssets.length; ++i)
-                                            newAssets[i] = assets[i>=ind ? i+1 : i];
-                                        assets = newAssets;
-                                    }
-
+                                    assets = (double[][])deleteElement(assets, ind);
+                                    if (futureAssets != null)
+                                        futureAssets = (double[][])deleteElement(futureAssets, ind);
                                     {
                                         for (int i = 0; i < connections.length; ++i)
                                         for (int j = 0; j < connections[i].length; ++j)
@@ -747,6 +773,18 @@ class AssetGraphUtils
                 }
             });
         } // MyPanel() ctor
+
+        private static void pan(double points[][/*2*/],
+                                double dx,
+                                double dy)
+        {
+            for (int i = 0; i < points.length; ++i)
+            {
+                points[i][0] += dx;
+                points[i][1] += dy;
+            }
+        } // pan
+
 
         private static double[][] makeCircle(int n, double x, double y, double r)
         {
@@ -929,12 +967,13 @@ class AssetGraphUtils
                 // XXX while animating, or need to destroy futureAssets!
                 double futureAssets[][] = null;
                 int nFramesUntilFuture = 0;
+                double scheduleUntilFuture[] = null;
 
-                java.awt.geom.CubicCurve2D connectionCurves[][] = null; // dirty; calculated on demand
+                java.awt.Shape connectionCurves[][] = null; // dirty; calculated on demand
 
         private void recalculateCurves()
         {
-            connectionCurves = new java.awt.geom.CubicCurve2D[connections.length][];
+            connectionCurves = new java.awt.Shape[connections.length][];
             for (int i = 0; i < connections.length; ++i)
             {
                 connectionCurves[i] = getCurves(
@@ -956,6 +995,15 @@ class AssetGraphUtils
             System.arraycopy(array, start, subarray, 0, n);
             return subarray;
         } // subarray
+        private static Object deleteElement(Object array, int ind)
+        {
+            int n = java.lang.reflect.Array.getLength(array);
+            Object newArray = java.lang.reflect.Array.newInstance(
+                                    array.getClass().getComponentType(), n-1);
+            System.arraycopy(array, 0, newArray, 0, ind);
+            System.arraycopy(array, ind+1, newArray, ind, n-1-ind);
+            return newArray;
+        } // deleteElement
 
     } // class MyPanel
 
