@@ -1,25 +1,27 @@
 //
 // ISSUE:
-//     - not really sensible when a single event is both a src and dst
-//       of the same event?  or src with multiplicity, or dst with multiplicity?
+//     - it works well if an asset is both a src and dst
+//       as long as there is at least one other src and one other dst,
+//       otherwise, it's not really sensible-- should show a loop I think.
+//     - do something special for src with multiplicity, or dst with multiplicity?
 //       (argh, I went to special effort to not let an asset be added multiple times... this makes things more sane when deleting a membership, but don't we want to express that in general? I need to make sure I handle it)
 //     - the only thing that has no representation at all
 //       is a no-src no-dst event
 //     - need asset radius? not sure how important
 //     - think about whether I can jitter or something
 //           to handle multiple events with exact same srcs and dsts
-//     - arrowheads on single-sources? not sure
+//     - arrowheads on single-sources? not sure (I made it a parameter)
 //
 // XXX to do for test:
 //     - button bar
-//     - middle mouse should also be way to connect things
+//     - middle mouse should also be way to connect things (same as control-left)
 //     - rubber band when connecting things
-//     - bleah, drag 11:00 asset to its event, it thinks it was dropped onto the asset... need to make this more sane!
+//     - bleah, drag 11:00 asset to its event, it thinks it was dropped onto the asset... need to make distances more sane!  unfortunately I'm having trouble reconciling different sized distances and preferences of assets over events and stuff
 //     - be able to delete just a single part of the event
 //     - do NOT steal focus on startup!! dang it!
 //     - and what the hell is that beep on startup???
 //     - thicken lines? nah...
-//     - label assets? might help for debugging
+//     - label all assets? might help for debugging
 //              yes, would actually help to have option to label ALL assets
 //     - save/load?
 //     - highlight close thing that would be selected or dropped onto or deleted
@@ -639,8 +641,58 @@ class AssetGraphUtils
 
 
     //======================================================================
-        static void drawSquare(java.awt.Graphics2D g2d,
-                               double x, double y, double r)
+        public static void drawString(java.awt.Graphics2D g2d,
+                                      String s, double x, double y, 
+                                      double xJustify, // -1,0,1 -> L,C,R
+                                      double yJustify) // -1,0,1 -> T,C,B
+        {
+            java.awt.FontMetrics fm = g2d.getFontMetrics();
+
+            /*
+            x:
+                -1 -> 0
+                0 -> -.5
+                1 -> -1
+
+            y:
+                -1 -> 1
+                0 -> .5
+                1 -> 0
+            */
+
+            g2d.drawString(s, (float)(x - fm.stringWidth(s)*(xJustify+1.)*.5),
+                              (float)(y + fm.getAscent()*(1.-yJustify)*.5));
+                            // XXX centered height seems to come out a bit low-- maybe fiddle with leading?
+        }
+        public static void drawStringCentered(java.awt.Graphics2D g2d, String s, double x, double y)
+        {
+            drawString(g2d, s, x, y, 0, 0);
+        }
+        public static void drawStringRightJustified(java.awt.Graphics2D g2d, String s, double x, double y)
+        {
+            drawString(g2d, s, x, y, 1, 0);
+        }
+        public static void drawStringLeftJustified(java.awt.Graphics2D g2d, String s, double x, double y)
+        {
+            drawString(g2d, s, x, y, -1, 0);
+        }
+        static void drawStringNextToPoint(java.awt.Graphics2D g2d, String labelText, double x, double y, double dirAngle, double margin)
+        {
+            double xJustify = -Math.cos(dirAngle);
+            double yJustify = -Math.sin(dirAngle);
+            double max = Math.max(Math.abs(xJustify),
+                                  Math.abs(yJustify));
+            xJustify /= max;
+            yJustify /= max;
+            // Now xJustify,yJustify lie on the unit square
+            drawString(g2d, labelText,
+                       x - xJustify*margin,
+                       y - yJustify*margin,
+                       xJustify, yJustify);
+        } // drawStringNextToPoint
+
+        public static void drawSquare(java.awt.Graphics2D g2d,
+                                      double x, double y, double r)
         {
             java.awt.geom.Rectangle2D.Double square = new java.awt.geom.Rectangle2D.Double(x-r, y-r, 2.*r, 2.*r);
             g2d.draw(square);
@@ -648,7 +700,7 @@ class AssetGraphUtils
 
         // draw showing subdivision points, for debugging.
         // if nLevels is 0, just draw normally.
-        static void drawCurveSubdivided(java.awt.Graphics2D g2d, java.awt.geom.CubicCurve2D curve, int nLevels)
+        public static void drawCurveSubdivided(java.awt.Graphics2D g2d, java.awt.geom.CubicCurve2D curve, int nLevels)
         {
             if (nLevels > 0)
             {
@@ -881,7 +933,11 @@ class AssetGraphUtils
                         {
                             int ind = indicesOfClosestThing[0];
                             String labelText = "Asset " + ind;
-                            g2d.drawString(labelText, (int)(x+10), (int)y);
+
+                            double center[/*2*/] = average(assets, null);
+                            double dirAngle = Math.atan2(y-center[1], x-center[0]);
+                            drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
+
                         }
                     }
                     if (indicesOfClosestThing[1] != -1) // a curve
@@ -918,7 +974,9 @@ class AssetGraphUtils
                                     labelText = "Asset "+event[1][legInd-nSrcs]+" as dst of "+labelText;
                                 }
                             }
-                            g2d.drawString(labelText, (int)(x+10), (int)y);
+                            double center[/*2*/] = average(assets, null);
+                            double dirAngle = Math.atan2(y-center[1], x-center[0]);
+                            drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
                         }
                     }
                 }
