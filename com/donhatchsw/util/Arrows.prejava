@@ -13,9 +13,10 @@
 //     - arrowheads on single-sources? not sure (I made it a parameter)
 //
 // XXX to do for test:
+//     - delete radius not so big?  (or, capital D is the big one, I think)
+//     - show thing being dragged in green
 //     - button bar
 //     - middle mouse should also be way to connect things (same as control-left)
-//     - rubber band when connecting things
 //     - bleah, drag 11:00 asset to its event, it thinks it was dropped onto the asset... need to make distances more sane!  unfortunately I'm having trouble reconciling different sized distances and preferences of assets over events and stuff
 //     - be able to delete just a single part of the event
 //     - do NOT steal focus on startup!! dang it!
@@ -829,7 +830,7 @@ class AssetGraphUtils
                                      curve,
 
                                      Double.POSITIVE_INFINITY, // tooFar
-                                     //selectRadiusPixels
+                                     //selectRadiusPixels // tooFar
 
                                      maxFuzzyRadiusPixels,
                                      closestPoint,
@@ -888,6 +889,7 @@ class AssetGraphUtils
 
                 if (mouseState != STATE_NOTHING)
                 {
+                    // Just draw a nonobtrusive dot on the closest thing
                     FuzzyPoint closestPoint = new FuzzyPoint();
                     int closestIndices[/*2*/] = getClosestPointOnCubicCurves(
                                                     curX, curY,
@@ -903,15 +905,31 @@ class AssetGraphUtils
                         double x = closestPoint.x;
                         double y = closestPoint.y;
                         double r = Math.sqrt(closestPoint.rSqrd);
-                        g2d.setColor(java.awt.Color.red);
+                        g2d.setColor(java.awt.Color.black);
                         drawSquare(g2d, x, y, r); // dot in the middle
                         drawSquare(g2d, x, y, 1); // dot in the middle
                     }
                 }
 
-                if (mouseState != STATE_NOTHING)
+                if (showAssetLabels)
                 {
-                    double tooFar = Double.POSITIVE_INFINITY;
+                    g2d.setColor(java.awt.Color.blue);
+                    double center[/*2*/] = average(assets, null);
+                    for (int i = 0; i < assets.length; ++i)
+                    {
+                        String labelText = "Asset "+i;
+                        double x = assets[i][0];
+                        double y = assets[i][1];
+                        double dirAngle = Math.atan2(y-center[1], x-center[0]);
+                        drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
+                    }
+                }
+
+                if (mouseState != STATE_NOTHING) // XXX probably not right
+                {
+                    boolean isCtrlDragging = (mouseState==STATE_CTRL_DRAGGING_NOTHING||mouseState==STATE_CTRL_DRAGGING_EVENT||mouseState==STATE_CTRL_DRAGGING_ASSET);
+                    //double tooFar = Double.POSITIVE_INFINITY;
+                    double tooFar = isCtrlDragging ? selectRadiusPixels : deleteRadiusPixels;
                     FuzzyPoint closestPoint = new FuzzyPoint();
                     int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
                                                     curX, curY,
@@ -948,7 +966,7 @@ class AssetGraphUtils
                         g2d.setColor(java.awt.Color.red);
                         drawSquare(g2d, x, y, 1);
 
-                        // Re-draw the asset in red (XXX this doesn't look great when antialiasing... should suppress drawing it in black to begin with
+                        // Re-draw the asset in red (XXX this doesn't look great when antialiasing... should suppress drawing it in black to begin with)
                         {
                             drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[indicesOfClosestThing[1]][indicesOfClosestThing[2]],nDebugSubdivisionLevels);
                         }
@@ -976,11 +994,42 @@ class AssetGraphUtils
                             }
                             double center[/*2*/] = average(assets, null);
                             double dirAngle = Math.atan2(y-center[1], x-center[0]);
+                            // XXX Bleah, putting it on the opposite side of the label assets is cool because less collisions, but on the other hand it's cool when one merges smoothly into the other
+                            //dirAngle += Math.PI; // put it on opposite side, towards the center
                             drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
                         }
                     }
+
+                } // mouseState != STATE_NOTHING
+
+                if (mouseState == STATE_CTRL_DRAGGING_ASSET)
+                {
+                    double x = assets[indexOfThingBeingDragged][0];
+                    double y = assets[indexOfThingBeingDragged][1];
+                    g2d.setColor(java.awt.Color.green);
+                    drawSquare(g2d, x, y, 5);
+                    g2d.setColor(java.awt.Color.lightGray); // XXX dotted?
+                    g2d.draw(new java.awt.geom.Line2D.Double(x, y, curX, curY));
                 }
-            }
+                else if (mouseState == STATE_CTRL_DRAGGING_EVENT)
+                {
+                    g2d.setColor(java.awt.Color.green);
+                    java.awt.geom.CubicCurve2D curve = (java.awt.geom.CubicCurve2D)connectionCurves[indexOfThingBeingDragged][subIndexOfThingBeingDragged];
+                    drawCurveSubdivided(g2d,curve,nDebugSubdivisionLevels);
+                    // Find some point on the curve. XXX maybe should have saved the closest point when we originally selected it?
+                    double x, y;
+                    {
+                        java.awt.geom.CubicCurve2D left = new java.awt.geom.CubicCurve2D.Double();
+                        java.awt.geom.CubicCurve2D right = new java.awt.geom.CubicCurve2D.Double();
+                        curve.subdivide(left, right);
+                        x = left.getX2();
+                        y = left.getY2();
+                    }
+                    g2d.setColor(java.awt.Color.lightGray); // XXX dotted?
+                    g2d.draw(new java.awt.geom.Line2D.Double(x, y, curX, curY));
+                }
+
+            } // mode == MODE_ASSETS
 
             if (eventVerbose >= 2) System.out.println("    out paint");
         } // paint
@@ -1351,6 +1400,7 @@ class AssetGraphUtils
                             System.out.println("            - -- zoom out");
                             System.out.println("          =/+ -- zoom in");
                             System.out.println("            s -- toggle arrowheads on single-src events");
+                            System.out.println("            l -- toggle labels");
                             System.out.println("            m -- toggle mode between asset graph and single cubic curve");
                             System.out.println("          ?/h -- show this help message");
                             System.out.println("    Escape/Ctrl-c/Ctrl-q/q/Q -- quit");
@@ -1378,10 +1428,21 @@ class AssetGraphUtils
                             repaint();
                             break;
 
+                        /*
                         case 'l':
                             showHoverLabel ^= true;
                             repaint();
                             break;
+                        case 'L':
+                            showAssetLabels ^= true;
+                            repaint();
+                            break;
+                        */
+                        case 'l': // just do em both at once
+                            showAssetLabels = showHoverLabel =
+                                !(showAssetLabels || showHoverLabel);
+                            break;
+
                         case 's':
                             doArrowHeadOnSingleSrc ^= true;
                             connectionCurves = null; // dirty
@@ -1422,12 +1483,13 @@ class AssetGraphUtils
                             repaint();
                             break;
                         case java.awt.event.KeyEvent.VK_DELETE:
-                        case 'd': // delete an asset
+                        case 'D': // delete closest asset at any distance
+                        case 'd': // delete an asset within deleteRadiusPixels
                             if (mode == MODE_ASSETS)
                             {
                                 // delete closest thing
                                 // (asset, event, or membership)
-                                double tooFar = deleteRadiusPixels;
+                                double tooFar = (c=='D' ? Double.POSITIVE_INFINITY : deleteRadiusPixels);
                                 FuzzyPoint closestPoint = new FuzzyPoint();
                                 int indicesOfClosestThing[/*3*/] = getIndicesOfClosestThing(
                                                                 curX, curY,
@@ -1728,7 +1790,7 @@ class AssetGraphUtils
         // How close does the mouse have to be to select something?
         private static final double selectRadiusPixels = 10;
         private static final double dropRadiusPixels = 20;
-        private static final double deleteRadiusPixels = 10000; // just allow deleting from arbitrary distance
+        private static final double deleteRadiusPixels = 30;
         private static final double maxFuzzyRadiusPixels = .5; // how precisely to get closest point on curves
 
 
