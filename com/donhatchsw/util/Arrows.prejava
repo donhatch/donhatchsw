@@ -1,4 +1,4 @@
-#include "macros.h"
+//#include "macros.h"
 //
 // AssetGraphStuff.java -- utilities for drawing events
 // which have multiple source points and multiple destination points.
@@ -1020,18 +1020,36 @@ public class AssetGraphStuff
                             drawCircle(g2d, assets[i][0],assets[i][1], Math.max(srcRadii[0], .5));
                     }
 
-                    int lineThickness = 1;
                     java.awt.Stroke oldStroke = g2d.getStroke();
-                    g2d.setStroke(new java.awt.BasicStroke(lineThickness));
+
+                    boolean order = true;
+                    java.awt.BasicStroke blackStroke = new java.awt.BasicStroke((float)lineThickness);
+                    java.awt.BasicStroke whiteStroke = new java.awt.BasicStroke((float)shadowThickness);
+
+                    g2d.setStroke(blackStroke);
+
                     for (int i = 0; i < connectionCurves.length; ++i)
                     {
-                        for (int j = 0; j < connectionCurves[i].length; ++j)
+                        for (int multiplicity = 0; multiplicity < (shadowThickness > lineThickness ? 2 : 1); ++multiplicity)
                         {
-                            //g2d.draw(connectionCurves[i][j]);
-                            if (connectionCurves[i][j] instanceof java.awt.geom.CubicCurve2D)
-                                drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[i][j],nDebugSubdivisionLevels);
-                            else
-                                g2d.draw(connectionCurves[i][j]);
+                            if (multiplicity == 0 && shadowThickness > lineThickness)
+                            {
+                                g2d.setStroke(whiteStroke);
+                                g2d.setColor(g2d.getBackground());
+                            }
+                            for (int j = 0; j < connectionCurves[i].length; ++j)
+                            {
+                                //g2d.draw(connectionCurves[i][j]);
+                                if (connectionCurves[i][j] instanceof java.awt.geom.CubicCurve2D)
+                                    drawCurveSubdivided(g2d,(java.awt.geom.CubicCurve2D)connectionCurves[i][j],nDebugSubdivisionLevels);
+                                else
+                                    g2d.draw(connectionCurves[i][j]);
+                            }
+                            if (multiplicity == 0 && shadowThickness > lineThickness)
+                            {
+                                g2d.setStroke(blackStroke);
+                                g2d.setColor(java.awt.Color.black);
+                            }
                         }
                     }
                     g2d.setStroke(oldStroke);
@@ -1564,6 +1582,19 @@ public class AssetGraphStuff
                                 setShowLabels(!showLabels);
                                 break;
 
+                            case 'T':
+                                shadowThickness += 1.;
+                                System.out.println("shadowThickness = "+shadowThickness);
+                                repaint();
+                                break;
+
+                            case 't':
+                                shadowThickness -= 1.;
+                                shadowThickness = Math.max(shadowThickness, 1.);
+                                System.out.println("shadowThickness = "+shadowThickness);
+                                repaint();
+                                break;
+
                             case 'R':
                                 srcRadii[0] += 1.;
                                 dstRadii[0] += 1.;
@@ -1725,6 +1756,7 @@ public class AssetGraphStuff
                             case 'Q':
                             case 'q'-'a'+1: // ctrl-q
                             case 'c'-'a'+1: // ctrl-c
+                            case java.awt.event.KeyEvent.VK_ESCAPE:
                                 System.out.println("Chow!");
                                 System.exit(0);
                                 break;
@@ -2118,6 +2150,8 @@ public class AssetGraphStuff
             "",
             "            R -- increase asset radius",
             "            r -- decrease asset radius",
+            "            R -- increase white shadow thickness",
+            "            r -- decrease white shadow thickness",
             "       Ctrl-s -- save to DUMP.txt",
             "       Ctrl-l -- load from DUMP.txt",
             "          ?/h -- show this help message",
@@ -2402,6 +2436,8 @@ public class AssetGraphStuff
                 double arrowHeadLength = 10;
                 double arrowLengthForSingle = 40;
                 boolean doArrowHeadOnSingleSrc = false; // XXX need way to toggle
+                double lineThickness = 1;
+                double shadowThickness = 2;
 
                 double assets[][] = null; // create in first paint()
                 double assetVelocities[][] = null; // create in first paint()
