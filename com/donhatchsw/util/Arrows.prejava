@@ -9,6 +9,8 @@
  * <p>
  * ISSUES:
  * <ul>
+ *     <li> arrow head direction heuristic often misbehaves, can (and will)
+ *          be improved a lot
  *     <li> it works well if an asset is both a src and dst
  *          as long as there is at least one other src and one other dst,
  *          otherwise, it's not really sensible-- should show a loop I think.
@@ -17,7 +19,6 @@
  *          (argh, I went to special effort to not let an asset be added multiple times... this makes things more sane when deleting a membership, but don't we want to express that in general? I need to make sure I handle it)
  *     <li> the only thing that has no representation at all
  *          is a no-src no-dst event
- *     <li> need asset radius? not sure how important
  *     <li> think about whether I can jitter or something
  *          to handle multiple events with exact same srcs and dsts
  *     <li> arrowheads on single-sources? not sure (I made it a parameter)
@@ -44,6 +45,8 @@
  */
 public class AssetGraphStuff
 {
+    private AssetGraphStuff() {} // non-instantiatable
+
     /**
      * Get curves representing an event
      * with zero or more sources and zero or more destinations.
@@ -61,8 +64,8 @@ public class AssetGraphStuff
     public static java.awt.Shape[] getCurves(
             double srcs[][/*2*/], int srcInds[], // inds may be null
             double dsts[][/*2*/], int dstInds[], // inds may be null
-            double srcRadii[], // keep arrows this far away (XXX unimplemented)
-            double dstRadii[], // keep arrows this far away (XXX unimplemented)
+            double srcRadii[], // keep arrows this far away
+            double dstRadii[], // keep arrows this far away
             double arrowHeadLength,
 
             double graphCenterForSingle[/*2*/],
@@ -74,6 +77,57 @@ public class AssetGraphStuff
         // XXX without having to reallocate to exact size each time
         int nSrcs = (srcInds != null ? srcInds.length : srcs.length);
         int nDsts = (dstInds != null ? dstInds.length : dsts.length);
+
+        //
+        // Adjust positions, moved by radius towards the average
+        // of all the srcs and dsts.
+        //
+        if (nSrcs + nDsts >= 1)
+        {
+            double eventCenter[/*2*/];
+            {
+                double centers[/*2*/][/*2*/] = {
+                    average(srcs, srcInds),
+                    average(dsts, dstInds),
+                };
+                eventCenter = centers[1] == null ? centers[0] :
+                              centers[0] == null ? centers[1] :
+                              average(centers, null);
+                if (nSrcs + nDsts == 1)
+                    eventCenter = lerp(graphCenterForSingle, eventCenter, 2.);
+            }
+            double _srcs[][] = new double[nSrcs][];
+            double _dsts[][] = new double[nDsts][];
+
+            if (srcRadii != null && srcRadii.length > 0)
+            {
+                for (int i = 0; i < nSrcs; ++i)
+                {
+                    double src[/*2*/] = (srcInds != null ? srcs[srcInds[i]] : srcs[i]);
+                    double radius = srcRadii[i % srcRadii.length];
+                    double dist = dist(src, eventCenter);
+                    double frac = (dist==0 ? .5 : radius / dist);
+                    _srcs[i] = lerp(src, eventCenter, frac);
+                }
+                srcs = _srcs;
+                srcInds = null;
+            }
+
+            if (dstRadii != null && dstRadii.length > 0)
+            {
+                for (int i = 0; i < nDsts; ++i)
+                {
+                    double dst[/*2*/] = (dstInds != null ? dsts[dstInds[i]] : dsts[i]);
+                    double radius = dstRadii[i % dstRadii.length];
+                    double dist = dist(dst, eventCenter);
+                    double frac = (dist==0 ? .5 : radius / dist);
+                    _dsts[i] = lerp(dst, eventCenter, frac);
+                }
+                dsts = _dsts;
+                dstInds = null;
+            }
+        } // handle radii
+
 
         if (nSrcs == 0 && nDsts == 0)
         {
@@ -356,11 +410,11 @@ public class AssetGraphStuff
 
         private static double[] average(double points[][/*dim*/], int inds[])
         {
-            if (points.length == 0)
+            int n = (inds != null ? inds.length : points.length);
+            if (n == 0)
                 return null;
             int dim = points[0].length;
             double result[] = new double[dim]; // initially all zeros
-            int n = (inds != null ? inds.length : points.length);
             for (int i = 0; i < n; ++i)
             {
                 double point[] = points[inds != null ? inds[i] : i];
@@ -381,8 +435,8 @@ public class AssetGraphStuff
     // A fuzzy point, i.e. a closed unit disk with center x,y and radius r.
     // We store r*r instead of r, since r itself is hardly
     // ever needed so this saves computing a lot of square roots.
-    private static class FuzzyPoint {
-        double x, y, rSqrd;
+    public static class FuzzyPoint {
+        public double x, y, rSqrd;
     }
     /**
      * Get a bounding ball of a CubicCurve2D.
@@ -646,6 +700,10 @@ public class AssetGraphStuff
         {
             return distSqrd(p0[0],p0[1],p1[0],p1[1]);
         }
+        private static double dist(double p0[], double p1[])
+        {
+            return dist(p0[0],p0[1],p1[0],p1[1]);
+        }
         private static double[] lerp(double a[], double b[], double t)
         {
             int n = a.length;
@@ -740,6 +798,15 @@ public class AssetGraphStuff
             java.awt.geom.Rectangle2D.Double square = new java.awt.geom.Rectangle2D.Double(x-r, y-r, 2.*r, 2.*r);
             g2d.draw(square);
         } // drawSquare
+        /**
+         * Draw a little circle.
+         */
+        public static void drawCircle(java.awt.Graphics2D g2d,
+                                      double x, double y, double r)
+        {
+            java.awt.geom.Ellipse2D.Double circle = new java.awt.geom.Ellipse2D.Double(x-r, y-r, 2.*r, 2.*r);
+            g2d.draw(circle);
+        } // drawCircle
 
         /**
          * Draw a curve showing binary subdivision points, for debugging.
@@ -902,10 +969,10 @@ public class AssetGraphStuff
 
                     if (connectionCurves == null)
                         recalculateCurves();
-                    for (int i = 0; i < assets.length; ++i)
-                    {
-                        drawSquare(g2d, assets[i][0],assets[i][1], 2);
-                    }
+
+                    if (false)
+                        for (int i = 0; i < assets.length; ++i)
+                            drawSquare(g2d, assets[i][0],assets[i][1], 2);
 
                     boolean doAntiAlias = true; // XXX need an option to toggle
                     if (doAntiAlias)
@@ -916,6 +983,12 @@ public class AssetGraphStuff
                         if (false)
                             g2d.setRenderingHint(java.awt.RenderingHints.KEY_RENDERING,
                                                  java.awt.RenderingHints.VALUE_RENDER_QUALITY);
+                    }
+
+                    if (true)
+                    {
+                        for (int i = 0; i < assets.length; ++i)
+                            drawCircle(g2d, assets[i][0],assets[i][1], Math.max(srcRadii[0], .5));
                     }
 
                     int lineThickness = 1;
@@ -973,7 +1046,7 @@ public class AssetGraphStuff
                             double x = assets[i][0];
                             double y = assets[i][1];
                             double dirAngle = Math.atan2(y-center[1], x-center[0]);
-                            drawStringNextToPoint(g2d, labelText, x, y, dirAngle, 10);
+                            drawStringNextToPoint(g2d, labelText, x, y, dirAngle, srcRadii[0]+5);
                         }
                     }
 
@@ -1411,14 +1484,16 @@ public class AssetGraphStuff
 
                         canvas.requestFocus();
 
-                        mouseState = STATE_MOVING;
+                        // XXX this was messing things up
+                        //mouseState = STATE_MOVING;
                         repaint();
                         if (eventVerbose >= 1) System.out.println("    out mouseEntered");
                     }
                     public void mouseExited(java.awt.event.MouseEvent e)
                     {
                         if (eventVerbose >= 1) System.out.println("    in mouseExited at "+e.getX()+","+e.getY()+"");
-                        mouseState = STATE_NOTHING;
+                        // XXX this was messing things up
+                        //mouseState = STATE_NOTHING;
                         repaint();
                         if (eventVerbose >= 1) System.out.println("    out mouseExited");
                     }
@@ -1442,6 +1517,37 @@ public class AssetGraphStuff
 
                             case 'l':
                                 setShowLabels(!showLabels);
+                                break;
+
+                            case 'R':
+                                srcRadii[0] += 1.;
+                                dstRadii[0] += 1.;
+                                if (srcRadii[0] == dstRadii[0])
+                                    System.out.println("radius = "+srcRadii[0]);
+                                else
+                                {
+                                    System.out.println("srcRadius = "+srcRadii[0]);
+                                    System.out.println("dstRadius = "+dstRadii[0]);
+                                }
+
+                                connectionCurves = null; // dirty
+                                repaint();
+                                break;
+                            case 'r':
+                                if ((srcRadii[0] -= 1.) < 0.)
+                                    srcRadii[0] = 0.;
+                                if ((dstRadii[0] -= 1.) < 0.)
+                                    dstRadii[0] = 0.;
+                                if (srcRadii[0] == dstRadii[0])
+                                    System.out.println("radius = "+srcRadii[0]);
+                                else
+                                {
+                                    System.out.println("srcRadius = "+srcRadii[0]);
+                                    System.out.println("dstRadius = "+dstRadii[0]);
+                                }
+
+                                connectionCurves = null; // dirty
+                                repaint();
                                 break;
 
                             case 's':
@@ -1599,11 +1705,6 @@ public class AssetGraphStuff
                 });
             } // MyCanvas ctor
 
-
-            // XXX needed?
-            public boolean isFocusTraversable() { return true; }
-
-
         } // MyCanvas
 
         public MyCanvas canvas = new MyCanvas(); // XXX weird place for this maybe
@@ -1719,6 +1820,52 @@ public class AssetGraphStuff
             }
 
             {
+                javax.swing.AbstractButton child = new javax.swing.JButton("+ radius");
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        srcRadii[0] += 1.;
+                        dstRadii[0] += 1.;
+                        if (srcRadii[0] == dstRadii[0])
+                            System.out.println("radius = "+srcRadii[0]);
+                        else
+                        {
+                            System.out.println("srcRadius = "+srcRadii[0]);
+                            System.out.println("dstRadius = "+dstRadii[0]);
+                        }
+                        connectionCurves = null; // dirty
+                        repaint();
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
+                    }
+                });
+                buttonRow2.add(child);
+            }
+            {
+                javax.swing.AbstractButton child = new javax.swing.JButton("- radius");
+                child.addActionListener(new java.awt.event.ActionListener() {
+                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    {
+                        if ((srcRadii[0] -= 1.) < 0.)
+                            srcRadii[0] = 0.;
+                        if ((dstRadii[0] -= 1.) < 0.)
+                            dstRadii[0] = 0.;
+                        if (srcRadii[0] == dstRadii[0])
+                            System.out.println("radius = "+srcRadii[0]);
+                        else
+                        {
+                            System.out.println("srcRadius = "+srcRadii[0]);
+                            System.out.println("dstRadius = "+dstRadii[0]);
+                        }
+                        connectionCurves = null; // dirty
+                        repaint();
+                        if (allButtonsRelinqushFocusToCanvas)
+                            canvas.requestFocus();
+                    }
+                });
+                buttonRow2.add(child);
+            }
+            {
                 javax.swing.AbstractButton child = new javax.swing.JButton("Save DUMP.txt");
                 child.addActionListener(new java.awt.event.ActionListener() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
@@ -1797,12 +1944,11 @@ public class AssetGraphStuff
                     htmlHelpMessage += helpMessage[i] + "  \n";
                 htmlHelpMessage += "</pre></html>";
                 helpWindow.getContentPane().add(new javax.swing.JLabel(htmlHelpMessage));
+                helpWindow.setLocation(200,200); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place as main window.
                 helpWindow.pack();
                 //helpWindow.setVisible(true); // uncomment when debugging it
             }
         } // MyDemoPanel() ctor
-
-        public boolean isFocusTraversable() { return true; }
 
         private void scheduleCleanup(boolean doCenter)
         {
@@ -1812,7 +1958,7 @@ public class AssetGraphStuff
         private void scheduleFutureAssets(double newFutureAssets[][])
         {
             futureAssets = newFutureAssets;
-            nFramesUntilFuture = 100; // XXX needs configuration-- with antialiasing, it's a LOT slower and 100 is appropriate, without, 1000 is appropriate, on my home machine... and over vnc, 50 is better
+            nFramesUntilFuture = 100; // XXX needs configuration-- with antialiasing, it's a LOT slower and 100 is appropriate, without, 1000 is appropriate, on my home machine... and over vnc, 50 is better... and now that I'm drawing antialised circles for assets, 50 is more appropriate
             //nFramesUntilFuture = 50;
             scheduleUntilFuture = new double[nFramesUntilFuture+1];
             for (int i = 0; i <= nFramesUntilFuture; ++i)
@@ -1891,6 +2037,8 @@ public class AssetGraphStuff
             "            a -- toggle auto-clean",
             "            l -- toggle labels",
             "",
+            "            R -- increase asset radius",
+            "            r -- decrease asset radius",
             "       Ctrl-s -- save to DUMP.txt",
             "       Ctrl-l -- load from DUMP.txt",
             "          ?/h -- show this help message",
@@ -1900,8 +2048,9 @@ public class AssetGraphStuff
 
         private void help()
         {
-            helpWindow.setVisible(true);
             helpWindow.setState(java.awt.Frame.NORMAL); // not ICONIFIED
+            helpWindow.setVisible(true);
+            helpWindow.toFront();
 
             if (false)
             {
@@ -2015,8 +2164,9 @@ public class AssetGraphStuff
             Integer Inds[] = new Integer[n];
             for (int i = 0; i < n; ++i)
                 Inds[i] = new Integer(i);
-            java.util.Arrays.sort(Inds, new java.util.Comparator() {
-                public int compare(Object aObj, Object bObj)
+            java.util.Arrays.sort(Inds, new java.util.Comparator<Integer>() {
+                //public int compare(Object aObj, Object bObj)  // for 1.4, and use Comparator
+                public int compare(Integer aObj, Integer bObj) // for 1.5, and use Comparator<Integer>
                 {
                     int a = ((Integer)aObj).intValue();
                     int b = ((Integer)bObj).intValue();
@@ -2160,8 +2310,8 @@ public class AssetGraphStuff
             //
             // For when mode is MODE_ASSETS...
             //
-                double srcRadii[] = {10}; // how far to keep arrow feet away
-                double dstRadii[] = {10}; // how far to keep arrow heads away
+                double srcRadii[] = {20}; // how far to keep arrow feet away
+                double dstRadii[] = {20}; // how far to keep arrow heads away
                 double arrowHeadLength = 10;
                 double arrowLengthForSingle = 40;
                 boolean doArrowHeadOnSingleSrc = false; // XXX need way to toggle
@@ -2503,7 +2653,7 @@ public class AssetGraphStuff
 
 
     /**
-     * Little demonstration program.
+     * Little demonstration program for getCurves().
      */
     public static void main(String args[])
     {
@@ -2524,8 +2674,9 @@ public class AssetGraphStuff
             }
         });
 
-        myDemoPanel.canvas.setPreferredSize(new java.awt.Dimension(500,500)); // XXX hmm, is it strange for a preferred size to be set by the caller? oh well
+        myDemoPanel.canvas.setPreferredSize(new java.awt.Dimension(800,800)); // XXX hmm, is it strange for a preferred size to be set by the caller? oh well
         frame.pack();
+        frame.setLocation(50,50); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place.
         frame.setVisible(true);
 
         myDemoPanel.canvas.requestFocus(); // seems to be needed initially
