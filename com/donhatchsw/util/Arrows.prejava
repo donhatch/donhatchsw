@@ -8,7 +8,7 @@
 //     - need focus (isfocustraversible?)
 //     - thicken lines?
 
-class AssetGraph
+class AssetGraphUtils
 {
 
     public static java.awt.geom.CubicCurve2D[] getCurves(
@@ -33,7 +33,7 @@ class AssetGraph
             // Only srcs
             int nCurves = nSrcs;
             java.awt.geom.CubicCurve2D curves[] = new java.awt.geom.CubicCurve2D[nCurves];
-            double srcCenter[/*2*/] = avg(srcs, srcInds);
+            double srcCenter[/*2*/] = average(srcs, srcInds);
             int iCurve = 0;
             for (int iSrc = 0; iSrc < nSrcs; ++iSrc)
             {
@@ -52,7 +52,7 @@ class AssetGraph
             // Only dsts
             int nCurves = nDsts*3;
             java.awt.geom.CubicCurve2D curves[] = new java.awt.geom.CubicCurve2D[nCurves];
-            double dstCenter[/*2*/] = avg(dsts, dstInds);
+            double dstCenter[/*2*/] = average(dsts, dstInds);
             int iCurve = 0;
             for (int iDst = 0; iDst < nDsts; ++iDst)
             {
@@ -82,8 +82,8 @@ class AssetGraph
         {
             int nCurves = nSrcs + 1 + nDsts*3;
             java.awt.geom.CubicCurve2D curves[] = new java.awt.geom.CubicCurve2D[nCurves];
-            double srcCenter[/*2*/] = avg(srcs, srcInds);
-            double dstCenter[/*2*/] = avg(dsts, dstInds);
+            double srcCenter[/*2*/] = average(srcs, srcInds);
+            double dstCenter[/*2*/] = average(dsts, dstInds);
             double centerCenter[/*2*/] = lerp(srcCenter, dstCenter, .5);
             double A[/*2*/] = lerp(srcCenter, centerCenter, .5);
             double B[/*2*/] = lerp(dstCenter, centerCenter, .5);
@@ -139,64 +139,29 @@ class AssetGraph
     } // getCurves
 
 
-
-    private static double[][/*4*/][/*2*/] getArcs(double srcs[][/*2*/],
-                                   double dsts[][/*2*/],
-                                   double srcRadii[],
-                                   double dstRadii[],
-                                   double arrowHeadLength,
-
-                                   double graphCenterForSingle[/*2*/],
-                                   double arrowLengthForSingle)
-    {
-        if (srcs.length + dsts.length == 0)
+        private static double[] average(double points[][/*dim*/], int inds[])
         {
-            return new double[0][4][2];
-        }
-        else if (srcs.length + dsts.length == 1)
-        {
-            double arcs[][][] = new double[1 + 2*dsts.length][4][2];
-            // XXX do something
-            assert(false);
-            return arcs;
-        }
-        else if (srcs.length + dsts.length == 2)
-        {
-            double arcs[][][] = new double[1 + 2*dsts.length][4][2];
-            // XXX do something
-            assert(false);
-            return arcs;
-        }
-        else
-        {
-            int nArcs = srcs.length + 3*dsts.length;
-            if (srcs.length >= 2 && dsts.length >= 2)
-                nArcs++; // the middle "bar" part
-            double arcs[][][] = new double[nArcs][4][2];
-            if (srcs.length + dsts.length == 3)
+            if (points.length == 0)
+                return null;
+            int dim = points[0].length;
+            double result[] = new double[dim]; // initially all zeros
+            int n = (inds != null ? inds.length : points.length);
+            for (int i = 0; i < n; ++i)
             {
-                // Find the 1st isogonal center of the triangle,
-                // i.e. the point such that the pairs of rays
-                // to the sites are all 120 degrees apart.
-                // XXX do something
-                assert(false);
-                return arcs;
+                double point[] = points[inds != null ? inds[i] : i];
+                assert(point.length == dim);
+                for (int j = 0; j < dim; ++j)
+                    result[j] += point[j];
             }
-            else if (srcs.length + dsts.length == 4)
-            {
-                // XXX do something
-                assert(false);
-                return arcs;
-            }
-            else
-            {
-                // XXX do something
-                assert(false);
-                return arcs;
-            }
-        }
+            for (int j = 0; j < dim; ++j)
+                result[j] *= 1./n;
+            return result;
+        } // average
 
-    }
+
+    //========================================================================
+    // The rest of this is for main()
+    //
 
     // A fuzzy point, i.e. a closed unit disk with center x,y and radius r.
     // We store r*r instead of r, since r itself is hardly
@@ -428,27 +393,6 @@ class AssetGraph
             result[i] = (1.-t)*a[i] + t*b[i];
         return result;
     } // lerp
-    private static double[] avg(double points[][/*dim*/], int inds[])
-    {
-        if (points.length == 0)
-            return null;
-        int dim = points[0].length;
-        double result[] = new double[dim]; // initially all zeros
-        int n = (inds != null ? inds.length : points.length);
-        for (int i = 0; i < n; ++i)
-        {
-            double point[] = points[inds != null ? inds[i] : i];
-            assert(point.length == dim);
-            for (int j = 0; j < dim; ++j)
-                result[j] += point[j];
-        }
-        for (int j = 0; j < dim; ++j)
-            result[j] *= 1./n;
-        //PRINTARRAY(points);
-        //PRINTARRAY(inds);
-        //PRINTARRAY(result);
-        return result;
-    } // avg
 
 
 
@@ -716,7 +660,7 @@ class AssetGraph
                         case '-':
                             {
                                 double scale = (c=='-' ? Math.sqrt(.5) : Math.sqrt(2.));
-                                double center[] = avg(assets, null);
+                                double center[] = average(assets, null);
                                 for (int i = 0; i < assets.length; ++i)
                                     assets[i] = lerp(center, assets[i], scale);
                             }
@@ -821,7 +765,7 @@ class AssetGraph
             int n = oldCircle.length;
             if (n <= 2)
                 return oldCircle;
-            double center[/*2*/] = AssetGraph.avg(oldCircle,null);
+            double center[/*2*/] = AssetGraphUtils.average(oldCircle,null);
             double distsFromCenter[] = new double[n];
             for (int i = 0; i < n; ++i)
                 distsFromCenter[i] = dist(center[0],center[1],oldCircle[i][0], oldCircle[i][1]);
