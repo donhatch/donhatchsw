@@ -1,4 +1,9 @@
 //
+// AssetGraphStuff.java -- utilities for drawing events
+// which have multiple source points and multiple destination points.
+//
+
+//
 // ISSUES:
 //     - it works well if an asset is both a src and dst
 //       as long as there is at least one other src and one other dst,
@@ -2227,6 +2232,9 @@ class AssetGraphStuff
 
 
 
+        //--------------------------------------------------------------------
+        // Little array utils...
+        //
         private static Object subarray(Object array, int start, int n)
         {
             Object subarray = java.lang.reflect.Array.newInstance(
@@ -2321,6 +2329,18 @@ class AssetGraphStuff
             System.out.println(name + " = " + arrayToString(array));
         } // printArray
 
+
+        // not really efficient, but who cares.
+        // XXX sort of lame, can't tell the different
+        // XXX between null success and failure
+        public Object parseArray(String s, Class type)
+        {
+            int index[] = {0};
+            Object result =  _parseArray(s, type, index);
+            return result;
+        }
+
+        // recursive work function used by parseArray()
         private Object _parseArray(String s,
                                    Class type,
                                    int _index[/*1*/]) // input/output
@@ -2407,16 +2427,6 @@ class AssetGraphStuff
             }
         } // _parseArray
 
-        // not really efficient, but who cares.
-        // XXX sort of lame, can't tell the different
-        // XXX between null success and failure
-        public Object parseArray(String s, Class type)
-        {
-            int index[] = {0};
-            Object result =  _parseArray(s, type, index);
-            return result;
-        }
-
         /*
         {
             PRINTARRAY(parseArray("null", int[][][].class));
@@ -2433,6 +2443,9 @@ class AssetGraphStuff
             PRINTARRAY(parseArray("{{{2,3},{},{4,5,6}},{{5,6}}}", int[][][].class));
         }
         */
+        // End of little array utils.
+        //
+        //--------------------------------------------------------------------
     } // class MyDemoPanel
 
 
