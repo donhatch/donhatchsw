@@ -1035,7 +1035,7 @@ public class AssetGraphStuff
                             if (multiplicity == 0 && shadowThickness > lineThickness)
                             {
                                 g2d.setStroke(whiteStroke);
-                                g2d.setColor(g2d.getBackground());
+                                g2d.setColor(getBackground());
                             }
                             for (int j = 0; j < connectionCurves[i].length; ++j)
                             {
@@ -1358,6 +1358,7 @@ public class AssetGraphStuff
                             if (indicesOfClosestThing[0] != -1)
                             {
                                 mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_ASSET : STATE_DRAGGING_ASSET);
+                                nFramesUntilFutures[indicesOfClosestThing[0]] = 0; // XXX set future position to current too?
                                 indexOfThingBeingDragged = indicesOfClosestThing[0];
                                 subIndexOfThingBeingDragged = -1;
                             }
@@ -1372,6 +1373,8 @@ public class AssetGraphStuff
                                 mouseState = (e.isControlDown() ? STATE_CTRL_DRAGGING_NOTHING : STATE_DRAGGING_NOTHING); // panning
                                 indexOfThingBeingDragged = -1;
                                 subIndexOfThingBeingDragged = -1;
+                                for (int i = 0; i < assets.length; ++i)
+                                    nFramesUntilFutures[i] = 0; // XXX set future position to current too?
                             }
                             //System.out.println("indexOfThingBeingDragged = "+indexOfThingBeingDragged+","+subIndexOfThingBeingDragged+"");
                         }
