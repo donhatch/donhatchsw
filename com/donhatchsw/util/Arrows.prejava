@@ -1040,10 +1040,10 @@ class AssetGraphUtils
             // Add children...
             //
 
-//      [ ] Label assets
 //      [Assets|One Curve] Mode
 //      [ ] Arrowhead on single-srcs
 
+//      [ ] Label assets
 //      [ ] Auto Clean Circle
 //      [ ] Auto Clean And Center   (nah, I think auto clean should do this)
 //      [Clean Circle] [Clean and Center]
@@ -2115,8 +2115,8 @@ class AssetGraphUtils
                         // XXX should validate more!
 
                         // cute-- if same length, ease in
-                        PRINT(newAssets.length);
-                        PRINT(assets.length);
+                        //PRINT(newAssets.length);
+                        //PRINT(assets.length);
                         if (newAssets.length == assets.length)
                             scheduleFutureAssets(newAssets);
                         else
@@ -2358,7 +2358,7 @@ class AssetGraphUtils
     public static void main(String args[])
     {
         System.out.println("in main");
-        String title = "Asset Graph Arcs";
+        String title = "Asset Graph Utilities";
         javax.swing.JFrame frame = new javax.swing.JFrame(title);
         frame.setBackground(java.awt.Color.black);
         frame.setForeground(java.awt.Color.white);
