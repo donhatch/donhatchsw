@@ -1,12 +1,19 @@
+/*
+* Copyright (c) 2005 Don Hatch Software
+*/
+
 //#include "macros.h"
 //
-// AssetGraphStuff.java -- utilities for drawing events
-// which have multiple source points and multiple destination points.
+// Arrows.java -- utilities for drawing arrows
+// which have multiple heads (destination points)
+// and multiple tails (source points).
 //
 
+package com.donhatchsw.util;
+
 /**
- * Utilities for drawing events
- * which have multiple source points and multiple destination points.
+ * Utilities for drawing arrows which have multiple heads (destination points)
+ * and multiple tails (source points).
  * <p>
  * ISSUES:
  * <ul>
@@ -47,9 +54,9 @@
  *     <li> should be passing around tooFarSqrd, not tooFar, maybe
  * </ul>
  */
-public class AssetGraphStuff
+public class Arrows
 {
-    private AssetGraphStuff() {} // non-instantiatable
+    private Arrows() {} // non-instantiatable
 
     /**
      * Get curves representing an event
@@ -68,8 +75,8 @@ public class AssetGraphStuff
     public static java.awt.Shape[] getCurves(
             double srcs[][/*2*/], int srcInds[], // inds may be null
             double dsts[][/*2*/], int dstInds[], // inds may be null
-            double srcRadii[], // keep arrows this far away
-            double dstRadii[], // keep arrows this far away
+            double srcRadii[], // keep arrows this far away from srcs
+            double dstRadii[], // keep arrows this far away from dsts
             double arrowHeadLength,
 
             double graphCenterForSingle[/*2*/],
@@ -2229,7 +2236,7 @@ public class AssetGraphStuff
             int n = oldCircle.length;
             if (n <= 2)
                 return oldCircle;
-            double oldCenter[/*2*/] = AssetGraphStuff.average(oldCircle,null);
+            double oldCenter[/*2*/] = Arrows.average(oldCircle,null);
             if (newCenter == null)
                 newCenter = oldCenter;
             double distsFromCenter[] = new double[n];
@@ -2840,4 +2847,4 @@ public class AssetGraphStuff
         System.out.println("out main");
     } // main
 
-} // class AssetGraphStuff
+} // class Arrows
