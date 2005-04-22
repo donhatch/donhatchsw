@@ -1025,7 +1025,7 @@ public class AssetGraphStuff
                     if (true)
                     {
                         for (int i = 0; i < assets.length; ++i)
-                            drawCircle(g2d, assets[i][0],assets[i][1], Math.max(srcRadii[0], .5));
+                            drawCircle(g2d, assets[i][0],assets[i][1], Math.max(.9*srcRadii[0], .5));
                     }
 
                     java.awt.Stroke oldStroke = g2d.getStroke();
@@ -1223,7 +1223,7 @@ public class AssetGraphStuff
                 this.addComponentListener(new java.awt.event.ComponentListener() {
                     public void componentResized(java.awt.event.ComponentEvent e)
                     {
-                        if (eventVerbose >= 1) System.out.println("    in componentResized: "+e);
+                        if (eventVerbose >= 1) System.out.println("    in canvas componentResized: "+e);
                         int oldWidth = curWidth;
                         int oldHeight = curHeight;
                         int newWidth = e.getComponent().getWidth();
@@ -1252,7 +1252,7 @@ public class AssetGraphStuff
                         curWidth = newWidth;
                         curHeight = newHeight;
 
-                        if (eventVerbose >= 1) System.out.println("    out componentResized");
+                        if (eventVerbose >= 1) System.out.println("    out canvas componentResized");
                     }
                     public void componentMoved(java.awt.event.ComponentEvent e)
                     {
@@ -1808,7 +1808,7 @@ public class AssetGraphStuff
             super.paintComponent(g);
         }
 
-        public MyDemoPanel()
+        public MyDemoPanel(boolean useSplitPane)
         {
             super();
 
@@ -1827,28 +1827,24 @@ public class AssetGraphStuff
             buttonRow2.setBackground(java.awt.Color.lightGray); // so it stands out
 
             {
-                javax.swing.AbstractButton child = new javax.swing.JButton("+");
-                child.addActionListener(new java.awt.event.ActionListener() {
+                buttonRow1.add(new javax.swing.JButton(new javax.swing.AbstractAction("+") {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('+');
                         if (allButtonsRelinqushFocusToCanvas)
                             canvas.requestFocus();
                     }
-                });
-                buttonRow1.add(child);
+                }));
             }
             {
-                javax.swing.AbstractButton child = new javax.swing.JButton("-");
-                child.addActionListener(new java.awt.event.ActionListener() {
+                buttonRow1.add(new javax.swing.JButton(new javax.swing.AbstractAction("-") {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('-');
                         if (allButtonsRelinqushFocusToCanvas)
                             canvas.requestFocus();
                     }
-                });
-                buttonRow1.add(child);
+                }));
             }
 
             cleanCircleButton = new javax.swing.JButton("Clean Circle");
@@ -1879,19 +1875,15 @@ public class AssetGraphStuff
                 buttonRow1.add(child);
             }
             {
-                final javax.swing.JCheckBox child = new javax.swing.JCheckBox("Auto Clean", autoClean);
-                child.addActionListener(new java.awt.event.ActionListener() {
+                buttonRow1.add(autoCleanCheckBox = new javax.swing.JCheckBox(new javax.swing.AbstractAction("Auto Clean") {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
-                        setAutoClean(child.isSelected());
+                        //setAutoClean(autoCleanCheckBox.isSelected());
+                        setAutoClean(((javax.swing.JCheckBox)e.getSource()).isSelected());
                         if (allButtonsRelinqushFocusToCanvas)
                             canvas.requestFocus();
                     }
-                });
-                buttonRow1.add(child);
-
-                // We need to keep track of it to keep it in sync...
-                autoCleanCheckBox = child;
+                }));
             }
             {
                 final javax.swing.JCheckBox child = new javax.swing.JCheckBox("Labels");
@@ -2007,21 +1999,31 @@ public class AssetGraphStuff
                 buttonBars.add(buttonRow1);
                 buttonBars.add(buttonRow2);
 
+                if (useSplitPane)
                 {
-                    java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
-                    c.gridy = 0;
-                    c.fill = java.awt.GridBagConstraints.BOTH; // stretch component to fill space
-                    c.weightx = 1.; // stretch space horizontally
-                    c.weighty = 1.; // stretch space vertically
-                    this.add(canvas, c);
+                    javax.swing.JSplitPane splitPane = new javax.swing.JSplitPane(javax.swing.JSplitPane.VERTICAL_SPLIT, true);
+                    this.add(splitPane);
+                    splitPane.add(canvas);
+                    splitPane.add(buttonBars);
                 }
+                else
                 {
-                    java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
-                    c.gridy = 1;
-                    c.fill = java.awt.GridBagConstraints.BOTH; // stretch component to fill space
-                    c.weightx = 1.; // stretch space horizontally
-                    c.weighty = 0.; // don't stretch space vertically
-                    this.add(buttonBars, c);
+                    {
+                        java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
+                        c.gridy = 0;
+                        c.fill = java.awt.GridBagConstraints.BOTH; // stretch component to fill space
+                        c.weightx = 1.; // stretch space horizontally
+                        c.weighty = 1.; // stretch space vertically
+                        this.add(canvas, c);
+                    }
+                    {
+                        java.awt.GridBagConstraints c = new java.awt.GridBagConstraints();
+                        c.gridy = 1;
+                        c.fill = java.awt.GridBagConstraints.BOTH; // stretch component to fill space
+                        c.weightx = 1.; // stretch space horizontally
+                        c.weighty = 0.; // don't stretch space vertically
+                        this.add(buttonBars, c);
+                    }
                 }
             }
 
@@ -2039,6 +2041,7 @@ public class AssetGraphStuff
                 helpWindow.pack();
                 //helpWindow.setVisible(true); // uncomment when debugging it
             }
+
         } // MyDemoPanel() ctor
 
         //
@@ -2448,7 +2451,7 @@ public class AssetGraphStuff
                 double arrowLengthForSingle = 40;
                 boolean doArrowHeadOnSingleSrc = false; // XXX need way to toggle
                 double lineThickness = 1;
-                double shadowThickness = 2;
+                double shadowThickness = 7;
 
                 double assets[][] = null; // create in first paint()
                 double assetVelocities[][] = null; // create in first paint()
@@ -2798,10 +2801,19 @@ public class AssetGraphStuff
         String title = "Asset Graph Stuff";
 
         javax.swing.JFrame frame = new javax.swing.JFrame(title);
+
         frame.setForeground(java.awt.Color.white);
         frame.setBackground(java.awt.Color.black);
 
-        final MyDemoPanel myDemoPanel = new MyDemoPanel();
+        boolean useSplitPane = false;
+        if (args.length >= 1
+         && args[0].equals("--useSplitPane"))
+        {
+            useSplitPane = true;
+            args = (String[])MyDemoPanel.subarray(args, 1, args.length-1);
+        }
+
+        final MyDemoPanel myDemoPanel = new MyDemoPanel(useSplitPane);
         frame.setContentPane(myDemoPanel);
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent event)
