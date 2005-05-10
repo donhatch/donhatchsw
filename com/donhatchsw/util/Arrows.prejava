@@ -13,8 +13,12 @@ package com.donhatchsw.util;
 
 /**
  * Utilities for drawing arrows which have multiple heads (destination points)
- * and multiple tails (source points).
- * <p>
+ * and multiple tails (source points).  The interesting function here
+ * is getCurves().
+ */
+
+/* not in javadoc for now */
+/* <p>
  * ISSUES:
  * <ul>
  *     <li> arrow head direction heuristic often misbehaves, can (and will)
@@ -59,7 +63,7 @@ public class Arrows
     private Arrows() {} // non-instantiatable
 
     /**
-     * Get curves representing an event
+     * Get curves representing an event (multi-headed-and-tailed arrow)
      * with zero or more sources and zero or more destinations.
      * <p>
      * Policy of the array returned:
@@ -70,7 +74,7 @@ public class Arrows
      * (which may not be curves at all).  In this way,
      * it's possible to select a particular src or dst of an event.
      * <p>
-     * XXX see code for parameter descriptions
+     * See code for parameter descriptions.
      */
     public static java.awt.Shape[] getCurves(
             double srcs[][/*2*/], int srcInds[], // inds may be null
@@ -446,7 +450,7 @@ public class Arrows
     // A fuzzy point, i.e. a closed unit disk with center x,y and radius r.
     // We store r*r instead of r, since r itself is hardly
     // ever needed so this saves computing a lot of square roots.
-    public static class FuzzyPoint {
+    private static class FuzzyPoint {
         public double x, y, rSqrd;
     }
     /**
@@ -868,7 +872,7 @@ public class Arrows
     //-----------------------------------------------------------------------
 
 
-    public static class MyDemoPanel
+    private static class MyDemoPanel
         extends javax.swing.JPanel
     {
         int paintCount = 0;
