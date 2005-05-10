@@ -1,0 +1,3132 @@
+//
+// CSG.prejava
+//
+// Contains functions for doing boolean operations (union, intersection, diff)
+// on polytopes (i.e. polygons or polyhedra or ...).
+//
+// Depends on:
+//      VecMath.prejava
+//      SortStuff.prejava
+//
+/*
+    Bugs to fix:
+        - fix signs like I said I would (what did I say? I can't recall)
+        Was:
+            -dim=1: A&A arrayIndexOutOfBounds: -1, in SortStuff.swap
+            -dim=1: A-A arrayIndexOutOfBounds, same
+            -dim=1: A|A arrayIndexOutOfBounds, same
+
+            -dim=2: A&A Assertion failed at CSG.prejava(1240): Arrays.indexOf(slicee.p.contributingHyperplanes, hyperplane) == -1
+            -dim=2: A-A same assertion failure
+            -dim=2: A|A same assertion failure
+        Now:
+            -dim=1: A&A gives bogus bombed-out structure
+            -dim=2: A&A Assumption failed at CSG.prejava(2392): n == list.length
+            and simlarly for the other tests listed above
+        Bleah, looking it over again, it seems like the algorithm
+        can't handle A&A-- it computes the boundary of the intersection
+        of A&B as bd(A)&B union A&bd(B), which is null...
+        need a fundamental insight to fix this.
+
+    To consider:
+        - Should try to explain what the signs mean.  Some things
+          to maybe mention...
+            - note, the sum of signed vertices on an edge
+              is actually the directed length of the edge
+            - going back over an edge (or face) in the opposite
+              direction means erasing it
+            - for a proper edge, the sum of all vert's signs must be 0
+              (otherwise it's a ray or something)
+            - for a closed loop or surface, the boundary must have
+              no boundary, i.e. the sum of the boundary of the boundary
+              must be zero.
+            - intersection is really min, union is really max,
+              complement is really 1-.  The allowed polytopes
+              are those that are constant density outside
+              a bounded region; that constant density
+              is called "initialDensity".
+              The most common ones are finite and cofinite (i.e.
+              those that are density 1 on a finite region and 0 elsewhere,
+              and vice-versa.)
+              (Might also allow more some day, but not at the moment.)
+            - hmm, assuming the a.e. constant density restriction,
+              this means all but top level polytopes
+              must have initial density 0.
+            - interesting, if we have a varying-positive-density
+              polytope and we want the density-1 version,
+              just intersect (i.e. min) it with 1.
+
+        - does initialDensity have a meaning for vertices? (should it be 1? -1?)
+        - make params X,Y instead of A,B? (since A,B are typical
+              arguments; this might make debugging less confusing)
+              But then I'll have to think of an alternative
+              for alpha,beta that is not confusing...
+              yamma, zigga? yalpha, zeta?
+              ha, my humor is above everyone's head.
+*/
+
+package com.donhatchsw.util;
+
+#include "macros.h"
+
+
+/**
+*  Contains functions for doing n-dimensional Constructive Solid Geometry (CSG),
+*  that is, boolean operations (union, intersection, diff)
+*  on polytopes (i.e polygons or polyhedra or ...).
+*  <p>
+*  The objects that the boolean operators operate on
+*  are CSG.Polytope and CSG.SPolytope (signed polytope).
+*  The simplest way to create a CSG.Polytope
+*  is probably by using the PolyCSG class.
+*  Some primitive CSG.SPolytopes can also be made using makePolygon()
+*  and makeHypercube().
+*  <p>
+*  Caveats: not at all robust about concident or coplanar elements;
+*  really only works reliably if everything is in general position.
+*  <p>
+*  Depends on classes:
+*  <ul>
+*       <li> Arrays </li>
+*       <li> VecMath </li>
+*       <li> SortStuff </li>
+*  </ul>
+*/
+public final class CSG
+{
+    private CSG() {} // uninstantiatable
+    //
+    // Debugging setting...
+    // I just set this appropriately and recompile.
+    // XXX note, not final so that it can be changed in main.
+    // XXX this should maybe be a compile-time option,
+    // XXX since making it final gets rid of a lot of code.
+    //
+    //private static int verboseLevel = 2; // 3 = show gory details (XXX which are really gory and I should probably do away with)
+    //private static int verboseLevel = 1; // 3 = show gory details (XXX which are really gory and I should probably do away with)
+    //private static int verboseLevel = 0; // 3 = show gory details (XXX which are really gory and I should probably do away with)
+    private static int verboseLevel = -1; // 3 = show gory details (XXX which are really gory and I should probably do away with)
+
+    //
+    // Data structures...
+    //
+
+        private static long nIds = 0; // so we can give a unique integer id to everything ever created
+        private static Object nIdsLock = new Object(); // for synchronization
+        private static java.util.Random randomGenerator = new java.util.Random(0);
+
+        /**
+        *  A hyperplane is the set of all
+        *  points p such that (p dot normal) = offset.
+        *  The closed halfspace it bounds is the set of all points p
+        *  such that (p dot normal) <= offset.
+        */
+        public static class Hyperplane
+        {
+            public long id;
+            public double normal[];
+            public double offset;
+            public double spanningPoints[][]; // optional; avoids recalculation of points (and resulting roundoff error) when points was the original representation.  XXX this idea seems to be lacking... e.g. if there are more than dim(plane)+1 points on the polygon, then we have to omit some.  think about this :-( )
+            /** Creates a Hyperplane from a plane equation. */
+            public Hyperplane(double normal[], double offset)
+            {
+                synchronized(nIdsLock)
+                {
+                    this.id = nIds++;
+                }
+                this.normal = normal;
+                this.offset = offset;
+                this.spanningPoints = null;
+            } // Hyperplane from plane equation
+            /** Creates a Hyperplane from a set of dim spanning points. */
+            public Hyperplane(double spanningPoints[][])
+            {
+                synchronized(nIdsLock)
+                {
+                    this.id = nIds++;
+                }
+                this.spanningPoints = spanningPoints;
+
+                assert(false); // XXX implement me! normal should be cross product of points vectors
+                this.offset = VecMath.dot(this.normal,
+                                          this.spanningPoints[0]);
+            } // Hyperplane from spanning points
+
+            public String toString()
+            {
+                return VecMath.toString(normal) + " " + offset;
+            }
+        } // class Hyperplane
+
+        /**
+        *  Unsigned (unoriented) polytope,
+        *  defined by its boundary.
+        *  <p>
+        *  Note, the "dim" member wasn't stored here originally since
+        *  it can be inferred as (dim of planes[0].normal) - (# of planes),
+        *  except when (# of planes) == 0, in which case we can still infer
+        *  it (recursively) as (dim of facets)+1, unless there
+        *  are no facets... This was giving me a headache,
+        *  so I'm just storing it explicitly here.
+        *  <p>
+        *  Similarly for "fullDim", only more so.
+        */
+        public static class Polytope
+        {
+            public long id;
+            public int dim;     // dimension of the polytope
+            public int fullDim; // dimension of the space it lives in
+            public SPolytope facets[];
+            public Hyperplane contributingHyperplanes[]; // the hyperplanes whose intersection is the space of this Polytope, in sorted order. // XXX sigh, should probably be a HashableSortedArray so we don't have to keep creating and destorying them every time we want to look it up... but that means this definition is getting more and more obscured
+            public Object aux; // user data; creator can set this if desired
+            private double _coords[];      // if vertex, null otherwise.  XXX should probably calculate only on demand, but then need a way to differentiate between dirty and nonexistent (for example, this is needed in getBBox below). XXX ctually not currently calculated at all.
+            private double _bbox[/*2*/][]; // bounding box of all vertices, so it can be finite even if the polytope is infinite (co-finite).  calculated Lazily via getBBox().
+            private Polytope[/*dim+1*/][] _allElements; // sorted lists of vertices, edges, ..., ridges, facets, calculated lazily via getAllElements()
+
+            public Polytope(int dim,
+                            int fullDim,
+                            SPolytope facets[],
+                            Hyperplane contributingHyperplanes[],
+                            Object aux)
+            {
+                if (verboseLevel >= 3)
+                    System.out.println("in Polytope ctor");
+                synchronized(nIdsLock)
+                {
+                    this.id = nIds++;
+                }
+                this.dim = dim;
+                this.fullDim = fullDim;
+                this.facets = facets;
+                this.contributingHyperplanes = contributingHyperplanes;
+                this.aux = aux;
+                this._coords = null;
+                this._bbox = null;
+                this._allElements = null;
+
+                if (verboseLevel >= 3)
+                {
+                    System.out.print("    making "+this.id+": [");
+                    if (facets == null)
+                        System.out.println("(null)");
+                    else
+                        FORI (iFacet, facets.length)
+                        {
+                            System.out.print(" "
+                                           + (facets[iFacet].sign==1?"+":facets[iFacet].sign==-1?"-":facets[iFacet].sign==0?"!":"?")
+                                           + facets[iFacet].p.id);
+                        }
+                    System.out.println(" ]");
+                }
+
+                if (facets != null) // XXX maybe shouldn't be allowed, but makeHyperCube does it
+                {
+                    int nFacets = facets.length;
+                    FORI (iFacet, nFacets)
+                    {
+                        Polytope facet = facets[iFacet].p;
+                        assert(facet.fullDim == fullDim);
+                        assert(facet.dim == dim-1);
+                    }
+                }
+
+                if (verboseLevel >= 3)
+                    System.out.println("out Polytope ctor");
+            }
+
+            // Note this just copies the pointer,
+            // so don't give it a scratch buffer that you will overwrite!
+            // (should take a const double[]).
+            public void setCoords(double coords[])
+            {
+                _coords = coords;
+            }
+
+            // Returns a pointer to coords.
+            // It is illegal to modify the contents
+            // (should return const double[]).
+            public double[] getCoords()
+            {
+                if (_coords == null)
+                {
+                    assert(dim == 0); // must be a vertex
+                    _coords = intersectHyperplanes(contributingHyperplanes);
+                }
+                assert(_coords != null); // XXX not sure if I'm preventing this
+                return _coords;
+            } // getCoords
+
+            //
+            // When this is called, it is assumed
+            // that the coords and connectivity
+            // will not henceforth change.
+            // XXX well I'm not completely firm on that, but if they do change, the bbox will have to be marked dirty, probably by setting it to null.
+            //
+            public double[/*2*/][] getBBox()
+            {
+                if (_bbox == null)
+                {
+                    // XXX should maybe say "if it's a vertex", i.e. if contributingHyperplanes.length == contributingHyperplanes[0].normal.length
+                    if (dim == 0)
+                    {
+                        double coords[] = getCoords();
+                        _bbox = new double[/*2*/][] {coords, coords};
+                    }
+                    else
+                    {
+                        _bbox = new double[2][fullDim];
+                        VecMath.fillvec(_bbox[0], Double.POSITIVE_INFINITY);
+                        VecMath.fillvec(_bbox[1], Double.NEGATIVE_INFINITY);
+                        FORI (iFacet, facets.length)
+                        {
+                            double facetBBox[][] = facets[iFacet].p.getBBox();
+                            FORI (iDim, _bbox[0].length)
+                            {
+                                _bbox[0][iDim] = MIN(_bbox[0][iDim], facetBBox[0][iDim]);
+                                _bbox[1][iDim] = MAX(_bbox[1][iDim], facetBBox[1][iDim]);
+                            }
+                        }
+                    }
+                }
+                return _bbox;
+            } // getBBox
+
+            private Polytope[/*dim+1*/][] getAllElements()
+            {
+                if (_allElements == null)
+                {
+                    java.util.Vector lists[] = new java.util.Vector[dim+1];
+                    FORI (i, dim+1)
+                        lists[i] = new java.util.Vector();
+
+                    {
+                        PolytopeIterator iterator = new PolytopeIterator(this);
+                        while (iterator.hasNext())
+                        {
+                            Polytope e = iterator.next();
+                            lists[e.dim].addElement(e);
+                        }
+                    }
+
+                    _allElements = new Polytope[dim+1][];
+                    FORI (i, dim+1)
+                    {
+                        _allElements[i] = new Polytope[lists[i].size()];
+                        lists[i].copyInto(_allElements[i]);
+                        SortStuff.sort(_allElements[i],
+                                       new SortStuff.Comparator() {
+                                           public int compare(Object _a, Object _b)
+                                           {
+                                               Polytope a = (Polytope)_a;
+                                               Polytope b = (Polytope)_b;
+                                               return a.id < b.id ? -1 :
+                                                      a.id > b.id ? 1 : 0;
+                                           }
+                                       });
+                    }
+                }
+                return _allElements;
+            } // getAllElements()
+
+            public String toString(String indentString,
+                                   boolean showGoryDetails,
+                                   java.util.Hashtable printedAlready)
+            {
+                String nl = System.getProperty("line.separator");
+                if (printedAlready == null)
+                    printedAlready = new java.util.Hashtable();
+
+                StringBuffer sb = new StringBuffer();
+                if (showGoryDetails)
+                {
+                    sb.append("Polytope "+id+" {" + nl);
+                    if (printedAlready.containsKey(this))
+                    {
+                        sb.append(indentString + "    (printed already)" + nl);
+                    }
+                    else
+                    {
+                        printedAlready.put(this,this);
+
+                        sb.append(indentString + "    "+facets.length+" facet"+(facets.length==1?"":"s")+": {" + nl);
+                        FORI (iFacet, facets.length)
+                        {
+                            sb.append(indentString + "        " + facets[iFacet].toString(indentString+"        ", showGoryDetails, printedAlready) + nl);
+                        }
+                        sb.append(indentString + "    }" + nl);
+
+                        sb.append(indentString + "    "+contributingHyperplanes.length+" contributing hyperplane"+(contributingHyperplanes.length==1?"":"s")+": {" + nl);
+                        FORI (iHyperplane, contributingHyperplanes.length)
+                        {
+                            sb.append(indentString + "        " + contributingHyperplanes[iHyperplane] + nl);
+                        }
+                        sb.append(indentString + "    }" + nl);
+
+                        sb.append(indentString + "    _coords = " + VecMath.toString(_coords) + nl);
+                        sb.append(indentString + "    _bbox = " + VecMath.toString(_bbox) + nl);
+                    }
+                    sb.append(indentString + "}");
+                }
+                else
+                {
+                    sb.append(dimToPrefix(dim));
+                    sb.append(id);
+
+                    //sb.append("[");
+                    if (printedAlready.containsKey(this))
+                    {
+                        if (true)
+                            sb.append(" (see above)");
+                    }
+                    else
+                    {
+                        printedAlready.put(this,this);
+                        FORI (iHyperplane, contributingHyperplanes.length)
+                        {
+                            sb.append("  (" + contributingHyperplanes[iHyperplane] + ")");
+                        }
+                        if (dim == 0)
+                        {
+                            if (_coords != null)
+                            {
+                                sb.append("  :  " + VecMath.toString(_coords));
+                                // XXX Should probably do the below anyway,
+                                // XXX and also keep track
+                                // XXX of whether coords have been
+                                // XXX computed or set explicitly
+                            }
+                            else
+                            {
+                                // Find explicit coords of the vertex.
+                                // We want column vector c
+                                // such that
+                                //    normal0 dot c == offset0
+                                //    normal1 dot c == offset1
+                                //    normal2 dot c == offset2
+                                // etc.
+                                // so c = inv(normalsMatrix) * offsetsColumnVector.
+
+                                int nRows = contributingHyperplanes.length;
+                                double normalsMatrix[][] = new double[nRows][nRows];
+                                double offsetsColumnVector[][] = new double[nRows][1];
+                                FORI (iRow, nRows)
+                                {
+                                    VecMath.copyvec(normalsMatrix[iRow], contributingHyperplanes[iRow].normal);
+                                    offsetsColumnVector[iRow][0] = contributingHyperplanes[iRow].offset;
+                                }
+                                // replace normalsMatrix by its inverse,
+                                // replace the offsets in c by the solution
+                                try {
+                                    VecMath.gaussj(normalsMatrix, nRows,
+                                                   offsetsColumnVector, 1);
+                                    double c[] = VecMath.getcolumn(offsetsColumnVector, 0);
+
+                                    sb.append("  ->  " + VecMath.toString(c));
+                                }
+                                catch (Exception e)
+                                {
+                                    sb.append("  -> !!!!!!!!!!!!!!!!!! singular matrix !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                                }
+                            }
+                        }
+                        FORI (iFacet, facets.length)
+                        {
+                            sb.append(nl + indentString + "    ");
+                            assert(facets[iFacet] != null);
+                            sb.append(facets[iFacet].toString(indentString+"    ", false, printedAlready));
+                            if (iFacet+1 < facets.length)
+                                sb.append(" ");
+                        }
+                    }
+                    //sb.append("]");
+                }
+                return sb.toString();
+            } // Polytope.toString
+            public String toString(String indentString,
+                                   boolean showGoryDetails)
+            {
+                return toString(indentString,
+                                showGoryDetails,
+                                null);
+            }
+            public String toString(String indentString)
+            {
+                return toString(indentString, false);
+            }
+            public String toString()
+            {
+                return toString("");
+            }
+        } // class Polytope
+
+        /**
+        *  Signed (oriented) polytope.
+        *  <br>
+        *  InitialDensity is the "density at (-inf,-inf,...)",
+        *  which is 0 for finite polytopes and 1 for cofinite ones.
+        *  <p>
+        *  Representing both finite and cofinite polytopes
+        *  in this way eases our job in implementing CSG:
+        *  we need only implement intersection;
+        *  then the other operations are expressible trivially:
+        *  <pre>
+        *       union(A,B) = intersect(-A,-B)
+        *       diff(A,B)  = intersect(A,-B)
+        *  </pre>
+        */
+        public static class SPolytope
+        {
+            public long id;
+            public int initialDensity; // 0 or 1
+            public int sign;           // +1 or -1
+            public Polytope p;
+            public SPolytope(int initialDensity,
+                             int sign,
+                             Polytope p)
+            {
+                synchronized(nIdsLock)
+                {
+                    this.id = nIds++;
+                }
+                this.initialDensity = initialDensity;
+                this.sign = sign;
+                this.p = p;
+            }
+
+            public String toString(String indentString,
+                                   boolean showGoryDetails,
+                                   java.util.Hashtable printedAlready)
+            {
+                String nl = System.getProperty("line.separator");
+                if (printedAlready == null)
+                    printedAlready = new java.util.Hashtable();
+
+                StringBuffer sb = new StringBuffer();
+                if (showGoryDetails)
+                {
+                    sb.append("SPolytope "+id+" {" + nl);
+                    if (printedAlready.containsKey(this))
+                    {
+                        sb.append(indentString + "    (printed already)" + nl);
+                    }
+                    else
+                    {
+                        printedAlready.put(this,this);
+
+                        sb.append(indentString + "    initialDensity = " + initialDensity + nl);
+                        sb.append(indentString + "    sign = " + sign + nl);
+                        sb.append(indentString + "    p = " + p.toString(indentString+"    ", showGoryDetails, printedAlready) + nl);
+                    }
+                    sb.append(indentString + "}");
+                }
+                else
+                {
+                    if (initialDensity != 0)
+                        sb.append(initialDensity);
+                    sb.append(signToString(sign) + p.toString(indentString, showGoryDetails, printedAlready));
+                }
+                return sb.toString();
+            } // SPolytope.toString
+            public String toString(String indentString,
+                                   boolean showGoryDetails)
+            {
+                return toString(indentString,
+                                showGoryDetails,
+                                null);
+            }
+            public String toString(String indentString)
+            {
+                return toString(indentString, false);
+            }
+            public String toString()
+            {
+                return toString("");
+            }
+
+        } // class SPolytope
+
+
+
+    //
+    // Some primitive SPolytopes...
+    //
+        /** Makes a polygon from the given vertices in n dimensions. */
+        public static SPolytope makePolygon(double verts[][])
+        {
+            int dim = 2;
+            int fullDim = verts[0].length;
+            assert(fullDim == 2); // XXX could try to do it in higher dimensions; would require getting a hyperplane basis for the othogonal complement space, I think
+            int nVerts = verts.length;
+
+            //
+            // Create the hyperplanes...
+            //
+            Hyperplane hyperplanes[] = new Hyperplane[nVerts];
+            {
+                // scratch for loop... note edgeNormal can't be reused
+                /// since the hyperplane stores a pointer to it.
+                double edgeBackwards[] = new double[fullDim];
+                FORI (i, nVerts)
+                {
+                    VecMath.vmv(edgeBackwards, verts[i], verts[(i+1)%nVerts]);
+                    double edgeNormal[] = VecMath.xv2(edgeBackwards);
+                    hyperplanes[i] = new Hyperplane(edgeNormal,
+                                                    VecMath.dot(edgeNormal,
+                                                                verts[i]));
+                }
+            }
+            //
+            // Create a polytope for each vertex...
+            //
+            Polytope vertPolytopes[] = new Polytope[nVerts];
+            {
+                FORI (i, nVerts)
+                {
+                    Hyperplane subHyperplanes[] = {hyperplanes[i],
+                                                   hyperplanes[(i-1+nVerts)%nVerts]};
+                    vertPolytopes[i] = new Polytope(0,
+                                                    fullDim,
+                                                    new SPolytope[0],
+                                                    subHyperplanes,
+                                                    null); // no aux
+                }
+            }
+            //
+            // Create a polytope for each edge...
+            //
+            SPolytope edgeSPolytopes[] = new SPolytope[nVerts];
+            {
+                FORI (i, nVerts)
+                {
+                    Hyperplane subHyperplanes[] = {hyperplanes[i]};
+                    SPolytope vertsThisEdge[] = {
+                        new SPolytope(0,-1,vertPolytopes[i]),
+                        new SPolytope(0,1, vertPolytopes[(i+1)%nVerts]),
+                    };
+                    edgeSPolytopes[i] = new SPolytope(0,1,
+                                         new Polytope(1,
+                                                      fullDim,
+                                                      vertsThisEdge,
+                                                      subHyperplanes,
+                                                      null)); // no aux
+                }
+            }
+            SPolytope faceSPolytope = new SPolytope(0,1,
+                                          new Polytope(2,
+                                                       fullDim,
+                                                       edgeSPolytopes,
+                                                       new Hyperplane[0],
+                                                       null)); // no aux
+            return faceSPolytope;
+        } // makePolygon
+
+        /** Makes an n-dimensional hypercube with given center and in-radius. */
+        public static SPolytope makeHypercube(double center[],
+                                              double inRadius)
+        {
+            int fullDim = center.length;
+            int dim = fullDim;
+            if (verboseLevel >= 1)
+                System.out.println("in makeHypercube, dim="+dim);
+
+            int nVerts = 1<<dim;
+            int totalNumberOfPolytopes = intpow(3, dim);
+
+            //
+            // Create the hyperplanes...
+            //
+            Hyperplane hyperplanes[][] = new Hyperplane[dim][2];
+            {
+                FORI (iDim, dim)
+                    FORI (iDir, 2)
+                    {
+                        double normal[] = VecMath.zerovec(dim);
+                        normal[iDim] = (iDir == 0 ? -1. : 1.);
+                        hyperplanes[iDim][iDir] = new Hyperplane(
+                                normal,
+                                VecMath.dot(normal, center) + inRadius);
+                    }
+            }
+
+            //
+            // Create a mondo array of Polytopes...
+            //
+            Polytope array[] = new Polytope[totalNumberOfPolytopes];
+            {
+                FORI (i, totalNumberOfPolytopes)
+                {
+                    // dimension of polytope
+                    // is number of 1's in its base 3 representation...
+                    int subDim = 0;
+                    FORI (j, dim)
+                        if (digit(i,j,3) == 1)
+                            ++subDim;
+                    int nSubHyperplanes = dim - subDim;
+                    Hyperplane subHyperplanes[] = new Hyperplane[nSubHyperplanes];
+                    int iSubHyperplane = 0;
+                    FORI (j, dim)
+                    {
+                        int digit = digit(i,j,3);
+                        if (digit(i,j,3) != 1) // if it's 0 or 2
+                            subHyperplanes[iSubHyperplane++] = hyperplanes[j][digit/2];
+                    }
+                    assert(iSubHyperplane == nSubHyperplanes);
+                    array[i] = new Polytope(subDim,
+                                            fullDim,
+                                            null, // placeholder for facets
+                                            subHyperplanes,
+                                            null); // no aux
+                }
+            }
+
+            //
+            // For each polytope, assign to it
+            // all of its facets.
+            //
+            {
+                FORI (i, totalNumberOfPolytopes)
+                {
+                    Polytope p = array[i];
+                    int subDim = p.dim;
+                    int iFacet = 0, nFacets = 2 * subDim;
+                    SPolytope facets[] = new SPolytope[nFacets];
+                    FORI (j, dim)
+                        if (digit(i, j, 3) == 1)
+                        {
+                            int dist = intpow(3,j);
+                            int sign;
+                            {
+                                //
+                                // If there are no 0's or 2's
+                                // in higher-order places than j,
+                                // then sign is +.
+                                // If there is one of them,
+                                // then sign is -.
+                                // If there are two of them,
+                                // then sign is +.
+                                // Etc.
+                                // Don't ask me why this works.
+                                // it took me years of pain
+                                // before I discovered it.
+                                //
+                                sign = 1;
+                                for (int k = j+1; k < dim; ++k)
+                                    if (digit(i, k, 3) != 1)
+                                        sign = -sign;
+                            }
+                            facets[iFacet++] = new SPolytope(0,-sign, array[i - dist]);
+                            facets[iFacet++] = new SPolytope(0,sign, array[i + dist]);
+                        }
+                    assert(iFacet == nFacets);
+                    p.facets = facets;
+                }
+            }
+
+            //
+            // Set coords.
+            // (This isn't really necessary; I'm debating
+            // whether it should be done.)
+            // (XXX Note however that without it,
+            // I can't print out the result if dim >= 4,
+            // since the print routine attempts
+            // to compute the coords if they have not been set,
+            // which involves inverting a 4x4 matrix
+            // which I haven't implemented yet :-() )
+            //
+            if (true)
+            {
+                FORI (i, totalNumberOfPolytopes)
+                {
+                    Polytope p = array[i];
+                    if (p.dim == 0)
+                    {
+                        double coords[] = new double[dim];
+                        FORI (iDim, dim)
+                        {
+                            int sign = digit(i, iDim, 3) - 1;
+                            coords[iDim] = center[iDim] + sign * inRadius;
+                        }
+                        p.setCoords(coords);
+                    }
+                }
+            }
+
+            //
+            // The master polytope is the one right in the center of the array.
+            // 
+            Polytope p = array[(totalNumberOfPolytopes-1)/2];
+            if (true)
+            {
+                if (verboseLevel >= 1)
+                    System.out.println("    checking orientations deep...");
+                // Make sure we oriented everything consistently...
+                assert(isOrientedDeep(p));
+            }
+            SPolytope sp = new SPolytope(0,1, p);
+
+            // XXX currently, orientDeep does cosmetic stuff.
+            // XXX we want that cosmetic stuff...
+            if (true)
+            {
+                orientDeep(sp);
+            }
+
+            if (verboseLevel >= 1)
+                System.out.println("out makeHypercube");
+
+            return sp;
+        } // makeHypercube
+
+
+        /** Makes an n-dimensional hypercube of in-radius 1, centered at the origin. */
+        public static SPolytope makeHypercube(int dim)
+        {
+            return makeHypercube(VecMath.zerovec(dim), 1.);
+        } // makeHypercube(unit inRadius, centered at origin)
+
+
+    //
+    // Utilities...
+    //
+        //
+        // Iterator over the elements
+        // (self, facets, ridges, ..., faces, edges, vertices)
+        // of a Polytope.  Uses a hash table to keep track of what's
+        // already been visited.
+        // XXX sad, now that I have getAllElements(), that's
+        // XXX the only use for this class, so could just
+        // XXX incorporate this code into getAllElements
+        //
+        private static class PolytopeIterator
+            // don't implement Iterator interface since it didn't exist in 1.1
+        {
+            private java.util.Hashtable visited;
+            private java.util.Stack stack; // XXX could do stack-or-queue for choice of pre-order-depth-first or breadth-first search
+            public PolytopeIterator(Polytope p)
+            {
+                visited = new java.util.Hashtable();
+                stack = new java.util.Stack();
+                stack.push(p);
+            }
+            boolean hasNext()
+            {
+                return !stack.empty();
+            }
+            Polytope next()
+            {
+                try
+                {
+                    Polytope item = (Polytope)stack.pop();
+                    SPolytope facets[] = item.facets;
+                    int nFacets = facets.length;
+                    FORI (iFacet, nFacets)
+                    {
+                        Polytope facet = facets[iFacet].p;
+                        // check visitedness *before* we
+                        // throw it on the stack,
+                        // so that hasNext() only has to query
+                        // whether stack is nonempty
+                        if (!visited.containsKey(facet))
+                        {
+                            visited.put(facet,facet);
+                            stack.push(facet);
+                        }
+                    }
+                    return item;
+                }
+                catch (java.util.EmptyStackException e)
+                {
+                    throw new java.util.NoSuchElementException();
+                }
+            } // next
+        } // PolytopeIterator
+
+
+
+
+        //
+        // A polytope is "binary"
+        // if all densities are 0 or 1.
+        // XXX also checks whether it's finite-or-cofinite,
+        // XXX so isBinary is a misnomer.
+        //
+        public static boolean isBinaryDensityShallow(Polytope p)
+        {
+            if (p.dim == 1)
+            {
+                int nPluses = 0, nMinuses = 0; // and counting
+                SPolytope facets[] = p.facets;
+                int nFacets = facets.length;
+                FORI (iFacet, nFacets)
+                {
+                    SPolytope facet = facets[iFacet];
+
+                    if (facet.initialDensity != 0)
+                        return false; // only top-level can have nonzero initial density in a finite-or-cofinite polytope
+
+                    int sign = facet.sign;
+                    if (sign == 1)
+                        nPluses++;
+                    else if (sign == -1)
+                        nMinuses++;
+                    else
+                        return false;
+                }
+                if (nPluses != nMinuses)
+                    return false;
+            }
+            // XXX else!?
+            return true;
+        } // isBinaryDensityShallow
+
+        public static boolean isBinaryDensityDeep(SPolytope sp)
+        {
+            if (sp.initialDensity != 0
+             && sp.initialDensity != 1)
+                return false;
+            Polytope allElements[][] = sp.p.getAllElements();
+            int dim = sp.p.dim;
+            FORI (iDim, dim+1)
+            {
+                Polytope ofDim[] = allElements[iDim];
+                int nOfDim = ofDim.length;
+                FORI (iOfDim, nOfDim)
+                    if (!isBinaryDensityShallow(ofDim[iOfDim]))
+                        return false;
+            }
+            return true;
+        } // isBinaryDensityDeep
+
+
+
+        //
+        // Do one level of orientedness checking.
+        // XXX This is O(n^2); should use a hash table
+        // XXX instead of an array for boundaryRidges
+        //
+        public static boolean isOrientedShallow(Polytope p)
+        {
+            final boolean verbose = false;
+            //
+            // A polytope is considered oriented
+            // if the summation of the signed facets of its
+            // signed facets is zero.
+            //
+            SPolytope facets[] = p.facets;
+            int nFacets = facets.length;
+            int maxRidges;
+            {
+                maxRidges = 0; // and counting
+                FORI (iFacet, nFacets)
+                    maxRidges += facets[iFacet].p.facets.length;
+            }
+            SPolytope boundaryRidges[] = new SPolytope[maxRidges];
+            int nBoundaryRidges = 0; // and counting
+            {
+                FORI (iFacet, nFacets)
+                {
+                    SPolytope facet = facets[iFacet];
+                    SPolytope ridgesThisFacet[] = facet.p.facets;
+                    int nRidgesThisFacet = ridgesThisFacet.length;
+                    FORI (iRidgeThisFacet, nRidgesThisFacet)
+                    {
+                        SPolytope ridge = ridgesThisFacet[iRidgeThisFacet];
+                        int sign = facet.sign * ridge.sign;
+                        // Add boundaryRidge to boundaryRidges.
+                        {
+                            if (verbose)
+                                System.out.println("Adding "
+                                                   +signToString(facet.sign)
+                                                   +signToString(ridge.sign)
+                                                   +"="
+                                                   +signToString(sign)
+                                                   +ridge.p.id);
+                            int iBoundaryRidge;
+                            FOR (iBoundaryRidge, nBoundaryRidges)
+                            {
+                                if (boundaryRidges[iBoundaryRidge].p
+                                 == ridge.p)
+                                {
+                                    // Found it!  Add the new coefficient.
+                                    if ((boundaryRidges[iBoundaryRidge].sign
+                                       += sign) == 0)
+                                    {
+                                        // New coefficient for this ridge is 0;
+                                        // remove the ridge from the list.
+
+                                        boundaryRidges[iBoundaryRidge--] = boundaryRidges[--nBoundaryRidges]; // subtle-- decrement iBoundaryRidges too, so that the test after this loop will still be valid
+                                        if (verbose)
+                                            System.out.println("    (poof!)");
+                                    }
+                                    else
+                                    {
+                                        //
+                                        // It's an unusual polytope
+                                        // in which the cumulative sign
+                                        // can ever be other than
+                                        // 0, -1, or +1; as of this writing
+                                        // I don't think I've provided a way
+                                        // to make one.  But it's
+                                        // theoretically possible.
+                                        //
+                                        if (verbose)
+                                            System.out.println("    (SURPRISE, cumulative sign is "+signToString(boundaryRidges[iBoundaryRidge].sign)+")");
+                                    }
+                                    break;
+                                }
+                            }
+                            if (iBoundaryRidge == nBoundaryRidges)
+                            {
+                                // Didn't find it; add it
+                                boundaryRidges[nBoundaryRidges++] = new SPolytope(0, sign, ridge.p);
+                                if (verbose)
+                                    System.out.println("    (truly)");
+                            }
+                        }
+                    }
+                }
+            }
+            return nBoundaryRidges == 0;
+        } // isOrientedShallow
+
+
+        public static boolean isOrientedDeep(Polytope p)
+        {
+            Polytope allElements[][] = p.getAllElements();
+            int dim = p.dim;
+            FORI (i, dim+1)
+            {
+                Polytope elementsOfDim[] = allElements[i];
+                int nElementsOfDim = elementsOfDim.length;
+                FORI (j, nElementsOfDim)
+                    if (!isOrientedShallow(elementsOfDim[j]))
+                        return false;
+            }
+            return true;
+        } // isOrientedDeep
+
+
+        /**
+        *  Count up number of vertices, edges, ...
+        *  and return the counts in an array.
+        */
+        public static int[] counts(Polytope p)
+        {
+            return (int[])Arrays.arrayLengths(p.getAllElements(), 1, 1);
+        }  // counts
+
+        private static boolean contains(Polytope p, Polytope q)
+        {
+            Polytope eltsOfDim[] = p.getAllElements()[q.dim];
+            // XXX shouldn't have to keep making comparator...
+            int index = SortStuff.bsearch(eltsOfDim, q, 
+                               new SortStuff.Comparator() {
+                                   public int compare(Object _a, Object _b)
+                                   {
+                                       Polytope a = (Polytope)_a;
+                                       Polytope b = (Polytope)_b;
+                                       return a.id < b.id ? -1 :
+                                              a.id > b.id ? 1 : 0;
+                                   }
+                               });
+            return index != -1;
+        } // contains
+
+
+
+        // XXX comment me!!
+        public static void calcDensity(SPolytope sp,
+                                       double point[],
+                                       double eps,
+                                       int result[/*2*/]) // interval arithmetic
+        {
+            //System.out.println("    in calcDensity (dim="+sp.p.dim+")");
+            Polytope p = sp.p;
+            int dim = p.dim;
+
+            if (dim == 0)
+            {
+                // XXX logically should probably be something else, but this will do for now...
+                result[0] = 1;
+                result[1] = 1;
+                //System.out.println("    out calcDensity (dim="+sp.p.dim+"), returning "+result[0]+","+result[1]+"");
+                return;
+            }
+
+            // dir = a random vector in the space spanned by this polytope.
+            // We get it by taking all the plane normals,
+            // augmenting by random vectors if necessary to get
+            // dim-1 vectors, and taking the cross product.
+            double dir[];
+            {
+                int nContributingHyperplanes = p.contributingHyperplanes.length;
+                int fullDim = sp.p.fullDim;
+                assert(nContributingHyperplanes < fullDim);
+                double M[][] = new double[fullDim-1][fullDim];
+                int iRow;
+                FOR (iRow, nContributingHyperplanes)
+                    VecMath.copyvec(M[iRow], p.contributingHyperplanes[iRow].normal);
+                for (; iRow < fullDim-1; ++iRow)
+                    VecMath.random(M[iRow], randomGenerator);
+                dir = VecMath.crossprod(M);
+                VecMath.normalize(dir, dir); // XXX not necessary if we want to be clever
+            }
+            double pointDotDir = VecMath.dot(point, dir);
+
+            int densityMin = sp.initialDensity; // and counting
+            int densityMax = sp.initialDensity; // and counting
+
+            if (p.dim == 1)
+            {
+                SPolytope vertices[] = p.facets;
+                int nVertices = vertices.length;
+                FORI (iVertex, nVertices)
+                {
+                    SPolytope v = vertices[iVertex];
+                    int a = 0, b = 0;
+                    double vDotDir = VecMath.dot(v.p.getCoords(),
+                                                 dir);
+
+                    if (GEQ(vDotDir, pointDotDir, eps))
+                        a = v.sign;
+                    if (GT(vDotDir, pointDotDir, eps))
+                        b = v.sign;
+                    if (a > b)
+                    {
+                        int temp;
+                        SWAP(a,b,temp);
+                    }
+                    densityMin += a;
+                    densityMax += b;
+                }
+            }
+            else
+            {
+                assumpt(p.dim >= 2); // XXX never ask for density of a point
+                SPolytope facets[] = p.facets;
+                int nFacets = facets.length;
+                double qoint[] = new double[point.length]; // scratch for loop
+                FORI (iFacet, nFacets)
+                {
+                    SPolytope facet = facets[iFacet];
+
+                    // We want qoint = intersection of point+t*dir with plane
+                    //                   of the facet.
+                    // So we want t such that
+                    //          (point+t*dir) dot hyperplane.normal
+                    //                          = hyperplane.offset
+                    //          point dot hyperplane.normal + t*dir dot hyperplane.normal = hyperplane.offset
+                    //  t = (hyperplane.offset - (point dot hyperplane.normal)) / (dir dot hyperplane.normal)
+                    {
+                        Hyperplane hyperplane = (Hyperplane)itemOfAThatsNotInB(facet.p.contributingHyperplanes, p.contributingHyperplanes);
+                        double t = (hyperplane.offset - VecMath.dot(point, hyperplane.normal)) / VecMath.dot(dir, hyperplane.normal);
+                        VecMath.vpsxv(qoint, point, t, dir);
+                    }
+
+                    double qointDotDir = VecMath.dot(qoint, dir);
+
+                    int a = 0, b = 0;
+                    if (GEQ(qointDotDir, pointDotDir, eps))
+                        a = facet.sign;
+                    if (GT(qointDotDir, pointDotDir, eps))
+                        b = facet.sign;
+                    if (a > b)
+                    {
+                        int temp;
+                        SWAP(a,b,temp);
+                    }
+
+                    if (verboseLevel >= 2 && a != b)
+                    {
+                        System.out.println("uh oh,,,,,,,,,,,,,,,,,,,,,,,,,,");
+                        PRINT(p);
+                        PRINTVEC(point);
+                        PRINTVEC(qoint);
+                        PRINT(a);
+                        PRINT(b);
+                    }
+                    if (a != 0 || b != 0)
+                    {
+                        calcDensity(facet, qoint, eps, result); // using result as temporary
+                        densityMin += a * result[0];
+                        densityMax += b * result[1];
+                    }
+                }
+            }
+
+            if (verboseLevel >= 2 && densityMin != densityMax)
+            {
+                System.out.println("Uh oh................");
+                PRINT(p);
+                PRINTVEC(point);
+                PRINT(densityMin);
+                PRINT(densityMax);
+            }
+
+            result[0] = densityMin;
+            result[1] = densityMax;
+
+            //System.out.println("    out calcDensity (dim="+sp.p.dim+"), returning "+result[0]+","+result[1]+"");
+        } // calcDensity
+
+
+         // simplicallySubdivide
+        private static double[/*nSimplices*/][/*k+1*/][/*n*/] simpliciallySubdivide(Polytope p)
+        {
+            int k = p.dim;
+            int n = p.fullDim;
+
+            if (k == 0)
+            {
+                return new double[][][] {
+                    {p.getCoords()},
+                };
+            }
+            if (p.facets.length == 0)
+            {
+                return new double[0][k+1][n];
+            }
+
+
+            Polytope v0; // first vertex
+            {
+                v0 = p;
+                while (v0.dim > 0)
+                    v0 = v0.facets[0].p;
+            }
+            double v0coords[] = v0.getCoords();
+
+            // XXX it looks to me like Vector behavior is O(n^2) !?? stupid!
+            java.util.Vector simplicesList = new java.util.Vector();
+            {
+                SPolytope facets[] = p.facets;
+                int nFacets = facets.length;
+                double simplex[][] = new double[k+1][/*n*/];
+
+                if (k == 1) // XXX this case is not really necessary, but it is optimized a bit
+                {
+                    FORI (iFacet, nFacets)
+                    {
+                        if (iFacet == 0)
+                            continue;
+                        SPolytope facet = facets[iFacet];
+                        simplex[0] = v0coords;
+                        simplex[1] = facet.p.getCoords();
+                        if (facet.sign < 0)
+                        {
+                            // swap last two vertices on the simplex.
+                            double temp[];
+                            SWAP(simplex[k-1], simplex[k], temp);
+                        }
+                        FORIDOWN (i, ABS(facet.sign))
+                            simplicesList.addElement(VecMath.copymat(simplex));
+                    }
+                }
+                else // k > 1
+                {
+
+                    FORI (iFacet, nFacets)
+                    {
+                        if (iFacet == 0)
+                            continue; // facet 0 definitely contains v0
+                        SPolytope facet = facets[iFacet];
+                        if (contains(facet.p, v0))
+                            continue;
+                        double facetSimplices[][][] = simpliciallySubdivide(facet.p);
+                        int nFacetSimplices = facetSimplices.length;
+                        FORI (iFacetSimplex, nFacetSimplices)
+                        {
+                            simplex[0] = v0coords;
+                            System.arraycopy(facetSimplices[iFacetSimplex], 0,
+                                             simplex, 1,
+                                             k);
+                            if (facet.sign < 0)
+                            {
+                                // swap last two vertices on the simplex.
+                                double temp[];
+                                SWAP(simplex[k-1], simplex[k], temp);
+                            }
+                            FORIDOWN (i, ABS(facet.sign))
+                                simplicesList.addElement(VecMath.copymat(simplex));
+                        }
+                    }
+                }
+            }
+            double array[][][] = new double[simplicesList.size()][k+1][n];
+            simplicesList.copyInto(array);
+            return array;
+        } // simplicallySubdivide
+
+        // This will be the actual (signed) volume
+        // if all the hyperplanes are orthogonal and unit length
+        // (which includes the case when there are no hyperplanes,
+        // i.e. when sp.p.dim is the full dimension of the space).
+        // Otherwise it will be scaled by the volume
+        // of the parallelepiped spanned by those normals.
+        private static double volume(SPolytope sp)
+        {
+            int nNormals = sp.p.contributingHyperplanes.length;
+            double simplices[][][] = simpliciallySubdivide(sp.p);
+            int nSimplices = simplices.length;
+            if (nSimplices == 0)
+                return 0.;
+            int k = simplices[0].length-1;  // dimension of each simplex
+            int n = simplices[0][0].length; // full dimension of space
+
+            assert(k + nNormals == n);
+            double sum = 0.;
+            double M[][] = new double[n][n];
+            FORI (iSimplex, nSimplices)
+            {
+                double simplex[][] = simplices[iSimplex];
+                FORI (iRow, k)
+                    VecMath.vmv(M[iRow], simplex[iRow+1], simplex[0]);
+                FORI (iNormal, nNormals)
+                    VecMath.copyvec(M[k+iNormal],
+                                    sp.p.contributingHyperplanes[iNormal].normal);
+                sum += VecMath.detDestructive(M);
+            }
+            return sum * sp.sign / factorial(k);
+        } // volume
+
+        // Get the normal of the n-1-dimensional polytope sp,
+        // with length equal to the hyper-area of sp.
+        private static void areaNormal(double result[], SPolytope sp)
+        {
+            VecMath.zerovec(result);
+            double simplices[][][] = simpliciallySubdivide(sp.p);
+            int nSimplices = simplices.length;
+            if (nSimplices == 0)
+                return;
+            int k = simplices[0].length-1; // dimension of each simplex
+            int n = simplices[0][0].length; // full dimension of space
+            assert(k == sp.p.dim);
+
+            assert(k == n-1);
+            assert(result.length == n);
+            double M[][] = new double[k][n];
+            double simplexNormal[] = new double[n];
+            FORI (iSimplex, nSimplices)
+            {
+                double simplex[][] = simplices[iSimplex];
+                FORI (iRow, k)
+                    VecMath.vmv(M[iRow], simplex[iRow+1], simplex[0]);
+                VecMath.crossprod(simplexNormal, M);
+                VecMath.vpv(result, result, simplexNormal);
+            }
+            VecMath.vxs(result, result, (double)sp.sign/(double)factorial(k));
+        } // areaNormal
+
+        private static SPolytope newIntersect(SPolytope A,
+                                           SPolytope B,
+                                           java.util.Hashtable ocean, // hashtable of intersection polytopes created, keyed by contributing hyperplanes
+                                           String indentString) // for debugging
+        {
+            String subIndentString = null;
+            if (verboseLevel >= 1)
+            {
+                System.out.println(indentString+"in CSG.intersect");
+                subIndentString = indentString + "        ";
+            }
+            if (verboseLevel >= 2)
+                System.out.println(indentString+"    A = "+A.toString(indentString+"        ", false, null));
+            if (verboseLevel >= 2)
+                System.out.println(indentString+"    B = "+B.toString(indentString+"        ", false, null));
+            if (verboseLevel >= 2
+             && (A.p.facets.length > 0
+              || B.p.facets.length > 0))
+                System.out.println();
+
+            int fullDim = A.p.fullDim;
+            assert(fullDim == B.p.fullDim);
+
+            if (true)
+            {
+                //
+                // Bounding box test for quick rejection.
+                // Intersect bounding boxes of vertices...
+                //
+                double bboxA[][] = A.p.getBBox();
+                double bboxB[][] = B.p.getBBox();
+                double bbox[][] = new double[2][fullDim];
+                VecMath.bboxIntersect(bbox, bboxA, bboxB);
+                boolean bboxIsEmpty = false; // and counting
+                FORI (iDim, fullDim)
+                    if (bbox[0][iDim] > bbox[1][iDim]) // XXX should be fuzzy I think
+                        bboxIsEmpty = true;
+                if (bboxIsEmpty)
+                {
+                    if (A.initialDensity == 0
+                     && B.initialDensity == 0)
+                    {
+                        if (verboseLevel >= 1)
+                        {
+                            System.out.println(indentString+"    empty bbox, returning null");
+                            System.out.println(indentString+"out CSG.intersect");
+                        }
+                        return null;
+                    }
+                    else if (A.initialDensity == 0)
+                    {
+                        if (verboseLevel >= 1)
+                        {
+                            System.out.println(indentString+"    empty bbox, returning A");
+                            System.out.println(indentString+"out CSG.intersect");
+                        }
+                        return A;
+                    }
+                    else if (B.initialDensity == 0)
+                    {
+                        if (verboseLevel >= 1)
+                        {
+                            System.out.println(indentString+"    empty bbox, returning B");
+                            System.out.println(indentString+"out CSG.intersect");
+                        }
+                        return B;
+                    }
+                    else
+                    {
+                        // Both A and B have nonzero initial density.
+                        // XXX Could optimize by simply concatenating
+                        // XXX the arrays together, so to speak,
+                        // XXX but I don't think this happens enough in
+                        // XXX the current application to be worth worrying about.
+                        if (verboseLevel >= 1)
+                        {
+                            System.out.println(indentString+"    empty bbox, but not smart enough to do anything about it yet :-(");
+                        }
+                    }
+                }
+            }
+
+
+            Hyperplane contributingHyperplanes[] = unionOfHyperplanesAndSort(A.p.contributingHyperplanes, B.p.contributingHyperplanes);
+            HashableSortedArray key = new HashableSortedArray(contributingHyperplanes);
+
+            int resultDim = fullDim - contributingHyperplanes.length;
+
+            if (resultDim < 0)
+            {
+                if (verboseLevel >= 1)
+                {
+                    System.out.println(indentString+"    too many hyperplanes! returning null");
+                    System.out.println(indentString+"out CSG.intersect");
+                }
+                return null;
+            }
+
+            // Look in the ocean for already computed...
+            {
+                Object flotsam = ocean.get(key);
+                if (flotsam != null)
+                {
+                    // Found it in the ocean, so it was previously computed.
+                    if (verboseLevel >= 1)
+                        System.out.println(indentString+"        found it in the ocean");
+                    if (flotsam instanceof Polytope)
+                    {
+                        if (verboseLevel >= 2)
+                        {
+                            System.out.println(indentString+"        and it was good");
+                            System.out.println(indentString+"out CSG.intersect");
+                        }
+                        return new SPolytope(0, // XXX initial density always 0 in this case?
+                                             1, // XXX probably not right, fix later
+                                             (Polytope)flotsam);
+                    }
+                    else
+                    {
+                        // It was previously computed and came out null.
+                        if (verboseLevel >= 1)
+                        {
+                            System.out.println(indentString+"        and it was null");
+                            System.out.println(indentString+"out CSG.intersect");
+                        }
+                        return null;
+                    }
+                }
+            } // looked in the ocean
+
+            SPolytope result;
+            if (resultDim == 0)
+            {
+                double coords[];
+                if (A.p.dim == 0)
+                    coords = A.p.getCoords();
+                else if (B.p.dim == 0)
+                    coords = B.p.getCoords();
+                else
+                    coords = intersectHyperplanes(contributingHyperplanes);
+
+                {
+                    // XXX could use something smaller than union
+                    // XXX in various cases of initialDensity? think about it
+                    double unionBBox[][] = VecMath.bboxUnion(A.p.getBBox(),
+                                                             B.p.getBBox());
+                    double bigEps = 1e-3; // need not be very exact; the bigger the safer 
+                    if (coords != null
+                     && !VecMath.closedBBoxContains(unionBBox, coords, bigEps))
+                    {
+                        if (verboseLevel >= 2)
+                        {
+                            System.out.println(indentString + "        HA! No way! coords were out of there!");
+                        }
+                        coords = null;
+                    }
+
+                    // XXX research question: can something like this
+                    // XXX be done even if resultDim > 0?
+                }
+
+                if (coords != null)
+                {
+                    boolean inA;
+                    {
+                        double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                        int densityMinMax[] = new int[2];
+                        calcDensity(A,
+                                    coords,
+                                    eps,
+                                    densityMinMax);
+                        int density = densityMinMax[0];
+                        if (density != densityMinMax[1])
+                        {
+                            if (verboseLevel >= 0)
+                            {
+                                System.out.println("WARNING:");
+                                PRINT(A);
+                                PRINTVEC(coords);
+                                PRINT(densityMinMax[0]);
+                                PRINT(densityMinMax[1]);
+                            }
+                            //assert(false);
+                        }
+                        inA = ((density&1) == 1); // XXX even-odd rule for now
+                    }
+                    boolean inB = false; // shut up compiler
+                    if (inA) // otherwise inB doesn't matter
+                    {
+                        double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                        int densityMinMax[] = new int[2];
+                        calcDensity(B,
+                                    coords,
+                                    eps,
+                                    densityMinMax);
+                        int density = densityMinMax[0];
+                        if (density != densityMinMax[1])
+                        {
+                            if (verboseLevel >= 0)
+                            {
+                                System.out.println("WARNING:");
+                                PRINT(B);
+                                PRINTVEC(coords);
+                                PRINT(densityMinMax[0]);
+                                PRINT(densityMinMax[1]);
+                            }
+                            //assert(false);
+                        }
+                        inB = ((density&1) == 1); // XXX even-odd rule for now
+                    }
+                    if (inA && inB)
+                    {
+                        if (A.p.dim == 0)
+                            result = A;
+                        else if (B.p.dim == 0)
+                            result = B;
+                        else
+                        {
+                            result = new SPolytope(
+                                            0, 1, // XXX nonsense, will straighten out later
+                                            new Polytope(0,
+                                                         fullDim,
+                                                         new SPolytope[0],
+                                                         contributingHyperplanes,
+                                                         null)); // no aux, since it's not a full-dimensional subset of any existing polytope
+                            result.p.setCoords(coords); // so they won't need to be recalculated
+                        }
+                    }
+                    else
+                        result = null;
+                }
+                else
+                    result = null;
+            }
+            else // resultDim > 0
+            {
+                //
+                // Trying to maybe get it right
+                // in the case of flush stuff
+                // (e.g. A&A of dim 1 or 2 in test program).
+                // I don't know if this will work,
+                // and it's certainly WAY more compute intensive...
+                // I think maybe the union-of-hyperplanes logic
+                // isn't right though :-(
+                // Also, need to do this first
+                // so that we won't get a "found it in the ocean and it was
+                // null".
+                // NOTE, we really only need to do this
+                // when a's subspace contains b's subspace (i.e.
+                // one set of hyperplanes contains the other).
+                // XXX need to think about whether there's an efficient
+                // XXX way of enumerating all pairs for which this is true
+                //
+                int nMoreFacets = 0;
+                SPolytope moreFacets[] = null;
+                if (false) // maybe pursue this some other time
+                {
+                    if (verboseLevel >= 1)
+                        System.out.println(indentString+"    Trying more expensive boundary stuff...");
+                    moreFacets = new SPolytope[A.p.facets.length
+                                             * B.p.facets.length];
+                    FORI (i, A.p.facets.length)
+                    FORI (j, B.p.facets.length)
+                    {
+                        SPolytope a = A.p.facets[i];
+                        SPolytope b = B.p.facets[j];
+                        // Only proceed if a's subspace contains b's subspace
+                        // or vice-versa.
+                        {
+                            Hyperplane unionOfHyperplanes[] = unionOfHyperplanesAndSort(a.p.contributingHyperplanes, b.p.contributingHyperplanes);
+                            if (unionOfHyperplanes.length
+                             != MIN(a.p.contributingHyperplanes.length,
+                                    b.p.contributingHyperplanes.length))
+                                continue;
+                        }
+                        if (verboseLevel >= 2)
+                        {
+                            System.out.println(indentString+"            a = "+a.toString(indentString+"            ", false));
+                            System.out.println(indentString+"            b = "+b.toString(indentString+"            ", false));
+                        }
+                        SPolytope a_intersect_b = newIntersect(a, b, ocean, subIndentString);
+                        if (a_intersect_b != null)
+                            moreFacets[nMoreFacets++] = a_intersect_b;
+                    }
+                    if (verboseLevel >= 1)
+                        System.out.println(indentString+"    Found "+nMoreFacets+"/"+moreFacets.length+" more facets");
+                }
+
+
+                int nFacets = 0;
+                SPolytope facets[] = new SPolytope[A.p.facets.length
+                                                 + B.p.facets.length]; // max possible
+
+                FORI (i, A.p.facets.length)
+                {
+                    SPolytope a = A.p.facets[i];
+                    if (verboseLevel >= 2)
+                        System.out.println(indentString+"        a = "+a.toString(indentString+"            ", false));
+                    SPolytope a_intersect_B = newIntersect(a, B, ocean, subIndentString);
+                    if (a_intersect_B != null)
+                        facets[nFacets++] = a_intersect_B;
+                }
+                FORI (i, B.p.facets.length)
+                {
+                    SPolytope b = B.p.facets[i];
+                    if (verboseLevel >= 2)
+                        System.out.println(indentString+"        b = "+b.toString(indentString+"            ", false));
+                    SPolytope A_intersect_b = newIntersect(A, b, ocean, subIndentString);
+                    if (A_intersect_b != null)
+                        facets[nFacets++] = A_intersect_b;
+                }
+
+                facets = (SPolytope[])Arrays.subarray(facets, 0, nFacets); // resize
+
+                if (nMoreFacets > 0)
+                {
+                    moreFacets = (SPolytope[])Arrays.subarray(moreFacets, 0, nMoreFacets); // resize
+                    facets = (SPolytope[])Arrays.concat(facets, moreFacets);
+                }
+
+                result = new SPolytope(
+                                       MIN(A.initialDensity, B.initialDensity), // XXX is this right? have to think about it
+                                       A.sign, // XXX probably completely irrelevant
+                                       new Polytope(resultDim,
+                                                    fullDim,
+                                                    facets,
+                                                    contributingHyperplanes,
+                                                    resultDim==A.p.dim ? A.p.aux : resultDim==B.p.dim ? B.p.aux : null)); // XXX prefers A's aux. probably not much better we can do, unless we want to combine the auxes somehow, but that's probably too much trouble and the current application doesn't need it
+                //
+                // Hack after the fact:
+                // if it's equal to A or B, return A or B instead
+                // (XXX should detect that earlier and save lots of work
+                // and unnecessary allocations, maybe)
+                // XXX this may be defunct,
+                // XXX have to think about it
+                //
+                {
+                    if (result.p.dim == A.p.dim
+                     && VecMath.equalsUsingEqualsSymbol(result.p.facets, A.p.facets))
+                    {
+                        result = new SPolytope(result.initialDensity,
+                                               result.sign,
+                                               A.p);
+                    }
+                    else if (result.p.dim == B.p.dim
+                     && VecMath.equalsUsingEqualsSymbol(result.p.facets, B.p.facets))
+                    {
+                        result = new SPolytope(result.initialDensity,
+                                               result.sign,
+                                               B.p);
+                    }
+                }
+            }
+
+            if (result != null
+             && result.p.dim >= 1
+             && result.initialDensity == 0
+             && result.p.facets.length == 0)
+                result = null;
+
+            if (result != null)
+                ocean.put(key, result.p);
+            else
+                ocean.put(key, new Object()); // means null when fished out
+
+            if (verboseLevel >= 2)
+                System.out.println(indentString+"    result = "+(result==null?"(null)":result.toString(indentString+"             ", false, null)));
+
+            if (verboseLevel >= 1)
+                System.out.println(indentString+"out CSG.intersect");
+            return result;
+        } // newIntersect
+
+        /** Computes the intersection of two signed polytopes. */
+        public static SPolytope intersect(SPolytope A,
+                                          SPolytope B)
+        {
+            SPolytope result = newIntersect(A, B,
+                                         new java.util.Hashtable(),
+                                         "");
+
+            // newIntersect returns an empty polytope
+            // as null for efficiency, but the rest of the world
+            // can't be expected to handle it.
+            if (result == null)
+            {
+                int fullDim = A.p.fullDim;
+                assert(fullDim == B.p.fullDim);
+                int dim = fullDim - ((fullDim-A.p.dim)
+                                   + (fullDim-B.p.dim));
+                result = new SPolytope(0,1,
+                                       new Polytope(dim,
+                                                    fullDim,
+                                                    new SPolytope[0],
+                                                    new Hyperplane[0], // XXX uh oh, zero hyperplanes isn't really right, maybe should do the hyperplane union thing in case someone actually looks at this
+                                                    null));
+            }
+
+            orientDeep(result); // XXX get rid of this when I get intersect to not fuck up the orientations to begin with
+            return result;
+        } // intersect
+
+        /** Computes the complement of a signed polytope. */
+        public static SPolytope complement(SPolytope sp)
+        {
+            return new SPolytope(1-sp.initialDensity,
+                                 -sp.sign,
+                                 sp.p);
+        } // complement
+
+        /** Computes the union of two signed polytopes. */
+        public static SPolytope union(SPolytope A, SPolytope B)
+        {
+            return complement(intersect(complement(A), complement(B)));
+        } // union
+
+        /** Computes the difference of two signed polytopes. */
+        private static SPolytope diff(SPolytope A, SPolytope B)
+        {
+            return intersect(A, complement(B));
+        } // diff
+
+
+        //
+        // Assign signs to a (non-yet-finished)
+        // n-dimensional polytope P,
+        // its facets, and the facets of the facets, etc., recursively
+        // in such a way that, for every flag:
+        //      P, facet F, ridge R, ..., face f, edge e, vertex v,
+        // the product of the signs of P, F, R, ..., f, e, v
+        // should be the same as the sign of the volume of the simplex
+        // whose vertices are the respective centers of those n+1 elements,
+        // in order.
+        // I.e. it should be equal to the sign of the determinant of the matrix
+        // whose rows are the n vectors
+        // i(F)-i(P), i(R)-(P), ..., i(f)-i(P), i(e)-i(P), i(v)-i(P)
+        // where i() denotes any interior point of the respective polytope.
+        //
+        // So, in particular,
+        //    If n==1:  From left to right,
+        //              segment starts are -, segment ends are +
+        //    If n==2:  Walking CCW around a contour
+        //              (i.e. with inside on the left and outside on the right),
+        //              e.sign * initialVertex.sign is -
+        //              and e.sign * finalVertex.sign is +
+        //    If n==3: Walking on the surface
+        //              along an edge e CCW around a face f,
+        //              f.sign * e.sign * initialVertex.sign is -
+        //              f.sign * e.sign * finalVertex.sign is +
+        // etc.
+        //
+        // XXX should split this up into functional stuff
+        // XXX and cosmetic stuff,
+        // XXX and cosmetic stuff should be applied even to hypercubes
+        // XXX and stuff.
+        //
+
+        private static void orientDeep(SPolytope sp)
+        {
+            if (verboseLevel >= 1)
+                System.out.println("in orientDeep");
+            if (verboseLevel >= 2)
+            {
+                System.out.println("    Before anything:");
+                System.out.println("        "+sp.toString("        "));
+            }
+
+            int dim = sp.p.dim;
+
+            Polytope allElements[][] = sp.p.getAllElements();
+
+            if (true)
+            {
+                FORI (iDim, dim+1)
+                {
+                    Polytope ofDim[] = allElements[iDim];
+                    int nOfDim = ofDim.length;
+                    FORI (iOfDim, nOfDim)
+                        orientFacetsConsistently(ofDim[iOfDim]);
+                }
+
+                if (verboseLevel >= 2)
+                {
+                    System.out.println("    After recursively orienting everyone consistently:");
+                    System.out.println("        "+sp.toString("        "));
+                }
+            }
+
+            if (false)
+            {
+                //
+                // If total sign is wrong
+                // (along some arbitrary flag),
+                // then reverse the sign of sp so it becomes right.
+                //
+                System.out.println("WARNING: orientDeep global orientation not implemented yet"); // XXX
+                if (verboseLevel >= 2)
+                {
+                    System.out.println("    After fixing global sign if it was wrong:");
+                    System.out.println("        "+sp.toString("        "));
+                }
+            }
+
+
+            if (true)
+            {
+                if (dim >= 1)
+                {
+                    //
+                    // Push sign of sp down into facets,
+                    // making sign of sp +1.
+                    //
+                    int mySign = sp.sign;
+                    SPolytope facets[] = sp.p.facets;
+                    int nFacets = facets.length;
+                    FORI (iFacet, nFacets)
+                        facets[iFacet].sign *= mySign;
+                    sp.sign = 1;
+
+                    if (verboseLevel >=2)
+                    {
+                        System.out.println("    After pushing sign down into facets:");
+                        System.out.println("        "+sp.toString("        "));
+                    }
+
+                    //
+                    // Push sign of facet down into ridges,
+                    // making the signs of all facets +1.
+                    // Note this only makes sense when dim > 1.
+                    // Also, it's pointless to do this any further:
+                    // we can't make all ridge signs +,
+                    // since they occur on multiple facets,
+                    // in opposite-signed pairs.
+                    //
+                    if (dim >= 2)
+                    {
+                        FORI (iFacet, nFacets)
+                        {
+                            SPolytope facet = facets[iFacet];
+                            int facetSign = facet.sign;
+                            if (facetSign != 1)
+                            {
+                                SPolytope ridgesThisFacet[] = facet.p.facets;
+                                int nRidgesThisFacet = ridgesThisFacet.length;
+                                FORI (iRidgeThisFacet, nRidgesThisFacet)
+                                    ridgesThisFacet[iRidgeThisFacet].sign *= facetSign;
+                                facet.sign = 1;
+                            }
+                        }
+
+                        if (verboseLevel >= 2)
+                        {
+                            System.out.println("    After pushing facet signs down into ridges:");
+                            System.out.println("        "+sp.toString("        "));
+                        }
+                    }
+                }
+            }
+
+            //
+            // Edge cosmetic tweak:
+            // for each edge, put the - vertex first and the + one second.
+            // (If there are more than two vertices on the edge,
+            // then don't worry about it.)
+            //
+            if (true)
+            {
+                if (dim >= 1)
+                {
+                    Polytope edges[] = sp.p.getAllElements()[1];
+                    int nEdges = edges.length;
+                    FORI (iEdge, nEdges)
+                    {
+                        Polytope edge = edges[iEdge];
+                        SPolytope vertsThisEdge[] = edge.facets;
+                        if (vertsThisEdge.length == 2
+                         && vertsThisEdge[0].sign == 1
+                         && vertsThisEdge[1].sign == -1)
+                        {
+                            SPolytope temp;
+                            SWAP(vertsThisEdge[0],vertsThisEdge[1],temp);
+                        }
+                    }
+                }
+
+                if (verboseLevel >= 2)
+                {
+                    System.out.println("    After edge cosmetic tweak:");
+                    System.out.println("        "+sp.toString("        "));
+                }
+            }
+
+
+            //
+            // Face cosmetic tweak:
+            // for each 2-d face, put the edges on each contour in order.
+            // This requires that the edge cosmetic tweak (above)
+            // was done first.
+            // XXX this is O(n^2) where n is face size,
+            // XXX so can be time-consuming
+            // XXX for huge faces.
+            //
+            if (true)
+            {
+                if (dim >= 2)
+                {
+                    Polytope faces[] = sp.p.getAllElements()[2];
+                    int nFaces = faces.length;
+                    FORI (iFace, nFaces)
+                    {
+                        Polytope p = faces[iFace];
+                        SPolytope edges[] = p.facets;
+                        int nEdges = edges.length;
+
+                        int contourStart = 0;
+                        #define INITIAL(sign) ((sign)==1?0:1)
+                        #define FINAL(sign) ((sign)==1?1:0)
+                        Polytope initialVertexOnContour = null; // initialization not necessary, but to shut up compiler
+                        if (contourStart < nEdges)
+                        {
+                            assumpt(edges[contourStart].p.facets.length >= 2); // XXX can't we have an edge that's all of the line!? think about this (also same below)
+                            initialVertexOnContour = edges[contourStart].p.facets[INITIAL(edges[contourStart].sign)].p;
+                        }
+
+
+                        //
+                        // See whether this face has any multi-edges.
+                        // If it does, it's no use trying to cosmeticize
+                        // this face.
+                        //
+                        {
+                            int iEdge;
+                            FOR (iEdge, nEdges)
+                            {
+                                SPolytope sedgeI = edges[iEdge];
+                                Polytope edgeI = sedgeI.p;
+                                if (edgeI.facets.length != 2
+                                 || edgeI.facets[0].sign != -1
+                                 || edgeI.facets[1].sign != 1)
+                                    break;
+                            }
+                            if (iEdge < nEdges)
+                                continue; // this face has a multi-edge or something, so it's hopeless
+                        }
+
+                        FORI (iEdge, nEdges)
+                        {
+                            SPolytope sedgeI = edges[iEdge];
+                            Polytope edgeI = sedgeI.p;
+                            assert(edgeI.facets.length == 2
+                             && edgeI.facets[0].sign == -1
+                             && edgeI.facets[1].sign == 1);
+                            Polytope finalVertexOnEdgeI = edgeI.facets[FINAL(sedgeI.sign)].p;
+                            if (finalVertexOnEdgeI
+                             == initialVertexOnContour)
+                            {
+                                // iEdge is the last edge on this contour.
+                                contourStart = iEdge+1;
+                                if (contourStart < nEdges)
+                                {
+                                    assumpt(edges[contourStart].p.facets.length >= 2); // XXX can't we have an edge that's all of the line!? think about this. (also same above)
+                                    initialVertexOnContour = edges[contourStart].p.facets[INITIAL(edges[contourStart].sign)].p;
+                                }
+                            }
+                            else
+                            {
+                                // iEdge is not the last edge on this contour;
+                                // find the next one.
+                                int jEdge;
+                                for (jEdge = iEdge+1; jEdge < nEdges; jEdge++)
+                                {
+                                    SPolytope sedgeJ = edges[jEdge];
+                                    Polytope edgeJ = sedgeJ.p;
+                                    Polytope initialVertexOnEdgeJ = edgeJ.facets[INITIAL(sedgeJ.sign)].p;
+                                    if (initialVertexOnEdgeJ == finalVertexOnEdgeI)
+                                        break; // found next
+                                }
+                                assert(jEdge < nEdges); // found next
+                                if (jEdge > iEdge+1)
+                                {
+                                    SPolytope temp;
+                                    SWAP(edges[iEdge+1], edges[jEdge], temp);
+                                }
+                            }
+                        }
+                    }
+                }
+                if (verboseLevel >= 2)
+                {
+                    System.out.println("    After face cosmetic tweak:");
+                    System.out.println("        "+sp.toString("        "));
+                }
+            } // face cosmetic tweak
+
+            //
+            // XXX One more potential nice cosmetic tweak:
+            // XXX prefer nice orderings for earlier facets.
+            //
+            {
+            }
+
+            if (verboseLevel >= 1)
+                System.out.println("out orientDeep");
+        } // orientDeep
+
+
+
+        //
+        // p is an unfinished polytope (meaning we can and do
+        // change it in place).
+        // Assumes all facets' facets, etc. are already consistently oriented;
+        // i.e. this must be called in a bottom-up order.
+        //
+        private static void orientFacetsConsistently(Polytope p)
+        {
+            if (verboseLevel >= 2)
+                System.out.println("in orientFacetsConsistently("+dimToPrefix(p.dim)+p.id+")");
+            SPolytope facets[] = p.facets;
+            int nFacets = facets.length;
+
+            if (nFacets == 0)
+            {
+                if (verboseLevel >= 2)
+                    System.out.println("out orientFacetsConsistently, boy that was hard :-)");
+                return;
+            }
+
+            if (p.dim == 1)
+            {
+                if (nFacets > 2) // XXX maybe should do this anyway, for testing?
+                {
+                    //
+                    // Take the farthest vertex from v0,
+                    // and call it b.  Take the farthest vertex from b,
+                    // and call it a.
+                    // 
+                    double a[], b[];
+                    {
+                        double from[] = facets[0].p.getCoords();
+                        double farthest[] = null;
+                        {
+                            double farthestDistSqrd = Double.NEGATIVE_INFINITY;
+                            FORI (iFacet, nFacets)
+                            {
+                                double thisCoords[] = facets[iFacet].p.getCoords();
+                                double thisDistSqrd = VecMath.distsqrd(from, thisCoords);
+                                if (thisDistSqrd > farthestDistSqrd)
+                                {
+                                    farthest = thisCoords;
+                                    farthestDistSqrd = thisDistSqrd;
+                                }
+                            }
+                            assert(farthest != null);
+                        }
+                        b = farthest;
+                        from = b;
+                        {
+                            double farthestDistSqrd = Double.NEGATIVE_INFINITY;
+                            FORI (iFacet, nFacets)
+                            {
+                                double thisCoords[] = facets[iFacet].p.getCoords();
+                                double thisDistSqrd = VecMath.distsqrd(from, thisCoords);
+                                if (thisDistSqrd > farthestDistSqrd)
+                                {
+                                    farthest = thisCoords;
+                                    farthestDistSqrd = thisDistSqrd;
+                                }
+                            }
+                            assert(farthest != null);
+                        }
+                        a = farthest;
+                    }
+
+                    final double dir[] = VecMath.vmv(b, a);
+
+                    //
+                    // Sort along dir...
+                    //
+                    SortStuff.sort(facets,
+                                   new SortStuff.Comparator() {
+                                       public int compare(Object _a, Object _b)
+                                       {
+                                           SPolytope a = (SPolytope)_a;
+                                           SPolytope b = (SPolytope)_b;
+                                           double aDot = VecMath.dot(a.p.getCoords(), dir);
+                                           double bDot = VecMath.dot(b.p.getCoords(), dir);
+                                           return aDot < bDot ? -1 :
+                                                  aDot > bDot ? 1 : 0;
+                                       }
+                                   });
+                } // if (nFacets > 2)
+
+                int sign = -1;
+                FORI (iFacet, nFacets)
+                {
+                    facets[iFacet].sign = sign;
+                    sign = -sign;
+                }
+                if (verboseLevel >= 2)
+                    System.out.println("out orientFacetsConsistently, edges are easy");
+                return;
+            }
+
+            //
+            // facetNeighbors[iFacet][iRidgeOnFacet][0] is the index
+            // of the other facet sharing that ridge, and
+            // facetNeighbors[iFacet][iRidgeOnFacet][1]
+            // is the index of the ridge in the neighbor facet's facet list.
+            // XXX perhaps finished polytopes should always have these tables
+            // XXX so we don't have to recalculate them?
+            //
+            int facetNeighbors[][][] = new int[nFacets][][/*2*/];
+            {
+                FORI (iFacet, nFacets)
+                    facetNeighbors[iFacet] = new int[facets[iFacet].p.facets.length][/*2*/];
+                java.util.Hashtable firstFacetContainingRidge = new java.util.Hashtable();
+                FORI (iFacet, nFacets)
+                {
+                    Polytope facet = facets[iFacet].p;
+                    SPolytope ridgesThisFacet[] = facet.facets;
+                    int nRidgesThisFacet = ridgesThisFacet.length;
+                    FORI (iRidgeThisFacet, nRidgesThisFacet)
+                    {
+                        Polytope ridge = ridgesThisFacet[iRidgeThisFacet].p;
+                        int myInfo[] = {iFacet, iRidgeThisFacet};
+                        int neighborInfo[] = (int[])firstFacetContainingRidge.remove(ridge);
+                        if (neighborInfo == null)
+                        {
+                            firstFacetContainingRidge.put(ridge, myInfo);
+                        }
+                        else
+                        {
+                            facetNeighbors[iFacet][iRidgeThisFacet] = neighborInfo;
+                            facetNeighbors[neighborInfo[0]][neighborInfo[1]] = myInfo;
+                        }
+                    }
+                }
+                assert(firstFacetContainingRidge.size() == 0); // everything matched XXX change this assert to failure I think
+            } // facetNeighbors
+
+            int signOfFirstFacet = 1; // arbitrarily XXX is there a better choice?
+            boolean isSigned[] = new boolean[nFacets];
+            FORI (iFacet, nFacets)
+                isSigned[iFacet] = false;
+
+            SPolytope contours[][] = new SPolytope[nFacets][]; // worst case
+            int nContours = 0; // and counting
+            SPolytope currentContour[] = new SPolytope[nFacets];
+
+            int stackHeight = 0;
+            int stack[] = new int[nFacets];
+            FORI (contourStart, nFacets)
+            {
+                if (!isSigned[contourStart])
+                {
+                    int currentContourSize = 0;
+                    {
+                        int iFacet = contourStart;
+                        SPolytope facet = facets[iFacet];
+                        facet.sign = signOfFirstFacet;
+                        isSigned[iFacet] = true;
+                        stack[stackHeight++] = iFacet; // push iFacet on to stack
+                        currentContour[currentContourSize++] = facets[iFacet];
+                    }
+                    while (stackHeight != 0)
+                    {
+                        int iFacet = stack[--stackHeight]; // pop iFacet off of stack
+                        SPolytope facet = facets[iFacet];
+                        SPolytope ridgesThisFacet[] = facet.p.facets;
+                        int nRidgesThisFacet = ridgesThisFacet.length;
+                        FORI (iRidgeThisFacet, nRidgesThisFacet)
+                        {
+                            int neighborInfo[/*2*/] = facetNeighbors[iFacet][iRidgeThisFacet];
+                            int iNeighbor = neighborInfo[0];
+                            int iRidgeNeighborFacet = neighborInfo[1];
+
+                            if (!isSigned[iNeighbor])
+                            {
+                                //System.out.println(""+iFacet+" -> "+iNeighbor+"");
+                                SPolytope neighborFacet = facets[iNeighbor];
+                                SPolytope ridgesNeighborFacet[] = neighborFacet.p.facets;
+
+                                // Want facets[iFacet].sign
+                                //          * ridgesThisFacet[iRidgeThisFacet].sign
+                                //  = - facets[iNeighbor].sign
+                                //          * ridgesNeighborFacet[iRidgeNeighborFacet].sign.
+                                int signOfRidgeOnNeighbor = ridgesNeighborFacet[iRidgeNeighborFacet].sign;
+                                assumpt(signOfRidgeOnNeighbor == 1
+                                     || signOfRidgeOnNeighbor == -1); // otherwise should be / instead of * below, and I'm not sure what it means if it doesn't divide evenly, have to think about it some day
+
+                                neighborFacet.sign = -facet.sign
+                                                   * ridgesThisFacet[iRidgeThisFacet].sign
+                                                   * signOfRidgeOnNeighbor;
+                                isSigned[iNeighbor] = true;
+                                stack[stackHeight++] = iNeighbor; // push iNeighbor on to stack
+                                currentContour[currentContourSize++] = facets[iNeighbor];
+                            }
+                            else
+                            {
+                                //System.out.println("("+iFacet+" -> "+iNeighbor+")");
+                            }
+                        }
+                    } // while (stackHeight != 0)
+                    contours[nContours++] = (SPolytope[])Arrays.subarray(currentContour, 0, currentContourSize);
+                }
+            } // for contourStart
+            FORI (iFacet, nFacets)
+                assert(isSigned[iFacet]);
+
+            //
+            // Make temporary SPolytopes out of the contours...
+            // XXX should avoid this if only one contour
+            //
+            SPolytope contourSPolytopes[] = new SPolytope[nContours];
+            {
+                FORI (iContour, nContours)
+                    contourSPolytopes[iContour] = new SPolytope(0,1,
+                                        new Polytope(p.dim,
+                                                     p.fullDim,
+                                                     contours[iContour],
+                                                     p.contributingHyperplanes,
+                                                     p.aux));
+            }
+
+            contours = null; // make sure we don't use it by accident after this
+
+            //
+            // Find the coordinate axis in which the bbox is the largest,
+            // and sort the contour list according to
+            // minimum coordinate along this coordinate axis.
+            // Then an item in the sorted list
+            // cannot contain any earlier item.
+            //
+            double bbox[][] = p.getBBox();
+            double bboxSize[] = VecMath.vmv(bbox[1], bbox[0]);
+            final int ax = VecMath.maxi(bboxSize);
+            SortStuff.sort(contourSPolytopes,
+                   new SortStuff.Comparator() {
+                       public int compare(Object _a, Object _b)
+                       {
+                           SPolytope a = (SPolytope)_a;
+                           SPolytope b = (SPolytope)_b;
+                           double aDot = a.p.getBBox()[0][ax];
+                           double bDot = b.p.getBBox()[0][ax];
+                           return aDot < bDot ? -1 :
+                                  aDot > bDot ? 1 : 0;
+                       }
+                   });
+
+
+            if (verboseLevel >= 2
+             && nContours > 1)
+            {
+                System.out.println("The contours:\n");
+                FORI (iContour, nContours)
+                {
+                    System.out.println("    "+iContour+":");
+                    System.out.println(contourSPolytopes[iContour]);
+                }
+            }
+
+
+            //
+            // Make a tree whose nodes are the contours,
+            // ordered by contour inclusion.
+            //
+            int root = 0;
+            int firstChild[] = VecMath.fillvec(nContours, -1);
+            int nextSibling[] = VecMath.fillvec(nContours, -1);
+            {
+                double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                // scratch for loop...
+                    int densityMinMax[] = new int[2];
+
+                for (int iContour = 1; iContour < nContours; ++iContour) // skip 0, it's already on the tree as the root
+                {
+                    double anyCoordsOnContour[];
+                    {
+                        // v = any vertex on contour iContour
+                        Polytope v = contourSPolytopes[iContour].p;
+                        while (v.dim > 0)
+                            v = v.facets[0].p;
+                        anyCoordsOnContour = v.getCoords();
+                    }
+
+                    // Hang iContour on the tree.
+                    // Walk down the tree starting with root...
+                    for (int iNode = root; ;)
+                    {
+                        SPolytope nodeSPolytope = contourSPolytopes[iNode];
+                        calcDensity(nodeSPolytope,
+                                    anyCoordsOnContour,
+                                    eps,
+                                    densityMinMax);
+                        int density = densityMinMax[0];
+                        assumpt(density == densityMinMax[1]); // must be unambiguous
+                        boolean isContainedInNode = (density&1) == 1;
+                        if (isContainedInNode)
+                        {
+                            // proceed on to children
+                            if (firstChild[iNode] == -1)
+                            {
+                                firstChild[iNode] = iContour;
+                                break;
+                            }
+                            iNode = firstChild[iNode];
+                        }
+                        else
+                        {
+                            // proceed on to next sibling
+                            if (nextSibling[iNode] == -1)
+                            {
+                                nextSibling[iNode] = iContour;
+                                break;
+                            }
+                            iNode = nextSibling[iNode];
+                        }
+                    }
+                }
+            }
+            if (verboseLevel >= 2
+             && nContours > 1)
+            {
+                PRINTMAT(firstChild);
+                PRINTMAT(nextSibling);
+            }
+
+            double normals[][] = new double[p.contributingHyperplanes.length][];
+            {
+                FORI (iHyperplane, normals.length)
+                    normals[iHyperplane] = p.contributingHyperplanes[iHyperplane].normal;
+            }
+
+            //
+            // Start by orienting all the contours in the same direction
+            // (e.g. all counterclockwise).
+            //
+            {
+                FORI (iContour, nContours)
+                {
+                    SPolytope contourSPolytope = contourSPolytopes[iContour];
+                    double volume = volume(contourSPolytope);
+                    if (volume < 0)
+                    {
+                        SPolytope facetsThisContour[] = contourSPolytope.p.facets;
+                        int nFacetsThisContour = facetsThisContour.length;
+                        FORI (iFacetThisContour, nFacetsThisContour)
+                        {
+                            SPolytope facet = facetsThisContour[iFacetThisContour];
+                            facet.sign = -facet.sign;
+                        }
+                    }
+                }
+            }
+
+            //
+            // Reverse the signs of alternate levels of contours.
+            // We use each contourSPolytope's sign to store +-1
+            // depending on whether we are reversing it or not.
+            // (the final value of its sign doesn't matter
+            // since it is getting thrown away).
+            //
+            {
+                FORI (iContour, nContours)
+                {
+                    SPolytope contourSPolytope = contourSPolytopes[iContour];
+                    int sign = contourSPolytope.sign;
+                    if (sign < 0)
+                    {
+                        SPolytope facetsThisContour[] = contourSPolytope.p.facets;
+                        int nFacetsThisContour = facetsThisContour.length;
+                        FORI (iFacetThisContour, nFacetsThisContour)
+                        {
+                            SPolytope facet = facetsThisContour[iFacetThisContour];
+                            facet.sign = -facet.sign;
+                        }
+                    }
+                    if (firstChild[iContour] != -1)
+                        contourSPolytopes[firstChild[iContour]].sign = -sign;
+                    if (nextSibling[iContour] != -1)
+                        contourSPolytopes[nextSibling[iContour]].sign = sign;
+                }
+            }
+
+            if (verboseLevel >= 2)
+                System.out.println("out orientFacetsConsistently("+dimToPrefix(p.dim)+p.id+")");
+        } // orientFacetsConsistently
+
+
+// XXX I think PolyCSG should deal with SPolytopes, not Polytopes...
+// XXX then this won't be necessary.  At least I think that's what I think.
+#define SOON_TO_BE_DEFUNCT
+#ifdef SOON_TO_BE_DEFUNCT
+        /** Computes the union of two unsigned polytopes. */
+        public static Polytope union(Polytope A, Polytope B)
+        {
+            return union(new SPolytope(0,1,A),
+                         new SPolytope(0,1,B)).p;
+        } // union of unsigned Polytopes
+        /** Computes the intersection of two unsigned polytopes. */
+        public static Polytope intersect(Polytope A, Polytope B)
+        {
+            return intersect(new SPolytope(0,1,A),
+                             new SPolytope(0,1,B)).p;
+        } // intersect of unsigned Polytopes
+        /** Computes the difference of two unsigned polytopes. */
+        public static Polytope diff(Polytope A, Polytope B)
+        {
+            return diff(new SPolytope(0,1,A),
+                        new SPolytope(0,1,B)).p;
+        } // diff of unsigned Polytopes
+#endif // SOON_TO_BE_DEFUNCT
+
+        private static String signToString(int sign)
+        {
+            return sign ==  1 ? "+" :
+                   sign == -1 ? "-" :
+                   sign ==  0 ? "!" :
+                   "(sign="+sign+")";
+        } // signToString
+
+        private static String dimToPrefix(int dim)
+        {
+            if (dim <= 4)
+                return "vefch".substring(dim,dim+1);
+            else
+                return "(" + dim + "d)"; // sort of lame but it's the best I can think of at the moment, and it doesn't seem to look too bad
+        } // dimToPrefix
+
+        // XXX this is really lame, should maybe restructure so we don't need it
+        private static Object itemOfAThatsNotInB(Object A[], Object B[])
+        {
+            int iA, nA = A.length;
+            int iB, nB = B.length;
+            FOR (iA, nA)
+            {
+                FOR (iB, nB)
+                    if (A[iA] == B[iB])
+                        break;
+                if (iB == nB) // A[iA] was not in B
+                    return A[iA];
+            }
+            assert(false);
+            return null;
+        } // itemOfAThatsNotInB
+
+        // XXX used by slice, remove if I get rid of slice
+        private static Hyperplane[] addOneHyperplaneAndSort(Hyperplane[] list, Hyperplane last)
+        {
+            list = (Hyperplane[])Arrays.append(list, last);
+            SortStuff.sort(list,
+                           new SortStuff.Comparator() {
+                               public int compare(Object _a, Object _b)
+                               {
+                                   Hyperplane a = (Hyperplane)_a;
+                                   Hyperplane b = (Hyperplane)_b;
+                                   return a.id < b.id ? -1 :
+                                          a.id > b.id ? 1 : 0;
+                               }
+                           });
+            return list;
+        } // addOneHyperplaneAndSort
+
+        private static Hyperplane[] unionOfHyperplanesAndSort(Hyperplane[] these, Hyperplane[] those)
+        {
+            Hyperplane list[] = (Hyperplane[])Arrays.concat(these, those);
+            SortStuff.Comparator comparator =
+               new SortStuff.Comparator() {
+                   public int compare(Object _a, Object _b)
+                   {
+                       Hyperplane a = (Hyperplane)_a;
+                       Hyperplane b = (Hyperplane)_b;
+                       return a.id < b.id ? -1 :
+                              a.id > b.id ? 1 : 0;
+                   }
+               };
+
+            SortStuff.sort(list, comparator);
+            int n = SortStuff.nodup(list, list.length, comparator);
+            list = (Hyperplane[])Arrays.subarray(list, 0, n);
+            return list;
+        } // unionOfHyperplanesAndSort
+
+        private static double[] intersectHyperplanes(Hyperplane hyperplanes[])
+        {
+            int nHyperplanes = hyperplanes.length;
+            int iHyperplane;
+            FOR (iHyperplane, nHyperplanes)
+                if (hyperplanes[iHyperplane].spanningPoints == null)
+                    break; // this hyperplane is not defined by spanning points
+            if (iHyperplane == nHyperplanes)
+            {
+                //
+                // All hyperplanes
+                // are from spanning points.
+                // We just need to find the one point
+                // that is in the spanning set of all of them.
+                //
+                assert(nHyperplanes > 0);
+                int iSpanningPoint, nSpanningPoints = hyperplanes[0].spanningPoints.length;
+                FOR (iSpanningPoint, nSpanningPoints)
+                {
+                    double point[] = hyperplanes[0].spanningPoints[iSpanningPoint];
+                    for (iHyperplane = 1; iHyperplane < nHyperplanes; ++iHyperplane)
+                        if (Arrays.indexOfUsingEqualsSymbol(hyperplanes[iHyperplane].spanningPoints, point) == -1)
+                            break; // it's not in this one
+                    if (iHyperplane == nHyperplanes)
+                    {
+                        // It's in all of them!
+                        return point;
+                    }
+                }
+                assert(false); // XXX not sure if this can happen or not, so flag it for now and think about it if it goes off
+            }
+
+            //
+            // Calculate explicit coords of the vertex.
+            // We want column vector c
+            // such that
+            //    normal0 dot c == offset0
+            //    normal1 dot c == offset1
+            //    normal2 dot c == offset2
+            //    ...
+            // so c = inv(normalsMatrix) * offsetsColumnVector.
+            //
+
+#ifdef DEFUNCT
+            int nRows = hyperplanes.length;
+            double normalsMatrix[][] = new double[nRows][nRows];
+            double offsetsColumnVector[][] = new double[nRows][1];
+
+            double c[] = new double[nRows];
+            FORI (iRow, nRows)
+            {
+                VecMath.copyvec(normalsMatrix[iRow], hyperplanes[iRow].normal);
+                offsetsColumnVector[iRow][0] = hyperplanes[iRow].offset;
+            }
+            // replace normalsMatrix by its inverse,
+            // replace offsetsColumnVector by the solution
+            try
+            {
+                VecMath.gaussj(normalsMatrix, nRows,
+                               offsetsColumnVector, 1);
+            }
+            catch (Exception e) // XXX singular matrix-- should figure out a cleaner way to do this
+            {
+                return null;
+            }
+            return VecMath.getcolumn(offsetsColumnVector, 0);
+#endif // DEFUNCT
+
+            int nRows = hyperplanes.length;
+            double normalsMatrix[][] = new double[nRows][nRows];
+            double offsetsColumnVector[] = new double[nRows];
+            FORI (iRow, nRows)
+            {
+                VecMath.copyvec(normalsMatrix[iRow], hyperplanes[iRow].normal);
+                offsetsColumnVector[iRow] = hyperplanes[iRow].offset;
+            }
+            double c[] = VecMath.invmxv(normalsMatrix, offsetsColumnVector);
+
+            // XXX not an adequate test, I don't think
+            if (c.length > 0
+             && (Double.isInfinite(c[0])
+              || Double.isNaN(c[0])))
+                return null;
+
+            return c;
+        } // intersectHyperplanes
+
+
+
+        //
+        // Wrapper for a sorted array,
+        // allowing it to be used as a hash key and value.
+        // Equality is based on equality of the component items.
+        // The hash code is the xor of all the component items' hash codes.
+        // XXX should use sum, like some java structures do? think about it
+        //
+        private static class HashableSortedArray
+        {
+            private Object array[];
+            public HashableSortedArray(Object array[])
+            {
+                this.array = array;
+            }
+            public int hashCode()
+            {
+                int hashCode = 0;
+                Object[] array = this.array;
+                int n = array.length;
+                FORI (i, n)
+                    hashCode ^= array[i].hashCode();
+                return hashCode;
+            } // equals
+            public boolean equals(Object _that)
+            {
+                HashableSortedArray that = (HashableSortedArray)_that;
+                Object[] these = this.array;
+                Object[] those = that.array;
+                int nThese = these.length, nThose = those.length;
+                if (nThese != nThose)
+                    return false;
+                FORI (i, nThese)
+                    if (!these[i].equals(those[i]))
+                        return false;
+                return true;
+            } // equals
+        } // class HashableSortedArray
+
+
+        private static int factorial(int n)
+        {
+            return n==0 ? 1 : n*factorial(n-1);
+        }
+        private static int intpow(int a, int b)
+        {
+            return b==0 ? 1 : intpow(a, b-1) * a;
+        }
+        private static int digit(int x, int i, int base)
+        {
+            return x / intpow(base,i) % base;
+        }
+        private static String intToString(int x, int base)
+        {
+            return (x>base ? intToString(x/base,base) : "") + x%base;
+        }
+
+        private static int numOccurancesOf(String str, String substr)
+        {
+            int numOccurances = 0;
+            int i = -1;
+            while ((i = str.indexOf(substr, i+1)) != -1)
+                numOccurances++;
+            return numOccurances;
+        } // numOccurancesOf
+
+
+    private static final boolean evalVerbose = false;
+    /**
+    *  Evaluate an expression such as "<code>(-((A-B) i (A i D))) u C</code>"
+    *  from the beginning of a string,
+    *  leaving the unparsed remainder of the string in the "rest" parameter.
+    */
+    public static SPolytope eval(
+                String expr,     // XXX term, really... sorry for the confusion
+                int dim,
+                int fullDim,
+                String varNames[/*1*/][], // array is passed by ref so can be resized
+                SPolytope varValues[/*1*/][], // array is passed by ref so can be resized
+                String rest[/*1*/]) // unparsed remainder of string is returned here
+        throws java.text.ParseException
+    {
+        SPolytope result = null;
+        String orig_expr = expr; // for error messages
+
+        expr = expr.trim();
+        if (expr.length() == 0)
+            throw new java.text.ParseException("Empty expression \""+expr+"\"", orig_expr.length()-expr.length());
+        char firstChar = expr.charAt(0);
+        expr = expr.substring(1);
+
+        if (firstChar == '0')
+        {
+            if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> 0");
+            result = new SPolytope(0,1,
+                                   new Polytope(dim,
+                                                fullDim,
+                                                new SPolytope[0], // no facets
+                                                new Hyperplane[0], // no hyperplanes
+                                                null)); // no aux // XXX use substring?
+        }
+        else if (firstChar == '1')
+        {
+            if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> 1");
+            result = new SPolytope(1,1,
+                                   new Polytope(dim,
+                                                fullDim,
+                                                new SPolytope[0], // no facets
+                                                new Hyperplane[0], // no hyperplanes
+                                                null)); // no aux // XXX use substring?
+        }
+        else if ("-~".indexOf(firstChar) != -1)
+        {
+            if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> -expr");
+            SPolytope operand = eval(expr,
+                                     dim,
+                                     fullDim,
+                                     varNames,
+                                     varValues,
+                                     rest);
+            expr = rest[0];
+            result = complement(operand);
+        }
+        else if (firstChar == '(')
+        {
+            if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> (something)  (not sure))");
+            SPolytope LHS = eval(expr,
+                                 dim,
+                                 fullDim,
+                                 varNames,
+                                 varValues,
+                                 rest);
+            expr = rest[0];
+            expr = expr.trim(); // XXX actually only need to trim at beginning
+            if (expr.length() == 0)
+                throw new java.text.ParseException("Premature end of expression \""+orig_expr+"\"",orig_expr.length()-expr.length());
+            char operatorChar = expr.charAt(0);
+            expr = expr.substring(1);
+
+            if (operatorChar == ')')
+            {
+                if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> (expr)  (now I'm sure)");
+                result = LHS;
+            }
+            else
+            {
+                SPolytope RHS = eval(expr,
+                                     dim,
+                                     fullDim,
+                                     varNames,
+                                     varValues,
+                                     rest);
+                expr = rest[0];
+                if (expr.length() == 0)
+                    throw new java.text.ParseException("Unmatched left paren in expression \""+orig_expr+"\"",orig_expr.length()-expr.length());
+                char shouldBeCloseParen = expr.charAt(0);
+                expr = expr.substring(1);
+                if (shouldBeCloseParen != ')')
+                    throw new java.text.ParseException("Expected ')', got '"+shouldBeCloseParen+"' in expression \""+orig_expr+"\"",orig_expr.length()-expr.length());
+
+                if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> (expr binop expr)  (now I'm sure)");
+
+                if ("i*&".indexOf(operatorChar) != -1)
+                    result = intersect(LHS, RHS);
+                else if ("u+|".indexOf(operatorChar) != -1)
+                    result = union(LHS, RHS);
+                else if ("dm-\\".indexOf(operatorChar) != -1)
+                    result = diff(LHS, RHS);
+                else
+                    throw new java.text.ParseException("Unknown binary operation '"+operatorChar+"' in expression \""+orig_expr+"\"",orig_expr.length()-expr.length());
+                if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> (expr "+operatorChar+" expr)");
+            }
+        }
+        else if (Character.isJavaIdentifierStart(firstChar))
+        {
+            if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> varName and maybe assignment, not sure");
+            String varName = ""+firstChar;
+            while (expr.length() > 0
+                && Character.isJavaIdentifierPart(firstChar = expr.charAt(0)))
+            {
+                varName += firstChar;
+                expr = expr.substring(1);
+            }
+
+            int iVar, nVars = varNames[0].length;
+            FOR (iVar, nVars)
+                if (varName.equals(varNames[0][iVar]))
+                    break;
+
+            // XXX grammar is violated here... we are making varName=value
+            // XXX into a term when it should be an expression;
+            // XXX e.g.  A - B = C  is legal
+            // XXX and is equivalent to A - (B = C),
+            // XXX when it shouldn't be legal :-(
+            // XXX also A=B-C gets evaluated as (A=B)-C :-( :-(
+            // XXX really need to fix this
+            expr = expr.trim();
+            if (expr.length() >= 1
+             && expr.charAt(0) == '=')
+            {
+                expr = expr.substring(1);
+
+                expr = expr.trim(); // XXX should be only at beginning
+                if (expr.length() == 0
+                 || expr.startsWith(")"))
+                {
+                    // unset the variable-- that is, crunch it out
+                    // of both arrays, keeping the arrays in order.
+                    if (iVar < nVars)
+                    {
+                        varNames[0] = (String[])Arrays.concat(
+                            Arrays.subarray(varNames[0],0,iVar),
+                            Arrays.subarray(varNames[0],iVar+1,nVars-(iVar+1)));
+                        varValues[0] = (SPolytope[])Arrays.concat(
+                            Arrays.subarray(varValues[0],0,iVar),
+                            Arrays.subarray(varValues[0],iVar+1,nVars-(iVar+1)));
+                    }
+
+                    result = null;
+                }
+                else
+                {
+                    SPolytope RHS = eval(expr,
+                                         dim,
+                                         fullDim,
+                                         varNames,
+                                         varValues,
+                                         rest);
+                    expr = rest[0];
+
+                    if (iVar == nVars)
+                    {
+                        // append the new name,value pair
+                        varNames[0] = (String[])Arrays.append(varNames[0], varName);
+                        varValues[0] = (SPolytope[])Arrays.append(varValues[0], RHS);
+                    }
+                    else
+                    {
+                        // replace old value
+                        varValues[0][iVar] = RHS;
+                    }
+
+                    result = RHS;
+                }
+            }
+            else
+            {
+                if (iVar == nVars)
+                    throw new java.text.ParseException("Undefined variable \""+varName+"\" in expression \""+orig_expr+"\"",orig_expr.length()-expr.length());
+                result = varValues[0][iVar];
+            }
+        }
+        else
+        {
+            throw new java.text.ParseException("Unexpected first char '"+firstChar+"' in expression \""+orig_expr+"\"",orig_expr.length()-expr.length());
+        }
+
+        rest[0] = expr;
+        return result;
+    } // eval
+
+    /**
+    *  Evaluate an expression such as "<code>(-((A-B) i (A i D))) u C</code>".
+    *  The grammar is:
+    *  <pre>
+    * 
+    *           expr -> term
+    *           expr -> term [i&^*] term // intersect(LHS,RHS)
+    *           expr -> term [u|+] term  // union(LHS,RHS)
+    *           expr -> term [-\dm] term // diff(LHS,RHS)
+    *           expr -> varName = expr   // sets varName's value to value of expr
+    *           term -> "0"              // empty set
+    *           term -> "1"              // all of space
+    *           term -> varName          // corresponding varValue
+    *           term -> [~-] term        // complement(RHS)
+    *           term -> "(" expr ")"
+    *  </pre>
+    * 
+    *  Note all the alternative operator chars; I'm wishy washy.
+    *  The ones that are letters must be separated from adjacent variable names
+    *  by spaces.
+    * 
+    *  XXX need a way to unset a variable
+    */
+    public static SPolytope eval(
+                String expr,
+                int dim,
+                int fullDim,
+                String varNames[/*1*/][], // array is passed by ref so can be resized
+                SPolytope varValues[/*1*/][]) // array is passed by ref so can be resized
+        throws java.text.ParseException
+    {
+        String rest[] = new String[1];
+        String term = "("+expr+")";
+
+
+        // XXX hack that my little brain seems to want...
+        // XXX add as many parens at beginning as necessary
+        while (numOccurancesOf(term, "(")
+             < numOccurancesOf(term, ")"))
+        {
+            term = "(" + term;
+        }
+
+
+        SPolytope result = eval(term,
+                                dim,
+                                fullDim,
+                                varNames,
+                                varValues,
+                                rest);
+        if (rest[0].length() != 0)
+        {
+            int errorOffsetInTerm = term.length() - rest[0].length();
+            throw new java.text.ParseException("Trailing garbage \""+rest[0]+"\" in expression \""+term+"\"",errorOffsetInTerm);
+        }
+
+        if (!isOrientedDeep(result.p))
+        {
+            System.out.println("WARNING: top-level eval returning a badly oriented polytope!");
+        }
+        return result;
+    } // eval
+
+
+
+    /**
+    *  A little test program...
+    *  Take two hypercubes, and do union, intersection, and difference.
+    */
+    public static void main(String args[])
+        throws java.io.IOException
+    {
+        System.out.println("in main");
+
+        if (args.length < 1)
+        {
+            System.err.println("Usage: CSG <dim> [<expr>]");
+            System.exit(1);
+        }
+
+        int fullDim = Integer.parseInt(args[0]);
+        int dim = fullDim;
+
+        SPolytope A = makeHypercube(VecMath.fillvec(dim, -1.), 2.);
+        SPolytope B = makeHypercube(VecMath.fillvec(dim,  1.), 2.);
+        SPolytope C = makeHypercube(VecMath.fillvec(dim,  0.), 2.);
+
+#ifdef DEFUNCT_BUT_NOTE // XXX can probably get rid of this now... but need to transfer the isOriented stuff somewhere in the shell!
+        PRINT(A);
+        PRINT(B);
+        PRINT(C);
+
+        if (false)
+        {
+            SPolytope AiB = intersect(A,B);
+            PRINT(A);
+            PRINT(B);
+            PRINT(AiB);
+            assert(isOrientedDeep(AiB.p));
+        }
+        if (false)
+        {
+            SPolytope AuB = union(A,B);
+            PRINT(A);
+            PRINT(B);
+            PRINT(AuB);
+            assert(isOrientedDeep(AuB.p));
+        }
+        if (false)
+        {
+            SPolytope AmB = diff(A,B);
+            PRINT(A);
+            PRINT(B);
+            PRINT(AmB);
+            assert(isOrientedDeep(AmB.p));
+        }
+
+        // Make a polytope with a cavity
+        if (false)
+        {
+            SPolytope AiB = intersect(A,B);
+            SPolytope Cm_AiB = diff(C, AiB);
+            PRINT(A);
+            PRINT(B);
+            PRINT(C);
+            PRINT(AiB);
+            PRINT(Cm_AiB);
+            assert(isOrientedDeep(Cm_AiB.p));
+        }
+#endif // DEFUNCT_BUT_NOTE
+
+        if (args.length >= 2)
+        {
+            //
+            // Evaluate given input expression
+            //
+            String expr = args[1];
+            String varNames[][]     = {{"A","B","C"}};
+            SPolytope varValues[][] = {{ A,  B,  C }};
+            SPolytope result = null;
+            try
+            {
+                result = eval(expr,
+                              dim,
+                              fullDim,
+                              varNames,
+                              varValues);
+            }
+            catch (java.text.ParseException e)
+            {
+                System.err.println("Exception parsing expression \""+expr+"\": "+e);
+            }
+            PRINT(expr);
+            PRINT(result);
+        }
+        else
+        {
+            //
+            // Do a command shell.  Woohoo!
+            //
+            java.io.BufferedReader reader =
+                new java.io.BufferedReader(
+                    new java.io.InputStreamReader(System.in));
+
+            // XXX hellacious hack for one-time-only pushback.
+            // XXX it doesn't work anyway; the newline doesn't seem to make it.
+            // XXX why not???
+            if (false)
+            {
+                String nl = System.getProperty("line.separator");
+                java.io.PushbackReader pushbackReader = new java.io.PushbackReader(new java.io.InputStreamReader(System.in), 100);
+                pushbackReader.unread(("help"+nl).toCharArray());
+                reader = new java.io.BufferedReader(pushbackReader);
+            }
+
+            String prompt = "yeah? ";
+
+            String varNames[][]     = {{"A","B","C"}};
+            SPolytope varValues[][] = {{ A,  B,  C }};
+
+            {
+                System.out.println("Current variables:");
+                FORI (iVar, varNames[0].length)
+                {
+                    System.out.print("    " + varNames[0][iVar] + " = ");
+                    System.out.println(varValues[0][iVar].toString("        "));
+                }
+            }
+
+            while (true)
+            {
+                System.out.print(prompt);
+                String line = reader.readLine();
+                if (line == null)
+                    break;
+                line = line.trim();
+                if (line.equals(""))
+                    continue;
+
+                //
+                // Special variables...
+                //
+                if (line.startsWith("v=")
+                 || line.startsWith("v ="))
+                {
+                    verboseLevel = Integer.parseInt(line.substring(line.indexOf('=')+1));
+                    PRINT(verboseLevel);
+                    continue;
+                }
+                if (line.startsWith("d=")
+                 || line.startsWith("d =")
+                 || line.startsWith("dim=")
+                 || line.startsWith("dim ="))
+                {
+                    fullDim = Integer.parseInt(line.substring(line.indexOf('=')+1));
+                    dim = fullDim;
+                    PRINT(dim);
+                    System.out.println("WARNING: polytopes of different dimensions will act strangely when mixed");
+                    continue;
+                }
+                if (line.equals("q")
+                 || line.equals("quit")
+                 || line.equals("exit"))
+                {
+                    break;
+                }
+                if (line.equals("help"))
+                {
+                    {
+                        System.out.println("Current variables:");
+                        FORI (iVar, varNames[0].length)
+                        {
+                            System.out.print("    " + varNames[0][iVar] + " = ");
+                            System.out.println(varValues[0][iVar].toString("        "));
+                        }
+                    }
+                    continue;
+                }
+
+                SPolytope result = null;
+                try
+                {
+                    result = eval(
+                                 line,
+                                 dim,
+                                 fullDim,
+                                 varNames,
+                                 varValues);
+                }
+                catch (java.text.ParseException pe)
+                {
+                    System.err.println("Parse error in expression \""+line+"\": ");
+                    System.err.println("    "+pe.getLocalizedMessage()+", position "+pe.getErrorOffset());
+                }
+                if (result != null)
+                {
+                    System.out.println(result);
+                    PRINTVEC(counts(result.p));
+                    PRINT(volume(result));
+
+                    FORI (iFacet, result.p.facets.length)
+                    {
+                        double areaNormalOfFacet[] = new double[dim];
+                        areaNormal(areaNormalOfFacet, result.p.facets[iFacet]);
+                        System.out.println("areaNormal(facets["+iFacet+"]) = "+ VecMath.toString(areaNormalOfFacet));
+                        System.out.println("volume(facets["+iFacet+"]) = "+ volume(result.p.facets[iFacet]));
+                    }
+
+                    if (!isOrientedDeep(result.p))
+                        System.out.println("WARNING: that was badly oriented!");
+                    if (!isBinaryDensityDeep(result))
+                        System.out.println("WARNING: that didn't have binary density!  Or something!");
+                }
+            }
+        }
+
+        System.out.println("out main");
+    } // main
+
+
+} // CSG
