@@ -1,0 +1,2631 @@
+//
+// VecMath.prejava
+//
+// Author: Don Hatch (hatch@hadron.org)
+// This code may be used for any purpose as long as it is good and not evil.
+//
+
+package com.donhatchsw.util;
+
+#include "macros.h"
+
+#define ROWLENGTH(M) ((M).length==0 ? 0 : (M)[0].length) // XXX still lots of places we should use this and don't
+
+/**
+ * Some common operations on vectors and matrices.
+ * <br>
+ * XXX JAVADOC there are some parameter comments that should be converted to javadoc
+ */
+public final class VecMath
+{
+    private VecMath() {} // uninstantiatable
+
+
+    public static void vpv(double result[], double v0[], double v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] + v1[i];
+    }
+    public static void vpv(int result[], int v0[], int v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] + v1[i];
+    }
+    public static void vmv(double result[], double v0[], double v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] - v1[i];
+    }
+    public static void vmv(int result[], int v0[], int v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] - v1[i];
+    }
+
+    public static void vxs(double result[], double v[], double s)
+    {
+        FORIDOWN (i, v.length)
+            result[i] = v[i] * s;
+    }
+
+    public static void mxs(double result[][], double M[][], double s)
+    {
+        FORIDOWN (i, M.length)
+            if (result[i] != null)
+                vxs(result[i], M[i], s);
+    }
+    public static void mxs(double result[][][], double M[][][], double s)
+    {
+        FORIDOWN (i, M.length)
+            mxs(result[i], M[i], s);
+    }
+    public static void mxs(double result[][][][], double M[][][][], double s)
+    {
+        FORIDOWN (i, M.length)
+            mxs(result[i], M[i], s);
+    }
+
+    public static void sxv(double result[], double s, double v[])
+    {
+        FORIDOWN (i, v.length)
+            result[i] = s * v[i];
+    }
+
+    public static void sxv(int result[], int s, int v[])
+    {
+        FORIDOWN (i, v.length)
+            result[i] = s * v[i];
+    }
+
+    /** perp dot */
+    public static void xv2(double result[/*2*/], double v[/*2*/])
+    {
+        result[0] = -v[1];
+        result[1] = v[0];
+    }
+    /** determinant of matrix having the two vectors as rows */
+    public static double vxv2(double v[/*2*/], double w[/*2*/])
+    {
+        return v[0]*w[1] - v[1]*w[0];
+    }
+    public static void vxv3(double v0[/*3*/], final double v1[/*3*/], final double v2[/*3*/])
+    {
+        v0[0] = v1[1]*v2[2] - v1[2]*v2[1];
+        v0[1] = v1[2]*v2[0] - v1[0]*v2[2];
+        v0[2] = v1[0]*v2[1] - v1[1]*v2[0];
+    }
+    /** determinant of matrix having the three vectors as rows */
+    public static double vxvxv3(double v0[/*3*/], double v1[/*3*/], double v2[/*3*/])
+    {
+        return v0[0] * (v1[1]*v2[2] - v1[2]*v2[1])
+             + v0[1] * (v1[2]*v2[0] - v1[0]*v2[2])
+             + v0[2] * (v1[0]*v2[1] - v1[1]*v2[0]);
+    }
+    public static void crossprod(double result[/*dim*/], double vectors[/*dim-1*/][/*dim*/])
+    {
+        int dim = result.length;
+        assert(vectors.length == dim-1);        // dim-1 vectors of dimension dim
+        if (vectors.length > 0)
+            assert(vectors[0].length == dim);   // gotcha-- can't just look at ROWLENGTH, because in case vectors.length==0, it means 0 vectors of dim 1, not 0
+
+        if (true)
+        {
+            // optimize for small cases...
+            switch(dim)
+            {
+                case 1:
+                    result[0] = 1.;
+                    return;
+                case 2:
+                    xv2(result, vectors[0]);
+                    return;
+                case 3:
+                    // 3d cross product
+                    vxv3(result, vectors[0], vectors[1]);
+                    return;
+            }
+        }
+        else
+        {
+            if (dim == 1 || dim == 2 || dim == 3)
+                System.err.println("WARNING: doing slow crossprod for testing, dim = "+dim+"");
+        }
+
+        {
+            double cofactorMatrix[][] = new double[dim-1][dim-1];
+            int sign = ((dim-1) % 2 == 0 ? 1 : -1);
+            FORI (i, dim)
+            {
+                // cofactor matrix is vectors matrix with column i deleted...
+                {
+                    FORI (j, dim-1)
+                    FORI (k, dim-1)
+                        cofactorMatrix[j][k] = vectors[j][k>=i?k+1:k];
+                }
+                result[i] = detDestructive(cofactorMatrix) * sign;
+                sign = -sign;
+            }
+        }
+    } // crossprod
+
+
+    public static void vpsxv(double result[], double v0[],
+                                              double s1, double v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] + s1*v1[i];
+    }
+
+    public static void vpsxv(int result[], int v0[],
+                                           int s1, int v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] + s1*v1[i];
+    }
+
+    public static void vpvmv(double result[], double v0[], double v1[], double v2[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] + (v1[i] - v2[i]);
+    }
+
+    public static void sxvpsxv(double result[], double s0, double v0[],
+                                                double s1, double v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = s0*v0[i] + s1*v1[i];
+    }
+
+    public static void mpm(Object result, Object M0, Object M1)
+    {
+        if (result instanceof int[])
+            vpv((int[])result, (int[])M0, (int[])M1);
+        else if (result instanceof double[])
+            vpv((double[])result, (double[])M0, (double[])M1);
+        else
+        {
+            Object resultArray[] = (Object[])result;
+            Object M0Array[] = (Object[])M0;
+            Object M1Array[] = (Object[])M1;
+            FORIDOWN(i, resultArray.length)
+                mpm(resultArray[i], M0Array[i], M1Array[i]);
+        }
+    } // mpm
+
+    public static void mmm(Object result, Object M0, Object M1)
+    {
+        if (result instanceof int[])
+            vmv((int[])result, (int[])M0, (int[])M1);
+        else if (result instanceof double[])
+            vmv((double[])result, (double[])M0, (double[])M1);
+        else
+        {
+            Object resultArray[] = (Object[])result;
+            Object M0Array[] = (Object[])M0;
+            Object M1Array[] = (Object[])M1;
+            FORIDOWN(i, resultArray.length)
+                mmm(resultArray[i], M0Array[i], M1Array[i]);
+        }
+    } // mmm
+
+    /** add v to every row of M. */
+    public static void mpv(double result[][], double M[][], double v[])
+    {
+        FORIDOWN (i, M.length)
+            if (M[i] != null)
+                vpv(result[i], M[i], v);
+    }
+    /** add v to every row of M. */
+    public static void mpv(int result[][], int M[][], int v[])
+    {
+        FORIDOWN (i, M.length)
+            if (M[i] != null)
+                vpv(result[i], M[i], v);
+    }
+
+    // XXX this hasn't been tested
+    /** add v to every row of M. M can be double[][], or double[][][], ... */
+    public static void mpv(Object result, Object m, double v[])
+    {
+        Object resultFlat = Arrays.flatten(result, 0, Arrays.getDim(result)-1);
+        Object mFlat = Arrays.flatten(result, 0, Arrays.getDim(result)-1);
+        if (resultFlat instanceof double[][])
+            mpv((double[][])resultFlat, (double[][])mFlat, v);
+        else if (resultFlat instanceof int[][])
+            mpv((int[][])resultFlat, (int[][])mFlat, v);
+        else
+            assert(false);
+    }
+
+    /** subtract v from every row of M */
+    public static void mmv(int result[][], int M[][], int v[])
+    {
+        FORIDOWN (i, M.length)
+            if (M[i] != null)
+                vmv(result[i], M[i], v);
+    }
+    /** subtract v from every row of M */
+    public static void mmv(double result[][], double M[][], double v[])
+    {
+        FORIDOWN (i, M.length)
+            if (M[i] != null)
+                vmv(result[i], M[i], v);
+    }
+    /** subtract v from every row of M. M can be double[][], or double[][][], ... */
+    public static void mmv(Object result, Object m, double v[])
+    {
+        double resultFlat[][] = (double[][])Arrays.flatten(result, 0, Arrays.getDim(result)-1);
+        double mFlat[][] = (double[][])Arrays.flatten(m, 0, Arrays.getDim(m)-1);
+        mmv(resultFlat, mFlat, v);
+    }
+
+    /** ||b-a||^2 ||c-a||^2 - (b-a)dot(c-a) */
+    public static double sqrdTwiceTriangleArea(double a[],
+                                               double b[],
+                                               double c[])
+    {
+        double ab_dot_ab = 0.;
+        double ab_dot_ac = 0.;
+        double ac_dot_ac = 0.;
+        FORIDOWN (i, a.length)
+        {
+            double ai = a[i];
+            double ab = b[i] - ai;
+            double ac = c[i] - ai;
+            ab_dot_ab += ab*ab;
+            ab_dot_ac += ab*ac;
+            ac_dot_ac += ac*ac;
+        }
+        return ab_dot_ab*ac_dot_ac - SQR(ab_dot_ac);
+    } // sqrdTwiceTriangleArea
+
+
+
+    public static void lerp(double result[], double p0[], double p1[], double t)
+    {
+        FORIDOWN (i, p0.length)
+            result[i] = p0[i] + t*(p1[i]-p0[i]);
+    }
+    public static void bary(double result[],
+                            double p0[],
+                            double p1[], double t1,
+                            double p2[], double t2)
+    {
+        FORIDOWN (i, p0.length)
+            result[i] = (1.-t1-t2)*p0[i] + t1*p1[i] + t2*p2[i];
+    }
+    /** cubic interpolation, given boundary positions and velocities */
+    public static void cerp(double result[],
+                            double p0[], double p1[],
+                            double v0[], double v1[],
+                            double t)
+    {
+        /*
+           We want a matrix M defining:
+                p(t) = [1 t t^2 t^3] * M * [   p0   ]
+                                           [   p1   ]
+                                           [   v0   ]
+                                           [   v1   ]
+          
+                v(t) = [0 1 2t 3t^2] * M * [   p0   ]
+                                           [   p1   ]
+                                           [   v0   ]
+                                           [   v1   ]
+           Satisfying boundary conditions:
+                p(t0) = p0
+                p(t1) = p1
+                v(t0) = v0
+                v(t1) = v1
+           In other words,
+                    [   p0   ] = [1 t0    t0^2    t0^3] * M * [   p0   ]
+                    [   p1   ]   [1 t1    t1^2    t1^3]       [   p1   ]
+                    [   v0   ]   [0 1   2 t0    3 t0^2]       [   v0   ]
+                    [   v1   ]   [0 1   2 t1    3 t1^2]       [   v1   ]
+           So M is the inverse of that matrix of T's.
+           In particular, we have t0=0 and t1=1,
+           so M is simply the inverse of:
+                    [1 0 0 0]
+                    [1 1 1 1]
+                    [0 1 0 0]
+                    [0 1 2 3]
+           which is, according to octave,
+               octave:1> inv([1 0 0 0 ; 1 1 1 1 ; 0 1 0 0 ; 0 1 2 3])
+                  M = [  1   0   0   0 ]
+                      [  0   0   1   0 ]
+                      [ -3   3  -2  -1 ]
+                      [  2  -2   1   1 ]
+           So, given t,
+           the the coefficient matrix for p0,p1,v0,v1
+           is then [1 t t^2 t^3] * M.
+        */
+
+        double t2 = t*t;
+        double coeff_p0 = (2*t - 3)*t2 + 1;
+        double coeff_p1 = (-2*t + 3)*t2;
+        double coeff_v0 = ((t - 2)*t + 1)*t;
+        double coeff_v1 = (t - 1)*t2;
+
+        if (false) // linear
+        {
+            coeff_p0 = (1-t);
+            coeff_p1 = t;
+            coeff_v0 = 0;
+            coeff_v1 = 0;
+        }
+
+        sxv(result, coeff_p0, p0);
+        vpsxv(result, result, coeff_p1, p1);
+        vpsxv(result, result, coeff_v0, v0);
+        vpsxv(result, result, coeff_v1, v1);
+    } // cerp
+
+    /**
+     * quintic interpolation, given boundary positions, velocities, and
+     * accelerations.
+     */
+    public static void interp5(double result[],
+                               double p0[], double p1[],
+                               double v0[], double v1[],
+                               double a0[], double a1[],
+                               double t)
+    {
+        /*
+           Same logic as for cerp.
+           M is the inverse of:
+                [1  0  0  0  0  0]
+                [1  1  1  1  1  1]
+                [0  1  0  0  0  0]
+                [0  1  2  3  4  5]
+                [0  0  2  0  0  0]
+                [0  0  2  6 12 20]
+           So M is:
+                [  1   0  0  0  0    0]
+                [  0   0  1  0  0    0]
+                [  0   0  0  0  .5    0]
+                [-10  10 -6 -4 -1.5 .5]
+                [ 15 -15  8  7  1.5 -1]
+                [ -6   6 -3 -3  -.5 .5]
+        */
+        // XXX inefficient
+        double t2 = t*t, t3 = t2*t, t4 = t3*t, t5 = t4*t;
+        double tVec[] = {1,t,t2,t3,t4,t5};
+        final double M[][] = {
+                {  1,   0,  0,  0,  0  ,  0},
+                {  0,   0,  1,  0,  0  ,  0},
+                {  0,   0,  0,  0,  .5 ,  0},
+                {-10,  10, -6, -4, -1.5, .5},
+                { 15, -15,  8,  7,  1.5, -1},
+                { -6,   6, -3, -3, -.5 , .5},
+        };
+        double pva[][] = {p0,p1,v0,v1,a0,a1};
+        // result = tVec * M * pva
+        // do it from left to right, to avoid full matrix multiply
+        double coeffs[] = vxm(tVec, M); // XXX more allocation-- argh!
+        vxm(result, coeffs, pva);
+/*
+PRINTMAT(M);
+// make sure t=0 gives out p0 and t=1 give out p1...
+PRINTVEC(p0);
+PRINTVEC(vxmxm(new double[]{1,0,0,0,0,0},M,pva));
+PRINTVEC(p1);
+PRINTVEC(vxmxm(new double[]{1,1,1,1,1,1},M,pva));
+*/
+/*
+PRINTMAT(M);
+PRINTVEC(v0);
+PRINTVEC(vxmxm(new double[]{0,1,0,0,0,0},M,pva));
+PRINTVEC(v1);
+PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
+*/
+
+        // XXX also, for fixed t, tVec*M is same for all pva; could precompute
+        // XXX note, M*pva is same for all t on path; could precompute.
+    } // interp5
+
+
+
+    public static void copyvec(boolean result[], boolean v[])
+    {
+        FORIDOWN (i, MIN(result.length,v.length))
+            result[i] = v[i];
+    }
+
+    public static void copyvec(int result[], int v[])
+    {
+        FORIDOWN (i, MIN(result.length,v.length))
+            result[i] = v[i];
+    }
+
+    public static void copyvec(double result[], double v[])
+    {
+        FORIDOWN (i, MIN(result.length,v.length))
+            result[i] = v[i];
+    }
+
+    public static void setcolumn(double M[][], int iCol, double v[])
+    {
+        FORIDOWN (iRow, MIN(M.length,v.length))
+            M[iRow][iCol] = v[iRow];
+    }
+
+    public static void getcolumn(double v[], double M[][], int iCol)
+    {
+        FORIDOWN(iRow, MIN(v.length,M.length))
+            v[iRow] = M[iRow][iCol];
+    }
+
+    public static void fillvec(double result[], double s)
+    {
+        FORIDOWN (i, result.length)
+            result[i] = s;
+    }
+
+    public static void fillvec(int result[], int s)
+    {
+        FORIDOWN (i, result.length)
+            result[i] = s;
+    }
+
+    public static void fillvec(boolean result[], boolean s)
+    {
+        FORIDOWN (i, result.length)
+            result[i] = s;
+    }
+
+    public static void fillmat(double result[][], double s)
+    {
+        FORIDOWN (i, result.length)
+            fillvec(result[i], s);
+    }
+
+    public static void fillmat(boolean result[][], boolean s)
+    {
+        FORIDOWN (i, result.length)
+            fillvec(result[i], s);
+    }
+
+    public static void copymat(double result[][], double m[][])
+    {
+        FORIDOWN (i, MIN(result.length, m.length))
+            FORIDOWN(j, MIN(result[i].length, m[i].length))
+                result[i][j] = m[i][j];
+    }
+
+    public static void zerovec(double result[])
+    {
+        FORIDOWN (i, result.length)
+            result[i] = (double)0;
+    }
+    // XXX duplicate code
+    public static void zerovec(int result[])
+    {
+        FORIDOWN (i, result.length)
+            result[i] = (int)0;
+    }
+    public static void zeromat(double result[][])
+    {
+        FORIDOWN (i, result.length)
+            zerovec(result[i]);
+    }
+
+    public static double dot(double v0[], double v1[])
+    {
+        double result = 0.;
+        FORIDOWN (i, v0.length)
+            result += v0[i]*v1[i];
+        return result;
+    }
+
+    // XXX duplicate code below
+    public static void vxm(double result[], double v[], double m[][])
+    {
+        assumpt(result != v);
+        zerovec(result);
+        int i, vLen = v.length;
+        FOR (i, vLen)
+            vpsxv(result, result, v[i], m[i]);
+        // if v is short, pad it with 1's
+        for (; i < m.length; ++i)
+            vpv(result, result, m[i]);
+    } // vxm double
+
+    // XXX duplicate code above
+    public static void vxm(int result[], int v[], int m[][])
+    {
+        assumpt(result != v);
+        int vLen = v.length;
+        zerovec(result);
+        int i, j;
+        FOR (i, vLen)
+            vpsxv(result, result, v[i], m[i]);
+        // if v is short, pad it with 1's
+        for (; i < m.length; ++i)
+            vpv(result, result, m[i]);
+    } // vxm int
+
+    // XXX BLEAH! I have a fundamental contradiction here...
+    // XXX I'm trying to overload mxm so that it can mean
+    // XXX vectors-times-xform
+    // XXX or xform-times-xform!
+    // XXX Say we are multiplying 4x3 times 4x3;
+    // XXX in the former case we pad the left one with 1 1 1 1;
+    // XXX in the latter case we pad the left one with 0 0 0 1 !!!
+    // XXX Need two separate functions!
+    public static void mxm(double result[/*n*/][/*m*/],
+                           double m0[/*n*/][/*dotLength*/],
+                           double m1[/*dotLength*/][/*m*/])
+    {
+#define SOON_TO_BE_DEFUNCT_I_HOPE
+#ifdef SOON_TO_BE_DEFUNCT_I_HOPE
+        if (ROWLENGTH(m0) == m1.length)
+        {
+            assumpt(result != m0 && result != m1);
+            FORIDOWN (i, result.length) // == m0.length
+                vxm(result[i], m0[i], m1);
+        }
+        else
+        {
+            // XXX hack-- fix it up reasonably when I'm awake
+
+            if ((m0.length == m0[0].length || m0.length == m0[0].length+1)
+             && m1.length == m0[0].length+1
+             && m1[0].length == m0[0].length
+             && result.length == m0[0].length+1
+             && result[0].length == m0[0].length)
+            {
+                // pad it out with 0's on the sides and 1 in the corner
+                double M0[][] = identitymat(m1.length);
+                FORIDOWN (i, m0.length)
+                FORIDOWN (j, m0[i].length)
+                    M0[i][j] = m0[i][j];
+                mxm(result, M0, m1);
+            }
+            else
+            {
+             PRINT(m0.length);
+             PRINT(ROWLENGTH(m0));
+             PRINT(m1.length);
+             PRINT(ROWLENGTH(m1));
+             PRINT((m0.length == m0[0].length || m0.length == m0[0].length+1));
+             PRINT(m1.length == m0[0].length+1);
+             PRINT(m1[0].length == m0[0].length);
+             PRINT(result.length == m0[0].length+1);
+             PRINT(result[0].length == m0[0].length);
+                assumpt(false);
+            }
+        }
+#else
+        // XXX I think this might be row-oriented-centric--
+        // XXX i.e. it might screw up if we use a 3x4 transform
+        // XXX matrix on the left
+
+        assumpt(result != m0 && result != m1);
+        FORIDOWN (i, result.length) // == m0.length
+            vxm(result[i], m0[i], m1);
+#endif
+
+    } // mxm
+
+    // XXX duplicate code above
+    public static void mxm(int result[/*n*/][/*m*/],
+                           int m0[/*n*/][/*dotLength*/],
+                           int m1[/*dotLength*/][/*m*/])
+    {
+        assumpt(result != m0 && result != m1);
+        FORIDOWN (i, result.length) // == m0.length
+            vxm(result[i], m0[i], m1);
+    } // mxm
+
+    public static void mxv(double result[], double m[][], double v[])
+    {
+        assumpt(result != v);
+        int nRows = m.length;
+        if (nRows == 0)
+            return;
+        int nCols = v.length; // = m[0].length
+        int i, j;
+        // XXX convert to FORIDOWN if appropriate; I didn't think about it for too long
+        FOR (i, nRows)
+        {
+            double m_i[] = m[i];
+            double sum = 0.;
+            FOR (j, nCols)
+            {
+                sum += m_i[j] * v[j];
+            }
+            result[i] = sum;
+        }
+    }
+
+    /** return a random vector with length <= 1. */
+    public static void random(double v[])
+    {
+        do
+            FORIDOWN(i, v.length)
+                v[i] = (2.*Math.random() - 1.);
+        while (normsqrd(v) > 1);
+    }
+    public static void random(double v[], java.util.Random generator)
+    {
+        do
+            FORIDOWN(i, v.length)
+                v[i] = (2.*generator.nextDouble() - 1.);
+        while (normsqrd(v) > 1);
+    }
+
+    public static double distsqrd(double v0[], double v1[])
+    {
+        double result = 0.;
+        FORIDOWN (i, v0.length) // == v1.length
+        {
+            double diff = v1[i]-v0[i];
+            result += diff*diff;
+        }
+        return result;
+    }
+    public static double dist(double v0[], double v1[])
+    {
+        return Math.sqrt(distsqrd(v0, v1));
+    }
+
+    public static double normsqrd(double v[])
+    {
+        return dot(v,v);
+    }
+    public static double norm(double v[])
+    {
+        return Math.sqrt(dot(v,v));
+    }
+
+    public static int mini(double v[])
+    {
+        int mini = -1;
+        double min = Double.POSITIVE_INFINITY;
+        FORIDOWN (i, v.length)
+        {
+            if (v[i] < min)
+            {
+                min = v[i];
+                mini = i;
+            }
+        }
+        return mini;
+    }
+    public static int maxi(double v[])
+    {
+        int maxi = -1;
+        double max = Double.NEGATIVE_INFINITY;
+        FORIDOWN (i, v.length)
+        {
+            if (v[i] > max)
+            {
+                max = v[i];
+                maxi = i;
+            }
+        }
+        return maxi;
+    }
+
+    public static double min(double v[])
+    {
+        double min = Double.POSITIVE_INFINITY;
+        FORIDOWN (i, v.length)
+            min = Math.min(min, v[i]);
+        return min;
+    }
+    public static double max(double v[])
+    {
+        double max = Double.NEGATIVE_INFINITY;
+        FORIDOWN (i, v.length)
+            max = Math.max(max, v[i]);
+        return max;
+    }
+
+    public static double sum(double v[])
+    {
+        double sum = 0.;
+        FORIDOWN (i, v.length)
+            sum += v[i];
+        return sum;
+    }
+    public static double average(double array[])
+    {
+        return sum(array) / array.length;
+    }
+    public static double productNotUsingLog(double array[])
+    {
+        double product = 1.;
+        FORIDOWN (i, array.length)
+            product *= array[i];
+        return product;
+    }
+    public static double productUsingLog(double array[])
+    {
+        double logProd = 0.;
+        FORIDOWN (i, array.length)
+            logProd += Math.log(array[i]);
+        return Math.exp(logProd / array.length);
+    }
+    public static double geomAverage(double array[])
+    {
+        double logProd = 0.;
+        FORIDOWN (i, array.length)
+            logProd += Math.log(array[i]);
+        return Math.exp(logProd / array.length);
+    }
+
+    public static void sum(double result[], double array[][])
+    {
+        zerovec(result);
+        FORIDOWN (i, array.length)
+            vpv(result, result, array[i]);
+    }
+    public static void average(double result[], double array[][])
+    {
+        sum(result, array);
+        vxs(result, result, 1./array.length);
+    }
+    public static void sumIndexed(double result[], int inds[], double array[][])
+    {
+        zerovec(result);
+        FORIDOWN (i, inds.length)
+            vpv(result, result, array[inds[i]]);
+    }
+    public static void averageIndexed(double result[], int inds[], double array[][])
+    {
+        sumIndexed(result, inds, array);
+        vxs(result, result, 1./inds.length);
+    }
+    public static void averageIndexed(double result[], int inds[][], double array[][])
+    {
+        int totalInds = 0;
+        zerovec(result);
+        FORIDOWN (i, inds.length)
+        {
+            int row[] = inds[i];
+            FORIDOWN(j, row.length)
+            {
+                vpv(result, result, array[row[j]]);
+                totalInds++;
+            }
+        }
+        vxs(result, result, 1./totalInds);
+    }
+
+    // Compute the array of sums-- each element of result
+    // is the sum of the box starting at index 0,0,...0
+    // up to and including the given index.
+    // result is allowed to be the same as from.
+    public static void integrate(Object result, Object from)
+    {
+        if (result instanceof int[])
+        {
+            int resultArray[] = (int[])result;
+            int fromArray[] = (int[])from;
+            int sum = 0;
+            int n = resultArray.length;
+            FORI (i, n)
+            {
+                sum += fromArray[i];
+                resultArray[i] = sum;
+            }
+        }
+        else if (result instanceof double[])
+        {
+            double resultArray[] = (double[])result;
+            double fromArray[] = (double[])from;
+            double sum = 0;
+            int n = resultArray.length;
+            FORI (i, n)
+            {
+                sum += fromArray[i];
+                resultArray[i] = sum;
+            }
+        }
+        else // must be a higher-dimensonal array of int or double
+        {
+            Object resultArray[] = (Object[])result;
+            Object fromArray[] = (Object[])from;
+            int n = resultArray.length;
+            FORI (i, n)
+                integrate(resultArray[i], fromArray[i]);
+            FORI (i, n-1)
+                mpm(resultArray[i+1], resultArray[i], resultArray[i+1]);
+        }
+    } // integrate
+
+    // Inverse of the integrate function.
+    // result is allowed to be the same as from.
+    public static void differentiate(Object result, Object from)
+    {
+        if (result instanceof int[])
+        {
+            int resultArray[] = (int[])result;
+            int fromArray[] = (int[])from;
+            FORIDOWN(i, resultArray.length-1)
+                resultArray[i+1] = fromArray[i+1] - fromArray[i];
+            if (resultArray.length > 0)
+                resultArray[0] = fromArray[0];
+        }
+        else if (result instanceof double[])
+        {
+            double resultArray[] = (double[])result;
+            double fromArray[] = (double[])from;
+            FORIDOWN(i, resultArray.length-1)
+                resultArray[i+1] = fromArray[i+1] - fromArray[i];
+            if (resultArray.length > 0)
+                resultArray[0] = fromArray[0];
+        }
+        else // must be a higher-dimensional array of int or double
+        {
+            Object resultArray[] = (Object[])result;
+            Object fromArray[] = (Object[])from;
+            FORIDOWN(i, resultArray.length)
+                differentiate(resultArray[i], fromArray[i]);
+            FORIDOWN(i, resultArray.length-1)
+                mmm(resultArray[i+1], resultArray[i+1], resultArray[i]);
+        }
+    } // differentiate
+
+        /** recursive function used by bboxIndexed... */
+        private static void _bboxIndexed(double result[/*2*/][],
+                                         double coords[][],
+                                         Object inds) // array of ints, dim >= 1
+        {
+            int nDims = coords[0].length;
+            Class indsClass = inds.getClass();
+            Class componentType = indsClass.getComponentType();
+            assert(componentType != null); // inds must be an array
+            if (componentType.isArray())
+            {
+                int n = java.lang.reflect.Array.getLength(inds);
+                FORIDOWN(i, n)
+                    _bboxIndexed(result,
+                                 coords,
+                                 java.lang.reflect.Array.get(inds, i));
+            }
+            else
+            {
+                int ints[] = (int[])inds;
+                FORIDOWN (iInt, ints.length)
+                FORIDOWN (iDim, nDims)
+                {
+                    double val = coords[ints[iInt]][iDim];
+                    result[0][iDim] = Math.min(result[0][iDim], val);
+                    result[1][iDim] = Math.max(result[1][iDim], val);
+                }
+            }
+        } // _bboxIndexed
+    public static void bboxIndexed(double result[/*2*/][],
+                                   double coords[][],
+                                   Object inds) // array of ints, dim >= 1
+    {
+        fillvec(result[0], Double.POSITIVE_INFINITY);
+        fillvec(result[1], Double.NEGATIVE_INFINITY);
+        _bboxIndexed(result, coords, inds);
+
+    } // bboxIndexed
+
+    public static void bbox(double result[/*2*/][], double array[][])
+    {
+        FORIDOWN (i, result[0].length)
+        {
+            result[0][i] = Double.POSITIVE_INFINITY;
+            result[1][i] = Double.NEGATIVE_INFINITY;
+        }
+        FORIDOWN (i, array.length)
+        FORIDOWN (j, array[i].length)
+        {
+            result[0][j] = Math.min(result[0][j], array[i][j]);
+            result[1][j] = Math.max(result[1][j], array[i][j]);
+        }
+    }
+
+    public static void bboxUniform(double bbox[/*2*/][], double array[][])
+    {
+        bbox(bbox, array);
+        double bboxCenter[] = average(bbox);
+        double bboxDims[] = vmv(bbox[1], bbox[0]);
+        double bboxMaxDim = max(bboxDims);
+        fillvec(bboxDims, bboxMaxDim);
+        vpsxv(bbox[0], bboxCenter, -.5, bboxDims);
+        vpsxv(bbox[1], bboxCenter,  .5, bboxDims);
+    }
+
+    public static void bboxIntersect(double result[/*2*/][],
+                                     double bbox0[/*2*/][],
+                                     double bbox1[/*2*/][])
+    {
+        int n = result[0].length;
+        FORI (i, n)
+        {
+            result[0][i] = MAX(bbox0[0][i], bbox1[0][i]);
+            result[1][i] = MIN(bbox0[1][i], bbox1[1][i]);
+        }
+    }
+
+    public static void bboxUnion(double result[/*2*/][],
+                                 double bbox0[/*2*/][],
+                                 double bbox1[/*2*/][])
+    {
+        int n = result[0].length;
+        FORI (i, n)
+        {
+            result[0][i] = MIN(bbox0[0][i], bbox1[0][i]);
+            result[1][i] = MAX(bbox0[1][i], bbox1[1][i]);
+        }
+    }
+
+    public static boolean closedBBoxContains(double bbox[/*2*/][],
+                                             double point[],
+                                             double eps)
+    {
+        FORIDOWN (i, point.length)
+            if (!INRANGE(bbox[0][i] - eps <=, point[i], <= bbox[1][i] + eps))
+                return false;
+        return true;
+    }
+    public static boolean bboxInteriorContains(double bbox[/*2*/][],
+                                               double point[],
+                                               double eps)
+    {
+        FORIDOWN (i, point.length)
+            if (!INRANGE(bbox[0][i] + eps <, point[i], < bbox[1][i] - eps))
+                return false;
+        return true;
+    }
+
+
+    public static void transpose(double result[][], double M[][])
+    {
+        assumpt(result != M);
+        FORIDOWN (i, M.length)
+        FORIDOWN (j, M[i].length)
+            result[j][i] = M[i][j];
+    }
+
+    /**
+     * LU decompomposition, straight out of Numerical recipes in C.
+     * <p>
+     * The nxn matrix A is replaced by the LU decomposition
+     * of a rowwise permutation of itself.
+     * indx is an output vector that records the row permutation
+     * effected by the partial pivoting;
+     * the function return value is +-1 depending on whether
+     * the number of row interchanges was even or odd, respectively.
+     * <p>
+     * This function is used in combination with luBackSubstitute
+     * to solve linear equations or invert a matrix.
+     */
+    public static int luDecompose(double A[/*n*/][/*n*/],
+                             int n, int indx[])
+        throws Exception // when singular
+    {
+        double vv[] = new double[n]; // stores the implicit scaling of each row.
+        int d = 1; // no row interchanges yet.
+        FORI (i, n) // Loop over rows to get the implicit scaling information.
+        {
+            // max will be absolute value of largest element in row i.
+            double max = 0.;
+            FORI (j, n)
+            {
+                double temp = ABS(A[i][j]);
+                if (temp > max)
+                    max = temp;
+            }
+            if (max == 0.)
+            {
+                throw new Exception("Singular matrix in routine luDecompose"); // No nonzero largest element.  // XXX should throw something else? XXX should make sure we handle this exception in all functions that call this one?
+            }
+            vv[i] = 1./max;
+        }
+        FORI (j, n) // This is the loop over columns of Crout's method.
+        {
+            FORI (i, j) // This is equation (2.3.12) except for i==j.
+            {
+                double sum = A[i][j];
+                FORI (k, i)
+                    sum -= A[i][k] * A[k][j];
+                A[i][j] = sum;
+            }
+
+            double max = 0.; // Initialize for the search for largest pivot element.
+            int imax = -1;
+            for (int i = j; i < n; i++) // This is i==j of equation (2.3.12) and i==j+1..n-1 of equation (2.3.13).
+            {
+                double sum = A[i][j];
+                FORI (k, j)
+                    sum -= A[i][k] * A[k][j];
+                A[i][j] = sum;
+                double dum = vv[i] * ABS(sum);
+                if (dum >= max) // Is the figure of merit for the pivot better than the best so far?
+                {
+                    max = dum;
+                    imax = i;
+                }
+            }
+            assert(imax != -1);
+            if (j != imax) // Do we need to interchange rows?
+            {
+                // Yes, do so...
+                double temp[];
+                SWAP(A[imax], A[j], temp);
+                d = -d;           // ... and change the parity of d.
+                vv[imax] = vv[j]; // Also interchange the scale factor.
+            }
+            indx[j] = imax;
+            if (A[j][j] == 0.)
+            {
+                // If the pivot element is zero the matrix is singular
+                // (at least to the precision of the algorithm).
+                // For some applications on singular matrices,
+                // it is desirable to substitute TINY for zero.
+                #define TINY 1e-40
+                A[j][j] = TINY;
+            }
+            if (j != n-1) // now, finally, divide by the pivot element.
+            {
+                double invAjj = 1./A[j][j];
+                for (int i = j+1; i < n; i++)
+                    A[i][j] *= invAjj;
+            }
+        }
+        return d;
+    } // luDecompose
+
+    /**
+     * Solves the set of n linear equations A*x = b.
+     * <p>
+     * Here A[0..n-1] is input,
+     * not as the matrix A but rather its LU decomposition,
+     * determined by the routing luDecompose.
+     * indx[0..n-1] is input as the permutation vector returned by luDecompose.
+     * b[0..n-1] is input as the right-hand side vector b,
+     * and returns with the solution vector x.
+     * A, n, and indx are not modified by this routine
+     * and can be left in place for successive calls
+     * with different right-hand sides b.
+     * <p>
+     * This routine takes into account the possibility that b will begin
+     * with many zero elements, so it is efficient for use
+     * in matrix inversion.
+     */
+    public static void luBackSubstitute(double A[][],
+                              int n,
+                              int indx[],
+                              double b[])
+    {
+        int ii = -1;
+        // when ii is set to a nonnegative value,
+        // it will become the index of the first nonvanishing element
+        // of b.
+
+        // We now do the forward substitution, equation (2.3.6).
+        // The only new wrinkle is to unscramble the permutation as we go.
+        FORI (i, n)
+        {
+            int ip = indx[i];
+            double sum = b[ip];
+            b[ip] = b[i];
+            if (ii >= 0)
+                for (int j = ii; j < i; j++)
+                    sum -= A[i][j] * b[j];
+            else if (sum != 0.)
+                ii = i; // A nonzero element was encountered, so from now on we will have to do the sums in the loop above.
+            b[i] = sum;
+
+        }
+        FORIDOWN (i, n)    // Now we do the backsubstitution, equation (2.3.7).
+        {
+            double sum = b[i];
+            for (int j = i+1; j < n;j++)
+                sum -= A[i][j] * b[j];
+            b[i] = sum / A[i][i]; // Store a component of the solution vector x.
+        }                         // All done!
+    } // luBackSubstitute
+
+
+    /**
+     * Linear equation solver and matrix inverter
+     * by Gauss-Jordan elimination with full pivoting,
+     * straight out of Numerical recipes in C, page 39.
+     * <p>
+     * a[0..n-1][0..n-1] is the input matrix.
+     * b[0..n-1][0..m-1] is input containing the m
+     * right-hand vectors as columns.
+     * On output, a is replaced by its matrix inverse, and b is replaced
+     * by the corresponding set of solution vectors (as columns).
+     */
+    public static void gaussj(double a[/*n*/][/*n*/], int n,
+                              double b[/*n*/][/*m*/], int m)
+        throws Exception // on exactly singular matrix
+    {
+        int indxc[], indxr[], ipiv[];
+        int i,icol=-1,irow=-1,j,k,l,ll;
+        double big,dum,pivinv,doubletemp;
+
+        indxc = new int[n];
+        indxr = new int[n];
+        ipiv  = new int[n];
+        FOR (j, n)
+            ipiv[j] = 0;
+        FOR (i, n) {
+            big = 0.;
+            FOR (j, n) {
+                if (ipiv[j] != 1) {
+                    FOR (k, n) {
+                        if (ipiv[k] == 0) {
+                            if (ABS(a[j][k]) >= big) {
+                                big = ABS(a[j][k]);
+                                irow = j;
+                                icol = k;
+                            }
+                        } else if (ipiv[k] > 1) {
+                            // XXX Error - singular matrix, 1
+                            throw new Exception("Singular matrix in routine gaussj, 1"); // XXX should throw something else? XXX should make sure we handle this exception in all functions that call this one?
+                        }
+                    }
+                }
+            }
+            ++ipiv[icol];
+            /*
+             * We now have the pivot, so interchange rows, if needed,
+             * to put the pivot element on the diagonal.
+             */
+            if (irow != icol) {
+                FOR (l,n) SWAP(a[irow][l], a[icol][l], doubletemp);
+                FOR (l,m) SWAP(b[irow][l], b[icol][l], doubletemp);
+            }
+            indxr[i]=irow;
+            indxc[i]=icol;
+            if (a[icol][icol] == 0.) {
+                // XXX Error - singular matrix, 2
+                throw new Exception("Singular matrix in routine gaussj, 2"); // XXX should throw something else? XXX should make sure we handle this exception in all functions that call this one?
+            }
+            pivinv = 1.0/a[icol][icol];
+            a[icol][icol] = 1.;
+            FOR (l, n) a[icol][l] *= pivinv;
+            FOR (l, m) b[icol][l] *= pivinv;
+            FOR (ll, n) {
+                if (ll != icol) {
+                    dum = a[ll][icol];
+                    a[ll][icol] = 0.;
+                    FOR (l, n) a[ll][l] -= a[icol][l]*dum;
+                    FOR (l, m) b[ll][l] -= b[icol][l]*dum;
+                }
+            }
+        }
+        /*
+         * Unscramble the solution in view of the column interchanges.
+         */
+        for (l = n-1; l >= 0; --l) {
+            if (indxr[l] != indxc[l])
+                FOR (k, n)
+                    SWAP(a[k][indxr[l]],a[k][indxc[l]],doubletemp);
+        }
+    } // gaussj
+
+    public static void invertmat(double result[][], double M[][])
+    {
+        int nRows = M.length;
+        int nCols = ROWLENGTH(M);
+        assert(nRows == result.length);
+        assert(nCols == ROWLENGTH(result));
+        if (nRows == nCols)
+        {
+#ifdef DEFUNCT
+            copymat(result, M);
+            gaussj(result, nRows, null, 0);
+#else
+            double temp[][] = copymat(M);
+            int indx[] = new int[nRows];
+            try
+            {
+                /*(void)*/luDecompose(temp, nRows, indx); // decompose the matrix just once.
+            }
+            catch (Exception e)
+            {
+                fillmat(result, Double.POSITIVE_INFINITY);
+                return;
+            }
+
+            double col[] = new double[nRows];
+            FORI (j, nRows)
+            {
+                zerovec(col);
+                col[j] = 1.;
+                luBackSubstitute(temp,nRows,indx,col);
+                setcolumn(result, j, col);
+            }
+#endif
+        }
+        else
+        {
+            int n = MAX(nRows,nCols);
+            double temp[][] = identitymat(n);
+            copymat(temp, M);
+#ifdef DEFUNCT
+            gaussj(temp, n, null, 0);
+#else
+            invertmat(temp, temp);
+#endif
+            copymat(result, temp);
+        }
+    } // invertmat
+
+    public static double detDestructive(double M[][])
+    {
+        int n = M.length;
+        assert(n == ROWLENGTH(M));
+
+        // XXX duplicate code below
+        if (true)
+        {
+            // optimize for small cases...
+            switch (n)
+            {
+                case 0:
+                    return 1.;
+                case 1:
+                    return M[0][0];
+                case 2:
+                    return vxv2(M[0], M[1]);
+                case 3:
+                    return vxvxv3(M[0], M[1], M[2]);
+            }
+        }
+        else
+        {
+            if (INRANGE(0 <=, n, <= 3))
+                System.err.println("WARNING: doing slow detDestructive for testing, dim = "+n+"");
+        }
+        int indx[] = new int[n];
+        try
+        {
+            double d = (double)luDecompose(M, n, indx); // this returns d as +-1.
+            FORI (j, n)
+                d *= M[j][j];
+            return d;
+        }
+        catch (Exception e)
+        {
+            return 0.; // XXX not sure this is really exceptional, but...
+        }
+    } // detDestructive
+    public static double det(double M[][])
+    {
+        int n = M.length;
+        assert(n == ROWLENGTH(M));
+
+        // XXX duplicate code above
+        if (true)
+        {
+            // optimize for small cases...
+            switch (n)
+            {
+                case 0:
+                    return 1.;
+                case 1:
+                    return M[0][0];
+                case 2:
+                    return vxv2(M[0], M[1]);
+                case 3:
+                    return vxvxv3(M[0], M[1], M[2]);
+            }
+        }
+        else
+        {
+            if (INRANGE(0 <=, n, <= 3))
+                System.err.println("WARNING: doing slow det for testing, dim = "+n+"");
+        }
+
+        return detDestructive(copymat(M));
+    } // det
+
+
+    public static void invmxv(double result[], double M[][], double b[])
+    {
+        int n = result.length;
+        assert(n == M.length);
+        assert(n == ROWLENGTH(M));
+
+        double temp[][] = copymat(M);
+        int indx[] = new int[n];
+        try
+        {
+            /*(void)*/luDecompose(temp, n, indx);
+        }
+        catch (Exception e)
+        {
+            fillvec(result, Double.POSITIVE_INFINITY);
+            return;
+        }
+        copyvec(result, b);
+        luBackSubstitute(temp, n, indx, result);
+
+        if (normsqrd(result) < 1e20) // XXX work around the TINY thing... this is going to have to cleaned up eventually to deal with nearly singular matrices anyway
+        {
+            // check that it worked, i.e. that b = M * result
+            assumpt(result != b); // XXX shouldn't assume this
+            double bb[] = mxv(M, result);
+            //PRINTMAT(M);
+            //PRINTVEC(result);
+            //PRINTVEC(b);
+            //PRINTVEC(bb);
+
+            FORI (i, n)
+            {
+                //assert(1. + SQR(bb[i] - b[i]) == 1.);
+                if (1. + SQR(bb[i] - b[i]) != 1.)
+                {
+                    PRINT("WARNING!"); // XXX lame behavior!
+                    PRINT(bb[i]);
+                    PRINT(b[i]);
+                    PRINT(SQR(bb[i] - b[i]));
+                    PRINT(1. + SQR(bb[i] - b[i]));
+                }
+                assert((float)(1. + SQR(bb[i] - b[i])) == (float)1.);
+            }
+        }
+    } // invmxv
+
+    public void invmxm(double result[][], double M[][], double B[][])
+    {
+        int n = result.length;
+        assert(n == B.length);
+        assert(n == M.length);
+        assert(n == ROWLENGTH(M));
+        int nCols = ROWLENGTH(result);
+        assert(nCols == ROWLENGTH(B));
+
+        double temp[][] = copymat(M);
+        int indx[] = new int[n];
+        try
+        {
+            /*(void)*/luDecompose(temp, n, indx);
+        }
+        catch (Exception e)
+        {
+            fillmat(result, Double.POSITIVE_INFINITY);
+            return;
+        }
+        double col[] = new double[n];
+        FORI (i, nCols)
+        {
+            getcolumn(col, B, i);
+            luBackSubstitute(temp, n, indx, col);
+            setcolumn(result, i, col);
+        }
+    } // invmxm
+
+    public void vxinvm(double result[], double v[], double M[][])
+    {
+        invmxv(result, transpose(M), v);
+    } // vxinvm
+
+    public void mxinvm(double result[][], double v[][], double M[][])
+    {
+        double transposeResult[][] = new double[ROWLENGTH(result)][result.length];
+        invmxm(transposeResult, transpose(M), transpose(v));
+        transpose(result, transposeResult);
+    }
+
+    public static void submat(double result[][], double M[][], int inds[])
+    {
+        FORIDOWN (i, inds.length)
+        FORIDOWN (j, inds.length)
+            result[i][j] = M[inds[i]][inds[j]];
+    }
+
+    public static void identitymat(double M[][])
+    {
+        FORIDOWN (i, M.length)
+        FORIDOWN (j, M[i].length)
+            M[i][j] = (i==j ? 1. : 0);
+    }
+
+    public static void makeRowRotMat(double M[][], int fromAxis, int toAxis, double radians)
+    {
+        identitymat(M);
+        double s = Math.sin(radians);
+        double c = Math.cos(radians);
+        M[fromAxis][fromAxis] = c;
+        M[fromAxis][toAxis] = s;
+        M[toAxis][fromAxis] = -s;
+        M[toAxis][toAxis] = c;
+    }
+
+    public static void makeRowTransMat(double M[][], double translate[])
+    {
+        identitymat(M); // non-square is okay
+        int nRows = M.length;
+        FORIDOWN (i, translate.length)
+            M[nRows-1][i] = translate[i];
+    }
+    public static void makeRowTransMatInv(double M[][], double translate[])
+    {
+        identitymat(M); // non-square is okay
+        int nRows = M.length;
+        FORIDOWN (i, translate.length)
+            M[nRows-1][i] = -translate[i];
+    }
+
+    // XXX got bored and stopped converting from FOR to FORIDOWN here
+
+
+    public static void makeRowScaleMat(double M[][], double scale[])
+    {
+        int i, j, n = M.length, m = (n == 0 ? 0 : M[0].length);
+        FOR (i, n)
+        FOR (j, m)
+            M[i][j] = (i==j ? i>=scale.length ? 1.
+                                              : scale[i]
+                            : 0);
+    }
+
+    public static double angleBetweenUnitVectors(double u0[], double u1[])
+    {
+        // XXX can we cleverly avoid the square root?
+        if (dot(u0, u1) > 0)
+            return 2*Math.asin(.5*dist(u0,u1));
+        else
+        {
+            double minusU1[] = sxv(-1.,u1);
+            return Math.PI - 2*Math.asin(.5*dist(u0,minusU1));
+        }
+    }
+
+    public static double[][] insertIdentityRowAndColumn(double M[][], int ind, double zero, double one)
+    {
+        double[][] result = new double[M.length+1][M.length+1];
+        int i, j;
+        FOR (i, M.length)
+        FOR (j, M.length)
+            result[i>=ind?i+1:i][j>=ind?j+1:j] = M[i][j];
+        FOR (i, result.length)
+            result[i][ind] = result[ind][i] = zero;
+        result[ind][ind] = one;
+        return result;
+    }
+    public static double[][] deleteRowAndColumn(double M[][], int ind)
+    {
+        double[][] result = new double[M.length-1][M.length-1];
+        int i, j, n = result.length;
+        FOR (i, n)
+        FOR (j, n)
+            result[i][j] = M[i>=ind?i+1:i][j>=ind?j+1:j];
+        return result;
+    }
+
+
+    public static boolean equals(int v0[], int v1[])
+    {
+        if (v0 == null)
+            return v1 == null ? true : false;
+        else if (v1 == null)
+            return false;
+        int n = v0.length;
+        if (n != v1.length)
+            return false;
+        FORI (i, n)
+            if (v0[i] != v1[i])
+                return false;
+        return true;
+    } // equals(int[],int[])
+    public static boolean equalsExactly(double v0[], double v1[])
+    {
+        if (v0 == null)
+            return v1 == null ? true : false;
+        else if (v1 == null)
+            return false;
+        int n = v0.length;
+        if (n != v1.length)
+            return false;
+        FORI (i, n)
+            if (v0[i] != v1[i])
+                return false;
+        return true;
+    } // equalsExactly(Object[],Object[])
+    public static boolean equalsUsingEqualsSymbol(Object v0[], Object v1[])
+    {
+        if (v0 == null)
+            return v1 == null ? true : false;
+        else if (v1 == null)
+            return false;
+        int n = v0.length;
+        if (n != v1.length)
+            return false;
+        FORI (i, n)
+            if (v0[i] != v1[i])
+                return false;
+        return true;
+    } // equalsUsingEqualsSymbol(Object[],Object[])
+
+    /** works even if eps==0. */
+    public static boolean equals(double M0[][], double M1[][], double eps)
+    {
+        if (M0 == null && M1 == null)
+            return true;
+        if (M0 == null || M1 == null || M0.length != M1.length)
+            return false;
+        int i, n = M0.length;
+        FOR (i, n)
+        {
+            if (M0[i].length != M1[i].length)
+                return false;
+            int j, m = M0[i].length;
+            FOR (j, m)
+                if (M0[i][j] != M1[i][j] // avoid function call in common case
+                 && Math.abs(M0[i][j]-M1[i][j]) > eps)
+                    return false;
+        }
+        return true;
+    } // equals
+
+    /** downward circular shift */
+    public static void downshift(double to[][], double from[][])
+    {
+        double from0[] = from[0];
+        int i, n = from.length;
+        FOR (i, n-1)
+            to[i] = from[i+1];
+        to[i] = from0;
+    } // downshift
+
+    /** upward circular shift */
+    public static void upshift(double to[][], double from[][])
+    {
+        int i, n = from.length;
+        double fromLast[] = from[n-1];
+        for (i = n-1; i > 0; --i)
+            to[i] = from[i-1];
+        to[i] = fromLast;
+    } // upshift
+
+
+        /**
+         * From numerical recipes in C.
+         * <p>
+         * Computes all eigenvalues and eigenvectors of a real symmetric matrix.
+         * On output, elements of A above the diagonal are destroyed.
+         * d[0..n-1] returns the eigenvalues of A.
+         * V[0..n-1][0..n-1] is a matrix whose columns contain,
+         * on output, the normalized eigenvectors of A.
+         * The function return value is the number of Jacobi rotations
+         * that were required.
+         */
+        public static int jacobi(double A[][], double d[], double V[][])
+        {
+            int n = d.length; // == A.length == A[0].length == V.length == V[0].length
+
+            double b[] = new double[n];
+            double z[] = new double[n];
+            identitymat(V);
+
+            // initialize b and d to the diagonal of A.
+            {
+                int i;
+                FOR (i, n)
+                {
+                    b[i] = d[i] = A[i][i];
+                    z[i] = 0.; // This vector will accumulate terms of the form ta_pq as in equation (11.1.14) in the book.
+                }
+            }
+
+            int nRot = 0;
+            int iIter;
+            FOR (iIter, 50) // XXX ? is this appropriate? why?
+            {
+                double sum = 0.;
+                {
+                    int i, j;
+                    FOR (i, n-1) // sum off-diagonal elements
+                    for (j = i+1; j < n; ++j)
+                        sum += ABS(A[i][j]);
+                }
+
+                if (sum == 0.)
+                {
+                    // The normal return, which relies on quadratic convergence
+                    // to machine underflow.
+                    //PRINT(iIter);
+                    return nRot;
+                }
+                double tresh = (iIter < 3 ? .2*sum/(n*n) : 0.);
+                int i, j;
+                FOR (i, n-1)
+                for (j = i+1; j < n; ++j)
+                {
+                    double g = 100.*ABS(A[i][j]);
+                    // After four sweeps, skip the rotation if the off-diagonal element is small.
+                    if (iIter > 3 && ABS(d[i])+g == ABS(d[i])
+                                  && ABS(d[j])+g == ABS(d[j]))
+                        A[i][j] = 0.;
+                    else if (ABS(A[i][j]) > tresh)
+                    {
+                        double h = d[j] - d[i];
+                        double t;
+                        if (ABS(h)+g == ABS(h))
+                        {
+                            t = A[i][j]/h; // t = 1/(2*theta)
+                        }
+                        else
+                        {
+                            double theta = .5*h/(A[i][j]); // equation 11.1.10
+                            t = 1./(ABS(theta) + Math.sqrt(1. + theta*theta));
+                            if (theta < 0.)
+                                t = -t;
+                        }
+                        double c = 1./Math.sqrt(1. + t*t);
+                        double s = t*c;
+                        double tau = s/(1. + c);
+                        h = t * A[i][j];
+                        z[i] -= h;
+                        z[j] += h;
+                        d[i] -= h;
+                        d[j] += h;
+                        A[i][j] = 0.;
+                        int k;
+#define ROTATE(A,i,j,k,l) { g = A[i][j]; h = A[k][l]; A[i][j] = g-s*(h+g*tau); A[k][l] = h+s*(g-h*tau); }
+                        FOR (k, i) // Case of rotations 1 <= k <= i
+                            ROTATE(A,k,i,k,j);
+                        for (k = i+1; k < j; ++k) // Case of rotations i < k < j
+                            ROTATE(A,i,k,k,j);
+                        for (k = j+1; k < n; ++k)
+                            ROTATE(A,i,k,j,k);
+                        FOR (k, n)
+                            ROTATE(V,k,i,k,j);
+                        nRot++;
+                    }
+                } // for i,j above diagonal
+                // Update d with the sum of ta_pq, and reinitialize z.
+                FOR (i, n)
+                {
+                    b[i] += z[i];
+                    d[i] = b[i];
+                    z[i] = 0.;
+                }
+            } // for iIter
+
+            // in practice, it pretty much always converges by 8 iterations
+            // (for up to an 11x11 matrix)
+            System.err.println("Too many iterations in routine jacobi");
+            return -1;
+        } // jacobi
+
+    // Find a matrix L such that L*transpose(L) = C.
+    public static int leftSqrtOfSymmetricMatrix(double result[][], boolean whichColumnsOfResultAreImaginary[], double C[][])
+    {
+        int n = C.length; // == C[0].length
+        assert(n == result.length);
+        double eigenValues[] = new double[n];
+        double eigenVectors[][] = new double[n][n]; // columns
+        double temp[][] = copymat(C); // since jacobi is destructive
+        int nRot = jacobi(temp, eigenValues, eigenVectors); // XXX not the most efficient when n is big (they say 10 or so)
+        if (nRot < 0)
+        {
+            // it failed; not much we can do
+            // XXX should return a more useful failure status though
+            if (result != null)
+                identitymat(result);
+            return -2;
+        }
+
+        if (true)
+        {
+            // check that it worked, i.e. that
+            //     C * eigenvectors = eigenVectors * diag(eigenValues)
+            double diagEigenValues[][] = identitymat(n);
+            int i;
+            FOR (i, n)
+                diagEigenValues[i][i] = eigenValues[i];
+            double A[][] = mxm(C, eigenVectors);
+            double B[][] = mxm(eigenVectors, diagEigenValues);
+            //PRINTMAT(C);
+            //PRINTVEC(eigenValues);
+            //PRINTMAT(eigenVectors);
+            //PRINTMAT(A);
+            //PRINTMAT(B);
+            int j;
+            FOR (i, n)
+            FOR (j, n)
+                assert(1. + SQR(A[i][j]-B[i][j]) == 1.);
+        }
+
+        // XXX if result is null, shouldn't do the sqrts and stuff in the
+        // XXX following loop
+
+        /*
+        PRINTVEC(eigenValues);
+        PRINTMAT(eigenVectors);
+        */
+
+        //PRINT(nRot);
+
+        int positiveDefiniteStatus = 1; // positive semidefinite until proven otherwise
+        int i;
+        FOR (i, n)
+        {
+            double eigenValue = eigenValues[i];
+            if (1.+SQR(eigenValue) == 1.)
+                positiveDefiniteStatus = MIN(positiveDefiniteStatus, 0); // borderline
+            else if (eigenValue < 0.)
+                positiveDefiniteStatus = -1; // definitely not positive semidefinite
+
+            double sqrtEigenValue;
+            if (whichColumnsOfResultAreImaginary != null)
+            {
+                if ((whichColumnsOfResultAreImaginary[i] = (eigenValue < 0.)) == true)
+                    sqrtEigenValue = Math.sqrt(-eigenValue);
+                else
+                    sqrtEigenValue = Math.sqrt(eigenValue);
+            }
+            else
+                sqrtEigenValue = Math.sqrt(MAX(eigenValue,0.));
+
+            // multiply column i by corrected eigenValue...
+            int j;
+            FOR (j, n)
+                eigenVectors[j][i] *= sqrtEigenValue;
+        }
+
+        copymat(result, eigenVectors);
+        return positiveDefiniteStatus;
+    } // leftSqrtOfSymmetricMatrix
+
+    /**
+     * From paper "The most general methodology to create a valid
+     * correlation matrix for risk management and option pricing purposes"
+     * by Riccardo Rebonato and Peter Jackel, October 19, 1999.
+     * <p>
+     * Returns -1 if it changed, 0 if on boundary (within some fuzzy tolerance),
+     * 1 if it didn't change.
+     * C is assumed to be symmetric and have 1's on the diagonal.
+     * <p>
+     * XXX maybe should just return the smallest eigenvalue before correction?
+     *     then the caller can decide what to do with it.
+     */
+    public static int positiveSemiDefinitizeWithUnitDiagonal(double result[][], boolean whichColumnsAreImaginary[], double C[][])
+    {
+        double B[][] = new double[result.length][result.length];
+        int positiveDefiniteStatus = leftSqrtOfSymmetricMatrix(B, whichColumnsAreImaginary, C);
+        if (positiveDefiniteStatus == -2)
+        {
+            // failed. XXX throw an exception?
+            identitymat(result);
+        }
+        else
+        {
+            if (whichColumnsAreImaginary == null)
+                correlate(result, B);
+        }
+        return positiveDefiniteStatus;
+    } // positiveSemiDefinitizeWithUnitDiagonal
+
+    /**
+     * XXX this is not used; I'm pretty sure it core dumps.
+     * <p>
+     * -1 = not positive semidefinite
+     * <br>
+     * 0 = positive semidefinite but not positive definite (within some fuzz)
+     * <br>
+     * 1 = positive definite
+     */
+    public static int positiveDefiniteness(double M[][])
+    {
+        return positiveSemiDefinitizeWithUnitDiagonal(null, null, M);
+    }
+
+    /** return the correlation matrix of the rows of V. */
+    public static void correlate(double result[][], double V[][])
+    {
+        double normalizedV[][] = new double[V.length][V.length==0?0:V[0].length];
+        normalizeRows(normalizedV, V);
+        mxm(result, normalizedV, transpose(normalizedV));
+    } // correlate
+
+    public static void normalizeRows(double result[][], double M[][])
+    {
+        int i, n = M.length;
+        FOR (i, n)
+            normalize(result[i], M[i]);
+    }
+
+    /** XXX leaves 0 as 0! may be unexpected in some cases */
+    public static void normalize(double result[], double v[])
+    {
+        double len = norm(v);
+        vxs(result, v, len==0. ? 1. : 1./len);
+    }
+
+    /** XXX can we make a general method that takes any kind of array? yes, @see Arrays class */
+    public static String toString(boolean v[])
+    {
+        if (v == null)
+            return "(null)";
+        int i, n = v.length;
+        String result = "<";
+        FOR (i, n)
+        {
+            result += v[i];
+            if (i < n-1)
+                result += ",";
+        }
+        result += ">";
+        return result;
+    }
+    public static String toString(int v[])
+    {
+        if (v == null)
+            return "(null)";
+        int i, n = v.length;
+        String result = "<";
+        FOR (i, n)
+        {
+            result += v[i];
+            if (i < n-1)
+                result += ",";
+        }
+        result += ">";
+        return result;
+    }
+    public static String toString(double v[])
+    {
+        if (v == null)
+            return "(null)";
+        int i, n = v.length;
+        String result = "<";
+        FOR (i, n)
+        {
+            result += v[i];
+            if (i < n-1)
+                result += ",";
+        }
+        result += ">";
+        return result;
+    }
+    public static String toString(Object v[])
+    {
+        if (v == null)
+            return "(null)";
+        int i, n = v.length;
+        String result = "<";
+        FOR (i, n)
+        {
+            result += v[i];
+            if (i < n-1)
+                result += ",";
+        }
+        result += ">";
+        return result;
+    }
+
+    public static String toString(double m[][])
+    {
+        return Arrays.toStringNonCompact(m, "", "    ");
+    }
+
+    public static String toString(int m[][])
+    {
+        return Arrays.toStringNonCompact(m, "", "    ");
+    }
+
+    /** XXX convert this to Arrays.toString! */
+    public static String toString(int m[][][], String bigSep, String littleSep)
+    {
+        if (m == null)
+            return "(null)";
+        String result = "";
+        int iLayer, nLayers = m.length;
+        FOR (iLayer, nLayers)
+        {
+            int iRow, nRows = m[iLayer].length;
+            FOR (iRow, nRows)
+            {
+                result += "    [";
+                int iCol, nCols = m[iLayer][iRow].length;
+                FOR (iCol, nCols)
+                {
+                    result += m[iLayer][iRow][iCol];
+                    if (iCol+1 < nCols)
+                        result += " ";
+                }
+                result += "]";
+                if (iRow+1 < nRows)
+                    result += littleSep;
+            }
+            if (iLayer+1 < nLayers)
+                result += bigSep;
+        }
+        return result;
+    } // toString(int [][][])
+    public static String toString(int m[][][])
+    {
+        return toString(m, "\n\n", "\n");
+        //return toString(m, "\n", "");
+    } // toString(int [][][])
+
+
+    // Versions which return a newly allocated array...
+    // These are more convenient but slower,
+    // and should not be called in compute-intensive inner loops.
+    // XXX JAVADOC GROUP
+
+        public static double[] vpv(double v0[], double v1[])
+        {
+            double result[] = new double[v0.length];
+            vpv(result, v0, v1);
+            return result;
+        }
+        public static int[] vpv(int v0[], int v1[])
+        {
+            int result[] = new int[v0.length];
+            vpv(result, v0, v1);
+            return result;
+        }
+        public static double[] sxv(double s, double v[])
+        {
+            double result[] = new double[v.length];
+            sxv(result, s, v);
+            return result;
+        }
+        public static int[] sxv(int s, int v[])
+        {
+            int result[] = new int[v.length];
+            sxv(result, s, v);
+            return result;
+        }
+        public static double[] xv2(double v[/*2*/])
+        {
+            double result[] = new double[2];
+            xv2(result, v);
+            return result;
+        }
+        public static double[] vmv(double v0[], double v1[])
+        {
+            double result[] = new double[v0.length];
+            vmv(result, v0, v1);
+            return result;
+        }
+        public static int[][] mmv(int M[][], int v[])
+        {
+            int result[][] = new int[M.length][v.length];
+            mmv(result, M, v);
+            return result;
+        }
+        public static double[][] mmv(double M[][], double v[])
+        {
+            double result[][] = new double[M.length][v.length];
+            mmv(result, M, v);
+            return result;
+        }
+        public static double[] lerp(double p0[], double p1[], double t)
+        {
+            double result[] = new double[p0.length];
+            lerp(result, p0, p1, t);
+            return result;
+        }
+        public static double[] bary(double p0[],
+                                    double p1[], double t1,
+                                    double p2[], double t2)
+        {
+            double result[] = new double[p0.length];
+            bary(result, p0, p1, t1, p2, t2);
+            return result;
+        }
+        public static double[] zerovec(int dim)
+        {
+            double result[] = new double[dim];
+            zerovec(result);
+            return result;
+        }
+        public static double[] fillvec(int dim, double s)
+        {
+            double result[] = new double[dim];
+            fillvec(result,s);
+            return result;
+        }
+        public static int[] fillvec(int dim, int s)
+        {
+            int result[] = new int[dim];
+            fillvec(result,s);
+            return result;
+        }
+        public static boolean[] fillvec(int dim, boolean s)
+        {
+            boolean result[] = new boolean[dim];
+            fillvec(result,s);
+            return result;
+        }
+        public static double[][] fillmat(int dim0, int dim1, double s)
+        {
+            double result[][] = new double[dim0][dim1];
+            fillmat(result,s);
+            return result;
+        }
+        public static double[] sum(double array[][])
+        {
+            if (array.length == 0)
+                return null;
+            double result[] = new double[array[0].length];
+            sum(result, array);
+            return result;
+        }
+        public static double[] average(double array[][])
+        {
+            if (array.length == 0)
+                return null;
+            double result[] = new double[array[0].length];
+            average(result, array);
+            return result;
+        }
+        public static double[] averageIndexed(int inds[][], double array[][])
+        {
+            if (array.length == 0)
+                return null;
+            double result[] = new double[array[0].length];
+            averageIndexed(result, inds, array);
+            return result;
+        }
+        public static double[/*2*/][] bboxIndexed(double array[][],
+                                                  Object inds)
+        {
+            if (array.length == 0)
+                return null; // XXX could be dangerous
+            double result[][] = new double[2][array[0].length];
+            bboxIndexed(result, array, inds);
+            return result;
+        }
+        public static double[/*2*/][] bboxUniform(double array[][])
+        {
+            if (array.length == 0)
+                return null; // XXX could be dangerous
+            double result[][] = new double[2][array[0].length];
+            bboxUniform(result, array);
+            return result;
+        }
+        public static double[/*2*/][] bbox(double array[][])
+        {
+            if (array.length == 0)
+                return null; // XXX could be dangerous
+            double result[][] = new double[2][array[0].length];
+            bbox(result, array);
+            return result;
+        }
+        public static double[/*2*/][] bboxIntersect(double bbox0[/*2*/][],
+                                                    double bbox1[/*2*/][])
+        {
+            double result[][] = new double[2][bbox0[0].length];
+            bboxIntersect(result, bbox0, bbox1);
+            return result;
+        }
+        public static double[/*2*/][] bboxUnion(double bbox0[/*2*/][],
+                                                double bbox1[/*2*/][])
+        {
+            double result[][] = new double[2][bbox0[0].length];
+            bboxUnion(result, bbox0, bbox1);
+            return result;
+        }
+
+        public static double[][] submat(double M[][], int inds[])
+        {
+            double result[][] = new double[inds.length][inds.length];
+            submat(result, M, inds);
+            return result;
+        }
+        public static double[][] identitymat(int n)
+        {
+            double result[][] = new double[n][n];
+            identitymat(result);
+            return result;
+        }
+        public static double[][] identitymat(int n, int m)
+        {
+            double result[][] = new double[n][m];
+            identitymat(result);
+            return result;
+        }
+        public static double[][] transpose(double M[][])
+        {
+            double result[][] = new double[M.length==0 ? 0 : M[0].length][M.length];
+            transpose(result, M);
+            return result;
+        }
+        public static double[][] copymat(double M[][])
+        {
+            double result[][] = new double[M.length][M.length==0 ? 0 : M[0].length];
+            copymat(result, M);
+            return result;
+        }
+        public static boolean[] copyvec(boolean v[])
+        {
+            boolean result[] = new boolean[v.length];
+            copyvec(result, v);
+            return result;
+        }
+        public static int[] copyvec(int v[])
+        {
+            int result[] = new int[v.length];
+            copyvec(result, v);
+            return result;
+        }
+        public static double[] copyvec(double v[])
+        {
+            double result[] = new double[v.length];
+            copyvec(result, v);
+            return result;
+        }
+        public static double[] getcolumn(double M[][], int iCol)
+        {
+            double result[] = new double[M.length];
+            getcolumn(result, M, iCol);
+            return result;
+        }
+        public static double[][] mxm(double m0[/*n*/][/*dotLength*/],
+                                     double m1[/*dotLength*/][/*m*/])
+        {
+#ifdef SOON_TO_BE_DEFUNCT_I_HOPE
+            int n = m0.length;
+            int dotLength = m1.length;
+            int m = (dotLength == 0 ? 0 : m1[0].length);
+
+            {
+                // XXX hack-- fix when I'm awake
+                if (dotLength != ROWLENGTH(m0))
+                {
+                    /*
+                    assumpt(dotLength == 4 && m0[0].length == 3);
+                    n = 4;
+                    m = 3;
+                    */
+                    assumpt(dotLength == m0[0].length+1);
+                    n = dotLength;
+                    m = m0[0].length;
+                }
+            }
+
+            double[][] result = new double[n][m];
+            mxm(result, m0, m1);
+            return result;
+#else // XXX not ready yet, messes up some operations like makeScaleMat
+            // XXX this may be row-tranform-centric, have to think about it
+            int nRows = m0.length;
+            int nCols = ROWLENGTH(m0);
+            double[][] result = new double[nRows][nCols];
+            mxm(result, m0, m1);
+            return result;
+#endif // DEFUNCT
+        }
+        // XXX duplicate code
+        public static int[][] mxm(int m0[/*n*/][/*dotLength*/],
+                                  int m1[/*dotLength*/][/*m*/])
+        {
+            int n = m0.length;
+            int dotLength = m1.length;
+            int m = (dotLength == 0 ? 0 : m1[0].length);
+            int[][] result = new int[n][m];
+            mxm(result, m0, m1);
+            return result;
+        }
+        public static double[] sxvpsxv(double s0, double v0[],
+                                       double s1, double v1[])
+        {
+            double[] result = new double[v0.length];
+            sxvpsxv(result, s0, v0, s1, v1);
+            return result;
+        }
+        public static double[][] mxs(double M[][], double s)
+        {
+            double result[][] = new double[M.length][M.length==0 ? 0 : M[0].length];
+            mxs(result, M, s);
+            return result;
+        }
+        public static double[] vxs(double v[], double s)
+        {
+            double result[] = new double[v.length];
+            vxs(result, v, s);
+            return result;
+        }
+        public static double[] vxm(double v[], double M[][])
+        {
+            double result[] = new double[M.length == 0 ? 0 : M[0].length];
+            vxm(result, v, M);
+            return result;
+        }
+        public static double[] mxv(double M[][], double v[])
+        {
+            double result[] = new double[M.length];
+            mxv(result, M, v);
+            return result;
+        }
+        public static double[] vpsxv(double v0[], double s1, double v1[])
+        {
+            double result[] = new double[v0.length];
+            vpsxv(result, v0, s1, v1);
+            return result;
+        }
+        public static int[] vpsxv(int v0[], int s1, int v1[])
+        {
+            int result[] = new int[v0.length];
+            vpsxv(result, v0, s1, v1);
+            return result;
+        }
+        public static double[][] mpv(double m[][], double v[])
+        {
+            double result[][] = new double[m.length][ROWLENGTH(m)];
+            mpv(result, m, v);
+            return result;
+        }
+        public static int[][] mpv(int m[][], int v[])
+        {
+            int result[][] = new int[m.length][ROWLENGTH(m)];
+            mpv(result, m, v);
+            return result;
+        }
+
+        public static double[][] invertmat(double M[][])
+        {
+            double result[][] = new double[M.length][M.length==0 ? 0 : M[0].length];
+            invertmat(result, M);
+            return result;
+        }
+        public static double[] invmxv(double M[][], double v[])
+        {
+            double result[] = new double[M.length];
+            invmxv(result, M, v);
+            return result;
+        }
+
+        public static double[] vxv3(final double v1[/*3*/], final double v2[/*3*/])
+        {
+            double result[] = new double[3];
+            vxv3(result, v1, v2);
+            return result;
+        }
+
+        public static double[] crossprod(double vectors[][])
+        {
+            double result[] = new double[vectors.length+1];
+            crossprod(result, vectors);
+            return result;
+        }
+
+        public static double[] random(int dim)
+        {
+            double result[] = new double[dim];
+            random(result);
+            return result;
+        }
+        public static double[] random(int dim, java.util.Random generator)
+        {
+            double result[] = new double[dim];
+            random(result, generator);
+            return result;
+        }
+
+
+        public static double[][] makeRowTransMat(double translate[])
+        {
+            double result[][] = new double[translate.length+1][translate.length];
+            makeRowTransMat(result, translate);
+            return result;
+        }
+
+        public static double[][] makeRowTransMatInv(double translate[])
+        {
+            double result[][] = new double[translate.length+1][translate.length];
+            makeRowTransMatInv(result, translate);
+            return result;
+        }
+
+        public static double[][] makeRowTransMat(double x, double y, double z)
+        {
+            return makeRowTransMat(new double[] {x, y, z});
+        }
+
+        public static double[][] makeRowTransMatInv(double x, double y, double z)
+        {
+            return makeRowTransMatInv(new double[] {x, y, z});
+        }
+
+        public static double[][] makeRowScaleMat(double scale[])
+        {
+            double result[][] = new double[scale.length+1][scale.length];
+            makeRowScaleMat(result, scale);
+            return result;
+        }
+        public static double[][] makeRowScaleMat(double scale[],
+                        double tiePointIn[],
+                        double tiePointOut[])
+        {
+            double M[][] = makeRowScaleMat(scale);
+            if (tiePointIn != null)
+                M = mxm(makeRowTransMatInv(tiePointIn), M); // move in to 0
+            if (tiePointOut != null)
+                M = mxm(M, makeRowTransMat(tiePointOut));   // move 0 to out
+            return M;
+        }
+        public static double[][] makeRowScaleMat(double scale[],
+                        double fixedPoint[])
+        {
+            return makeRowScaleMat(scale, fixedPoint, fixedPoint);
+        }
+        public static double[][] makeRowScaleMat(int n, double scale,
+                        double tiePointIn[],
+                        double tiePointOut[])
+        {
+            return makeRowScaleMat(fillvec(n,scale),tiePointIn,tiePointOut); // XXX not the most efficient way to do this
+        }
+        public static double[][] makeRowScaleMat(int n, double scale,
+                                                 double fixedPoint[])
+        {
+            return makeRowScaleMat(n,scale,fixedPoint,fixedPoint);
+        }
+        public static double[][] makeRowScaleMat(int n, double scale)
+        {
+            return makeRowScaleMat(n,scale,null,null);
+        }
+        public static double[][] makeRowScaleMat(double x, double y, double z)
+        {
+            return makeRowScaleMat(new double[]{x,y,z},null,null);
+        }
+
+
+
+
+        public static double[][] makeRowRotMat(int n, int fromAxis, int toAxis, double radians)
+        {
+            double result[][] = new double[n][n];
+            makeRowRotMat(result, fromAxis, toAxis, radians);
+            return result;
+        }
+
+        public static double[][] makeRowRotMat(int n, int fromAxis, int toAxis, double radians,
+                double tiePointIn[],
+                double tiePointOut[])
+        {
+            double M[][] = makeRowRotMat(n, fromAxis, toAxis, radians);
+            if (tiePointIn != null)
+                M = mxm(makeRowTransMatInv(tiePointIn), M);
+            if (tiePointOut != null)
+                M = mxm(M, makeRowTransMat(tiePointOut));
+            return M;
+        }
+
+        public static double[][] makeRowRotMat(int n, int fromAxis, int toAxis, double radians, double fixedPoint[])
+        {
+            return makeRowRotMat(n, fromAxis, toAxis, radians, fixedPoint, fixedPoint);
+        }
+
+        public static double[][] makeRowRotMat(double radians, double fixedAxes[/*n-2*/][])
+        {
+            int nFixedAxes = fixedAxes.length;
+            int n = (nFixedAxes == 0 ? 2 : fixedAxes[0].length);
+            assert(nFixedAxes == n-2);
+
+            assumpt(n == 3); // and so nFixedAxes == 0
+
+            double fixedAxis[] = fixedAxes[0];
+
+            double rotPlusZToFixedAxis[][];
+            {
+                rotPlusZToFixedAxis = new double[3][3];
+                VecMath.copyvec(rotPlusZToFixedAxis[2], fixedAxis);
+                VecMath.normalize(rotPlusZToFixedAxis[2], rotPlusZToFixedAxis[2]);
+                int mini = VecMath.mini(fixedAxis);
+                VecMath.zerovec(rotPlusZToFixedAxis[1]);
+                rotPlusZToFixedAxis[1][mini] = 1.;
+
+                VecMath.vxv3(rotPlusZToFixedAxis[0],
+                             rotPlusZToFixedAxis[1],
+                             rotPlusZToFixedAxis[2]);
+                VecMath.normalize(rotPlusZToFixedAxis[0], rotPlusZToFixedAxis[0]);
+                VecMath.vxv3(rotPlusZToFixedAxis[1],
+                             rotPlusZToFixedAxis[2],
+                             rotPlusZToFixedAxis[0]);
+            }
+
+            return mxmxm(VecMath.transpose(rotPlusZToFixedAxis),
+                         makeRowRotMat(3, 0, 1, radians),
+                         rotPlusZToFixedAxis);
+        } // makeRowRotMat around axis
+
+        /**
+         * Compute a matrix M
+         * such that inTiePoints * M = outTiePoints.
+         * <br>
+         * I.e.
+         * <br>
+         *      M = inTiePoints^-1 * outTiePoints.
+         */
+        public static double[/*dim+1*/][/*dim*/] makeRowTiePointMat(
+                               double inTiePoints[][],
+                               double outTiePoints[][])
+        {
+            assumpt(inTiePoints.length > 0); // XXX could fix this if I had an attention span, maybe
+
+            int dim = inTiePoints[0].length;
+            assumpt(inTiePoints.length == dim+1);
+            assumpt(outTiePoints[0].length == dim);
+            assumpt(outTiePoints.length == dim+1);
+
+            // Do it using padding inTiePoints to homogeneous coords,
+            // so I don't have to think.
+            double inPadded[][] = VecMath.fillmat(dim+1,dim+1, 1.);
+            VecMath.copymat(inPadded, inTiePoints); // using the smaller of the two sizes
+            double Mpadded[][] = VecMath.mxm(VecMath.invertmat(inPadded),
+                                             outTiePoints);
+            double M[][] = new double[dim+1][dim];
+            VecMath.copymat(M, Mpadded); // using the smaller of the two sizes
+            return M;
+        } // makeRowTiePointMat
+
+
+        /** Flattens the rows of matrix M into a single vector. */
+        public static double[] flatten(double M[][])
+        {
+            return (double[])Arrays.flatten(M, 0, 2); // flatten 2 dimensions into 1
+        }
+
+        public static double[][] mxmxm(double A[][], double B[][], double C[][])
+        {
+            return mxm(mxm(A,B),C);
+        }
+        public static double[][] mxmxmxm(double A[][], double B[][], double C[][], double D[][])
+        {
+            return mxm(mxmxm(A,B,C),D);
+        }
+        public static double[] vxmxm(double a[], double B[][], double C[][])
+        {
+            // left-to-right to avoid matrix multiplication
+            return vxm(vxm(a,B),C);
+        }
+
+
+        public static int permutationSignDestructive(int perm[])
+        {
+            int sign = 1;
+            int permi;
+            int n = perm.length;
+            FORI (i, n)
+            {
+                permi = perm[i];
+                while (permi != i)
+                {
+                    // swap permi with perm[permi]...
+                    {
+                        // order dependent-- very subtle!
+                        // (I tried using SWAP but it bombed)
+                        int temp = perm[permi];
+                        perm[permi] = permi;
+                        permi = temp;
+                    }
+                    sign = -sign;
+                }
+            }
+            return sign;
+        } // permutationSignDestructive
+
+        public static boolean isIdentityPerm(int perm[])
+        {
+            FORIDOWN (i, perm.length)
+                if (perm[i] != i)
+                    return false;
+            return true;
+        }
+        public static void identityperm(int perm[])
+        {
+            FORIDOWN (i, perm.length)
+                perm[i] = i;
+        } // identityperm
+        public static int[] identityperm(int n)
+        {
+            int result[] = new int[n];
+            identityperm(result);
+            return result;
+        } // identityperm
+        public static void randomperm(int perm[], java.util.Random generator)
+        {
+            identityperm(perm);
+            Arrays.shuffle(perm, generator);
+        } // randomperm
+        public static int[] randomperm(int n, java.util.Random generator)
+        {
+            int result[] = new int[n];
+            randomperm(result, generator);
+            return result;
+        } // randomperm
+
+        public static void invertperm(int result[], int perm[])
+        {
+            assumpt(result != perm);
+            int n = MIN(result.length, perm.length);
+            FORIDOWN (i, n)
+                result[perm[i]] = i;
+        } // invertperm
+        public static int[] invertperm(int perm[])
+        {
+            int result[] = new int[perm.length];
+            invertperm(result, perm);
+            return result;
+        } // invertperm
+
+        /**
+         * Compose lookup tables (e.g. perms).
+         * <br>
+         * lut0[lut1[i]] = composeluts(lut0,lut1)[i]
+         */
+        public static void composeluts(int result[],
+                                       int lut0[],
+                                       int lut1[])
+        {
+            int n = lut1.length;
+            assert(n == result.length);
+            FORI (i, n)
+                result[i] = lut0[lut1[i]];
+        } // composeluts
+        /**
+         * Compose lookup tables (e.g. perms).
+         * <br>
+         * lut0[lut1[i]] = composeluts(lut0,lut1)[i]
+         */
+        public static int[] composeluts(int lut0[],
+                                        int lut1[])
+        {
+            int result[] = new int[lut1.length];
+            composeluts(result, lut0, lut1);
+            return result;
+        } // composeluts
+
+
+
+
+
+
+    /**
+     * Test some stuff...
+     */
+    static void main(String args[])
+    {
+        if (args.length < 1)
+        {
+            System.err.println("Usage: VecMath <maxdim> [<expr>]");
+            System.exit(1);
+        }
+
+        int mindim = 2; // XXX change this to 0
+        int maxdim = Integer.parseInt(args[0]);
+
+        for (int dim = mindim; dim <= maxdim; ++dim)
+        {
+            {
+                double M[][] = new double[dim][dim];
+                double a[] = new double[dim];
+                double b[] = new double[dim];
+                double x[] = new double[dim];
+                FORI (i, dim)
+                    random(M[i]);
+                random(a);
+
+
+                mxv(b,M,a);
+                invmxv(x,M,b);
+
+                PRINTMAT(M);
+                PRINTVEC(a);
+                PRINTVEC(b);
+                PRINTVEC(x);
+            }
+
+            if (dim >= 1)
+            {
+                double vectors[][] = new double[dim-1][dim];
+                identitymat(vectors);
+                PRINTMAT(vectors);
+                PRINTVEC(crossprod(vectors));
+            }
+        }
+
+    } // main
+
+} // class VecMath
