@@ -2,22 +2,31 @@
 
 package com.donhatchsw.util;
 
-//
-// Hyperbolic and inverse hyperbolic trig functions,
-// and expm1 and log1p,
-// and hypot.
-// All stuff that should be in the standard math library.
-//
+/**
+*
+* Robust implementations of hyperbolic and inverse hyperbolic trig functions,
+* and expm1 and log1p,
+* and hypot; all stuff that should be in the standard math library.
+* <br>
+* For explanations of the robust algorithms used, see:
+* <a href="http://plunk.org/~hatch/rightway.php">http://plunk.org/~hatch/rightway.php</a>
+*/
 //#ifdef __java
 
 public class MyMath
 {
-    //
-    // exp(x)-1, accurate even when x is small.
-    // This was found in: http://www.cs.berkeley.edu/~wkahan/Math128/Sumnfp.pdf
-    // Achieves "nearly full working relative accuracy despite cancellation
-    // no matter how tiny x may be".
-    //
+    private MyMath() {} // non-instantiatable
+
+    /**
+    * exp(x)-1, accurate even when x is small.
+    */
+   /* This was found in:
+    * <a href="http://www.cs.berkeley.edu/~wkahan/Math128/Sumnfp.pdf">
+    * http://www.cs.berkeley.edu/~wkahan/Math128/Sumnfp.pdf</a>
+    * <br>
+    * Achieves "nearly full working relative accuracy despite cancellation
+    * no matter how tiny x may be".
+    */
     public static double
     expm1(double x)
     {
@@ -29,11 +38,14 @@ public class MyMath
         return (u-1.)*x/Math.log(u);
     }
 
-    //
-    // log(1+x), accurate even when x is small.
-    // From gsl (gnu scientific library),
-    // distributed under GPL version 2.
-    // 
+    /**
+    *  log(1+x), accurate even when x is small.
+    */
+    /*
+    *  Found in gsl (gnu scientific library),
+    *  distributed under GPL version 2,
+    *  but I'm sure it's from Kahan too.
+    */
     public static double
     log1p(double x)
     {
@@ -79,6 +91,7 @@ this function when it should be very fast.
 http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     */
 
+    /** hyperbolic sine function */
     public static double
     sinh(double x)
     {
@@ -89,6 +102,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return .5 * u / (u+1) * (u+2); // ordered to avoid overflow when big
     }
 
+    /** hyperbolic cosine function */
     public static double
     cosh(double x)
     {
@@ -99,7 +113,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return (e_x + 1./e_x) * .5;
     }
 
-    // cosh(x)-1, accurate even when x is small.
+    /** cosh(x)-1, accurate even when x is small. */
     public static double
     coshm1(double x)
     {
@@ -112,6 +126,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return .5 * u / (u+1) * u; // ordered to avoid overflow when big
     }
 
+    /** hyperbolic tangent function */
     public static double
     tanh(double x)
     {
@@ -131,6 +146,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     }
 
 
+    /** inverse hyperboiic sine function */
     public static double
     asinh(double x)
     {
@@ -143,6 +159,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return log1p(x * (1. + x / (Math.sqrt(x*x+1.)+1.)));
     }
 
+    /** inverse hyperbolic cosine function */
     public static double
     acosh(double x)
     {
@@ -156,6 +173,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return 2 * Math.log(Math.sqrt((x+1)*.5) + Math.sqrt((x-1)*.5));
     }
 
+    /** inverse hyperbolic tangent function */
     public static double
     atanh(double x)
     {
@@ -168,21 +186,21 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return .5 * log1p(2.*x/(1.-x));
     }
 
-    // 1-cos(x), doesn't lose accuracy for small x
+    /** 1-cos(x), doesn't lose accuracy for small x */
     public static double
     cosf1(double x)
     {
         double sinHalfX = Math.sin(.5*x);
         return 2.*sinHalfX*sinHalfX;
     }
-    // acos(1-x), doesn't lose accuracy for small x
+    /** acos(1-x), doesn't lose accuracy for small x */
     public static double
     acos1m(double x)
     {
         return 2.*Math.asin(Math.sqrt(.5*x));
     }
 
-    // sin(x)/x, but stable when small
+    /** sin(x)/x, but stable when small */
     public static double
     sin_over_x(double x)
     {
@@ -200,7 +218,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             return Math.sin(x)/x;
     }
 
-    // asin(x)/x, but stable when small
+    /** asin(x)/x, but stable when small */
     public static double
     asin_over_x(double x)
     {
@@ -212,7 +230,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     }
 
 
-    // (1-cos(x))/x, but stable when small
+    /** (1-cos(x))/x, but stable when small */
     public static double
     cosf1_over_x(double x)
     {
@@ -239,6 +257,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             return cosf1(x) / x;
     }
 
+    /** sqrt(x*x + y*y) but overflow/underflow proof. */
     public static double hypot(double x, double y)
     {
         x = Math.abs(x);

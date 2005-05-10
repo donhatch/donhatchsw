@@ -6,6 +6,7 @@
 // Arrays.prejava
 //
 // Author: Don Hatch (hatch@plunk.org)
+// This code may be used for any purpose as long as it is good and not evil.
 //
 
 package com.donhatchsw.util;
@@ -13,8 +14,16 @@ package com.donhatchsw.util;
 #include "macros.h"
 
 /**
- * Some common operations on multidimensional arrays.
+ * Some common operations on multidimensional arrays:
+ * copying, appending, concatenation, flattening, sub-arrays, slicing, indexing,
+ * shuffling, and conversion to and from string representations.
  * <p>
+ * Reflection and recursion are used to obtain fully general functions
+ * that work for ragged arrays of any number of dimensions.
+ */
+
+/* not in javadoc for now */
+/* <p>
  * XXX should be made to throw appropriate exceptions on illegal arguments (currently some are asserts and some are not checked)
  * <p>
  * XXX wish list for more:
@@ -1046,6 +1055,13 @@ public final class Arrays
 
 
 
+    /**
+     * Text format for parsing arrays.
+     * This is rather awkward to use by itself;
+     * the most convenient way to print or parse a single array
+     * is by using Arrays.toString(Object array) for printing,
+     * or Arrays.fromString(String s) for parsing.
+     */
     public static class ArrayFormat
         extends java.text.Format
     {
@@ -1401,10 +1417,13 @@ public final class Arrays
 
     } // class ArrayFormat
 
-    /**
+    /*
      * XXX is there a different kind of ParseException that is a subclass of RuntimeException? java.lang.NumberFormatException? should use that instead? drat, it doesn't give a position, but could just encode that in the string.
      * <br>
      * XXX this is a retarded place to put this comment
+     */
+    /**
+     * Runs a few sanity tests on various Arrays class functions.
      */
     public static void main(String args[])
     {

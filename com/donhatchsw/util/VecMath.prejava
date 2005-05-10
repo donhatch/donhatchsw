@@ -1,7 +1,10 @@
+/*
+* Copyright (c) 2005 Don Hatch Software
+*/
 //
 // VecMath.prejava
 //
-// Author: Don Hatch (hatch@hadron.org)
+// Author: Don Hatch (hatch@plunk.org)
 // This code may be used for any purpose as long as it is good and not evil.
 //
 
@@ -12,8 +15,17 @@ package com.donhatchsw.util;
 #define ROWLENGTH(M) ((M).length==0 ? 0 : (M)[0].length) // XXX still lots of places we should use this and don't
 
 /**
- * Some common operations on vectors and matrices.
- * <br>
+ * Some common operations on vectors and matrices,
+ * using an array representation.
+ * <p>
+ * Most of the vector and matrix arithmetic operations
+ * have two forms: a fast version in which the caller supplies
+ * the result vector or matrix, and a more convenient but slower version
+ * which returns a newly allocated result.
+ */
+
+/* not in javadoc, for now */
+/*
  * XXX JAVADOC there are some parameter comments that should be converted to javadoc
  */
 public final class VecMath
@@ -21,56 +33,66 @@ public final class VecMath
     private VecMath() {} // uninstantiatable
 
 
+    /** vector plus vector */
     public static void vpv(double result[], double v0[], double v1[])
     {
         FORIDOWN (i, v0.length)
             result[i] = v0[i] + v1[i];
     }
+    /** vector plus vector */
     public static void vpv(int result[], int v0[], int v1[])
     {
         FORIDOWN (i, v0.length)
             result[i] = v0[i] + v1[i];
     }
+    /** vector minus vector */
     public static void vmv(double result[], double v0[], double v1[])
     {
         FORIDOWN (i, v0.length)
             result[i] = v0[i] - v1[i];
     }
+    /** vector minus vector */
     public static void vmv(int result[], int v0[], int v1[])
     {
         FORIDOWN (i, v0.length)
             result[i] = v0[i] - v1[i];
     }
 
+    /** vector times scalar */
     public static void vxs(double result[], double v[], double s)
     {
         FORIDOWN (i, v.length)
             result[i] = v[i] * s;
     }
 
+    /** matrix times scalar */
     public static void mxs(double result[][], double M[][], double s)
     {
         FORIDOWN (i, M.length)
             if (result[i] != null)
                 vxs(result[i], M[i], s);
     }
+    /** matrix times scalar */
     public static void mxs(double result[][][], double M[][][], double s)
     {
         FORIDOWN (i, M.length)
             mxs(result[i], M[i], s);
     }
+    /** matrix times scalar */
     public static void mxs(double result[][][][], double M[][][][], double s)
     {
         FORIDOWN (i, M.length)
             mxs(result[i], M[i], s);
     }
 
+    /** scalar times vector */
     public static void sxv(double result[], double s, double v[])
     {
         FORIDOWN (i, v.length)
             result[i] = s * v[i];
     }
 
+    /** scalar times vector */
     public static void sxv(int result[], int s, int v[])
     {
         FORIDOWN (i, v.length)
@@ -88,6 +110,7 @@ public final class VecMath
     {
         return v[0]*w[1] - v[1]*w[0];
     }
+    /** 3-dimensional cross product */
     public static void vxv3(double v0[/*3*/], final double v1[/*3*/], final double v2[/*3*/])
     {
         v0[0] = v1[1]*v2[2] - v1[2]*v2[1];
@@ -101,6 +124,7 @@ public final class VecMath
              + v0[1] * (v1[2]*v2[0] - v1[0]*v2[2])
              + v0[2] * (v1[0]*v2[1] - v1[1]*v2[0]);
     }
+    /** n-dimensional cross product of n-1 n-dimensional vectors */
     public static void crossprod(double result[/*dim*/], double vectors[/*dim-1*/][/*dim*/])
     {
         int dim = result.length;
@@ -149,6 +173,7 @@ public final class VecMath
     } // crossprod
 
 
+    /** vector plus (scalar times vector) */
     public static void vpsxv(double result[], double v0[],
                                               double s1, double v1[])
     {
@@ -156,6 +181,7 @@ public final class VecMath
             result[i] = v0[i] + s1*v1[i];
     }
 
+    /** vector plus (scalar times vector) */
     public static void vpsxv(int result[], int v0[],
                                            int s1, int v1[])
     {
@@ -163,12 +189,14 @@ public final class VecMath
             result[i] = v0[i] + s1*v1[i];
     }
 
+    /** vector plus vector minus vector */
     public static void vpvmv(double result[], double v0[], double v1[], double v2[])
     {
         FORIDOWN (i, v0.length)
             result[i] = v0[i] + (v1[i] - v2[i]);
     }
 
+    /** (scalar times vector) plus (scalar times vector) */
     public static void sxvpsxv(double result[], double s0, double v0[],
                                                 double s1, double v1[])
     {
@@ -176,6 +204,7 @@ public final class VecMath
             result[i] = s0*v0[i] + s1*v1[i];
     }
 
+    /** matrix plus matrix */
     public static void mpm(Object result, Object M0, Object M1)
     {
         if (result instanceof int[])
@@ -192,6 +221,7 @@ public final class VecMath
         }
     } // mpm
 
+    /** matrix minus matrix */
     public static void mmm(Object result, Object M0, Object M1)
     {
         if (result instanceof int[])
@@ -281,11 +311,13 @@ public final class VecMath
 
 
 
+    /** linear interpolation between vectors */
     public static void lerp(double result[], double p0[], double p1[], double t)
     {
         FORIDOWN (i, p0.length)
             result[i] = p0[i] + t*(p1[i]-p0[i]);
     }
+    /** barycentric interpolation between vectors */
     public static void bary(double result[],
                             double p0[],
                             double p1[], double t1,
@@ -424,66 +456,77 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
 
 
+    /** copy vector */
     public static void copyvec(boolean result[], boolean v[])
     {
         FORIDOWN (i, MIN(result.length,v.length))
             result[i] = v[i];
     }
 
+    /** copy vector */
     public static void copyvec(int result[], int v[])
     {
         FORIDOWN (i, MIN(result.length,v.length))
             result[i] = v[i];
     }
 
+    /** copy vector */
     public static void copyvec(double result[], double v[])
     {
         FORIDOWN (i, MIN(result.length,v.length))
             result[i] = v[i];
     }
 
+    /** set column of a matrix */
     public static void setcolumn(double M[][], int iCol, double v[])
     {
         FORIDOWN (iRow, MIN(M.length,v.length))
             M[iRow][iCol] = v[iRow];
     }
 
+    /** get column of a matrix */
     public static void getcolumn(double v[], double M[][], int iCol)
     {
         FORIDOWN(iRow, MIN(v.length,M.length))
             v[iRow] = M[iRow][iCol];
     }
 
+    /** fill vector with a constant scalar */
     public static void fillvec(double result[], double s)
     {
         FORIDOWN (i, result.length)
             result[i] = s;
     }
 
+    /** fill vector with a constant scalar */
     public static void fillvec(int result[], int s)
     {
         FORIDOWN (i, result.length)
             result[i] = s;
     }
 
+    /** fill vector with a constant scalar */
     public static void fillvec(boolean result[], boolean s)
     {
         FORIDOWN (i, result.length)
             result[i] = s;
     }
 
+    /** fill matrix with a constant scalar */
     public static void fillmat(double result[][], double s)
     {
         FORIDOWN (i, result.length)
             fillvec(result[i], s);
     }
 
+    /** fill matrix with a constant scalar */
     public static void fillmat(boolean result[][], boolean s)
     {
         FORIDOWN (i, result.length)
             fillvec(result[i], s);
     }
 
+    /** fill matrix with a constant scalar */
     public static void copymat(double result[][], double m[][])
     {
         FORIDOWN (i, MIN(result.length, m.length))
@@ -491,23 +534,27 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 result[i][j] = m[i][j];
     }
 
+    /** zero a matrix */
     public static void zerovec(double result[])
     {
         FORIDOWN (i, result.length)
             result[i] = (double)0;
     }
     // XXX duplicate code
+    /** zero a matrix */
     public static void zerovec(int result[])
     {
         FORIDOWN (i, result.length)
             result[i] = (int)0;
     }
+    /** zero a matrix */
     public static void zeromat(double result[][])
     {
         FORIDOWN (i, result.length)
             zerovec(result[i]);
     }
 
+    /** vector dot product */
     public static double dot(double v0[], double v1[])
     {
         double result = 0.;
@@ -517,6 +564,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     // XXX duplicate code below
+    /** row vector times matrix */
     public static void vxm(double result[], double v[], double m[][])
     {
         assumpt(result != v);
@@ -530,6 +578,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // vxm double
 
     // XXX duplicate code above
+    /** row vector times matrix */
     public static void vxm(int result[], int v[], int m[][])
     {
         assumpt(result != v);
@@ -551,6 +600,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     // XXX in the former case we pad the left one with 1 1 1 1;
     // XXX in the latter case we pad the left one with 0 0 0 1 !!!
     // XXX Need two separate functions!
+    /** matrix times matrix */
     public static void mxm(double result[/*n*/][/*m*/],
                            double m0[/*n*/][/*dotLength*/],
                            double m1[/*dotLength*/][/*m*/])
@@ -607,6 +657,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // mxm
 
     // XXX duplicate code above
+    /** matrix times matrix */
     public static void mxm(int result[/*n*/][/*m*/],
                            int m0[/*n*/][/*dotLength*/],
                            int m1[/*dotLength*/][/*m*/])
@@ -616,6 +667,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             vxm(result[i], m0[i], m1);
     } // mxm
 
+    /** matrix times column vector */
     public static void mxv(double result[], double m[][], double v[])
     {
         assumpt(result != v);
@@ -645,6 +697,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 v[i] = (2.*Math.random() - 1.);
         while (normsqrd(v) > 1);
     }
+    /** return a random vector with length <= 1. */
     public static void random(double v[], java.util.Random generator)
     {
         do
@@ -653,6 +706,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         while (normsqrd(v) > 1);
     }
 
+    /** vector distance squared */
     public static double distsqrd(double v0[], double v1[])
     {
         double result = 0.;
@@ -663,20 +717,24 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
         return result;
     }
+    /** vector distance */
     public static double dist(double v0[], double v1[])
     {
         return Math.sqrt(distsqrd(v0, v1));
     }
 
+    /** vector norm (length) squared */
     public static double normsqrd(double v[])
     {
         return dot(v,v);
     }
+    /** vector norm (length) */
     public static double norm(double v[])
     {
         return Math.sqrt(dot(v,v));
     }
 
+    /** returns index of least element */
     public static int mini(double v[])
     {
         int mini = -1;
@@ -691,6 +749,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
         return mini;
     }
+    /** returns index of greatest element */
     public static int maxi(double v[])
     {
         int maxi = -1;
@@ -706,6 +765,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return maxi;
     }
 
+    /** returns minimum element */
     public static double min(double v[])
     {
         double min = Double.POSITIVE_INFINITY;
@@ -713,6 +773,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             min = Math.min(min, v[i]);
         return min;
     }
+    /** returns maximum element */
     public static double max(double v[])
     {
         double max = Double.NEGATIVE_INFINITY;
@@ -721,6 +782,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return max;
     }
 
+    /** sum of elements */
     public static double sum(double v[])
     {
         double sum = 0.;
@@ -728,10 +790,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             sum += v[i];
         return sum;
     }
+    /** average of elements */
     public static double average(double array[])
     {
         return sum(array) / array.length;
     }
+    /** product of elements, not using log (fast) */
     public static double productNotUsingLog(double array[])
     {
         double product = 1.;
@@ -739,6 +803,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             product *= array[i];
         return product;
     }
+    /** product of elements, using log to avoid over/underflow (slow) */
     public static double productUsingLog(double array[])
     {
         double logProd = 0.;
@@ -746,6 +811,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             logProd += Math.log(array[i]);
         return Math.exp(logProd / array.length);
     }
+    /** geometric average of elements */
     public static double geomAverage(double array[])
     {
         double logProd = 0.;
@@ -754,28 +820,33 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return Math.exp(logProd / array.length);
     }
 
+    /** vector sum of vectors (array rows) */
     public static void sum(double result[], double array[][])
     {
         zerovec(result);
         FORIDOWN (i, array.length)
             vpv(result, result, array[i]);
     }
+    /** vector average of vectors (array rows) */
     public static void average(double result[], double array[][])
     {
         sum(result, array);
         vxs(result, result, 1./array.length);
     }
+    /** vector sum of indexed list into array of vectors */
     public static void sumIndexed(double result[], int inds[], double array[][])
     {
         zerovec(result);
         FORIDOWN (i, inds.length)
             vpv(result, result, array[inds[i]]);
     }
+    /** vector average of indexed list into array of vectors */
     public static void averageIndexed(double result[], int inds[], double array[][])
     {
         sumIndexed(result, inds, array);
         vxs(result, result, 1./inds.length);
     }
+    /** vector average of two-dimensional indexed list into array of vectors */
     public static void averageIndexed(double result[], int inds[][], double array[][])
     {
         int totalInds = 0;
@@ -792,10 +863,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         vxs(result, result, 1./totalInds);
     }
 
-    // Compute the array of sums-- each element of result
-    // is the sum of the box starting at index 0,0,...0
-    // up to and including the given index.
-    // result is allowed to be the same as from.
+    /**
+    *  Compute the array of sums-- each element of result
+    *  is the sum of the box starting at index 0,0,...0
+    *  up to and including the given index.
+    *  result is allowed to be the same as from.
+    */
     public static void integrate(Object result, Object from)
     {
         if (result instanceof int[])
@@ -834,8 +907,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // integrate
 
-    // Inverse of the integrate function.
-    // result is allowed to be the same as from.
+    /**
+    *  Inverse of the integrate function.
+    *  result is allowed to be the same as from.
+    */
     public static void differentiate(Object result, Object from)
     {
         if (result instanceof int[])
@@ -896,6 +971,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 }
             }
         } // _bboxIndexed
+    /** bounding box of multidimensional indexed list into an array of points */
     public static void bboxIndexed(double result[/*2*/][],
                                    double coords[][],
                                    Object inds) // array of ints, dim >= 1
@@ -906,6 +982,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
     } // bboxIndexed
 
+    /** bounding box of an array of points */
     public static void bbox(double result[/*2*/][], double array[][])
     {
         FORIDOWN (i, result[0].length)
@@ -921,6 +998,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     }
 
+    /** uniform (i.e. square, cube, etc.) bounding box of array of points */
     public static void bboxUniform(double bbox[/*2*/][], double array[][])
     {
         bbox(bbox, array);
@@ -932,6 +1010,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         vpsxv(bbox[1], bboxCenter,  .5, bboxDims);
     }
 
+    /** intersect two boxes */
     public static void bboxIntersect(double result[/*2*/][],
                                      double bbox0[/*2*/][],
                                      double bbox1[/*2*/][])
@@ -944,6 +1023,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     }
 
+    /** bounding box of union of two boxes */
     public static void bboxUnion(double result[/*2*/][],
                                  double bbox0[/*2*/][],
                                  double bbox1[/*2*/][])
@@ -956,6 +1036,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     }
 
+    /** whether bbox (including boundary) contains point, within tolerance eps */
     public static boolean closedBBoxContains(double bbox[/*2*/][],
                                              double point[],
                                              double eps)
@@ -965,6 +1046,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return false;
         return true;
     }
+    /** whether bbox (exluding boundary) contains point, within tolerance eps */
     public static boolean bboxInteriorContains(double bbox[/*2*/][],
                                                double point[],
                                                double eps)
@@ -976,6 +1058,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
 
+    /** transpose matrix */
     public static void transpose(double result[][], double M[][])
     {
         assumpt(result != M);
@@ -1205,6 +1288,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // gaussj
 
+    /** invert matrix */
     public static void invertmat(double result[][], double M[][])
     {
         int nRows = M.length;
@@ -1253,6 +1337,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // invertmat
 
+    /** destructive matrix determinant (destroys the contents of M in the process) */
     public static double detDestructive(double M[][])
     {
         int n = M.length;
@@ -1292,6 +1377,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return 0.; // XXX not sure this is really exceptional, but...
         }
     } // detDestructive
+    /** matrix determinant */
     public static double det(double M[][])
     {
         int n = M.length;
@@ -1323,6 +1409,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // det
 
 
+    /** matrix inverse times column vector */
     public static void invmxv(double result[], double M[][], double b[])
     {
         int n = result.length;
@@ -1369,6 +1456,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // invmxv
 
+    /** matrix inverse times matrix */
     public void invmxm(double result[][], double M[][], double B[][])
     {
         int n = result.length;
@@ -1398,11 +1486,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // invmxm
 
+    /** row vector times matrix inverse */
     public void vxinvm(double result[], double v[], double M[][])
     {
         invmxv(result, transpose(M), v);
     } // vxinvm
 
+    /** matrix times matrix inverse */
     public void mxinvm(double result[][], double v[][], double M[][])
     {
         double transposeResult[][] = new double[ROWLENGTH(result)][result.length];
@@ -1410,6 +1500,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         transpose(result, transposeResult);
     }
 
+    /** square submatrix */
     public static void submat(double result[][], double M[][], int inds[])
     {
         FORIDOWN (i, inds.length)
@@ -1417,6 +1508,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             result[i][j] = M[inds[i]][inds[j]];
     }
 
+    /** set matrix to identity */
     public static void identitymat(double M[][])
     {
         FORIDOWN (i, M.length)
@@ -1424,6 +1516,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             M[i][j] = (i==j ? 1. : 0);
     }
 
+    /** Finds the matrix that rotates radians in the direction from fromAxis to toAxis, when applied to a vector by multiplying the matrix on the right by the row vector on the left. */
     public static void makeRowRotMat(double M[][], int fromAxis, int toAxis, double radians)
     {
         identitymat(M);
@@ -1435,6 +1528,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         M[toAxis][toAxis] = c;
     }
 
+    /** Finds the matrix that translates by a given amount, when applied to a vector by multiplying the matrix on the right by the row vector on the left. */
     public static void makeRowTransMat(double M[][], double translate[])
     {
         identitymat(M); // non-square is okay
@@ -1442,6 +1536,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         FORIDOWN (i, translate.length)
             M[nRows-1][i] = translate[i];
     }
+    /** Finds the matrix that translates by minus a given amount, when applied to a vector by multiplying the matrix on the right by the row vector on the left. */
     public static void makeRowTransMatInv(double M[][], double translate[])
     {
         identitymat(M); // non-square is okay
@@ -1453,6 +1548,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     // XXX got bored and stopped converting from FOR to FORIDOWN here
 
 
+    /** Finds the matrix that non-uniformly scales by a given amount, when applied to a vector by multiplying the matrix on the right by the row vector on the left. */
     public static void makeRowScaleMat(double M[][], double scale[])
     {
         int i, j, n = M.length, m = (n == 0 ? 0 : M[0].length);
@@ -1463,6 +1559,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                             : 0);
     }
 
+    /**
+     * Calculates the angle between two unit vectors,
+     * using the robust algorithm described in <a href="http://plunk.org/~hatch/rightway.php">http://plunk.org/~hatch/rightway.php</a>.
+     */
     public static double angleBetweenUnitVectors(double u0[], double u1[])
     {
         // XXX can we cleverly avoid the square root?
@@ -1475,6 +1575,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     }
 
+    /**
+     * Returns the matrix obtained from M by adding one identity row and column
+     * at the given index.
+     */
     public static double[][] insertIdentityRowAndColumn(double M[][], int ind, double zero, double one)
     {
         double[][] result = new double[M.length+1][M.length+1];
@@ -1487,6 +1591,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         result[ind][ind] = one;
         return result;
     }
+
+    /**
+     * Returns the matrix obtained from M by deleting one row and colum
+     * at the given index.
+     */
     public static double[][] deleteRowAndColumn(double M[][], int ind)
     {
         double[][] result = new double[M.length-1][M.length-1];
@@ -1498,6 +1607,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
 
+    /** int vector equality test */
     public static boolean equals(int v0[], int v1[])
     {
         if (v0 == null)
@@ -1512,6 +1622,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return false;
         return true;
     } // equals(int[],int[])
+    /** exact double vector equality test */
     public static boolean equalsExactly(double v0[], double v1[])
     {
         if (v0 == null)
@@ -1526,6 +1637,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return false;
         return true;
     } // equalsExactly(Object[],Object[])
+    /** Object vector equality test using == on each element Object */
     public static boolean equalsUsingEqualsSymbol(Object v0[], Object v1[])
     {
         if (v0 == null)
@@ -1541,7 +1653,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return true;
     } // equalsUsingEqualsSymbol(Object[],Object[])
 
-    /** works even if eps==0. */
+    /** Fuzzy matrix equality test; works even if eps==0. */
     public static boolean equals(double M0[][], double M1[][], double eps)
     {
         if (M0 == null && M1 == null)
@@ -1693,7 +1805,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return -1;
         } // jacobi
 
-    // Find a matrix L such that L*transpose(L) = C.
+    /** Find a matrix L such that L*transpose(L) = C. */
     public static int leftSqrtOfSymmetricMatrix(double result[][], boolean whichColumnsOfResultAreImaginary[], double C[][])
     {
         int n = C.length; // == C[0].length
@@ -1824,6 +1936,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         mxm(result, normalizedV, transpose(normalizedV));
     } // correlate
 
+    /** sets result matrix to M with each row normalized. */
     public static void normalizeRows(double result[][], double M[][])
     {
         int i, n = M.length;
@@ -1831,14 +1944,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             normalize(result[i], M[i]);
     }
 
-    /** XXX leaves 0 as 0! may be unexpected in some cases */
+    /** Normalize a vector. XXX leaves 0 as 0! may be unexpected in some cases */
     public static void normalize(double result[], double v[])
     {
         double len = norm(v);
         vxs(result, v, len==0. ? 1. : 1./len);
     }
 
-    /** XXX can we make a general method that takes any kind of array? yes, @see Arrays class */
+    /* XXX can we make a general method that takes any kind of array? yes, @see Arrays class */
     public static String toString(boolean v[])
     {
         if (v == null)
@@ -1910,7 +2023,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return Arrays.toStringNonCompact(m, "", "    ");
     }
 
-    /** XXX convert this to Arrays.toString! */
+    /* XXX convert this to Arrays.toString! */
     public static String toString(int m[][][], String bigSep, String littleSep)
     {
         if (m == null)
@@ -1951,60 +2064,70 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     // and should not be called in compute-intensive inner loops.
     // XXX JAVADOC GROUP
 
+        /** vector plus vector, returning newly allocated result */
         public static double[] vpv(double v0[], double v1[])
         {
             double result[] = new double[v0.length];
             vpv(result, v0, v1);
             return result;
         }
+        /** vector plus vector, returning newly allocated result */
         public static int[] vpv(int v0[], int v1[])
         {
             int result[] = new int[v0.length];
             vpv(result, v0, v1);
             return result;
         }
+        /** scalar times vector, returning newly allocated result */
         public static double[] sxv(double s, double v[])
         {
             double result[] = new double[v.length];
             sxv(result, s, v);
             return result;
         }
+        /** scalar times vector, returning newly allocated result */
         public static int[] sxv(int s, int v[])
         {
             int result[] = new int[v.length];
             sxv(result, s, v);
             return result;
         }
+        /** perp dot, returning newly allocated result */
         public static double[] xv2(double v[/*2*/])
         {
             double result[] = new double[2];
             xv2(result, v);
             return result;
         }
+        /** vector minus vector, returning newly allocated result */
         public static double[] vmv(double v0[], double v1[])
         {
             double result[] = new double[v0.length];
             vmv(result, v0, v1);
             return result;
         }
+        /** subtract v from each row of M, returning newly allocated result */
         public static int[][] mmv(int M[][], int v[])
         {
             int result[][] = new int[M.length][v.length];
             mmv(result, M, v);
             return result;
         }
+        /** subtract v from each row of M, returning newly allocated result */
         public static double[][] mmv(double M[][], double v[])
         {
             double result[][] = new double[M.length][v.length];
             mmv(result, M, v);
             return result;
         }
+        /** linear interpolation between vectors, returning newly allocated result */
         public static double[] lerp(double p0[], double p1[], double t)
         {
             double result[] = new double[p0.length];
             lerp(result, p0, p1, t);
             return result;
         }
+        /** barycentric interpolation between vectors, returning newly allocated result */
         public static double[] bary(double p0[],
                                     double p1[], double t1,
                                     double p2[], double t2)
@@ -2013,36 +2136,42 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             bary(result, p0, p1, t1, p2, t2);
             return result;
         }
+        /** return a new vector of zeros */
         public static double[] zerovec(int dim)
         {
             double result[] = new double[dim];
             zerovec(result);
             return result;
         }
+        /** return a new vector filled with a given scalar */
         public static double[] fillvec(int dim, double s)
         {
             double result[] = new double[dim];
             fillvec(result,s);
             return result;
         }
+        /** return a new vector filled with a given scalar */
         public static int[] fillvec(int dim, int s)
         {
             int result[] = new int[dim];
             fillvec(result,s);
             return result;
         }
+        /** return a new vector filled with a given scalar */
         public static boolean[] fillvec(int dim, boolean s)
         {
             boolean result[] = new boolean[dim];
             fillvec(result,s);
             return result;
         }
+        /** return a new matrix filled with a given scalar */
         public static double[][] fillmat(int dim0, int dim1, double s)
         {
             double result[][] = new double[dim0][dim1];
             fillmat(result,s);
             return result;
         }
+        /** vector sum, returning newly allocated result */
         public static double[] sum(double array[][])
         {
             if (array.length == 0)
@@ -2051,6 +2180,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             sum(result, array);
             return result;
         }
+        /** vector average, returning newly allocated result */
         public static double[] average(double array[][])
         {
             if (array.length == 0)
@@ -2059,6 +2189,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             average(result, array);
             return result;
         }
+        /** vector average indexed, returning newly allocated result */
         public static double[] averageIndexed(int inds[][], double array[][])
         {
             if (array.length == 0)
@@ -2067,6 +2198,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             averageIndexed(result, inds, array);
             return result;
         }
+        /** bbox indexed, returning newly allocated result */
         public static double[/*2*/][] bboxIndexed(double array[][],
                                                   Object inds)
         {
@@ -2076,6 +2208,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             bboxIndexed(result, array, inds);
             return result;
         }
+        /** uniform bounding box, returning newly allocated result */
         public static double[/*2*/][] bboxUniform(double array[][])
         {
             if (array.length == 0)
@@ -2084,6 +2217,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             bboxUniform(result, array);
             return result;
         }
+        /** bounding box, returning newly allocated result */
         public static double[/*2*/][] bbox(double array[][])
         {
             if (array.length == 0)
@@ -2092,6 +2226,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             bbox(result, array);
             return result;
         }
+        /** bounding box intersect, returning newly allocated result */
         public static double[/*2*/][] bboxIntersect(double bbox0[/*2*/][],
                                                     double bbox1[/*2*/][])
         {
@@ -2099,6 +2234,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             bboxIntersect(result, bbox0, bbox1);
             return result;
         }
+        /** bounding box union, returning newly allocated result */
         public static double[/*2*/][] bboxUnion(double bbox0[/*2*/][],
                                                 double bbox1[/*2*/][])
         {
@@ -2107,60 +2243,70 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** submatrix, returning newly allocated result */
         public static double[][] submat(double M[][], int inds[])
         {
             double result[][] = new double[inds.length][inds.length];
             submat(result, M, inds);
             return result;
         }
+        /** return newly allocated identity matrix of given dimension */
         public static double[][] identitymat(int n)
         {
             double result[][] = new double[n][n];
             identitymat(result);
             return result;
         }
+        /** return newly allocated identity matrix of given dimension */
         public static double[][] identitymat(int n, int m)
         {
             double result[][] = new double[n][m];
             identitymat(result);
             return result;
         }
+        /** transpose matrix, returning newly allocated result */
         public static double[][] transpose(double M[][])
         {
             double result[][] = new double[M.length==0 ? 0 : M[0].length][M.length];
             transpose(result, M);
             return result;
         }
+        /** matrix copy, returning newly allocated result */
         public static double[][] copymat(double M[][])
         {
             double result[][] = new double[M.length][M.length==0 ? 0 : M[0].length];
             copymat(result, M);
             return result;
         }
+        /** vector copy, returning newly allocated result */
         public static boolean[] copyvec(boolean v[])
         {
             boolean result[] = new boolean[v.length];
             copyvec(result, v);
             return result;
         }
+        /** vector copy, returning newly allocated result */
         public static int[] copyvec(int v[])
         {
             int result[] = new int[v.length];
             copyvec(result, v);
             return result;
         }
+        /** vector copy, returning newly allocated result */
         public static double[] copyvec(double v[])
         {
             double result[] = new double[v.length];
             copyvec(result, v);
             return result;
         }
+        /** get matrix column, returning newly allocated result */
         public static double[] getcolumn(double M[][], int iCol)
         {
             double result[] = new double[M.length];
             getcolumn(result, M, iCol);
             return result;
         }
+        /** matrix times matrix, returning newly allocated result */
         public static double[][] mxm(double m0[/*n*/][/*dotLength*/],
                                      double m1[/*dotLength*/][/*m*/])
         {
@@ -2197,6 +2343,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 #endif // DEFUNCT
         }
         // XXX duplicate code
+        /** matrix times matrix, returning newly allocated result */
         public static int[][] mxm(int m0[/*n*/][/*dotLength*/],
                                   int m1[/*dotLength*/][/*m*/])
         {
@@ -2207,6 +2354,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             mxm(result, m0, m1);
             return result;
         }
+        /** (scalar times vector) plus (scalar times vector), returning newly allocated result */
         public static double[] sxvpsxv(double s0, double v0[],
                                        double s1, double v1[])
         {
@@ -2214,48 +2362,56 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             sxvpsxv(result, s0, v0, s1, v1);
             return result;
         }
+        /** matrix times scalar, returning newly allocated result */
         public static double[][] mxs(double M[][], double s)
         {
             double result[][] = new double[M.length][M.length==0 ? 0 : M[0].length];
             mxs(result, M, s);
             return result;
         }
+        /** vector times scalar, returning newly allocated result */
         public static double[] vxs(double v[], double s)
         {
             double result[] = new double[v.length];
             vxs(result, v, s);
             return result;
         }
+        /** row vector times matrix, returning newly allocated result */
         public static double[] vxm(double v[], double M[][])
         {
             double result[] = new double[M.length == 0 ? 0 : M[0].length];
             vxm(result, v, M);
             return result;
         }
+        /** matrix times column vector, returning newly allocated result */
         public static double[] mxv(double M[][], double v[])
         {
             double result[] = new double[M.length];
             mxv(result, M, v);
             return result;
         }
+        /** vector plus (scalar times vector), returning newly allocated result */
         public static double[] vpsxv(double v0[], double s1, double v1[])
         {
             double result[] = new double[v0.length];
             vpsxv(result, v0, s1, v1);
             return result;
         }
+        /** vector plus (scalar times vector), returning newly allocated result */
         public static int[] vpsxv(int v0[], int s1, int v1[])
         {
             int result[] = new int[v0.length];
             vpsxv(result, v0, s1, v1);
             return result;
         }
+        /** add v to every row of m, returning newly allocated result */
         public static double[][] mpv(double m[][], double v[])
         {
             double result[][] = new double[m.length][ROWLENGTH(m)];
             mpv(result, m, v);
             return result;
         }
+        /** add v to every row of m, returning newly allocated result */
         public static int[][] mpv(int m[][], int v[])
         {
             int result[][] = new int[m.length][ROWLENGTH(m)];
@@ -2263,12 +2419,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** invert matrix, returning newly allocated result */
         public static double[][] invertmat(double M[][])
         {
             double result[][] = new double[M.length][M.length==0 ? 0 : M[0].length];
             invertmat(result, M);
             return result;
         }
+        /** matrix inverse times column vector, returning newly allocated result */
         public static double[] invmxv(double M[][], double v[])
         {
             double result[] = new double[M.length];
@@ -2276,6 +2434,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** 3-dimensional cross product, returning newly allocated result */
         public static double[] vxv3(final double v1[/*3*/], final double v2[/*3*/])
         {
             double result[] = new double[3];
@@ -2283,6 +2442,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** n-dimensional cross product of n-1 n-dimensional vectors, returning newly allocated result */
         public static double[] crossprod(double vectors[][])
         {
             double result[] = new double[vectors.length+1];
@@ -2290,12 +2450,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** return a random vector with length <= 1, in a newly allocated result */
         public static double[] random(int dim)
         {
             double result[] = new double[dim];
             random(result);
             return result;
         }
+        /** return a random vector with length <= 1, in a newly allocated result */
         public static double[] random(int dim, java.util.Random generator)
         {
             double result[] = new double[dim];
@@ -2304,6 +2466,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
 
 
+        /** make row-oriented translation matrix, returning newly allocated result */
         public static double[][] makeRowTransMat(double translate[])
         {
             double result[][] = new double[translate.length+1][translate.length];
@@ -2311,6 +2474,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** make row-oriented inverse translation matrix, returning newly allocated result */
         public static double[][] makeRowTransMatInv(double translate[])
         {
             double result[][] = new double[translate.length+1][translate.length];
@@ -2318,22 +2482,26 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** make row-oriented translation matrix, returning newly allocated result */
         public static double[][] makeRowTransMat(double x, double y, double z)
         {
             return makeRowTransMat(new double[] {x, y, z});
         }
 
+        /** make row-oriented inverse translation matrix, returning newly allocated result */
         public static double[][] makeRowTransMatInv(double x, double y, double z)
         {
             return makeRowTransMatInv(new double[] {x, y, z});
         }
 
+        /** make row-oriented non-uniform scale matrix, returning newly allocated result */
         public static double[][] makeRowScaleMat(double scale[])
         {
             double result[][] = new double[scale.length+1][scale.length];
             makeRowScaleMat(result, scale);
             return result;
         }
+        /** make row-oriented non-uniform scale matrix with tie points, returning newly allocated result */
         public static double[][] makeRowScaleMat(double scale[],
                         double tiePointIn[],
                         double tiePointOut[])
@@ -2345,26 +2513,32 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 M = mxm(M, makeRowTransMat(tiePointOut));   // move 0 to out
             return M;
         }
+        /** make row-oriented non-uniform scale matrix with fixed point, returning newly allocated result */
         public static double[][] makeRowScaleMat(double scale[],
                         double fixedPoint[])
         {
             return makeRowScaleMat(scale, fixedPoint, fixedPoint);
         }
+
+        /** make row-oriented uniform scale matrix with tie points, returning newly allocated result */
         public static double[][] makeRowScaleMat(int n, double scale,
                         double tiePointIn[],
                         double tiePointOut[])
         {
             return makeRowScaleMat(fillvec(n,scale),tiePointIn,tiePointOut); // XXX not the most efficient way to do this
         }
+        /** make row-oriented uniform scale matrix with fixed point, returning newly allocated result */
         public static double[][] makeRowScaleMat(int n, double scale,
                                                  double fixedPoint[])
         {
             return makeRowScaleMat(n,scale,fixedPoint,fixedPoint);
         }
+        /** make row-oriented uniform scale matrix, returning newly allocated result */
         public static double[][] makeRowScaleMat(int n, double scale)
         {
             return makeRowScaleMat(n,scale,null,null);
         }
+        /** make row-oriented non-uniform scale matrix, returning newly allocated result */
         public static double[][] makeRowScaleMat(double x, double y, double z)
         {
             return makeRowScaleMat(new double[]{x,y,z},null,null);
@@ -2373,6 +2547,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
 
 
+        /** make row-oriented rotation matrix, returning newly allocated result */
         public static double[][] makeRowRotMat(int n, int fromAxis, int toAxis, double radians)
         {
             double result[][] = new double[n][n];
@@ -2380,6 +2555,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** make row-oriented rotation matrix with tie points, returning newly allocated result */
         public static double[][] makeRowRotMat(int n, int fromAxis, int toAxis, double radians,
                 double tiePointIn[],
                 double tiePointOut[])
@@ -2392,11 +2568,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return M;
         }
 
+        /** make row-oriented rotation matrix with fixed point, returning newly allocated result */
         public static double[][] makeRowRotMat(int n, int fromAxis, int toAxis, double radians, double fixedPoint[])
         {
             return makeRowRotMat(n, fromAxis, toAxis, radians, fixedPoint, fixedPoint);
         }
 
+        /** make row-oriented rotation matrix that fixes a given subset of the n-2 axes, returning newly allocated result */
         public static double[][] makeRowRotMat(double radians, double fixedAxes[/*n-2*/][])
         {
             int nFixedAxes = fixedAxes.length;
@@ -2467,14 +2645,17 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return (double[])Arrays.flatten(M, 0, 2); // flatten 2 dimensions into 1
         }
 
+        /** product of three matrices, returning newly allocated result */
         public static double[][] mxmxm(double A[][], double B[][], double C[][])
         {
             return mxm(mxm(A,B),C);
         }
+        /** product of four matrices, returning newly allocated result */
         public static double[][] mxmxmxm(double A[][], double B[][], double C[][], double D[][])
         {
             return mxm(mxmxm(A,B,C),D);
         }
+        /** row vector times matrix times matrix, returning newly allocated result */
         public static double[] vxmxm(double a[], double B[][], double C[][])
         {
             // left-to-right to avoid matrix multiplication
@@ -2482,6 +2663,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
 
 
+        /** compute the sign of a permutation, destroying the contents of perm in the process */
         public static int permutationSignDestructive(int perm[])
         {
             int sign = 1;
@@ -2506,6 +2688,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return sign;
         } // permutationSignDestructive
 
+        /** tell whether the given permutation is the identity */
         public static boolean isIdentityPerm(int perm[])
         {
             FORIDOWN (i, perm.length)
@@ -2513,22 +2696,26 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     return false;
             return true;
         }
+        /** set the given permuation to the identity */
         public static void identityperm(int perm[])
         {
             FORIDOWN (i, perm.length)
                 perm[i] = i;
         } // identityperm
+        /** return newly allocated identity permutation of given length */
         public static int[] identityperm(int n)
         {
             int result[] = new int[n];
             identityperm(result);
             return result;
         } // identityperm
+        /** compute a random permutation of given length */
         public static void randomperm(int perm[], java.util.Random generator)
         {
             identityperm(perm);
             Arrays.shuffle(perm, generator);
         } // randomperm
+        /** compute a random permutation of given length, returning newly allocated result */
         public static int[] randomperm(int n, java.util.Random generator)
         {
             int result[] = new int[n];
@@ -2536,6 +2723,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         } // randomperm
 
+        /** invert permutation */
         public static void invertperm(int result[], int perm[])
         {
             assumpt(result != perm);
@@ -2543,6 +2731,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             FORIDOWN (i, n)
                 result[perm[i]] = i;
         } // invertperm
+        /** invert permutation, returning newly allocated result */
         public static int[] invertperm(int perm[])
         {
             int result[] = new int[perm.length];
