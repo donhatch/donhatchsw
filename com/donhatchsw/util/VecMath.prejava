@@ -520,6 +520,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** fill matrix with a constant scalar */
+    public static void fillmat(int result[][], int s)
+    {
+        FORIDOWN (i, result.length)
+            fillvec(result[i], s);
+    }
+
+    /** fill matrix with a constant scalar */
     public static void fillmat(boolean result[][], boolean s)
     {
         FORIDOWN (i, result.length)
@@ -689,15 +696,62 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     }
 
-    /** return a random vector with length <= 1. */
+    private static void twoNormallyDistributedRandomNumbers(double result[/*2*/])
+    {
+        double r0, r1, r;
+        do {
+            r0 = 2.*Math.random() - 1.;
+            r1 = 2.*Math.random() - 1.;
+            r = r0*r0 + r1*r1;
+        } while (r > 1. || r == 0.);
+        r = Math.sqrt(-2*Math.log(r)/r);
+        r0 *= r;
+        r1 *= r;
+        result[0] = r0;
+        result[1] = r1;
+    } // private twoNormallyDistributedRandomNumbers
+
+    /** return a random vector with length <= 1. XXX currently broken */
+    /* XXX this can take forever if v.length is big! like, > 7 */
     public static void random(double v[])
     {
-        do
-            FORIDOWN(i, v.length)
-                v[i] = (2.*Math.random() - 1.);
-        while (normsqrd(v) > 1);
+        if (false) // really slow way if n >= 7 or so...
+        {
+            do
+                FORIDOWN(i, v.length)
+                    v[i] = (2.*Math.random() - 1.);
+            while (normsqrd(v) > 1);
+        }
+        else
+        {
+            // From Bob Jenkins who got the idea from Steve Rayhawk...
+            // http://burtleburtle.net/bob/rand/unitvec.html
+            // XXX WOOPS! this gives a random vector *on* the sphere,
+            // not inside it!
+            double twoNormalRandoms[] = new double[2];
+            FORI(i, v.length)
+            {
+                int which = i%2;
+                if (which == 0)
+                    twoNormallyDistributedRandomNumbers(twoNormalRandoms);
+                v[i] = twoNormalRandoms[which];
+            }
+            // XXX okay we are screwed... at this point,
+            // XXX do we just return a unit vector?
+            // XXX or return something with uniformly distributed
+            // XXX angle but gaussian magnitude?
+            if (false)
+            {
+                // unit vector
+                normalize(v, v);  
+            }
+            else
+            {
+                // gaussian magnitude-- do nothing
+            }
+        }
     }
-    /** return a random vector with length <= 1. */
+    /** return a random vector with length <= 1. XXX currently broken */
     public static void random(double v[], java.util.Random generator)
     {
         do
@@ -1079,6 +1133,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
      * <p>
      * This function is used in combination with luBackSubstitute
      * to solve linear equations or invert a matrix.
+     * <p>
+     * These functions are used internally by
+     * <code>invmxv</code>,
+     * <code>invmxm</code>,
+     * <code>vxinvm</code>,
+     * and <code>mxinvm</code>
+     * which provide an easier-to-use
+     * interface for solving linear (and linear least-squares) systems.
      */
     public static int luDecompose(double A[/*n*/][/*n*/],
                              int n, int indx[])
@@ -1172,6 +1234,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
      * This routine takes into account the possibility that b will begin
      * with many zero elements, so it is efficient for use
      * in matrix inversion.
+     * <p>
+     * These functions are used internally by
+     * <code>invmxv</code>,
+     * <code>invmxm</code>,
+     * <code>vxinvm</code>,
+     * and <code>mxinvm</code>
+     * which provide an easier-to-use
+     * interface for solving linear (and linear least-squares) systems.
      */
     public static void luBackSubstitute(double A[][],
                               int n,
@@ -1409,14 +1479,50 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // det
 
 
-    /** matrix inverse times column vector */
-    public static void invmxv(double result[], double M[][], double b[])
+    /**
+     * Matrix inverse times column vector
+     * (linear equations or least-squares solver).
+     * <p>
+     * Given a matrix A and column vector b,
+     * computes A^-1 b, i.e. the solution x
+     * to the system of linear equations A x = b.
+     * <p>
+     * If the system is overdetermined (i.e. A has more rows than columns),
+     * then the solution x will be found
+     * that minimizes ||A x - b||;
+     * that is, x that solves A^T A x = A^T b,
+     * that is, x = (A^T A)^-1 A^T b.
+     */
+    public static void invmxv(double result[], double A[][], double b[])
     {
-        int n = result.length;
-        assert(n == M.length);
-        assert(n == ROWLENGTH(M));
+        if (result.length == 0)
+            return; // avoid dangerous assertions
 
-        double temp[][] = copymat(M);
+        if (false) // XXX get rid
+        {
+            PRINT(result.length);
+            PRINT(A.length);
+            PRINT(ROWLENGTH(A));
+            PRINT(b.length);
+        }
+
+        int n = b.length;
+        assert(n == A.length);
+        int rowlength = ROWLENGTH(A);
+        assert(rowlength == result.length);
+        if (rowlength < n)
+        {
+            // Linear least squares
+            double Atranspose[][] = transpose(A);
+            double bb[] = mxv(Atranspose, b); // column vector of size rowlength
+            double AA[][] = mxm(Atranspose, A); // rowlength by rowlength
+            invmxv(result, AA, bb); // recurse on the normal equation
+            return;
+        }
+        assert(rowlength == n); // A is square
+                // XXX note, we get a different assertion above if A is 0x1, should make that more clear
+
+        double temp[][] = copymat(A);
         int indx[] = new int[n];
         try
         {
@@ -1432,10 +1538,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
         if (normsqrd(result) < 1e20) // XXX work around the TINY thing... this is going to have to cleaned up eventually to deal with nearly singular matrices anyway
         {
-            // check that it worked, i.e. that b = M * result
+            // check that it worked, i.e. that b = A * result
             assumpt(result != b); // XXX shouldn't assume this
-            double bb[] = mxv(M, result);
-            //PRINTMAT(M);
+            double bb[] = mxv(A, result);
+            //PRINTMAT(A);
             //PRINTVEC(result);
             //PRINTVEC(b);
             //PRINTVEC(bb);
@@ -1457,16 +1563,29 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // invmxv
 
     /** matrix inverse times matrix */
-    public void invmxm(double result[][], double M[][], double B[][])
+    public static void invmxm(double result[][], double A[][], double B[][])
     {
-        int n = result.length;
-        assert(n == B.length);
-        assert(n == M.length);
-        assert(n == ROWLENGTH(M));
+        if (result.length == 0 || result[0].length == 0)
+            return; // avoid dangerous assertions
+
+        int n = B.length;
+        assert(n == A.length);
+        int rowlength = ROWLENGTH(A);
+        assert(rowlength == result.length);
         int nCols = ROWLENGTH(result);
         assert(nCols == ROWLENGTH(B));
+        if (rowlength < n)
+        {
+            // Linear least squares
+            double Atranspose[][] = transpose(A);
+            double BB[][] = mxm(Atranspose, B);
+            double AA[][] = mxm(Atranspose, A); // rowlength by rowlength
+            invmxm(result, AA, BB); // recurse on the normal equation, of size rowlength
+            return;
+        }
+        assert(rowlength == n); // A is square
 
-        double temp[][] = copymat(M);
+        double temp[][] = copymat(A);
         int indx[] = new int[n];
         try
         {
@@ -1486,17 +1605,34 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // invmxm
 
-    /** row vector times matrix inverse */
-    public void vxinvm(double result[], double v[], double M[][])
+    /**
+     * Row vector times matrix inverse
+     * (linear equations or least-squares solver).
+     * <p>
+     * Given a row vector b and a matrix A,
+     * computes b A^-1, i.e. the solution x
+     * to the system of linear equations x A = b.
+     * <p>
+     * If the system is overdetermined (i.e. A has more columns than rows),
+     * then the solution x will be found
+     * that minimizes ||x A - b||;
+     * that is, x that solves x A A^T = b A^T,
+     * that is, x = b A^T (A A^T)^-1.
+     */
+    public static void vxinvm(double result[], double b[], double A[][])
     {
-        invmxv(result, transpose(M), v);
+        if (result.length == 0)
+            return; // avoid dangerous assertions
+        invmxv(result, transpose(A), b);
     } // vxinvm
 
     /** matrix times matrix inverse */
-    public void mxinvm(double result[][], double v[][], double M[][])
+    public static void mxinvm(double result[][], double B[][], double A[][])
     {
+        if (result.length == 0 || result[0].length == 0)
+            return; // avoid dangerous assertions
         double transposeResult[][] = new double[ROWLENGTH(result)][result.length];
-        invmxm(transposeResult, transpose(M), transpose(v));
+        invmxm(transposeResult, transpose(A), transpose(B));
         transpose(result, transposeResult);
     }
 
@@ -2171,6 +2307,20 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             fillmat(result,s);
             return result;
         }
+        /** return a new matrix filled with a given scalar */
+        public static int[][] fillmat(int dim0, int dim1, int s)
+        {
+            int result[][] = new int[dim0][dim1];
+            fillmat(result,s);
+            return result;
+        }
+        /** return a new matrix filled with a given scalar */
+        public static boolean[][] fillmat(int dim0, int dim1, boolean s)
+        {
+            boolean result[][] = new boolean[dim0][dim1];
+            fillmat(result,s);
+            return result;
+        }
         /** vector sum, returning newly allocated result */
         public static double[] sum(double array[][])
         {
@@ -2257,7 +2407,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             identitymat(result);
             return result;
         }
-        /** return newly allocated identity matrix of given dimension */
+        /** return newly allocated identity matrix of given dimensions */
         public static double[][] identitymat(int n, int m)
         {
             double result[][] = new double[n][m];
@@ -2354,6 +2504,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             mxm(result, m0, m1);
             return result;
         }
+
         /** (scalar times vector) plus (scalar times vector), returning newly allocated result */
         public static double[] sxvpsxv(double s0, double v0[],
                                        double s1, double v1[])
@@ -2429,8 +2580,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         /** matrix inverse times column vector, returning newly allocated result */
         public static double[] invmxv(double M[][], double v[])
         {
-            double result[] = new double[M.length];
+            double result[] = new double[ROWLENGTH(M)];
             invmxv(result, M, v);
+            return result;
+        }
+        /** row vector times inverse matrix, returning newly allocated result */
+        public static double[] vxinvm(double v[], double M[][])
+        {
+            double result[] = new double[M.length];
+            vxinvm(result, v, M);
             return result;
         }
 
@@ -2450,14 +2608,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
-        /** return a random vector with length <= 1, in a newly allocated result */
+        /** return a random vector with length <= 1, in a newly allocated result XXX currently broken */
         public static double[] random(int dim)
         {
             double result[] = new double[dim];
             random(result);
             return result;
         }
-        /** return a random vector with length <= 1, in a newly allocated result */
+        /** return a random vector with length <= 1, in a newly allocated result XXX currently broken */
         public static double[] random(int dim, java.util.Random generator)
         {
             double result[] = new double[dim];
