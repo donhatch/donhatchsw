@@ -1056,7 +1056,7 @@ public final class Arrays
 
 
     /**
-     * Text format for parsing arrays.
+     * Text format for printing and parsing arrays.
      * This is rather awkward to use by itself;
      * the most convenient way to print or parse a single array
      * is by using Arrays.toString(Object array) for printing,
