@@ -421,7 +421,7 @@ public class Arrows
             double x = x1 + arrowHeadLength * Math.cos(newAng);
             double y = y1 + arrowHeadLength * Math.sin(newAng);
             return new java.awt.geom.Line2D.Double(x1,y1, x,y);
-        } // leftArrowHead
+        } // arrowHeadSide
 
         private static double[] average(double points[][/*dim*/], int inds[])
         {
