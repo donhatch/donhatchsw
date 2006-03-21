@@ -1711,6 +1711,112 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     }
 
+    /* XXX figure out how to expose this, see Holyhedron/SynopsisStuff.prejava */
+    public static double synopsis(double v[])
+    {
+        int n = v.length;
+        FORI (i, n)
+            if (v[i] <= 0) // non-strict so we do it this way if on the boundary of the positive orthant
+            {
+                //
+                // Outside the positive orthant,
+                // return minus the euclidean distance
+                // to the positive orthant.
+                //
+                double sum = 0.;
+                for (; i < n; i++)
+                    if (v[i] < 0.)
+                        sum += v[i]*v[i];
+                return -Math.sqrt(sum);
+            }
+        {
+            //
+            // Inside the positive orthant, return the "-2"-norm.
+            //
+            double sum = 0.;
+            FORI (i, n)
+                sum += 1. / (v[i]*v[i]);
+            return Math.sqrt(1. / sum);
+            /*
+                More stable to calculate it differently,
+                    e.g. x / sqrt(1) instead of 1/sqrt(1/x^2)
+                    e.g. x y / sqrt(x^2 + y^2) instead of 1/sqrt(1/x^2 + 1/y^2)
+                    e.g. x y z / sqrt(x^2 y^2 + x^2 z^2 + y^2 z^2)  instead of 1/sqrt(1/x^2 + 1/y^2 + 1/z^2)
+                    I think the following works, but I haven't tested it yet...
+                double sum = 0., prod = 1.;
+                FORI (i, n)
+                {
+                    // sum is now the sum of squares of all products of i-1 items from v[0]..v[i-1]  (0 if i=0, 1 if i=1)
+                    sum = sum*(v[i]*v[i]) + prod*prod;
+                    prod *= v[i];
+                    // sum is now the sum of squares of all products of i items from v[0]..v[i]  (1 if i=0)
+                }
+                // sum is now the sum of squares of all products of n-1 items from v[0]..v[n-1] (0 if n=0, 1 if n=1)
+                return sum==0. ? 0. : prod / Math.sqrt(sum);
+            */
+        }
+    } // synopsis of vector returning double
+
+    /**
+     * Calculates the angular distance from the boundary of the positive orthant
+     * to the vector:
+     * positive if inside the positive orthant,
+     * and negative if outside it.
+     * <p>
+     * This angle will be
+     * in the range [-pi/2 - asin(1/sqrt(n)) .. asin(1/sqrt(n))].
+     * It will be positive for vectors in the all-positive orthant,
+     * and less than -pi/2 for numbers in the all-negative orthant.
+     */
+    public static double positiveOrthantness(double v[],
+                                             boolean useSynopsis)
+    {
+        int n = v.length;
+
+        // Special case for trivial cases to prevent unstable math
+        if (n <= 1)
+            return n == 0 ? 0. : // abitrary
+                   v[0] > 0. ? Math.PI/2 :
+                   v[0] < 0. ? -Math.PI/2 : 0.;
+
+        double posSum = 0., negSum = 0.;
+        double smallestMagnitudePos = Double.POSITIVE_INFINITY;
+        double smallestMagnitudeNeg = Double.NEGATIVE_INFINITY;
+        FORI (i, n)
+        {
+            double vi = v[i];
+            if (vi <= 0)
+            {
+                negSum += vi*vi;
+                smallestMagnitudeNeg = MAX(smallestMagnitudeNeg, vi);
+            }
+            if (vi >= 0)
+            {
+                posSum += vi*vi;
+                smallestMagnitudePos = MIN(smallestMagnitudePos, vi);
+            }
+
+        }
+        if (negSum == 0. && posSum == 0.)
+            return 0.; // arbitrary, instead of blowing up
+        else if (negSum == 0.) // if inside all-positive octant
+        {
+            if (useSynopsis)
+                return synopsis(normalize(v));
+            else
+                return Math.asin(smallestMagnitudePos/Math.sqrt(posSum)); // stable since argument < 1/sqrt(2) since n>=2
+        }
+        else if (posSum == 0.) // if inside all-negative octant
+        {
+            if (useSynopsis)
+                return -Math.PI/2 - synopsis(normalize(sxv(-1,v)));
+            else
+                return -Math.PI/2 + Math.asin(smallestMagnitudeNeg/Math.sqrt(negSum)); // stable since argument < 1/sqrt(2) since n>=2
+        }
+        else // in intermediate octant
+            return -Math.atan2(Math.sqrt(negSum), Math.sqrt(posSum));
+    } // positiveOrthantness
+
     /**
      * Returns the matrix obtained from M by adding one identity row and column
      * at the given index.
@@ -2087,6 +2193,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         vxs(result, v, len==0. ? 1. : 1./len);
     }
 
+
     /* XXX can we make a general method that takes any kind of array? yes, @see Arrays class */
     public static String toString(boolean v[])
     {
@@ -2227,6 +2334,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             int result[] = new int[v.length];
             sxv(result, s, v);
             return result;
+        }
+        public static double[] normalize(double v[])
+        {
+            double result[] = new double[v.length];
+            normalize(result, v);
+            return result; // XXX should return NULL on failure?  Not sure
         }
         /** perp dot, returning newly allocated result */
         public static double[] xv2(double v[/*2*/])
@@ -2819,7 +2932,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             // left-to-right to avoid matrix multiplication
             return vxm(vxm(a,B),C);
         }
-
 
         /** compute the sign of a permutation, destroying the contents of perm in the process */
         public static int permutationSignDestructive(int perm[])
