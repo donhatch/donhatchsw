@@ -3044,7 +3044,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /**
      * Test some stuff...
      */
-    static void main(String args[])
+    public static void main(String args[])
     {
         if (args.length < 1)
         {
