@@ -30,6 +30,8 @@ public final class LinearProgramming1
 
 
 
+    private final static int debugLevel = 1;
+
     private final static double EPS = 1e-12;
     // Here EPS is the absolute precision,
     // which should be adjusted to the scale of your variables.
@@ -95,7 +97,14 @@ public final class LinearProgramming1
             }
             sb.append("\n");
         } // appendSeparatorRow
-
+        static String varLabel(int iVar, int m, int n)
+        {
+            assert(iVar <= m+n);
+            if (iVar <= n)
+                return "x"+iVar;
+            else
+                return "y"+(iVar-n);
+        }
 
     private static String TableauToString(double a[/*1+1+m+1*/][/*1+n+1*/],
                                           int m,
@@ -155,14 +164,7 @@ public final class LinearProgramming1
                 if (iCol == 1)
                     label = "";
                 else
-                {
-                    int iVar = izrov[iCol-1];
-                    assert(1 <= iVar && iVar <= m+n);
-                    if (iVar <= n)
-                        label = "x"+iVar;
-                    else
-                        label = "y"+(iVar-n);
-                }
+                    label = varLabel(izrov[iCol-1], m, n);
                 label = lcenter(label, colWidths[iCol]);
                 sb.append(label);
                 sb.append(iCol==n+1 ? "||" : "|");
@@ -180,14 +182,7 @@ public final class LinearProgramming1
             else if (iRow == m+2)
                 label = "z'";
             else
-            {
-                int iVar = iposv[iRow-1];
-                assert(1 <= iVar && iVar <= m+n);
-                if (iVar <= n)
-                    label = "x"+iVar;
-                else
-                    label = "y"+(iVar-n);
-            }
+                label = varLabel(iposv[iRow-1], m, n);
             label = ljustify(label.length()==colWidths[0] ? label : " "+label, colWidths[0]);
             sb.append(label);
             sb.append("||");
@@ -282,10 +277,16 @@ public final class LinearProgramming1
         }
 
         System.out.println("        PHASE ONE");
-        PRINTMAT(a);
-        PRINTVEC(izrov);
-        PRINTVEC(iposv);
-        PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+        if (debugLevel >= 2)
+        {
+            PRINTMAT(a);
+        }
+        if (debugLevel >= 1)
+        {
+            PRINTVEC(izrov);
+            PRINTVEC(iposv);
+            PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+        }
 
         int kpScratch[] = new int[1];
         double bmaxScratch[] = new double[1];
@@ -386,8 +387,8 @@ public final class LinearProgramming1
                 }
 //one:
                 goingto_one = false;
-                System.out.println("            pivoting row "+ip+" with col "+kp+"");
-                simp3(a,m+1,n,ip,kp);
+                System.out.println("            pivoting row "+ip+" ("+varLabel(iposv[ip],m,n)+") with col "+kp+" ("+varLabel(izrov[kp],m,n)+")");
+                pivot(a,m+1,n,ip,kp);
                 // Exchange a left- and a right-hand variable (phase one),
                 // then update lists.
                 if (iposv[ip] >= n+m1+m2+1)
@@ -428,10 +429,16 @@ public final class LinearProgramming1
         } // if (m2+m3 != 0)
 
         System.out.println("        PHASE TWO");
-        PRINTMAT(a);
-        PRINTVEC(izrov);
-        PRINTVEC(iposv);
-        PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+        if (debugLevel >= 2)
+        {
+            PRINTMAT(a);
+        }
+        if (debugLevel >= 1)
+        {
+            PRINTVEC(izrov);
+            PRINTVEC(iposv);
+            PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+        }
 
         // End of phase one code for finding an initial feasible solution.
         // Now, in phase two, optimize it.
@@ -457,8 +464,8 @@ public final class LinearProgramming1
                 System.out.println("    Out simplx (unbounded)");
                 return 1;
             }
-            System.out.println("            pivoting row "+ip+" with col "+kp+"");
-            simp3(a,m,n,ip,kp); // Exchange a left- and right-hand variable (phase two).
+            System.out.println("            pivoting row "+ip+" ("+varLabel(iposv[ip],m,n)+") with col "+kp+" ("+varLabel(izrov[kp],m,n)+")");
+            pivot(a,m,n,ip,kp); // Exchange a left- and right-hand variable (phase two).
             int is = izrov[kp]; 
             izrov[kp] = iposv[ip];
             iposv[ip] = is;
@@ -544,8 +551,10 @@ public final class LinearProgramming1
         } // simp2
 
         // Matrix operations to exchange
-        // a left-hand and right-hand variable (see text)
-        private static void simp3(double a[][],
+        // a left-hand (row) and right-hand (column) variable.
+        // Pivots row variable ip with column variable kp,
+        // i.e. pivots row 1+ip with column 1+kp.
+        private static void pivot(double a[][],
                                   int i1, // last row to worry about is 1+i1
                                   int k1, // last col to worry about is 1+k1
                                   int ip,
@@ -564,7 +573,7 @@ public final class LinearProgramming1
                     }
                 }
             }
-        } // simp3
+        } // pivot
 
         private static void nrerror(String s)
         {
@@ -621,10 +630,16 @@ public final class LinearProgramming1
                                iposv);
             System.out.println("Output:");
             PRINT(icase);
-            PRINTMAT(A);
-            PRINTVEC(izrov);
-            PRINTVEC(iposv);
-            PRINTTABLEAU(A,m,n,nLE,nGE,izrov,iposv);
+            if (debugLevel >= 2)
+            {
+                PRINTMAT(A);
+            }
+            if (debugLevel >= 1)
+            {
+                PRINTVEC(izrov);
+                PRINTVEC(iposv);
+                PRINTTABLEAU(A,m,n,nLE,nGE,izrov,iposv);
+            }
 
             assert(A[0] == null);
             for (int i = 1; i < A.length; ++i)
