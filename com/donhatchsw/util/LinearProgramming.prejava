@@ -1,0 +1,454 @@
+/*
+* Copyright (c) 2006 Don Hatch Software
+*/
+//
+// VecMath.prejava
+//
+// Author: Don Hatch (hatch@plunk.org)
+// This code may be used for any purpose as long as it is good and not evil.
+//
+
+package com.donhatchsw.util;
+
+#include "macros.h"
+
+
+
+/*
+    Linear programming, straight out of Numerical Recipes in C
+*/
+
+
+public final class LinearProgramming1
+{
+    private LinearProgramming1() {} // uninstantiatable
+
+    // XXX figure out public interface for this
+    public static void foo()
+    {
+    }
+
+
+
+    private final static double EPS = 1e-12;
+    // Here EPS is the absolute precision,
+    // which should be adjusted to the scale of your variables.
+    // XXX do that! the assumption is that the inputs do not differ from unity by too many orders of magnitude.
+    // (was 1e-6 in the book which uses float,
+    // changing to 1e-12 here since we are using double)
+    // Yknow what though, I think it would be more appropriate
+    // to simply scale each row in the input problem
+    // so that the maximum entry is 1.
+
+    //
+    // Simplex method for linear programming.
+    //
+    // On output, the tableau A
+    // is indexed by two returned arrays of integers.
+    // iposv[j] contains, for j = 1..m, the number i in 1..m
+    // whose original variable x_i is now represented by row j+1 of a.
+    // These are thus the left-hand variables in the solution.
+    // (The first row if A is of course the z-row.)
+    // A value i > N indicates that the variable is a y_i
+    // rather than an x_i, x_(N+j) === y_j.  XXX I didn't follow this
+    // Likewise, izrov[j] contains, for j = 1...n,
+    // the number i in 1..m
+    // whose original variable x_i is now a right-hand variable,
+    // represented by column j+1 of A.
+    // These variables are all zero in the solution.
+    // The meaning of i>n is the same as above, except that i>n+m1+m2
+    // denotes an artificial or slack variable which was used only internally
+    // and should now be entirely ignored.
+    //
+    // The function returns 0 if a finite solution is found,
+    // +1 if the objective function is unbounded,
+    // -1 if no solution satisfies the given constraints.
+    //
+    //
+    private static int simplx(double a[/*1+m+2*/][/*1+n+1*/], // in/out
+                              int m,                      // in
+                              int n,                      // in
+                              int m1,                     // in: number of <='s
+                              int m2,                     // in: number of >='s
+                              int m3,                     // in; number of =='s
+                              int izrov[/*n*/],           // out
+                              int iposv[/*m*/])           // out
+    {
+        System.out.println("    In simplx");
+        if (m != (m1+m2+m3))
+            nrerror("Bad input constraint counts in simplx");
+        int l1[] = new int[1+n+1]; l1[0] = -999;
+        boolean l3[] = new boolean[1+m]; l3[0] = true; // arbitrary
+        int nl1 = n;
+        for (int k = 1; k <= n; k++)
+            l1[k] = izrov[k] = k; // XXX we allocated l1 with one more... why? is it right to not initialize it?
+        // Initialize index list of columns admissible for exchange,
+        // and make all variables initially right-hand.
+        for (int  i = 1; i <= m; i++)
+        {
+            if (a[i+1][1] < 0.)
+                nrerror("Bad input tableau in simplx");
+            // Constants b[i] must be nonnegative.
+            iposv[i] = n+i;
+            // Initial left-hand variables.
+            // m1 type constraints are represented by having their slack
+            // variable initially left-hand, with no artificial variable.
+            // m2 type constraints have their slack variable
+            // initially left-hand, with a minus sign, and their artificial
+            // variable handles implicitly during their first exchange.
+            // m3 type constraints have their artificial variables
+            // initially left-hand.
+        }
+
+        System.out.println("        PHASE ONE");
+        PRINTMAT(a);
+        PRINTVEC(iposv);
+        PRINTVEC(izrov);
+
+        int kpScratch[] = new int[1];
+        double bmaxScratch[] = new double[1];
+        if (m2+m3 != 0)
+        {
+            // Origin is not a feasible starting solution: we must do phase one.
+            for (int i = 1; i <= m2; i++)
+                l3[i] = true;
+            // Initialize list of m2 constraints whose slack variables
+            // have never been exchanged out of the initial basis.
+            for (int k = 1; k <= n+1; k++)
+            {
+                // Compute the auxiliary objective function.
+                double q1 = 0.;
+
+                // NOTE: In the text,
+                // it gives an aux objective function that would be obtained
+                // by considering all 4 rows, i.e. starting at i=1.
+                // In the code, we skip the two m1-type rows, starting at i=1+m1 instead
+                // and only considering the last 2 rows in that example.
+                // However if I blindly use 1 instead of 1+m1 here, it returns infeasible.
+                for (int i = 1+m1; i <= m; i++)
+                    q1 += a[i+1][k];
+                a[m+2][k] = -q1;
+            }
+            System.out.println("            aux objective function: "+VecMath.toString(a[m+2]));
+            for (;;)
+            {
+                boolean goingto_one = false; // simulate goto with bubblegum and string
+                int ip = -1; // doesn't really need initializing, but compiler thinks so
+
+                // Find max. coeff. of auxiliary objective fn.
+                simp1(a, m+1, l1, nl1, false, kpScratch, bmaxScratch);
+                int kp = kpScratch[0];
+                double bmax = bmaxScratch[0];
+                if (bmax <= EPS && a[m+2][1] < -EPS)
+                {
+                    // Auxiliary objective function is still negative
+                    // and can't be imporved, hence no
+                    // feasible solution exists.
+                    assert(l1[0] == -999);
+                    assert(l3[0] == true);
+                    System.out.println("    Out simplx (infeasible)");
+                    return -1;
+                }
+                else if (bmax <= EPS && a[m+2][1] <= EPS)
+                {
+                    // Auxiliary objective function is zero and
+                    // can't be improved; we have a feasible starting vector.
+                    // Clean out the artificial variables
+                    // corresponding to any remaining equality constraints
+                    // by goto one and then move on to phase two.
+                    for (ip = m1+m2+1; ip <= m; ip++)
+                    {
+                        if (iposv[ip] == (ip+n))
+                        {
+                            // Found an artificial variable for an
+                            // equality constraint.
+                            simp1(a,ip,l1,nl1,true,kpScratch,bmaxScratch);
+                            kp = kpScratch[0];
+                            bmax = bmaxScratch[0];
+                            // Exchange with column corresponding to maximum
+                            // pivot element in row.
+                            if (bmax > EPS)
+                            {
+                                //goto one;
+                                goingto_one = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (!goingto_one)
+                    {
+                        // Change sign of row for any m2 constraints
+                        // still present from the initial basis.
+                        for (int i = m1+1; i <= m1+m2; i++)
+                        {
+                            if (l3[i-m1])
+                                for (int k = 1; k <= n+1; k++)
+                                    a[i+1][k] = -a[i+1][k];
+                        }
+                        break; // Go to phase two.
+                    }
+                }
+                if (!goingto_one)
+                {
+                    // Locate a pivot element (phase one).
+                    ip = simp2(a,n,n,kp);
+                    if (ip == 0)
+                    {
+                        // Maximum of auxiliary objective function is
+                        // unbounded, so no feasible solution exists.
+                        assert(l1[0] == -999);
+                        assert(l3[0] == true);
+                        System.out.println("    Out simplx (infeasible, aux objective function unbounded)");
+                        return -1;
+                    }
+                }
+//one:
+                goingto_one = false;
+                System.out.println("            pivoting row "+ip+" with col "+kp+"");
+                simp3(a,m+1,n,ip,kp);
+                // Exchange a left- and a right-hand variable (phase one),
+                // then update lists.
+                if (iposv[ip] >= n+m1+m2+1)
+                {
+                    // Exchanged out an artificial variable
+                    // for an equality constraint.
+                    // Make sure it stays out by removing it from the l1 list.
+                    int k;
+                    for (k = 1; k <= nl1; k++)
+                        if (l1[k] == kp)
+                            break;
+                    --nl1;
+                    for (int is = k; is <= nl1; is++)
+                        l1[is] = l1[is+1];
+                }
+                else
+                {
+                    int kh = iposv[ip]-m1-n;
+                    if (kh >= 1 && l3[kh])
+                    {
+                        // Exchanged out an m2 type constraint
+                        // for the first time.
+                        // Correct the pivot column for the minus sign
+                        // and the implicit artificial variable.
+                        l3[kh] = false;
+                        ++a[m+2][kp+1];
+                        for (int i = 1; i <= m+2; i++)
+                        {
+                            a[i][kp+1] = -a[i][kp+1];
+                        }
+                    }
+                }
+                // Update lists of left-and right-hand variables.
+                int is = izrov[kp]; 
+                izrov[kp] = iposv[ip];
+                iposv[ip] = is;
+            } // Still in phase 1, go back to for(;;).
+        } // if (m2+m3 != 0)
+
+        System.out.println("        PHASE TWO");
+        PRINTMAT(a);
+        PRINTVEC(iposv);
+        PRINTVEC(izrov);
+
+        // End of phase one code for finding an initial feasible solution.
+        // Now, in phase two, optimize it.
+        for (;;)
+        {
+            simp1(a,0,l1,nl1,false,kpScratch,bmaxScratch); // Test the z-row for doneness.
+            int kp = kpScratch[0];
+            double bmax = bmaxScratch[0];
+            if (bmax <= EPS)
+            {
+                // Done.  Solution found.  Return with the good news.
+                assert(l1[0] == -999);
+                assert(l3[0] == true);
+                System.out.println("    Out simplx (finite)");
+                return 0;
+            }
+            int ip = simp2(a,m,n,kp); // Locate a pivot element (phase two).
+            if (ip == 0)
+            {
+                // Objective function is unbounded.  Report and return.
+                assert(l1[0] == -999);
+                assert(l3[0] == true);
+                System.out.println("    Out simplx (unbounded)");
+                return 1;
+            }
+            System.out.println("            pivoting row "+ip+" with col "+kp+"");
+            simp3(a,m,n,ip,kp); // Exchange a left- and right-hand variable (phase two).
+            int is = izrov[kp]; 
+            izrov[kp] = iposv[ip];
+            iposv[ip] = is;
+        } // and return for another iteration.
+
+    } // simplx
+
+    //
+    // Utility functions...
+    //
+
+        // Determines the maximum of those elements whose index is contained
+        // in the supplied list ll,
+        // either with or without taking the absolute value,
+        // as flagged by iabf.
+        private static void simp1(double a[][],       // in
+                                  int mm,             // in
+                                  int ll[],           // in
+                                  int nll,            // in
+                                  boolean iabf,       // in
+                                  int kp[/*1*/],      // out
+                                  double bmax[/*1*/]) // out
+        {
+            if (nll <= 0)
+                bmax[0] = 0.; // No eligible columns.
+            else
+            {
+                kp[0] = ll[1];
+                bmax[0] = a[mm+1][kp[0]+1];
+                for (int k = 2; k <= nll; k++)
+                {
+                    double test =
+                        iabf ? Math.abs(a[mm+1][ll[k]+1]) - Math.abs(bmax[0])
+                             : a[mm+1][ll[k]+1] - bmax[0];
+                    if (test > 0.)
+                    {
+                        bmax[0] = a[mm+1][ll[k]+1];
+                        kp[0] = ll[k];
+                    }
+                }
+            }
+        } // simp1
+
+        // Locate a pivot element, taking degeneracy into account.
+        private static int simp2(double a[][],
+                                 int m,
+                                 int n,
+                                 int kp)
+        {
+            int i;
+            for (i = 1; i <= m; i++)
+                if (a[i+1][kp+1] < -EPS) break; // Any possible pivots?
+            if (i > m)
+                return 0;
+            double q1 = -a[i+1][1]/a[i+1][kp+1];
+            int ip = i;
+            for (i = ip+1; i <= m; i++)
+            {
+                if (a[i+1][kp+1] < -EPS)
+                {
+                    double q = -a[i+1][1]/a[i+1][kp+1];
+                    if (q < q1)
+                    {
+                        ip = i;
+                        q1 = q;
+                    }
+                    else if (q == q1) // We have a degeneracy.
+                    {
+                        double q0=0., qp=0.; // doesn't really need initializing, assuming n>0 XXX which perhaps should be asserted
+                        for (int k = 1; k <= n; k++)
+                        {
+                            qp = -a[ip+1][k+1]/a[ip+1][kp+1];
+                            q0 = -a[i+1][k+1]/a[i+1][kp+1];
+                            if (q0 != qp)
+                                break;
+                        }
+                        if (q0 < qp)
+                            ip = i;
+                    }
+                }
+            }
+            return ip;
+        } // simp2
+
+        // Matrix operations to exchange
+        // a left-hand and right-hand variable (see text)
+        private static void simp3(double a[][],
+                                  int i1,
+                                  int k1,
+                                  int ip,
+                                  int kp)
+        {
+            double piv = 1./a[ip+1][kp+1];
+            for (int ii = 1; ii <= i1+1; ii++)
+            {
+                if (ii-1 != ip)
+                {
+                    a[ii][kp+1] *= piv;
+                    for (int kk = 1; kk <= k1+1; kk++)
+                    {
+                        if (kk-1 != kp)
+                            a[ii][kk] -= a[ip+1][kk]*a[ii][kp+1];
+                    }
+                }
+            }
+        } // simp3
+
+        private static void nrerror(String s)
+        {
+            PRINT(s);
+            // XXX throw!
+        }
+
+    // Little test program
+    public static void main(String args[])
+    {
+        if (true)
+        {
+            //
+            // Example from the book.
+            // Dummy first row and column.
+            //
+            double A[][] = {
+                null, // dummy row for 1-based indexing
+                // Objective function
+                {Double.NaN, 0, 1, 1, 3, -.5},  // maximize z = x1 + x2 + 3*x3 - .5*x4
+                // Less-than constraints
+                {Double.NaN, 740, -1, 0, -2, 0}, // x1 + 2*x3 <= 740
+                {Double.NaN, 0, 0, -2, 0, 7},    // 2*x2 - 7*x4 <= 0
+                // Greater-than constraints
+                {Double.NaN, .5, 0, -1, 1, -2},  // x2 - x3 + 2*x4 >= .5
+                // Equality constraints
+                {Double.NaN, 9,-1,-1,-1,-1},     // x1 + x2 + x3 + x4 == 9
+                // Algorithm needs extra scratch row for the auxiliary objective function
+                {Double.NaN, 0,0,0,0,0},
+            };
+            double expectedAnswerToTwoDecimals[] = { Double.NaN, 0, 3.33, 4.73, .95 };
+            int m = A.length-3;
+            int n = A[1].length-2;
+            int nLE = 2;
+            int nGE = 1;
+            int nEQ = 1;
+            assert(nLE+nGE+nEQ == m);
+            System.out.println("Input:");
+            PRINTMAT(A);
+            PRINT(m);
+            PRINT(n);
+            PRINT(nLE);
+            PRINT(nGE);
+            PRINT(nEQ);
+
+            int iposv[] = new int[m+1]; iposv[0] = -999;
+            int izrov[] = new int[n+1]; izrov[0] = -999;
+            int icase = simplx(A,
+                               nLE+nGE+nEQ,
+                               n,
+                               nLE, nGE, nEQ,
+                               izrov,
+                               iposv);
+            System.out.println("Output:");
+            PRINT(icase);
+            PRINTMAT(A);
+            PRINTVEC(iposv);
+            PRINTVEC(izrov);
+
+            assert(A[0] == null);
+            for (int i = 1; i < A.length; ++i)
+                assert(Double.isNaN(A[i][0]));
+            assert(izrov[0] == -999);
+            assert(iposv[0] == -999);
+            // XXX assert the answer is right!
+
+        }
+    } // main
+
+} // class LinearProgramming1
