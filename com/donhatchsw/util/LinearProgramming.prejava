@@ -41,6 +41,187 @@ public final class LinearProgramming1
     // so that the maximum entry is 1.
 
     //
+    // Utilities used by printing...
+    //
+        private static String repeat(char s, int n)
+        {
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < n; ++i)
+                sb.append(s);
+            return sb.toString();
+        }
+        private static String ljustify(String s, int width)
+        {
+            assert(s.length() <= width);
+            return s + repeat(' ', width-s.length());
+        }
+        private static String rjustify(String s, int width)
+        {
+            assert(s.length() <= width);
+            return repeat(' ', width-s.length()) + s;
+        }
+        private static String lcenter(String s, int width)
+        {
+            assert(s.length() <= width);
+            return repeat(' ', (width-s.length())/2) + s + repeat(' ', (width-s.length()+1)/2);
+        }
+        private static String rcenter(String s, int width)
+        {
+            assert(s.length() <= width);
+            return repeat(' ', (width-s.length()+1)/2) + s + repeat(' ', (width-s.length())/2);
+        }
+        private static String justify(double x, int lWidth, int rWidth)
+        {
+            String s = ""+x;
+            int indexOfDecimalPoint = s.indexOf('.');
+            assert(indexOfDecimalPoint != -1);
+            int nBefore = indexOfDecimalPoint;
+            int nAfter = s.length() - (indexOfDecimalPoint+1);
+            return repeat(' ', lWidth-nBefore) + s + repeat(' ', rWidth-nAfter);
+        }
+        static void appendSeparatorRow(StringBuffer sb,
+                                       int n,
+                                       int colWidths[],
+                                       char primaryChar,
+                                       String singleCross,
+                                       String doubleCross)
+        {
+            sb.append(repeat(primaryChar, colWidths[0]));
+            sb.append(doubleCross);
+            for (int iCol = 1; iCol <= n+1; ++iCol)
+            {
+                sb.append(repeat(primaryChar,colWidths[iCol]));
+                sb.append(iCol==n+1 ? doubleCross : singleCross);
+            }
+            sb.append("\n");
+        } // appendSeparatorRow
+
+
+    private static String TableauToString(double a[/*1+1+m+1*/][/*1+n+1*/],
+                                          int m,
+                                          int n,
+                                          int m1,
+                                          int m2,
+                                          int izrov[/*1+n*/],
+                                          int iposv[/*1+m*/])
+    {
+        StringBuffer sb = new StringBuffer();
+
+        //
+        // Sanity check the arrays...
+        //
+        assert(a.length == 1+1+m+1);
+        assert(a[0] == null);
+        assert(a[1].length == 1+n+1);
+        for (int iRow = 1; iRow < a.length; ++iRow)
+            assert(Double.isNaN(a[iRow][0]));
+        assert(izrov[0] == -999);
+        assert(iposv[0] == -999);
+
+        //
+        // Figure out optimal column widths
+        // XXX could concievably overflow if many thousands of variables
+        //
+        int colWidths[] = new int[1+n+1];
+        int maxBeforeDecimal[] = new int[1+n+1];
+        int maxAfterDecimal[] = new int[1+n+1];
+        for (int iCol = 1; iCol <= n+1; ++iCol)
+        {
+            maxBeforeDecimal[iCol] = 2; // minimum so colWidth is at least 5
+            maxAfterDecimal[iCol] = 2; // minimum so colWidth is at least 5
+            for (int iRow = 1; iRow <= m+2; ++iRow)
+            {
+                String s = ""+a[iRow][iCol];
+                int indexOfDecimalPoint = s.indexOf('.');
+                assert(indexOfDecimalPoint != -1);
+                int nBefore = indexOfDecimalPoint;
+                int nAfter = s.length() - (indexOfDecimalPoint+1);
+                if (nBefore > maxBeforeDecimal[iCol]) maxBeforeDecimal[iCol] = nBefore;
+                if (nAfter > maxAfterDecimal[iCol]) maxAfterDecimal[iCol] = nAfter;
+            }
+            colWidths[iCol] = maxBeforeDecimal[iCol] + 1 + maxAfterDecimal[iCol];
+        }
+        colWidths[0] = 4; // width of label column
+
+        //
+        // Print top labels
+        //
+        {
+            sb.append(repeat(' ', colWidths[0]));
+            sb.append("  ");
+            for (int iCol = 1; iCol <= n+1; ++iCol)
+            {
+                String label;
+                if (iCol == 1)
+                    label = "";
+                else
+                {
+                    int iVar = izrov[iCol-1];
+                    assert(1 <= iVar && iVar <= m+n);
+                    if (iVar <= n)
+                        label = "x"+iVar;
+                    else
+                        label = "y"+(iVar-n);
+                }
+                label = lcenter(label, colWidths[iCol]);
+                sb.append(label);
+                sb.append(iCol==n+1 ? "||" : "|");
+            }
+            sb.append("\n");
+        }
+        appendSeparatorRow(sb, n, colWidths, '=', "+", "++");
+        for (int iRow = 1; iRow <= m+2; ++iRow)
+        {
+            if (iRow == m+2)
+                appendSeparatorRow(sb, n, colWidths, '=', "+", "++");
+            String label;
+            if (iRow == 1)
+                label = "z";
+            else if (iRow == m+2)
+                label = "z'";
+            else
+            {
+                int iVar = iposv[iRow-1];
+                assert(1 <= iVar && iVar <= m+n);
+                if (iVar <= n)
+                    label = "x"+iVar;
+                else
+                    label = "y"+(iVar-n);
+            }
+            label = ljustify(label.length()==colWidths[0] ? label : " "+label, colWidths[0]);
+            sb.append(label);
+            sb.append("||");
+            for (int iCol = 1; iCol <= n+1; ++iCol)
+            {
+                sb.append(justify(a[iRow][iCol], maxBeforeDecimal[iCol], maxAfterDecimal[iCol]));
+                sb.append(iCol==n+1 ? "||" : "|");
+            }
+            sb.append("\n");
+            if (iRow == 1)
+                appendSeparatorRow(sb, n, colWidths, '-', "+", "++");
+        }
+        appendSeparatorRow(sb, n, colWidths, '-', "+", "++");
+
+        sb.deleteCharAt(sb.length()-1); // delete final newline
+        return sb.toString();
+    } // printTableau
+
+    #define PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv) System.out.println(#a + " =\n" + TableauToString(a,m,n,m1,m2,izrov,iposv))
+
+
+    private static void myCheckForFeasibility(double a[/*1+1+m+1*/][/*1+n+1*/],
+                                              int m,
+                                              int n,
+                                              int m1,
+                                              int m2,
+                                              int izrov[/*1+n*/],
+                                              int iposv[/*1+m*/],
+                                              boolean useAuxRow)
+    {
+        double objectiveFunctionRow[] = a[useAuxRow ? m+1 : 1];
+    }
+
+    //
     // Simplex method for linear programming.
     //
     // On output, the tableau A
@@ -65,20 +246,20 @@ public final class LinearProgramming1
     // -1 if no solution satisfies the given constraints.
     //
     //
-    private static int simplx(double a[/*1+m+2*/][/*1+n+1*/], // in/out
+    private static int simplx(double a[/*1+1+m+1*/][/*1+n+1*/], // in/out
                               int m,                      // in
                               int n,                      // in
                               int m1,                     // in: number of <='s
                               int m2,                     // in: number of >='s
                               int m3,                     // in; number of =='s
-                              int izrov[/*n*/],           // out
-                              int iposv[/*m*/])           // out
+                              int izrov[/*1+n*/],         // out
+                              int iposv[/*1+m*/])         // out
     {
         System.out.println("    In simplx");
         if (m != (m1+m2+m3))
             nrerror("Bad input constraint counts in simplx");
         int l1[] = new int[1+n+1]; l1[0] = -999;
-        boolean l3[] = new boolean[1+m]; l3[0] = true; // arbitrary
+        boolean l3[] = new boolean[1+m2]; l3[0] = true; // arbitrary; note the book allocates 1..m but only 1..m2 are used so that's what I'm allocating
         int nl1 = n;
         for (int k = 1; k <= n; k++)
             l1[k] = izrov[k] = k; // XXX we allocated l1 with one more... why? is it right to not initialize it?
@@ -95,15 +276,16 @@ public final class LinearProgramming1
             // variable initially left-hand, with no artificial variable.
             // m2 type constraints have their slack variable
             // initially left-hand, with a minus sign, and their artificial
-            // variable handles implicitly during their first exchange.
+            // variable handled implicitly during their first exchange.
             // m3 type constraints have their artificial variables
             // initially left-hand.
         }
 
         System.out.println("        PHASE ONE");
         PRINTMAT(a);
-        PRINTVEC(iposv);
         PRINTVEC(izrov);
+        PRINTVEC(iposv);
+        PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
 
         int kpScratch[] = new int[1];
         double bmaxScratch[] = new double[1];
@@ -247,8 +429,9 @@ public final class LinearProgramming1
 
         System.out.println("        PHASE TWO");
         PRINTMAT(a);
-        PRINTVEC(iposv);
         PRINTVEC(izrov);
+        PRINTVEC(iposv);
+        PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
 
         // End of phase one code for finding an initial feasible solution.
         // Now, in phase two, optimize it.
@@ -363,8 +546,8 @@ public final class LinearProgramming1
         // Matrix operations to exchange
         // a left-hand and right-hand variable (see text)
         private static void simp3(double a[][],
-                                  int i1,
-                                  int k1,
+                                  int i1, // last row to worry about is 1+i1
+                                  int k1, // last col to worry about is 1+k1
                                   int ip,
                                   int kp)
         {
@@ -427,8 +610,9 @@ public final class LinearProgramming1
             PRINT(nGE);
             PRINT(nEQ);
 
-            int iposv[] = new int[m+1]; iposv[0] = -999;
             int izrov[] = new int[n+1]; izrov[0] = -999;
+            int iposv[] = new int[m+1]; iposv[0] = -999;
+
             int icase = simplx(A,
                                nLE+nGE+nEQ,
                                n,
@@ -438,8 +622,9 @@ public final class LinearProgramming1
             System.out.println("Output:");
             PRINT(icase);
             PRINTMAT(A);
-            PRINTVEC(iposv);
             PRINTVEC(izrov);
+            PRINTVEC(iposv);
+            PRINTTABLEAU(A,m,n,nLE,nGE,izrov,iposv);
 
             assert(A[0] == null);
             for (int i = 1; i < A.length; ++i)
