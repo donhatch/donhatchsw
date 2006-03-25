@@ -2,7 +2,7 @@
 * Copyright (c) 2006 Don Hatch Software
 */
 //
-// VecMath.prejava
+// LinearProgramming1.prejava
 //
 // Author: Don Hatch (hatch@plunk.org)
 // This code may be used for any purpose as long as it is good and not evil.
@@ -10,7 +10,7 @@
 
 package com.donhatchsw.util;
 
-#include "macros.h"
+#include "macros.h" // XXX should try to get rid of this
 
 
 
@@ -101,12 +101,14 @@ public final class LinearProgramming1
         {
             assert(iVar <= m+n);
             if (iVar <= n)
-                return "x"+iVar;
+                return "x"+iVar; // original variable
+            else if (iVar <= n+m)
+                return "y"+(iVar-n); // slack variable
             else
-                return "y"+(iVar-n);
+                return "z" + (iVar-(n+m)); // artificial variable
         }
 
-    private static String TableauToString(double a[/*1+1+m+1*/][/*1+n+1*/],
+    private static String TableauToString(double a[/*1+1+m+1*/][/*1+1+n*/],
                                           int m,
                                           int n,
                                           int m1,
@@ -121,7 +123,7 @@ public final class LinearProgramming1
         //
         assert(a.length == 1+1+m+1);
         assert(a[0] == null);
-        assert(a[1].length == 1+n+1);
+        assert(a[1].length == 1+1+n);
         for (int iRow = 1; iRow < a.length; ++iRow)
             assert(Double.isNaN(a[iRow][0]));
         assert(izrov[0] == -999);
@@ -131,9 +133,9 @@ public final class LinearProgramming1
         // Figure out optimal column widths
         // XXX could concievably overflow if many thousands of variables
         //
-        int colWidths[] = new int[1+n+1];
-        int maxBeforeDecimal[] = new int[1+n+1];
-        int maxAfterDecimal[] = new int[1+n+1];
+        int colWidths[] = new int[1+1+n];
+        int maxBeforeDecimal[] = new int[1+1+n];
+        int maxAfterDecimal[] = new int[1+1+n];
         for (int iCol = 1; iCol <= n+1; ++iCol)
         {
             maxBeforeDecimal[iCol] = 2; // minimum so colWidth is at least 5
@@ -204,7 +206,7 @@ public final class LinearProgramming1
     #define PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv) System.out.println(#a + " =\n" + TableauToString(a,m,n,m1,m2,izrov,iposv))
 
 
-    private static void myCheckForFeasibility(double a[/*1+1+m+1*/][/*1+n+1*/],
+    private static void myCheckForFeasibility(double a[/*1+1+m+1*/][/*1+1+n*/],
                                               int m,
                                               int n,
                                               int m1,
@@ -241,7 +243,124 @@ public final class LinearProgramming1
     // -1 if no solution satisfies the given constraints.
     //
     //
-    private static int simplx(double a[/*1+1+m+1*/][/*1+n+1*/], // in/out
+
+    //
+    // Solve linear programming problem,
+    // which is to find x such that:
+    //         A x == b
+    //         C x <= d  componentwise
+    //           x >= 0  componentwise  (XXX argh, this is a stupid restriction)
+    //     q dot x maximal.
+    // Returns -1 if infeasible (in which case x will be undefined),
+    // 1 if unbounded (in which case x will be undefined)
+    // 0 if finite (in which case x is filled in with the answer,
+    //              and y, if non-null, is filled in
+    //              with the non-negative values d - C x with exact zeros
+    //              for those inequalities that were satisfied as equalities)
+    //
+    private static int LPSolve(double x[], // solution
+                               double y[], // slack d-Cx at solution
+                               double A[][], double b[], // equalities Ax == b
+                               double C[][], double d[], // inequalities Cx <= d
+                               double q[]) // objective: maximize q dot x
+    {
+        int n = q.length;            // number of variables
+        int m = A.length + C.length; // number of constraints
+
+        assert(x.length == n);
+        assert(A.length == b.length);
+        assert(C.length == d.length);
+        for (int i = 0; i < A.length; ++i)
+            assert(A[i].length == n);
+        for (int i = 0; i < C.length; ++i)
+            assert(C[i].length == n);
+
+        if (n == 0)
+            return 0; // success; don't bother with simplx since it will bomb in this case XXX I think--- maybe try it and see
+        // I think it should work even if m is 0... should always return 1 though (unbounded).
+
+        double M[][] = new double [1+1+m+1][];
+        for (int i = 1; i < M.length; ++i) // start at 1, leave row 0 null
+        {
+            M[i] = new double[1+1+n];
+            M[i][0] = Double.NaN;
+        }
+
+        // Fill in M...
+        int nEQ = 0; // and counting
+        int nLE = 0; // and counting
+        int nGE = 0; // and counting
+        {
+            // Objective function row...
+            M[1][1+0] = 0.;
+            for (int i = 0; i < n; ++i)
+                M[1][1+1+i] = q[i];
+
+            for (int iNE = 0; iNE < C.length; ++iNE)
+            {
+                // simplx requires the constant to be >= 0,
+                // so if that's not the case we negate the <= constraint
+                // to get a >= constraint.
+                int sign = d[iNE] < 0. ? -1 : 1;
+                int iRow = 1+1+(sign == -1 ?  (m-1)-(nGE++) : (nLE++) );
+                M[iRow][1+0] = sign * d[iNE];
+                for (int i = 0; i < n; ++i)
+                    M[iRow][1+1+i] = sign * -C[iNE][i];
+            }
+            for (int iEQ = 0; iEQ < A.length; ++iEQ)
+            {
+                // simplx requires constant column of input to be >= 0,
+                // so if that's not the case we simply negate the equation.
+                int sign = b[iEQ] < 0. ? -1 : 1;
+                int iRow = 1+1+nLE+nGE+(nEQ++);
+                M[iRow][1+0] = sign * b[iEQ];
+                for (int i = 0; i < n; ++i)
+                    M[iRow][1+1+i] = sign * -A[iEQ][i];
+            }
+        }
+
+
+        int izrov[] = new int[1+n]; izrov[0] = -999;
+        int iposv[] = new int[1+m]; iposv[0] = -999;
+        int icase = simplx(M,
+                           m,
+                           n,
+                           nLE,
+                           nGE,
+                           nEQ,
+                           izrov,
+                           iposv);
+        assert(M[0] == null);
+        for (int i = 1; i < M.length; ++i)
+            assert(Double.isNaN(M[i][0]));
+        assert(izrov[0] == -999);
+        assert(iposv[0] == -999);
+
+        if (icase == 0) // if got a finite result
+        {
+            for (int i = 0; i < x.length; ++i)
+                x[i] = Double.NaN;
+            for (int i = 0; i < m; ++i)
+                if (iposv[1+i]-1 < n)
+                    x[iposv[1+i]-1] = M[1+1+i][1];
+                else if (y != null)
+                    y[iposv[1+i]-1 - n] = M[1+1+i][1]; // XXX uh oh this might not be safe-- can it be an artificial variable?
+            for (int i = 0; i < n; ++i)
+                if (izrov[1+i]-1 < n)
+                    x[izrov[1+i]-1] = 0.;
+                else if (y != null)
+                    y[izrov[1+i]-1 - n] = 0.;         // XXX uh oh this might not be safe-- can it be an artificial variable?
+
+            for (int i = 0; i < x.length; ++i)
+                assert(!Double.isNaN(x[i]));
+            for (int i = 0; i < y.length; ++i)
+                assert(!Double.isNaN(y[i]));
+        }
+
+        return icase;
+    } // LPsolve
+
+    private static int simplx(double a[/*1+1+m+1*/][/*1+1+n*/], // in/out
                               int m,                      // in
                               int n,                      // in
                               int m1,                     // in: number of <='s
@@ -253,13 +372,15 @@ public final class LinearProgramming1
         System.out.println("    In simplx");
         if (m != (m1+m2+m3))
             nrerror("Bad input constraint counts in simplx");
-        int l1[] = new int[1+n+1]; l1[0] = -999;
-        boolean l3[] = new boolean[1+m2]; l3[0] = true; // arbitrary; note the book allocates 1..m but only 1..m2 are used so that's what I'm allocating
+
+        // Initialize l1, which is the index list of variable-columns admissible for exchange,
+        // and make all original variables initially right-hand.
+        int l1[] = new int[1+n]; l1[0] = -999; // note the book allocates 1..n+1 but only 1..n are used so that's what I'm allocating
         int nl1 = n;
+        PRINT(n);
+        PRINT(m);
         for (int k = 1; k <= n; k++)
-            l1[k] = izrov[k] = k; // XXX we allocated l1 with one more... why? is it right to not initialize it?
-        // Initialize index list of columns admissible for exchange,
-        // and make all variables initially right-hand.
+            l1[k] = izrov[k] = k;
         for (int  i = 1; i <= m; i++)
         {
             if (a[i+1][1] < 0.)
@@ -267,25 +388,13 @@ public final class LinearProgramming1
             // Constants b[i] must be nonnegative.
             iposv[i] = n+i;
             // Initial left-hand variables.
-            // m1 type constraints are represented by having their slack
+            // m1 (<=) type constraints are represented by having their slack
             // variable initially left-hand, with no artificial variable.
-            // m2 type constraints have their slack variable
+            // m2 (>=) type constraints have their slack variable
             // initially left-hand, with a minus sign, and their artificial
             // variable handled implicitly during their first exchange.
-            // m3 type constraints have their artificial variables
+            // m3 (==) type constraints have their artificial variables
             // initially left-hand.
-        }
-
-        System.out.println("        PHASE ONE");
-        if (debugLevel >= 2)
-        {
-            PRINTMAT(a);
-        }
-        if (debugLevel >= 1)
-        {
-            PRINTVEC(izrov);
-            PRINTVEC(iposv);
-            PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
         }
 
         int kpScratch[] = new int[1];
@@ -293,10 +402,12 @@ public final class LinearProgramming1
         if (m2+m3 != 0)
         {
             // Origin is not a feasible starting solution: we must do phase one.
+
+            // Initialize l3, which is the list of constraints whose slack variables
+            // have never been exchanged out of the initial basis.
+            boolean l3[] = new boolean[1+m2]; l3[0] = true; //  note the book allocates 1..m but only 1..m2 are used so that's what I'm allocating
             for (int i = 1; i <= m2; i++)
                 l3[i] = true;
-            // Initialize list of m2 constraints whose slack variables
-            // have never been exchanged out of the initial basis.
             for (int k = 1; k <= n+1; k++)
             {
                 // Compute the auxiliary objective function.
@@ -308,15 +419,29 @@ public final class LinearProgramming1
                 // In the code, we skip the two m1-type rows, starting at i=1+m1 instead
                 // and only considering the last 2 rows in that example.
                 // However if I blindly use 1 instead of 1+m1 here, it returns infeasible.
+                // But... is this the cruz of why I don't get the same answer
+                // as the book?
                 for (int i = 1+m1; i <= m; i++)
                     q1 += a[i+1][k];
                 a[m+2][k] = -q1;
             }
-            System.out.println("            aux objective function: "+VecMath.toString(a[m+2]));
+
+            System.out.println("        PHASE ONE");
+            if (debugLevel >= 2)
+            {
+                PRINTMAT(a);
+            }
+            if (debugLevel >= 1)
+            {
+                PRINTVEC(izrov);
+                PRINTVEC(iposv);
+                PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+            }
+
             for (;;)
             {
                 boolean goingto_one = false; // simulate goto with bubblegum and string
-                int ip = -1; // doesn't really need initializing, but compiler thinks so
+                int ip = -999; // doesn't really need initializing, but compiler thinks so
 
                 // Find max. coeff. of auxiliary objective fn.
                 simp1(a, m+1, l1, nl1, false, kpScratch, bmaxScratch);
@@ -325,7 +450,7 @@ public final class LinearProgramming1
                 if (bmax <= EPS && a[m+2][1] < -EPS)
                 {
                     // Auxiliary objective function is still negative
-                    // and can't be imporved, hence no
+                    // and can't be improved, hence no
                     // feasible solution exists.
                     assert(l1[0] == -999);
                     assert(l3[0] == true);
@@ -337,8 +462,9 @@ public final class LinearProgramming1
                     // Auxiliary objective function is zero and
                     // can't be improved; we have a feasible starting vector.
                     // Clean out the artificial variables
-                    // corresponding to any remaining equality constraints
+                    // corresponding to any remaining m3 (equality) constraints
                     // by goto one and then move on to phase two.
+                    System.out.println("            WE HAVE A FEASIBLE STARTING VECTOR");
                     for (ip = m1+m2+1; ip <= m; ip++)
                     {
                         if (iposv[ip] == (ip+n))
@@ -349,11 +475,12 @@ public final class LinearProgramming1
                             kp = kpScratch[0];
                             bmax = bmaxScratch[0];
                             // Exchange with column corresponding to maximum
-                            // pivot element in row.
+                            // pivot element in row ip.
                             if (bmax > EPS)
                             {
                                 //goto one;
                                 goingto_one = true;
+                                System.out.println("                GOING TO ONE");
                                 break;
                             }
                         }
@@ -387,7 +514,7 @@ public final class LinearProgramming1
                 }
 //one:
                 goingto_one = false;
-                System.out.println("            pivoting row "+ip+" ("+varLabel(iposv[ip],m,n)+") with col "+kp+" ("+varLabel(izrov[kp],m,n)+")");
+                System.out.println("                pivoting row "+ip+" ("+varLabel(iposv[ip],m,n)+") with col "+kp+" ("+varLabel(izrov[kp],m,n)+")");
                 pivot(a,m+1,n,ip,kp);
                 // Exchange a left- and a right-hand variable (phase one),
                 // then update lists.
@@ -421,11 +548,16 @@ public final class LinearProgramming1
                         }
                     }
                 }
+
                 // Update lists of left-and right-hand variables.
-                int is = izrov[kp]; 
-                izrov[kp] = iposv[ip];
-                iposv[ip] = is;
+                {
+                    // SWAP(izrov[kp], iposv[ip]);
+                    int is = izrov[kp]; 
+                    izrov[kp] = iposv[ip];
+                    iposv[ip] = is;
+                }
             } // Still in phase 1, go back to for(;;).
+            assert(l3[0] == true);
         } // if (m2+m3 != 0)
 
         System.out.println("        PHASE TWO");
@@ -451,7 +583,17 @@ public final class LinearProgramming1
             {
                 // Done.  Solution found.  Return with the good news.
                 assert(l1[0] == -999);
-                assert(l3[0] == true);
+                if (debugLevel >= 2)
+                {
+                    PRINTMAT(a);
+                }
+                if (debugLevel >= 1)
+                {
+                    System.out.println("        SOLUTION:");
+                    PRINTVEC(izrov);
+                    PRINTVEC(iposv);
+                    PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+                }
                 System.out.println("    Out simplx (finite)");
                 return 0;
             }
@@ -460,15 +602,18 @@ public final class LinearProgramming1
             {
                 // Objective function is unbounded.  Report and return.
                 assert(l1[0] == -999);
-                assert(l3[0] == true);
                 System.out.println("    Out simplx (unbounded)");
                 return 1;
             }
-            System.out.println("            pivoting row "+ip+" ("+varLabel(iposv[ip],m,n)+") with col "+kp+" ("+varLabel(izrov[kp],m,n)+")");
+            System.out.println("                pivoting row "+ip+" ("+varLabel(iposv[ip],m,n)+") with col "+kp+" ("+varLabel(izrov[kp],m,n)+")");
             pivot(a,m,n,ip,kp); // Exchange a left- and right-hand variable (phase two).
-            int is = izrov[kp]; 
-            izrov[kp] = iposv[ip];
-            iposv[ip] = is;
+
+            {
+                // SWAP(izrov[kp], iposv[ip]);
+                int is = izrov[kp]; 
+                izrov[kp] = iposv[ip];
+                iposv[ip] = is;
+            }
         } // and return for another iteration.
 
     } // simplx
@@ -584,7 +729,8 @@ public final class LinearProgramming1
     // Little test program
     public static void main(String args[])
     {
-        if (true)
+
+        if (false)
         {
             //
             // Example from the book.
@@ -648,6 +794,180 @@ public final class LinearProgramming1
             assert(iposv[0] == -999);
             // XXX assert the answer is right!
 
+        }
+
+        if (true)
+        {
+            //
+            // See if we can locate the dual verts
+            // of each regular polyhedron.
+            //
+            double tetraVerts[][] = {
+                {1,1,1},
+                {1,-1,-1},
+                {-1,1,-1},
+                {-1,-1,1},
+            };
+            double cubeVerts[][] = {
+                {-1,-1,-1},
+                { 1,-1,-1},
+                {-1, 1,-1},
+                { 1, 1,-1},
+                {-1,-1, 1},
+                { 1,-1, 1},
+                {-1, 1, 1},
+                { 1, 1, 1},
+            };
+            double octaVerts[][] = {
+                {0,0,1},
+                {0,0,-1},
+                {0,1,0},
+                {0,-1,0},
+                {1,0,0},
+                {-1,0,0},
+            };
+            double gold = (Math.sqrt(5)+1)/2;
+            double icosaVerts[][] = {
+                {0,  1,  gold},
+                {0, -1,  gold},
+                {0,  1, -gold},
+                {0, -1, -gold},
+                { 1,  gold, 0},
+                { 1, -gold, 0},
+                {-1,  gold, 0},
+                {-1, -gold, 0},
+                { gold, 0,  1},
+                { gold, 0, -1},
+                {-gold, 0,  1},
+                {-gold, 0, -1},
+            };
+            double dodecaVerts[][] = {
+                {0,  1/gold,  gold},
+                {0, -1/gold,  gold},
+                {0,  1/gold, -gold},
+                {0, -1/gold, -gold},
+                { 1/gold,  gold, 0},
+                { 1/gold, -gold, 0},
+                {-1/gold,  gold, 0},
+                {-1/gold, -gold, 0},
+                { gold, 0,  1/gold},
+                { gold, 0, -1/gold},
+                {-gold, 0,  1/gold},
+                {-gold, 0, -1/gold},
+                { 1, 1, 1},
+                { 1, 1,-1},
+                { 1,-1, 1},
+                { 1,-1,-1},
+                {-1, 1, 1},
+                {-1, 1,-1},
+                {-1,-1, 1},
+                {-1,-1,-1},
+            };
+            double primalsVerts[][][] = {
+                //tetraVerts,
+                //cubeVerts,
+                octaVerts,
+                //icosaVerts,
+                //dodecaVerts,
+            };
+            for (int iPrimal = 0; iPrimal < primalsVerts.length; ++iPrimal)
+            {
+                System.out.println("=======================================================");
+                System.out.println("iPrimal = "+iPrimal);
+                double verts[][] = primalsVerts[iPrimal];
+                int nDims = 3;
+                int nVerts = verts.length;
+
+                // nVerts constraints, all <= inequalities
+                double M[][] = new double[1+1+nVerts+1][1+1+nDims];
+                M[0] = null;
+                for (int iRow = 1; iRow < M.length; ++iRow)
+                    M[iRow][0] = Double.NaN;
+                for (int iIter = 0; iIter < 1; ++iIter)
+                {
+                    java.util.Random generator =
+                        args.length > 0 ? new java.util.Random(Integer.parseInt(args[0]))
+                                        : new java.util.Random();
+                    double q[] = new double[nDims];
+                    for (int iDim = 0; iDim < nDims; ++iDim)
+                        q[iDim] = 2*generator.nextDouble()-1;
+
+                    for (int iVert = 0; iVert < nVerts; ++iVert)
+                    {
+                        // The constraint is x dot vert <= 1
+                        //              i.e. vert[0]*x0 + vert[1]*x1 + vert[2]*x2 <= 1
+                        //              i.e. y1 = 1 - vert[0]*x0 + vert[1]*x1 + vert[2]*x2 >= 0
+                        M[1+1+iVert][1+0] = 1;
+                        for (int iDim = 0; iDim < nDims; ++iDim)
+                            M[1+1+iVert][1+1+iDim] = -verts[iVert][iDim];
+                    }
+                    //
+                    // Now figure out the objective function to minimize...
+                    // pick a random direction for now.
+                    //
+                    M[1][1+0] = 0.;
+                    for (int iDim = 0; iDim < nDims; ++iDim)
+                        M[1][1+1+iDim] = q[iDim];
+
+                    int nLE = nVerts;
+                    int nGE = 0;
+                    int nEQ = 0;
+                    int m = nLE+nGE+nEQ;
+                    int n = nDims;
+
+                    int izrov[] = new int[1+nDims]; izrov[0] = -999;
+                    int iposv[] = new int[1+nVerts]; iposv[0] = -999;
+
+                    int icase = simplx(M,
+                                       m,
+                                       n,
+                                       nLE, nGE, nEQ,
+                                       izrov,
+                                       iposv);
+                    System.out.println("Output:");
+                    PRINT(icase);
+                    if (debugLevel >= 2)
+                    {
+                        PRINTMAT(M);
+                    }
+                    if (debugLevel >= 1)
+                    {
+                        PRINTVEC(izrov);
+                        PRINTVEC(iposv);
+                        PRINTTABLEAU(M,m,n,nLE,nGE,izrov,iposv);
+                    }
+
+                    assert(M[0] == null);
+                    for (int i = 1; i < M.length; ++i)
+                        assert(Double.isNaN(M[i][0]));
+                    assert(izrov[0] == -999);
+                    assert(iposv[0] == -999);
+                    // XXX assert the answer is right!
+
+                    //
+                    // Now try to do it the easy way...
+                    //
+                    {
+                        double A[][] = new double[0][nDims]; // XXX maybe should allow null?
+                        double b[] = new double[0]; // XXX maybe should allow null?
+                        double C[][] = verts;
+                        double d[] = new double[nVerts];
+                        // q is already defined and initialized above
+
+                        for (int iVert = 0; iVert < nVerts; ++iVert)
+                            d[iVert] = 1; // verts[iVert] dot x <= 1
+
+                        double x[] = new double[nDims];
+                        double y[] = new double[nVerts];
+                        int result = LPSolve(x,y,A,b,C,d,q);
+                        PRINTVEC(q);
+                        PRINTVEC(x);
+                        PRINTVEC(y);
+                    }
+                } // for iIter
+
+                System.out.println("=======================================================");
+            } // for iPrimal
         }
     } // main
 
