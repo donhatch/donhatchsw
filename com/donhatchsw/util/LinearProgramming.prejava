@@ -878,92 +878,35 @@ public final class LinearProgramming1
                 int nDims = 3;
                 int nVerts = verts.length;
 
-                // nVerts constraints, all <= inequalities
-                double M[][] = new double[1+1+nVerts+1][1+1+nDims];
-                M[0] = null;
-                for (int iRow = 1; iRow < M.length; ++iRow)
-                    M[iRow][0] = Double.NaN;
+                double A[][] = new double[0][nDims]; // XXX maybe should allow null?
+                double b[] = new double[0]; // XXX maybe should allow null?
+                double C[][] = verts;
+                double d[] = new double[nVerts];
+
+                double x[] = new double[nDims]; // solution
+                double y[] = new double[nVerts]; // slack at solution
+
                 for (int iIter = 0; iIter < 1; ++iIter)
                 {
                     java.util.Random generator =
                         args.length > 0 ? new java.util.Random(Integer.parseInt(args[0]))
                                         : new java.util.Random();
+
+                    // Random objective function...
                     double q[] = new double[nDims];
                     for (int iDim = 0; iDim < nDims; ++iDim)
                         q[iDim] = 2*generator.nextDouble()-1;
 
+                    // q is already defined and initialized above
+
                     for (int iVert = 0; iVert < nVerts; ++iVert)
-                    {
-                        // The constraint is x dot vert <= 1
-                        //              i.e. vert[0]*x0 + vert[1]*x1 + vert[2]*x2 <= 1
-                        //              i.e. y1 = 1 - vert[0]*x0 + vert[1]*x1 + vert[2]*x2 >= 0
-                        M[1+1+iVert][1+0] = 1;
-                        for (int iDim = 0; iDim < nDims; ++iDim)
-                            M[1+1+iVert][1+1+iDim] = -verts[iVert][iDim];
-                    }
-                    //
-                    // Now figure out the objective function to minimize...
-                    // pick a random direction for now.
-                    //
-                    M[1][1+0] = 0.;
-                    for (int iDim = 0; iDim < nDims; ++iDim)
-                        M[1][1+1+iDim] = q[iDim];
+                        d[iVert] = 1; // verts[iVert] dot x <= 1
 
-                    int nLE = nVerts;
-                    int nGE = 0;
-                    int nEQ = 0;
-                    int m = nLE+nGE+nEQ;
-                    int n = nDims;
+                    int result = LPSolve(x,y,A,b,C,d,q);
+                    PRINTVEC(q);
+                    PRINTVEC(x);
+                    PRINTVEC(y);
 
-                    int izrov[] = new int[1+nDims]; izrov[0] = -999;
-                    int iposv[] = new int[1+nVerts]; iposv[0] = -999;
-
-                    int icase = simplx(M,
-                                       m,
-                                       n,
-                                       nLE, nGE, nEQ,
-                                       izrov,
-                                       iposv);
-                    System.out.println("Output:");
-                    PRINT(icase);
-                    if (debugLevel >= 2)
-                    {
-                        PRINTMAT(M);
-                    }
-                    if (debugLevel >= 1)
-                    {
-                        PRINTVEC(izrov);
-                        PRINTVEC(iposv);
-                        PRINTTABLEAU(M,m,n,nLE,nGE,izrov,iposv);
-                    }
-
-                    assert(M[0] == null);
-                    for (int i = 1; i < M.length; ++i)
-                        assert(Double.isNaN(M[i][0]));
-                    assert(izrov[0] == -999);
-                    assert(iposv[0] == -999);
-                    // XXX assert the answer is right!
-
-                    //
-                    // Now try to do it the easy way...
-                    //
-                    {
-                        double A[][] = new double[0][nDims]; // XXX maybe should allow null?
-                        double b[] = new double[0]; // XXX maybe should allow null?
-                        double C[][] = verts;
-                        double d[] = new double[nVerts];
-                        // q is already defined and initialized above
-
-                        for (int iVert = 0; iVert < nVerts; ++iVert)
-                            d[iVert] = 1; // verts[iVert] dot x <= 1
-
-                        double x[] = new double[nDims];
-                        double y[] = new double[nVerts];
-                        int result = LPSolve(x,y,A,b,C,d,q);
-                        PRINTVEC(q);
-                        PRINTVEC(x);
-                        PRINTVEC(y);
-                    }
                 } // for iIter
 
                 System.out.println("=======================================================");
