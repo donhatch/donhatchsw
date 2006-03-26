@@ -24,6 +24,132 @@ public final class LinearProgramming
 {
     private LinearProgramming() {} // uninstantiatable
 
+    /** Find x that minimizes ||Ax-b|| in the infinity (max) norm (not implemented yet). */
+    public static int invmxvMaxNorm(double x[],
+                                    double A[][],
+                                    double b[])
+    {
+        throw new Error("invmxvMaxNorm not implemented yet");
+    } // invmxvMaxNorm
+
+    /** Find x that minimizes ||Ax-b|| in the one (sum) norm (not implemented yet). */
+    public static int invmxvSumNorm(double x[],
+                                    double A[][],
+                                    double b[])
+    {
+        throw new Error("invmxvSumNorm not implemented yet");
+    } // invmxvSumNorm
+
+    /**
+     * Find x such that the vector Mx has sum 1
+     * and maximal minimum element.
+     * <p>
+     * This is a convenience function
+     * that is implemented in terms of maximizeMinimum as follows:
+     * <pre>
+     *     A = [[1,1,..,1] * M]         (1 x n matrix)
+     *     b = [1]
+     *     C = M
+     *     d = [0,0,...,0]
+     *     return maximizeMinimum(x, A, b, C, d);
+     * </pre>
+     */
+    public static int maximizeMinimumAffine(double x[],
+                                            double resultSum,
+                                            double M[][])
+    {
+        int n = x.length;
+        double A[][] = {VecMath.vxm(VecMath.fillvec(M.length, 1.), M)};
+        double b[] = {1.};
+        double C[][] = M;
+        double d[] = VecMath.fillvec(M.length, 0.);
+        return maximizeMinimum(x, A, b, C, d);
+    } // maximizeMinimumAffine
+
+    /**
+     * Find a solution vector x
+     * that satisfies A x == b
+     * and maximizes the minimum element of C x - d.
+     * <p>
+     * This is a convenience function; it is implemented
+     * in terms of LPSolve as follows:
+     * <pre>
+     * We want to maximize the smallest element of:
+     *        ((C[0] dot x)   - d[0])
+     *        ((C[1] dot x)   - d[1])
+     *        ...
+     *        ((C[m-1] dot x) - d[m-1])
+     *      
+     * The trick is to add another variable "smallest"
+     * with constraints:
+     *      smallest <= ((C[0] dot x)   - d[0])
+     *      smallest <= ((C[1] dot x)   - d[1])
+     *      ...
+     *      smallest <= ((C[m-1] dot x) - d[m-1])
+     * i.e.
+     *      ((-C[0] dot x)   + smallest <= -d[0])
+     *      ((-C[1] dot x)   + smallest <= -d[1])
+     *      ...
+     *      ((-C[m-1] dot x) + smallest <= -d[m-1])
+     * so the new variables are x[0]..x[n-1],smallest
+     * and our object is to maximize smallest;
+     * this is clearly a linear programming problem now.
+     * To express it in the language of our LPSolve function,
+     *     A' = A with a colum of 0's added on the right
+     *     b' = b
+     *     C' = -C with a colum of 1's added on the right
+     *     d' = -d
+     *     q' = n 0's with a single 1 at the end
+     * and we are solving for
+     *     x' = x with smallest appended at the end,
+     * by calling:
+     *     LPSolve(x', y, A', b', c', d')
+     *     
+     * </pre>
+     */
+    public static int maximizeMinimum(double x[], // solution
+                                      double A[][], double b[], // equalities Ax==b
+                                      double C[][], double d[]) // maximize minimum element of Cx - d
+    {
+        int n = x.length;
+        assert(A.length == b.length);
+        assert(C.length == d.length);
+        // row length assertions will be done below
+
+        double xx[] = new double[n+1];
+        double AA[][] = new double[A.length][n+1];
+        double bb[] = b;
+        double CC[][] = new double[C.length][n+1];
+        double dd[] = new double[d.length];
+        double qq[] = new double[n+1];
+
+        for (int iA = 0; iA < A.length; ++iA)
+        {
+            assert(A[iA].length == n);
+            for (int i = 0; i < n; ++i)
+                AA[iA][i] = A[iA][i];
+            AA[iA][n] = 0.;
+        }
+        for (int iC = 0; iC < C.length; ++iC)
+        {
+            assert(C[iC].length == n);
+            for (int i = 0; i < n; ++i)
+                CC[iC][i] = -C[iC][i];
+            CC[iC][n] = 1.;
+            dd[iC] = -d[iC];
+        }
+        for (int i = 0; i < n; ++i)
+            qq[i] = 0.;
+        qq[n] = 1.;
+
+        int ret = LPSolve(xx, null, AA, bb, CC, dd, qq, false);
+        if (ret == 0)
+            for (int i = 0; i < n; ++i)
+                x[i] = x[i];
+        return ret;
+    } // maximizeMinimum
+
+
     /**
      *
      * Solve a linear programming problem.
@@ -47,16 +173,16 @@ public final class LinearProgramming
      * so it is more time consuming.
      */
     public static int LPSolve(double x[], // solution
-                               double y[], // slack d-Cx at solution
-                               double A[][], double b[], // equalities Ax == b
-                               double C[][], double d[], // inequalities Cx <= d
-                               double q[], // objective: maximize q dot x
-                               boolean xMustBeNonNegative)
+                              double y[], // slack d-Cx at solution
+                              double A[][], double b[], // equalities Ax == b
+                              double C[][], double d[], // inequalities Cx <= d
+                              double q[], // objective: maximize q dot x
+                              boolean xMustBeNonNegative)
     {
-        int n = q.length;            // number of variables
+        int n = x.length;            // number of variables
         int m = A.length + C.length; // number of constraints
 
-        assert(x.length == n);
+        assert(q.length == n);
         assert(A.length == b.length);
         assert(C.length == d.length);
         for (int i = 0; i < A.length; ++i)
@@ -195,9 +321,6 @@ public final class LinearProgramming
 
         return icase;
     } // LPsolve
-
-
-
 
     /** You don't want to know.  If this is <code>>= 1</code>, print out the tableaux at various times during the internal simplx function call. If it's <code>>= 2</code>, print out even more stuff.  See, I told you, you can't handle the truth. */
     public static int debugLevel = 1;
@@ -773,7 +896,7 @@ public final class LinearProgramming
             }
         } // pivot
 
-    // Little test program
+    /** Little test program. */
     public static void main(String args[])
     {
 
