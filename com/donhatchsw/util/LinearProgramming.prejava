@@ -24,25 +24,145 @@ public final class LinearProgramming
 {
     private LinearProgramming() {} // uninstantiatable
 
-    /** Find x that minimizes ||Ax-b|| in the infinity (max) norm (not implemented yet). */
-    public static int invmxvMaxNorm(double x[],
-                                    double A[][],
-                                    double b[])
+    /**
+     * Find x that minimizes ||Ax-b|| in the one-norm
+     * (manhattan distance).
+     * <p>
+     * This is phrased as a linear programming problem
+     * by adding n new variables <code>z = {z[0]..z[m-1]}</code>
+     * and minimizing <code>z[0]+...+z[m-1]</code>
+     * subject to:
+     * <pre>
+     *         z >= Ax-b     (m equations)
+     *         z >= -(Ax-b)  (m equations)
+     * </pre>
+     * I.e.
+     * <pre>
+     * <pre>
+     *        Ax - z <= b    (m equations)
+     *       -Ax - z <= -b   (m equations)
+     *        maximize -z[0]-...-z[m-1]
+     * </pre>
+     * To express this in terms of LPSolve, we set:
+     * <pre>
+     *        A' = empty (no equality constraints)
+     *        b' = empty (no equality constraints)
+     *              A|-I
+     *        C' = --+--  where I = mxm identity matrix
+     *             -A|-I
+     *        d' = b followed by -b
+     *        q' = n 0's followed by m -1's
+     * </pre>
+     * and we are solving for:
+     * <pre>
+     *        x' = x followed by z
+     * </pre>
+     * so we call:
+     * <pre>
+     *     LPSolve(x', null, A', b', c', d', q', false)
+     * </pre>
+     */
+    public static int L1Solve(double x[],
+                              double A[][],
+                              double b[])
     {
-        throw new Error("invmxvMaxNorm not implemented yet");
-    } // invmxvMaxNorm
+        int n = x.length;
+        int m = A.length;
+        assert(m == b.length);
 
-    /** Find x that minimizes ||Ax-b|| in the one (sum) norm (not implemented yet). */
-    public static int invmxvSumNorm(double x[],
-                                    double A[][],
-                                    double b[])
+        double xx[] = new double[n+m];
+        double AA[][] = new double[0][n+m];
+        double bb[] = new double[0];
+        double CC[][]; // initialized below
+        double dd[] = (double[])Arrays.concat(b, VecMath.sxv(-1.,b));
+        double qq[] = (double[])Arrays.concat(VecMath.fillvec(n, 0.),
+                                              VecMath.fillvec(m, -1.));
+        //       A|-I
+        // CC = --+--
+        //      -A|-I
+        double minusI[][] = VecMath.identitymat(m);
+            VecMath.sxm(minusI, -1., minusI);
+        double minusA[][] = VecMath.sxm(-1., A);
+        double parts[][][][] = {{A,minusI},{minusA,minusI}};
+        CC = VecMath.joinmats(parts);
+        PRINTMAT(A);
+        PRINTMAT(CC);
+
+        int ret = LPSolve(xx, null, AA, bb, CC, dd, qq, false);
+        if (ret == 0)
+            for (int i = 0; i < n; ++i)
+                x[i] = xx[i];
+        return ret;
+    } // L1Solve
+
+    /**
+     * Find x that minimizes ||Ax-b|| in the infinity (max) norm.
+     * <pL
+     * This is phrased as a linear programming problem
+     * by adding a single variable <code>z</code>
+     * and minimizing <code>z</code>, subject to:
+     * <pre>
+     *          [z,z,...,z] >= Ax-b     (n equations)
+     *          [z,z,...,z] >= -(Ax-b)  (n equations)
+     * </pre>
+     * i.e.
+     * <pre>
+     *           Ax - [z,...,z] <= b    (n equations)
+     *          -Ax - [z,...,z] <= -b   (n equations)
+     *          maximize -z
+     * </pre>
+     * To express this in terms of LPSolve, we set:
+     * <pre>
+     *          A' = empty (no equality constraints)
+     *          b' = empty (no equality constraints)
+     *          C' = A on top of -A, with a column of -1's added on the right
+     *          d' = b followed by -b
+     *          q' = n 0's followed by a single -1 at the end
+     * </pre>
+     * and we are solving for:
+     * <pre>
+     *          x' = x with a single z appended at the end
+     * </pre>
+     * so we call:
+     * <pre>
+     *     LPSolve(x', null, A', b', c', d', q', false)
+     * </pre>
+     */
+    public static int LInfinitySolve(double x[],
+                                     double A[][],
+                                     double b[])
     {
-        throw new Error("invmxvSumNorm not implemented yet");
-    } // invmxvSumNorm
+        int n = x.length;
+        double xx[] = new double[n+1];
+        double AA[][] = new double[0][2*n];
+        double bb[] = new double[0];
+        double CC[][] = new double[2*A.length][n+1]; // initialized below
+        double dd[] = (double[])Arrays.concat(b, VecMath.sxv(-1.,b));
+        double qq[] = VecMath.fillvec(n+1, 0.); qq[n] = -1.;
+
+        // initialize CC to be A on top of -A
+        // with a column of -1's added on the right...
+        for (int iRow = 0; iRow < A.length; ++iRow)
+        {
+            assert(A[iRow].length == n);
+            for (int i = 0; i < n; ++i)
+                CC[A.length+iRow][i] = -(CC[iRow][i] = A[iRow][i]);
+            CC[iRow][n] = -1;
+            CC[A.length+iRow][n] = -1;
+        }
+
+        int ret = LPSolve(xx, null, AA, bb, CC, dd, qq, false);
+        if (ret == 0)
+            for (int i = 0; i < n; ++i)
+                x[i] = xx[i];
+        return ret;
+    } // LInfinitySolve
 
     /**
      * Find x such that the vector Mx has sum 1
-     * and maximal minimum element.
+     * and maximal minimum element (NOT taking absolute values).
+     * Returns 0 (and fills in x) on success,
+     * returns 1 if unbounded, or -1 if infeasible.
      * <p>
      * This is a convenience function
      * that is implemented in terms of maximizeMinimum as follows:
@@ -55,7 +175,6 @@ public final class LinearProgramming
      * </pre>
      */
     public static int maximizeMinimumAffine(double x[],
-                                            double resultSum,
                                             double M[][])
     {
         int n = x.length;
@@ -70,6 +189,8 @@ public final class LinearProgramming
      * Find a solution vector x
      * that satisfies A x == b
      * and maximizes the minimum element of C x - d.
+     * Returns 0 (and fills in x) on success,
+     * returns 1 if unbounded, or -1 if infeasible.
      * <p>
      * This is a convenience function; it is implemented
      * in terms of LPSolve as follows:
@@ -95,16 +216,15 @@ public final class LinearProgramming
      * and our object is to maximize smallest;
      * this is clearly a linear programming problem now.
      * To express it in the language of our LPSolve function,
-     *     A' = A with a colum of 0's added on the right
+     *     A' = A with a column of 0's added on the right
      *     b' = b
-     *     C' = -C with a colum of 1's added on the right
+     *     C' = -C with a column of 1's added on the right
      *     d' = -d
      *     q' = n 0's with a single 1 at the end
      * and we are solving for
      *     x' = x with smallest appended at the end,
-     * by calling:
-     *     LPSolve(x', y, A', b', c', d')
-     *     
+     * so we call:
+     *     LPSolve(x', null, A', b', c', d', q', false)
      * </pre>
      */
     public static int maximizeMinimum(double x[], // solution
@@ -152,12 +272,12 @@ public final class LinearProgramming
 
     /**
      *
-     * Solve a linear programming problem.
+     * Solve a general linear programming problem.
      * Finds x such that:
      * <pre>
      *         A x == b
      *         C x <= d  componentwise
-     *           x >= 0  componentwise  (but only if xMustBeNonNegative is set)
+     *           x >= 0  componentwise  (but only if okayToRequireNonNegative is set)
      *     q dot x maximal.
      * </pre>
      * Returns -1 if infeasible (in which case x will be undefined),
@@ -168,16 +288,22 @@ public final class LinearProgramming
      *              with exact zeros for those inequalities
      *              that were satisfied as equalities).
      * <p>
-     * IMPLEMENTATION NOTE: setting xMustBeNonNegative to true
+     * IMPLEMENTATION NOTE: setting okayToRequireNonNegative to false
      * doubles the number of variables solved for internally,
-     * so it is more time consuming.
+     * so it is more time consuming; set it to true if you
+     * can get away with it.
+     * <p>
+     * XXX TODO: really okayToRequireNonNegative should be
+     * on a per-variable basis, since often
+     * the extra variables are automatically non-negative...
+     * hmm, can we automatically detect that and prune the system?
      */
     public static int LPSolve(double x[], // solution
                               double y[], // slack d-Cx at solution
                               double A[][], double b[], // equalities Ax == b
                               double C[][], double d[], // inequalities Cx <= d
                               double q[], // objective: maximize q dot x
-                              boolean xMustBeNonNegative)
+                              boolean okayToRequireNonNegative)
     {
         int n = x.length;            // number of variables
         int m = A.length + C.length; // number of constraints
@@ -190,7 +316,7 @@ public final class LinearProgramming
         for (int i = 0; i < C.length; ++i)
             assert(C[i].length == n);
 
-        if (!xMustBeNonNegative)
+        if (!okayToRequireNonNegative)
         {
             //
             // simplx solves using additional constraints x >= 0.
@@ -230,7 +356,7 @@ public final class LinearProgramming
                     x[i] = xx[i] - xx[n+i];
 
             return ret;
-        }
+        } // if (!okayToRequireNonNegative)
 
         if (n == 0)
             return 0; // success; don't bother with simplx since it will bomb in this case XXX I think--- maybe try it and see
@@ -966,7 +1092,7 @@ public final class LinearProgramming
 
         }
 
-        if (true)
+        if (false)
         {
             //
             // See if we can locate the dual verts
@@ -1104,6 +1230,31 @@ public final class LinearProgramming
 
                 System.out.println("=======================================================");
             } // for iPrimal
+        }
+
+        if (true)
+        {
+            // Test L1Solve and LInfinitySolve
+            // with the example from the mathematica doc...
+            // http://documents.wolfram.com/v5/Built-inFunctions/AdvancedDocumentation/LinearAlgebra/7.3.html
+            double A[][] ={
+                {1,2},
+                {5,6},
+                {4.5,6},
+            };
+            double b[] = {5, 6, 8};
+            double x1[] = new double[2];
+            double xInf[] = new double[2];
+
+            int resultInf = L1Solve(xInf, A, b);
+            PRINT(resultInf);
+            PRINTVEC(xInf);
+            // XXX TODO: doesn't give the right answer
+
+            int result1 = L1Solve(x1, A, b);
+            PRINT(result1);
+            PRINTVEC(x1);
+            // XXX TODO: doesn't give the right answer
         }
     } // main
 
