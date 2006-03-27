@@ -15,9 +15,11 @@ package com.donhatchsw.util;
 
 
 /**
- *  Linear programming, using the the simplex method,
- *  straight out of Numerical Recipes in C,
- *  but with simpler interface functions.
+ * Linear programming, using the the simplex method,
+ * straight out of Numerical Recipes in C,
+ * but with simpler interface functions
+ * and more robust tests for convergence
+ * regardless of the scale of the input data.
  */
 
 
@@ -101,7 +103,7 @@ public final class LinearProgramming
 
     /**
      * Find x that minimizes ||Ax-b|| in the infinity (max) norm.
-     * <pL
+     * <p>
      * This is phrased as a linear programming problem
      * by adding a single variable <code>z</code>
      * and minimizing <code>z</code>, subject to:
@@ -475,10 +477,11 @@ public final class LinearProgramming
     } // LPsolve
 
     /** You don't want to know.  If this is <code>>= 1</code>, print out the tableaux at various times during the internal simplx function call. If it's <code>>= 2</code>, print out even more stuff.  See, I told you, you can't handle the truth. */
-    private static int debugLevel = 1;
+    private static int debugLevel = 0;
 
     private final static double EPS = 1e-12;
-    // Here EPS is the absolute precision.
+    // Here EPS is the absolute precision; the book had 1e-6
+    // for float, so we use 1e-12 for double.
     // The book says this should be adjusted to the scale of your variables,
     // but we try to do better: at the beginning of simplx,
     // we rescale each row so that the max coeff in each row is 1.
@@ -728,8 +731,9 @@ public final class LinearProgramming
         // We will need to unscale everything at the end...
         // if the row still appears as a row, we'll multiply it
         // by the original max;
-        // if it appears as a column, we'll divide by
+        // if it appears as a column, we'll divide it by
         // the original max.
+        // XXX TODO: could also rescale the columns too if we cared...
         //
         double origRowMaxes[] = null;
         boolean doConditioning = true;
