@@ -1079,7 +1079,22 @@ public final class LinearProgramming
             }
         }
 
-
+        int nConstraintsToEnforce = AC.length;
+        if (!implicitRestrictNonNegative)
+        {
+            // Add the coordinate planes,
+            // even though we will not enforce them as constraints.
+            // If we don't do this, we will report unbounded
+            // in some cases when simplx reports a solution
+            // when the objective function is normal
+            // to an infinite face.
+            // (e.g. the segVerts2d and segVerts3d examples,
+            // when the objective function is 1,1,1 or -1,-1,-1).
+            double minusI[][] = VecMath.identitymat(nDims);
+            VecMath.sxm(minusI, -1., minusI);
+            AC = (double[][])Arrays.concat(AC, minusI);
+            bd = (double[])Arrays.concat(bd, VecMath.zerovec(nDims));
+        }
         int nPlanes = AC.length;
 
 
@@ -1106,10 +1121,10 @@ public final class LinearProgramming
             double thisDot = VecMath.dot(thisPoint, q);
             if (debugThisFunction >= 2) PRINTVEC(thisPoint);
             if (debugThisFunction >= 2) PRINT(thisDot);
-            if (thisDot > bestDot)
+            if (thisDot >= bestDot) // >= rather than >, not for any good reason except that it happens to make it pick the ones I want, by luck, when there is ambiguity due to the objective function being normal to a face plane
             {
                 boolean okaySoFar = true;
-                FORI (iPlane, nPlanes)
+                FORI (iPlane, nConstraintsToEnforce)
                 {
                     if (Arrays.indexOfUsingEqualsSymbol(normals, AC[iPlane]) != -1)
                         continue; // it's definitely on this plane
@@ -1155,10 +1170,17 @@ public final class LinearProgramming
                         }
                         else
                         {
-                            // it's from a non-negativity constraint we added
-                            assert(implicitRestrictNonNegative);
-                            assert(ABS(x[i-y.length]) < 1e-12);
-                            x[i-y.length] = 0.;
+                            if (implicitRestrictNonNegative)
+                            {
+                                // it's from a non-negativity constraint we added
+                                assert(ABS(x[i-y.length]) < 1e-12);
+                                x[i-y.length] = 0.;
+                            }
+                            else
+                            {
+                                // it's from the axis planes we added;
+                                // ignore this case
+                            }
                         }
                     }
                 }
@@ -1401,23 +1423,23 @@ public final class LinearProgramming
                 {-1,-1,-1},
             };
             double primalsVerts[][][] = {
-                //noVerts, // not sure, algorithm isn't sure either I bet
-                //oneVert1d, // should be finite if nonnegative, unbounded otherwise
-                //segVerts1d, // should be finite
-                //oneVert2d, // should be finite
-                //segVerts2d, // should be finite
-                //squareVerts2d, // should be finite
-                //diamondVerts2d, // should be finite
-                //triVerts2d, // should be finite
-                //oneVert3d, // should be finite
-                //segVerts3d, // should be finite
-                //backwardsTetraMinusBackVerts, // should be finite
-                //tetraMinusFrontVerts, // should be finite
-                //tetraVerts, // should be finite
+                noVerts, // not sure, algorithm isn't sure either I bet
+                oneVert1d, // should be finite if nonnegative, unbounded otherwise
+                segVerts1d, // should be finite
+                oneVert2d, // should be finite
+                segVerts2d, // should be finite
+                squareVerts2d, // should be finite
+                diamondVerts2d, // should be finite
+                triVerts2d, // should be finite
+                oneVert3d, // should be finite
+                segVerts3d, // should be finite
+                backwardsTetraMinusBackVerts, // should be finite
+                tetraMinusFrontVerts, // should be finite
+                tetraVerts, // should be finite
                 cubeVerts, // should be finite
-                //octaVerts, // should be finite
-                //icosaVerts, // should be finite
-                //dodecaVerts, // should be finite
+                octaVerts, // should be finite
+                icosaVerts, // should be finite
+                dodecaVerts, // should be finite
             };
             for (int iPrimal = 0; iPrimal < primalsVerts.length; ++iPrimal)
             {
@@ -1462,7 +1484,7 @@ public final class LinearProgramming
                         VecMath.normalize(offset);
                         VecMath.sxv(offset, 10., offset);
                     }
-                    if (false)
+                    if (true)
                     {
                         VecMath.zerovec(offset);
                         offset[0] = 10;
@@ -1484,7 +1506,7 @@ public final class LinearProgramming
                     for (int iDim = 0; iDim < nDims; ++iDim)
                         q[iDim] = 2*generator.nextDouble()-1;
 
-                    if (true) // XXX make this a command line option
+                    if (false) // XXX make this a command line option
                         VecMath.fillvec(q, -1.);
                     if (false) // XXX make this a command line option
                         VecMath.fillvec(q, 1.);
@@ -1501,15 +1523,37 @@ public final class LinearProgramming
                     PRINTVEC(yByBruteForce);
                     if (resultByBruteForce != result)
                     {
-                        System.out.println("Error: result type didn't match!\n");
+                        System.out.println("ERROR: result type didn't match!\n");
                     }
                     else if (result == 0) // and resultByBruteForce == 0
                     {
+                        // Note, one possible reason for error is if
+                        // objective function is in direction of the
+                        // winning face plane...
+                        double dot = VecMath.dot(x,q);
+                        double dotByBruteForce = VecMath.dot(xByBruteForce,q);
+                        double dotError = ABS(dot-dotByBruteForce);
+                        PRINT(dot);
+                        PRINT(dotByBruteForce);
+                        PRINT(dotError);
+
+                        boolean qIsAllInts = true;
+                        FORI (i, q.length)
+                            if ((int)q[i] != q[i])
+                                qIsAllInts = false;
+
                         double xError = VecMath.dist(x, xByBruteForce);
                         double yError = VecMath.dist(y, yByBruteForce);
                         PRINT(xError);
                         PRINT(yError);
                         PRINT(xError+yError);
+                        if (xError+yError > 1e-12)
+                        {
+                            if (dotError < 1e-12 && qIsAllInts)
+                                System.out.println("I attribute that error to be due to the non-random objective function being normal to a face plane, since we got the dot product right");
+                            else
+                                System.out.println("ERROR: there was no excuse for that");
+                        }
                     }
                 } // for iIter
 
@@ -1531,11 +1575,10 @@ public final class LinearProgramming
 
             double xInfExpected[] = {-4.4, 4.65};
             double xInf[] = new double[2];
-            int resultInf = L1Solve(xInf, A, b);
+            int resultInf = LInfinitySolve(xInf, A, b);
             PRINT(resultInf);
             PRINTVEC(xInf);
             PRINTVEC(xInfExpected);
-            // XXX TODO: doesn't give the right answer
 
             double x1Expected[] = {-4.5, 4.75};
             double x1[] = new double[2];
@@ -1543,7 +1586,6 @@ public final class LinearProgramming
             PRINT(result1);
             PRINTVEC(x1);
             PRINTVEC(x1Expected);
-            // XXX TODO: doesn't give the right answer
         }
     } // main
 
