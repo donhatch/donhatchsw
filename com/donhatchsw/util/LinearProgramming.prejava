@@ -14,10 +14,11 @@ package com.donhatchsw.util;
 
 
 
-/*
-    Linear programming, straight out of Numerical Recipes in C,
-    but with simpler interface function.
-*/
+/**
+ *  Linear programming, using the the simplex method,
+ *  straight out of Numerical Recipes in C,
+ *  but with simpler interface functions.
+ */
 
 
 public final class LinearProgramming
@@ -277,7 +278,7 @@ public final class LinearProgramming
      * <pre>
      *         A x == b
      *         C x <= d  componentwise
-     *           x >= 0  componentwise  (but only if okayToRequireNonNegative is set)
+     *           x >= 0  componentwise  (but only if implicitRestrictNonNegative is set)
      *     q dot x maximal.
      * </pre>
      * Returns -1 if infeasible (in which case x will be undefined),
@@ -288,12 +289,12 @@ public final class LinearProgramming
      *              with exact zeros for those inequalities
      *              that were satisfied as equalities).
      * <p>
-     * IMPLEMENTATION NOTE: setting okayToRequireNonNegative to false
+     * IMPLEMENTATION NOTE: setting implicitRestrictNonNegative to false
      * doubles the number of variables solved for internally,
      * so it is more time consuming; set it to true if you
      * can get away with it.
      * <p>
-     * XXX TODO: really okayToRequireNonNegative should be
+     * XXX TODO: really implicitRestrictNonNegative should be
      * on a per-variable basis, since often
      * the extra variables are automatically non-negative...
      * hmm, can we automatically detect that and prune the system?
@@ -303,7 +304,7 @@ public final class LinearProgramming
                               double A[][], double b[], // equalities Ax == b
                               double C[][], double d[], // inequalities Cx <= d
                               double q[], // objective: maximize q dot x
-                              boolean okayToRequireNonNegative)
+                              boolean implicitRestrictNonNegative)
     {
         int n = x.length;            // number of variables
         int m = A.length + C.length; // number of constraints
@@ -316,7 +317,7 @@ public final class LinearProgramming
         for (int i = 0; i < C.length; ++i)
             assert(C[i].length == n);
 
-        if (!okayToRequireNonNegative)
+        if (!implicitRestrictNonNegative)
         {
             //
             // simplx solves using additional constraints x >= 0.
@@ -356,7 +357,7 @@ public final class LinearProgramming
                     x[i] = xx[i] - xx[n+i];
 
             return ret;
-        } // if (!okayToRequireNonNegative)
+        } // if (!implicitRestrictNonNegative)
 
         if (n == 0)
             return 0; // success; don't bother with simplx since it will bomb in this case XXX I think--- maybe try it and see
@@ -449,7 +450,7 @@ public final class LinearProgramming
     } // LPsolve
 
     /** You don't want to know.  If this is <code>>= 1</code>, print out the tableaux at various times during the internal simplx function call. If it's <code>>= 2</code>, print out even more stuff.  See, I told you, you can't handle the truth. */
-    public static int debugLevel = 1;
+    public static int debugLevel = 2;
 
     private final static double EPS = 1e-12;
     // Here EPS is the absolute precision,
@@ -729,7 +730,7 @@ public final class LinearProgramming
             }
 
             System.out.println("        PHASE ONE");
-            if (debugLevel >= 2)
+            if (debugLevel >= 4)
             {
                 PRINTMAT(a);
             }
@@ -863,7 +864,7 @@ public final class LinearProgramming
         } // if (m2+m3 != 0)
 
         System.out.println("        PHASE TWO");
-        if (debugLevel >= 2)
+        if (debugLevel >= 4)
         {
             PRINTMAT(a);
         }
@@ -885,7 +886,7 @@ public final class LinearProgramming
             {
                 // Done.  Solution found.  Return with the good news.
                 assert(l1[0] == -999);
-                if (debugLevel >= 2)
+                if (debugLevel >= 4)
                 {
                     PRINTMAT(a);
                 }
@@ -908,13 +909,22 @@ public final class LinearProgramming
                 return 1;
             }
             System.out.println("                pivoting row "+ip+" ("+varLabel(iposv[ip],m,n)+") with col "+kp+" ("+varLabel(izrov[kp],m,n)+")");
+            if (debugLevel >= 3)
+            {
+                System.out.println("Before:\n");
+                PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+            }
             pivot(a,m,n,ip,kp); // Exchange a left- and right-hand variable (phase two).
-
             {
                 // SWAP(izrov[kp], iposv[ip]);
                 int is = izrov[kp]; 
                 izrov[kp] = iposv[ip];
                 iposv[ip] = is;
+            }
+            if (debugLevel >= 2)
+            {
+                System.out.println("After:\n");
+                PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
             }
         } // and return for another iteration.
 
@@ -1012,14 +1022,18 @@ public final class LinearProgramming
             {
                 if (ii-1 != ip)
                 {
-                    a[ii][kp+1] *= piv;
-                    for (int kk = 1; kk <= k1+1; kk++)
+                    a[ii][1+kp] *= piv;
+                    for (int kk = 1; kk <= 1+k1; kk++)
                     {
                         if (kk-1 != kp)
-                            a[ii][kk] -= a[ip+1][kk]*a[ii][kp+1];
+                            a[ii][kk] -= a[1+ip][kk]*a[ii][1+kp];
                     }
                 }
             }
+            for (int kk = 1; kk <= 1+k1; kk++)
+                if (kk-1 != kp)
+                    a[1+ip][kk] *= -piv;
+            a[1+ip][1+kp] = piv;
         } // pivot
     //=======================================================================
 
@@ -1030,7 +1044,7 @@ public final class LinearProgramming
                               double A[][], double b[], // equalities Ax == b
                               double C[][], double d[], // inequalities Cx <= d
                               double q[], // objective: maximize q dot x
-                              boolean okayToRequireNonNegative)
+                              boolean implicitRestrictNonNegative)
     {
         int debugThisFunction = 0;
 
@@ -1039,15 +1053,33 @@ public final class LinearProgramming
         double bd[] = (double[])Arrays.concat(b,d);
 
         int nDims = x.length;
-        if (okayToRequireNonNegative)
+        if (implicitRestrictNonNegative)
         {
             // Add additional constraints
-            // that say each x[i] <= 0
+            // that say each x[i] >= 0
             double minusI[][] = VecMath.identitymat(nDims);
             VecMath.sxm(minusI, -1., minusI);
             AC = (double[][])Arrays.concat(AC, minusI);
             bd = (double[])Arrays.concat(bd, VecMath.zerovec(nDims));
         }
+
+        {
+            // Add additional constraints to bound the problem...
+            // if these constraints are hit, we will report
+            // that the solution is unbounded.
+            double I[][] = VecMath.identitymat(nDims);
+            double minusI[][] = VecMath.sxm(-1., I);
+            double offsets[] = VecMath.fillvec(nDims, 1e6);
+            AC = (double[][])Arrays.concat(AC, I);
+            bd = (double[])Arrays.concat(bd, offsets);
+            if (!implicitRestrictNonNegative)
+            {
+                AC = (double[][])Arrays.concat(AC, minusI);
+                bd = (double[])Arrays.concat(bd, offsets);
+            }
+        }
+
+
         int nPlanes = AC.length;
 
 
@@ -1101,36 +1133,41 @@ public final class LinearProgramming
         int ret;
         if (bestDot > Double.NEGATIVE_INFINITY)
         {
-            VecMath.copyvec(x, bestPoint);
-            if (y != null)
+            if (VecMath.normsqrd(bestPoint) >= 1e6*1e6*.99)
+                ret = 1; // unbounded (hit the huge walls we added)
+            else
             {
-                VecMath.mxv(y, C, x);
-                VecMath.vmv(y, d, y); // y = d - C*x
-                // Exactly zero out the entries in y
-                // corresponding to the nDims planes used
-                // to compute the solution
-                FORI (iDim, nDims)
+                VecMath.copyvec(x, bestPoint);
+                if (y != null)
                 {
-                    int i = bestMultiIndex[iDim];
-                    if (i < y.length)
+                    VecMath.mxv(y, C, x);
+                    VecMath.vmv(y, d, y); // y = d - C*x
+                    // Exactly zero out the entries in y
+                    // corresponding to the nDims planes used
+                    // to compute the solution
+                    FORI (iDim, nDims)
                     {
-                        assert(ABS(y[i]) < 1e-12);
-                        y[i] = 0.;
-                    }
-                    else
-                    {
-                        // it's from a non-negativity constraint we added
-                        assert(okayToRequireNonNegative);
-                        assert(ABS(x[i-y.length]) < 1e-12);
-                        x[i-y.length] = 0.;
+                        int i = bestMultiIndex[iDim];
+                        if (i < y.length)
+                        {
+                            assert(ABS(y[i]) < 1e-12);
+                            y[i] = 0.;
+                        }
+                        else
+                        {
+                            // it's from a non-negativity constraint we added
+                            assert(implicitRestrictNonNegative);
+                            assert(ABS(x[i-y.length]) < 1e-12);
+                            x[i-y.length] = 0.;
+                        }
                     }
                 }
+                ret = 0; // finite
             }
-            ret = 0; // finite or unbounded, don't know which so assume finite
         }
         else
         {
-            ret = -1; // infeasible or unbounded, don't know which so assume infeasible
+            ret = -1; // infeasible
         }
         if (debugThisFunction >= 1) System.out.println("    Out LPSolveByBruteForce, returning " + ret);
         return ret;
@@ -1178,7 +1215,6 @@ public final class LinearProgramming
     /** Little test program. */
     public static void main(String args[])
     {
-
         if (false)
         {
             //
@@ -1225,7 +1261,7 @@ public final class LinearProgramming
                                iposv);
             System.out.println("Output:");
             PRINT(icase);
-            if (debugLevel >= 2)
+            if (debugLevel >= 4)
             {
                 PRINTMAT(A);
             }
@@ -1253,12 +1289,55 @@ public final class LinearProgramming
             //
             double noVerts[][] = {
             };
-            double oneVert[][] = {
+            double oneVert1d[][] = {
+                { 1},
+            };
+            double segVerts1d[][] = {
+                { 1},
+                {-1},
+            };
+            double oneVert2d[][] = {
+                { 1,1},
+            };
+            double segVerts2d[][] = {
+                { 1, 1},
+                {-1,-1},
+            };
+            double squareVerts2d[][] = {
+                {-1,-1},
+                {-1, 1},
+                { 1,-1},
+                { 1, 1},
+            };
+            double diamondVerts2d[][] = {
+                { 1,0},
+                {-1,0},
+                {0, 1},
+                {0,-1},
+            };
+            double triVerts2d[][] = {
+                {1,0},
+                {-.5, Math.sqrt(3.)/2},
+                {-.5,-Math.sqrt(3.)/2},
+            };
+            double oneVert3d[][] = {
                 { 1,1,1},
             };
-            double segVerts[][] = {
-                { 1,0,0},
-                {-1,0,0},
+            double segVerts3d[][] = {
+                { 1, 1, 1},
+                {-1,-1,-1},
+            };
+            double backwardsTetraMinusBackVerts[][] = {
+                //{-1,-1,-1},
+                {-1,1,1},
+                {1,-1,1},
+                {1,1,-1},
+            };
+            double tetraMinusFrontVerts[][] = {
+                //{1,1,1},
+                {1,-1,-1},
+                {-1,1,-1},
+                {-1,-1,1},
             };
             double tetraVerts[][] = {
                 {1,1,1},
@@ -1322,11 +1401,20 @@ public final class LinearProgramming
                 {-1,-1,-1},
             };
             double primalsVerts[][][] = {
-                //noVerts, // should be unbounded
-                oneVert, // should be unbounded
-                //segVerts, // should be finite
+                //noVerts, // not sure, algorithm isn't sure either I bet
+                //oneVert1d, // should be finite if nonnegative, unbounded otherwise
+                //segVerts1d, // should be finite
+                //oneVert2d, // should be finite
+                //segVerts2d, // should be finite
+                //squareVerts2d, // should be finite
+                //diamondVerts2d, // should be finite
+                //triVerts2d, // should be finite
+                //oneVert3d, // should be finite
+                //segVerts3d, // should be finite
+                //backwardsTetraMinusBackVerts, // should be finite
+                //tetraMinusFrontVerts, // should be finite
                 //tetraVerts, // should be finite
-                //cubeVerts, // should be finite
+                cubeVerts, // should be finite
                 //octaVerts, // should be finite
                 //icosaVerts, // should be finite
                 //dodecaVerts, // should be finite
@@ -1352,23 +1440,37 @@ public final class LinearProgramming
                 for (int iVert = 0; iVert < nVerts; ++iVert)
                     d[iVert] = 1; // verts[iVert] dot x <= 1
 
-                for (int iIter = 0; iIter < 1; ++iIter)
+                for (int iIter = 0; iIter < 2; ++iIter)
                 {
+                    boolean implicitRestrictNonNegative = (iIter==0?true:false); // restricted/faster then general.  restricted will often be infeasible if problem is offset in a random direction.
+                    PRINT(implicitRestrictNonNegative);
                     java.util.Random generator =
                         args.length > 0 ? new java.util.Random(Integer.parseInt(args[0]))
                                         : new java.util.Random();
+                    // Work around bug I'm seeing that makes
+                    // the first call to nextDouble() from a seeded generator
+                    // always return something very near .73 ...
+                    FORI (iFudge,10)
+                        generator.nextDouble();
 
                     // Random offset...
                     double offset[] = new double[nDims];
+                    if (false)
                     {
                         for (int iDim = 0; iDim < nDims; ++iDim)
                             offset[iDim] = 2*generator.nextDouble() - 1;
                         VecMath.normalize(offset);
                         VecMath.sxv(offset, 10., offset);
                     }
-                    offset = new double[] {10,0,0}; // XXX should test this too! objective functions headed straight for face planes, or straight for edges, or straight for vertices
-                    //offset = new double[] {0,0,0};
+                    if (false)
+                    {
+                        VecMath.zerovec(offset);
+                        offset[0] = 10;
+                        // XXX should test this too! objective functions headed straight for face planes, or straight for edges, or straight for vertices
+                    }
                     // XXX TODO: the above ways should be command line options
+
+                    PRINTVEC(offset);
 
 
                     // So instead of C x < d,
@@ -1382,10 +1484,13 @@ public final class LinearProgramming
                     for (int iDim = 0; iDim < nDims; ++iDim)
                         q[iDim] = 2*generator.nextDouble()-1;
 
-                    //boolean okayToRequireNonNegative = false; // the general problem
-                    boolean okayToRequireNonNegative = true; // restricting solution to positive orthant; faster.  This will often be infeasible due to the offset.
-                    int result = LPSolve(x,y,A,b,C,offset_d,q, okayToRequireNonNegative);
-                    int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,offset_d,q, okayToRequireNonNegative);
+                    if (true) // XXX make this a command line option
+                        VecMath.fillvec(q, -1.);
+                    if (false) // XXX make this a command line option
+                        VecMath.fillvec(q, 1.);
+
+                    int result = LPSolve(x,y,A,b,C,offset_d,q, implicitRestrictNonNegative);
+                    int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,offset_d,q, implicitRestrictNonNegative);
 
                     PRINTVEC(q);
                     PRINT(result);
@@ -1394,11 +1499,18 @@ public final class LinearProgramming
                     PRINT(resultByBruteForce);
                     PRINTVEC(xByBruteForce);
                     PRINTVEC(yByBruteForce);
-                    double xError = VecMath.dist(x, xByBruteForce);
-                    double yError = VecMath.dist(y, yByBruteForce);
-                    PRINT(xError);
-                    PRINT(yError);
-                    PRINT(xError+yError);
+                    if (resultByBruteForce != result)
+                    {
+                        System.out.println("Error: result type didn't match!\n");
+                    }
+                    else if (result == 0) // and resultByBruteForce == 0
+                    {
+                        double xError = VecMath.dist(x, xByBruteForce);
+                        double yError = VecMath.dist(y, yByBruteForce);
+                        PRINT(xError);
+                        PRINT(yError);
+                        PRINT(xError+yError);
+                    }
                 } // for iIter
 
                 System.out.println("=======================================================");
