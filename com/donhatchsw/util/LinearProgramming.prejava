@@ -300,12 +300,20 @@ public final class LinearProgramming
      * IMPLEMENTATION NOTE: setting implicitRestrictNonNegative to false
      * doubles the number of variables solved for internally,
      * so it is more time consuming; set it to true if you
-     * can get away with it.
+     * can get away with it.  Future versions might
+     * have a smarter implementation for which it doesn't matter.
+     * <p>
+     * IMPLEMENTATION NOTE: this is implemented
+     * using the code from Numerical Recipes In C,
+     * but with the initial rows (objective function and constraints)
+     * rescaled so that the maximum coefficient in each row is 1,
+     * so that the book's caveat about EPS should no longer apply.
      * <p>
      * XXX TODO: really implicitRestrictNonNegative should be
      * on a per-variable basis, since often
      * the extra variables are automatically non-negative...
      * hmm, can we automatically detect that and prune the system?
+     * Nah, this becomes moot if we replace it with a smarter implementation.
      */
     public static int LPSolve(double x[], // solution
                               double y[], // slack d-Cx at solution
@@ -448,13 +456,13 @@ public final class LinearProgramming
             for (int i = 0; i < m; ++i)
                 if (iposv[1+i]-1 < n)
                     x[iposv[1+i]-1] = M[1+1+i][1];
-                else if (y != null)
-                    y[scrambled2unscrambledY[iposv[1+i]-1 - n]] = M[1+1+i][1]; // XXX uh oh this might not be safe-- can it be an artificial variable?
+                else if (y != null && iposv[1+i]-1 - n < y.length)
+                    y[scrambled2unscrambledY[iposv[1+i]-1 - n]] = M[1+1+i][1];
             for (int i = 0; i < n; ++i)
                 if (izrov[1+i]-1 < n)
                     x[izrov[1+i]-1] = 0.;
-                else if (y != null)
-                    y[scrambled2unscrambledY[izrov[1+i]-1 - n]] = 0.;         // XXX uh oh this might not be safe-- can it be an artificial variable?
+                else if (y != null && izrov[1+i]-1 - n < y.length)
+                    y[scrambled2unscrambledY[izrov[1+i]-1 - n]] = 0.;
 
             for (int i = 0; i < x.length; ++i)
                 assert(!Double.isNaN(x[i]));
@@ -467,17 +475,13 @@ public final class LinearProgramming
     } // LPsolve
 
     /** You don't want to know.  If this is <code>>= 1</code>, print out the tableaux at various times during the internal simplx function call. If it's <code>>= 2</code>, print out even more stuff.  See, I told you, you can't handle the truth. */
-    public static int debugLevel = 0;
+    private static int debugLevel = 1;
 
     private final static double EPS = 1e-12;
-    // Here EPS is the absolute precision,
-    // which should be adjusted to the scale of your variables.
-    // XXX do that! the assumption is that the inputs do not differ from unity by too many orders of magnitude.
-    // (was 1e-6 in the book which uses float,
-    // changing to 1e-12 here since we are using double)
-    // Yknow what though, I think it would be more appropriate
-    // to simply scale each row in the input problem
-    // so that the maximum entry is 1.
+    // Here EPS is the absolute precision.
+    // The book says this should be adjusted to the scale of your variables,
+    // but we try to do better: at the beginning of simplx,
+    // we rescale each row so that the max coeff in each row is 1.
 
     //
     // Utilities used by printing...
@@ -701,7 +705,7 @@ public final class LinearProgramming
         if (debugLevel >=1 ) PRINT(m);
         for (int k = 1; k <= n; k++)
             l1[k] = izrov[k] = k;
-        for (int  i = 1; i <= m; i++)
+        for (int i = 1; i <= m; i++)
         {
             if (a[i+1][1] < 0.)
                 throw new Error("Bad input tableau in simplx");
@@ -715,6 +719,40 @@ public final class LinearProgramming
             // variable handled implicitly during their first exchange.
             // m3 (==) type constraints have their artificial variables
             // initially left-hand.
+        }
+
+        //
+        // Try to make it more robust (i.e. fix the book's caveat about EPS)
+        // by scaling each row (z and y's) to have maximum element 1.
+        // So then working_y[i] = original_y[i] / max(original_y[i]).
+        // We will need to unscale everything at the end...
+        // if the row still appears as a row, we'll multiply it
+        // by the original max;
+        // if it appears as a column, we'll divide by
+        // the original max.
+        //
+        double origRowMaxes[] = null;
+        boolean doConditioning = true;
+        if (doConditioning)
+        {
+            if (debugLevel >= 1)
+            {
+                System.out.println("        BEFORE CONDITIONING:");
+                PRINTVEC(izrov);
+                PRINTVEC(iposv);
+                PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+            }
+            origRowMaxes = new double[1+1+m]; origRowMaxes[0] = Double.NaN;
+            for (int iRow = 1; iRow <= 1+m; ++iRow)
+            {
+                double max = 0.;
+                for (int iCol = 1; iCol <= 1+n; ++iCol)
+                    max = MAX(max, ABS(a[iRow][iCol]));
+                origRowMaxes[iRow] = max;
+                if (max != 0.)
+                    VecMath.vxs(a[iRow], a[iRow], 1./max);
+            }
+            PRINTVEC(origRowMaxes);
         }
 
         int kpScratch[] = new int[1];
@@ -902,6 +940,52 @@ public final class LinearProgramming
             if (bmax <= EPS)
             {
                 // Done.  Solution found.  Return with the good news.
+
+                //
+                // Oh wait, unscale first.
+                //
+                if (doConditioning)
+                {
+                    if (debugLevel >= 1)
+                    {
+                        System.out.println("        SOLUTION BEFORE UNCONDITIONING:");
+                        PRINTVEC(izrov);
+                        PRINTVEC(iposv);
+                        PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+                    }
+
+                    if (origRowMaxes[1] != 0.)
+                    {
+                            System.out.println("Unconditioning final z row by multiplying by "+origRowMaxes[1]);
+                        VecMath.vxs(a[1], a[1], 1./origRowMaxes[1]);
+                    }
+                    for (int i = 1; i <= m; ++i)
+                        if (INRANGE(1 <=, iposv[i]-n, <= m))
+                        {
+                            double origRowMax = origRowMaxes[1+iposv[i]-n];
+                            if (origRowMax > 0.)
+                            {
+                                System.out.println("Unconditioning final row var "+i+" by multiplying by "+origRowMax);
+                                VecMath.vxs(a[1+i], a[1+i], origRowMax);
+                            }
+                        }
+                    for (int i = 1; i <= n; ++i)
+                        if (INRANGE(1 <=, izrov[i]-n, <= m))
+                        {
+                            double origRowMax = origRowMaxes[1+(izrov[i]-n)];
+                            if (origRowMax >= 0.)
+                            {
+                                System.out.println("Unconditioning final column var "+i+" by dividing by "+origRowMax);
+                                double invOrigRowMax = 1./origRowMax;
+                                for (int j = 1; j <= m+1; ++j)
+                                    a[j][1+i] *= invOrigRowMax;
+                            }
+                        }
+                }
+
+
+
+
                 assert(l1[0] == -999);
                 if (debugLevel >= 4)
                 {
@@ -1527,20 +1611,19 @@ public final class LinearProgramming
 
                     // Random offset...
                     double offset[] = new double[nDims];
-                    if (true)
+                    if (true) // XXX make this a command line option?
                     {
                         for (int iDim = 0; iDim < nDims; ++iDim)
                             offset[iDim] = 2*generator.nextDouble() - 1;
                         VecMath.normalize(offset);
                         VecMath.sxv(offset, 10., offset);
                     }
-                    if (false)
+                    if (false) // XXX make this a command line option?
                     {
                         VecMath.zerovec(offset);
                         offset[0] = 10;
                         // XXX should test this too! objective functions headed straight for face planes, or straight for edges, or straight for vertices
                     }
-                    // XXX TODO: the above ways should be command line options
 
                     PRINTVEC(offset);
 
@@ -1556,9 +1639,9 @@ public final class LinearProgramming
                     for (int iDim = 0; iDim < nDims; ++iDim)
                         q[iDim] = 2*generator.nextDouble()-1;
 
-                    if (false) // XXX make this a command line option
+                    if (false) // XXX make this a command line option?
                         VecMath.fillvec(q, -1.);
-                    if (false) // XXX make this a command line option
+                    if (false) // XXX make this a command line option?
                         VecMath.fillvec(q, 1.);
 
                     int result = LPSolve(x,y,A,b,C,offset_d,q, implicitRestrictNonNegative);
