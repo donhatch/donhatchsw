@@ -1021,6 +1021,159 @@ public final class LinearProgramming
                 }
             }
         } // pivot
+    //=======================================================================
+
+    // Function for testing small problems...
+    private static int LPSolveByBruteForce(
+                              double x[], // solution
+                              double y[], // slack d-Cx at solution
+                              double A[][], double b[], // equalities Ax == b
+                              double C[][], double d[], // inequalities Cx <= d
+                              double q[], // objective: maximize q dot x
+                              boolean okayToRequireNonNegative)
+    {
+        int debugThisFunction = 0;
+
+        if (debugThisFunction >= 1) System.out.println("    In LPSolveByBruteForce");
+        double AC[][] = (double[][])Arrays.concat(A,C);
+        double bd[] = (double[])Arrays.concat(b,d);
+
+        int nDims = x.length;
+        if (okayToRequireNonNegative)
+        {
+            // Add additional constraints
+            // that say each x[i] <= 0
+            double minusI[][] = VecMath.identitymat(nDims);
+            VecMath.sxm(minusI, -1., minusI);
+            AC = (double[][])Arrays.concat(AC, minusI);
+            bd = (double[])Arrays.concat(bd, VecMath.zerovec(nDims));
+        }
+        int nPlanes = AC.length;
+
+
+        double bestDot = Double.NEGATIVE_INFINITY;
+        double bestPoint[] = new double[nDims];
+        int bestMultiIndex[] = new int[nDims];
+        double thisPoint[] = new double[nDims]; // scratch for loop
+
+        int multiIndex[] = new int[nDims];
+        initMultiIndex(nPlanes, multiIndex);
+        if (debugThisFunction >= 2) System.out.println("        ------------");
+        while (incrementMultiIndex(nPlanes, multiIndex))
+        {
+            if (debugThisFunction >= 2) PRINTVEC(multiIndex);
+            double normals[][] = (double[][])Arrays.getMany(AC, multiIndex);
+            double offsets[] = (double[])Arrays.getMany(bd, multiIndex);
+            double det = VecMath.det(normals);
+            if (ABS(det) < 1e-12) // XXX crappy test for degeneracy actually
+            {
+                if (debugThisFunction >= 2) System.out.println("        (degenerate equations, skipping)");
+                continue;
+            }
+            VecMath.invmxv(thisPoint, normals, offsets);
+            double thisDot = VecMath.dot(thisPoint, q);
+            if (debugThisFunction >= 2) PRINTVEC(thisPoint);
+            if (debugThisFunction >= 2) PRINT(thisDot);
+            if (thisDot > bestDot)
+            {
+                boolean okaySoFar = true;
+                FORI (iPlane, nPlanes)
+                {
+                    if (Arrays.indexOfUsingEqualsSymbol(normals, AC[iPlane]) != -1)
+                        continue; // it's definitely on this plane
+                    double foo = VecMath.dot(AC[iPlane], thisPoint) - bd[iPlane];
+                    if ((iPlane < A.length ? ABS(foo) : foo) > 1e-12) // if violates this == or <= constraint
+                    {
+                        if (debugThisFunction >= 2) System.out.println("        (violates some constraint))");
+                        okaySoFar = false;
+                        break;
+                    }
+                }
+                if (okaySoFar)
+                {
+                    bestDot = thisDot;
+                    VecMath.copyvec(bestPoint, thisPoint);
+                    VecMath.copyvec(bestMultiIndex, multiIndex);
+                }
+            }
+        }
+        if (debugThisFunction >= 2) System.out.println("        ------------");
+        int ret;
+        if (bestDot > Double.NEGATIVE_INFINITY)
+        {
+            VecMath.copyvec(x, bestPoint);
+            if (y != null)
+            {
+                VecMath.mxv(y, C, x);
+                VecMath.vmv(y, d, y); // y = d - C*x
+                // Exactly zero out the entries in y
+                // corresponding to the nDims planes used
+                // to compute the solution
+                FORI (iDim, nDims)
+                {
+                    int i = bestMultiIndex[iDim];
+                    if (i < y.length)
+                    {
+                        assert(ABS(y[i]) < 1e-12);
+                        y[i] = 0.;
+                    }
+                    else
+                    {
+                        // it's from a non-negativity constraint we added
+                        assert(okayToRequireNonNegative);
+                        assert(ABS(x[i-y.length]) < 1e-12);
+                        x[i-y.length] = 0.;
+                    }
+                }
+            }
+            ret = 0; // finite or unbounded, don't know which so assume finite
+        }
+        else
+        {
+            ret = -1; // infeasible or unbounded, don't know which so assume infeasible
+        }
+        if (debugThisFunction >= 1) System.out.println("    Out LPSolveByBruteForce, returning " + ret);
+        return ret;
+    } // LPSolveByBruteForce
+
+        // XXX unused?
+        private static int choose(int n, int k)
+        {
+            if (n-k > k)
+                k = n-k;
+            if (k < 0)
+                return 0;
+            // n-k+1 * n-k+2 * ... * n-1 * n
+            // -------------------------------
+            //    1  *   2   * ... * k-1 * k
+            int prod = 1;
+            FORI (i,k)
+            {
+                prod *= (n-k+i+1);
+                prod /= (i+1);
+            }
+            return prod;
+        } // choose
+        private static void initMultiIndex(int n, int multiIndex[])
+        {
+            VecMath.fillvec(multiIndex, n);
+            if (multiIndex.length > 0)
+                multiIndex[0] = -1;
+        }
+        private static boolean incrementMultiIndex(int n, int multiIndex[])
+        {
+            int k = multiIndex.length;
+            int ii = k-1;
+            while (ii >= 0 && multiIndex[ii] >= ii + (n-k))
+                ii--;
+            if (ii < 0)
+                return false;
+            multiIndex[ii]++;
+            while (++ii < k)
+                multiIndex[ii] = multiIndex[ii-1]+1;
+            return true;
+        } // incrementMultiIndex
+
 
     /** Little test program. */
     public static void main(String args[])
@@ -1092,7 +1245,7 @@ public final class LinearProgramming
 
         }
 
-        if (false)
+        if (true)
         {
             //
             // See if we can locate the dual verts
@@ -1101,7 +1254,7 @@ public final class LinearProgramming
             double noVerts[][] = {
             };
             double oneVert[][] = {
-                { 1,0,0},
+                { 1,1,1},
             };
             double segVerts[][] = {
                 { 1,0,0},
@@ -1169,22 +1322,22 @@ public final class LinearProgramming
                 {-1,-1,-1},
             };
             double primalsVerts[][][] = {
-                noVerts, // should be unbounded
+                //noVerts, // should be unbounded
                 oneVert, // should be unbounded
-                segVerts, // should be finite
-                tetraVerts, // should be finite
-                cubeVerts, // should be finite
-                octaVerts, // should be finite
-                icosaVerts, // should be finite
-                dodecaVerts, // should be finite
+                //segVerts, // should be finite
+                //tetraVerts, // should be finite
+                //cubeVerts, // should be finite
+                //octaVerts, // should be finite
+                //icosaVerts, // should be finite
+                //dodecaVerts, // should be finite
             };
             for (int iPrimal = 0; iPrimal < primalsVerts.length; ++iPrimal)
             {
                 System.out.println("=======================================================");
                 System.out.println("iPrimal = "+iPrimal);
                 double verts[][] = primalsVerts[iPrimal];
-                int nDims = 3;
                 int nVerts = verts.length;
+                int nDims = (nVerts==0 ? 3 : verts[0].length);
 
                 double A[][] = new double[0][nDims]; // XXX maybe should allow null?
                 double b[] = new double[0]; // XXX maybe should allow null?
@@ -1193,6 +1346,8 @@ public final class LinearProgramming
 
                 double x[] = new double[nDims]; // solution
                 double y[] = new double[nVerts]; // slack at solution
+                double xByBruteForce[] = new double[nDims]; // solution
+                double yByBruteForce[] = new double[nVerts]; // slack at solution
 
                 for (int iVert = 0; iVert < nVerts; ++iVert)
                     d[iVert] = 1; // verts[iVert] dot x <= 1
@@ -1205,10 +1360,17 @@ public final class LinearProgramming
 
                     // Random offset...
                     double offset[] = new double[nDims];
-                    for (int iDim = 0; iDim < nDims; ++iDim)
-                        offset[iDim] = 2*generator.nextDouble() - 1;
-                    VecMath.normalize(offset);
-                    VecMath.sxv(offset, 1., offset);
+                    {
+                        for (int iDim = 0; iDim < nDims; ++iDim)
+                            offset[iDim] = 2*generator.nextDouble() - 1;
+                        VecMath.normalize(offset);
+                        VecMath.sxv(offset, 10., offset);
+                    }
+                    offset = new double[] {10,0,0}; // XXX should test this too! objective functions headed straight for face planes, or straight for edges, or straight for vertices
+                    //offset = new double[] {0,0,0};
+                    // XXX TODO: the above ways should be command line options
+
+
                     // So instead of C x < d,
                     // we want C (x - offset) < d
                     // i.e. C x < d + C offset
@@ -1220,19 +1382,30 @@ public final class LinearProgramming
                     for (int iDim = 0; iDim < nDims; ++iDim)
                         q[iDim] = 2*generator.nextDouble()-1;
 
-                    int result = LPSolve(x,y,A,b,C,offset_d,q, false); // the general problem
-                    //int result = LPSolve(x,y,A,b,C,offset_d,q, true); // restrict to positive octant to make it a simpler problem.  This will often be infeasible due to the offset.
+                    //boolean okayToRequireNonNegative = false; // the general problem
+                    boolean okayToRequireNonNegative = true; // restricting solution to positive orthant; faster.  This will often be infeasible due to the offset.
+                    int result = LPSolve(x,y,A,b,C,offset_d,q, okayToRequireNonNegative);
+                    int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,offset_d,q, okayToRequireNonNegative);
+
                     PRINTVEC(q);
+                    PRINT(result);
                     PRINTVEC(x);
                     PRINTVEC(y);
-
+                    PRINT(resultByBruteForce);
+                    PRINTVEC(xByBruteForce);
+                    PRINTVEC(yByBruteForce);
+                    double xError = VecMath.dist(x, xByBruteForce);
+                    double yError = VecMath.dist(y, yByBruteForce);
+                    PRINT(xError);
+                    PRINT(yError);
+                    PRINT(xError+yError);
                 } // for iIter
 
                 System.out.println("=======================================================");
             } // for iPrimal
         }
 
-        if (true)
+        if (false)
         {
             // Test L1Solve and LInfinitySolve
             // with the example from the mathematica doc...
@@ -1243,17 +1416,21 @@ public final class LinearProgramming
                 {4.5,6},
             };
             double b[] = {5, 6, 8};
-            double x1[] = new double[2];
-            double xInf[] = new double[2];
 
+            double xInfExpected[] = {-4.4, 4.65};
+            double xInf[] = new double[2];
             int resultInf = L1Solve(xInf, A, b);
             PRINT(resultInf);
             PRINTVEC(xInf);
+            PRINTVEC(xInfExpected);
             // XXX TODO: doesn't give the right answer
 
+            double x1Expected[] = {-4.5, 4.75};
+            double x1[] = new double[2];
             int result1 = L1Solve(x1, A, b);
             PRINT(result1);
             PRINTVEC(x1);
+            PRINTVEC(x1Expected);
             // XXX TODO: doesn't give the right answer
         }
     } // main
