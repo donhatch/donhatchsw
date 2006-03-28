@@ -22,6 +22,12 @@ package com.donhatchsw.util;
  * regardless of the scale of the input data.
  */
 
+// XXX TODO: I think it fails now if I set objective function to -1,-1,...
+// which is weird, I thought I tested that
+// XXX TODO: I don't understand why it's succeeding
+// in the case of m2 variables... aren't they minus what they
+// should be on output?
+
 
 public final class LinearProgramming
 {
@@ -64,6 +70,9 @@ public final class LinearProgramming
      * <pre>
      *     LPSolve(x', null, A', b', c', d', q', false)
      * </pre>
+     * Returns 0 (and fills in x) on success,
+     * 1 if the linear programming problem is unbounded,
+     * -1 if infeasible.
      */
     public static int L1Solve(double x[],
                               double A[][],
@@ -133,6 +142,9 @@ public final class LinearProgramming
      * <pre>
      *     LPSolve(x', null, A', b', c', d', q', false)
      * </pre>
+     * Returns 0 (and fills in x) on success,
+     * 1 if the linear programming problem is unbounded,
+     * -1 if infeasible.
      */
     public static int LInfinitySolve(double x[],
                                      double A[][],
@@ -276,7 +288,7 @@ public final class LinearProgramming
         int ret = LPSolve(xx, null, AA, bb, CC, dd, qq, false);
         if (ret == 0)
             for (int i = 0; i < n; ++i)
-                x[i] = x[i];
+                x[i] = xx[i];
         return ret;
     } // maximizeMinimum
 
@@ -477,7 +489,7 @@ public final class LinearProgramming
     } // LPsolve
 
     /** You don't want to know.  If this is <code>>= 1</code>, print out the tableaux at various times during the internal simplx function call. If it's <code>>= 2</code>, print out even more stuff.  See, I told you, you can't handle the truth. */
-    private static int debugLevel = 0;
+    public static int debugLevel = 0;
 
     private final static double EPS = 1e-12;
     // Here EPS is the absolute precision; the book had 1e-6
@@ -756,7 +768,7 @@ public final class LinearProgramming
                 if (max != 0.)
                     VecMath.vxs(a[iRow], a[iRow], 1./max);
             }
-            PRINTVEC(origRowMaxes);
+            if (debugLevel >= 1) PRINTVEC(origRowMaxes);
         }
 
         int kpScratch[] = new int[1];
@@ -960,7 +972,7 @@ public final class LinearProgramming
 
                     if (origRowMaxes[1] != 0.)
                     {
-                            System.out.println("Unconditioning final z row by multiplying by "+origRowMaxes[1]);
+                        if (debugLevel >= 3) System.out.println("Unconditioning final z row by multiplying by "+origRowMaxes[1]);
                         VecMath.vxs(a[1], a[1], 1./origRowMaxes[1]);
                     }
                     for (int i = 1; i <= m; ++i)
@@ -969,7 +981,7 @@ public final class LinearProgramming
                             double origRowMax = origRowMaxes[1+iposv[i]-n];
                             if (origRowMax > 0.)
                             {
-                                System.out.println("Unconditioning final row var "+i+" by multiplying by "+origRowMax);
+                                if (debugLevel >= 3) System.out.println("Unconditioning final row var "+i+" by multiplying by "+origRowMax);
                                 VecMath.vxs(a[1+i], a[1+i], origRowMax);
                             }
                         }
@@ -979,7 +991,7 @@ public final class LinearProgramming
                             double origRowMax = origRowMaxes[1+(izrov[i]-n)];
                             if (origRowMax >= 0.)
                             {
-                                System.out.println("Unconditioning final column var "+i+" by dividing by "+origRowMax);
+                                if (debugLevel >= 3) System.out.println("Unconditioning final column var "+i+" by dividing by "+origRowMax);
                                 double invOrigRowMax = 1./origRowMax;
                                 for (int j = 1; j <= m+1; ++j)
                                     a[j][1+i] *= invOrigRowMax;
