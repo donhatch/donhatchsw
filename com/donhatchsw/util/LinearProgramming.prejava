@@ -1238,7 +1238,7 @@ public final class LinearProgramming
             double thisDot = VecMath.dot(thisPoint, q);
             if (debugThisFunction >= 2) PRINTVEC(thisPoint);
             if (debugThisFunction >= 2) PRINT(thisDot);
-            if (thisDot >= bestDot) // >= rather than >, not for any good reason except that it happens to make it pick the ones I want, by luck, when there is ambiguity due to the objective function being normal to a face plane
+            if (thisDot > bestDot)
             {
                 boolean okaySoFar = true;
                 FORI (iPlane, nConstraintsToEnforce)
@@ -1656,9 +1656,22 @@ public final class LinearProgramming
                         q[iDim] = 2*generator.nextDouble()-1;
 
                     if (false) // XXX make this a command line option?
+                    {
                         VecMath.fillvec(q, -1.);
-                    if (false) // XXX make this a command line option?
+                        if (q.length > 0)
+                            q[0] = -1.01; // fudge a little
+                        if (q.length > 1)
+                            q[1] = -1.001;
+                    }
+
+                    if (true) // XXX make this a command line option?
+                    {
                         VecMath.fillvec(q, 1.);
+                        if (q.length > 0)
+                            q[0] = 1.01; // fudge a little
+                        if (q.length > 1)
+                            q[1] = 1.001;
+                    }
 
                     int result = LPSolve(x,y,A,b,C,offset_d,q, implicitRestrictNonNegative);
                     int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,offset_d,q, implicitRestrictNonNegative);
