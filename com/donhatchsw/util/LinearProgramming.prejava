@@ -37,8 +37,9 @@ public final class LinearProgramming
      * Find x that minimizes ||Ax-b|| in the one-norm
      * (manhattan distance).
      * <p>
-     * This is phrased as a linear programming problem
-     * by adding n new variables <code>z = {z[0]..z[m-1]}</code>
+     * If n is the length of x and m is the length of b,
+     * this is phrased as a linear programming problem
+     * by adding m new variables <code>z = {z[0]..z[m-1]}</code>
      * and minimizing <code>z[0]+...+z[m-1]</code>
      * subject to:
      * <pre>
@@ -113,7 +114,8 @@ public final class LinearProgramming
     /**
      * Find x that minimizes ||Ax-b|| in the infinity (max) norm.
      * <p>
-     * This is phrased as a linear programming problem
+     * If n is the length of x and m is the length of b,
+     * this is phrased as a linear programming problem
      * by adding a single variable <code>z</code>
      * and minimizing <code>z</code>, subject to:
      * <pre>
