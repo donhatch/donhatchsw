@@ -2,7 +2,7 @@
 * Copyright (c) 2005 Don Hatch Software
 */
 
-//#include "macros.h"
+#include "macros.h"
 //
 // Arrows.java -- utilities for drawing arrows
 // which have multiple heads (destination points)
