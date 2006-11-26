@@ -79,8 +79,8 @@ package com.donhatchsw.util;
 *  are CSG.Polytope and CSG.SPolytope (signed polytope).
 *  The simplest way to create a CSG.Polytope
 *  is probably by using the PolyCSG class.
-*  Some primitive CSG.SPolytopes can also be made using makePolygon()
-*  and makeHypercube().
+*  Some primitive CSG.SPolytopes can also be made using makePolygon(),
+*  makeSimplex(), and makeHypercube().
 *  <p>
 *  Caveats: not at all robust about concident or coplanar elements;
 *  really only works reliably if everything is in general position.
@@ -457,20 +457,169 @@ public final class CSG
             {
                 return toString("");
             }
+
+            /** Parses a polytope from a string the "pcalc" program's format. */
+            // XXX should really do this from a reader, then fromString... could just hook up a StringReader and go
+            public static Polytope fromStringInPcalcFormat(String s)
+            {
+                System.out.println("scanning...");
+                System.out.flush();
+                Polytope answer = null;
+                {
+                    int fullDim = -1;
+                    Polytope facets[] = null;
+
+                    String lines[] = s.trim().split("\\s*\n\\s*");
+                    int iLine = 0;
+                    for (int iDim = 0; ; iDim++)
+                    {
+                        if (iLine >= lines.length)
+                            break;
+                        String line = lines[iLine++];
+                        // scan "%d %d-cel%*[^:]:", &nCells, &shouldBeIDim
+                        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+) (\\d+)-cell[^:]*:").matcher(line);
+                        if (!matcher.matches())
+                            throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected number of "+iDim+"-cells, got \""+line+"\"!");
+                        int nCells = Integer.parseInt(matcher.group(1));
+                        int shouldBeIDim = Integer.parseInt(matcher.group(2));
+
+                        if (shouldBeIDim != iDim)
+                            throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected "+iDim+"-cells, got "+shouldBeIDim+"-cells!");
+                        if (nCells == 0)
+                            continue;
+                        Polytope cells[] = new Polytope[nCells];
+
+                        FORI (iCell, nCells)
+                        {
+                            if (iLine >= lines.length)
+                                throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: premature end-of-string expecting "+iDim+"-cell "+iCell+"!");
+                            line = lines[iLine++];
+                            // Read the index and colon.  This is for human-readability
+                            // and sanity checking.
+                            // scan "%d:", &shouldBeICell
+                            matcher = java.util.regex.Pattern.compile("(\\d+):(.*)").matcher(line);
+                            if (!matcher.matches())
+                                throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected "+iDim+"-cell "+iCell+", got \""+line+"\"!");
+                            int shouldBeICell = Integer.parseInt(matcher.group(1));
+                            String rest = matcher.group(2);
+
+                            if (shouldBeICell != iCell)
+                                throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected "+iDim+"-cell "+iCell+", got "+shouldBeICell+"!");
+                            String tokens[] = rest.trim().split("\\s+");
+                            if (iDim == 0)
+                            {
+                                //
+                                // Read vertex coords from tokens on this line.
+                                //
+                                if (fullDim == -1)
+                                    fullDim = tokens.length;
+                                else
+                                    if (tokens.length != fullDim)
+                                    {
+                                        throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: inconsistent vertex dimensions "+fullDim+", "+tokens.length+"!");
+                                    }
+                                double coords[] = new double[fullDim];
+                                FORI (iCoord, fullDim)
+                                    coords[iCoord] = Double.parseDouble(tokens[iCoord]);
+                                cells[iCell] = new Polytope(iDim,
+                                                            fullDim,
+                                                            new SPolytope[0],
+                                                            new Hyperplane[0], // contributing hyperplanes will get filled out later
+                                                            null); // no aux
+                                cells[iCell].setCoords(coords);
+                            }
+                            else
+                            {
+                                //
+                                // Read signed facet indices from tokens on this line.
+                                //
+                                SPolytope mySignedFacets[] = new SPolytope[tokens.length];
+                                FORI (iToken, tokens.length)
+                                {
+                                    String token = tokens[iToken];
+                                    int sign = 0;
+                                    if (token.startsWith("-"))
+                                        sign = -1;
+                                    else if (token.startsWith("+"))
+                                        sign = 1;
+                                    else if (token.startsWith("!"))
+                                        sign = 0;
+                                    else
+                                        throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: bad facet specification "+token+" in "+iDim+"-cell "+iCell+"!");
+                                    token = token.substring(1);
+                                    int iFacet = Integer.parseInt(token);
+                                    if (iFacet < 0 || iFacet >= facets.length)
+                                        throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: out-of-range facet specification "+token+" in "+iDim+"-cell "+iCell+"! (there are only "+facets.length+" possible facets)");
+                                    mySignedFacets[iToken] = new SPolytope(0,sign,
+                                                                           facets[iFacet]);
+                                }
+                                cells[iCell] = new Polytope(iDim,
+                                                            fullDim,
+                                                            mySignedFacets,
+                                                            new Hyperplane[0], // contributing hyperplanes will get filled out later
+                                                            null); // no aux
+                            }
+                        }
+
+                        facets = cells;
+                    }
+                    if (facets == null || facets.length == 0)
+                        throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: premature end-of-string or something");
+                    answer = facets[0];
+                }
+
+                // Now we have to go through
+                // and set the planes defining every element,
+                // starting with the facets.
+                if (answer.dim != answer.fullDim)
+                    throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: dimension "+answer.dim+" does not match dimension of vertices "+answer.fullDim+"!");
+                answer.contributingHyperplanes = new Hyperplane[0];
+                FORI (iFacet, answer.facets.length)
+                {
+                    SPolytope facet = answer.facets[iFacet];
+                    double normal[] = new double[answer.fullDim];
+                    areaNormal(normal, facet); // get area normal of answer
+                    Polytope someVertexOnFacet = facet.p;
+                    while (someVertexOnFacet.dim > 0)
+                        someVertexOnFacet = someVertexOnFacet.facets[0].p;
+                    double offset = VecMath.dot(normal, someVertexOnFacet.getCoords());
+                    Hyperplane hyperplane = new Hyperplane(normal, offset);
+                    Hyperplane hyperplanes[] = {hyperplane};
+
+                    //
+                    // Add this hyperplane as a contributing
+                    // hyperplane to every cell of this facet
+                    // (including this facet itself).
+                    //
+                    Polytope allElements[][] = facet.p.getAllElements();
+                    FORI (i, allElements.length)
+                    FORI (j, allElements[i].length)
+                    {
+                        Polytope e = allElements[i][j];
+                        e.contributingHyperplanes = unionOfHyperplanesAndSort(e.contributingHyperplanes, hyperplanes);
+                    }
+                }
+
+                System.out.println("done.");
+                System.out.flush();
+                return answer;
+            } // fromStringInPcalcFormat
         } // class Polytope
 
         /**
         *  Signed (oriented) polytope.
         *  <br>
         *  InitialDensity is the "density at (-inf,-inf,...)",
-        *  which is 0 for finite polytopes and 1 for cofinite ones.
+        *  which is 0 for finite polytopes and 1 for cofinite ones
+        *  (the concept simply breaks down for polytopes
+        *  that are neither finite nor cofinite).
         *  <p>
         *  Representing both finite and cofinite polytopes
         *  in this way eases our job in implementing CSG:
         *  we need only implement intersection;
         *  then the other operations are expressible trivially:
         *  <pre>
-        *       union(A,B) = intersect(-A,-B)
+        *       union(A,B) = -intersect(-A,-B)
         *       diff(A,B)  = intersect(A,-B)
         *  </pre>
         */
@@ -619,6 +768,37 @@ public final class CSG
                                                        null)); // no aux
             return faceSPolytope;
         } // makePolygon
+
+        /** Makes an n-dimensional simplex with edge length 2, centered at the origin. */
+        public static SPolytope makeSimplex(int nDims)
+        {
+            double verts[][] = new double[nDims+1][nDims];
+            FORI (iVert, nDims+1)
+                FORI (iAx, nDims)
+                    if (iVert == 0)
+                        verts[iVert][iAx] = Math.sqrt((double)(iAx+2)/(2*iAx+2)) / (iAx+2);
+                    else if (iVert <= iAx)
+                        verts[iVert][iAx] = verts[0][iAx];
+                    else if (iVert == iAx+1)
+                        verts[iVert][iAx] = -(iAx+1) * verts[iAx][iAx];
+                    else
+                        verts[iVert][iAx] = 0.;
+
+            // We treat verts as dual verts,
+            // to exercise the makeConvexPolytopeFromIntersectionOfHalfspaces function
+            double dualVerts[][] = verts;
+            verts = null;
+
+            double dualCircumRadius = VecMath.norm(dualVerts[0]);
+            double primalInRadius = 1./dualCircumRadius;
+            // XXX edge length is wrong-- fix this! what do do with primal inRadius?
+
+            //SPolytope result = makeConvexPolytopeFromIntersectionOfHalfspaces(nDims, dualVerts, VecMath.fillvec(nDims+1, 1.));
+            //return result;
+            unimplemented();
+            return null;
+        } // makeSimplex
+
 
         /** Makes an n-dimensional hypercube with given center and in-radius. */
         public static SPolytope makeHypercube(double center[],
@@ -1303,7 +1483,7 @@ public final class CSG
             assert(k == sp.p.dim);
 
             assert(k == n-1);
-            assert(result.length == n);
+            assert(result.length == n); // make sure they passed in the right dimension result
             double M[][] = new double[k][n];
             double simplexNormal[] = new double[n];
             FORI (iSimplex, nSimplices)
@@ -1361,7 +1541,7 @@ public final class CSG
                     {
                         if (verboseLevel >= 1)
                         {
-                            System.out.println(indentString+"    empty bbox, returning null");
+                            System.out.println(indentString+"    empty bbox with both initial densities 0, returning null");
                             System.out.println(indentString+"out CSG.intersect");
                         }
                         return null;
@@ -1370,7 +1550,7 @@ public final class CSG
                     {
                         if (verboseLevel >= 1)
                         {
-                            System.out.println(indentString+"    empty bbox, returning A");
+                            System.out.println(indentString+"    empty bbox, A's initial density is 0, B's is not, returning A");
                             System.out.println(indentString+"out CSG.intersect");
                         }
                         return A;
@@ -1379,7 +1559,7 @@ public final class CSG
                     {
                         if (verboseLevel >= 1)
                         {
-                            System.out.println(indentString+"    empty bbox, returning B");
+                            System.out.println(indentString+"    empty bbox, B's initial density is 0, A's is not, returning B");
                             System.out.println(indentString+"out CSG.intersect");
                         }
                         return B;
@@ -1393,7 +1573,7 @@ public final class CSG
                         // XXX the current application to be worth worrying about.
                         if (verboseLevel >= 1)
                         {
-                            System.out.println(indentString+"    empty bbox, but not smart enough to do anything about it yet :-(");
+                            System.out.println(indentString+"    empty bbox, both initial densities nonzero, but not smart enough to do anything about it yet :-(");
                         }
                     }
                 }
@@ -2711,6 +2891,37 @@ public final class CSG
             expr = rest[0];
             result = complement(operand);
         }
+        else if (firstChar == 's'
+              && expr.startsWith("can(\""))
+        {
+            if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> scan(\"quoted_string\")");
+            int endQuoteIndex = expr.indexOf("\"", 5);
+            if (endQuoteIndex < 0)
+                throw new java.text.ParseException("bad bad bad expression \""+orig_expr+"\"", orig_expr.length()-expr.length());
+            String fileName = expr.substring(5, endQuoteIndex);
+
+            expr = expr.substring(endQuoteIndex+1);
+            if (!expr.startsWith(")"))
+                throw new java.text.ParseException("bad bad bad expression \""+orig_expr+"\"", orig_expr.length()-expr.length());
+            expr = expr.substring(1);
+
+            try {
+                java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(fileName));
+                StringBuffer sb = new StringBuffer();
+                char buf[] = new char[1024];
+                int numRead = 0;
+                while ((numRead = reader.read(buf)) > -1)
+                    sb.append(String.valueOf(buf, 0, numRead));
+                reader.close();
+                String fileContents = sb.toString();
+                result = new SPolytope(0,1,Polytope.fromStringInPcalcFormat(fileContents));
+                // XXX LAME!  should be a method that reads from a Reader instead of having to slurp the whole file!
+            }
+            catch (java.io.IOException e)
+            {
+                throw new java.text.ParseException("Fooey, something went wrong reading file \""+fileName+"\": "+e, orig_expr.length()-expr.length());
+            }
+        }
         else if (firstChar == '(')
         {
             if (evalVerbose) System.out.println("\""+orig_expr+"\": expr -> (something)  (not sure))");
@@ -2854,16 +3065,17 @@ public final class CSG
     *  The grammar is:
     *  <pre>
     * 
-    *           expr -> term
-    *           expr -> term [i&^*] term // intersect(LHS,RHS)
-    *           expr -> term [u|+] term  // union(LHS,RHS)
-    *           expr -> term [-\dm] term // diff(LHS,RHS)
-    *           expr -> varName = expr   // sets varName's value to value of expr
-    *           term -> "0"              // empty set
-    *           term -> "1"              // all of space
-    *           term -> varName          // corresponding varValue
-    *           term -> [~-] term        // complement(RHS)
-    *           term -> "(" expr ")"
+    *           expr -&gt; term
+    *           expr -&gt; term [i&amp;^*] term // intersect(LHS,RHS)
+    *           expr -&gt; term [u|+] term  // union(LHS,RHS)
+    *           expr -&gt; term [-\dm] term // diff(LHS,RHS)
+    *           expr -&gt; varName = expr   // sets varName's value to value of expr
+    *           term -&gt; "0"              // empty set
+    *           term -&gt; "1"              // all of space
+    *           term -&gt; varName          // corresponding varValue
+    *           term -&gt; [~-] term        // complement(RHS)
+    *           term -&gt; "(" expr ")"
+    *           term -&gt; scan "(" quoted_string ")"
     *  </pre>
     * 
     *  Note all the alternative operator chars; I'm wishy washy.
@@ -2932,9 +3144,18 @@ public final class CSG
         int fullDim = Integer.parseInt(args[0]);
         int dim = fullDim;
 
+        if (false)
+        {
+            // just test simplex
+            PRINT(makeSimplex(dim));
+            return;
+        }
+
         SPolytope A = makeHypercube(VecMath.fillvec(dim, -1.), 2.);
         SPolytope B = makeHypercube(VecMath.fillvec(dim,  1.), 2.);
         SPolytope C = makeHypercube(VecMath.fillvec(dim,  0.), 2.);
+        //SPolytope simplex = makeSimplex(dim);
+        SPolytope simplex = A; // XXX not ready yet
 
 #ifdef DEFUNCT_BUT_NOTE // XXX can probably get rid of this now... but need to transfer the isOriented stuff somewhere in the shell!
         PRINT(A);
@@ -2986,8 +3207,8 @@ public final class CSG
             // Evaluate given input expression
             //
             String expr = args[1];
-            String varNames[][]     = {{"A","B","C"}};
-            SPolytope varValues[][] = {{ A,  B,  C }};
+            String varNames[][]     = {{"A","B","C","simplex"}};
+            SPolytope varValues[][] = {{ A,  B,  C,  simplex }};
             SPolytope result = null;
             try
             {
@@ -3026,8 +3247,8 @@ public final class CSG
 
             String prompt = "yeah? ";
 
-            String varNames[][]     = {{"A","B","C"}};
-            SPolytope varValues[][] = {{ A,  B,  C }};
+            String varNames[][]     = {{"A","B","C","simplex"}};
+            SPolytope varValues[][] = {{ A,  B,  C,  simplex }};
 
             {
                 System.out.println("Current variables:");
