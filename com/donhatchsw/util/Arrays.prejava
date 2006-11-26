@@ -36,6 +36,8 @@ package com.donhatchsw.util;
  *      <li> linear search using equals </li>
  *      <li> linear search using == </li>
  *      <li> subarray allowing permutation or general lut into original dims
+ *      <li> arbitrary slicing </li>
+ *      <li> arbitrary index shuffling, flattening, diagonalizing </li>
  * </ul>
  */
 public final class Arrays
@@ -971,7 +973,7 @@ public final class Arrays
         if (array.getClass().getComponentType() == null)
 #endif // DEFUNCT
         if (!array.getClass().isArray())
-            return array.toString();
+            return array.toString(); // XXX should double-quote Strings and single-quote Characters, see magiccubend solver which has a decent version
 
         String prefix    = preSepSuf[indexIntoPSS][0];
         String separator = preSepSuf[indexIntoPSS][1];
