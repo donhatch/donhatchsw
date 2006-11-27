@@ -1551,13 +1551,13 @@ public final class CSG
                     {
                         Polytope a = A.facets[iFacetA].p;
                         Polytope aB = _cross(a, B, ocean, subIndentString);
-                        facets[iFacet++] = new SPolytope(0,1,aB);
+                        facets[iFacet++] = new SPolytope(0,1,aB); // sign arbitrary, will be fixed later
                     }
                     FORI (iFacetB, B.facets.length)
                     {
                         Polytope b = B.facets[iFacetB].p;
                         Polytope Ab = _cross(A, b, ocean, subIndentString);
-                        facets[iFacet++] = new SPolytope(0,1,Ab);
+                        facets[iFacet++] = new SPolytope(0,1,Ab); // sign arbitrary, will be fixed later
                     }
                     assert(iFacet == facets.length);
                 }
