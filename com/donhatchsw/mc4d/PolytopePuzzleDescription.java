@@ -1,8 +1,9 @@
 /*
     BUGS:
+        - need to get cut depths right
         - I don't think it's oriented correctly at end-- need to send in all planes at once so it can do that automatically with some hope of being efficient
-        - "{3,3}" anything gives {4,6,4,1} so it's not slicing???
     FIXED:
+        - "{3,3}" anything gives {4,6,4,1} so it's not slicing???
         - "{3}x{} 3 gives counts  {42,54,36,1} should be {42,81,41,1} I think
         - "{4,3}" 3  gives counts {32,36,48,1} should be {56,108,54,1}
         - "{4,3}" 3, even cuts only gives counts {20,24,24,1} should be {26,48,24,1}
@@ -62,14 +63,25 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             com.donhatchsw.util.CSG.SPolytope sliced = ptope;
             for (int iFacet = 0; iFacet < ptope.p.facets.length; ++iFacet)
             {
-                double oneCutDepth = 2./length/10; // XXX FIX THIS-- get it right... and it's not the same for all facets! and needs to be smaller if there are triangles around!! 2/length is right for a hypercube but not other stuff
+                double oneCutDepth = 2./length/2; // XXX FIX THIS-- get it right... and it's not the same for all facets! and needs to be smaller if there are triangles around!! 2/length is right for a hypercube but not other stuff
                 //if (iFacet >= 1) break; // XXX for debugging, only this number of faces
                 //if (iFacet%2 == 1) continue; // XXX for debugging, only doing even numbered facets
 
                 com.donhatchsw.util.CSG.Hyperplane faceHyperplane = ptope.p.facets[iFacet].p.contributingHyperplanes[0];
+                double faceNormal[] = com.donhatchsw.util.VecMath.copyvec(faceHyperplane.normal);
+                double faceOffset = faceHyperplane.offset;
+                // make it so normal pointing away from the origin
+                // XXX this won't be necessary when we do it right by looking at the edge we are going to subdivide
+                if (faceOffset < 0.)
+                {
+                    faceOffset *= -1.;
+                    com.donhatchsw.util.VecMath.vxs(faceNormal, faceNormal, -1.);
+                }
+
+                System.out.println("face hyperplane = "+faceHyperplane);
                 for (int iCut = 0; iCut < nCutsPerFace; ++iCut)
                 {
-                    com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(faceHyperplane.normal, faceHyperplane.offset - (nCutsPerFace-iCut)*oneCutDepth); // from inward to outward for efficiency, so each successive cut looks at smaller part of previous result  XXX argh, actually looks at everything anyway, need to micromanage more to get it right
+                    com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(faceNormal, faceOffset - (nCutsPerFace-iCut)*oneCutDepth); // from inward to outward for efficiency, so each successive cut looks at smaller part of previous result  XXX argh, actually looks at everything anyway, need to micromanage more to get it right
                     sliced = com.donhatchsw.util.CSG.sliceFacets(sliced, cutHyperplane);
                 }
             }
@@ -192,7 +204,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         System.out.println("in main");
 
-        com.donhatchsw.util.CSG.verboseLevel = 2;
+        //com.donhatchsw.util.CSG.verboseLevel = 2;
 
         String schlafliProduct = args[0];
         int length = Integer.parseInt(args[1]);
