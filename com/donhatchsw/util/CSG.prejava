@@ -1512,9 +1512,10 @@ public final class CSG
             //
             // XXX I thought the signFudge thing would work
             // XXX (i.e. negate everything whose dimensional contribution
-            // XXX from C is odd) but it doesn't seem to.  Need to find out why!
+            // XXX from C is odd) but it doesn't seem to.
+            // XXX Still need to think more about it.  Sigh.
             //
-            if (true) // XXX shouldn't be necessary!
+            if (true) // XXX shouldn't be necessary, if I was smart!
                 orientDeep(AB);
 
             return AB;
