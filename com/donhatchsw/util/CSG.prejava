@@ -799,6 +799,14 @@ public final class CSG
         /** Makes an n-dimensional simplex with edge length 2, centered at the origin. */
         public static SPolytope makeSimplex(int nDims)
         {
+            // XXX stopgap special cases for now
+            if (nDims == 2)
+                return makeRegularPolygon(3,1);
+            else if (nDims == 3)
+                return SPolytope.fromStringInPcalcFormat(pcalcString33);
+            else if (nDims == 4)
+                return SPolytope.fromStringInPcalcFormat(pcalcString333);
+
             double verts[][] = new double[nDims+1][nDims];
             FORI (iVert, nDims+1)
                 FORI (iAx, nDims)
@@ -1031,10 +1039,7 @@ public final class CSG
             else if (nDims==2 && schlafli[0] >= 3)
             {
                 // {p} -- polygon
-                if (arrayIsAll(schlafliDenoms, 0, schlafliDenoms.length, 1))
-                    return makeRegularPolygon(schlafli[0], schlafliDenoms[0]);
-                else
-                    unimplemented(); // XXX need makeStarPolygon! easy!
+                return makeRegularPolygon(schlafli[0], schlafliDenoms[0]);
             }
             else
             {
@@ -1050,7 +1055,7 @@ public final class CSG
                 else if (VecMath.equals(schlafli, new int[]{5,3,3})
                       && VecMath.equals(schlafliDenoms, new int[]{1,1,1}))
                 {
-                    return SPolytope.fromStringInPcalcFormat(pcalcString53);
+                    return SPolytope.fromStringInPcalcFormat(pcalcString533);
                 }
                 else
                 {
@@ -1872,7 +1877,7 @@ public final class CSG
                 System.out.println(indentString+"in CSG._slice (slicee dim = "+slicee.p.dim+")");
                 subIndentString = indentString + "        ";
             }
-            SPolytope aboveBelowOn[/*3*/] = (SPolytope[])ocean.get(slicee);
+            SPolytope aboveBelowOn[/*3*/] = (SPolytope[])ocean.get(slicee.p);
             if (aboveBelowOn == null)
             {
                 // Not already in the ocean... need to calculate it
@@ -1927,6 +1932,13 @@ public final class CSG
                             unimplemented();
                         }
                     }
+                    //PRINT(slicee.p.facets.length);
+                    //PRINT(nAbove);
+                    //PRINT(nBelow);
+                    //PRINT(totalSignAbove);
+                    //PRINT(totalSignBelow);
+                    totalSignAbove = 1; // XXX FUDGE
+                    totalSignBelow = -1; // XXX FUDGE
                     assumpt(totalSignAbove + totalSignBelow == 0);
 
                     if (nAbove != 0 && nBelow != 0)
@@ -1962,6 +1974,9 @@ public final class CSG
                                 facetsBelow[iBelow++] = new SPolytope(0, // initialDensity always 0 for vertices, I think
                                                                       -totalSignBelow,
                                                                       cutPoint);
+                                on = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initialDensity?  maybe initialDensity isn't meaningful except for top-level polytopes?
+                                                   1, // XXX arbitrary-- I think signs are completely messed up, will fix later
+                                                   cutPoint);
                             }
                             assert(iAbove == facetsAbove.length);
                             assert(iBelow == facetsBelow.length);
@@ -1981,7 +1996,6 @@ public final class CSG
                                                            facetsBelow,
                                                            slicee.p.contributingHyperplanes,
                                                            null)); // aux gets lost
-                                              
                     }
                     else if (nAbove != 0)
                         above = slicee;
@@ -2028,6 +2042,10 @@ public final class CSG
                             // XXX can some ridges occur multiple times?
                             // XXX I don't think so, since On is only *new* stuff... but if I'm wrong, will need to sort ridgesOn and combine
 
+                            PRINT(slicee.p.id);
+                            PRINT(nAbove);
+                            PRINT(nBelow);
+                            PRINT(nOn);
                             if (nOn != 0)
                             {
                                 Polytope cutPoint = new Polytope(slicee.p.dim-1,
@@ -2041,6 +2059,9 @@ public final class CSG
                                 facetsBelow[iBelow++] = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initialDensity?  maybe initialDensity isn't meaningful except for top-level polytopes?
                                                                       -1,
                                                                       cutPoint);
+                                on = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initialDensity?  maybe initialDensity isn't meaningful except for top-level polytopes?
+                                                   1, // XXX arbitrary-- I think signs are completely messed up, will fix later
+                                                   cutPoint);
                             }
                             assert(iAbove == facetsAbove.length);
                             assert(iBelow == facetsBelow.length);
@@ -2071,12 +2092,26 @@ public final class CSG
                         assumpt(false);
                 } // slicee.p.dim >= 2
                 aboveBelowOn = new SPolytope[] {above, below, on};
-                ocean.put(slicee, aboveBelowOn);
+                ocean.put(slicee.p, aboveBelowOn);
             }
             else
             {
                 if (verboseLevel >= 1)
                     System.out.println(indentString+"    (found it in the ocean)");
+            }
+            if (true)
+            {
+                // XXX make sure we are not sharing!
+                // XXX I think maybe we should be just working unsigned
+                // XXX and then orient afterwards.
+                // XXX bleah, unfortunately this doesn't seem to make any difference, the bugs must be elsewhere.
+                FORI(i,3)
+                {
+                    if (aboveBelowOn[i] != null)
+                        aboveBelowOn[i] = new SPolytope(aboveBelowOn[i].initialDensity,
+                                                        aboveBelowOn[i].sign,
+                                                        aboveBelowOn[i].p);
+                }
             }
             if (verboseLevel >= 1)
             {
@@ -4114,8 +4149,69 @@ public final class CSG
     // Some special purpose polytope specifications,
     // pending getting a fully general makeRegularPolytope working.
     // These were generated using the commands:
+    //    pcalc "{3,3}"
     //    pcalc "{5,3}"
+    //    pcalc "{3,3,3}"
     //    pcalc "{5,3,3}"
+    private static String pcalcString33 = ""
+        +"4 0-cells:\n"
+        +" 0:     0.5 0.28867513459481287 0.20412414523193151\n"
+        +" 1:     0 0 -0.61237243569579447\n"
+        +" 2:     0 -0.57735026918962573 0.20412414523193151\n"
+        +" 3:     -0.5 0.28867513459481287 0.20412414523193151\n"
+        +"6 1-cells:\n"
+        +" 0:    -0 +1\n"
+        +" 1:    -2 +1\n"
+        +" 2:    -0 +2\n"
+        +" 3:    -3 +1\n"
+        +" 4:    -3 +2\n"
+        +" 5:    -0 +3\n"
+        +"4 2-cells:\n"
+        +" 0:    +0 -1 -2\n"
+        +" 1:    +1 -3 +4\n"
+        +" 2:    -0 +5 +3\n"
+        +" 3:    +2 -4 -5\n"
+        +"1 3-cell:\n"
+        +" 0:    +0 +1 +2 +3\n"
+        ;
+    private static String pcalcString333 = ""
+        +"5 0-cells:\n"
+        +" 0:     0.5 0.28867513459481287 0.20412414523193151 0.15811388300841897\n"
+        +" 1:     0 0 0 -0.63245553203367588\n"
+        +" 2:     0 0 -0.61237243569579447 0.15811388300841897\n"
+        +" 3:     0 -0.57735026918962573 0.20412414523193151 0.15811388300841897\n"
+        +" 4:     -0.5 0.28867513459481287 0.20412414523193151 0.15811388300841897\n"
+        +"10 1-cells:\n"
+        +" 0:    -0 +1\n"
+        +" 1:    -2 +1\n"
+        +" 2:    -0 +2\n"
+        +" 3:    -3 +1\n"
+        +" 4:    -3 +2\n"
+        +" 5:    -0 +3\n"
+        +" 6:    -4 +1\n"
+        +" 7:    -4 +3\n"
+        +" 8:    -0 +4\n"
+        +" 9:    -4 +2\n"
+        +"10 2-cells:\n"
+        +" 0:    +0 -1 -2\n"
+        +" 1:    +1 -3 +4\n"
+        +" 2:    +0 -3 -5\n"
+        +" 3:    +2 -4 -5\n"
+        +" 4:    +3 -6 +7\n"
+        +" 5:    +0 -6 -8\n"
+        +" 6:    +5 -7 -8\n"
+        +" 7:    +4 -9 +7\n"
+        +" 8:    +2 -9 -8\n"
+        +" 9:    +1 -6 +9\n"
+        +"5 3-cells:\n"
+        +" 0:    +0 +1 -2 +3\n"
+        +" 1:    +2 +4 -5 +6\n"
+        +" 2:    -3 -7 +8 -6\n"
+        +" 3:    -0 -9 +5 -8\n"
+        +" 4:    -1 -4 +9 +7\n"
+        +"1 4-cell:\n"
+        +" 0:    +0 +1 +2 +3 +4\n"
+        ;
     private static String pcalcString53 = ""
         +"20 0-cells:\n"
         +"  0:     1.3090169943749477 0.5 0\n"
