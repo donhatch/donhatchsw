@@ -1507,27 +1507,32 @@ public final class CSG
         private static SPolytope cross(SPolytope A,
                                        SPolytope B)
         {
-            SPolytope AB = _cross(A, B, 1, new java.util.Hashtable(), "");
+            SPolytope AB = new SPolytope(A.initialDensity*B.initialDensity,
+                                         A.sign*B.sign,
+                                         _cross(A.p,
+                                                B.p,
+                                                new java.util.Hashtable(),
+                                                ""));
 
+            // If I was smart, _cross would simply get the signs right
+            // as it goes.  Something like,
+            // negate everything whose dimensional contribution
+            // from C is odd...
+            // But I have never been able to figure it out.
+            // So, just orient after the fact.  Sigh.
             //
-            // XXX I thought the signFudge thing would work
-            // XXX (i.e. negate everything whose dimensional contribution
-            // XXX from C is odd) but it doesn't seem to.
-            // XXX Still need to think more about it.  Sigh.
-            //
-            if (true) // XXX shouldn't be necessary, if I was smart!
+            if (true)
                 orientDeep(AB);
 
             return AB;
         } // cross
 
         // recursive work function used by cross().
-        // XXX doesn't get the signs right at all.
-        private static SPolytope _cross(SPolytope A,
-                                        SPolytope B,
-                                        int signFudge,
-                                        java.util.Hashtable ocean, // hashtable of crossings already done
-                                        String indentString) // for debugging
+        // doesn't even try to get the signs right.
+        private static Polytope _cross(Polytope A,
+                                       Polytope B,
+                                       java.util.Hashtable ocean, // hashtable of crossings already done
+                                       String indentString) // for debugging
         {
             String subIndentString = null;
             if (verboseLevel >= 1)
@@ -1535,48 +1540,48 @@ public final class CSG
                 System.out.println(indentString+"in CSG._cross");
                 subIndentString = indentString + "        ";
             }
-            HashablePair key = new HashablePair(A.p, B.p);
-            SPolytope AB = (SPolytope)ocean.get(key);
+            HashablePair key = new HashablePair(A, B);
+            Polytope AB = (Polytope)ocean.get(key);
             if (AB == null)
             {
-                SPolytope facets[] = new SPolytope[A.p.facets.length + B.p.facets.length];
-                Hyperplane contributingHyperplanes[] = new Hyperplane[A.p.contributingHyperplanes.length + B.p.contributingHyperplanes.length];
-
+                SPolytope facets[] = new SPolytope[A.facets.length + B.facets.length];
                 {
                     int iFacet = 0;
-                    FORI (iFacetA, A.p.facets.length)
+                    FORI (iFacetA, A.facets.length)
                     {
-                        SPolytope a = A.p.facets[iFacetA];
-                        SPolytope aB = _cross(a, B, signFudge, ocean, subIndentString);
-                        facets[iFacet++] = aB;
+                        Polytope a = A.facets[iFacetA].p;
+                        Polytope aB = _cross(a, B, ocean, subIndentString);
+                        facets[iFacet++] = new SPolytope(0,1,aB);
                     }
-                    FORI (iFacetB, B.p.facets.length)
+                    FORI (iFacetB, B.facets.length)
                     {
-                        SPolytope b = B.p.facets[iFacetB];
-                        SPolytope Ab = _cross(A, b, -signFudge, ocean, subIndentString);
-                        facets[iFacet++] = Ab;
+                        Polytope b = B.facets[iFacetB].p;
+                        Polytope Ab = _cross(A, b, ocean, subIndentString);
+                        facets[iFacet++] = new SPolytope(0,1,Ab);
                     }
                     assert(iFacet == facets.length);
                 }
+
+                Hyperplane contributingHyperplanes[] = new Hyperplane[A.contributingHyperplanes.length + B.contributingHyperplanes.length];
                 {
 
-                    double leftZero[] = new double[A.p.fullDim];
-                    double rightZero[] = new double[B.p.fullDim];
+                    double leftZero[] = new double[A.fullDim];
+                    double rightZero[] = new double[B.fullDim];
 
                     int iPlane = 0;
 
-                    FORI (iPlaneA, A.p.contributingHyperplanes.length)
+                    FORI (iPlaneA, A.contributingHyperplanes.length)
                     {
-                        Hyperplane a = A.p.contributingHyperplanes[iPlaneA];
+                        Hyperplane a = A.contributingHyperplanes[iPlaneA];
                         Hyperplane a_zero = new Hyperplane((double[])Arrays.concat(a.normal,
                                                                                    rightZero),
                                                            a.offset);
                         // XXX need to look up a_zero in the ocean to see if it already exists! although it's probably not a functional problem if hyperplane lists get duplicated... maybe
                         contributingHyperplanes[iPlane++] = a_zero;
                     }
-                    FORI (iPlaneB, B.p.contributingHyperplanes.length)
+                    FORI (iPlaneB, B.contributingHyperplanes.length)
                     {
-                        Hyperplane b = B.p.contributingHyperplanes[iPlaneB];
+                        Hyperplane b = B.contributingHyperplanes[iPlaneB];
                         Hyperplane zero_b = new Hyperplane((double[])Arrays.concat(leftZero,
                                                                                    b.normal),
                                                            b.offset);
@@ -1586,25 +1591,14 @@ public final class CSG
                     assert(iPlane == contributingHyperplanes.length);
                 }
 
-                AB = new SPolytope(A.initialDensity*B.initialDensity,
-                                   A.sign*B.sign*signFudge,
-                                   new Polytope(A.p.dim+B.p.dim,
-                                                A.p.fullDim+B.p.fullDim,
-                                                facets,
-                                                contributingHyperplanes,
-                                                null)); // loses aux
+                AB = new Polytope(A.dim+B.dim,
+                                  A.fullDim+B.fullDim,
+                                  facets,
+                                  contributingHyperplanes,
+                                  null); // loses aux
                 ocean.put(key, AB);
             }
-            else
-            {
-                // Don't share SPolytopes!  Only share the Polytopes.
-                // XXX in fact the ocean shouldn't even contain SPolytopes!
-                // XXX but, if we don't do signs in here, how can we recognize
-                // XXX a hatchet cut?
-                AB = new SPolytope(AB.initialDensity,
-                                   AB.sign,
-                                   AB.p);
-            }
+
             if (verboseLevel >= 1)
                 System.out.println(indentString+"out CSG._cross");
             return AB;
