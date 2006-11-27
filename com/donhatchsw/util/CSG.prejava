@@ -582,7 +582,8 @@ public final class CSG
                 {
                     SPolytope facet = answer.facets[iFacet];
                     double normal[] = new double[answer.fullDim];
-                    areaNormal(normal, facet); // get area normal of answer
+                    areaNormal(normal, facet); // get area normal of facet
+                    VecMath.normalize(normal,normal);
                     Polytope someVertexOnFacet = facet.p;
                     while (someVertexOnFacet.dim > 0)
                         someVertexOnFacet = someVertexOnFacet.facets[0].p;
@@ -699,7 +700,13 @@ public final class CSG
             /** Parses a signed polytope from a string the "pcalc" program's format. */
             public static SPolytope fromStringInPcalcFormat(String s)
             {
-                return new SPolytope(0,1,Polytope.fromStringInPcalcFormat(s));
+                SPolytope answer = new SPolytope(0,1,Polytope.fromStringInPcalcFormat(s));
+                PRINT(volume(answer));
+                double vol = volume(answer);
+                if (vol < 0)
+                    answer.sign *= -1; // XXX should do the push-down-sign thing?
+                PRINT(volume(answer));
+                return answer;
             }
 
         } // class SPolytope
