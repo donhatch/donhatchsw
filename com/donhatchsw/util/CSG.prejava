@@ -1535,7 +1535,7 @@ public final class CSG
                 System.out.println(indentString+"in CSG._cross");
                 subIndentString = indentString + "        ";
             }
-            HashablePair key = new HashablePair(A, B);
+            HashablePair key = new HashablePair(A.p, B.p);
             SPolytope AB = (SPolytope)ocean.get(key);
             if (AB == null)
             {
@@ -1598,7 +1598,9 @@ public final class CSG
             else
             {
                 // Don't share SPolytopes!  Only share the Polytopes.
-                assert(AB.sign == A.sign*B.sign*signFudge);
+                // XXX in fact the ocean shouldn't even contain SPolytopes!
+                // XXX but, if we don't do signs in here, how can we recognize
+                // XXX a hatchet cut?
                 AB = new SPolytope(AB.initialDensity,
                                    AB.sign,
                                    AB.p);
@@ -2771,7 +2773,11 @@ public final class CSG
         private static void orientFacetsConsistently(Polytope p)
         {
             if (verboseLevel >= 2)
+            {
                 System.out.println("in orientFacetsConsistently("+dimToPrefix(p.dim)+p.id+")");
+                if (verboseLevel >= 3)
+                    PRINT(p);
+            }
             SPolytope facets[] = p.facets;
             int nFacets = facets.length;
 
