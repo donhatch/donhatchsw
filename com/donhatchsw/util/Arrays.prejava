@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2005 Don Hatch Software
+* Copyright (c) 2005,2006 Don Hatch Software
 */
 
 //
@@ -968,12 +968,16 @@ public final class Arrays
     {
         if (array == null)
             return "null";
+        else if (array.getClass() == String.class)
+            return "\""+array.toString()+"\""; // XXX should escapify
+        else if (array.getClass() == Character.class)
+            return "'"+array.toString()+"."; // XXX should escapify
 
 #ifdef DEFUNCT
         if (array.getClass().getComponentType() == null)
 #endif // DEFUNCT
         if (!array.getClass().isArray())
-            return array.toString(); // XXX should double-quote Strings and single-quote Characters, see magiccubend solver which has a decent version
+            return array.toString(); // XXX should double-quote Strings and single-quote Characters, see magiccubend solver which has a decent version... it also does decent stuff with java.util.ArrayList and java.util.Map... and it also deals with the string buffer gracefully instead of creating zillions of them... in short, it's awesome
 
         String prefix    = preSepSuf[indexIntoPSS][0];
         String separator = preSepSuf[indexIntoPSS][1];
