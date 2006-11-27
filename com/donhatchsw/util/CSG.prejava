@@ -1,3 +1,7 @@
+/*
+* Copyright (c) 2005,2006 Don Hatch Software
+*/
+
 //
 // CSG.prejava
 //
@@ -102,10 +106,10 @@ public final class CSG
     // XXX this should maybe be a compile-time option,
     // XXX since making it final gets rid of a lot of code.
     //
-    //private static int verboseLevel = 2; // 3 = show gory details (XXX which are really gory and I should probably do away with)
-    //private static int verboseLevel = 1; // 3 = show gory details (XXX which are really gory and I should probably do away with)
-    //private static int verboseLevel = 0; // 3 = show gory details (XXX which are really gory and I should probably do away with)
-    private static int verboseLevel = -1; // 3 = show gory details (XXX which are really gory and I should probably do away with)
+    //public static int verboseLevel = 2; // 3 = show gory details (XXX which are really gory and I should probably do away with)
+    //public static int verboseLevel = 1; // 3 = show gory details (XXX which are really gory and I should probably do away with)
+    //public static int verboseLevel = 0; // 3 = show gory details (XXX which are really gory and I should probably do away with)
+    public static int verboseLevel = -1; // 3 = show gory details (XXX which are really gory and I should probably do away with)
 
     //
     // Data structures...
@@ -291,7 +295,7 @@ public final class CSG
                 return _bbox;
             } // getBBox
 
-            private Polytope[/*dim+1*/][] getAllElements()
+            public Polytope[/*dim+1*/][] getAllElements() // XXX public may be temporary, wanting more info in PolytopePuzzleDescription, maybe should put it in our toString instead
             {
                 if (_allElements == null)
                 {
@@ -775,7 +779,10 @@ public final class CSG
             return faceSPolytope;
         } // makePolygon
 
-        /** Makes a regular n/d-gon of edge length 2, centered at the origin. */
+        /**
+        * Makes a regular (n/d)-gon of edge length 2, centered at the origin,
+        * with a face pointing in the +X axis direction.
+        */
         public static SPolytope makeRegularPolygon(int n, int d)
         {
             double verts[][] = new double[n][2];
@@ -1062,6 +1069,76 @@ public final class CSG
                     return false;
             return true;
         } // isAll
+
+        /** Makes a product of regular (star) polytopes. */
+        public static SPolytope makeRegularStarPolytopeCrossProduct(int schlaflis[][],
+                                                                    int schlafliDenomss[][])
+        {
+            int nFactors = schlaflis.length;
+            assert(schlafliDenomss == null
+                || schlafliDenomss.length == nFactors);
+            SPolytope product = null;
+            FORI (iFactor, nFactors)
+            {
+                SPolytope factor = makeRegularStarPolytope(schlaflis[iFactor],
+                                                           schlafliDenomss==null?null:schlafliDenomss[iFactor]);
+                if (product == null)
+                    product = factor;
+                else
+                    product = cross(product, factor);
+            }
+            // could actually initialize product to the following,
+            // but that would just waste some time on the first cross product
+            if (product == null)
+                return new SPolytope(0,1,new Polytope(0,0,new SPolytope[0],new Hyperplane[0],null));
+            return product;
+        } // makeRegularStarPolytopeCrossProduct
+
+        /**
+        * Makes a product of regular (star) polytopes from a string specification,
+        * for example "{4,3}x{}x{5,3,3}x{3}x {3, 3,3,3,3 }x{} x {5/2,5} "
+        */
+        public static SPolytope makeRegularStarPolytopeCrossProductFromString(String s)
+        {
+            String factors[] = s.trim().split("x");
+            int schlaflis[][] = new int[factors.length][];
+            int schlafliDenomss[][] = new int[factors.length][];
+            FORI (iFactor, factors.length)
+            {
+                String factor = factors[iFactor].trim();
+                if (!factor.startsWith("{")
+                 || !factor.endsWith("}"))
+                    throw new IllegalArgumentException("makeRegularStartPolytopeCrossProductFromString: bad schlafli symbol \""+s+"\"");
+                factor = factor.substring(1, factor.length()-1); // trim off { and }
+                factor = factor.trim(); // and any white space inside
+                String fractions[] = factor.split(",");
+                if (factor.equals(""))
+                    fractions = new String[0]; // to be safe (I don't trust split)
+                schlaflis[iFactor] = new int[fractions.length];
+                schlafliDenomss[iFactor] = new int[fractions.length];
+                FORI (iFraction, fractions.length)
+                {
+                    String fraction = fractions[iFraction].trim();
+                    String n_and_d[] = fraction.split("/");
+                    if (n_and_d.length == 2)
+                    {
+                        schlaflis[iFactor][iFraction] = Integer.parseInt(n_and_d[0]);
+                        schlafliDenomss[iFactor][iFraction] = Integer.parseInt(n_and_d[1]);
+                    }
+                    else if (n_and_d.length == 1)
+                    {
+                        schlaflis[iFactor][iFraction] = Integer.parseInt(n_and_d[0]);
+                        schlafliDenomss[iFactor][iFraction] = 1;
+                    }
+                    else
+                        throw new IllegalArgumentException("makeRegularStartPolytopeCrossProductFromString: bad schlafli symbol \""+s+"\"");
+                }
+            }
+            PRINTARRAY(s);
+            PRINTARRAY(schlaflis);
+            PRINTARRAY(schlafliDenomss);
+            return makeRegularStarPolytopeCrossProduct(schlaflis, schlafliDenomss);
+        } // makeRegularStarPolytopeCrossProductFromString
 
 
     //
@@ -1747,16 +1824,21 @@ public final class CSG
          * XXX and we know the stuff on a particular side of the first cut
          * XXX isn't going to be affected by the next cut
          */
-        private static SPolytope sliceFacets(SPolytope slicee,
-                                             Hyperplane hyperplane)
+        public static SPolytope sliceFacets(SPolytope slicee,
+                                            Hyperplane hyperplane)
         {
+            if (verboseLevel >= 1)
+            {
+                System.out.println("in CSG.slice");
+                PRINT(hyperplane);
+            }
             java.util.Hashtable ocean = new java.util.Hashtable();
 
             SPolytope newFacets[] = new SPolytope[2*slicee.p.facets.length]; // at most
             int nNewFacets = 0;
             FORI (iFacet, slicee.p.facets.length)
             {
-                SPolytope facetStuff[] = _slice(slicee.p.facets[iFacet], hyperplane, ocean, "");
+                SPolytope facetStuff[] = _slice(slicee.p.facets[iFacet], hyperplane, ocean, "        ");
                 if (facetStuff[0] != null)
                     newFacets[nNewFacets++] = facetStuff[0];
                 if (facetStuff[1] != null)
@@ -1765,13 +1847,16 @@ public final class CSG
             if (nNewFacets == slicee.p.facets.length)
                 return slicee;
             newFacets = (SPolytope[])Arrays.subarray(newFacets, 0, nNewFacets); // resize
-            return new SPolytope(slicee.initialDensity,
-                                 slicee.sign,
-                                 new Polytope(slicee.p.dim,
-                                              slicee.p.fullDim,
-                                              newFacets,
-                                              slicee.p.contributingHyperplanes,
-                                              null)); // aux gets lost
+            SPolytope result = new SPolytope(slicee.initialDensity,
+                                             slicee.sign,
+                                             new Polytope(slicee.p.dim,
+                                                          slicee.p.fullDim,
+                                                          newFacets,
+                                                          slicee.p.contributingHyperplanes,
+                                                          null)); // aux gets lost
+            if (verboseLevel >= 1)
+                System.out.println("out CSG.slice");
+            return result;
         } // sliceFacets
 
         // recursive work function used by slice() and sliceFacets().
@@ -1784,7 +1869,7 @@ public final class CSG
             String subIndentString = null;
             if (verboseLevel >= 1)
             {
-                System.out.println(indentString+"in CSG._slice");
+                System.out.println(indentString+"in CSG._slice (slicee dim = "+slicee.p.dim+")");
                 subIndentString = indentString + "        ";
             }
             SPolytope aboveBelowOn[/*3*/] = (SPolytope[])ocean.get(slicee);
@@ -1830,12 +1915,12 @@ public final class CSG
                         if (facetStuffs[iFacet][0] != null)
                         {
                             nAbove++;
-                            totalSignAbove = slicee.p.facets[iFacet].sign;
+                            totalSignAbove += slicee.p.facets[iFacet].sign;
                         }
                         if (facetStuffs[iFacet][1] != null)
                         {
                             nBelow++;
-                            totalSignBelow = slicee.p.facets[iFacet].sign;
+                            totalSignBelow += slicee.p.facets[iFacet].sign;
                         }
                         if (facetStuffs[iFacet][2] != null)
                         {
@@ -1844,7 +1929,7 @@ public final class CSG
                     }
                     assumpt(totalSignAbove + totalSignBelow == 0);
 
-                    if (nAbove != 0 && nAbove != 0)
+                    if (nAbove != 0 && nBelow != 0)
                     {
                         SPolytope facetsAbove[] = new SPolytope[nAbove + (totalSignAbove!=0 ? 1 : 0)];
                         SPolytope facetsBelow[] = new SPolytope[nBelow + (totalSignBelow!=0 ? 1 : 0)];
@@ -1899,42 +1984,29 @@ public final class CSG
                                               
                     }
                     else if (nAbove != 0)
-                    {
                         above = slicee;
-                    }
-                    else if (nAbove != 0)
-                    {
+                    else if (nBelow != 0)
                         below = slicee;
-                    }
+                    else
+                        assumpt(false);
                 } // slicee.p.dim == 1
-                else
+                else // slicee.p.dim >= 2
                 {
                     assert(slicee.p.dim >= 2);
 
                     SPolytope facetStuffs[][] = new SPolytope[slicee.p.facets.length][];
                     int nAbove = 0, nBelow = 0, nOn = 0;
-                    int totalSignAbove = 0; // IRRELEVANT FOR dim>=2
-                    int totalSignBelow = 0; // IRRELEVANT FOR dim>=2
                     FORI (iFacet, slicee.p.facets.length)
                     {
                         facetStuffs[iFacet] = _slice(slicee.p.facets[iFacet], hyperplane, ocean, subIndentString);
                         if (facetStuffs[iFacet][0] != null)
-                        {
                             nAbove++;
-                            totalSignAbove = slicee.p.facets[iFacet].sign; // IRRELEVANT FOR dim>=2
-                        }
                         if (facetStuffs[iFacet][1] != null)
-                        {
                             nBelow++;
-                            totalSignBelow = slicee.p.facets[iFacet].sign; // IRRELEVANT FOR dim>=2
-                        }
                         if (facetStuffs[iFacet][2] != null)
-                        {
                             nOn++;
-                        }
                     }
-                    assumpt(totalSignAbove + totalSignBelow == 0); // IRRELEVANT FOR dim>=2
-                    if (nAbove!=0 && nBelow!=0)
+                    if (nAbove != 0 && nBelow != 0)
                     {
                         SPolytope facetsAbove[] = new SPolytope[nAbove + (nOn!=0 ? 1 : 0)];
                         SPolytope facetsBelow[] = new SPolytope[nBelow + (nOn!=0 ? 1 : 0)];
@@ -1947,7 +2019,7 @@ public final class CSG
                                     facetsAbove[iAbove++] = facetStuffs[iFacet][0];
                                 if (facetStuffs[iFacet][1] != null)
                                     facetsBelow[iBelow++] = facetStuffs[iFacet][1];
-                                if (facetStuffs[iFacet][1] != null)
+                                if (facetStuffs[iFacet][2] != null)
                                     ridgesOn[iOn++] = facetStuffs[iFacet][2];
                             }
                             assert(iAbove == nAbove);
@@ -1992,19 +2064,26 @@ public final class CSG
                                               
                     }
                     else if (nAbove != 0)
-                    {
                         above = slicee;
-                    }
-                    else if (nAbove != 0)
-                    {
+                    else if (nBelow != 0)
                         below = slicee;
-                    }
-                }
+                    else
+                        assumpt(false);
+                } // slicee.p.dim >= 2
                 aboveBelowOn = new SPolytope[] {above, below, on};
                 ocean.put(slicee, aboveBelowOn);
             }
+            else
+            {
+                if (verboseLevel >= 1)
+                    System.out.println(indentString+"    (found it in the ocean)");
+            }
             if (verboseLevel >= 1)
-                System.out.println(indentString+"out CSG._slice");
+            {
+                PRINTARRAY(slicee);
+                PRINTARRAY(aboveBelowOn);
+                System.out.println(indentString+"out CSG._slice (slicee dim = "+slicee.p.dim+")");
+            }
             return aboveBelowOn;
         } // _slice
 
@@ -3446,7 +3525,6 @@ public final class CSG
             public int hashCode()
             {
                 int hashCode = 0;
-                Object[] array = this.array;
                 int n = array.length;
                 FORI (i, n)
                     hashCode ^= array[i].hashCode();
