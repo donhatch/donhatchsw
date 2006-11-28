@@ -314,6 +314,61 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 for (int iDim = 0; iDim < 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
                     nGrips += allElementsOfCell[iDim].length;
             }
+            int iGrip = 0;
+            for (int iFacet = 0; iFacet < originalPolytope.p.facets.length; ++iFacet)
+            {
+                com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalPolytope.p.facets[iFacet].p.getAllElements();
+                for (int iDim = 0; iDim < 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
+                {
+                    for (int iElt = 0; iElt < allElementsOfCell[iDim].length; ++iElt)
+                    {
+                        if (iDim == 0)
+                        {
+                            // symmetry is 3 if it works, or 1
+                            if (progressWriter != null)
+                                progressWriter.print("("+3+")");
+                            // Trick to tell (this works since it's uniform):
+                            // if the three faces that meet at this edge
+                            // all have the same gonality, then it's 3, else 1
+                            // XXX that tells the symmetry of the cell
+                            // XXX about this point...
+                            // XXX but might it be that the symmetry of
+                            // XXX the whole puzzle is less?
+                            // XXX YES!  E.g. the {3}x{4}.
+                            // XXX the symmetry about a cube vert
+                            // XXX is NOT 3!
+                        }
+                        else if (iDim == 1)
+                        {
+                            // symmetry is 2 if it works, or 1.
+                            if (progressWriter != null)
+                                progressWriter.print("("+2+")");
+                            // Trick to tell (this works since it's uniform):
+                            // if the two faces that meet at this edge
+                            // have the same gonality, then it's 2, else 1
+                            // XXX that tells the symmetry of the cell
+                            // XXX about this point...
+                            // XXX but might it be that the symmetry of
+                            // XXX the whole puzzle is less?
+                            // XXX YES!  E.g. the {3}x{4}.
+                            // XXX there are some cube edges
+                            // XXX with symmetry NOT 2,
+                            // XXX if two diff cell neighbor types there!
+                        }
+                        else if (iDim == 2)
+                        {
+                            // symmetry is gonality, if it works, or some factor of it, at worst 1
+                            int gonality = allElementsOfCell[iDim][iElt].facets.length;
+                            if (progressWriter != null)
+                                progressWriter.print("("+gonality+")");
+                        }
+                        else
+                        {
+                            // symmetry is 0 -- i.e. twist doesn't even make sense
+                        }
+                    }
+                }
+            }
 
 
             /*
