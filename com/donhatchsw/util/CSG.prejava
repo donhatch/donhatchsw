@@ -333,6 +333,7 @@ public final class CSG
             } // getAllElements()
 
             public String toString(String indentString,
+                                   boolean showAux,
                                    boolean showGoryDetails,
                                    java.util.Hashtable printedAlready)
             {
@@ -352,10 +353,12 @@ public final class CSG
                     {
                         printedAlready.put(this,this);
 
+                        if (showAux)
+                            sb.append(indentString + "    (aux="+aux+")");
                         sb.append(indentString + "    "+facets.length+" facet"+(facets.length==1?"":"s")+": {" + nl);
                         FORI (iFacet, facets.length)
                         {
-                            sb.append(indentString + "        " + facets[iFacet].toString(indentString+"        ", showGoryDetails, printedAlready) + nl);
+                            sb.append(indentString + "        " + facets[iFacet].toString(indentString+"        ", showAux, showGoryDetails, printedAlready) + nl);
                         }
                         sb.append(indentString + "    }" + nl);
 
@@ -375,6 +378,11 @@ public final class CSG
                 {
                     sb.append(dimToPrefix(dim));
                     sb.append(id);
+
+                    if (showAux)
+                    {
+                        sb.append(" (aux="+aux+")");
+                    }
 
                     //sb.append("[");
                     if (printedAlready.containsKey(this))
@@ -437,7 +445,7 @@ public final class CSG
                         {
                             sb.append(nl + indentString + "    ");
                             assert(facets[iFacet] != null);
-                            sb.append(facets[iFacet].toString(indentString+"    ", false, printedAlready));
+                            sb.append(facets[iFacet].toString(indentString+"    ", showAux, false, printedAlready));
                             if (iFacet+1 < facets.length)
                                 sb.append(" ");
                         }
@@ -447,19 +455,35 @@ public final class CSG
                 return sb.toString();
             } // Polytope.toString
             public String toString(String indentString,
+                                   boolean showAux,
                                    boolean showGoryDetails)
             {
                 return toString(indentString,
+                                showAux,
                                 showGoryDetails,
                                 null);
             }
+            public String toString(String indentString,
+                                   boolean showAux)
+            {
+                return toString(indentString,
+                                showAux,
+                                false);
+            }
             public String toString(String indentString)
             {
-                return toString(indentString, false);
+                return toString(indentString,
+                                false);
+            }
+            public String toString(boolean showAux)
+            {
+                return toString("",
+                                showAux);
             }
             public String toString()
             {
-                return toString("");
+                return toString("",
+                                false);
             }
 
             /** Parses a polytope from a string the "pcalc" program's format. */
@@ -648,6 +672,7 @@ public final class CSG
             }
 
             public String toString(String indentString,
+                                   boolean showAux,
                                    boolean showGoryDetails,
                                    java.util.Hashtable printedAlready)
             {
@@ -669,7 +694,7 @@ public final class CSG
 
                         sb.append(indentString + "    initialDensity = " + initialDensity + nl);
                         sb.append(indentString + "    sign = " + sign + nl);
-                        sb.append(indentString + "    p = " + p.toString(indentString+"    ", showGoryDetails, printedAlready) + nl);
+                        sb.append(indentString + "    p = " + p.toString(indentString+"    ", showAux, showGoryDetails, printedAlready) + nl);
                     }
                     sb.append(indentString + "}");
                 }
@@ -677,24 +702,35 @@ public final class CSG
                 {
                     if (initialDensity != 0)
                         sb.append(initialDensity);
-                    sb.append(signToString(sign) + p.toString(indentString, showGoryDetails, printedAlready));
+                    sb.append(signToString(sign) + p.toString(indentString, showAux, showGoryDetails, printedAlready));
                 }
                 return sb.toString();
             } // SPolytope.toString
             public String toString(String indentString,
+                                   boolean showAux,
                                    boolean showGoryDetails)
             {
                 return toString(indentString,
+                                showAux,
                                 showGoryDetails,
                                 null);
+            }
+            public String toString(String indentString,
+                                   boolean showAux)
+            {
+                return toString(indentString, showAux, false);
             }
             public String toString(String indentString)
             {
                 return toString(indentString, false);
             }
+            public String toString(boolean showAux)
+            {
+                return toString("", showAux);
+            }
             public String toString()
             {
-                return toString("");
+                return toString("", false);
             }
 
             /** Parses a signed polytope from a string the "pcalc" program's format. */
@@ -1811,12 +1847,14 @@ public final class CSG
          */
         private static void slice(SPolytope slicee,
                                   Hyperplane hyperplane,
+                                  Object aux, // to be put in the aux field of all new elements
                                   SPolytope returnAbove[/*1*/],
                                   SPolytope returnBelow[/*1*/],
                                   SPolytope returnOn[/*1*/])
         {
             SPolytope aboveBelowOn[/*3*/] = _slice(slicee,
                                                    hyperplane,
+                                                   aux,
                                                    new java.util.Hashtable(),
                                                    "");
             assert(aboveBelowOn != null);
@@ -1837,7 +1875,8 @@ public final class CSG
          * XXX isn't going to be affected by the next cut
          */
         public static SPolytope sliceFacets(SPolytope slicee,
-                                            Hyperplane hyperplane)
+                                            Hyperplane hyperplane,
+                                            Object aux) // to be put in the aux field of all new elements
         {
             if (verboseLevel >= 1)
             {
@@ -1850,7 +1889,7 @@ public final class CSG
             int nNewFacets = 0;
             FORI (iFacet, slicee.p.facets.length)
             {
-                SPolytope facetStuff[] = _slice(slicee.p.facets[iFacet], hyperplane, ocean, "        ");
+                SPolytope facetStuff[] = _slice(slicee.p.facets[iFacet], hyperplane, aux, ocean, "        ");
                 if (facetStuff[0] != null)
                     newFacets[nNewFacets++] = facetStuff[0];
                 if (facetStuff[1] != null)
@@ -1875,6 +1914,7 @@ public final class CSG
         // returns an array {above,below,on}.
         private static SPolytope[/*3*/] _slice(SPolytope slicee,
                                                Hyperplane hyperplane,
+                                               Object aux,
                                                java.util.Hashtable ocean, // hashtable of slicings already done
                                                String indentString) // for debugging
         {
@@ -1923,7 +1963,7 @@ public final class CSG
                     int totalSignBelow = 0;
                     FORI (iFacet, slicee.p.facets.length)
                     {
-                        facetStuffs[iFacet] = _slice(slicee.p.facets[iFacet], hyperplane, ocean, subIndentString);
+                        facetStuffs[iFacet] = _slice(slicee.p.facets[iFacet], hyperplane, aux, ocean, subIndentString);
                         if (facetStuffs[iFacet][0] != null)
                         {
                             nAbove++;
@@ -1939,11 +1979,6 @@ public final class CSG
                             unimplemented();
                         }
                     }
-                    //PRINT(slicee.p.facets.length);
-                    //PRINT(nAbove);
-                    //PRINT(nBelow);
-                    //PRINT(totalSignAbove);
-                    //PRINT(totalSignBelow);
                     totalSignAbove = 1; // XXX FUDGE
                     totalSignBelow = -1; // XXX FUDGE
                     assumpt(totalSignAbove + totalSignBelow == 0);
@@ -1974,7 +2009,7 @@ public final class CSG
                                                                  slicee.p.fullDim,
                                                                  new SPolytope[0], // result vertex has no facets
                                                                  addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
-                                                                 null); // no aux, since it's not a full-dimensional subset of any existing polytope
+                                                                 aux);
                                 facetsAbove[iAbove++] = new SPolytope(0, // initialDensity always 0 for vertices, I think
                                                                       -totalSignAbove,
                                                                       cutPoint);
@@ -1995,14 +2030,14 @@ public final class CSG
                                                            slicee.p.fullDim,
                                                            facetsAbove,
                                                            slicee.p.contributingHyperplanes,
-                                                           null)); // aux gets lost
+                                                           slicee.p.aux));
                         below = new SPolytope(slicee.initialDensity,
                                               slicee.sign,
                                               new Polytope(slicee.p.dim,
                                                            slicee.p.fullDim,
                                                            facetsBelow,
                                                            slicee.p.contributingHyperplanes,
-                                                           null)); // aux gets lost
+                                                           slicee.p.aux));
                     }
                     else if (nAbove != 0)
                         above = slicee;
@@ -2019,7 +2054,7 @@ public final class CSG
                     int nAbove = 0, nBelow = 0, nOn = 0;
                     FORI (iFacet, slicee.p.facets.length)
                     {
-                        facetStuffs[iFacet] = _slice(slicee.p.facets[iFacet], hyperplane, ocean, subIndentString);
+                        facetStuffs[iFacet] = _slice(slicee.p.facets[iFacet], hyperplane, aux, ocean, subIndentString);
                         if (facetStuffs[iFacet][0] != null)
                             nAbove++;
                         if (facetStuffs[iFacet][1] != null)
@@ -2049,17 +2084,13 @@ public final class CSG
                             // XXX can some ridges occur multiple times?
                             // XXX I don't think so, since On is only *new* stuff... but if I'm wrong, will need to sort ridgesOn and combine
 
-                            PRINT(slicee.p.id);
-                            PRINT(nAbove);
-                            PRINT(nBelow);
-                            PRINT(nOn);
                             if (nOn != 0)
                             {
                                 Polytope cutPoint = new Polytope(slicee.p.dim-1,
                                                                  slicee.p.fullDim,
                                                                  ridgesOn,
                                                                  addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
-                                                                 null); // aux gets lost
+                                                                 aux);
                                 facetsAbove[iAbove++] = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initial density? maybe initialDensity isn't meaningful except for top-level polytopes?
                                                                       +1,
                                                                       cutPoint);
@@ -2081,14 +2112,14 @@ public final class CSG
                                                            slicee.p.fullDim,
                                                            facetsAbove,
                                                            slicee.p.contributingHyperplanes,
-                                                           null)); // aux gets lost
+                                                           slicee.p.aux));
                         below = new SPolytope(slicee.initialDensity,
                                               slicee.sign,
                                               new Polytope(slicee.p.dim,
                                                            slicee.p.fullDim,
                                                            facetsBelow,
                                                            slicee.p.contributingHyperplanes,
-                                                           null)); // aux gets lost
+                                                           slicee.p.aux));
                                               
                     }
                     else if (nAbove != 0)
@@ -2135,8 +2166,9 @@ public final class CSG
         // Returns a slicee.dim-1 dimensional signed polytope.
         //
         private static SPolytope oldSlice(SPolytope slicee,
-                                       Hyperplane hyperplane,
-                                       String indentString) // for debugging
+                                          Hyperplane hyperplane,
+                                          Object aux,
+                                          String indentString) // for debugging
         {
             String subIndentString = null;
             if (verboseLevel >= 1)
@@ -2145,9 +2177,9 @@ public final class CSG
                 subIndentString = indentString + "    ";
             }
             if (verboseLevel >= 2)
-                System.out.println(subIndentString + "slicee = " + slicee.toString(subIndentString+"         ", false, null));
+                System.out.println(subIndentString + "slicee = " + slicee.toString(subIndentString+"         ", false, false, null));
             if (verboseLevel >= 3)
-                System.out.println(subIndentString + "slicee = " + slicee.toString(subIndentString, true, null));
+                System.out.println(subIndentString + "slicee = " + slicee.toString(subIndentString, true, true, null));
             if (verboseLevel >= 2)
             {
                 System.out.println(subIndentString + "hyperplane: " + hyperplane);
@@ -2211,7 +2243,7 @@ public final class CSG
                                                         slicee.p.fullDim,
                                                         new SPolytope[0], // result vertex has no facets
                                                         addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
-                                                        null)); // no aux, since it's not a full-dimensional subset of any existing polytope
+                                                        aux));
                 }
             } // slicee.p.dim == 1
             else
@@ -2232,6 +2264,7 @@ public final class CSG
                 {
                     SPolytope slicedFacet = oldSlice(slicee.p.facets[iFacet],
                                                   hyperplane,
+                                                  aux,
                                                   subIndentString);
                     if (slicedFacet != null)
                         slicedFacets[nSlicedFacets++] = slicedFacet;
@@ -2255,14 +2288,14 @@ public final class CSG
                                                         slicee.p.fullDim,
                                                         slicedFacets,
                                                         addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
-                                                        null)); // no aux, since it's not a full-dimensional subset of any existing polytope
+                                                        slicee.p.aux));
                 }
             } // slicee.p.dim > 1
 
             if (verboseLevel >= 2)
-                System.out.println(subIndentString + "result = " + (result==null?"(null)":result.toString(subIndentString+"         ", false, null)));
+                System.out.println(subIndentString + "result = " + (result==null?"(null)":result.toString(subIndentString+"         ", false, false, null)));
             if (verboseLevel >= 3)
-                System.out.println(subIndentString + "result = " + (result==null?"(null)":result.toString(subIndentString, true, null)));
+                System.out.println(subIndentString + "result = " + (result==null?"(null)":result.toString(subIndentString, true, true, null)));
 
             if (verboseLevel >= 1)
                 System.out.println(indentString+"out CSG.oldSlice");
@@ -2283,9 +2316,9 @@ public final class CSG
                 subIndentString = indentString + "        ";
             }
             if (verboseLevel >= 2)
-                System.out.println(indentString+"    A = "+A.toString(indentString+"        ", false, null));
+                System.out.println(indentString+"    A = "+A.toString(indentString+"        ", false, false, null));
             if (verboseLevel >= 2)
-                System.out.println(indentString+"    B = "+B.toString(indentString+"        ", false, null));
+                System.out.println(indentString+"    B = "+B.toString(indentString+"        ", false, false, null));
             if (verboseLevel >= 2
              && (A.p.facets.length > 0
               || B.p.facets.length > 0))
@@ -2548,8 +2581,8 @@ public final class CSG
                         }
                         if (verboseLevel >= 2)
                         {
-                            System.out.println(indentString+"            a = "+a.toString(indentString+"            ", false));
-                            System.out.println(indentString+"            b = "+b.toString(indentString+"            ", false));
+                            System.out.println(indentString+"            a = "+a.toString(indentString+"            ", false, false));
+                            System.out.println(indentString+"            b = "+b.toString(indentString+"            ", false, false));
                         }
                         SPolytope a_intersect_b = _intersect(a, b, ocean, subIndentString);
                         if (a_intersect_b != null)
@@ -2568,7 +2601,7 @@ public final class CSG
                 {
                     SPolytope a = A.p.facets[i];
                     if (verboseLevel >= 2)
-                        System.out.println(indentString+"        a = "+a.toString(indentString+"            ", false));
+                        System.out.println(indentString+"        a = "+a.toString(indentString+"            ", false, false));
                     SPolytope a_intersect_B = _intersect(a, B, ocean, subIndentString);
                     if (a_intersect_B != null)
                         facets[nFacets++] = a_intersect_B;
@@ -2577,7 +2610,7 @@ public final class CSG
                 {
                     SPolytope b = B.p.facets[i];
                     if (verboseLevel >= 2)
-                        System.out.println(indentString+"        b = "+b.toString(indentString+"            ", false));
+                        System.out.println(indentString+"        b = "+b.toString(indentString+"            ", false, false));
                     SPolytope A_intersect_b = _intersect(A, b, ocean, subIndentString);
                     if (A_intersect_b != null)
                         facets[nFacets++] = A_intersect_b;
@@ -2637,7 +2670,7 @@ public final class CSG
                 ocean.put(key, new Object()); // means null when fished out
 
             if (verboseLevel >= 2)
-                System.out.println(indentString+"    result = "+(result==null?"(null)":result.toString(indentString+"             ", false, null)));
+                System.out.println(indentString+"    result = "+(result==null?"(null)":result.toString(indentString+"             ", false, false, null)));
 
             if (verboseLevel >= 1)
                 System.out.println(indentString+"out CSG._intersect");
