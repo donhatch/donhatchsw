@@ -12,7 +12,8 @@
 */
 
 class PolytopePuzzleDescription implements GenericPuzzleDescription {
-    com.donhatchsw.util.CSG.SPolytope polytope;
+    com.donhatchsw.util.CSG.SPolytope originalPolytope;
+    com.donhatchsw.util.CSG.SPolytope slicedPolytope;
 
     /**
      * The following schlafli product symbols are supported;
@@ -52,22 +53,40 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
      *      omnitruncated regular
      */
 
-    public PolytopePuzzleDescription(String schlafliProduct, int length)
+    public PolytopePuzzleDescription(String schlafliProduct, int length,
+                                     java.io.PrintWriter progressWriter)
     {
-        com.donhatchsw.util.CSG.SPolytope ptope = com.donhatchsw.util.CSG.makeRegularStarPolytopeCrossProductFromString(schlafliProduct);
+        originalPolytope = com.donhatchsw.util.CSG.makeRegularStarPolytopeCrossProductFromString(schlafliProduct);
+        // Mark all original elements as not from a slice
+        Object notFromSliceMarker = new Integer(0);
+        {
+            com.donhatchsw.util.CSG.Polytope[][] allElements = originalPolytope.p.getAllElements();
+            for (int i = 0; i < allElements.length; ++i)
+                for (int j = 0; j < allElements[i].length; ++j)
+                    allElements[i][j].aux = notFromSliceMarker;
+        }
+
+        // Mark all new elements as from a slice
+        Object fromSliceMarker = new Integer(1);
+
         if (length % 2 == 1)
         {
             // Odd length
             int nCutsPerFace = (length-1)/2;
 
-            com.donhatchsw.util.CSG.SPolytope sliced = ptope;
-            for (int iFacet = 0; iFacet < ptope.p.facets.length; ++iFacet)
+            slicedPolytope = originalPolytope;
+            if (progressWriter != null)
             {
-                double oneCutDepth = 2./length/2; // XXX FIX THIS-- get it right... and it's not the same for all facets! and needs to be smaller if there are triangles around!! 2/length is right for a hypercube but not other stuff
+                progressWriter.print("Slicing");
+                progressWriter.flush();
+            }
+            for (int iFacet = 0; iFacet < originalPolytope.p.facets.length; ++iFacet)
+            {
+                double oneCutDepth = 2./length/10; // XXX FIX THIS-- get it right... and it's not the same for all facets! and needs to be even smaller if there are triangles around!! 2/length is right for a hypercube but not other stuff
                 //if (iFacet >= 1) break; // XXX for debugging, only this number of faces
                 //if (iFacet%2 == 1) continue; // XXX for debugging, only doing even numbered facets
 
-                com.donhatchsw.util.CSG.Hyperplane faceHyperplane = ptope.p.facets[iFacet].p.contributingHyperplanes[0];
+                com.donhatchsw.util.CSG.Hyperplane faceHyperplane = originalPolytope.p.facets[iFacet].p.contributingHyperplanes[0];
                 double faceNormal[] = com.donhatchsw.util.VecMath.copyvec(faceHyperplane.normal);
                 double faceOffset = faceHyperplane.offset;
                 // make it so normal pointing away from the origin
@@ -78,14 +97,22 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     com.donhatchsw.util.VecMath.vxs(faceNormal, faceNormal, -1.);
                 }
 
-                System.out.println("face hyperplane = "+faceHyperplane);
                 for (int iCut = 0; iCut < nCutsPerFace; ++iCut)
                 {
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(faceNormal, faceOffset - (nCutsPerFace-iCut)*oneCutDepth); // from inward to outward for efficiency, so each successive cut looks at smaller part of previous result  XXX argh, actually looks at everything anyway, need to micromanage more to get it right
-                    sliced = com.donhatchsw.util.CSG.sliceFacets(sliced, cutHyperplane);
+                    slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, fromSliceMarker);
+                }
+                if (progressWriter != null)
+                {
+                    progressWriter.print(".");
+                    progressWriter.flush();
                 }
             }
-            this.polytope = sliced;
+            if (progressWriter != null)
+            {
+                progressWriter.println();
+                progressWriter.flush();
+            }
         }
         else
         {
@@ -96,11 +123,12 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     public String toString()
     {
-        com.donhatchsw.util.CSG.Polytope[][] allElements = polytope.p.getAllElements();
+        com.donhatchsw.util.CSG.Polytope[][] allElements = slicedPolytope.p.getAllElements();
         int sizes[] = new int[allElements.length];
         for (int iDim = 0; iDim < sizes.length; ++iDim)
             sizes[iDim] = allElements[iDim].length;
-        return "polytope counts per dim = "+com.donhatchsw.util.Arrays.toStringCompact(sizes)+", polytope = "+polytope.toString();
+        String answer = "{polytope counts per dim = "+com.donhatchsw.util.Arrays.toStringCompact(sizes)+", polytope = "+slicedPolytope.toString(true)+"}";
+        return answer;
     } // toString
 
 
@@ -206,9 +234,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         //com.donhatchsw.util.CSG.verboseLevel = 2;
 
+        java.io.PrintWriter progressWriter = new java.io.PrintWriter(
+                                             new java.io.BufferedWriter(
+                                             new java.io.OutputStreamWriter(
+                                             System.out)));
+
         String schlafliProduct = args[0];
         int length = Integer.parseInt(args[1]);
-        GenericPuzzleDescription descr = new PolytopePuzzleDescription(schlafliProduct, length);
+        GenericPuzzleDescription descr = new PolytopePuzzleDescription(schlafliProduct, length, progressWriter);
         System.out.println("description = "+descr);
 
         System.out.println("out main");
