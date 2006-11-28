@@ -14,6 +14,10 @@
 class PolytopePuzzleDescription implements GenericPuzzleDescription {
     com.donhatchsw.util.CSG.SPolytope originalPolytope;
     com.donhatchsw.util.CSG.SPolytope slicedPolytope;
+    float stickerVertsAtRest_faceShrink1_stickerShrink1[][];
+    float stickerVertsAtRest_offsetsPerStickerShrink[][];
+    float stickerVertsAtRest_offsetsPerFaceShrink[][];
+    int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
 
     /**
      * The following schlafli product symbols are supported;
@@ -56,7 +60,17 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     public PolytopePuzzleDescription(String schlafliProduct, int length,
                                      java.io.PrintWriter progressWriter)
     {
+        if (progressWriter != null)
+        {
+            progressWriter.print("Constructing polytope...");
+            progressWriter.flush();
+        }
         originalPolytope = com.donhatchsw.util.CSG.makeRegularStarPolytopeCrossProductFromString(schlafliProduct);
+        if (progressWriter != null)
+        {
+            progressWriter.println(" done.");
+            progressWriter.flush();
+        }
         // Mark all original elements as not from a slice
         Object notFromSliceMarker = new Integer(0);
         {
@@ -101,18 +115,104 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(faceNormal, faceOffset - (nCutsPerFace-iCut)*oneCutDepth); // from inward to outward for efficiency, so each successive cut looks at smaller part of previous result  XXX argh, actually looks at everything anyway, need to micromanage more to get it right
                     slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, fromSliceMarker);
-                }
-                if (progressWriter != null)
-                {
-                    progressWriter.print(".");
-                    progressWriter.flush();
+                    if (progressWriter != null)
+                    {
+                        progressWriter.print("."); // one dot per cut
+                        progressWriter.flush();
+                    }
                 }
             }
+            com.donhatchsw.util.CSG.orientDeep(slicedPolytope); // XXX shouldn't be necessary!!!!
             if (progressWriter != null)
             {
-                progressWriter.println();
+                progressWriter.println(" done.");
                 progressWriter.flush();
             }
+
+            int nDims = slicedPolytope.p.dim;
+            // XXX make PolyCSG more general?
+            if (nDims == 3)
+            {
+                com.donhatchsw.util.Poly slicedPoly = com.donhatchsw.util.PolyCSG.PolyFromPolytope(slicedPolytope.p);
+                stickerVertsAtRest_faceShrink1_stickerShrink1 = doubleToFloat((double[][])slicedPoly.verts);
+
+                // slicedPoly.inds is a list of faces, each of which
+                // is a list of contours.  We assume there is always
+                // one contour per face (i.e. no holes),
+                // so we can now re-interpret the one contour per face
+                // as one face per sticker.
+                stickerInds = (int[][][])slicedPoly.inds;
+            }
+            else if (nDims == 4)
+            {
+                // Start by making a completely separate Poly
+                // out of each sticker.  There will be no
+                // vertex sharing between stickers.
+                int nStickers = slicedPolytope.p.facets.length;
+                com.donhatchsw.util.Poly stickerPolys[] = new com.donhatchsw.util.Poly[nStickers];
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                {
+                    stickerPolys[iSticker] = com.donhatchsw.util.PolyCSG.PolyFromPolytope(slicedPolytope.p.facets[iSticker].p);
+                    // So it gets grouped when we concatenate...
+                    stickerPolys[iSticker].inds = new int[][][][] {(int[][][])stickerPolys[iSticker].inds};
+                }
+                //
+                // Now concatenate them all together (the verts
+                // and the inds).
+                //
+                com.donhatchsw.util.Poly slicedPoly = com.donhatchsw.util.Poly.concat(stickerPolys);
+
+                stickerVertsAtRest_faceShrink1_stickerShrink1 = doubleToFloat((double[][])slicedPoly.verts);
+                // We assume there is only 1 contour per polygon,
+                // so we can flatten out the contours part.
+                stickerInds = (int[][][])com.donhatchsw.util.Arrays.flatten(slicedPoly.inds, 2, 2);
+
+                //
+                // Fix up the indices on each sticker so that
+                // the first vertex on the second face
+                // does not occur on the first face;
+                // that will guarantee that [0][0], [0][1], [0][2], [1][0]
+                // form a non-degenerate simplex, as required.
+                //
+                {
+                    for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
+                    {
+                        int polygon0[] = stickerInds[iSticker][0];
+                        int polygon1[] = stickerInds[iSticker][1];
+                        int i;
+                        for (i = 0; i < polygon1.length; ++i)
+                        {
+                            int j;
+                            for (j = 0; j < polygon0.length; ++j)
+                            {
+                                if (polygon1[i] == polygon0[j])
+                                    break; // this i is no good
+                            }
+                            if (j == polygon0.length)
+                                break; // this i is good
+                        }
+                        // Cyclic permute polygon1
+                        // to put its [i] at [0]
+                        if (i != 0)
+                        {
+                            int cycled[] = new int[polygon1.length];
+                            for (int ii = 0; ii < cycled.length; ++ii)
+                                cycled[ii] = polygon1[(i+ii)%cycled.length];
+                            stickerInds[iSticker][1] = cycled;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                stickerVertsAtRest_faceShrink1_stickerShrink1 = new float[0][];
+                stickerInds = new int[0][][];
+            }
+
+
+            int nVerts = stickerVertsAtRest_faceShrink1_stickerShrink1.length;
+            stickerVertsAtRest_offsetsPerFaceShrink = new float[nVerts][nDims]; // XXX all zeros, for now
+            stickerVertsAtRest_offsetsPerStickerShrink = new float[nVerts][nDims]; // XXX all zeros, for now
         }
         else
         {
@@ -123,100 +223,126 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     public String toString()
     {
+        String nl = System.getProperty("line.separator");
         com.donhatchsw.util.CSG.Polytope[][] allElements = slicedPolytope.p.getAllElements();
         int sizes[] = new int[allElements.length];
         for (int iDim = 0; iDim < sizes.length; ++iDim)
             sizes[iDim] = allElements[iDim].length;
-        String answer = "{polytope counts per dim = "+com.donhatchsw.util.Arrays.toStringCompact(sizes)+", polytope = "+slicedPolytope.toString(true)+"}";
+        String answer = "{polytope counts per dim = "
+                      +com.donhatchsw.util.Arrays.toStringCompact(sizes)
+                      +", "+nl+"  nDims = "+nDims()
+                      +", "+nl+"  nStickers = "+nStickers()
+                      +", "+nl+"  nGrips = "+nGrips()
+                      +", "+nl+"  slicedPolytope = "+slicedPolytope.toString(true)
+                      +", "+nl+"  stickerVertsAtRest_faceShrink1_stickerShrink1 = "+com.donhatchsw.util.Arrays.toStringNonCompact(stickerVertsAtRest_faceShrink1_stickerShrink1, "    ", "    ")
+                      +", "+nl+"  stickerVertsAtRest_offsetsPerFaceShrink = "+com.donhatchsw.util.Arrays.toStringNonCompact(stickerVertsAtRest_offsetsPerFaceShrink, "    ", "    ")
+                      +", "+nl+"  stickerVertsAtRest_offsetsPerStickerShrink = "+com.donhatchsw.util.Arrays.toStringNonCompact(stickerVertsAtRest_offsetsPerStickerShrink, "    ", "    ")
+                      +", "+nl+"  stickerInds = "+com.donhatchsw.util.Arrays.toStringNonCompact(stickerInds, "    ", "    ")
+                      +"}";
         return answer;
     } // toString
 
 
+    //
+    // Utilities...
+    //
+        private static float[] doubleToFloat(double in[])
+        {
+            float out[] = new float[in.length];
+            for (int i = 0; i < in.length; ++i)
+                out[i] = (float)in[i];
+            return out;
+        }
+        private static float[][] doubleToFloat(double in[][])
+        {
+            float out[][] = new float[in.length][];
+            for (int i = 0; i < in.length; ++i)
+                out[i] = doubleToFloat(in[i]);
+            return out;
+        }
+
+
+
+
+    //======================================================================
+    // BEGIN GENERICPUZZLEDESCRIPTION INTERFACE METHODS
+    //
+
+        public int nDims()
+        {
+            return slicedPolytope.p.fullDim;
+        }
+        public int nStickers()
+        {
+            return slicedPolytope.p.facets.length;
+        }
+        public int nGrips()
+        {
+            return nStickers(); // XXX for now
+        }
+
+        public float[/*nVerts*/][/*nDims*/]
+            getStickerVertsAtRest(float faceShrink,
+                                  float stickerShrink)
+        {
+            float answer[][] = new float[stickerVertsAtRest_faceShrink1_stickerShrink1.length][nDims()];
+            float oneMinusFaceShrink = 1-faceShrink;
+            float oneMinusStickerShrink = 1-stickerShrink;
+            for (int i = 0; i < answer.length; ++i)
+            for (int j = 0; j < answer[i].length; ++j)
+            {
+                answer[i][j] = stickerVertsAtRest_faceShrink1_stickerShrink1[i][j]
+                   - oneMinusFaceShrink*stickerVertsAtRest_offsetsPerFaceShrink[i][j]
+                   - oneMinusStickerShrink*stickerVertsAtRest_offsetsPerStickerShrink[i][j];
+            }
+            return answer;
+        }
+        public int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/]
+            getStickerInds()
+        {
+           throw new RuntimeException("unimplemented");
+        }
+        public float[/*nVerts*/][/*nDims*/]
+            getGripVertsAtRest(float faceShrink,
+                               float stickerShrink)
+        {
+           throw new RuntimeException("unimplemented");
+        }
+        public int[/*nGrips*/][/*nPolygonsThisGrip*/][/*nVertsThisPolygon*/]
+            getGripInds()
+        {
+           throw new RuntimeException("unimplemented");
+        }
+        public float[/*nVerts*/][/*nDims*/]
+            getStickerVertsPartiallyTwisted(float faceShrink,
+                                            float stickerShrink,
+                                            int gripIndex,
+                                            int dir,
+                                            float frac,
+                                            int slicemask)
+        {
+           throw new RuntimeException("unimplemented");
+        }
+        public int[/*nStickers*/] getSticker2Face()
+        {
+           throw new RuntimeException("unimplemented");
+        }
+        public int[/*nStickers*/] getSticker2Cubie()
+        {
+           throw new RuntimeException("unimplemented");
+        }
+        public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
+                                                    int gripIndex,
+                                                    int dir,
+                                                    int slicemask)
+        {
+           throw new RuntimeException("unimplemented");
+        }
 
     //
-    // The rest of the methods
-    // implement the GenericPuzzleDescription interface.
-    //
+    // END OF GENERICPUZZLEDESCRIPTION INTERFACE METHODS
+    //======================================================================
 
-    /**
-    * Get the vertices of the geometry that gets drawn
-    * (or picked when selecting a sticker rather than a grip) at rest.
-    */
-    public float[/*nVerts*/][/*nDims*/] getStickerVertsAtRest(float faceShrink,
-                                                              float stickerShrink)
-    {
-       throw new RuntimeException("unimplemented");
-    }
-    /**
-    * Get the indices (into the vertices returned by getDrawVertsAtRest()
-    * or getDrawVertsPartiallyTwisted())
-    * of the polygons which make up the stickers.
-    */
-    public int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/] getStickerInds()
-    {
-       throw new RuntimeException("unimplemented");
-    }
-
-    /**
-    * Get the vertices of the geometry to be picked
-    * when selecting a grip for twisting.
-    */
-    public float[/*nVerts*/][/*nDims*/] getGripVertsAtRest(float faceShrink,
-                                                           float stickerShrink)
-    {
-       throw new RuntimeException("unimplemented");
-    }
-    /**
-    * Get the indices (into the vertices returned by getPickVertsAtRest())
-    * of the geometry to be picked when selecting a grip for twisting.
-    */
-    public int[/*nGrips*/][/*nPolygonsThisGrip*/][/*nVertsThisPolygon*/] getGripInds()
-    {
-       throw new RuntimeException("unimplemented");
-    }
-
-    /**
-    * Get the vertices of the geometry that gets drawn
-    * partway through a twist.
-    */
-    public float[/*nVerts*/][/*nDims*/] getStickerVertsPartiallyTwisted(float faceShrink,
-                                                                        float stickerShrink,
-                                                                        int gripIndex,
-                                                                        int dir,
-                                                                        float frac,
-                                                                        int slicemask)
-    {
-       throw new RuntimeException("unimplemented");
-    }
-
-    /**
-    * Get a table mapping sticker index to face index.
-    * The resulting array can also be used as the initial puzzle state.
-    */
-    public int[/*nStickers*/] getSticker2Face()
-    {
-       throw new RuntimeException("unimplemented");
-    }
-    /**
-    * Get a table mapping sticker index to cubie.
-    * This can be used to highlight all the stickers on a given cubie.
-    */
-    public int[/*nStickers*/] getSticker2Cubie()
-    {
-       throw new RuntimeException("unimplemented");
-    }
-
-    /**
-    * Apply a move to an array of colors (face indices)
-    * representing the current puzzle state.
-    */
-    public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
-                                                int gripIndex,
-                                                int dir,
-                                                int slicemask)
-    {
-       throw new RuntimeException("unimplemented");
-    }
 
     //
     // Little test program
@@ -237,7 +363,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         java.io.PrintWriter progressWriter = new java.io.PrintWriter(
                                              new java.io.BufferedWriter(
                                              new java.io.OutputStreamWriter(
-                                             System.out)));
+                                             System.err)));
 
         String schlafliProduct = args[0];
         int length = Integer.parseInt(args[1]);
