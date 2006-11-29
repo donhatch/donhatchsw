@@ -94,6 +94,7 @@ package com.donhatchsw.util;
 *       <li> Arrays </li>
 *       <li> VecMath </li>
 *       <li> SortStuff </li>
+*       <li> FuzzyPointHashTable </li>
 *  </ul>
 */
 public final class CSG
@@ -1145,10 +1146,11 @@ public final class CSG
         /**
         * Makes a product of regular (star) polytopes from a string specification,
         * for example "{4,3}x{}x{5,3,3}x{3}x {3, 3,3,3,3 }x{} x {5/2,5} "
+        * '*' can be used in place of 'x' as well.
         */
         public static SPolytope makeRegularStarPolytopeCrossProductFromString(String s)
         {
-            String factors[] = s.trim().split("x");
+            String factors[] = s.trim().split("[x*]");
             int schlaflis[][] = new int[factors.length][];
             int schlafliDenomss[][] = new int[factors.length][];
             FORI (iFactor, factors.length)
@@ -1444,6 +1446,185 @@ public final class CSG
         } // contains
 
 
+        /**
+        * calculates the order of the group of symmetries
+        * that are rotations in the 3-space containing cell3d,
+        * about the axis through cell3d's center and subCell's center.
+        * subCell's center must be different from cell3d's center
+        * (which rules out some non-convex uniform polyhedra
+        * that have faces or edges crossing the origin).
+        *
+        * returnUsefulMat is filled in with an orthogonal matrix
+        * the last two rows of which are in the plane of the rotation.
+        * So a rotation of any angle in that plane can be computed as:
+        *        Take the rows of mat to the canonical basis vectors e[0]..e[n-1]
+        *        rotate e[n-2] towards e[n-1]
+        *        take the canonical basis vectors back to the original rows
+        * I.e. rotMat = VecMath.mxmxm(VecMath.transpose(mat),
+        *                             VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle,
+        *                             mat);
+        * XXX isn't there a version of makeRowRotMat that does something like this?  check it out.  it looks overly complicated though, and assumes nDims==3 which is lame, should have a look at it
+        *
+        * Returns 0 when subCell is cell3d itself (and zeros out returnUselMat).
+        */
+        public static int calcRotationGroupOrder(Polytope p,
+                                                 Polytope cell3d,
+                                                 Polytope subCell,
+                                                 double returnUsefulMat[][])
+        {
+            int nDims = p.fullDim;
+            assert(cell3d.dim == 3);
+
+            Polytope cell3dAllElements[][] = cell3d.getAllElements();
+
+            int maxPossibleOrder;
+            {
+                if (subCell.dim == 0)
+                {
+                    // number of edges in cell3d that are incident on this vertex
+                    maxPossibleOrder = 0; // and counting
+                    Polytope edges[] = cell3dAllElements[1];
+                    FORI (iEdge, edges.length)
+                    {
+                        Polytope edge = edges[iEdge];
+                        FORI (iVertOnEdge, edge.facets.length)
+                            if (edge.facets[iVertOnEdge].p == subCell)
+                                maxPossibleOrder++;
+                    }
+                }
+                else if (subCell.dim == 1)
+                    maxPossibleOrder = 2; // assumes two faces meet here, and two vertices
+                else if (subCell.dim == 2)
+                    maxPossibleOrder = subCell.facets.length; // gonality of the face
+                else
+                {
+                    VecMath.zeromat(returnUsefulMat); // nothing better to do
+                    return 0; // no rotation possible here at all
+                }
+            }
+
+            //
+            // Compute a rotation matrix
+            // that rotates by 2pi/maxPossibleOrder
+            // around the line through cell3d and subCell.
+            //
+            double maxPossibleOrderMat[][];
+            {
+                double pCenter[] = new double[nDims]; cgOfVerts(pCenter, p);
+                double cell3dCenter[] = new double[nDims]; cgOfVerts(cell3dCenter, cell3d);
+                double subCellCenter[] = new double[nDims]; cgOfVerts(subCellCenter, subCell);
+                // Make the centers relative (so they are now vectors)
+                VecMath.vmv(subCellCenter, subCellCenter, cell3dCenter);
+                VecMath.vmv(cell3dCenter, cell3dCenter, pCenter);
+
+                //
+                // We want two orthogonal unit vectors
+                // in the 3-space of cell3d
+                // that are orthogonal to the line between
+                // cell3d's center and CGsubCell's center.
+                // We can get this by taking two random vectors
+                // and gram-schmidting them against the normals
+                // of all the hyperplanes defining cell3d's space,
+                // and then against that line,
+                // and then against each other.
+                // XXX should try to do this without randomization!
+                double mat[][] = new double[nDims][nDims];
+                int iRow = 0;
+                FOR (iRow, cell3d.contributingHyperplanes.length)
+                    VecMath.copyvec(mat[iRow], cell3d.contributingHyperplanes[iRow].normal);
+                VecMath.copyvec(mat[iRow++], subCellCenter);
+                java.util.Random generator = new java.util.Random(3); // same every time
+                VecMath.random(mat[iRow++], generator);
+                VecMath.random(mat[iRow++], generator);
+                assert(iRow == mat.length);
+                if (VecMath.det(mat) < 0.)
+                    VecMath.vxs(mat[mat.length-1], mat[mat.length-1], -1.);
+
+                // Gram-Schmidt (XXX should be a function)
+                {
+                    FORI (i, mat.length)
+                    {
+                        FORI (j, i)
+                        {
+                            // mat[j] is already unit length...
+                            // mat[i] -= (mat[i] dot mat[j])*mat[j]
+                            VecMath.vpsxv(mat[i],
+                                          mat[i],
+                                          -VecMath.dot(mat[i],mat[j]),
+                                          mat[j]);
+                        }
+                        VecMath.normalize(mat[i], mat[i]);
+                    }
+                }
+                assert(VecMath.det(mat) > .9); // should be 1
+
+                //
+                // Okay, mat is now orthogonal
+                // and the last two rows are the vectors we want to turn.
+                // So the rotation we want to describe is:
+                //    Take the rows of mat to the canonical basis vectors e[0]..e[n-1]
+                //    rotate e[n-2] towards e[n-1]
+                //    take the canonical basis vectors back to the original rows
+                maxPossibleOrderMat = VecMath.mxmxm(VecMath.transpose(mat),
+                                                    VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, 2*Math.PI/maxPossibleOrder),
+                                                    mat);
+                //
+                // So caller can do the same thing...
+                //
+                VecMath.copymat(returnUsefulMat, mat);
+            }
+
+            FuzzyPointHashTable hashTable = new FuzzyPointHashTable(1e-11,
+                                                                    1e-9,
+                                                                    1./512);
+            Polytope verts[] = p.getAllElements()[0];
+            int nVerts = verts.length;
+            {
+                Object something = new Object();
+                FORI (iVert, nVerts)
+                    hashTable.put(verts[iVert].getCoords(), something);
+            }
+
+            // The actual order will be some factor of maxPossibleOrder.
+            // Try all possibilities, from big to little.
+            PRINT(maxPossibleOrder);
+            for (int order = maxPossibleOrder; order >= 1; order--)
+            {
+                //System.err.println("(Trying order "+order+"/"+maxPossibleOrder+")");
+                if (maxPossibleOrder % order != 0)
+                    continue;
+                double mat[][];
+                {
+                    // XXX should have VecMath.pow(double[][], int) that does it the smart way so it's only O(sqrt(n)) matrix multiplies
+                    mat = VecMath.identitymat(nDims);
+                    FORI (i, maxPossibleOrder/order)
+                        mat = VecMath.mxm(mat, maxPossibleOrderMat);
+                }
+
+                double scratchVert[] = new double[nDims];
+                int iVert = 0;
+                FOR (iVert, nVerts)
+                {
+                    VecMath.vxm(scratchVert, verts[iVert].getCoords(), mat);
+                    if (hashTable.get(scratchVert) == null)
+                    {
+                        //System.err.print("(HEY! order "+order+"/"+maxPossibleOrder+" didn't work!)");
+                        break; // no good!
+                    }
+                }
+                if (iVert == nVerts) // everything was good!
+                {
+                    return order; // everything was good!
+                }
+            }
+            // order 1 should have succeeded, so we can't get here.
+            // Actually we could have just returned 1 if all larger orders failed,
+            // but we tested it anyway as a sanity check-- it better have succeeded.
+            assert(false);
+            return 1;
+        } // calcRotationPeriod
+
+
 
         // XXX comment me!!
         public static void calcDensity(SPolytope sp,
@@ -1727,6 +1908,16 @@ public final class CSG
             }
             VecMath.vxs(result, result, (double)sp.sign/(double)factorial(k));
         } // areaNormal
+
+        public static void cgOfVerts(double result[], Polytope p)
+        {
+            Polytope vertPolytopes[] = p.getAllElements()[0];
+            VecMath.zerovec(result);
+            FORI (i, vertPolytopes.length)
+                VecMath.vpv(result, result, vertPolytopes[i].getCoords());
+            assert(vertPolytopes.length != 0);
+            VecMath.vxs(result, result, 1./vertPolytopes.length);
+        } // cgOfVerts
 
         private static SPolytope cross(SPolytope A,
                                        SPolytope B)
@@ -2761,7 +2952,7 @@ public final class CSG
         // XXX and stuff.
         //
 
-        private static void orientDeep(SPolytope sp)
+        public static void orientDeep(SPolytope sp) // XXX should not be public!  change back to private after PolytopePuzzleDescription doesn't need it any more!
         {
             if (verboseLevel >= 1)
                 System.out.println("in orientDeep");
