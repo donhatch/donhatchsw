@@ -40,6 +40,12 @@ public final class VecMath
             result[i] = v0[i] + v1[i];
     }
     /** vector plus vector */
+    public static void vpv(float result[], float v0[], float v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] + v1[i];
+    }
+    /** vector plus vector */
     public static void vpv(int result[], int v0[], int v1[])
     {
         FORIDOWN (i, v0.length)
@@ -195,6 +201,14 @@ public final class VecMath
     /** vector plus (scalar times vector) */
     public static void vpsxv(double result[], double v0[],
                                               double s1, double v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] + s1*v1[i];
+    }
+
+    /** vector plus (scalar times vector) */
+    public static void vpsxv(float result[], float v0[],
+                                             float s1, float v1[])
     {
         FORIDOWN (i, v0.length)
             result[i] = v0[i] + s1*v1[i];
@@ -568,6 +582,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
     // XXX duplicate code
     /** zero a matrix */
+    public static void zerovec(float result[])
+    {
+        FORIDOWN (i, result.length)
+            result[i] = (float)0;
+    }
+    // XXX duplicate code
+    /** zero a matrix */
     public static void zerovec(int result[])
     {
         FORIDOWN (i, result.length)
@@ -602,6 +623,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         for (; i < m.length; ++i)
             vpv(result, result, m[i]);
     } // vxm double
+
+    // XXX duplicate code above
+    /** row vector times matrix */
+    public static void vxm(float result[], float v[], float m[][])
+    {
+        assumpt(result != v);
+        int vLen = v.length;
+        zerovec(result);
+        int i, j;
+        FOR (i, vLen)
+            vpsxv(result, result, v[i], m[i]);
+        // if v is short, pad it with 1's
+        for (; i < m.length; ++i)
+            vpv(result, result, m[i]);
+    } // vxm float
 
     // XXX duplicate code above
     /** row vector times matrix */
@@ -2672,6 +2708,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[] vxm(double v[], double M[][])
         {
             double result[] = new double[M.length == 0 ? 0 : M[0].length];
+            vxm(result, v, M);
+            return result;
+        }
+        /** row vector times matrix, returning newly allocated result */
+        public static float[] vxm(float v[], float M[][])
+        {
+            float result[] = new float[M.length == 0 ? 0 : M[0].length];
             vxm(result, v, M);
             return result;
         }
