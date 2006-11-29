@@ -46,10 +46,12 @@ public class FuzzyPointHashTable
     * The params are required to satisfy:
     * <pre>
     *     0 &le; littleEps &le; bigEps &le; bucketSize/1,000,000</pre>
-    * BucketSize should be chosen small enough so that the expected
-    * number of points falling into a single bucket is a small constant (around 1
-    * or less) to make the hash table efficient;
-    * however it should be much much larger than bigEps.
+    * BucketSize should be chosen somewhere around the smallest distance
+    * ever expected between two distince points, so that it would be
+    * surprising if two or more points ever fell into the same bucket;
+    * this is not strictly required but the hash table will not be efficient
+    * if too many points end up in a single bucket.
+    * However; bucketSize must be much much larger than bigEps.
     *
     * The following are typical values:
     * <pre>
