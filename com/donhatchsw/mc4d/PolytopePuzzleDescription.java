@@ -1,4 +1,7 @@
 /*
+    TODO:
+        - seed fill for sticker2cubie
+        - store slice masks and implement checking to see if a point is in a slice mask
     BUGS:
         - need to get cut depths right
         - I don't think it's oriented correctly at end-- need to send in all planes at once so it can do that automatically with some hope of being efficient
@@ -11,6 +14,8 @@
         - "{4,3}" 3, break after 1 gives counts {16,24,10,1} should be {12,20,10,1}  (failing to do some sharing?)
 */
 
+import com.donhatchsw.util.*; // XXX get rid
+
 class PolytopePuzzleDescription implements GenericPuzzleDescription {
     com.donhatchsw.util.CSG.SPolytope originalPolytope;
     com.donhatchsw.util.CSG.SPolytope slicedPolytope;
@@ -20,6 +25,19 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     float vertFaceCenters[][];
     int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
     int sticker2face[/*nStickers*/];
+    int sticker2faceShadow[/*nStickers*/]; // so we can detect nefariousness
+    int sticker2cubie[/*nStickers*/];
+
+    int gripSymmetryOrders[/*nGrips*/];
+    double gripUsefulMats[/*nGrips*/][/*nDims*/][/*nDims*/]; // weird name
+    double gripSliceNormal[/*nDims*/][/*nDims*/];
+    double gripSliceOffsets[]; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
+
+    double stickerCentersD[][];
+    FuzzyPointHashTable stickerCentersHashTable;
+
+     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    
 
     /**
      * The following schlafli product symbols are supported;
@@ -71,7 +89,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         originalPolytope = com.donhatchsw.util.CSG.makeRegularStarPolytopeCrossProductFromString(schlafliProduct);
         if (progressWriter != null)
         {
-            progressWriter.println(" done.");
+            progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
             progressWriter.flush();
         }
 
@@ -122,6 +140,18 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
             }
+
+            if (progressWriter != null)
+            {
+                progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers).");
+                progressWriter.flush();
+            }
+
+            if (progressWriter != null)
+            {
+                progressWriter.print("    Fixing orientations (argh!)... ");
+                progressWriter.flush();
+            }
             com.donhatchsw.util.CSG.orientDeep(slicedPolytope); // XXX shouldn't be necessary!!!!
             if (progressWriter != null)
             {
@@ -142,11 +172,25 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         // Figure out the mapping from sticker to face.
         //
-        sticker2face = new int[nStickers];
+        this.sticker2face = new int[nStickers];
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 sticker2face[iSticker] = ((Integer)slicedPolytope.p.facets[iSticker].p.aux).intValue();
         }
+        this.sticker2faceShadow = VecMath.copyvec(sticker2face);
+
+        //
+        // Figure out the mapping from sticker to cubie.
+        // Cubie indices are arbitrary and not used for anything else;
+        // all that is guaranteed is that two stickers are on the same
+        // cubie iff they have the same cubie index.
+        //
+        this.sticker2cubie = new int[nStickers];
+        {
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                sticker2cubie[iSticker] = iSticker; // XXX FIX THIS! need to do a seed fill or something, stopping at slice boundaries but not at original boundaries
+        }
+
 
         //
         // Find the face centers and sticker centers.
@@ -160,10 +204,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFace = 0; iFace < nFaces; ++iFace)
                 com.donhatchsw.util.CSG.cgOfVerts(faceCentersD[iFace], originalPolytope.p.facets[iFace].p);
         }
-        double stickerCentersD[][] = new double[nStickers][nDims];
+        this.stickerCentersD = new double[nStickers][nDims];
+        this.stickerCentersHashTable = new FuzzyPointHashTable(1e-11, 1e-9, 1./512);
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            {
                 com.donhatchsw.util.CSG.cgOfVerts(stickerCentersD[iSticker], slicedPolytope.p.facets[iSticker].p);
+                stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
+            }
         }
 
         float faceCentersF[][] = doubleToFloat(faceCentersD);
@@ -256,7 +304,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         else // nDims is something other than 3 or 4
         {
             restVerts = new double[0][nDims];
-            this.stickerInds = new int[0][][];
+            this.stickerInds = new int[nStickers][0][];
         }
 
 
@@ -311,64 +359,37 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFacet = 0; iFacet < originalPolytope.p.facets.length; ++iFacet)
             {
                 com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalPolytope.p.facets[iFacet].p.getAllElements();
-                for (int iDim = 0; iDim < 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
+                for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
                     nGrips += allElementsOfCell[iDim].length;
             }
+            this.gripSymmetryOrders = new int[nGrips];
+            this.gripUsefulMats = new double[nGrips][nDims][nDims];
             int iGrip = 0;
             for (int iFacet = 0; iFacet < originalPolytope.p.facets.length; ++iFacet)
             {
-                com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalPolytope.p.facets[iFacet].p.getAllElements();
-                for (int iDim = 0; iDim < 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
+                CSG.Polytope cell = originalPolytope.p.facets[iFacet].p;
+                com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = cell.getAllElements();
+                for (int iDim = 0; iDim <= 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
                 {
                     for (int iElt = 0; iElt < allElementsOfCell[iDim].length; ++iElt)
                     {
-                        if (iDim == 0)
+                        CSG.Polytope elt = allElementsOfCell[iDim][iElt];
+                        gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
+                                                originalPolytope.p, cell, elt,
+                                                gripUsefulMats[iGrip]);
+                        if (progressWriter != null)
                         {
-                            // symmetry is 3 if it works, or 1
-                            if (progressWriter != null)
-                                progressWriter.print("("+3+")");
-                            // Trick to tell (this works since it's uniform):
-                            // if the three faces that meet at this edge
-                            // all have the same gonality, then it's 3, else 1
-                            // XXX that tells the symmetry of the cell
-                            // XXX about this point...
-                            // XXX but might it be that the symmetry of
-                            // XXX the whole puzzle is less?
-                            // XXX YES!  E.g. the {3}x{4}.
-                            // XXX the symmetry about a cube vert
-                            // XXX is NOT 3!
+                            progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
+                            //progressWriter.print(".");
+
+                            progressWriter.flush();
                         }
-                        else if (iDim == 1)
-                        {
-                            // symmetry is 2 if it works, or 1.
-                            if (progressWriter != null)
-                                progressWriter.print("("+2+")");
-                            // Trick to tell (this works since it's uniform):
-                            // if the two faces that meet at this edge
-                            // have the same gonality, then it's 2, else 1
-                            // XXX that tells the symmetry of the cell
-                            // XXX about this point...
-                            // XXX but might it be that the symmetry of
-                            // XXX the whole puzzle is less?
-                            // XXX YES!  E.g. the {3}x{4}.
-                            // XXX there are some cube edges
-                            // XXX with symmetry NOT 2,
-                            // XXX if two diff cell neighbor types there!
-                        }
-                        else if (iDim == 2)
-                        {
-                            // symmetry is gonality, if it works, or some factor of it, at worst 1
-                            int gonality = allElementsOfCell[iDim][iElt].facets.length;
-                            if (progressWriter != null)
-                                progressWriter.print("("+gonality+")");
-                        }
-                        else
-                        {
-                            // symmetry is 0 -- i.e. twist doesn't even make sense
-                        }
+
+                        iGrip++;
                     }
                 }
             }
+            assert(iGrip == nGrips);
 
 
             /*
@@ -437,6 +458,17 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return out;
         }
 
+        // magic crap used in a couple of methods below
+        private double[][] getTwistMat(int gripIndex, int dir, double frac)
+        {
+            int order = gripSymmetryOrders[gripIndex];
+            double angle = dir * (2*Math.PI/order);
+            int nDims = slicedPolytope.p.fullDim;
+            return VecMath.mxmxm(VecMath.transpose(gripUsefulMats[gripIndex]),
+                                 VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle),
+                                 gripUsefulMats[gripIndex]);
+        } // getTwistMat
+
 
 
 
@@ -478,18 +510,18 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         public int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/]
             getStickerInds()
         {
-           throw new RuntimeException("unimplemented");
+            throw new RuntimeException("unimplemented");
         }
         public float[/*nVerts*/][/*nDims*/]
             getGripVertsAtRest(float faceShrink,
                                float stickerShrink)
         {
-           throw new RuntimeException("unimplemented");
+            throw new RuntimeException("unimplemented");
         }
         public int[/*nGrips*/][/*nPolygonsThisGrip*/][/*nVertsThisPolygon*/]
             getGripInds()
         {
-           throw new RuntimeException("unimplemented");
+            throw new RuntimeException("unimplemented");
         }
         public float[/*nVerts*/][/*nDims*/]
             getStickerVertsPartiallyTwisted(float faceShrink,
@@ -499,23 +531,80 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                             float frac,
                                             int slicemask)
         {
-           throw new RuntimeException("unimplemented");
-        }
+            // Note, we purposely go through all the calculation
+            // even if dir*frac is 0; we get more consistent timing that way.
+            if (gripIndex < 0 || gripIndex >= nGrips())
+                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
+            if (gripSymmetryOrders[gripIndex] == 0)
+                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
+            double matD[][] = getTwistMat(gripIndex, dir, frac);
+            float matF[][] = doubleToFloat(matD);
+
+            float restVerts[][] = getStickerVertsAtRest(faceShrink, stickerShrink);
+            boolean whichVertsGetMoved[] = new boolean[restVerts.length]; // false initially
+            for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
+            {
+                boolean isInSliceMask = true; // XXX fix
+                if (true) throw new RuntimeException("unimplemented");
+                {
+                    for (int i = 0; i < stickerInds[iSticker].length; ++i)
+                    for (int j = 0; j < stickerInds[iSticker][i].length; ++j)
+                        whichVertsGetMoved[stickerInds[iSticker][i][j]] = true;
+                }
+            }
+
+            float verts[][] = new float[restVerts.length][];
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+            {
+                if (whichVertsGetMoved[iVert])
+                    verts[iVert] = VecMath.vxm(restVerts[iVert], matF);
+                else
+                    verts[iVert] = restVerts[iVert];
+            }
+            return verts;
+        } // getStickerVertsPartiallyTwisted
         public int[/*nStickers*/] getSticker2Face()
         {
-           throw new RuntimeException("unimplemented");
+            // Make sure caller didn't mess it up from last time!!
+            if (!VecMath.equals(sticker2face, sticker2faceShadow))
+                throw new RuntimeException("PolytopePuzzleDescription.getSticker2Face: caller modified previously returned sticker2face! BAD! BAD! BAD!");
+            return sticker2face;
         }
         public int[/*nStickers*/] getSticker2Cubie()
         {
-           throw new RuntimeException("unimplemented");
+            return sticker2cubie;
         }
         public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
                                                     int gripIndex,
                                                     int dir,
                                                     int slicemask)
         {
-           throw new RuntimeException("unimplemented");
-        }
+            if (gripIndex < 0 || gripIndex >= nGrips())
+                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
+            if (gripSymmetryOrders[gripIndex] == 0)
+                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
+            if (state.length != stickerCentersD.length)
+                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called with wrong size state "+state.length+", expected "+stickerCentersD.length+"!");
+
+            double scratchVert[] = new double[nDims()];
+            double matD[][] = getTwistMat(gripIndex, dir, 1.);
+            int newState[] = new int[state.length];
+            for (int iSticker = 0; iSticker < state.length; ++iSticker)
+            {
+                boolean isInSliceMask = true; // XXX fix
+                if (true) throw new RuntimeException("unimplemented");
+                if (isInSliceMask)
+                {
+                    VecMath.vxm(scratchVert, stickerCentersD[iSticker], matD);
+                    Integer whereIstickerGoes = (Integer)stickerCentersHashTable.get(scratchVert);
+                    Assert(whereIstickerGoes != null);
+                    newState[whereIstickerGoes.intValue()] = state[iSticker];
+                }
+                else
+                    newState[iSticker] = state[iSticker];
+            }
+            return newState;
+        } // applyTwistToState
 
     //
     // END OF GENERICPUZZLEDESCRIPTION INTERFACE METHODS
