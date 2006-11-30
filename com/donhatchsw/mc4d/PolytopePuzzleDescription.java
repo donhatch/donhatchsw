@@ -80,33 +80,242 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     public PolytopePuzzleDescription(String schlafliProduct, int length,
                                      java.io.PrintWriter progressWriter)
     {
+        if (length < 1)
+            throw new IllegalArgumentException("PolytopePuzzleDescription called with length="+length+", min legal length is 1");
+
         if (progressWriter != null)
         {
             progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+length+"...");
             progressWriter.print("    Constructing polytope...");
             progressWriter.flush();
         }
-        originalPolytope = com.donhatchsw.util.CSG.makeRegularStarPolytopeCrossProductFromString(schlafliProduct);
+        this.originalPolytope = com.donhatchsw.util.CSG.makeRegularStarPolytopeCrossProductFromString(schlafliProduct);
         if (progressWriter != null)
         {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
             progressWriter.flush();
         }
 
+        int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
+        int nFaces = originalPolytope.p.facets.length;
+
+        if (true)
+        {
+            // Oh, LAME!
+            // Facets can appear in a different order in allElements[iDim-1]
+            // from the order they appear in the facets list...
+            // we will be iterating through them using the facets list,
+            // so use those indices instead.
+            // We fudge allElements[iDim-1] here to agree with the facets list
+            // (even though we are not really supposed to do that)...
+            // then every future call to allElements will return
+            // the corrected array.
+            CSG.Polytope allElements[][] = originalPolytope.p.getAllElements();
+            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+                allElements[nDims-1][iFacet] = originalPolytope.p.facets[iFacet].p;
+        }
+
         // Mark each original face with its face index.
         // These marks will persist even aver we slice up into stickers,
         // so that will give us the sticker-to-original-face-index mapping.
+        // Also mark each vertex with its vertex index... etc.
         {
-            for (int iFacet = 0; iFacet < originalPolytope.p.facets.length; ++iFacet)
-                originalPolytope.p.facets[iFacet].p.aux = new Integer(iFacet);
+            CSG.Polytope allElements[][] = originalPolytope.p.getAllElements();
+            for (int iDim = 0; iDim < allElements.length; ++iDim)
+            for (int iElt = 0; iElt < allElements[iDim].length; ++iElt)
+                allElements[iDim][iElt].aux = new Integer(iElt);
         }
 
+        double faceInwardNormals[][] = new double[nFaces][nDims];
+        double faceOffsets[] = new double[nFaces];
+        for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+        {
+            CSG.Polytope facet = originalPolytope.p.facets[iFacet].p;
+            CSG.Hyperplane plane = facet.contributingHyperplanes[0];
+            VecMath.vxs(faceInwardNormals[iFacet], plane.normal, -1);
+            faceOffsets[iFacet] = -plane.offset;
+            Assert(faceOffsets[iFacet] < 0.);
+            double invNormalLength = 1./VecMath.norm(faceInwardNormals[iFacet]);
+            VecMath.vxs(faceInwardNormals[iFacet], faceInwardNormals[iFacet], invNormalLength);
+            faceOffsets[iFacet] *= invNormalLength;
+        }
+
+        //
+        // So we can easily find the opposite face of a given face...
+        //
+        CSG.Polytope faceToOppositeFace[] = new CSG.Polytope[nFaces];
+        {
+            FuzzyPointHashTable table = new FuzzyPointHashTable(1e-11, 1e-9, 1./512);
+            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+                table.put(faceInwardNormals[iFacet], originalPolytope.p.facets[iFacet].p);
+            double oppositeNormalScratch[] = new double[nDims];
+            System.err.print("opposites:");
+            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+            {
+                VecMath.vxs(oppositeNormalScratch, faceInwardNormals[iFacet], -1.);
+                faceToOppositeFace[iFacet] = (CSG.Polytope)table.get(oppositeNormalScratch);
+                System.err.print("("+iFacet+":"+(faceToOppositeFace[iFacet]!=null ? ""+((Integer)faceToOppositeFace[iFacet].aux).intValue():"null")+")");
+            }
+        }
+
+        //
+        // So we can easily find all neighbor verts of a given vert...
+        //
+        CSG.Polytope vertToNeighborVerts[][];
+        {
+            CSG.Polytope allElements[][] = originalPolytope.p.getAllElements();
+            CSG.Polytope verts[] = allElements[0];
+            CSG.Polytope edges[] = allElements[1];
+            vertToNeighborVerts = new CSG.Polytope[verts.length][0];
+            for (int iEdge = 0; iEdge < edges.length; ++iEdge)
+            {
+                CSG.Polytope edge = edges[iEdge];
+                Assert(edge.facets.length == 2);
+                CSG.Polytope vert0 = edge.facets[0].p;
+                CSG.Polytope vert1 = edge.facets[1].p;
+                int iVert0 = ((Integer)vert0.aux).intValue();
+                int iVert1 = ((Integer)vert1.aux).intValue();
+                // This would be inefficient if there were a lot
+                // of neighbors expected per vertex, but there aren't
+                // (the expected number of neighbors is nDims,
+                // since puzzles work best when every vertex
+                // is a simplex).
+                vertToNeighborVerts[iVert0] = (CSG.Polytope[])Arrays.append(vertToNeighborVerts[iVert0], vert1);
+                vertToNeighborVerts[iVert1] = (CSG.Polytope[])Arrays.append(vertToNeighborVerts[iVert1], vert0);
+            }
+        }
+
+
+
+        //
+        // Figure out exactly what cuts are wanted
+        // for each face.  Cuts parallel to two opposite faces
+        // will appear in both faces' cut lists.
+        //
+        // Note, we store face inward normals rather than outward ones,
+        // so that, as we iterate through the slicemask bit indices later,
+        // the corresponding cut offsets will be in increasing order,
+        // for sanity.
+        //
+        double faceCutOffsets[][] = new double[nFaces][];
+        {
+            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+            {
+                double fullThickness = 0.;
+                {
+                    CSG.Polytope someVertOnFace = originalPolytope.p.facets[iFacet].p;
+                    while (someVertOnFace.dim > 0)
+                        someVertOnFace = someVertOnFace.facets[0].p;
+                    int iVert = ((Integer)someVertOnFace.aux).intValue();
+                    for (int iNeighbor = 0; iNeighbor < vertToNeighborVerts[iVert].length; ++iNeighbor)
+                    {
+                        CSG.Polytope neighborVert = vertToNeighborVerts[iVert][iNeighbor];
+                        double neighborOffset = VecMath.dot(faceInwardNormals[iFacet], neighborVert.getCoords());
+                        double thisThickness = neighborOffset - faceOffsets[iFacet];
+                        // If there are more than one neighbor vertex
+                        // that's not on this face, pick one that's
+                        // closest to the face plane.  This can only
+                        // happen if the vertex figure is NOT a simplex
+                        // (e.g. it happens for the icosahedron).
+                        if (thisThickness > 1e-6
+                         && (fullThickness == 0. || thisThickness < fullThickness))
+                            fullThickness = thisThickness;
+                    }
+                }
+                assert(fullThickness != 0.);
+
+                double sliceThickness = fullThickness / length;
+
+                //System.out.println("    slice thickness "+iFacet+" = "+sliceThickness+"");
+
+                boolean isPrismOfThisFace = Math.abs(-.5 - faceOffsets[iFacet]) > 1e-6;
+                // If even length and *not* a prism of this face,
+                // then the middle-most cuts will meet,
+                // but the slice function can't handle that.
+                // So back off a little so they don't meet,
+                // so we'll get tiny invisible sliver faces there instead.
+                if (length % 2 == 0
+                 && !isPrismOfThisFace)
+                    sliceThickness *= .1;
+
+                int nNearCuts = length / 2; // (n-1)/2 if odd, n/2 if even
+                int nFarCuts = faceToOppositeFace[iFacet]==null ? 0 :
+                               length%2==0 && isPrismOfThisFace ? nNearCuts-1 :
+                               nNearCuts;
+                faceCutOffsets[iFacet] = new double[nNearCuts + nFarCuts];
+
+                for (int iNearCut = 0; iNearCut < nNearCuts; ++iNearCut)
+                    faceCutOffsets[iFacet][iNearCut] = faceOffsets[iFacet] + (iNearCut+1)*sliceThickness;
+                for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
+                    faceCutOffsets[iFacet][nNearCuts+nFarCuts-1-iFarCut]
+                        = -faceOffsets[iFacet] // offset of opposite face
+                        - (iFarCut+1)*sliceThickness;
+            }
+        }
+
+        System.out.println("face inward normals = "+Arrays.toStringCompact(faceInwardNormals));
+        System.out.println("cut offsets = "+Arrays.toStringCompact(faceCutOffsets));
+
+        //
+        // Slice!
+        //
+        {
+            this.slicedPolytope = originalPolytope;
+            if (progressWriter != null)
+            {
+                progressWriter.print("    Slicing");
+                progressWriter.flush();
+            }
+            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+            {
+                if (faceToOppositeFace[iFacet] != null
+                 && ((Integer)faceToOppositeFace[iFacet].aux).intValue() < iFacet)
+                    continue; // already saw opposite face and made the cuts
+                System.out.println("REALLY doing facet "+iFacet);
+                for (int iCut = 0; iCut < faceCutOffsets[iFacet].length; ++iCut)
+                {
+                    com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
+                        faceInwardNormals[iFacet],
+                        faceCutOffsets[iFacet][iCut]);
+                    slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, null);
+                    if (progressWriter != null)
+                    {
+                        progressWriter.print("."); // one dot per cut
+                        progressWriter.flush();
+                    }
+                }
+            }
+
+            if (progressWriter != null)
+            {
+                progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers).");
+                progressWriter.flush();
+            }
+
+            if (progressWriter != null)
+            {
+                progressWriter.print("    Fixing orientations (argh!)... ");
+                progressWriter.flush();
+            }
+            com.donhatchsw.util.CSG.orientDeep(slicedPolytope); // XXX shouldn't be necessary!!!!
+            if (progressWriter != null)
+            {
+                progressWriter.println(" done.");
+                progressWriter.flush();
+            }
+        }
+
+
+
+
+
+/*
         if (length % 2 == 1)
         {
             // Odd length
             int nCutsPerFace = (length-1)/2;
 
-            slicedPolytope = originalPolytope;
+            this.slicedPolytope = originalPolytope;
             if (progressWriter != null)
             {
                 progressWriter.print("    Slicing");
@@ -164,9 +373,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // Even length
             throw new RuntimeException("can't do generic puzzles of even length yet"); // XXX
         }
+*/
 
-        int nDims = slicedPolytope.p.dim;
-        int nFaces = originalPolytope.p.facets.length;
+
+
+
         int nStickers = slicedPolytope.p.facets.length;
 
         //
@@ -221,6 +432,21 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 stickerCentersMinusFaceCentersF[iSticker] = doubleToFloat(com.donhatchsw.util.VecMath.vmv(stickerCentersD[iSticker], faceCentersD[sticker2face[iSticker]]));
         }
 
+
+        //
+        // PolyFromPolytope doesn't seem to like the fact that
+        // some elements have an aux and some don't... so clear all the vertex
+        // auxs.
+        // XXX why does this seem to be a problem for nonregular cross products but not for regulars?  figure this out
+        //
+        if (true)
+        {
+            CSG.Polytope allElements[][] = slicedPolytope.p.getAllElements();
+            CSG.Polytope verts[] = slicedPolytope.p.getAllElements()[0];
+            for (int iDim = 0; iDim < allElements.length; ++iDim)
+            for (int iElt = 0; iElt < allElements[iDim].length; ++iElt)
+                allElements[iDim][iElt].aux = null;
+        }
 
         //
         // Get the rest verts (with no shrinkage)
@@ -389,7 +615,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
             }
-            assert(iGrip == nGrips);
+            Assert(iGrip == nGrips);
 
 
             /*
