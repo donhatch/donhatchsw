@@ -651,7 +651,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         public int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/]
             getStickerInds()
         {
-            throw new RuntimeException("unimplemented");
+            return stickerInds;
         }
         public float[/*nVerts*/][/*nDims*/]
             getGripVertsAtRest(float faceShrink,

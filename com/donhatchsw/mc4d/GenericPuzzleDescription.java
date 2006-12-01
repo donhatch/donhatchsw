@@ -83,7 +83,7 @@ interface GenericPuzzleDescription {
 
     /**
     * Get a table mapping sticker index to face index.
-    * The resulting array can also be used as the initial puzzle state.
+    * !!!A COPY OF!!! resulting array can also be used as the initial puzzle state,
     */
     public int[/*nStickers*/] getSticker2Face();
     /**
