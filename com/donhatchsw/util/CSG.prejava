@@ -306,36 +306,99 @@ public final class CSG
             {
                 if (_allElements == null)
                 {
-                    java.util.Vector lists[] = new java.util.Vector[dim+1];
-                    FORI (i, dim+1)
-                        lists[i] = new java.util.Vector();
-
+                    if (false) // old way XXX see below !?!?
                     {
-                        PolytopeIterator iterator = new PolytopeIterator(this);
-                        while (iterator.hasNext())
+                        //System.err.print("O");
+                        java.util.Vector lists[] = new java.util.Vector[dim+1];
+                        FORI (i, dim+1)
+                            lists[i] = new java.util.Vector();
+
                         {
-                            Polytope e = iterator.next();
-                            lists[e.dim].addElement(e);
+                            PolytopeIterator iterator = new PolytopeIterator(this);
+                            while (iterator.hasNext())
+                            {
+                                Polytope e = iterator.next();
+                                lists[e.dim].addElement(e);
+                            }
                         }
-                    }
 
-                    _allElements = new Polytope[dim+1][];
-                    FORI (i, dim+1)
+                        _allElements = new Polytope[dim+1][];
+                        FORI (i, dim+1)
+                        {
+                            _allElements[i] = new Polytope[lists[i].size()];
+                            lists[i].copyInto(_allElements[i]);
+                            SortStuff.sort(_allElements[i],
+                                           new SortStuff.Comparator() {
+                                               public int compare(Object _a, Object _b)
+                                               {
+                                                   Polytope a = (Polytope)_a;
+                                                   Polytope b = (Polytope)_b;
+                                                   return a.id < b.id ? -1 :
+                                                          a.id > b.id ? 1 : 0;
+                                               }
+                                           });
+                        }
+                    } // old way
+                    else // new way XXX should be better, simpler... doesn't use hash tables... but it makes orientation fix take 4 times as long!?!?!?!?!  and often runs out of memeory? is there a bug??  do Vectors have a memory leak or something???  was java just being flaky for 1/2 hour??? argh!!!
                     {
-                        _allElements[i] = new Polytope[lists[i].size()];
-                        lists[i].copyInto(_allElements[i]);
-                        SortStuff.sort(_allElements[i],
-                                       new SortStuff.Comparator() {
-                                           public int compare(Object _a, Object _b)
-                                           {
-                                               Polytope a = (Polytope)_a;
-                                               Polytope b = (Polytope)_b;
-                                               return a.id < b.id ? -1 :
-                                                      a.id > b.id ? 1 : 0;
-                                           }
-                                       });
-                    }
-                }
+                        //System.err.print("N");
+                        class VisitedAux
+                        {
+                            public Object savedAux;
+                            public VisitedAux(Object savedAux)
+                            {
+                                this.savedAux = savedAux;
+                            }
+                        }
+
+                        java.util.Vector lists[] = new java.util.Vector[dim+1];
+                        {
+                            FORI (iDim, dim+1)
+                                lists[iDim] = new java.util.Vector();
+                            java.util.Vector flatList = new java.util.Vector();
+
+                            this.aux = new VisitedAux(this.aux); // mark it visited when queued
+                            flatList.addElement(this);
+                            FORI (flatIndex, flatList.size()) // while flatList.size() is increasing!
+                            {
+                                Polytope elt = (Polytope)flatList.get(flatIndex);
+                                lists[elt.dim].addElement(elt);
+                                FORI (iFacet, elt.facets.length)
+                                {
+                                    Polytope facet = elt.facets[iFacet].p;
+                                    if (!(facet.aux instanceof VisitedAux)) // save even when elt.aux is null
+                                    {
+                                        facet.aux = new VisitedAux(facet.aux); // mark it visited when queued
+                                        flatList.addElement(facet);
+                                    }
+                                }
+                            }
+                        }
+
+                        _allElements = new Polytope[dim+1][];
+                        FORI (iDim, dim+1)
+                        {
+                            _allElements[iDim] = new Polytope[lists[iDim].size()];
+                            lists[iDim].copyInto(_allElements[iDim]);
+                            SortStuff.sort(_allElements[iDim],
+                                           new SortStuff.Comparator() {
+                                               public int compare(Object _a, Object _b)
+                                               {
+                                                   Polytope a = (Polytope)_a;
+                                                   Polytope b = (Polytope)_b;
+                                                   return a.id < b.id ? -1 :
+                                                          a.id > b.id ? 1 : 0;
+                                               }
+                                           });
+                            FORI (iElt, _allElements[iDim].length)
+                            {
+                                Polytope elt = _allElements[iDim][iElt];
+                                elt.aux = ((VisitedAux)elt.aux).savedAux;
+                            }
+                        }
+                    } // new way
+                } // if _allElements == null
+                //Polytope temp[][] = _allElements; _allElements = null; return temp; // XXX HACK-- DON'T LEAVE THIS IN
                 return _allElements;
             } // getAllElements()
 
@@ -372,9 +435,9 @@ public final class CSG
                     // so we don't have to do time consuming searches...
                     class GlobalIndexAux
                     {
-                        private int globalIndex;
-                        private Object savedAux;
-                        GlobalIndexAux(int globalIndex, Object savedAux)
+                        public int globalIndex;
+                        public Object savedAux;
+                        public GlobalIndexAux(int globalIndex, Object savedAux)
                         {
                             this.globalIndex = globalIndex;
                             this.savedAux = savedAux;
