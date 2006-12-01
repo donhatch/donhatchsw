@@ -1,5 +1,8 @@
 /*
     TODO:
+        - oh shoot-- {5}x{} will get extra stickers-- need to remove them! only a problem for 3d puzzles of even length, I think
+        - "{5}x{}" 2 says 58 stickers, I think it should be 52? (2*11+5*6)
+        - we don't get slice thicknesses right for anything with "{3" in it yet, maybe should disable
         - seed fill for sticker2cubie
         - store slice masks and implement checking to see if a point is in a slice mask
     BUGS:
@@ -97,47 +100,35 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
-        int nFaces = originalPolytope.p.facets.length;
 
-        if (true)
-        {
-            // Oh, LAME!
-            // Facets can appear in a different order in allElements[iDim-1]
-            // from the order they appear in the facets list...
-            // we will be iterating through them using the facets list,
-            // so use those indices instead.
-            // We fudge allElements[iDim-1] here to agree with the facets list
-            // (even though we are not really supposed to do that)...
-            // then every future call to allElements will return
-            // the corrected array.
-            CSG.Polytope allElements[][] = originalPolytope.p.getAllElements();
-            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
-                allElements[nDims-1][iFacet] = originalPolytope.p.facets[iFacet].p;
-        }
+        CSG.Polytope originalElements[][] = originalPolytope.p.getAllElements();
+        CSG.Polytope originalVerts[] = originalElements[0];
+        CSG.Polytope originalFaces[] = originalElements[nDims-1];
+        int nFaces = originalFaces.length;
+        int originalIncidences[][][][] = originalPolytope.p.getAllIncidences();
 
         // Mark each original face with its face index.
         // These marks will persist even aver we slice up into stickers,
         // so that will give us the sticker-to-original-face-index mapping.
         // Also mark each vertex with its vertex index... etc.
         {
-            CSG.Polytope allElements[][] = originalPolytope.p.getAllElements();
-            for (int iDim = 0; iDim < allElements.length; ++iDim)
-            for (int iElt = 0; iElt < allElements[iDim].length; ++iElt)
-                allElements[iDim][iElt].aux = new Integer(iElt);
+            for (int iDim = 0; iDim < originalElements.length; ++iDim)
+            for (int iElt = 0; iElt < originalElements[iDim].length; ++iElt)
+                originalElements[iDim][iElt].aux = new Integer(iElt);
         }
 
         double faceInwardNormals[][] = new double[nFaces][nDims];
         double faceOffsets[] = new double[nFaces];
-        for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+        for (int iFace = 0; iFace < nFaces; ++iFace)
         {
-            CSG.Polytope facet = originalPolytope.p.facets[iFacet].p;
-            CSG.Hyperplane plane = facet.contributingHyperplanes[0];
-            VecMath.vxs(faceInwardNormals[iFacet], plane.normal, -1);
-            faceOffsets[iFacet] = -plane.offset;
-            Assert(faceOffsets[iFacet] < 0.);
-            double invNormalLength = 1./VecMath.norm(faceInwardNormals[iFacet]);
-            VecMath.vxs(faceInwardNormals[iFacet], faceInwardNormals[iFacet], invNormalLength);
-            faceOffsets[iFacet] *= invNormalLength;
+            CSG.Polytope face = originalFaces[iFace];
+            CSG.Hyperplane plane = face.contributingHyperplanes[0];
+            VecMath.vxs(faceInwardNormals[iFace], plane.normal, -1);
+            faceOffsets[iFace] = -plane.offset;
+            Assert(faceOffsets[iFace] < 0.);
+            double invNormalLength = 1./VecMath.norm(faceInwardNormals[iFace]);
+            VecMath.vxs(faceInwardNormals[iFace], faceInwardNormals[iFace], invNormalLength);
+            faceOffsets[iFace] *= invNormalLength;
         }
 
         //
@@ -146,46 +137,17 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         CSG.Polytope faceToOppositeFace[] = new CSG.Polytope[nFaces];
         {
             FuzzyPointHashTable table = new FuzzyPointHashTable(1e-11, 1e-9, 1./512);
-            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
-                table.put(faceInwardNormals[iFacet], originalPolytope.p.facets[iFacet].p);
+            for (int iFace = 0; iFace < nFaces; ++iFace)
+                table.put(faceInwardNormals[iFace], originalFaces[iFace]);
             double oppositeNormalScratch[] = new double[nDims];
-            System.err.print("opposites:");
-            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+            //System.err.print("opposites:");
+            for (int iFace = 0; iFace < nFaces; ++iFace)
             {
-                VecMath.vxs(oppositeNormalScratch, faceInwardNormals[iFacet], -1.);
-                faceToOppositeFace[iFacet] = (CSG.Polytope)table.get(oppositeNormalScratch);
-                System.err.print("("+iFacet+":"+(faceToOppositeFace[iFacet]!=null ? ""+((Integer)faceToOppositeFace[iFacet].aux).intValue():"null")+")");
+                VecMath.vxs(oppositeNormalScratch, faceInwardNormals[iFace], -1.);
+                faceToOppositeFace[iFace] = (CSG.Polytope)table.get(oppositeNormalScratch);
+                //System.err.print("("+iFace+":"+(faceToOppositeFace[iFace]!=null ? ""+((Integer)faceToOppositeFace[iFace].aux).intValue():"null")+")");
             }
         }
-
-        //
-        // So we can easily find all neighbor verts of a given vert...
-        //
-        CSG.Polytope vertToNeighborVerts[][];
-        {
-            CSG.Polytope allElements[][] = originalPolytope.p.getAllElements();
-            CSG.Polytope verts[] = allElements[0];
-            CSG.Polytope edges[] = allElements[1];
-            vertToNeighborVerts = new CSG.Polytope[verts.length][0];
-            for (int iEdge = 0; iEdge < edges.length; ++iEdge)
-            {
-                CSG.Polytope edge = edges[iEdge];
-                Assert(edge.facets.length == 2);
-                CSG.Polytope vert0 = edge.facets[0].p;
-                CSG.Polytope vert1 = edge.facets[1].p;
-                int iVert0 = ((Integer)vert0.aux).intValue();
-                int iVert1 = ((Integer)vert1.aux).intValue();
-                // This would be inefficient if there were a lot
-                // of neighbors expected per vertex, but there aren't
-                // (the expected number of neighbors is nDims,
-                // since puzzles work best when every vertex
-                // is a simplex).
-                vertToNeighborVerts[iVert0] = (CSG.Polytope[])Arrays.append(vertToNeighborVerts[iVert0], vert1);
-                vertToNeighborVerts[iVert1] = (CSG.Polytope[])Arrays.append(vertToNeighborVerts[iVert1], vert0);
-            }
-        }
-
-
 
         //
         // Figure out exactly what cuts are wanted
@@ -199,36 +161,56 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         double faceCutOffsets[][] = new double[nFaces][];
         {
-            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+            for (int iFace = 0; iFace < nFaces; ++iFace)
             {
                 double fullThickness = 0.;
                 {
-                    CSG.Polytope someVertOnFace = originalPolytope.p.facets[iFacet].p;
-                    while (someVertOnFace.dim > 0)
-                        someVertOnFace = someVertOnFace.facets[0].p;
-                    int iVert = ((Integer)someVertOnFace.aux).intValue();
-                    for (int iNeighbor = 0; iNeighbor < vertToNeighborVerts[iVert].length; ++iNeighbor)
+                    // iVert = index of some vertex on face iFace
+                    int iVert = originalIncidences[nDims-1][iFace][0][0];
+                    // iVertEdges = indices of all edges incident on vert iVert
+                    int iVertsEdges[] = originalIncidences[0][iVert][1];
+                    // Find an edge incident on vertex iVert
+                    // that is NOT incident on face iFace..
+                    for (int i = 0; i < iVertsEdges.length; ++i)
                     {
-                        CSG.Polytope neighborVert = vertToNeighborVerts[iVert][iNeighbor];
-                        double neighborOffset = VecMath.dot(faceInwardNormals[iFacet], neighborVert.getCoords());
-                        double thisThickness = neighborOffset - faceOffsets[iFacet];
-                        // If there are more than one neighbor vertex
-                        // that's not on this face, pick one that's
-                        // closest to the face plane.  This can only
-                        // happen if the vertex figure is NOT a simplex
-                        // (e.g. it happens for the icosahedron).
-                        if (thisThickness > 1e-6
-                         && (fullThickness == 0. || thisThickness < fullThickness))
-                            fullThickness = thisThickness;
+                        int iEdge = iVertsEdges[i];
+                        int iEdgesFaces[] = originalIncidences[1][iEdge][nDims-1];
+                        int j;
+                        for (j = 0; j < iEdgesFaces.length; ++j)
+                            if (iEdgesFaces[j] == iFace)
+                                break; // iEdge is incident on iFace-- no good
+                        if (j == iEdgesFaces.length)
+                        {
+                            // iEdge is not incident on iFace-- good!
+                            int jVert0 = originalIncidences[1][iEdge][0][0];
+                            int jVert1 = originalIncidences[1][iEdge][0][1];
+                            Assert((jVert0==iVert) != (jVert1==iVert));
+
+                            double edgeVec[] = VecMath.vmv(
+                                            originalVerts[jVert1].getCoords(),
+                                            originalVerts[jVert0].getCoords());
+                            double thisThickness = VecMath.dot(edgeVec, faceInwardNormals[iFace]);
+                            if (thisThickness < 0.)
+                                thisThickness *= -1.;
+
+                            // If there are more than one neighbor vertex
+                            // that's not on this face, pick one that's
+                            // closest to the face plane.  This can only
+                            // happen if the vertex figure is NOT a simplex
+                            // (e.g. it happens for the icosahedron).
+                            if (thisThickness > 1e-6
+                             && (fullThickness == 0. || thisThickness < fullThickness))
+                                fullThickness = thisThickness;
+                        }
                     }
                 }
-                assert(fullThickness != 0.);
+                Assert(fullThickness != 0.);
 
                 double sliceThickness = fullThickness / length;
 
-                //System.out.println("    slice thickness "+iFacet+" = "+sliceThickness+"");
+                //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
 
-                boolean isPrismOfThisFace = Math.abs(-.5 - faceOffsets[iFacet]) > 1e-6;
+                boolean isPrismOfThisFace = Math.abs(-.5 - faceOffsets[iFace]) > 1e-6;
                 // If even length and *not* a prism of this face,
                 // then the middle-most cuts will meet,
                 // but the slice function can't handle that.
@@ -236,25 +218,25 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // so we'll get tiny invisible sliver faces there instead.
                 if (length % 2 == 0
                  && !isPrismOfThisFace)
-                    sliceThickness *= .1;
+                    sliceThickness *= .99;
 
                 int nNearCuts = length / 2; // (n-1)/2 if odd, n/2 if even
-                int nFarCuts = faceToOppositeFace[iFacet]==null ? 0 :
+                int nFarCuts = faceToOppositeFace[iFace]==null ? 0 :
                                length%2==0 && isPrismOfThisFace ? nNearCuts-1 :
                                nNearCuts;
-                faceCutOffsets[iFacet] = new double[nNearCuts + nFarCuts];
+                faceCutOffsets[iFace] = new double[nNearCuts + nFarCuts];
 
                 for (int iNearCut = 0; iNearCut < nNearCuts; ++iNearCut)
-                    faceCutOffsets[iFacet][iNearCut] = faceOffsets[iFacet] + (iNearCut+1)*sliceThickness;
+                    faceCutOffsets[iFace][iNearCut] = faceOffsets[iFace] + (iNearCut+1)*sliceThickness;
                 for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
-                    faceCutOffsets[iFacet][nNearCuts+nFarCuts-1-iFarCut]
-                        = -faceOffsets[iFacet] // offset of opposite face
+                    faceCutOffsets[iFace][nNearCuts+nFarCuts-1-iFarCut]
+                        = -faceOffsets[iFace] // offset of opposite face
                         - (iFarCut+1)*sliceThickness;
             }
         }
 
-        System.out.println("face inward normals = "+Arrays.toStringCompact(faceInwardNormals));
-        System.out.println("cut offsets = "+Arrays.toStringCompact(faceCutOffsets));
+        //System.out.println("face inward normals = "+com.donhatchsw.util.Arrays.toStringCompact(faceInwardNormals));
+        //System.out.println("cut offsets = "+com.donhatchsw.util.Arrays.toStringCompact(faceCutOffsets));
 
         //
         // Slice!
@@ -266,23 +248,29 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.print("    Slicing");
                 progressWriter.flush();
             }
-            for (int iFacet = 0; iFacet < nFaces; ++iFacet)
+            int maxCuts = -1; // unlimited
+            //maxCuts = 6; // set to some desired number for debugging
+            int totalCuts = 0;
+            for (int iFace = 0; iFace < nFaces; ++iFace)
             {
-                if (faceToOppositeFace[iFacet] != null
-                 && ((Integer)faceToOppositeFace[iFacet].aux).intValue() < iFacet)
+                if (maxCuts >= 0 && totalCuts >= maxCuts) break;
+                if (faceToOppositeFace[iFace] != null
+                 && ((Integer)faceToOppositeFace[iFace].aux).intValue() < iFace)
                     continue; // already saw opposite face and made the cuts
-                System.out.println("REALLY doing facet "+iFacet);
-                for (int iCut = 0; iCut < faceCutOffsets[iFacet].length; ++iCut)
+                //System.out.println("REALLY doing facet "+iFace);
+                for (int iCut = 0; iCut < faceCutOffsets[iFace].length; ++iCut)
                 {
+                    if (maxCuts >= 0 && totalCuts >= maxCuts) break;
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
-                        faceInwardNormals[iFacet],
-                        faceCutOffsets[iFacet][iCut]);
+                        faceInwardNormals[iFace],
+                        faceCutOffsets[iFace][iCut]);
                     slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, null);
                     if (progressWriter != null)
                     {
                         progressWriter.print("."); // one dot per cut
                         progressWriter.flush();
                     }
+                    totalCuts++;
                 }
             }
 
@@ -305,80 +293,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         }
 
-
-
-
-
-/*
-        if (length % 2 == 1)
-        {
-            // Odd length
-            int nCutsPerFace = (length-1)/2;
-
-            this.slicedPolytope = originalPolytope;
-            if (progressWriter != null)
-            {
-                progressWriter.print("    Slicing");
-                progressWriter.flush();
-            }
-            for (int iFacet = 0; iFacet < originalPolytope.p.facets.length; ++iFacet)
-            {
-                double oneCutDepth = 2./length/10; // XXX FIX THIS-- get it right... and it's not the same for all facets! and needs to be even smaller if there are triangles around!! 2/length is right for a hypercube but not other stuff
-                //if (iFacet >= 1) break; // XXX for debugging, only this number of faces
-                //if (iFacet%2 == 1) continue; // XXX for debugging, only doing even numbered facets
-
-                com.donhatchsw.util.CSG.Hyperplane faceHyperplane = originalPolytope.p.facets[iFacet].p.contributingHyperplanes[0];
-                double faceNormal[] = com.donhatchsw.util.VecMath.copyvec(faceHyperplane.normal);
-                double faceOffset = faceHyperplane.offset;
-                // make it so normal pointing away from the origin
-                // XXX this won't be necessary when we do it right by looking at the edge we are going to subdivide
-                if (faceOffset < 0.)
-                {
-                    faceOffset *= -1.;
-                    com.donhatchsw.util.VecMath.vxs(faceNormal, faceNormal, -1.);
-                }
-
-                for (int iCut = 0; iCut < nCutsPerFace; ++iCut)
-                {
-                    com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(faceNormal, faceOffset - (nCutsPerFace-iCut)*oneCutDepth); // from inward to outward for efficiency, so each successive cut looks at smaller part of previous result  XXX argh, actually looks at everything anyway, need to micromanage more to get it right
-                    slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, null);
-                    if (progressWriter != null)
-                    {
-                        progressWriter.print("."); // one dot per cut
-                        progressWriter.flush();
-                    }
-                }
-            }
-
-            if (progressWriter != null)
-            {
-                progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers).");
-                progressWriter.flush();
-            }
-
-            if (progressWriter != null)
-            {
-                progressWriter.print("    Fixing orientations (argh!)... ");
-                progressWriter.flush();
-            }
-            com.donhatchsw.util.CSG.orientDeep(slicedPolytope); // XXX shouldn't be necessary!!!!
-            if (progressWriter != null)
-            {
-                progressWriter.println(" done.");
-                progressWriter.flush();
-            }
-        } // odd length
-        else
-        {
-            // Even length
-            throw new RuntimeException("can't do generic puzzles of even length yet"); // XXX
-        }
-*/
-
-
-
-
-        int nStickers = slicedPolytope.p.facets.length;
+       int nStickers = slicedPolytope.p.facets.length;
 
         //
         // Figure out the mapping from sticker to face.
@@ -582,18 +497,18 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
 
             int nGrips = 0;
-            for (int iFacet = 0; iFacet < originalPolytope.p.facets.length; ++iFacet)
+            for (int iFace = 0; iFace < originalPolytope.p.facets.length; ++iFace)
             {
-                com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalPolytope.p.facets[iFacet].p.getAllElements();
+                com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalFaces[iFace].getAllElements();
                 for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
                     nGrips += allElementsOfCell[iDim].length;
             }
             this.gripSymmetryOrders = new int[nGrips];
             this.gripUsefulMats = new double[nGrips][nDims][nDims];
             int iGrip = 0;
-            for (int iFacet = 0; iFacet < originalPolytope.p.facets.length; ++iFacet)
+            for (int iFace = 0; iFace < nFaces; ++iFace)
             {
-                CSG.Polytope cell = originalPolytope.p.facets[iFacet].p;
+                CSG.Polytope cell = originalFaces[iFace];
                 com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = cell.getAllElements();
                 for (int iDim = 0; iDim <= 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
                 {
@@ -605,7 +520,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                 gripUsefulMats[iGrip]);
                         if (progressWriter != null)
                         {
-                            progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
+                            //progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
                             //progressWriter.print(".");
 
                             progressWriter.flush();
@@ -748,6 +663,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             getGripInds()
         {
             throw new RuntimeException("unimplemented");
+        }
+        public int[/*nGrips*/]
+            getGripSymmetryOrders()
+        {
+            return gripSymmetryOrders;
         }
         public float[/*nVerts*/][/*nDims*/]
             getStickerVertsPartiallyTwisted(float faceShrink,
