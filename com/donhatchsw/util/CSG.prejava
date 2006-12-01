@@ -187,6 +187,7 @@ public final class CSG
             private double _coords[];      // if vertex, null otherwise.  XXX should probably calculate only on demand, but then need a way to differentiate between dirty and nonexistent (for example, this is needed in getBBox below). XXX ctually not currently calculated at all.
             private double _bbox[/*2*/][]; // bounding box of all vertices, so it can be finite even if the polytope is infinite (co-finite).  calculated Lazily via getBBox().
             private Polytope[/*dim+1*/][] _allElements; // sorted lists of vertices, edges, ..., ridges, facets, calculated lazily via getAllElements()
+            private int[/*dim+1*/][][/*dim+1*/][] _allIncidences; // calculated lazily via getAllElements
 
             public Polytope(int dim,
                             int fullDim,
@@ -296,7 +297,12 @@ public final class CSG
                 return _bbox;
             } // getBBox
 
-            public Polytope[/*dim+1*/][] getAllElements() // XXX public may be temporary, wanting more info in PolytopePuzzleDescription, maybe should put it in our toString instead
+            /**
+            * Get a list of all verts, edges, faces, ..., ridges, facets, self
+            * of this polytope.
+            * getAllElements()[iDim] is the list of iDim-dimensional sub-polytopes.
+            */
+            public Polytope[/*dim+1*/][] getAllElements()
             {
                 if (_allElements == null)
                 {
@@ -332,6 +338,135 @@ public final class CSG
                 }
                 return _allElements;
             } // getAllElements()
+
+            /**
+            * Get a list of all the incidences between elements
+            * occurring inside this polytope.
+            *     getAllIndices()[iDim][iElt][jDim]
+            * is the list of all indices (into getAllElements()[jDim])
+            * of jDim-dimensional elements
+            * that are incident on iDim-dimensional element
+            *     getAllElements()[iDim][iElt].
+            * The result of this function gets cached, so it is not time-consuming
+            * to call it multiple times.
+            */
+            public int[/*dim+1*/][][/*dim+1*/][] getAllIncidences()
+            {
+                if (_allIncidences == null)
+                {
+                    Polytope allElts[][] = getAllElements();
+
+                    java.util.Vector lists[][][] = new java.util.Vector[allElts.length][][];
+                    FORI (iDim, dim+1)
+                    {
+                        lists[iDim] = new java.util.Vector[allElts[iDim].length][];
+                        FORI (iElt, allElts[iDim].length)
+                        {
+                            lists[iDim][iElt] = new java.util.Vector[dim+1];
+                            FORI (jDim, dim+1)
+                                lists[iDim][iElt][jDim] = new java.util.Vector();
+                        }
+                    }
+
+                    // Mark each element temporarily with its index in allElts,
+                    // so we don't have to do time consuming searches...
+                    class GlobalIndexAux
+                    {
+                        private int globalIndex;
+                        private Object savedAux;
+                        GlobalIndexAux(int globalIndex, Object savedAux)
+                        {
+                            this.globalIndex = globalIndex;
+                            this.savedAux = savedAux;
+                        }
+                    }
+                    FORI (iDim, dim+1)
+                    FORI (iElt, allElts[iDim].length)
+                    {
+                        Polytope elt = allElts[iDim][iElt];
+                        elt.aux = new GlobalIndexAux(iElt, elt.aux);
+                    }
+
+
+                    FORI (iDim, dim+1)
+                    FORI (iElt, allElts[iDim].length)
+                    {
+                        Polytope elt = allElts[iDim][iElt];
+                        Polytope allEltsOfElt[][] = elt.getAllElements();
+                        FORI (jDim, elt.dim+1)
+                        FORI (jEltLocal, allEltsOfElt[jDim].length)
+                        {
+                            Polytope eltElt = allEltsOfElt[jDim][jEltLocal];
+                            int jEltGlobal = ((GlobalIndexAux)eltElt.aux).globalIndex;
+                            if (false)
+                                System.out.println("    elt "+dimToPrefix(iDim)+elt.id
+                                         +"("+iDim+")"
+                                         +" has eltElt "+dimToPrefix(jDim)+eltElt.id
+                                         +"("+jEltGlobal+")"
+                                         );
+                            lists[jDim][jEltGlobal][iDim].addElement(new Integer(iElt));
+                            if (jDim != iDim)
+                                lists[iDim][iElt][jDim].addElement(new Integer(jEltGlobal));
+                        }
+                    }
+
+                    // restore old auxs...
+                    FORI (iDim, dim+1)
+                    FORI (iElt, allElts[iDim].length)
+                    {
+                        Polytope elt = allElts[iDim][iElt];
+                        elt.aux = ((GlobalIndexAux)elt.aux).savedAux;
+                    }
+
+
+                    _allIncidences = new int[lists.length][][][];
+                    FORI (iDim, dim+1)
+                    {
+                        _allIncidences[iDim] = new int[lists[iDim].length][][];
+                        FORI (iElt, allElts[iDim].length)
+                        {
+                            Polytope allEltsOfElt[][] = allElts[iDim][iElt].getAllElements();
+                            _allIncidences[iDim][iElt] = new int[lists[iDim][iElt].length][];
+                            FORI (jDim, dim+1)
+                            {
+                                java.util.Vector list = lists[iDim][iElt][jDim];
+                                int array[] = new int[list.size()];
+                                // list.copyInto(array); // argh, copyInto won't do it into an int[], how lame!
+                                FORI (jElt, array.length)
+                                    array[jElt] = ((Integer)list.get(jElt)).intValue();
+                                SortStuff.sort(array); // since _allIncidences[iDim][iElt][jDim] is a list of indices into allElts[jDim], we just need the indices in increasing order.
+                                _allIncidences[iDim][iElt][jDim] = array;
+                            }
+                        }
+                    }
+
+                    if (false)
+                    {
+                        System.out.println("All incidences:");
+                        PRINTARRAY(_allIncidences);
+                        FORI (iDim, _allIncidences.length)
+                        {
+                            FORI (iElt, _allIncidences[iDim].length)
+                            {
+                                Polytope elt = allElts[iDim][iElt];
+                                System.out.println("    "+dimToPrefix(iDim)+elt.id+":");
+                                FORI (jDim, _allIncidences[iDim][iElt].length)
+                                {
+                                    System.out.print("    ");
+                                    FORI (jElt, _allIncidences[iDim][iElt][jDim].length)
+                                    {
+                                        Polytope inc = allElts[jDim][_allIncidences[iDim][iElt][jDim][jElt]];
+                                        System.out.print(" "+dimToPrefix(jDim)+inc.id);
+                                    }
+                                    System.out.println("    ");
+                                }
+                            }
+                            System.out.println();
+                        }
+                    }
+                }
+                return _allIncidences;
+            } // getAllIncidences
 
             public String toString(String indentString,
                                    boolean showAux,
@@ -491,8 +626,8 @@ public final class CSG
             // XXX should really do this from a reader, then fromString... could just hook up a StringReader and go
             public static Polytope fromStringInPcalcFormat(String s)
             {
-                System.out.println("scanning...");
-                System.out.flush();
+                //System.out.println("scanning...");
+                //System.out.flush();
                 Polytope answer = null;
                 {
                     int fullDim = -1;
@@ -630,8 +765,8 @@ public final class CSG
                     }
                 }
 
-                System.out.println("done.");
-                System.out.flush();
+                //System.out.println("done.");
+                //System.out.flush();
                 return answer;
             } // fromStringInPcalcFormat
         } // class Polytope
@@ -738,11 +873,11 @@ public final class CSG
             public static SPolytope fromStringInPcalcFormat(String s)
             {
                 SPolytope answer = new SPolytope(0,1,Polytope.fromStringInPcalcFormat(s));
-                PRINT(volume(answer));
+                //PRINT(volume(answer));
                 double vol = volume(answer);
                 if (vol < 0)
                     answer.sign *= -1; // XXX should do the push-down-sign thing?
-                PRINT(volume(answer));
+                //PRINT(volume(answer));
                 return answer;
             }
 
@@ -1184,9 +1319,9 @@ public final class CSG
                         throw new IllegalArgumentException("makeRegularStartPolytopeCrossProductFromString: bad schlafli symbol \""+s+"\"");
                 }
             }
-            PRINTARRAY(s);
-            PRINTARRAY(schlaflis);
-            PRINTARRAY(schlafliDenomss);
+            //PRINTARRAY(s);
+            //PRINTARRAY(schlaflis);
+            //PRINTARRAY(schlafliDenomss);
             return makeRegularStarPolytopeCrossProduct(schlaflis, schlafliDenomss);
         } // makeRegularStarPolytopeCrossProductFromString
 
@@ -1587,7 +1722,7 @@ public final class CSG
 
             // The actual order will be some factor of maxPossibleOrder.
             // Try all possibilities, from big to little.
-            PRINT(maxPossibleOrder);
+            //PRINT(maxPossibleOrder);
             for (int order = maxPossibleOrder; order >= 1; order--)
             {
                 //System.err.println("(Trying order "+order+"/"+maxPossibleOrder+")");
