@@ -306,99 +306,61 @@ public final class CSG
             {
                 if (_allElements == null)
                 {
-                    if (false) // old way XXX see below !?!?
+                    class VisitedAux
                     {
-                        //System.err.print("O");
-                        java.util.Vector lists[] = new java.util.Vector[dim+1];
-                        FORI (i, dim+1)
-                            lists[i] = new java.util.Vector();
-
+                        public Object savedAux;
+                        public VisitedAux(Object savedAux)
                         {
-                            PolytopeIterator iterator = new PolytopeIterator(this);
-                            while (iterator.hasNext())
-                            {
-                                Polytope e = iterator.next();
-                                lists[e.dim].addElement(e);
-                            }
+                            this.savedAux = savedAux;
                         }
+                    }
 
-                        _allElements = new Polytope[dim+1][];
-                        FORI (i, dim+1)
-                        {
-                            _allElements[i] = new Polytope[lists[i].size()];
-                            lists[i].copyInto(_allElements[i]);
-                            SortStuff.sort(_allElements[i],
-                                           new SortStuff.Comparator() {
-                                               public int compare(Object _a, Object _b)
-                                               {
-                                                   Polytope a = (Polytope)_a;
-                                                   Polytope b = (Polytope)_b;
-                                                   return a.id < b.id ? -1 :
-                                                          a.id > b.id ? 1 : 0;
-                                               }
-                                           });
-                        }
-                    } // old way
-                    else // new way XXX should be better, simpler... doesn't use hash tables... but it makes orientation fix take 4 times as long!?!?!?!?!  and often runs out of memeory? is there a bug??  do Vectors have a memory leak or something???  was java just being flaky for 1/2 hour??? argh!!!
+                    java.util.Vector lists[] = new java.util.Vector[dim+1];
                     {
-                        //System.err.print("N");
-                        class VisitedAux
-                        {
-                            public Object savedAux;
-                            public VisitedAux(Object savedAux)
-                            {
-                                this.savedAux = savedAux;
-                            }
-                        }
+                        FORI (iDim, dim+1)
+                            lists[iDim] = new java.util.Vector();
+                        java.util.Vector flatList = new java.util.Vector();
 
-                        java.util.Vector lists[] = new java.util.Vector[dim+1];
+                        this.aux = new VisitedAux(this.aux); // mark it visited when queued
+                        flatList.addElement(this);
+                        FORI (flatIndex, flatList.size()) // while flatList.size() is increasing!
                         {
-                            FORI (iDim, dim+1)
-                                lists[iDim] = new java.util.Vector();
-                            java.util.Vector flatList = new java.util.Vector();
-
-                            this.aux = new VisitedAux(this.aux); // mark it visited when queued
-                            flatList.addElement(this);
-                            FORI (flatIndex, flatList.size()) // while flatList.size() is increasing!
+                            Polytope elt = (Polytope)flatList.get(flatIndex);
+                            lists[elt.dim].addElement(elt);
+                            FORI (iFacet, elt.facets.length)
                             {
-                                Polytope elt = (Polytope)flatList.get(flatIndex);
-                                lists[elt.dim].addElement(elt);
-                                FORI (iFacet, elt.facets.length)
+                                Polytope facet = elt.facets[iFacet].p;
+                                if (!(facet.aux instanceof VisitedAux)) // save even when elt.aux is null
                                 {
-                                    Polytope facet = elt.facets[iFacet].p;
-                                    if (!(facet.aux instanceof VisitedAux)) // save even when elt.aux is null
-                                    {
-                                        facet.aux = new VisitedAux(facet.aux); // mark it visited when queued
-                                        flatList.addElement(facet);
-                                    }
+                                    facet.aux = new VisitedAux(facet.aux); // mark it visited when queued
+                                    flatList.addElement(facet);
                                 }
                             }
                         }
+                    }
 
-                        _allElements = new Polytope[dim+1][];
-                        FORI (iDim, dim+1)
+                    _allElements = new Polytope[dim+1][];
+                    FORI (iDim, dim+1)
+                    {
+                        _allElements[iDim] = new Polytope[lists[iDim].size()];
+                        lists[iDim].copyInto(_allElements[iDim]);
+                        SortStuff.sort(_allElements[iDim],
+                                       new SortStuff.Comparator() {
+                                           public int compare(Object _a, Object _b)
+                                           {
+                                               Polytope a = (Polytope)_a;
+                                               Polytope b = (Polytope)_b;
+                                               return a.id < b.id ? -1 :
+                                                      a.id > b.id ? 1 : 0;
+                                           }
+                                       });
+                        FORI (iElt, _allElements[iDim].length)
                         {
-                            _allElements[iDim] = new Polytope[lists[iDim].size()];
-                            lists[iDim].copyInto(_allElements[iDim]);
-                            SortStuff.sort(_allElements[iDim],
-                                           new SortStuff.Comparator() {
-                                               public int compare(Object _a, Object _b)
-                                               {
-                                                   Polytope a = (Polytope)_a;
-                                                   Polytope b = (Polytope)_b;
-                                                   return a.id < b.id ? -1 :
-                                                          a.id > b.id ? 1 : 0;
-                                               }
-                                           });
-                            FORI (iElt, _allElements[iDim].length)
-                            {
-                                Polytope elt = _allElements[iDim][iElt];
-                                elt.aux = ((VisitedAux)elt.aux).savedAux;
-                            }
+                            Polytope elt = _allElements[iDim][iElt];
+                            elt.aux = ((VisitedAux)elt.aux).savedAux;
                         }
-                    } // new way
+                    }
                 } // if _allElements == null
-                //Polytope temp[][] = _allElements; _allElements = null; return temp; // XXX HACK-- DON'T LEAVE THIS IN
                 return _allElements;
             } // getAllElements()
 
@@ -1392,62 +1354,6 @@ public final class CSG
     //
     // Utilities...
     //
-        //
-        // Iterator over the elements
-        // (self, facets, ridges, ..., faces, edges, vertices)
-        // of a Polytope.  Uses a hash table to keep track of what's
-        // already been visited.
-        // XXX sad, now that I have getAllElements(), that's
-        // XXX the only use for this class, so could just
-        // XXX incorporate this code into getAllElements
-        //
-        private static class PolytopeIterator
-            // don't implement Iterator interface since it didn't exist in 1.1
-        {
-            private java.util.Hashtable visited;
-            private java.util.Stack stack; // XXX could do stack-or-queue for choice of pre-order-depth-first or breadth-first search
-            public PolytopeIterator(Polytope p)
-            {
-                visited = new java.util.Hashtable();
-                stack = new java.util.Stack();
-                stack.push(p);
-            }
-            boolean hasNext()
-            {
-                return !stack.empty();
-            }
-            Polytope next()
-            {
-                try
-                {
-                    Polytope item = (Polytope)stack.pop();
-                    SPolytope facets[] = item.facets;
-                    int nFacets = facets.length;
-                    FORI (iFacet, nFacets)
-                    {
-                        Polytope facet = facets[iFacet].p;
-                        // check visitedness *before* we
-                        // throw it on the stack,
-                        // so that hasNext() only has to query
-                        // whether stack is nonempty
-                        if (!visited.containsKey(facet))
-                        {
-                            visited.put(facet,facet);
-                            stack.push(facet);
-                        }
-                    }
-                    return item;
-                }
-                catch (java.util.EmptyStackException e)
-                {
-                    throw new java.util.NoSuchElementException();
-                }
-            } // next
-        } // PolytopeIterator
-
-
-
-
         //
         // A polytope is "binary"
         // if all densities are 0 or 1.
