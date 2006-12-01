@@ -50,30 +50,40 @@ public class Glue extends MC4DSwing
         // Lame!  Should actually be two different menus--
         // puzzle, and puzzle size!  Or, cascading!
         String table[][] = {
-            {"{3,3,3}",  "2,3,4,5,6",   "Simplex"},
-            {"{3}x{4}",  "2,3,4,5,6",   "Triangular Prism Prism"},
-            {"{4,3,3}",  "2,3,4,5,6,7", "Hypercube"},
-            {"{5}x{4}",  "2,3,4,5,6",   "Pentagonal Prism Prism"},
-            {"{3}x{3}",  "2,3,4,5,6",   ""},
-            {"{3}x{5}",  "2,3,4,5,6",   ""},
-            {"{5}x{5}",  "2,3,4,5,6",   ""},
-            {"{3,3}x{}", "2,3,4,5,6",   "Tetrahedral Prism"},
-            {"{5,3}x{}", "2,3,4,5,6",   "Dodecahedral Prism"},
-            {"{5,3,3}",  "2,3",         "Hypermegaminx (BIG!)"},
+            {"{3,3,3}",  "1,2,3,4,5,6,7",     "Simplex"},
+            {"{3}x{4}",  "1,2,3,4,5,6,7",     "Triangular Prism Prism"},
+            {"{4,3,3}",  "1,2,3,4,5,6,7,8,9", "Hypercube"},
+            {"{5}x{4}",  "1,2,3,4,5,6,7",     "Pentagonal Prism Prism"},
+            {"{3}x{3}",  "1,2,3,4,5,6,7",     ""},
+            {"{3}x{5}",  "1,2,3,4,5,6,7",     ""},
+            {"{5}x{5}",  "1,2,3,4,5,6,7",     ""},
+            {"{3,3}x{}", "1,2,3,4,5,6,7",     "Tetrahedral Prism"},
+            {"{5,3}x{}", "1,2,3,4,5,6,7",     "Dodecahedral Prism"},
+            {"{5,3,3}",  "1,2,3",             "Hypermegaminx (BIG!)"},
             {null,       "0", "Invent my own!"},
         };
         puzzlemenu.add(new MenuItem("-"));
-        puzzlemenu.add(new MenuItem("-"));
+        //puzzlemenu.add(new MenuItem("-"));
         for (int i = 0; i < table.length; ++i)
         {
+            final String schlafli = table[i][0];
             String lengthStrings[] = table[i][1].split(",");
+            final String name = (schlafli==null ? table[i][2] :
+                                 schlafli + "  " + table[i][2]);
+
+            Menu submenu;
+            if (schlafli != null)
+            {
+                submenu = new Menu(name+"    "); // XXX padding so the > doesn't clobber the end of the longest names!? lame
+                puzzlemenu.add(submenu);
+            }
+            else
+                submenu = puzzlemenu;
             for (int j = 0; j < lengthStrings.length; ++j)
             {
-                final String schlafli = table[i][0];
-                final int len = Integer.parseInt(lengthStrings[j]); // just first for now
-                final String name = (schlafli==null ? table[i][2] :
-                                     schlafli + "  " + len + "  " + table[i][2]);
-                puzzlemenu.add(new MenuItem(name)).addActionListener(new ActionListener() {
+                final int len = Integer.parseInt(lengthStrings[j]);
+                final String statuslabel = name + "  length="+len;
+                submenu.add(new MenuItem(len==0 ? name : ""+len)).addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent ae)
                     {
                         if (schlafli != null)
@@ -81,9 +91,9 @@ public class Glue extends MC4DSwing
                             genericPuzzleDescription = new PolytopePuzzleDescription(schlafli, len, progressWriter);
                             PropertyManager.userprefs.setProperty("genericSchlafli", schlafli);
                             PropertyManager.userprefs.setProperty("genericLength", ""+len);
-                            // XXX when do we use the above?
+                            UnGlueInitPuzzle(null); // apparently necessary in order for repaint to happen
                             viewcontainer.validate(); // XXX what does this do?
-                            statusLabel.setText(name); // XXX hey, it's not set right at the beginning!
+                            statusLabel.setText(statuslabel); // XXX hey, it's not set right at the beginning!
                         }
                         else
                         {
@@ -97,10 +107,10 @@ public class Glue extends MC4DSwing
                 });
                 // XXX add a "pick my own"!
             }
-            puzzlemenu.add(new MenuItem("-"));
         }
         System.out.println("out GlueMoreItemsToPuzzleMenu");
     } // GlueMoreItemsToPuzzleMenu
+
 
     // Call this instead of new MC4DView
     protected MC4DView GlueNewMC4DView(PuzzleState puzzle, PolygonManager polymgr, History hist)
