@@ -11,17 +11,22 @@
 interface GenericPuzzleDescription {
 
     public int nDims();
+    public int nVerts();
+    public int nFaces();
+    public int nCubies();
     public int nStickers();
     public int nGrips();
-
+    public int nPolygons(); // XXX not sure if this is cool-- maybe different polys for picking than for drawing
+    public float circumRadius(); // distance of farthest vertex from origin
+    public float inRadius();     // distance of closest face hyperplane to origin
 
     /**
     * Get the vertices of the geometry that gets drawn
     * (or picked when selecting a sticker rather than a grip) at rest.
     */
     public float[/*nVerts*/][/*nDims*/]
-        getStickerVertsAtRest(float faceShrink,
-                              float stickerShrink);
+        calcStickerVertsAtRest(float faceShrink,
+                               float stickerShrink);
     /**
     * Get the indices (into the vertices returned by getDrawVertsAtRest()
     * or getDrawVertsPartiallyTwisted())

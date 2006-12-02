@@ -1,14 +1,41 @@
 /*
     TODO:
-        - oh shoot-- {5}x{} will get extra stickers-- need to remove them! only a problem for 3d puzzles of even length, I think
-        - "{5}x{}" 2 says 58 stickers, I think it should be 52? (2*11+5*6)
-        - we don't get slice thicknesses right for anything with "{3" in it yet, maybe should disable
-        - seed fill for sticker2cubie
-        - store slice masks and implement checking to see if a point is in a slice mask
+        SPECIFICATION:
+            - initial orientation (using which elts to which axes)
+                - default should be largest face first
+            - be able to specify slice thicknesses,
+                  orthogonal to puzzle length spec,
+                  and allow different for different faces
+                  (we don't get slice thicknesses reasonable for anything
+                  with triangles in it yet)
+                  (and we want the 2.5 thing to work on only the pents,
+                   not the squares, of a {5}x{4})
+        MISC:
+            - middle click on any element should bring that sticker's cubie
+                to the center! cool!
+            - figure out the sticker2cubie map, using seed fill
+        NON-IMMEDIATE:
+            - figure out how to do contiguous cubies generically
+
+            - hmm... wireframe around the non-shrunk slicked geometry would be nice!
+                buttons for:
+                - wirefame around unshrunk faces
+                - wireframe around shrunk faces (separate faceShrink for it?)
+                - wireframe around unshrunk stickers (separate stickerShrink for it?)
+                polygon shrink?  all possible wireframes?  okay here's
+                where it goes crazy
+
+            - oh shoot-- {5}x{} will get extra stickers because of the fudge thing-- need to remove them! only a problem for 3d puzzles of even length, I think
+
+
     BUGS:
+        - why is scale different before I touch the slider??
+        - scale doesn't quite match original
+        - make it always come up biggest-face-first by default
         - need to get cut depths right
         - I don't think it's oriented correctly at end-- need to send in all planes at once so it can do that automatically with some hope of being efficient
     FIXED:
+        - "{5}x{}" 2 says 58 stickers, I think it should be 52? (2*11+5*6)
         - "{3,3}" anything gives {4,6,4,1} so it's not slicing???
         - "{3}x{} 3 gives counts  {42,54,36,1} should be {42,81,41,1} I think
         - "{4,3}" 3  gives counts {32,36,48,1} should be {56,108,54,1}
@@ -22,6 +49,9 @@ import com.donhatchsw.util.*; // XXX get rid
 class PolytopePuzzleDescription implements GenericPuzzleDescription {
     com.donhatchsw.util.CSG.SPolytope originalPolytope;
     com.donhatchsw.util.CSG.SPolytope slicedPolytope;
+
+    float _circumRadius;
+    float _inRadius;
 
     float vertsMinusStickerCenters[][];
     float vertStickerCentersMinusFaceCenters[][];
@@ -40,6 +70,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     FuzzyPointHashTable stickerCentersHashTable;
 
      static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+     static private void Assumpt(boolean condition) { if (!condition) throw new Error("Assumption failed"); }
     
 
     /**
@@ -80,7 +111,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
      *      omnitruncated regular
      */
 
-    public PolytopePuzzleDescription(String schlafliProduct, int length,
+    public PolytopePuzzleDescription(String schlafliProduct,
+                                     double length, // usually int but can experiment with different cut depths
                                      java.io.PrintWriter progressWriter)
     {
         if (length < 1)
@@ -117,6 +149,10 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 originalElements[iDim][iElt].aux = new Integer(iElt);
         }
 
+        //
+        // Figure out the face inward normals and offsets;
+        // these will be used for computing where cuts should go.
+        //
         double faceInwardNormals[][] = new double[nFaces][nDims];
         double faceOffsets[] = new double[nFaces];
         for (int iFace = 0; iFace < nFaces; ++iFace)
@@ -130,6 +166,32 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             VecMath.vxs(faceInwardNormals[iFace], faceInwardNormals[iFace], invNormalLength);
             faceOffsets[iFace] *= invNormalLength;
         }
+
+        //
+        // Figure out the circumRadius (farthest vertex from orign)
+        // and inRadius (closest face plane to origin)
+        // of the original polytope...
+        //
+        {
+            double farthestVertexDistSqrd = 0.;
+            for (int iVert = 0; iVert < originalVerts.length; ++iVert)
+            {
+                double thisDistSqrd = VecMath.normsqrd(originalVerts[iVert].getCoords());
+                if (thisDistSqrd > farthestVertexDistSqrd)
+                    farthestVertexDistSqrd = thisDistSqrd;
+            }
+            _circumRadius = (float)Math.sqrt(farthestVertexDistSqrd);
+
+            double nearestFaceDist = 0.;
+            for (int iFace = 0; iFace < originalFaces.length; ++iFace)
+            {
+                double thisFaceDist = -faceOffsets[iFace];
+                if (thisFaceDist < nearestFaceDist)
+                    nearestFaceDist = thisFaceDist;
+            }
+            _inRadius = (float)nearestFaceDist;
+        }
+
 
         //
         // So we can easily find the opposite face of a given face...
@@ -210,19 +272,37 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
 
-                boolean isPrismOfThisFace = Math.abs(-.5 - faceOffsets[iFace]) > 1e-6;
+                boolean isPrismOfThisFace = Math.abs(-1. - faceOffsets[iFace]) < 1e-6;
+
                 // If even length and *not* a prism of this face,
                 // then the middle-most cuts will meet,
                 // but the slice function can't handle that.
                 // So back off a little so they don't meet,
                 // so we'll get tiny invisible sliver faces there instead.
-                if (length % 2 == 0
+                int ceilLength = (int)Math.ceil(length);
+                if (length == ceilLength
+                 && ceilLength % 2 == 0
                  && !isPrismOfThisFace)
                     sliceThickness *= .99;
 
-                int nNearCuts = length / 2; // (n-1)/2 if odd, n/2 if even
+                //sliceThickness = fullThickness/4;
+
+                /*
+                   Think about what's appropriate for simplex...
+                        thickness = 1/3 of full to get upside down tet in middle, 
+                                        with its verts poking the faces
+                        thickness = 1/4 of full to get nothing in middle
+                        thickness = 1/5 of full to get nice rightside up cell in middle
+                                        YES, this is what 3 should do I think
+
+
+                   But for triangular prism prism,
+                            1/4 of full is the nice one for 3
+                */
+
+                int nNearCuts = ceilLength / 2; // (n-1)/2 if odd, n/2 if even
                 int nFarCuts = faceToOppositeFace[iFace]==null ? 0 :
-                               length%2==0 && isPrismOfThisFace ? nNearCuts-1 :
+                               ceilLength%2==0 && isPrismOfThisFace ? nNearCuts-1 :
                                nNearCuts;
                 faceCutOffsets[iFace] = new double[nNearCuts + nFarCuts];
 
@@ -328,7 +408,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         double faceCentersD[][] = new double[nFaces][nDims];
         {
             for (int iFace = 0; iFace < nFaces; ++iFace)
-                com.donhatchsw.util.CSG.cgOfVerts(faceCentersD[iFace], originalPolytope.p.facets[iFace].p);
+                com.donhatchsw.util.CSG.cgOfVerts(faceCentersD[iFace], originalFaces[iFace]);
         }
         this.stickerCentersD = new double[nStickers][nDims];
         this.stickerCentersHashTable = new FuzzyPointHashTable(1e-11, 1e-9, 1./512);
@@ -492,7 +572,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             if (progressWriter != null)
             {
-                progressWriter.print("    Thinking about grips...");
+                progressWriter.print("    Thinking about possible twists...");
                 progressWriter.flush();
             }
 
@@ -628,6 +708,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         public int nGrips()
         {
             return nStickers(); // XXX for now
+        }
+        public float circumRadius()
+        {
+            return _circumRadius;
+        }
+        public float inRadius()
+        {
+            return _inRadius;
         }
 
         public float[/*nVerts*/][/*nDims*/]
