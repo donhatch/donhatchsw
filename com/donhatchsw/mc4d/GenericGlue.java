@@ -35,22 +35,24 @@ public class Glue
      * are retained; this can be used for mapping 2d pick points
      * back up to 4d if desired.
      */
-    public class Frame
+    public static class Frame
     {
         // NOTE: the pre-projected Z and W components
         // are retained; this can be used for mapping 2d pick points
         // back up to 4d if desired.
-        public int nVerts;      // may be less than verts.length if some culled
+        // verts[i] refers to the same vertex as vertex i in
+        // the puzzle description, although unused indices may end up
+        // with arbitrary values.
         public float verts[][/*4*/]; // x,y,z,w, not just x,y! see above
-        public int nPolys;      // may be less than polys.length is some culled
-        public int polys[][];   // sorted back to front
-        public int polyIds[]; // map from poly index to unculled poly index
-        public float brightnesses[]; // map from poly index to brightness
 
-        public int polysBuffer[][]; // The memory used for polys (before
-                                    // culling and sorting).  We store this
-                                    // so that a Frame can be reused without
-                                    // having to do any memory allocations.
+        int drawListSize;
+        public int drawList[][/*2*/]; // a pair i,j refers to the polygon stickerInds[i][j] in puzzle description
+        public float brightnesses[]; // map from drawList index to brightness
+
+        // Memory used by drawList (before culling and sorting).
+        // We store this so that a Frame can be reused without having to do
+        // any memory allocations.
+        public int drawListBuffer[/*nStickers*/][/*nPolysThisSticker*/][/*2*/];
     } // class Frame
 
     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
@@ -176,57 +178,64 @@ public class Glue
         if (verboseLevel >= 1) System.out.println("out Glue.addMoreItemsToPuzzleMenu");
     } // addMoreItemsToPuzzleMenu
 
-    // whether given sticker is on the cubie containing the mouse
-    // XXX figure out this better based on genericPuzzleDescription
-    private boolean partOfCubie(int stickerId)
-    {
-        return false;
-    }
 
     // Computes a frame of animation.
     // Attempts to avoid doing any new memory allocations
     // when called repeatedly on a given puzzleDescription.
-    public static void computeFrame(GenericPuzzleDescription puzzleDescription,
+    public static void computeFrame(Frame frame, // return into here
+
+                                    GenericPuzzleDescription puzzleDescription,
+
                                     float faceShrink,
                                     float stickerShrink,
 
-                                    float rot4d[/*4*/][/*4*/],
+                                    float rot4d[/*4*/][/*4 or 5*/],
                                     float eyeW,
-                                    float rot3d[/*3*/][/*3*/],
+                                    float rot3d[/*3*/][/*3 or 4*/],
                                     float eyeZ,
-                                    float scale2d,
-                                    float xOff, // XXX why is this int in MC4DView?
-                                    float yOff, // XXX why is this int in MC4DView?
-                                    Frame frame) // output
+                                    float rot2d[/*2*/][/*2 or 3*/])
     {
         if (verboseLevel >= 2) System.out.println("in Glue.computeFrame");
 
         int nDims = puzzleDescription.nDims();
         Assert(nDims == 4);
         int nVerts = puzzleDescription.nVerts();
-        int nPolys = puzzleDescription.nPolygons();
+        int nStickers = puzzleDescription.nStickers();
 
         //
         // Allocate any parts of frame that are null
         // or different from last time...
         //
+        int stickerInds[][][] = puzzleDescription.getStickerInds();
         {
             if (frame.verts == null
              || frame.verts.length != nVerts
              || nVerts>0 && frame.verts[0].length != nDims)
                 frame.verts = new float[nVerts][nDims];
-            if (!arrayLengthsMatch(frame.polysBuffer, puzzleDescription.getPolygons()))
-                frame.polysBuffer = com.donhatchsw.util.Arrays.copy(puzzleDescription.getPolygons(), 2); // don't care about the contents, just need the sizes to be right
-            if (frame.polys == null
-             || frame.polys.length != nPolys)
-                frame.polys = new int[nPolys][];
-            if (frame.polyIds == null
-             || frame.polyIds.length != nPolys)
-                frame.polyIds = new int[nPolys];
+            int nPolys = 0;
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                nPolys += stickerInds[iSticker].length;
+            if (!com.donhatchsw.util.Arrays.sizesMatch(frame.drawListBuffer, stickerInds, 2))
+            {
+                frame.drawListBuffer = new int[stickerInds.length][][];
+                for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
+                {
+                    frame.drawListBuffer[iSticker] = new int[stickerInds[iSticker].length][];
+                    for (int iPolyThisSticker = 0; iPolyThisSticker < stickerInds[iSticker].length; ++iPolyThisSticker)
+                        frame.drawListBuffer[iSticker][iPolyThisSticker] = new int[] {iSticker, iPolyThisSticker};
+                }
+            }
+            if (frame.drawList == null
+             || frame.drawList.length != nPolys)
+                frame.drawList = new int[nPolys][/*2*/];
             if (frame.brightnesses == null
              || frame.brightnesses.length != nPolys)
-                frame.polyIds = new float[nPolys];
+                frame.brightnesses = new float[nPolys];
         }
+
+        float verts[][] = frame.verts;
+        int drawList[][] = frame.drawList;
+        int drawListSize = 0; // we'll set frame.drawListSize to this at end
 
         //
         // There should be no memory allocations from here down.
@@ -234,64 +243,11 @@ public class Glue
         //
 
         //
-        // Point polys into polysBuffer...
+        // Get the 4d verts from the puzzle description
         //
-        for (int i = 0; i < nPolys; ++i)
-            frame.polys[i] = frame.polysBuffer[i];
-
-        //
-        // Get the 4d geometry from the puzzle description
-        //
-        {
-            puzzleDescription.getStickerVertsAtRest(frame.verts,
+        puzzleDescription.computeStickerVertsAtRest(verts,
                                                     faceShrink,
                                                     stickerShrink);
-            Arrays.copy(frame.polys, genericPuzzleDescription.getPolygons());
-        }
-        Assert(false);
-
-        if (verboseLevel >= 2) System.out.println("out Glue.computeFrame");
-    } // computeFrame
-
-    public static void paintFrame(float faceShrink,
-                                    float stickerShrink,
-
-                                    float rot4d[/*4*/][/*4*/],
-                                    float eyeW,
-                                    float rot3d[/*3*/][/*3*/],
-                                    float eyeZ,
-                                    float scale2d,
-                                    float xOff, // XXX why is this int in MC4DView?
-                                    float yOff, // XXX why is this int in MC4DView?
-                           boolean showShadows, // XXX or isShadows?
-                           Color ground,
-                           float faceRGB[][],
-                           boolean highlightByCubie,
-                           Color outlineColor,
-                           Graphics g)
-    {
-        if (verboseLevel >= 2) System.out.println("in Glue.paintFrame");
-
-        //
-        // Get the 4d geometry from the puzzle description
-        //
-        // XXX what if not at rest?
-        float verts4d[][/*4*/];
-        int stickerInds[/*nStickers*/]
-                       [/*nPolygonsThisSticker*/]
-                       [/*nVertsThisPolygon*/];
-        {
-            verts4d = genericPuzzleDescription.getStickerVertsAtRest(faceShrink,
-                                                                     stickerShrink);
-            Assert(verts4d.length > 0);
-            Assert(verts4d[0].length == 4); // for now, maybe can handle 3d and 2d later
-            stickerInds = genericPuzzleDescription.getStickerInds();
-
-            verts4d = (float[][])com.donhatchsw.util.Arrays.copy(verts4d, 2); // so we own it and can mess it
-            stickerInds = (int[][][])com.donhatchsw.util.Arrays.copy(stickerInds, 3); // so we own it and can mess it
-        }
-        if (verboseLevel >= 3) System.out.println("    initial stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
-        if (verboseLevel >= 3) System.out.println("    initial verts4d = "+com.donhatchsw.util.Arrays.toStringCompact(verts4d));
 
         //
         // Rotate/scale in 4d
@@ -300,70 +256,86 @@ public class Glue
             // Make it so circumradius is 4.
             // XXX I have no basis for this except that empirically it makes
             // XXX the 3^4 hypercube match what the puzzle usually does
-
-            // XXX this is constant per puzzle,
-            // XXX so we should really back it into the stored arrays
-            // XXX so that we don't have to do it here
-            float scale4d = 4.f/genericPuzzleDescription.circumRadius();
-            float rotScale4d[][] = VecMath.mxs(rot4d, scale4d);
-            verts4d = VecMath.mxm(verts4d, rotScale4d);
+            float scale4d = 4.f/puzzleDescription.circumRadius();
+            float rotScale4d[][] = VecMath.mxs(rot4d, scale4d); // XXX MEMORY ALLOCATION
+            float temp[] = new float[4]; // XXX MEMORY ALLOCATION
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+            {
+                VecMath.vxm(temp, verts[iVert], rotScale4d);
+                VecMath.copyvec(verts[iVert], temp);
+            }
         }
-        if (verboseLevel >= 3) System.out.println("    after 4d rot/scale/trans: verts4d = "+com.donhatchsw.util.Arrays.toStringCompact(verts4d));
+        if (verboseLevel >= 3) System.out.println("    after 4d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Clip to the 4d eye's front clipping plane
         //
         {
-            // XXX DO ME
+            // XXX DO ME?
         }
-        if (verboseLevel >= 3) System.out.println("    after 4d clip: verts4d = "+com.donhatchsw.util.Arrays.toStringCompact(verts4d));
+        //if (verboseLevel >= 3) System.out.println("    after 4d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Project down to 3d
         //
-        float verts3d[][/*3*/];
         {
-            verts3d = new float[verts4d.length][3];
-            for (int i = 0; i < verts3d.length; ++i)
+            for (int i = 0; i < verts.length; ++i)
             {
-                float mult = 1.f/(eyeW - verts4d[i][3]);
+                float w = eyeW - verts[i][3];
+                float invW = 1.f/w;
                 for (int j = 0; j < 3; ++j)
-                    verts3d[i][j] = verts4d[i][j] * mult;
+                    verts[i][j] *= invW;
+                verts[i][3] = w; // keep this for future reference
             }
         }
-        if (verboseLevel >= 3) System.out.println("    after 4d->3d project: verts3d = "+com.donhatchsw.util.Arrays.toStringCompact(verts3d));
-
-        verts4d = null;
+        if (verboseLevel >= 3) System.out.println("    after 4d->3d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Front-cell cull
         //
         {
-            float mat[][] = new float[3][3];
+            int nBackFacing = 0;
+            float mat[][] = new float[3][3]; // XXX MEMORY ALLOCATION
             for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
             {
                 int thisStickerInds[][] = stickerInds[iSticker];
-                float v0[] = verts3d[thisStickerInds[0][0]];
-                float v1[] = verts3d[thisStickerInds[0][1]];
-                float v2[] = verts3d[thisStickerInds[0][2]];
-                float v3[] = verts3d[thisStickerInds[1][0]];
-                VecMath.vmv(mat[0], v1, v0);
-                VecMath.vmv(mat[1], v2, v0);
-                VecMath.vmv(mat[2], v3, v0);
+                float v0[] = verts[thisStickerInds[0][0]];
+                float v1[] = verts[thisStickerInds[0][1]];
+                float v2[] = verts[thisStickerInds[0][2]];
+                float v3[] = verts[thisStickerInds[1][0]];
+                Vec_h._VMV3(mat[0], v1, v0); // 3 out of 4
+                Vec_h._VMV3(mat[1], v2, v0); // 3 out of 4
+                Vec_h._VMV3(mat[2], v3, v0); // 3 out of 4
                 float volume = VecMath.vxvxv3(mat[0], mat[1], mat[2]);
-                if (volume > 0.f)
-                    stickerInds[iSticker] = null;
+                if (volume < 0.f) // only draw *back* cells; cull front ones
+                {
+                    // append references to this sticker's polys into drawList
+                    for (int iPolyThisSticker = 0; iPolyThisSticker < thisStickerInds.length; ++iPolyThisSticker)
+                        drawList[nBackFacing++] = frame.drawListBuffer[iSticker][iPolyThisSticker]; // = {iSticker,iPolyThisSticker}
+                }
             }
+            drawListSize = nBackFacing;
         }
-        if (verboseLevel >= 3) System.out.println("    after front-cell cull: verts3d = "+com.donhatchsw.util.Arrays.toStringCompact(verts3d));
+        if (verboseLevel >= 3) System.out.println("    after front-cell cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Rotate/scale in 3d
+        // XXX could try to only do this on vertices that passed the culls
         //
         {
-            verts3d = VecMath.mxm(verts3d, rot3d);
+            if (verboseLevel >= 3) System.out.println("rot3d = "+com.donhatchsw.util.VecMath.toString(rot3d));
+            float tempIn[] = new float[3]; // XXX MEMORY ALLOCATION
+            float tempOut[] = new float[3]; // XXX MEMORY ALLOCATION
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+            {
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    tempIn[i] = verts[iVert][i];
+                VecMath.vxm(tempOut, tempIn, rot3d); // only first 3... however rot3d can be 3x3 or 4x3
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    verts[iVert][i] = tempOut[i];
+            }
         }
-        if (verboseLevel >= 3) System.out.println("    after 3d rot/scale/trans: verts3d = "+com.donhatchsw.util.Arrays.toStringCompact(verts3d));
+        if (verboseLevel >= 3) System.out.println("    after 3d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // If doing shadows,
@@ -377,167 +349,284 @@ public class Glue
         // Clip to the 3d eye's front clipping plane
         //
         {
-            // XXX DO ME
+            // XXX DO ME?
         }
-        if (verboseLevel >= 3) System.out.println("    after 3d clip: verts3d = "+com.donhatchsw.util.Arrays.toStringCompact(verts3d));
-
-        //
-        // Sort quads back-to-front
-        //
-        int stickerIndIndsBackToFront[] = new int[stickerInds.length];
-        {
-            // We're not set up to flatten into
-            // a flat list of quads yet, so for now,
-            // just sort by sticker center.
-            float stickerCenters[][] = new float[stickerInds.length][3]; // zeros
-            for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
-            {
-                if (stickerInds[iSticker] == null)
-                    continue; // cell was culled
-                // XXX counts vertices lots of times.. and sheesh, only [2] is relevant!!
-                VecMath.averageIndexed(stickerCenters[iSticker], stickerInds[iSticker], verts3d);
-            }
-            VecMath.identityperm(stickerIndIndsBackToFront);
-            final float finalStickerCenters[][] = stickerCenters;
-            SortStuff.sort(stickerIndIndsBackToFront, new SortStuff.IntComparator() {
-                public int compare(int i, int j)
-                {
-                    return finalStickerCenters[i][2] < finalStickerCenters[j][2] ? -1 :
-                           finalStickerCenters[i][2] > finalStickerCenters[j][2] ? 1 : 0;
-                }
-            });
-        }
-        if (verboseLevel >= 3) System.out.println("    after z-sort: stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
+        //if (verboseLevel >= 3) System.out.println("    after 3d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
 
         //
         // Project down to 2d
+        // XXX could try to only do this on vertices that passed the culls
         //
-        float verts2d[][/*2*/];
         {
-            verts2d = new float[verts3d.length][2];
-            for (int i = 0; i < verts2d.length; ++i)
+            for (int i = 0; i < verts.length; ++i)
+            {
+                float z = eyeZ - verts[i][2];
+                float invZ = 1.f/z;
                 for (int j = 0; j < 2; ++j)
-                    verts2d[i][j] = verts3d[i][j]; // XXX FIX ME
+                    verts[i][j] *= invZ;
+                verts[i][2] = z; // keep this for future reference
+            }
         }
-        if (verboseLevel >= 3) System.out.println("    after 3d->2d project: verts2d = "+com.donhatchsw.util.Arrays.toStringCompact(verts2d));
-
-        verts3d = null;
+        if (verboseLevel >= 3) System.out.println("    after 3d->2d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Back-face cull
         //
         {
-            float mat[][] = new float[2][2];
-            for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
+            float mat[][] = new float[2][2]; // XXX ALLOCATION
+            int nFrontFacing = 0;
+            for (int i = 0; i < drawListSize; ++i)
             {
-                if (stickerInds[iSticker] == null)
-                    continue; // cell was culled
-                for (int iPoly = 0; iPoly < stickerInds[iSticker].length; ++iPoly)
-                {
-                    int thisPolyInds[] = stickerInds[iSticker][iPoly];
-                    float v0[] = verts2d[thisPolyInds[0]];
-                    float v1[] = verts2d[thisPolyInds[1]];
-                    float v2[] = verts2d[thisPolyInds[2]];
-                    VecMath.vmv(mat[0], v1, v0);
-                    VecMath.vmv(mat[1], v2, v0);
-                    float area = VecMath.vxv2(mat[0], mat[1]);
-                    if (area < 0.f)
-                        stickerInds[iSticker][iPoly] = null;
-                }
+                int i0i1[] = drawList[i];
+                int poly[] = stickerInds[i0i1[0]][i0i1[1]];
+                float v0[] = verts[poly[0]];
+                float v1[] = verts[poly[2]];
+                float v2[] = verts[poly[3]];
+                Vec_h._VMV2(mat[0], v1, v0); // 2 out of 4
+                Vec_h._VMV2(mat[1], v2, v0); // 2 out of 4
+                float area = VecMath.vxv2(mat[0], mat[1]);
+                if (area > 0.f) // only retain *front*-facing polygons
+                    drawList[nFrontFacing++] = i0i1;
             }
+            drawListSize = nFrontFacing;
         }
-        if (verboseLevel >= 3) System.out.println("    after back-face cull: verts2d = "+com.donhatchsw.util.Arrays.toStringCompact(verts2d));
+        if (verboseLevel >= 3) System.out.println("    after back-face cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Rotate/scale in 2d
+        // XXX could try to only do this on vertices that passed both culls
         //
         {
-            //scale2d *= .1; // XXX FUDGE
-            float rotScale2dMat[][] = {
-                {scale2d, 0},
-                {0,       -scale2d},
-                {xOff,    yOff},
-            };
-            if (verboseLevel >= 3) System.out.println("rotScale2dMat = "+com.donhatchsw.util.VecMath.toString(rotScale2dMat));
-            for (int i = 0; i < verts2d.length; ++i)
-                verts2d[i] = VecMath.vxm(verts2d[i], rotScale2dMat);
+            if (verboseLevel >= 3) System.out.println("rot2d = "+com.donhatchsw.util.VecMath.toString(rot2d));
+            float tempIn[] = new float[2]; // XXX MEMORY ALLOCATION
+            float tempOut[] = new float[2]; // XXX MEMORY ALLOCATION
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+            {
+                for (int i = 0; i < 2; ++i) // 2 out of 4
+                    tempIn[i] = verts[iVert][i];
+                VecMath.vxm(tempOut, tempIn, rot2d); // only first 2... however rot2d can be 2x2 or 3x2
+                for (int i = 0; i < 2; ++i) // 2 out of 4
+                    verts[iVert][i] = tempOut[i];
+            }
         }
-        if (verboseLevel >= 3) System.out.println("    after 2d rot/scale/trans: verts2d = "+com.donhatchsw.util.Arrays.toStringCompact(verts2d));
+        if (verboseLevel >= 3) System.out.println("    after 2d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+
+
+        //
+        // Sort drawlist polygons back-to-front,
+        // using the z values that we retained from before the 3d->2d projection
+        // (but there's less work to do now that we culled back faces).
+        //
+        {
+            float polyCentersZ[/*nStickers*/][/*nPolysThisSticker*/] = new float[nStickers][]; // XXX ALLOCATION!
+            for (int i = 0; i < nStickers; ++i)
+                polyCentersZ[i] = new float[stickerInds[i].length]; // XXX ALLOCATION!
+
+            for (int i = 0; i < drawListSize; ++i)
+            {
+                int i0i1[] = drawList[i];
+                int i0 = i0i1[0];
+                int i1 = i0i1[1];
+                int poly[] = stickerInds[i0][i1];
+                float sum = 0.f;
+                for (int j = 0; j < poly.length; ++j)
+                    sum += verts[poly[j]][2];
+                Assert(poly.length != 0);
+                polyCentersZ[i0][i1] = sum / poly.length;
+            }
+
+            final float finalPolyCentersZ[][] = polyCentersZ;
+            SortStuff.sortRange(drawList, 0, drawListSize-1, new SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
+                public int compare(Object i, Object j)
+                {
+                    int[] i0i1 = (int[])i;
+                    int[] j0j1 = (int[])j;
+                    float iZ = finalPolyCentersZ[i0i1[0]][i0i1[1]];
+                    float jZ = finalPolyCentersZ[j0j1[0]][j0j1[1]];
+                    // sort from increasing z to decreasing! that is because the z's got negated just before the projection!
+                    return iZ > jZ ? -1 :
+                           iZ < jZ ? 1 : 0;
+                }
+            });
+        }
+        if (verboseLevel >= 3) System.out.println("    after z-sort: stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
 
         //
         // Fudge stuff we don't know yet
-        float brightnesses[][];
+        //
+        for (int i = 0; i < drawListSize; ++i)
+            frame.brightnesses[i] = 1.f;
+
+        frame.drawListSize = drawListSize;
+
+        if (verboseLevel >= 2) System.out.println("out Glue.computeFrame");
+    } // computeFrame
+
+    /**
+    * Return the index of the sticker and polygon within sticker if hit,
+    * or null if nothing hit.
+    * NOTE: assumes Y is inverted, for the CCW test.
+    */
+    public static int[] pick(float x, float y,
+                             Frame frame,
+                             GenericPuzzleDescription puzzleDescription)
+    {
+        float thispoint[] = {x, y};
+        // From front to back, returning the first hit
+        float verts[][] = frame.verts;
+        int drawList[][] = frame.drawList;
+        int stickerInds[][][] = puzzleDescription.getStickerInds();
+        for (int i = frame.drawListSize-1; i >= 0; --i)
         {
-            brightnesses = new float[stickerInds.length][];
-            for (int i = 0; i < brightnesses.length; ++i)
-            {
-                if (stickerInds[i] == null)
-                    continue;
-                brightnesses[i] = new float[stickerInds[i].length];
-                for (int j = 0; j < brightnesses[i].length; ++j)
-                {
-                    brightnesses[i][j] = 1.f;
-                }
-            }
+            int item[] = drawList[i];
+            int iSticker = item[0];
+            int iPolyWithinSticker = item[1];
+            int poly[] = stickerInds[iSticker][iPolyWithinSticker];
+            int j;
+            for (j = 0; j < poly.length; ++j)
+                if (twice_triangle_area(verts[poly[j]], verts[poly[(j+1)%poly.length]], thispoint) > 0)
+                    break; // it's CW  (>0 means CW since inverted)
+            if (j == poly.length) // they were all CCW, so we hit this poly
+                return item; // {iSticker, iPolyWithinSticker}
         }
+        return null;
+    }
 
-        //
-        // Render them!
-        //
+
+    public static int pickSticker(float x, float y,
+                                  Frame frame,
+                                  GenericPuzzleDescription puzzleDescription)
+    {
+        int iStickerAndPoly[] = pick(x, y, frame, puzzleDescription);
+        return iStickerAndPoly != null ? iStickerAndPoly[0] : -1;
+    }
+
+    // Pick poly center if it's a 2x2x2x2, sticker center otherwise.
+    public static float[] pickPolyOrStickerCenter(float x, float y,
+                                                  Frame frame,
+                                                  GenericPuzzleDescription puzzleDescription)
+    {
+        int hit[] = pick(x, y, frame, puzzleDescription);
+        if (hit == null)
+            return null;
+        // XXX would really like to map the pick point back to 4d...
+        // XXX for now, map the polygon center back.
+
+        // XXX argh, this is sure overkill here...
+        float verts[][] = new float[puzzleDescription.nVerts()][puzzleDescription.nDims()];
+        puzzleDescription.computeStickerVertsAtRest(verts,
+                                                    1.f,  // faceShrink
+                                                    1.f); // stickerShrink
+        int stickerInds[][][] = puzzleDescription.getStickerInds();
+        // XXX not sure which of the following are better if either-- maybe poly for 2x, sticker otherwise? it's definitely disconcerting when different parts of the sticker do diff things...
+        int sticker[][] = stickerInds[hit[0]];
+        int poly[] = sticker[hit[1]];
+        float polyCenter[] = VecMath.averageIndexed(poly, verts);
+        float stickerCenter[] = VecMath.averageIndexed(sticker, verts);
+        float center[];
+
+        System.out.println("    poly center = "+VecMath.toString(polyCenter));
+        System.out.println("    sticker center = "+VecMath.toString(stickerCenter));
+
+        // XXX total hack-- use poly center if we think it's the 2x2x2x2 puzzle
+        // XXX and the sticker center otherwise.
+
+        boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
+                               && (VecMath.normsqrd(polyCenter) == 1.5
+                                || VecMath.normsqrd(polyCenter) == 2.5);
+        System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
+
+        if (itsProbablyThe2)
+            center = polyCenter;
+        else
+            center = stickerCenter;
+        return center;
+    } // pickPolyOrStickerCenter
+
+    public static int pickGrip(float x, float y,
+                               Frame frame,
+                               GenericPuzzleDescription puzzleDescription)
+    {
+        float polyOrStickerCenter[] = pickPolyOrStickerCenter(x, y, frame, puzzleDescription);
+        if (polyOrStickerCenter == null)
+            return -1;
+        int iGrip = puzzleDescription.getClosestGrip(polyOrStickerCenter);
+        return iGrip;
+    }
+
+    public static float[] pickNicePointToRotateToCenter(float x, float y,
+                                                        Frame frame,
+                                                        GenericPuzzleDescription puzzleDescription)
+    {
+        float polyOrStickerCenter[] = pickPolyOrStickerCenter(x, y, frame, puzzleDescription);
+        if (polyOrStickerCenter == null)
+            return null;
+        float nicePoint[] = puzzleDescription.getClosestNicePointToRotateToCenter(polyOrStickerCenter);
+        return nicePoint;
+    }
+                           
+
+    public static void paintFrame(Frame frame,
+                                  GenericPuzzleDescription puzzleDescription,
+                                  int puzzleState[],
+
+                                  boolean showShadows, // XXX or isShadows?
+                                  Color ground,
+                                  float faceRGB[][],
+                                  boolean highlightByCubie,
+                                  Color outlineColor,
+                                  Graphics g)
+    {
+        if (verboseLevel >= 2) System.out.println("in Glue.paintFrame");
+
+        float verts[][] = frame.verts;
+        int drawListSize = frame.drawListSize;
+        int drawList[][/*2*/] = frame.drawList;
+        float brightnesses[] = frame.brightnesses;
+        int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][] = puzzleDescription.getStickerInds();
+
+        int xs[] = new int[0], // XXX ALLOCATION
+            ys[] = new int[0]; // XXX ALLOCATION
+        Color shadowcolor = ground == null ? Color.black : ground.darker().darker().darker().darker();
+        for (int iItem = 0; iItem < drawListSize; ++iItem)
         {
-            int
-                xs[] = new int[0],
-                ys[] = new int[0];
-            Color shadowcolor = ground == null ? Color.black : ground.darker().darker().darker().darker();
+            int iSticker = drawList[iItem][0];
+            int iPolyThisSticker = drawList[iItem][1];
+            int poly[] = stickerInds[iSticker][iPolyThisSticker];
+            int colorOfSticker = puzzleState[iSticker];
+            float faceRGBThisSticker[] = faceRGB[colorOfSticker % faceRGB.length]; // XXX need to make more colors
 
-            for (int _iSticker = 0; _iSticker < stickerInds.length; ++_iSticker)
+            if (poly.length > xs.length)
             {
-                int iSticker = stickerIndIndsBackToFront[_iSticker];
-                int thisStickerInds[][] = stickerInds[iSticker];
-                if (thisStickerInds == null)
-                    continue; // front-cell culled
-
-                int colorOfSticker = genericPuzzleState[iSticker];
-                float faceRGBThisSticker[] = faceRGB[colorOfSticker % faceRGB.length]; // XXX need to make more colors
-
-                for (int iPolyThisSticker = 0; iPolyThisSticker < stickerInds[iSticker].length; ++iPolyThisSticker)
-                {
-                    int thisPolyInds[] = thisStickerInds[iPolyThisSticker];
-                    if (thisPolyInds == null)
-                        continue; // back-face culled
-                    if (thisPolyInds.length > xs.length)
-                    {
-                        xs = new int[thisPolyInds.length];
-                        ys = new int[thisPolyInds.length];
-                    }
-                    for (int i = 0; i < thisPolyInds.length; ++i)
-                    {
-                        int thisVertInd = thisPolyInds[i];
-                        xs[i] = (int)verts2d[thisVertInd][0];
-                        ys[i] = (int)verts2d[thisVertInd][1];
-                        //System.out.println(xs[i] + ", " + ys[i]);
-                    }
-                    float brightness = brightnesses[iSticker][iPolyThisSticker];
-                    Color stickercolor = new Color(
-                        brightness*faceRGBThisSticker[0],
-                        brightness*faceRGBThisSticker[1],
-                        brightness*faceRGBThisSticker[2]);
-                    /*
-                    boolean highlight = stickerUnderMouse != null && (highlightByCubie ? partOfCubie(sid) : stickerUnderMouse.id_within_cube == sid);
-                    if(highlight)
-                        stickercolor = stickercolor.brighter().brighter();
-                    */
-                    boolean isShadows = false; // for now
-                    g.setColor(isShadows ? shadowcolor : stickercolor);
-                    g.fillPolygon(xs, ys, thisPolyInds.length);
-                    if(!isShadows && outlineColor != null) {
-                        g.setColor(outlineColor);
-                        // uncomment the following line for an alternate outlining idea -MG
-                        // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
-                        g.drawPolygon(xs, ys, thisPolyInds.length);
-                    }
-                }
+                xs = new int[poly.length]; // XXX ALLOCATION
+                ys = new int[poly.length]; // XXX ALLOCATION
+            }
+            for (int i = 0; i < poly.length; ++i)
+            {
+                float vert[] = verts[poly[i]];
+                xs[i] = (int)vert[0];
+                ys[i] = (int)vert[1];
+                //System.out.println(xs[i] + ", " + ys[i]);
+            }
+            float brightness = brightnesses[iItem];
+            Color stickercolor = new Color(
+                brightness*faceRGBThisSticker[0],
+                brightness*faceRGBThisSticker[1],
+                brightness*faceRGBThisSticker[2]);
+            /*
+            boolean highlight = stickerUnderMouse != null && (highlightByCubie ? partOfCubie(sid) : stickerUnderMouse.id_within_cube == sid);
+            if(highlight)
+                stickercolor = stickercolor.brighter().brighter();
+            */
+            boolean isShadows = false; // for now
+            g.setColor(isShadows ? shadowcolor : stickercolor);
+            g.fillPolygon(xs, ys, poly.length);
+            if(!isShadows && outlineColor != null) {
+                g.setColor(outlineColor);
+                // uncomment the following line for an alternate outlining idea -MG
+                // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
+                g.drawPolygon(xs, ys, poly.length);
             }
         }
 
@@ -546,35 +635,37 @@ public class Glue
         if (false) // body of MC4DSwing.paintFrame, for reference
         {
             // Just declare the variables so it will compile
-            MagicCube.Frame frame = null;
+            MagicCube.Frame mcframe = null;
             MagicCube.Frame shadow_frame = null;
             PuzzleState state = null;
             MagicCube.Stickerspec stickerUnderMouse = null;
             boolean isShadows = false;
             float pixels2polySF = 1.f;
+            int xOff = 0;
+            int yOff = 0;
 
-            int
-                xs[] = new int[4],
-                ys[] = new int[4];
-            Color shadowcolor = ground == null ? Color.black : ground.darker().darker().darker().darker();
-            for (int q = 0; q < frame.nquads; q++) {
+            //int
+            //    xs[] = new int[4],
+            //    ys[] = new int[4];
+            //Color shadowcolor = ground == null ? Color.black : ground.darker().darker().darker().darker();
+            for (int q = 0; q < mcframe.nquads; q++) {
                 for (int i = 0; i < 4; i++) {
-                    int qi = frame.quads[q][i];
-                    xs[i] = (int)(xOff + frame.verts[qi][0]/pixels2polySF + .5);
-                    ys[i] = (int)(yOff + frame.verts[qi][1]/pixels2polySF + .5);
+                    int qi = mcframe.quads[q][i];
+                    xs[i] = (int)(xOff + mcframe.verts[qi][0]/pixels2polySF + .5);
+                    ys[i] = (int)(yOff + mcframe.verts[qi][1]/pixels2polySF + .5);
                     //System.out.println(xs[i] + ", " + ys[i]);
                 }
-                int sid = frame.quadids[q]/6;
+                int sid = mcframe.quadids[q]/6;
                 int cs = state.idToColor(sid);
                 //System.out.println(cs);
-                float b = frame.brightnesses[q];
+                float b = mcframe.brightnesses[q];
                 Color stickercolor = new Color(
                     b*faceRGB[cs][0],
                     b*faceRGB[cs][1],
                     b*faceRGB[cs][2]);
-                boolean highlight = stickerUnderMouse != null && (highlightByCubie ? partOfCubie(sid) : stickerUnderMouse.id_within_cube == sid);
-                if(highlight)
-                    stickercolor = stickercolor.brighter().brighter();
+                //boolean highlight = stickerUnderMouse != null && (highlightByCubie ? partOfCubie(sid) : stickerUnderMouse.id_within_cube == sid);
+                //if(highlight)
+                //    stickercolor = stickercolor.brighter().brighter();
                 g.setColor(isShadows ? shadowcolor : stickercolor);
                 g.fillPolygon(xs, ys, 4);
                 if(!isShadows && outlineColor != null) {
@@ -589,22 +680,15 @@ public class Glue
         if (verboseLevel >= 2) System.out.println("out Glue.paintFrame");
     } // paintFrame
 
-    //
-    // Utilities...
-    //
-        private static void arrayLengthsMatch(int a[][], int b[][])
-        {
-            if (a==null && b==null)
-                return true;
-            if (a==null || b==null)
-                return false;
-            if (a.length != b.length)
-                return false;
-            for (int i = 0; i < a.length; ++i)
-                if ((a==null) != (b==null)
-                 || a!=null && a.length != b.length)
-                    return false;
-            return true;
-        }
+
+
+    private static float tmpTWAf1[] = new float[2], tmpTWAf2[] = new float[2]; // scratch vars
+    private static float twice_triangle_area(float v0[], float v1[], float v2[])
+    {
+        //float tmpTNf1[] = new float[2], tmpTNf2[] = new float[2];
+        Vec_h._VMV2(tmpTWAf1, v1, v0);
+        Vec_h._VMV2(tmpTWAf2, v2, v0);
+        return Vec_h._VXV2(tmpTWAf1, tmpTWAf2);
+    }
 
 } // class Glue

@@ -29,6 +29,7 @@
 
 
     BUGS:
+        - {5}x{4} - it thinks straight edges of the pent prism have order 1, I think they should be 2?
         - why is scale different before I touch the slider??
         - scale doesn't quite match original
         - make it always come up biggest-face-first by default
@@ -47,30 +48,33 @@
 import com.donhatchsw.util.*; // XXX get rid
 
 class PolytopePuzzleDescription implements GenericPuzzleDescription {
-    com.donhatchsw.util.CSG.SPolytope originalPolytope;
-    com.donhatchsw.util.CSG.SPolytope slicedPolytope;
+    private com.donhatchsw.util.CSG.SPolytope originalPolytope;
+    private com.donhatchsw.util.CSG.SPolytope slicedPolytope;
 
-    float _circumRadius;
-    float _inRadius;
+    private float _circumRadius;
+    private float _inRadius;
 
-    float vertsMinusStickerCenters[][];
-    float vertStickerCentersMinusFaceCenters[][];
-    float vertFaceCenters[][];
-    int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
-    int sticker2face[/*nStickers*/];
-    int sticker2faceShadow[/*nStickers*/]; // so we can detect nefariousness
-    int sticker2cubie[/*nStickers*/];
+    private float vertsMinusStickerCenters[][];
+    private float vertStickerCentersMinusFaceCenters[][];
+    private float vertFaceCenters[][];
+    private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
+    private int sticker2face[/*nStickers*/];
+    private int sticker2faceShadow[/*nStickers*/]; // so we can detect nefariousness
+    private int sticker2cubie[/*nStickers*/];
 
-    int gripSymmetryOrders[/*nGrips*/];
-    double gripUsefulMats[/*nGrips*/][/*nDims*/][/*nDims*/]; // weird name
-    double gripSliceNormal[/*nDims*/][/*nDims*/];
-    double gripSliceOffsets[]; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
+    private float gripCentersF[/*nGrips*/][];
+    private int grip2face[/*nGrips*/][];
+    private int gripSymmetryOrders[/*nGrips*/];
+    private double gripUsefulMats[/*nGrips*/][/*nDims*/][/*nDims*/]; // weird name
+    private double gripSliceOffsets[/*nSlices*/]; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
 
-    double stickerCentersD[][];
-    FuzzyPointHashTable stickerCentersHashTable;
+    private float nicePointsToRotateToCenter[][];
 
-     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
-     static private void Assumpt(boolean condition) { if (!condition) throw new Error("Assumption failed"); }
+    private double stickerCentersD[][];
+    private FuzzyPointHashTable stickerCentersHashTable;
+
+    private static void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    private static void Assumpt(boolean condition) { if (!condition) throw new Error("Assumption failed"); }
     
 
     /**
@@ -437,7 +441,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         if (true)
         {
             CSG.Polytope allElements[][] = slicedPolytope.p.getAllElements();
-            CSG.Polytope verts[] = slicedPolytope.p.getAllElements()[0];
             for (int iDim = 0; iDim < allElements.length; ++iDim)
             for (int iElt = 0; iElt < allElements[iDim].length; ++iElt)
                 allElements[iDim][iElt].aux = null;
@@ -585,6 +588,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             this.gripSymmetryOrders = new int[nGrips];
             this.gripUsefulMats = new double[nGrips][nDims][nDims];
+            this.gripCentersF = new float[nGrips][];
+            double gripCenterD[] = new double[nDims];
             int iGrip = 0;
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
@@ -598,6 +603,9 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
                                                 originalPolytope.p, cell, elt,
                                                 gripUsefulMats[iGrip]);
+
+                        com.donhatchsw.util.CSG.cgOfVerts(gripCenterD, elt);
+                        gripCentersF[iGrip] = doubleToFloat(gripCenterD);
                         if (progressWriter != null)
                         {
                             //progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
@@ -611,7 +619,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
             }
             Assert(iGrip == nGrips);
-
 
             /*
             want to know, for each grip:
@@ -630,6 +637,27 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.flush();
             }
         } // nDims == 4
+
+        //
+        // Select points worthy of being rotated to the center (-W axis).
+        //
+        {
+            int nNicePoints = 0;
+            for (int iDim = 0; iDim < originalElements.length; ++iDim)
+                nNicePoints += originalElements[iDim].length;
+            this.nicePointsToRotateToCenter = new float[nNicePoints][nDims];
+            double eltCenter[] = new double[nDims];
+            int iNicePoint = 0;
+            for (int iDim = 0; iDim < originalElements.length; ++iDim)
+            for (int iElt = 0; iElt < originalElements[iDim].length; ++iElt)
+            {
+                com.donhatchsw.util.CSG.cgOfVerts(eltCenter, originalElements[iDim][iElt]);
+                nicePointsToRotateToCenter[iNicePoint++] = doubleToFloat(eltCenter);
+
+            }
+            Assert(iNicePoint == nNicePoints);
+        }
+
 
         if (progressWriter != null)
         {
@@ -701,6 +729,18 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             return slicedPolytope.p.fullDim;
         }
+        public int nVerts()
+        {
+            return vertsMinusStickerCenters.length;
+        }
+        public int nFaces()
+        {
+            return originalPolytope.p.facets.length;
+        }
+        public int nCubies()
+        {
+            return 1; // XXX fix this!
+        }
         public int nStickers()
         {
             return slicedPolytope.p.facets.length;
@@ -718,32 +758,32 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return _inRadius;
         }
 
-        public float[/*nVerts*/][/*nDims*/]
-            getStickerVertsAtRest(float faceShrink,
-                                  float stickerShrink)
+        public void computeStickerVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
+                                              float faceShrink,
+                                              float stickerShrink)
         {
-            float answer[][] = new float[vertsMinusStickerCenters.length][nDims()];
-            for (int i = 0; i < answer.length; ++i)
+            Assert(verts.length == vertsMinusStickerCenters.length);
+            for (int iVert = 0; iVert < verts.length; ++iVert)
             {
-                float faceCenter[] = vertFaceCenters[i];
-                float stickerCenterMinusFaceCenter[] = vertStickerCentersMinusFaceCenters[i];
-                float vertMinusStickerCenter[] = vertsMinusStickerCenters[i];
-                float answeri[] = answer[i];
-                for (int j = 0; j < answeri.length; ++j)
-                    answeri[j] = (vertMinusStickerCenter[j] * stickerShrink
-                                + stickerCenterMinusFaceCenter[j]) * faceShrink
-                                + faceCenter[j];
+                float faceCenter[] = vertFaceCenters[iVert];
+                float stickerCenterMinusFaceCenter[] = vertStickerCentersMinusFaceCenters[iVert];
+                float vertMinusStickerCenter[] = vertsMinusStickerCenters[iVert];
+                float vert[] = verts[iVert];
+                Assert(vert.length == vertMinusStickerCenter.length);
+                for (int j = 0; j < vert.length; ++j)
+                    vert[j] = (vertMinusStickerCenter[j] * stickerShrink
+                             + stickerCenterMinusFaceCenter[j]) * faceShrink
+                             + faceCenter[j];
             }
-            return answer;
         }
         public int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/]
             getStickerInds()
         {
             return stickerInds;
         }
-        public float[/*nVerts*/][/*nDims*/]
-            getGripVertsAtRest(float faceShrink,
-                               float stickerShrink)
+        public void computeGripVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
+                                           float faceShrink,
+                                           float stickerShrink)
         {
             throw new RuntimeException("unimplemented");
         }
@@ -756,6 +796,38 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             getGripSymmetryOrders()
         {
             return gripSymmetryOrders;
+        }
+        public int getClosestGrip(float pickCoords[/*4*/])
+        {
+            int bestIndex = -1;
+            float bestDistSqrd = Float.MAX_VALUE;
+            for (int i = 0; i < gripCentersF.length; ++i)
+            {
+                float thisDistSqrd = VecMath.distsqrd(gripCentersF[i],
+                                                      pickCoords);
+                if (thisDistSqrd < bestDistSqrd)
+                {
+                    bestDistSqrd = thisDistSqrd;
+                    bestIndex = i;
+                }
+            }
+            return bestIndex;
+        }
+        public float[/*nDims*/] getClosestNicePointToRotateToCenter(float pickCoords[])
+        {
+            int bestIndex = -1;
+            float bestDistSqrd = Float.MAX_VALUE;
+            for (int i = 0; i < nicePointsToRotateToCenter.length; ++i)
+            {
+                float thisDistSqrd = VecMath.distsqrd(nicePointsToRotateToCenter[i],
+                                                      pickCoords);
+                if (thisDistSqrd < bestDistSqrd)
+                {
+                    bestDistSqrd = thisDistSqrd;
+                    bestIndex = i;
+                }
+            }
+            return nicePointsToRotateToCenter[bestIndex];
         }
         public float[/*nVerts*/][/*nDims*/]
             getStickerVertsPartiallyTwisted(float faceShrink,
@@ -774,7 +846,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             double matD[][] = getTwistMat(gripIndex, dir, frac);
             float matF[][] = doubleToFloat(matD);
 
-            float restVerts[][] = getStickerVertsAtRest(faceShrink, stickerShrink);
+            float restVerts[][] = new float[nVerts()][nDims()];
+            computeStickerVertsAtRest(restVerts, faceShrink, stickerShrink);
             boolean whichVertsGetMoved[] = new boolean[restVerts.length]; // false initially
             for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
             {

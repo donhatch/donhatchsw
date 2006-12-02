@@ -16,7 +16,6 @@ interface GenericPuzzleDescription {
     public int nCubies();
     public int nStickers();
     public int nGrips();
-    public int nPolygons(); // XXX not sure if this is cool-- maybe different polys for picking than for drawing
     public float circumRadius(); // distance of farthest vertex from origin
     public float inRadius();     // distance of closest face hyperplane to origin
 
@@ -24,9 +23,9 @@ interface GenericPuzzleDescription {
     * Get the vertices of the geometry that gets drawn
     * (or picked when selecting a sticker rather than a grip) at rest.
     */
-    public float[/*nVerts*/][/*nDims*/]
-        calcStickerVertsAtRest(float faceShrink,
-                               float stickerShrink);
+    public void computeStickerVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
+                                          float faceShrink,
+                                          float stickerShrink);
     /**
     * Get the indices (into the vertices returned by getDrawVertsAtRest()
     * or getDrawVertsPartiallyTwisted())
@@ -47,9 +46,9 @@ interface GenericPuzzleDescription {
     * Get the vertices of the geometry to be picked
     * when selecting a grip for twisting.
     */
-    public float[/*nVerts*/][/*nDims*/]
-        getGripVertsAtRest(float faceShrink,
-                           float stickerShrink);
+    public void computeGripVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
+                                       float faceShrink,
+                                       float stickerShrink);
     /**
     * Get the indices (into the vertices returned by getPickVertsAtRest())
     * of the geometry to be picked when selecting a grip for twisting.
@@ -75,6 +74,11 @@ interface GenericPuzzleDescription {
         getGripSymmetryOrders();
 
     /**
+    * XXX floundering here... closest in what sense? normalized vectors on a sphere?
+    */
+    public int getClosestGrip(float pickCoords[/*4*/]);
+
+    /**
     * Get the vertices of the geometry that gets drawn
     * partway through a twist.
     */
@@ -85,6 +89,13 @@ interface GenericPuzzleDescription {
                                         int dir,
                                         float frac,
                                         int slicemask);
+
+    /**
+    * Get a nearby point that would be a nice point to rotate to the center.
+    * Nice points are vertices, edge centers, cell centers, ...
+    * XXX closest in what sense? do we normalize one or the other? should we? would be the consequences?
+    */
+    public float[/*nDims*/] getClosestNicePointToRotateToCenter(float point[]);
 
     /**
     * Get a table mapping sticker index to face index.
