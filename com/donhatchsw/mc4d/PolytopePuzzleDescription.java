@@ -1,5 +1,34 @@
 /*
+    BUGS / URGENT TODOS:
+    ===================
+
+        - needs the sticker2cubie map, using seed fill
+
+        - needs shading
+        - 120-cell seems messed up... can't get orientation right
+          and rotate-to-center seems to rotate it away from center?
+          I think it might have to do with failing to push down
+          the outermost sign in the polytope when it's
+          sign-corrected during creation?
+
+        - 2x2x2x2 gets in a bad state, because there are more grips than stickers??? is it indexing by grip into an array that is supposed to be indexed by sticker??
+        - 2x2x2x2 does corner twists, should do face (I think)
+        - why is scale different before I touch the slider??
+        - scale doesn't quite match original
+        - initial orientation is different-- oh I think the original has tilt and twirl baked in or something
+        - it's not oriented correctly at the end-- so I had to make orientDeep
+          public and have the caller call it-- lame! need to send in all planes at once so it can do that automatically with some hope of being efficient
+        - need more colors!
+
+    AGGRAVATIONS NOT HAVING TO DO WITH THIS GENERIC STUFF
+    =====================================================
+        - fucking twisting after I let up on the mouse sucks! fix it!!!
+        - disallow spin dragging gives me the original orientation-- argh.
+            - but sometimes that's what I want... bleah.
+              need a way to save and restore my "favorite" orientation.
+
     TODO:
+    =====
         SPECIFICATION:
             - initial orientation (using which elts to which axes)
                 - default should be largest face first
@@ -9,40 +38,78 @@
                   (we don't get slice thicknesses reasonable for anything
                   with triangles in it yet)
                   (and we want the 2.5 thing to work on only the pents,
-                   not the squares, of a {5}x{4})
+                   not the squares, of a {5}x{4} and the {5,3}x{})
         MISC:
-            - middle click on any element should bring that sticker's cubie
-                to the center! cool!
-            - figure out the sticker2cubie map, using seed fill
-        NON-IMMEDIATE:
-            - figure out how to do contiguous cubies generically
+            - can't twist while twist is in progress yet
+            - the cool rotate-arbitrary-element-to-center thing
+               should be undoable
+            - better / more versatile/controllable interdependence
+                among the various scale sliders (which things
+                should be constant and which should depend on other things)...
+                then we could nave cool sliders for faceExplode
+                (which is "really" a function of faceShrink and viewScale)
+                    faceExplode = viewScale/faceShrink
+                    stickerExplode = viewScale/(faceShrink*stickerShrink) I think
 
-            - hmm... wireframe around the non-shrunk slicked geometry would be nice!
-                buttons for:
+                When user increases faceExplode,
+                    - viewScale should increase
+                    - faceShrink should decrease.
+                When user increases faceShrink,
+                    - viewScale should stay the same
+                    - faceExplode should decrease
+
+                ARGH!
+                    faceExplode means how much face centers
+                         are scaled from the faces being stuck together
+
+                    viewScale scales both centers and sizes
+                    faceExplode scales centers
+                    faceScale scales sizes
+
+                    I AM SO CONFUSED!
+                    WHY IS THIS COMPLICATED??
+                    maybe viewScale should be something that is just a way
+                    of increasing explode and faceShrink at the same time?
+
+
+        POLYTOPE STUFF:
+        NON-IMMEDIATE:
+            - make it always come up biggest-face-first by default (actually it seems to)
+            - nframes proportional to angle actually kind of sucks...
+                should be proportionally less frames when rot angle is big,
+                otherwise very small rotations get large acceleration
+                which looks lame.  maybe the way to think about it is
+                that slider should control max acceleration? i.e.
+                the acceleration at the start and finish, if we make it
+                a cubic function (or even if we leave it sine, I think)
+            - nframes should ALWAYS be odd!  even means sometimes
+                we get flat faces!
+            - ooh, make more slices proportionally slower, would feel more massive!
+        PIE IN THE SKY:
+            - figure out how to do "contiguous cubies" generically-- is it possible in terms of the others?  probably not... unless I modify the shrink behavior so it always likes up the outer ones?  Hmm, I think this would be a different "shrink mode" that shrinks stickers towards the face boundaries?  YES!  DO IT!
+
+            - hmm... wireframe around the non-shrunk sliced geometry would be nice!
+                In fact, it would be nice to have separate buttons for:
                 - wirefame around unshrunk faces
                 - wireframe around shrunk faces (separate faceShrink for it?)
                 - wireframe around unshrunk stickers (separate stickerShrink for it?)
-                polygon shrink?  all possible wireframes?  okay here's
-                where it goes crazy
+                - wireframe around stickers (that's the current button)
 
+                polygon shrink?
+                several different wireframes at once with different styles?
+                okay I think this is where I went insane last time I was
+                implementing a polytope viewer
             - oh shoot-- {5}x{} will get extra stickers because of the fudge thing-- need to remove them! only a problem for 3d puzzles of even length, I think
-
-
-    BUGS:
-        - {5}x{4} - it thinks straight edges of the pent prism have order 1, I think they should be 2?
-        - why is scale different before I touch the slider??
-        - scale doesn't quite match original
-        - make it always come up biggest-face-first by default
-        - need to get cut depths right
-        - I don't think it's oriented correctly at end-- need to send in all planes at once so it can do that automatically with some hope of being efficient
-    FIXED:
-        - "{5}x{}" 2 says 58 stickers, I think it should be 52? (2*11+5*6)
-        - "{3,3}" anything gives {4,6,4,1} so it's not slicing???
-        - "{3}x{} 3 gives counts  {42,54,36,1} should be {42,81,41,1} I think
-        - "{4,3}" 3  gives counts {32,36,48,1} should be {56,108,54,1}
-        - "{4,3}" 3, even cuts only gives counts {20,24,24,1} should be {26,48,24,1}
-        - "{4,3}" 3, break after 1 gives counts {12,16,10,1} should be {12,20,10,1}
-        - "{4,3}" 3, break after 1 gives counts {16,24,10,1} should be {12,20,10,1}  (failing to do some sharing?)
+            - fade out to black instead of suddenly turning inside out?
+                This would nicely light up the center,
+                And would also help mask the sorting failures
+                on faces that are very close to flat
+            - ha, for the {5}x{4}, it could be fudged so the cubical facets
+                behave like they have full symmetry-- it would allow stickers
+                to slide off of the pentprism face and onto a cube face.
+                In general this will make the symmetry of a twist
+                be dependent on the symmetry of the face,
+                which can be more than the symmetry of the whole puzzle.
 */
 
 import com.donhatchsw.util.*; // XXX get rid
@@ -63,10 +130,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int sticker2cubie[/*nStickers*/];
 
     private float gripCentersF[/*nGrips*/][];
-    private int grip2face[/*nGrips*/][];
+    private int grip2face[/*nGrips*/];
     private int gripSymmetryOrders[/*nGrips*/];
     private double gripUsefulMats[/*nGrips*/][/*nDims*/][/*nDims*/]; // weird name
-    private double gripSliceOffsets[/*nSlices*/]; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
+    private double faceInwardNormals[/*nFaces*/][/*nDims*/];
+    private double faceCutOffsets[/*nFaces*/][/*nCutsThisFace*/]; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
 
     private float nicePointsToRotateToCenter[][];
 
@@ -157,7 +225,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // Figure out the face inward normals and offsets;
         // these will be used for computing where cuts should go.
         //
-        double faceInwardNormals[][] = new double[nFaces][nDims];
+        this.faceInwardNormals = new double[nFaces][nDims];
         double faceOffsets[] = new double[nFaces];
         for (int iFace = 0; iFace < nFaces; ++iFace)
         {
@@ -225,7 +293,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // the corresponding cut offsets will be in increasing order,
         // for sanity.
         //
-        double faceCutOffsets[][] = new double[nFaces][];
+        this.faceCutOffsets = new double[nFaces][];
         {
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
@@ -272,18 +340,25 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 Assert(fullThickness != 0.);
 
-                double sliceThickness = fullThickness / length;
-
                 //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
 
                 boolean isPrismOfThisFace = Math.abs(-1. - faceOffsets[iFace]) < 1e-6;
+                int ceilLength = (int)Math.ceil(length);
+
+                // Fractional lengths are basically a hack for pentagons
+                // so that the middle edge width can be controlled
+                // by the user; we don't want it to apply
+                // to squares though
+                if (isPrismOfThisFace)
+                    length = ceilLength;
+
+                double sliceThickness = fullThickness / length;
 
                 // If even length and *not* a prism of this face,
                 // then the middle-most cuts will meet,
                 // but the slice function can't handle that.
                 // So back off a little so they don't meet,
                 // so we'll get tiny invisible sliver faces there instead.
-                int ceilLength = (int)Math.ceil(length);
                 if (length == ceilLength
                  && ceilLength % 2 == 0
                  && !isPrismOfThisFace)
@@ -589,6 +664,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             this.gripSymmetryOrders = new int[nGrips];
             this.gripUsefulMats = new double[nGrips][nDims][nDims];
             this.gripCentersF = new float[nGrips][];
+            this.grip2face = new int[nGrips];
             double gripCenterD[] = new double[nDims];
             int iGrip = 0;
             for (int iFace = 0; iFace < nFaces; ++iFace)
@@ -605,7 +681,15 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                 gripUsefulMats[iGrip]);
 
                         com.donhatchsw.util.CSG.cgOfVerts(gripCenterD, elt);
+                        // !! We can't use the element center,
+                        // that will end up having the same center
+                        // for different stickers on the same cubie!
+                        // So fudge it a little towards the cell center.
+                        // XXX should try to be more scientific...
+                        VecMath.lerp(gripCenterD, gripCenterD, faceCentersD[iFace], .01);
+
                         gripCentersF[iGrip] = doubleToFloat(gripCenterD);
+                        grip2face[iGrip] = iFace;
                         if (progressWriter != null)
                         {
                             //progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
@@ -711,7 +795,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         private double[][] getTwistMat(int gripIndex, int dir, double frac)
         {
             int order = gripSymmetryOrders[gripIndex];
-            double angle = dir * (2*Math.PI/order);
+            double angle = dir * (2*Math.PI/order) * frac;
             int nDims = slicedPolytope.p.fullDim;
             return VecMath.mxmxm(VecMath.transpose(gripUsefulMats[gripIndex]),
                                  VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle),
@@ -829,13 +913,15 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             return nicePointsToRotateToCenter[bestIndex];
         }
-        public float[/*nVerts*/][/*nDims*/]
-            getStickerVertsPartiallyTwisted(float faceShrink,
+        public void
+            computeStickerVertsPartiallyTwisted(
+                                            float verts[/*nVerts*/][/*nDims*/],
+                                            float faceShrink,
                                             float stickerShrink,
                                             int gripIndex,
                                             int dir,
-                                            float frac,
-                                            int slicemask)
+                                            int slicemask,
+                                            float frac)
         {
             // Note, we purposely go through all the calculation
             // even if dir*frac is 0; we get more consistent timing that way.
@@ -843,16 +929,25 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
             if (gripSymmetryOrders[gripIndex] == 0)
                 throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
+
+            if (slicemask == 0)
+                slicemask = 1; // XXX is this the right place for this? lower and it might be time consuming, higher and too many callers will have to remember to do it
+
             double matD[][] = getTwistMat(gripIndex, dir, frac);
             float matF[][] = doubleToFloat(matD);
 
             float restVerts[][] = new float[nVerts()][nDims()];
             computeStickerVertsAtRest(restVerts, faceShrink, stickerShrink);
             boolean whichVertsGetMoved[] = new boolean[restVerts.length]; // false initially
+            int iFace = grip2face[gripIndex];
+            double thisFaceInwardNormal[] = faceInwardNormals[iFace];
+            double thisFaceCutOffsets[] = faceCutOffsets[iFace];
             for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
             {
-                boolean isInSliceMask = true; // XXX fix
-                if (true) throw new RuntimeException("unimplemented");
+                if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                       slicemask,
+                                       thisFaceInwardNormal,
+                                       thisFaceCutOffsets))
                 {
                     for (int i = 0; i < stickerInds[iSticker].length; ++i)
                     for (int j = 0; j < stickerInds[iSticker][i].length; ++j)
@@ -860,7 +955,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
             }
 
-            float verts[][] = new float[restVerts.length][];
             for (int iVert = 0; iVert < verts.length; ++iVert)
             {
                 if (whichVertsGetMoved[iVert])
@@ -868,7 +962,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 else
                     verts[iVert] = restVerts[iVert];
             }
-            return verts;
         } // getStickerVertsPartiallyTwisted
         public int[/*nStickers*/] getSticker2Face()
         {
@@ -893,14 +986,21 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (state.length != stickerCentersD.length)
                 throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called with wrong size state "+state.length+", expected "+stickerCentersD.length+"!");
 
+            if (slicemask == 0)
+                slicemask = 1; // XXX is this the right place for this? lower and it might be time consuming, higher and too many callers will have to remember to do it
+
             double scratchVert[] = new double[nDims()];
             double matD[][] = getTwistMat(gripIndex, dir, 1.);
             int newState[] = new int[state.length];
+            int iFace = grip2face[gripIndex];
+            double thisFaceInwardNormal[] = faceInwardNormals[iFace];
+            double thisFaceCutOffsets[] = faceCutOffsets[iFace];
             for (int iSticker = 0; iSticker < state.length; ++iSticker)
             {
-                boolean isInSliceMask = true; // XXX fix
-                if (true) throw new RuntimeException("unimplemented");
-                if (isInSliceMask)
+                if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                       slicemask,
+                                       thisFaceInwardNormal,
+                                       thisFaceCutOffsets))
                 {
                     VecMath.vxm(scratchVert, stickerCentersD[iSticker], matD);
                     Integer whereIstickerGoes = (Integer)stickerCentersHashTable.get(scratchVert);
@@ -910,8 +1010,29 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 else
                     newState[iSticker] = state[iSticker];
             }
+            VecMath.copyvec(state, newState);
             return newState;
         } // applyTwistToState
+
+
+        // does NOT do the slicemask 0->1 correction
+        private static boolean pointIsInSliceMask(double point[],
+                                                  int slicemask,
+                                                  double cutNormal[],
+                                                  double cutOffsets[])
+        {
+            // XXX a binary search would work better if num cuts is big.
+            // XXX really only need to check offsets between differing
+            // XXX bits of slicmask.
+            double pointHeight = VecMath.dot(point, cutNormal);
+            int iSlice = 0;
+            while (iSlice < cutOffsets.length
+                && pointHeight > cutOffsets[iSlice])
+                iSlice++;
+            boolean answer = (slicemask & (1<<iSlice)) != 0;
+            return answer;
+        }
+
 
     //
     // END OF GENERICPUZZLEDESCRIPTION INTERFACE METHODS
