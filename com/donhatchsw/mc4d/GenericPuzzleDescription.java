@@ -81,14 +81,17 @@ interface GenericPuzzleDescription {
     /**
     * Get the vertices of the geometry that gets drawn
     * partway through a twist.
+    * Frac is the fraction of the total angle (which is not the same
+    * as the fraction of the total time, if a smoothing function is used).
     */
-    public float[/*nVerts*/][/*nDims*/]
-        getStickerVertsPartiallyTwisted(float faceShrink,
-                                        float stickerShrink,
-                                        int gripIndex,
-                                        int dir,
-                                        float frac,
-                                        int slicemask);
+    public void
+        computeStickerVertsPartiallyTwisted(float verts[/*nVerts*/][/*nDims*/],
+                                            float faceShrink,
+                                            float stickerShrink,
+                                            int gripIndex,
+                                            int dir,
+                                            int slicemask,
+                                            float frac);
 
     /**
     * Get a nearby point that would be a nice point to rotate to the center.
