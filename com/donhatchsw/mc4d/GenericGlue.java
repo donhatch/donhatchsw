@@ -21,12 +21,57 @@ import com.donhatchsw.util.*; // XXX get rid
 
 public class Glue
 {
+    public static int verboseLevel = 0; // set to something else to debug
+
     //
     // State.  Intentionally minimal!
     //
     public GenericPuzzleDescription genericPuzzleDescription = null;
     public int genericPuzzleState[] = null;
-    public static int verboseLevel = 1;
+
+    //
+    // A rotation is currently in progress if iRotation < nRotation.
+    //  (just members that should go elsewhere; nothing in this file uses them)
+    //
+    public int nRotation = 0; // total number of rotation frames in progress
+    public int iRotation = 0; // number of frames done so far
+     public double rotationFrom[]; // where rotation is rotating from, in 4space
+     public double rotationTo[]; // where rotation is rotating to, in 4space
+
+    //
+    // A twist is currently in progress if iTwist < nTwist.
+    //  (just members that should go elsewhere; nothing in this file uses them)
+    //
+    public int nTwist = 0; // total number of twist frames in progress
+    public int iTwist = 0; // number of twist frames done so far
+     public int iTwistGrip;     // of twist in progress, if any
+     public int twistDir;      // of twist in progress, if any
+     public int twistSliceMask; // of twist in progress, if any
+     public int twistIsUndo; // of twist in progress, if any-- when finished, don't put on undo stack
+    //
+    // A cheat is in progress if cheating == true.
+    //
+    public boolean cheating;
+
+
+    //
+    // Rudimentaty undo queue.
+    //
+    public static class HistoryNode
+    {
+        public int iGrip;
+        public int dir;
+        public int slicemask;
+        public HistoryNode(int iGrip, int dir, int slicemask)
+        {
+            this.iGrip = iGrip;
+            this.dir = dir;
+            this.slicemask = slicemask;
+        }
+    }
+    java.util.Vector undoq = new java.util.Vector(); // of HistoryNode
+    int undoPartSize = 0; // undoq has undo part followed by redo part
+
 
 
     /**
@@ -45,7 +90,7 @@ public class Glue
         // with arbitrary values.
         public float verts[][/*4*/]; // x,y,z,w, not just x,y! see above
 
-        int drawListSize;
+        public int drawListSize;
         public int drawList[][/*2*/]; // a pair i,j refers to the polygon stickerInds[i][j] in puzzle description
         public float brightnesses[]; // map from drawList index to brightness
 
@@ -81,6 +126,11 @@ public class Glue
     {
         return genericPuzzleDescription != null;
     }
+    public boolean isAnimating()
+    {
+        return iRotation < nRotation
+             || iTwist < nTwist;
+    }
 
     // Call this from MC4DSwing ctor right after all
     // the other menu items are added
@@ -100,7 +150,8 @@ public class Glue
 
         // Selecting any of the previously existing menu items
         // should have the side effect of setting
-        // genericPuzzleDescription to null.
+        // genericPuzzleDescription to null-- that's the indicator
+        // that the glue overlay mechanism is no longer active.
         for (int i = 0; i < puzzlemenu.getItemCount(); ++i)
         {
             puzzlemenu.getItem(i).addActionListener(new ActionListener() {
@@ -114,18 +165,24 @@ public class Glue
         }
 
         String table[][] = {
-            {"{3,3,3}",  "1,1.9,2,3,4,5,6,7",     "Simplex"},
+            {"{3,3,3}",  "1,1.9,2,3,4,5,6,7", "Simplex"},
             {"{3}x{4}",  "1,2,3,4,5,6,7",     "Triangular Prism Prism"},
             {"{4,3,3}",  "1,2,3,4,5,6,7,8,9", "Hypercube"},
-            {"{5}x{4}",  "1,2,2.5,3,4,5,6,7",     "Pentagonal Prism Prism"},
-            {"{4}x{5}",  "1,2,2.5,3,4,5,6,7",     "Pentagonal Prism Prism (alt)"},
-            {"{6}x{4}",  "1,2,2.5,3,4,5,6,7",     "Hexagonal Prism Prism"},
+            {"{5}x{4}",  "1,2,2.5,3,4,5,6,7", "Pentagonal Prism Prism"},
+            {"{4}x{5}",  "1,2,2.5,3,4,5,6,7", "Pentagonal Prism Prism (alt)"},
+            {"{6}x{4}",  "1,2,2.5,3,4,5,6,7", "Hexagonal Prism Prism"},
+            {"{7}x{4}",  "1,2,2.5,3,4,5,6,7", "True HEPAgonal Prism Prism"},
+            {"{8}x{4}",  "1,2,2.5,3,4,5,6,7", "Octagonal Prism Prism"},
+            {"{8}x{4}",  "1,2,2.5,3,4,5,6,7", "Nonagonal Prism Prism"},
+            {"{10}x{4}", "1,2,2.5,3,4,5,6,7", "Decagonal Prism Prism"},
+            {"{100}x{4}","1,3",               "Onehundredagonal Prism Prism"},
             {"{3}x{3}",  "1,2,3,4,5,6,7",     ""},
             {"{3}x{5}",  "1,2,3,4,5,6,7",     ""},
-            {"{5}x{5}",  "1,2,3,4,5,6,7",     ""},
+            {"{5}x{5}",  "1,2,3,4,5,6,7",     ""}, // XXX 2 is ugly, has slivers
+            {"{10}x{10}",  "1,3",             ""}, // XXX 2 is ugly, has slivers
             {"{3,3}x{}", "1,2,3,4,5,6,7",     "Tetrahedral Prism"},
-            {"{5,3}x{}", "1,2,2.5,3,4,5,6,7",     "Dodecahedral Prism"},
-            {"{}x{5,3}", "1,2,2.5,3,4,5,6,7",     "Dodecahedral Prism (alt)"},
+            {"{5,3}x{}", "1,2,2.5,3,4,5,6,7", "Dodecahedral Prism"},
+            {"{}x{5,3}", "1,2,2.5,3,4,5,6,7", "Dodecahedral Prism (alt)"},
             {"{5,3,3}",  "1,2,3",             "Hypermegaminx (BIG!)"},
             {null,       "0", "Invent my own!"},
         };
@@ -157,6 +214,8 @@ public class Glue
                         {
                             genericPuzzleDescription = new PolytopePuzzleDescription(schlafli, len, progressWriter);
                             genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+                            undoq.setSize(0);
+                            undoPartSize = 0;
                             PropertyManager.userprefs.setProperty("genericSchlafli", schlafli);
                             PropertyManager.userprefs.setProperty("genericLength", ""+len);
                             initPuzzleCallback.call(); // apparently necessary in order for repaint to happen
@@ -166,10 +225,6 @@ public class Glue
                         {
                             System.out.println("Sorry, you can't invent your own yet!");
                         }
-                        // XXX need to make the MC4DView disable its usual
-                        // XXX listeners! maybe remove them and save them
-                        // XXX so we can restore them later!  Otherwise
-                        // XXX it keeps saying "missed!"
                     }
                 });
                 // XXX add a "pick my own"!
@@ -188,6 +243,11 @@ public class Glue
 
                                     float faceShrink,
                                     float stickerShrink,
+
+                                    int iGripOfTwist,    // -1 if not twisting
+                                    int twistDir,               
+                                    int twistSliceMask,
+                                    float fracIntoTwist,
 
                                     float rot4d[/*4*/][/*4 or 5*/],
                                     float eyeW,
@@ -245,10 +305,19 @@ public class Glue
         //
         // Get the 4d verts from the puzzle description
         //
-        puzzleDescription.computeStickerVertsAtRest(verts,
-                                                    faceShrink,
-                                                    stickerShrink);
-
+        if (iGripOfTwist == -1)
+            puzzleDescription.computeStickerVertsAtRest(verts,
+                                                        faceShrink,
+                                                        stickerShrink);
+        else
+            puzzleDescription.computeStickerVertsPartiallyTwisted(
+                                                        verts,
+                                                        faceShrink,
+                                                        stickerShrink,
+                                                        iGripOfTwist,
+                                                        twistDir,
+                                                        twistSliceMask,
+                                                        fracIntoTwist);
         //
         // Rotate/scale in 4d
         //
@@ -381,8 +450,8 @@ public class Glue
                 int i0i1[] = drawList[i];
                 int poly[] = stickerInds[i0i1[0]][i0i1[1]];
                 float v0[] = verts[poly[0]];
-                float v1[] = verts[poly[2]];
-                float v2[] = verts[poly[3]];
+                float v1[] = verts[poly[1]];
+                float v2[] = verts[poly[2]];
                 Vec_h._VMV2(mat[0], v1, v0); // 2 out of 4
                 Vec_h._VMV2(mat[1], v2, v0); // 2 out of 4
                 float area = VecMath.vxv2(mat[0], mat[1]);
@@ -526,8 +595,8 @@ public class Glue
         float stickerCenter[] = VecMath.averageIndexed(sticker, verts);
         float center[];
 
-        System.out.println("    poly center = "+VecMath.toString(polyCenter));
-        System.out.println("    sticker center = "+VecMath.toString(stickerCenter));
+        //System.out.println("    poly center = "+VecMath.toString(polyCenter));
+        //System.out.println("    sticker center = "+VecMath.toString(stickerCenter));
 
         // XXX total hack-- use poly center if we think it's the 2x2x2x2 puzzle
         // XXX and the sticker center otherwise.
@@ -535,7 +604,7 @@ public class Glue
         boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
                                && (VecMath.normsqrd(polyCenter) == 1.5
                                 || VecMath.normsqrd(polyCenter) == 2.5);
-        System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
+        if (verboseLevel >= 1) System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
 
         if (itsProbablyThe2)
             center = polyCenter;
