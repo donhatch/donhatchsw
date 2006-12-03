@@ -1,8 +1,38 @@
 /*
+    RELNOTES:
+    =========
+        This version has the following enhancements:
+            - Lots of new puzzle types available from the Puzzle menu.
+              These are called "generic puzzles" and they are a work
+              in progress.
+        Generic puzzles have the following limitations currently:
+            - no save/load (menus are probably misleading)
+            - no real solve
+            - no macros (menus are probably misleading)
+            - can't twist (or undo or redo)
+               while a twist or cheat is in progress
+               (which means you can't double-click to do a move twice)
+            - only 8 colors still, even when more than 8 faces
+            - exceptions everywhere if you try to do unimplemented stuff
+        And the following enhancements:
+            - you can rotate any *cubie* of the length-3 puzzle
+              to the center with the middle mouse (not just hyperface centers).
+
+        Maybe:
+            - contiguous cubies not implemented (even if gui says otherwise)
+            - shadows not implemented (even if gui says otherwise)
+            - sticker highlighting not implemented
+            - highlight by cubie not implemented (even if gui says otherwise)
+
     BUGS / URGENT TODOS:
     ===================
 
+        - separate out GenericPipelineUtils
+
+
         - needs the sticker2cubie map, using seed fill
+        - implement scramble (easy)
+        - redo not working? (should be easy)
 
         - needs shading
         - 120-cell seems messed up... can't get orientation right
@@ -10,6 +40,13 @@
           I think it might have to do with failing to push down
           the outermost sign in the polytope when it's
           sign-corrected during creation?
+
+        - {5}x{5} 2 has sliver polygons-- I think the isPrismOfThisFace
+          hack isn't adequate.  Also it doesnt work for {5}x{} (but that's 3d).
+          I think I need to remove the slivers after the fact instead.
+          OH hmm... the slivers are kinda cool because they are
+          rotation handles!  Think about this... maybe draw them smaller
+          and white, or something!
 
         - 2x2x2x2 gets in a bad state, because there are more grips than stickers??? is it indexing by grip into an array that is supposed to be indexed by sticker??
         - 2x2x2x2 does corner twists, should do face (I think)
@@ -20,18 +57,68 @@
           public and have the caller call it-- lame! need to send in all planes at once so it can do that automatically with some hope of being efficient
         - need more colors!
 
-    AGGRAVATIONS NOT HAVING TO DO WITH THIS GENERIC STUFF
+    ISSUES:
+    =======
+        - Possible rot-element-to-center behaviors,
+          from least to most restrictive
+            - don't do it
+            - only do it if enabled via checkbox or esoteric modifier combo
+            - only do it on stickers that are already on the center face,
+              or if there is no center face; 
+              if there is a center face, clicking anywhere on a diff face
+              just centers that face, you have to click a non-center
+              sticker on that face again once the face is in the center
+              to focus it
+            - do it everywhere-- on one hand this is nice and clean
+              and powerful, but on the other hand sometimes it's
+              hard to click on the face-center sticker which is
+              what is most often wanted
+        - Contiguous cubies.  I would like to do the following:
+            1. Get rid of the "Contiguous Cubies" checkbox;
+               there will be no magical half-broken
+               slider-following-other-slider state any more.
+            2. Replace it with either:
+                  a) a selector:
+                   Stickers Shrink Towards: [Sticker Centers / Face Boundaries]
+               or b) a "Stickers shrink towards face boundaries" checkbox
+               Then Contiguous Cubies can be obtained
+               by turning on "Stickers shrink towards face boundaries"
+               and setting "Face Shrink" to 1, and sliding stickerShrink
+               up and down.
+            3. (Optional): There could be a Button (NOT a checkbox)
+               called Contiguous Cubies that:
+                   turns on "Stickers shrink towards face boundaries" if
+                   not already on, and sets "Face Shrink" to 1.
+               I think we can do without it though; it's easy enough
+               to do by hand.
+            4. Once the above is done, there will be no reason
+               to let them go above 1 on either faceshrink or stickershrink
+               any more, so both of those sliders's maxes can be set to 1.
+            5. (Optional) Actually "Shrink towards face boundaries"
+               doesn't need to be boolean, it can be a slider value
+               between 0 and 1.
+
+
+    NOT HAVING TO DO WITH THIS GENERIC STUFF:
     =====================================================
         - fucking twisting after I let up on the mouse sucks! fix it!!!
+        - fucking gui lies... not acceptable.
         - disallow spin dragging gives me the original orientation-- argh.
             - but sometimes that's what I want... bleah.
               need a way to save and restore my "favorite" orientation.
+        - hey, I think clicking on a sticker shouldn't kill spin dragging--
+            only clicking on boundary should stop it.
+            that way can solve while it's spinning!  fun drinking game!
+            ooh and make it speed up and slow down and tumble randomly
+            while you are trying to solve it!
 
     TODO:
     =====
         SPECIFICATION:
             - initial orientation (using which elts to which axes)
                 - default should be largest face first
+                  (this is especially important for the {5}x{5},
+                  which doesn't even come up face first otherwise!)
             - be able to specify slice thicknesses,
                   orthogonal to puzzle length spec,
                   and allow different for different faces
@@ -40,40 +127,17 @@
                   (and we want the 2.5 thing to work on only the pents,
                    not the squares, of a {5}x{4} and the {5,3}x{})
         MISC:
-            - can't twist while twist is in progress yet
+            - can't twist while twist is in progress yet-- sucks for usability
             - the cool rotate-arbitrary-element-to-center thing
                should be undoable
-            - better / more versatile/controllable interdependence
-                among the various scale sliders (which things
-                should be constant and which should depend on other things)...
-                then we could nave cool sliders for faceExplode
-                (which is "really" a function of faceShrink and viewScale)
-                    faceExplode = viewScale/faceShrink
-                    stickerExplode = viewScale/(faceShrink*stickerShrink) I think
-
-                When user increases faceExplode,
-                    - viewScale should increase
-                    - faceShrink should decrease.
-                When user increases faceShrink,
-                    - viewScale should stay the same
-                    - faceExplode should decrease
-
-                ARGH!
-                    faceExplode means how much face centers
-                         are scaled from the faces being stuck together
-
-                    viewScale scales both centers and sizes
-                    faceExplode scales centers
-                    faceScale scales sizes
-
-                    I AM SO CONFUSED!
-                    WHY IS THIS COMPLICATED??
-                    maybe viewScale should be something that is just a way
-                    of increasing explode and faceShrink at the same time?
-
+            - faceExplode / stickerExplode sliders?
+               I'm really confused on what the relationship is
+               between those and viewScale, faceShrink, stickerShrink
 
         POLYTOPE STUFF:
+
         NON-IMMEDIATE:
+            - 3 level cascading menus for {3..12}x{3..12}?
             - make it always come up biggest-face-first by default (actually it seems to)
             - nframes proportional to angle actually kind of sucks...
                 should be proportionally less frames when rot angle is big,
@@ -99,7 +163,6 @@
                 several different wireframes at once with different styles?
                 okay I think this is where I went insane last time I was
                 implementing a polytope viewer
-            - oh shoot-- {5}x{} will get extra stickers because of the fudge thing-- need to remove them! only a problem for 3d puzzles of even length, I think
             - fade out to black instead of suddenly turning inside out?
                 This would nicely light up the center,
                 And would also help mask the sorting failures
@@ -270,7 +333,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         CSG.Polytope faceToOppositeFace[] = new CSG.Polytope[nFaces];
         {
-            FuzzyPointHashTable table = new FuzzyPointHashTable(1e-11, 1e-9, 1./512);
+            FuzzyPointHashTable table = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
             for (int iFace = 0; iFace < nFaces; ++iFace)
                 table.put(faceInwardNormals[iFace], originalFaces[iFace]);
             double oppositeNormalScratch[] = new double[nDims];
@@ -346,6 +409,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int ceilLength = (int)Math.ceil(length);
 
                 // Fractional lengths are basically a hack for pentagons
+                // and higher gons
                 // so that the middle edge width can be controlled
                 // by the user; we don't want it to apply
                 // to squares though
@@ -490,7 +554,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 com.donhatchsw.util.CSG.cgOfVerts(faceCentersD[iFace], originalFaces[iFace]);
         }
         this.stickerCentersD = new double[nStickers][nDims];
-        this.stickerCentersHashTable = new FuzzyPointHashTable(1e-11, 1e-9, 1./512);
+        this.stickerCentersHashTable = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
