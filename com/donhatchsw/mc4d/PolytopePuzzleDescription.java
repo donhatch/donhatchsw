@@ -131,6 +131,7 @@
             - faceExplode / stickerExplode sliders?
                I'm really confused on what the relationship is
                between those and viewScale, faceShrink, stickerShrink
+            - history compression
 
         POLYTOPE STUFF:
 
@@ -147,6 +148,8 @@
             - nframes should ALWAYS be odd!  even means sometimes
                 we get flat faces!
             - ooh, make more slices proportionally slower, would feel more massive!
+            - completely general solve?
+
         PIE IN THE SKY:
             - figure out how to do "contiguous cubies" generically-- is it possible in terms of the others?  probably not... unless I modify the shrink behavior so it always likes up the outer ones?  Hmm, I think this would be a different "shrink mode" that shrinks stickers towards the face boundaries?  YES!  DO IT!
 
