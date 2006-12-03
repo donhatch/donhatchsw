@@ -19,6 +19,7 @@
               to the center with the middle mouse (not just hyperface centers).
 
         Maybe:
+            - no scramble
             - contiguous cubies not implemented (even if gui says otherwise)
             - shadows not implemented (even if gui says otherwise)
             - sticker highlighting not implemented
@@ -26,9 +27,6 @@
 
     BUGS / URGENT TODOS:
     ===================
-
-        - separate out GenericPipelineUtils
-
 
         - needs the sticker2cubie map, using seed fill
         - implement scramble (easy)
