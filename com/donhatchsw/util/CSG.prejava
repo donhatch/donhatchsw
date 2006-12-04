@@ -997,7 +997,9 @@ public final class CSG
 
         /**
         * Makes a regular (n/d)-gon of edge length 2, centered at the origin,
-        * with a face pointing in the +X axis direction.
+        * with a face pointing in the -Y axis direction.
+        * (That makes it so that, when used as the right-hand-side
+        * of a product, the result will appear face-first if -W means "first").
         */
         public static SPolytope makeRegularPolygon(int n, int d)
         {
@@ -1005,7 +1007,7 @@ public final class CSG
             double R = 1./Math.sin(Math.PI*d/n); // circumradius
             FORI (i, n)
             {
-                double ang = 2*Math.PI*d/n*(i+.5); // so a face points in the x axis dir
+                double ang = -Math.PI*.5 + 2*Math.PI*d/n*(i+.5); // so a face points in the -Y axis dir
                 verts[i][0] = R * Math.cos(ang);
                 verts[i][1] = R * Math.sin(ang);
             }
