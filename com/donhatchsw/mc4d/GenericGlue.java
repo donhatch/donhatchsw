@@ -51,6 +51,11 @@ public class GenericGlue
     //
     public boolean cheating;
 
+    //
+    // The sticker and cubie that the mouse is currently hovering over.
+    //
+    public int iStickerUnderMouse = -1;
+
 
     //
     // Rudimentaty undo queue.
@@ -81,13 +86,16 @@ public class GenericGlue
     {
         super();
         if (verboseLevel >= 1) System.out.println("in GenericGlue ctor");
-        if (true) // whether to do this on start
+        if (true) // whether to do this on start?
         {
-            genericPuzzleDescription = new PolytopePuzzleDescription(initialSchlafli, initialLength,
-                                               new java.io.PrintWriter(
-                                               new java.io.BufferedWriter(
-                                               new java.io.OutputStreamWriter(
-                                               System.err))));
+            java.io.PrintWriter progressWriter = new java.io.PrintWriter(
+                                                 new java.io.BufferedWriter(
+                                                 new java.io.OutputStreamWriter(
+                                                 System.err)));
+            genericPuzzleDescription = new PolytopePuzzleDescription(
+                initialSchlafli,
+                initialLength,
+                progressWriter);
             genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
         }
         if (verboseLevel >= 1) System.out.println("out GenericGlue ctor");
@@ -100,7 +108,7 @@ public class GenericGlue
     public boolean isAnimating()
     {
         return iRotation < nRotation
-             || iTwist < nTwist;
+            || iTwist < nTwist;
     }
 
     // Call this from MC4DSwing ctor right after all

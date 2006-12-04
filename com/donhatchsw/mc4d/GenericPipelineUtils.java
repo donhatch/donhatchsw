@@ -6,37 +6,42 @@
 * This is a replacement for much of what PolygonManager did
 * in the old implementation; however this class has NO STATE
 * and is non-instantiatable, because state in something
-* so generic and vague as a "polygon manager" is confusing and impossible
+* so vaguely named as a "polygon manager" is confusing and impossible
 * to remember and DRIVES ME NUTS!
 *
 * However, there is a utility subclass called a Frame,
 * which does hold state-- it is essentially a drawlist
 * of 2d polygons, which is used by the three
 * primary functions in this file:
-*    computeFrame - computes a Frame from the puzzle description
-*                    and viewing parameters
+*    computeFrame - computes an animation (or rest) Frame
+*                   from the puzzle description and viewing parameters
 *    paintFrame - draws the Frame
 *    pick       - picks what is at a given point in the Frame
 */
 
 // XXX blindly using same imports as MC4DSwing
+// XXX these are the imports from MC4DSwing, with the ones we don't need commented out
 import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
-import java.util.Enumeration;
-import java.util.Stack;
+//import java.awt.event.*;
+//import java.io.*;
+//import java.util.Enumeration;
+//import java.util.Stack;
 
-import javax.swing.*;
-import javax.swing.border.*;
-import javax.swing.filechooser.FileSystemView;
+//import javax.swing.*;
+//import javax.swing.border.*;
+//import javax.swing.filechooser.FileSystemView;
 
-import com.donhatchsw.util.*; // XXX get rid
+import com.donhatchsw.util.VecMath;
 
 public class GenericPipelineUtils
 {
     private GenericPipelineUtils() {} // non-instantiatable
 
-    public static int verboseLevel = 0; // set to something else to debug
+    public static int verboseLevel = 2; // set to something else to debug
+        // 0: nothing
+        // 1: print on picks
+        // 2: and on computes and paints
+        // 3: and dump arrays at each step
 
     /**
      * Geometry data for an animation frame.
@@ -99,7 +104,7 @@ public class GenericPipelineUtils
                                     
                                     float unitTowardsSunVec[/*3*/])
     {
-        if (verboseLevel >= 2) System.out.println("in Glue.computeFrame");
+        if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.computeFrame");
 
         int nDims = puzzleDescription.nDims();
         Assert(nDims == 4);
@@ -181,7 +186,7 @@ public class GenericPipelineUtils
                 VecMath.copyvec(verts[iVert], temp);
             }
         }
-        if (verboseLevel >= 3) System.out.println("    after 4d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after 4d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Clip to the 4d eye's front clipping plane
@@ -189,7 +194,7 @@ public class GenericPipelineUtils
         {
             // XXX DO ME?
         }
-        //if (verboseLevel >= 3) System.out.println("    after 4d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        //if (verboseLevel >= 3) System.out.println("        after 4d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Project down to 3d
@@ -204,7 +209,7 @@ public class GenericPipelineUtils
                 verts[i][3] = w; // keep this for future reference
             }
         }
-        if (verboseLevel >= 3) System.out.println("    after 4d->3d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after 4d->3d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Front-cell cull
@@ -232,14 +237,14 @@ public class GenericPipelineUtils
             }
             drawListSize = nBackFacing;
         }
-        if (verboseLevel >= 3) System.out.println("    after front-cell cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after front-cell cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Rotate/scale in 3d
         // XXX could try to only do this on vertices that passed the culls
         //
         {
-            if (verboseLevel >= 3) System.out.println("rot3d = "+com.donhatchsw.util.VecMath.toString(rot3d));
+            if (verboseLevel >= 3) System.out.println("rot3d = "+com.donhatchsw.util.Arrays.toStringCompact(rot3d));
             float tempIn[] = new float[3]; // XXX MEMORY ALLOCATION
             float tempOut[] = new float[3]; // XXX MEMORY ALLOCATION
             for (int iVert = 0; iVert < verts.length; ++iVert)
@@ -251,7 +256,7 @@ public class GenericPipelineUtils
                     verts[iVert][i] = tempOut[i];
             }
         }
-        if (verboseLevel >= 3) System.out.println("    after 3d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after 3d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Compute brightnesses.
@@ -302,7 +307,7 @@ public class GenericPipelineUtils
         {
             // XXX DO ME?
         }
-        //if (verboseLevel >= 3) System.out.println("    after 3d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        //if (verboseLevel >= 3) System.out.println("        after 3d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
 
         //
@@ -319,7 +324,7 @@ public class GenericPipelineUtils
                 verts[i][2] = z; // keep this for future reference
             }
         }
-        if (verboseLevel >= 3) System.out.println("    after 3d->2d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after 3d->2d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Back-face cull
@@ -342,14 +347,14 @@ public class GenericPipelineUtils
             }
             drawListSize = nFrontFacing;
         }
-        if (verboseLevel >= 3) System.out.println("    after back-face cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after back-face cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Rotate/scale in 2d
         // XXX could try to only do this on vertices that passed both culls
         //
         {
-            if (verboseLevel >= 3) System.out.println("rot2d = "+com.donhatchsw.util.VecMath.toString(rot2d));
+            if (verboseLevel >= 3) System.out.println("rot2d = "+com.donhatchsw.util.Arrays.toStringCompact(rot2d));
             float tempIn[] = new float[2]; // XXX MEMORY ALLOCATION
             float tempOut[] = new float[2]; // XXX MEMORY ALLOCATION
             for (int iVert = 0; iVert < verts.length; ++iVert)
@@ -361,7 +366,7 @@ public class GenericPipelineUtils
                     verts[iVert][i] = tempOut[i];
             }
         }
-        if (verboseLevel >= 3) System.out.println("    after 2d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after 2d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
 
         //
@@ -388,7 +393,7 @@ public class GenericPipelineUtils
             }
 
             final float finalPolyCentersZ[][] = polyCentersZ;
-            SortStuff.sortRange(drawList, 0, drawListSize-1, new SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
+            com.donhatchsw.util.SortStuff.sortRange(drawList, 0, drawListSize-1, new com.donhatchsw.util.SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
                 public int compare(Object i, Object j)
                 {
                     int[] i0i1 = (int[])i;
@@ -401,11 +406,11 @@ public class GenericPipelineUtils
                 }
             });
         }
-        if (verboseLevel >= 3) System.out.println("    after z-sort: stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
+        if (verboseLevel >= 3) System.out.println("        after z-sort: stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
 
         frame.drawListSize = drawListSize;
 
-        if (verboseLevel >= 2) System.out.println("out Glue.computeFrame");
+        if (verboseLevel >= 2) System.out.println("    out GenericPipelineUtils.computeFrame");
     } // computeFrame
 
     /**
@@ -418,12 +423,14 @@ public class GenericPipelineUtils
                              Frame frame,
                              GenericPuzzleDescription puzzleDescription)
     {
+        if (verboseLevel >= 1) System.out.println("    in GenericPipelineUtils.pick");
         float thispoint[] = {x, y};
         // From front to back, returning the first hit
         float verts[][] = frame.verts;
         int drawList[][] = frame.drawList;
         int stickerInds[][][] = puzzleDescription.getStickerInds();
-        for (int i = frame.drawListSize-1; i >= 0; --i)
+        int pickedItem[] = null;
+        for (int i = frame.drawListSize-1; i >= 0; --i) // front to back
         {
             int item[] = drawList[i];
             int iSticker = item[0];
@@ -434,9 +441,13 @@ public class GenericPipelineUtils
                 if (twice_triangle_area(verts[poly[j]], verts[poly[(j+1)%poly.length]], thispoint) > 0)
                     break; // it's CW  (>0 means CW since inverted)
             if (j == poly.length) // they were all CCW, so we hit this poly
-                return item; // {iSticker, iPolyWithinSticker}
+            {
+                pickedItem = item; // = {iSticker, iPolyWithinSticker}
+                break;
+            }
         }
-        return null;
+        if (verboseLevel >= 1) System.out.println("    out GenericPipelineUtils.pick, returning "+(pickedItem==null?"null":("{iSticker="+pickedItem[0]+",iPolyWithinSticker="+pickedItem[1]+"}")));
+        return pickedItem;
     }
 
     public static int pickSticker(float x, float y,
@@ -471,8 +482,8 @@ public class GenericPipelineUtils
         float stickerCenter[] = VecMath.averageIndexed(sticker, verts);
         float center[];
 
-        //System.out.println("    poly center = "+VecMath.toString(polyCenter));
-        //System.out.println("    sticker center = "+VecMath.toString(stickerCenter));
+        //System.out.println("        poly center = "+VecMath.toString(polyCenter));
+        //System.out.println("        sticker center = "+VecMath.toString(stickerCenter));
 
         // XXX total hack-- use poly center if we think it's the 2x2x2x2 puzzle
         // XXX and the sticker center otherwise.
@@ -516,20 +527,25 @@ public class GenericPipelineUtils
                                   GenericPuzzleDescription puzzleDescription,
                                   int puzzleState[],
 
-                                  boolean showShadows, // XXX or isShadows?
+                                  boolean showShadows, // XXX or isShadows? haven't decided whether this should get called again for shadows or if we should do both here
                                   Color ground,
                                   float faceRGB[][],
+                                  int iStickerUnderMouse,
                                   boolean highlightByCubie,
                                   Color outlineColor,
                                   Graphics g)
     {
-        if (verboseLevel >= 2) System.out.println("in Glue.paintFrame");
+        if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.paintFrame");
+        if (verboseLevel >= 2) System.out.println("        iStickerUnderMouse = "+iStickerUnderMouse);
+
 
         float verts[][] = frame.verts;
         int drawListSize = frame.drawListSize;
         int drawList[][/*2*/] = frame.drawList;
         float brightnesses[][] = frame.brightnesses;
         int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][] = puzzleDescription.getStickerInds();
+        int sticker2cubie[] = puzzleDescription.getSticker2Cubie();
+        int iCubieUnderMouse = (iStickerUnderMouse==-1 ? -1 : sticker2cubie[iStickerUnderMouse]);
 
         int xs[] = new int[0], // XXX ALLOCATION
             ys[] = new int[0]; // XXX ALLOCATION
@@ -559,11 +575,11 @@ public class GenericPipelineUtils
                 brightness*faceRGBThisSticker[0],
                 brightness*faceRGBThisSticker[1],
                 brightness*faceRGBThisSticker[2]);
-            /*
-            boolean highlight = stickerUnderMouse != null && (highlightByCubie ? partOfCubie(sid) : stickerUnderMouse.id_within_cube == sid);
+            boolean highlight = highlightByCubie ? sticker2cubie[iSticker]==iCubieUnderMouse
+                                                 : iSticker==iStickerUnderMouse;
             if(highlight)
                 stickercolor = stickercolor.brighter().brighter();
-            */
+
             boolean isShadows = false; // for now
             g.setColor(isShadows ? shadowcolor : stickercolor);
             g.fillPolygon(xs, ys, poly.length);
@@ -575,54 +591,7 @@ public class GenericPipelineUtils
             }
         }
 
-
-
-        if (false) // body of MC4DSwing.paintFrame, for reference
-        {
-            // Just declare the variables so it will compile
-            MagicCube.Frame mcframe = null;
-            MagicCube.Frame shadow_frame = null;
-            PuzzleState state = null;
-            MagicCube.Stickerspec stickerUnderMouse = null;
-            boolean isShadows = false;
-            float pixels2polySF = 1.f;
-            int xOff = 0;
-            int yOff = 0;
-
-            //int
-            //    xs[] = new int[4],
-            //    ys[] = new int[4];
-            //Color shadowcolor = ground == null ? Color.black : ground.darker().darker().darker().darker();
-            for (int q = 0; q < mcframe.nquads; q++) {
-                for (int i = 0; i < 4; i++) {
-                    int qi = mcframe.quads[q][i];
-                    xs[i] = (int)(xOff + mcframe.verts[qi][0]/pixels2polySF + .5);
-                    ys[i] = (int)(yOff + mcframe.verts[qi][1]/pixels2polySF + .5);
-                    //System.out.println(xs[i] + ", " + ys[i]);
-                }
-                int sid = mcframe.quadids[q]/6;
-                int cs = state.idToColor(sid);
-                //System.out.println(cs);
-                float b = mcframe.brightnesses[q];
-                Color stickercolor = new Color(
-                    b*faceRGB[cs][0],
-                    b*faceRGB[cs][1],
-                    b*faceRGB[cs][2]);
-                //boolean highlight = stickerUnderMouse != null && (highlightByCubie ? partOfCubie(sid) : stickerUnderMouse.id_within_cube == sid);
-                //if(highlight)
-                //    stickercolor = stickercolor.brighter().brighter();
-                g.setColor(isShadows ? shadowcolor : stickercolor);
-                g.fillPolygon(xs, ys, 4);
-                if(!isShadows && outlineColor != null) {
-                    g.setColor(outlineColor);
-                    // uncomment the following line for an alternate outlining idea -MG
-                    // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
-                    g.drawPolygon(xs, ys, 4);
-                }
-            }
-        }
-
-        if (verboseLevel >= 2) System.out.println("out Glue.paintFrame");
+        if (verboseLevel >= 2) System.out.println("    out GenericPipelineUtils.paintFrame");
     } // paintFrame
 
 
