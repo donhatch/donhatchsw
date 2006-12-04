@@ -13,6 +13,11 @@
                while a twist or cheat is in progress
                (which means you can't double-click to do a move twice)
             - only 8 colors still, even when more than 8 faces
+            - some of the even-length puzzles have spurious extra
+              very thin stickers at the halfway planes
+            - trying to make a puzzle based on triangles
+               (e.g. simplex, triangular prism)
+               will probably produce something ugly at this point, if anything
             - exceptions everywhere if you try to do unimplemented stuff
         And the following enhancements:
             - you can rotate any *cubie* of the length-3 puzzle
@@ -134,6 +139,9 @@
             - history compression
 
         POLYTOPE STUFF:
+            - getAllIncidences would be faster
+              if I did it in two passes, counting first and then filling,
+              instead of using a gzillion Vectors one for each element
 
         NON-IMMEDIATE:
             - 3 level cascading menus for {3..12}x{3..12}?
@@ -488,7 +496,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
                         faceInwardNormals[iFace],
                         faceCutOffsets[iFace][iCut]);
-                    slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, null);
+                    Object auxOfCut = null; // we don't set any aux on the cut for now
+                    slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, auxOfCut);
                     if (progressWriter != null)
                     {
                         progressWriter.print("."); // one dot per cut
@@ -537,8 +546,39 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         this.sticker2cubie = new int[nStickers];
         {
+            com.donhatchsw.util.MergeFind mf = new com.donhatchsw.util.MergeFind(nStickers);
+            // The 4d case:
+            //     for each polygon in the sliced puzzle
+            //         if it's part of an original polygon (not a cut)
+            //             merge the two incident stickers
+
+            CSG.Polytope slicedRidges[] = slicedPolytope.p.getAllElements()[nDims-2];
+            int allSlicedIncidences[][][][] = slicedPolytope.p.getAllIncidences();
+            for (int iSlicedRidge = 0; iSlicedRidge < slicedRidges.length; ++iSlicedRidge)
+            {
+                CSG.Polytope ridge = slicedRidges[iSlicedRidge];
+                boolean ridgeIsFromOriginal = (ridge.aux != null);
+                if (ridgeIsFromOriginal) // if it's not a cut
+                {
+                    // Find the two stickers that meet at this ridge...
+                    int indsOfStickersContainingThisRidge[] = allSlicedIncidences[nDims-2][iSlicedRidge][nDims-1];
+                    Assert(indsOfStickersContainingThisRidge.length == 2);
+                    int iSticker0 = indsOfStickersContainingThisRidge[0];
+                    int iSticker1 = indsOfStickersContainingThisRidge[1];
+                    mf.merge(iSticker0, iSticker1);
+                }
+            }
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                sticker2cubie[iSticker] = iSticker; // XXX FIX THIS! need to do a seed fill or something, stopping at slice boundaries but not at original boundaries
+                sticker2cubie[iSticker] = mf.find(iSticker);
+
+            if (progressWriter != null)
+            {
+                int nCubies = 0;
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                    if (sticker2cubie[iSticker] == iSticker)
+                        nCubies++;
+                progressWriter.println("    There seem to be "+nCubies+" accessible cubie(s).");
+            }
         }
 
 
