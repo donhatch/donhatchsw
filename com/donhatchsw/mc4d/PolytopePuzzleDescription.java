@@ -526,7 +526,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         }
 
-       int nStickers = slicedPolytope.p.facets.length;
+        CSG.Polytope stickers[] = slicedPolytope.p.getAllElements()[nDims-1];
+        int nStickers = stickers.length;
 
         //
         // Figure out the mapping from sticker to face.
@@ -534,7 +535,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         this.sticker2face = new int[nStickers];
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                sticker2face[iSticker] = ((Integer)slicedPolytope.p.facets[iSticker].p.aux).intValue();
+                sticker2face[iSticker] = ((Integer)stickers[iSticker].aux).intValue();
         }
         this.sticker2faceShadow = VecMath.copyvec(sticker2face);
 
@@ -599,7 +600,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
-                com.donhatchsw.util.CSG.cgOfVerts(stickerCentersD[iSticker], slicedPolytope.p.facets[iSticker].p);
+                com.donhatchsw.util.CSG.cgOfVerts(stickerCentersD[iSticker], stickers[iSticker]);
                 stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
             }
         }
@@ -654,7 +655,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             com.donhatchsw.util.Poly stickerPolys[] = new com.donhatchsw.util.Poly[nStickers];
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
-                stickerPolys[iSticker] = com.donhatchsw.util.PolyCSG.PolyFromPolytope(slicedPolytope.p.facets[iSticker].p);
+                stickerPolys[iSticker] = com.donhatchsw.util.PolyCSG.PolyFromPolytope(stickers[iSticker]);
                 // So it gets grouped when we concatenate...
                 stickerPolys[iSticker].inds = new int[][][][] {(int[][][])stickerPolys[iSticker].inds};
             }
@@ -760,7 +761,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
 
             int nGrips = 0;
-            for (int iFace = 0; iFace < originalPolytope.p.facets.length; ++iFace)
+            for (int iFace = 0; iFace < nFaces; ++iFace)
             {
                 com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalFaces[iFace].getAllElements();
                 for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
