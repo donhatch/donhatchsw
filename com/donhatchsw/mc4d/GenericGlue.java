@@ -327,8 +327,8 @@ public class GenericGlue
                         undoq.setSize(0);
                         undoPartSize = 0;
 
-                        PropertyManager.userprefs.setProperty("genericSchlafli", schlafli);
-                        PropertyManager.userprefs.setProperty("genericLength", ""+len);
+                        // PropertyManager.userprefs.setProperty("genericSchlafli", schlafli); // XXX not yet
+                        // PropertyManager.userprefs.setProperty("genericLength", ""+len); // XXX not yet
                         initPuzzleCallback.call(); // really just want a repaint I think
                         String statuslabel = name + "  length="+lengthString;
                         statusLabel.setText(statuslabel); // XXX BUG - hey, it's not set right on program startup!
@@ -339,7 +339,6 @@ public class GenericGlue
         }
         if (verboseLevel >= 1) System.out.println("out GenericGlue.addMoreItemsToPuzzleMenu");
     } // addMoreItemsToPuzzleMenu
-
 
 
     public void undoAction(Canvas view, JLabel statusLabel, float twistFactor)
@@ -579,7 +578,8 @@ public class GenericGlue
                     return;
                 }
 
-                int dir = (isLeftMouseButton(e) || isMiddleMouseButton(e)) ? MagicCube.CCW : MagicCube.CW;
+              int dir = (isLeftMouseButton(e) || isMiddleMouseButton(e)) ? MagicCube.CCW : MagicCube.CW;
+
                 //if(e.isShiftDown()) // experimental control to allow double twists but also requires speed control.
                 //    dir *= 2;
 
@@ -643,6 +643,7 @@ public class GenericGlue
         int xOff,
         int yOff,
 
+        float towardsSunVec[], // used by compute part if showShadows is true
         boolean showShadows, // used by both compute and paint parts
 
         // All the rest are for paint the paint part only
@@ -753,7 +754,7 @@ public class GenericGlue
             new float[][]{{scaleFudge2d*scale/pixels2polySF, 0},
                           {0, -scaleFudge2d*scale/pixels2polySF},
                           {(float)xOff, (float)yOff}},
-            com.donhatchsw.util.VecMath.normalize(MagicCube.SUNVEC),
+            com.donhatchsw.util.VecMath.normalize(towardsSunVec),
             groundNormal,
             groundOffset);
 

@@ -6,11 +6,6 @@
               These are called "generic puzzles" and they are a work
               in progress.
         Generic puzzles have the following limitations currently:
-            - no save/load (menus are probably misleading)
-            - no real solve
-            - scramble only affects outer or 2nd slices (you'll
-              only notice this if your puzzle length is >= 6)
-            - no macros (menus are probably misleading)
             - can't twist (or undo or redo)
                while a twist or cheat is in progress
                (which means you can't double-click to do a move twice)
@@ -20,45 +15,19 @@
             - trying to make a puzzle based on triangles
                (e.g. simplex, triangular prism)
                will probably produce something ugly at this point, if anything
-            - exceptions everywhere if you try to do unimplemented stuff
             - sometimes the highlighted sticker fails to get updated correctly
               at the end of a twist (jiggle the mouse to fix it)
+            - no save/load (menus are probably misleading)
+            - no real solve
+            - scramble only affects outer or 2nd slices (you'll
+              only notice this if your puzzle length is >= 6)
+            - no macros (menus are probably misleading)
+            - contiguous cubies not implemented (even if gui says otherwise)
+            - exceptions everywhere if you try to do unimplemented stuff
         And the following enhancements:
             - you can rotate any *cubie* of the length-3 puzzle
-              to the center with the middle mouse (not just hyperface centers).
-
-        Maybe:
-            - initial orientation! and get a nice one for the {5}x{4}
-            - contiguous cubies not implemented (even if gui says otherwise)
-            - shadows not implemented (even if gui says otherwise)
-
-    BUGS / URGENT TODOS:
-    ===================
-
-        - get initial orientation working
-        - bleah, dodecahedron is not face first! (noticable in {}x{5,3})
-
-        - 120-cell seems messed up... can't get orientation right
-          and rotate-to-center seems to rotate it away from center?
-          I think it might have to do with failing to push down
-          the outermost sign in the polytope when it's
-          sign-corrected during creation?
-
-        - {5}x{5} 2 has sliver polygons-- I think the isPrismOfThisFace
-          hack isn't adequate.  Also it doesnt work for {5}x{} (but that's 3d).
-          I think I need to remove the slivers after the fact instead.
-          OH hmm... the slivers are kinda cool because they are
-          rotation handles!  Think about this... maybe draw them smaller
-          and white, or something!
-
-        - 2x2x2x2 gets in a bad state, because there are more grips than stickers??? is it indexing by grip into an array that is supposed to be indexed by sticker??
-        - 2x2x2x2 does corner twists, should do face (I think)
-        - why is scale different before I touch the slider??
-        - scale doesn't quite match original
-        - initial orientation is different-- oh I think the original has tilt and twirl baked in or something
-        - it's not oriented correctly at the end-- so I had to make orientDeep
-          public and have the caller call it-- lame! need to send in all planes at once so it can do that automatically with some hope of being efficient
-        - need more colors!
+              to the center with the middle mouse
+              (not just hyperface centers to the center).
 
     ISSUES:
     =======
@@ -107,6 +76,26 @@
               I was expecting 3d sticker shrink which preserves 3d shape,
               but instead the program does 4d sticker shrink which
               regularizes the 3d shape as it gets smaller).
+
+    BUGS / URGENT TODOS:
+    ===================
+
+        - bleah, dodecahedron is not face first! (noticable in {}x{5,3})
+
+        - {5}x{5} 2 has sliver polygons-- I think the isPrismOfThisFace
+          hack isn't adequate.  Also it doesnt work for {5}x{} (but that's 3d).
+          I think I need to remove the slivers after the fact instead.
+          OH hmm... the slivers are kinda cool because they are
+          rotation handles!  Think about this... maybe draw them smaller
+          and white, or something!
+
+        - 2x2x2x2 does corner twists, should do face (I think)
+        - why is scale different before I touch the slider??
+        - scale doesn't quite match original
+        - it's not oriented correctly at the end-- so I had to make orientDeep
+          public and have the caller call it-- lame! need to send in all planes at once so it can do that automatically with some hope of being efficient
+        - need more colors!
+
 
 
     NOT HAVING TO DO WITH THIS GENERIC STUFF:
