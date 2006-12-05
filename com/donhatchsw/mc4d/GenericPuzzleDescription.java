@@ -112,6 +112,18 @@ interface GenericPuzzleDescription {
     public int[/*nStickers*/] getSticker2Cubie();
 
     /**
+    * Get a table mapping face to opposite face (if any).
+    */
+    public int[/*nFaces*/] getFace2OppositeFace();
+
+    /**
+    * Get a table mapping grip index to face index.
+    */
+    public int[/*nStickers*/] getGrip2Face();
+
+
+
+    /**
     * Apply a move to an array of colors (face indices)
     * representing the current puzzle state.
     */
