@@ -37,9 +37,9 @@ public class GenericPipelineUtils
 {
     private GenericPipelineUtils() {} // non-instantiatable
 
-    public static int verboseLevel = 2; // set to something else to debug
+    public static int verboseLevel = 0; // set to something else to debug
         // 0: nothing
-        // 1: print on picks
+        // 1: print on picks // XXX argh, that's OBNOXIOUS now that picks happen on hover
         // 2: and on computes and paints
         // 3: and dump arrays at each step
 
@@ -62,8 +62,10 @@ public class GenericPipelineUtils
         // in the original puzzle description.
 
         public float verts[][/*4*/]; // x,y,z,w, not just x,y! see above
+        public float shadowVerts[][/*3*/];
 
         public int drawListSize;
+        public int shadowDrawListSize;
         public int drawList[][/*2*/];
         public float brightnesses[/*nStickers*/][/*nPolysThisSticker*/];
 
@@ -102,7 +104,9 @@ public class GenericPipelineUtils
                                     float eyeZ,
                                     float rot2d[/*2*/][/*2 or 3*/],
                                     
-                                    float unitTowardsSunVec[/*3*/])
+                                    float unitTowardsSunVec[/*3*/],
+                                    float groundNormal[/*3*/], // null if no shadows
+                                    float groundOffset)
     {
         if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.computeFrame");
 
@@ -143,11 +147,20 @@ public class GenericPipelineUtils
             if (frame.drawList == null
              || frame.drawList.length != nPolys)
                 frame.drawList = new int[nPolys][/*2*/];
+            if (groundNormal != null)
+            {
+                if (frame.shadowVerts == null
+                 || frame.shadowVerts.length != nVerts
+                 || nVerts>0 && frame.shadowVerts[0].length != nDims)
+                    frame.shadowVerts = new float[nVerts][nDims-1];
+            }
         }
 
         float verts[][] = frame.verts;
+        float shadowVerts[][] = frame.shadowVerts;
         int drawList[][] = frame.drawList;
         int drawListSize = 0; // we'll set frame.drawListSize to this at end
+        int shadowDrawListSize = 0; // we'll set frame.shadowDrawListSize to this at end
 
         //
         // There should be no memory allocations from here down.
@@ -174,10 +187,10 @@ public class GenericPipelineUtils
         // Rotate/scale in 4d
         //
         {
-            // Make it so circumradius is 4.
+            // Make it so circumradius is 6.
             // XXX I have no basis for this except that empirically it makes
             // XXX the 3^4 hypercube match what the puzzle usually does
-            float scale4d = 4.f/puzzleDescription.circumRadius();
+            float scale4d = 6.f/puzzleDescription.circumRadius();
             float rotScale4d[][] = VecMath.mxs(rot4d, scale4d); // XXX MEMORY ALLOCATION
             float temp[] = new float[4]; // XXX MEMORY ALLOCATION
             for (int iVert = 0; iVert < verts.length; ++iVert)
@@ -236,6 +249,7 @@ public class GenericPipelineUtils
                 }
             }
             drawListSize = nBackFacing;
+            shadowDrawListSize = groundNormal != null ? nBackFacing : 0;
         }
         if (verboseLevel >= 3) System.out.println("        after front-cell cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
@@ -251,12 +265,49 @@ public class GenericPipelineUtils
             {
                 for (int i = 0; i < 3; ++i) // 3 out of 4
                     tempIn[i] = verts[iVert][i];
-                VecMath.vxm(tempOut, tempIn, rot3d); // only first 3... however rot3d can be 3x3 or 4x3
+                VecMath.vxm(tempOut, tempIn, rot3d); // only first 3... however the matrix can be 3x3 or 4x3
                 for (int i = 0; i < 3; ++i) // 3 out of 4
                     verts[iVert][i] = tempOut[i];
             }
         }
         if (verboseLevel >= 3) System.out.println("        after 3d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+
+        //
+        // If doing shadows,
+        // project the shadows onto the ground plane.
+        // Note, towardsSunVec doesn't really need to be normalized for this.
+        //
+        if (groundNormal != null)
+        {
+            // XXX explain this magic!
+            float column[/*4*/][/*1*/] = {
+                {-groundNormal[0]},
+                {-groundNormal[1]},
+                {-groundNormal[2]},
+                {groundOffset},
+            };
+            float row[/*1*/][/*3*/] = {unitTowardsSunVec};
+            float shadowMat[/*4*/][/*3*/] = VecMath.mxm(column, row);
+            VecMath.mxs(shadowMat, shadowMat, 1.f/VecMath.dot(groundNormal, unitTowardsSunVec));
+            for (int i = 0; i < 3; ++i)
+                shadowMat[i][i] += 1.f;
+            float tempIn[] = new float[3]; // XXX MEMORY ALLOCATION
+            float tempOut[] = new float[3]; // XXX MEMORY ALLOCATION
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+            {
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    tempIn[i] = verts[iVert][i];
+                VecMath.vxm(tempOut, tempIn, shadowMat); // only first 3... however the matrix can be 3x3 or 4x3
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    shadowVerts[iVert][i] = tempOut[i];
+            }
+
+            if (verboseLevel >= 2) System.out.println("        after 3d shadow projection: verts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(verts[0]));
+            if (verboseLevel >= 2) System.out.println("        after 3d shadow projection: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
+            if (verboseLevel >= 3) System.out.println("        after 3d shadow projection: shadowVerts = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts));
+        }
+
+
 
         //
         // Compute brightnesses.
@@ -287,18 +338,13 @@ public class GenericPipelineUtils
                 float brightness = VecMath.dot(triangleNormal, unitTowardsSunVec);
                 if (brightness < 0)
                     brightness = 0;
+
+                if (false) // hard code to true to make it all max intensity
+                    brightness = 1.f;
+
                 frame.brightnesses[i0i1[0]][i0i1[1]] = brightness;
                 //System.out.println("brightness = "+brightness);
             }
-        }
-
-
-        //
-        // If doing shadows,
-        // project the shadows onto the ground plane
-        //
-        {
-            // XXX DO ME
         }
 
         //
@@ -324,12 +370,36 @@ public class GenericPipelineUtils
                 verts[i][2] = z; // keep this for future reference
             }
         }
+        // XXX the following is dup code, lame
+        if (groundNormal != null)
+        {
+            for (int i = 0; i < shadowVerts.length; ++i)
+            {
+                float z = eyeZ - shadowVerts[i][2];
+                float invZ = 1.f/z;
+                for (int j = 0; j < 2; ++j)
+                    shadowVerts[i][j] *= invZ;
+                shadowVerts[i][2] = z; // keep this for future reference
+            }
+        }
+
         if (verboseLevel >= 3) System.out.println("        after 3d->2d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 2) System.out.println("        after 3d->3d project: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
 
         //
         // Back-face cull
         //
+        boolean doBackfaceCull = true;
+        if (doBackfaceCull)
         {
+            // XXX ARGH! Need to NOT back-face cull the shadows!
+            // XXX for now, just keep track of the culled polygons
+            // XXX and put them back at the end, between
+            // XXX drawListSize and shadowDrawListSize.
+            int shadowExtraDrawList[][] = new int[drawListSize][]; // XXX MEMORY ALLOCATION
+            int nBackFacing = 0;
+
+
             float mat[][] = new float[2][2]; // XXX ALLOCATION
             int nFrontFacing = 0;
             for (int i = 0; i < drawListSize; ++i)
@@ -342,12 +412,22 @@ public class GenericPipelineUtils
                 Vec_h._VMV2(mat[0], v1, v0); // 2 out of 4
                 Vec_h._VMV2(mat[1], v2, v0); // 2 out of 4
                 float area = VecMath.vxv2(mat[0], mat[1]);
-                if (area > 0.f) // only retain *front*-facing polygons
+                if (area > 0.f) // retain *front* facing polygons-- not we haven't inverted Y yet so this test looks as expected
                     drawList[nFrontFacing++] = i0i1;
+                else
+                    shadowExtraDrawList[nBackFacing++] = i0i1;
             }
             drawListSize = nFrontFacing;
+
+            if (groundNormal != null)
+            {
+                // Put the culled ones back at the end, for shadows later
+                for (int i = 0; i < nBackFacing; ++i)
+                    drawList[drawListSize+i] = shadowExtraDrawList[i];
+                shadowDrawListSize = nFrontFacing+nBackFacing;
+            }
         }
-        if (verboseLevel >= 3) System.out.println("        after back-face cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after back-face cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(drawList));
 
         //
         // Rotate/scale in 2d
@@ -366,6 +446,22 @@ public class GenericPipelineUtils
                     verts[iVert][i] = tempOut[i];
             }
         }
+        // XXX the following is dup code, lame
+        if (groundNormal != null)
+        {
+            if (verboseLevel >= 3) System.out.println("rot2d = "+com.donhatchsw.util.Arrays.toStringCompact(rot2d));
+            float tempIn[] = new float[2]; // XXX MEMORY ALLOCATION
+            float tempOut[] = new float[2]; // XXX MEMORY ALLOCATION
+            for (int iVert = 0; iVert < shadowVerts.length; ++iVert)
+            {
+                for (int i = 0; i < 2; ++i) // 2 out of 4
+                    tempIn[i] = shadowVerts[iVert][i];
+                VecMath.vxm(tempOut, tempIn, rot2d); // only first 2... however rot2d can be 2x2 or 3x2
+                for (int i = 0; i < 2; ++i) // 2 out of 4
+                    shadowVerts[iVert][i] = tempOut[i];
+            }
+        }
+
         if (verboseLevel >= 3) System.out.println("        after 2d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
 
@@ -409,6 +505,7 @@ public class GenericPipelineUtils
         if (verboseLevel >= 3) System.out.println("        after z-sort: stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
 
         frame.drawListSize = drawListSize;
+        frame.shadowDrawListSize = groundNormal!=null ? shadowDrawListSize : 0;
 
         if (verboseLevel >= 2) System.out.println("    out GenericPipelineUtils.computeFrame");
     } // computeFrame
@@ -523,6 +620,10 @@ public class GenericPipelineUtils
     }
 
 
+    // XXX figure out where to put this, if anywhere
+    private static java.util.Random jitterGenerator = new java.util.Random();
+    private static int jitterRadius = 0; // haha, for debugging, but cool effect, should publicize it
+
     public static void paintFrame(Frame frame,
                                   GenericPuzzleDescription puzzleDescription,
                                   int puzzleState[],
@@ -538,56 +639,67 @@ public class GenericPipelineUtils
         if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.paintFrame");
         if (verboseLevel >= 2) System.out.println("        iStickerUnderMouse = "+iStickerUnderMouse);
 
-
-        float verts[][] = frame.verts;
-        int drawListSize = frame.drawListSize;
         int drawList[][/*2*/] = frame.drawList;
         float brightnesses[][] = frame.brightnesses;
         int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][] = puzzleDescription.getStickerInds();
         int sticker2cubie[] = puzzleDescription.getSticker2Cubie();
-        int iCubieUnderMouse = (iStickerUnderMouse==-1 ? -1 : sticker2cubie[iStickerUnderMouse]);
+        // Note, the range check protects against wild values of iStickerUnderMouse
+        // (e.g. if left over from a previous larger puzzle).
+        int iCubieUnderMouse = (iStickerUnderMouse < 0
+                             || iStickerUnderMouse >= sticker2cubie.length) ? -1 : sticker2cubie[iStickerUnderMouse];
 
         int xs[] = new int[0], // XXX ALLOCATION
             ys[] = new int[0]; // XXX ALLOCATION
         Color shadowcolor = ground == null ? Color.black : ground.darker().darker().darker().darker();
-        for (int iItem = 0; iItem < drawListSize; ++iItem)
+        for (int iPass = 0; iPass < 2; ++iPass)
         {
-            int iSticker = drawList[iItem][0];
-            int iPolyThisSticker = drawList[iItem][1];
-            int poly[] = stickerInds[iSticker][iPolyThisSticker];
-            float brightness = brightnesses[iSticker][iPolyThisSticker];
-            int colorOfSticker = puzzleState[iSticker];
-            float faceRGBThisSticker[] = faceRGB[colorOfSticker % faceRGB.length]; // XXX need to make more colors
-
-            if (poly.length > xs.length)
+            boolean isShadows = iPass == 0;
+            float verts[][] = isShadows ? frame.shadowVerts : frame.verts;
+            int drawListSize = isShadows ? frame.shadowDrawListSize : frame.drawListSize;
+            //System.out.println("isShadows="+isShadows);
+            //System.out.println("drawListSize="+drawListSize);
+            for (int iItem = 0; iItem < drawListSize; ++iItem)
             {
-                xs = new int[poly.length]; // XXX ALLOCATION
-                ys = new int[poly.length]; // XXX ALLOCATION
-            }
-            for (int i = 0; i < poly.length; ++i)
-            {
-                float vert[] = verts[poly[i]];
-                xs[i] = (int)vert[0];
-                ys[i] = (int)vert[1];
-                //System.out.println(xs[i] + ", " + ys[i]);
-            }
-            Color stickercolor = new Color(
-                brightness*faceRGBThisSticker[0],
-                brightness*faceRGBThisSticker[1],
-                brightness*faceRGBThisSticker[2]);
-            boolean highlight = highlightByCubie ? sticker2cubie[iSticker]==iCubieUnderMouse
-                                                 : iSticker==iStickerUnderMouse;
-            if(highlight)
-                stickercolor = stickercolor.brighter().brighter();
+                int iSticker = drawList[iItem][0];
+                int iPolyThisSticker = drawList[iItem][1];
+                int poly[] = stickerInds[iSticker][iPolyThisSticker];
+                float brightness = brightnesses[iSticker][iPolyThisSticker];
+                int colorOfSticker = puzzleState[iSticker];
+                float faceRGBThisSticker[] = faceRGB[colorOfSticker % faceRGB.length]; // XXX need to make more colors
 
-            boolean isShadows = false; // for now
-            g.setColor(isShadows ? shadowcolor : stickercolor);
-            g.fillPolygon(xs, ys, poly.length);
-            if(!isShadows && outlineColor != null) {
-                g.setColor(outlineColor);
-                // uncomment the following line for an alternate outlining idea -MG
-                // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
-                g.drawPolygon(xs, ys, poly.length);
+                if (poly.length > xs.length)
+                {
+                    xs = new int[poly.length]; // XXX ALLOCATION
+                    ys = new int[poly.length]; // XXX ALLOCATION
+                }
+                for (int i = 0; i < poly.length; ++i)
+                {
+                    float vert[] = verts[poly[i]];
+                    xs[i] = (int)vert[0];
+                    ys[i] = (int)vert[1];
+                    if (jitterRadius > 0)
+                    {
+                        xs[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
+                        ys[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
+                    }
+                }
+                Color stickercolor = new Color(
+                    brightness*faceRGBThisSticker[0],
+                    brightness*faceRGBThisSticker[1],
+                    brightness*faceRGBThisSticker[2]);
+                boolean highlight = highlightByCubie ? sticker2cubie[iSticker]==iCubieUnderMouse
+                                                     : iSticker==iStickerUnderMouse;
+                if(highlight)
+                    stickercolor = stickercolor.brighter().brighter();
+
+                g.setColor(isShadows ? shadowcolor : stickercolor);
+                g.fillPolygon(xs, ys, poly.length);
+                if(!isShadows && outlineColor != null) {
+                    g.setColor(outlineColor);
+                    // uncomment the following line for an alternate outlining idea -MG
+                    // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
+                    g.drawPolygon(xs, ys, poly.length);
+                }
             }
         }
 
