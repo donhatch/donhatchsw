@@ -8,6 +8,8 @@
         Generic puzzles have the following limitations currently:
             - no save/load (menus are probably misleading)
             - no real solve
+            - scramble only affects outer or 2nd slices (you'll
+              only notice this if your puzzle length is >= 6)
             - no macros (menus are probably misleading)
             - can't twist (or undo or redo)
                while a twist or cheat is in progress
@@ -19,25 +21,23 @@
                (e.g. simplex, triangular prism)
                will probably produce something ugly at this point, if anything
             - exceptions everywhere if you try to do unimplemented stuff
+            - sometimes the highlighted sticker fails to get updated correctly
+              at the end of a twist (jiggle the mouse to fix it)
         And the following enhancements:
             - you can rotate any *cubie* of the length-3 puzzle
               to the center with the middle mouse (not just hyperface centers).
 
         Maybe:
-            - no scramble
+            - initial orientation! and get a nice one for the {5}x{4}
             - contiguous cubies not implemented (even if gui says otherwise)
             - shadows not implemented (even if gui says otherwise)
-            - sticker highlighting not implemented
-            - highlight by cubie not implemented (even if gui says otherwise)
 
     BUGS / URGENT TODOS:
     ===================
 
-        - needs the sticker2cubie map, using seed fill
-        - implement scramble (easy)
-        - redo not working? (should be easy)
+        - get initial orientation working
+        - bleah, dodecahedron is not face first! (noticable in {}x{5,3})
 
-        - needs shading
         - 120-cell seems messed up... can't get orientation right
           and rotate-to-center seems to rotate it away from center?
           I think it might have to do with failing to push down
@@ -62,20 +62,6 @@
 
     ISSUES:
     =======
-        - Possible rot-element-to-center behaviors,
-          from least to most restrictive
-            - don't do it
-            - only do it if enabled via checkbox or esoteric modifier combo
-            - only do it on stickers that are already on the center face,
-              or if there is no center face; 
-              if there is a center face, clicking anywhere on a diff face
-              just centers that face, you have to click a non-center
-              sticker on that face again once the face is in the center
-              to focus it
-            - do it everywhere-- on one hand this is nice and clean
-              and powerful, but on the other hand sometimes it's
-              hard to click on the face-center sticker which is
-              what is most often wanted
         - Contiguous cubies.  I would like to do the following:
             1. Get rid of the "Contiguous Cubies" checkbox;
                there will be no magical half-broken
@@ -100,6 +86,27 @@
             5. (Optional) Actually "Shrink towards face boundaries"
                doesn't need to be boolean, it can be a slider value
                between 0 and 1.
+        - Possible rot-element-to-center behaviors,
+          from least to most restrictive
+            - don't do it
+            - only do it if enabled via checkbox or esoteric modifier combo
+            - only do it on stickers that are already on the center face,
+              or if there is no center face; 
+              if there is a center face, clicking anywhere on a diff face
+              just centers that face, you have to click a non-center
+              sticker on that face again once the face is in the center
+              to focus it
+            - do it everywhere-- on one hand this is nice and clean
+              and powerful, but on the other hand sometimes it's
+              hard to click on the face-center sticker which is
+              what is most often wanted
+        - It would be nice to have "face shrink 4d", "sticker shrink 4d",
+              "face shrink 3d", "sticker shrink 3d".  The 4d and 4d versions
+              do qualitatively different things (I was surprised when
+              I first say the 120-cell, until I realized this--
+              I was expecting 3d sticker shrink which preserves 3d shape,
+              but instead the program does 4d sticker shrink which
+              regularizes the 3d shape as it gets smaller).
 
 
     NOT HAVING TO DO WITH THIS GENERIC STUFF:
@@ -114,14 +121,14 @@
             that way can solve while it's spinning!  fun drinking game!
             ooh and make it speed up and slow down and tumble randomly
             while you are trying to solve it!
+        - just noticed, Esc doesn't work to cancel immediately, have to click
+            at least one thing first
 
     TODO:
     =====
         SPECIFICATION:
-            - initial orientation (using which elts to which axes)
-                - default should be largest face first
-                  (this is especially important for the {5}x{5},
-                  which doesn't even come up face first otherwise!)
+            - be able to specify initial orientation
+                  (using which elts to which axes)
             - be able to specify slice thicknesses,
                   orthogonal to puzzle length spec,
                   and allow different for different faces
@@ -145,7 +152,6 @@
 
         NON-IMMEDIATE:
             - 3 level cascading menus for {3..12}x{3..12}?
-            - make it always come up biggest-face-first by default (actually it seems to)
             - nframes proportional to angle actually kind of sucks...
                 should be proportionally less frames when rot angle is big,
                 otherwise very small rotations get large acceleration
@@ -157,6 +163,7 @@
                 we get flat faces!
             - ooh, make more slices proportionally slower, would feel more massive!
             - completely general solve?
+            - general uniform polytopes! yeah!
 
         PIE IN THE SKY:
             - figure out how to do "contiguous cubies" generically-- is it possible in terms of the others?  probably not... unless I modify the shrink behavior so it always likes up the outer ones?  Hmm, I think this would be a different "shrink mode" that shrinks stickers towards the face boundaries?  YES!  DO IT!
@@ -172,7 +179,7 @@
                 several different wireframes at once with different styles?
                 okay I think this is where I went insane last time I was
                 implementing a polytope viewer
-            - fade out to black instead of suddenly turning inside out?
+            - fade out to transparent instead of suddenly turning inside out?
                 This would nicely light up the center,
                 And would also help mask the sorting failures
                 on faces that are very close to flat
@@ -192,11 +199,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private float _circumRadius;
     private float _inRadius;
+    private int _nCubies;
 
     private float vertsMinusStickerCenters[][];
     private float vertStickerCentersMinusFaceCenters[][];
     private float vertFaceCenters[][];
     private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
+
+    private int face2OppositeFace[/*nFaces*/];
     private int sticker2face[/*nStickers*/];
     private int sticker2faceShadow[/*nStickers*/]; // so we can detect nefariousness
     private int sticker2cubie[/*nStickers*/];
@@ -264,7 +274,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         if (progressWriter != null)
         {
-            progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+length+"...");
+            progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+(Math.floor(length)==length ? ""+(int)length : ""+length)+"...");
             progressWriter.print("    Constructing polytope...");
             progressWriter.flush();
         }
@@ -274,6 +284,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
             progressWriter.flush();
         }
+        com.donhatchsw.util.CSG.orientDeep(originalPolytope); // XXX shouldn't be necessary!!!!
 
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
 
@@ -340,7 +351,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         // So we can easily find the opposite face of a given face...
         //
-        CSG.Polytope faceToOppositeFace[] = new CSG.Polytope[nFaces];
+        this.face2OppositeFace = new int[nFaces];
         {
             FuzzyPointHashTable table = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
             for (int iFace = 0; iFace < nFaces; ++iFace)
@@ -350,8 +361,9 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
                 VecMath.vxs(oppositeNormalScratch, faceInwardNormals[iFace], -1.);
-                faceToOppositeFace[iFace] = (CSG.Polytope)table.get(oppositeNormalScratch);
-                //System.err.print("("+iFace+":"+(faceToOppositeFace[iFace]!=null ? ""+((Integer)faceToOppositeFace[iFace].aux).intValue():"null")+")");
+                CSG.Polytope opposite = (CSG.Polytope)table.get(oppositeNormalScratch);
+                face2OppositeFace[iFace] = opposite==null ? -1 : ((Integer)opposite.aux).intValue();
+                //System.err.print("("+iFace+":"+face2OppositeFace[iFace]+")");
             }
         }
 
@@ -410,7 +422,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         }
                     }
                 }
-                Assert(fullThickness != 0.);
+                Assert(fullThickness != 0.); // XXX actually this fails if puzzle dimension <= 1, maybe should disallow
 
                 //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
 
@@ -453,7 +465,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 */
 
                 int nNearCuts = ceilLength / 2; // (n-1)/2 if odd, n/2 if even
-                int nFarCuts = faceToOppositeFace[iFace]==null ? 0 :
+                int nFarCuts = face2OppositeFace[iFace]==-1 ? 0 :
                                ceilLength%2==0 && isPrismOfThisFace ? nNearCuts-1 :
                                nNearCuts;
                 faceCutOffsets[iFace] = new double[nNearCuts + nFarCuts];
@@ -486,8 +498,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
                 if (maxCuts >= 0 && totalCuts >= maxCuts) break;
-                if (faceToOppositeFace[iFace] != null
-                 && ((Integer)faceToOppositeFace[iFace].aux).intValue() < iFace)
+                if (face2OppositeFace[iFace] != -1
+                 && face2OppositeFace[iFace] < iFace)
                     continue; // already saw opposite face and made the cuts
                 //System.out.println("REALLY doing facet "+iFace);
                 for (int iCut = 0; iCut < faceCutOffsets[iFace].length; ++iCut)
@@ -574,12 +586,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (progressWriter != null)
             {
-                int nCubies = 0;
+                this._nCubies = 0;
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                     if (sticker2cubie[iSticker] == iSticker)
-                        nCubies++;
-                progressWriter.println("    There seem to be "+nCubies+" accessible cubie(s).");
+                        _nCubies++;
+                progressWriter.println("    There seem to be "+_nCubies+" accessible cubie(s).");
             }
+            // XXX note, we could easily collapse the cubie indicies
+            // XXX so that they are consecutive, if we cared
         }
 
 
@@ -708,7 +722,12 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         else // nDims is something other than 3 or 4
         {
-            restVerts = new double[0][nDims];
+            // Make a vertex array of the right size,
+            // just so nVerts() will return something sane for curiosity
+            int nVerts = 0;
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                nVerts += stickers[iSticker].getAllElements()[0].length;
+            restVerts = new double[nVerts][nDims]; // zeros
             this.stickerInds = new int[nStickers][0][];
         }
 
@@ -929,7 +948,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         public int nCubies()
         {
-            return 1; // XXX fix this!
+            return _nCubies;
         }
         public int nStickers()
         {
@@ -937,7 +956,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         public int nGrips()
         {
-            return nStickers(); // XXX for now
+            return grip2face.length;
         }
         public float circumRadius()
         {
@@ -1079,6 +1098,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         public int[/*nStickers*/] getSticker2Cubie()
         {
             return sticker2cubie;
+        }
+        public int[/*nFaces*/] getGrip2Face()
+        {
+            return grip2face;
+        }
+        public int[/*nFaces*/] getFace2OppositeFace()
+        {
+            return face2OppositeFace;
         }
         public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
                                                     int gripIndex,
