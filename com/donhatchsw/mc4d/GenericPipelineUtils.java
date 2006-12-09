@@ -707,6 +707,235 @@ public class GenericPipelineUtils
     } // paintFrame
 
 
+
+
+    private static class VeryCleverPaintersSortingOfStickers
+    {
+        public int[] sortStickersBackToFront(
+                int poly2twin[/*nSticker*/][/*nPolygonsThisSticker*/][/*2*/])
+        {
+            int nStickers = 100;
+            int nCompressedSlices = 6; // XXX
+            int nNodes = nStickers + 2*nCompressedSlices;
+            int parents[] = new int[nNodes];
+            int depths[] = new int[nNodes]; // XXX not really necessary, but to simplify for now
+
+            int poly2stickers[][] = new int[1000][2]; // XXX
+            int polys[] = new int[1000]; // XXX
+            int maxPartialOrderSize = polys.length/2; // XXX
+            int partialOrder[][] = new int[maxPartialOrderSize][2];
+            int partialOrderSize = 0;
+
+            // Initialize parents and depths...
+            {
+                //
+                // Figure out which compressed slice the eye is in.
+                // That slice will be the root of a simple tree,
+                // with two branches of groups:
+                //                whichSliceEyeIsIn
+                //                 /             \
+                //        nextShallowerSlice   nextDeeperSlice
+                //            |                  ...
+                //   nextNextShallowerSlice 
+                //           ...
+                //
+                int eyeSlice; // which compressed slice eye is in
+                {
+                    eyeSlice = 2; // XXX
+                }
+
+                for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
+                {
+                    int iNode = nStickers + 2*iSlice;
+                    if (iSlice < eyeSlice)
+                    {
+                        parents[iNode] = nStickers + 2*(iSlice+1);
+                        depths[iNode] = eyeSlice - iSlice;
+                    }
+                    else if (iSlice > eyeSlice)
+                    {
+                        parents[iNode] = nStickers + 2*(iSlice-1);
+                        depths[iNode] = iSlice - eyeSlice;
+                    }
+                    else
+                    {
+                        parents[iNode] = -1;
+                        depths[iNode] = 0;
+                    }
+                    // The node position nSticker+2*iSlice+1 is not used;
+                    // it is just an end token for the group,
+                    // so that when we need a sticker to be > an entire group,
+                    // we only have to specify one inequality instead
+                    // of one for each element of the group.
+                }
+
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                {
+                    int iSlice = 0; // XXX which compressed slice iSticker is in;
+                    int iGroup = nStickers + 2*iSlice;
+                    int iGroupStartToken = nStickers + 2*iSlice;
+                    int iGroupEndToken = nStickers + 2*iSlice+1;
+
+                    parents[iSticker] = iGroup;
+                    depths[iSticker] = depths[parents[iSticker]] + 1;
+
+                    // add "iGroupStartToken < iSticker"
+                    partialOrder[partialOrderSize][0] = iGroupStartToken;
+                    partialOrder[partialOrderSize][1] = iSticker;
+                    partialOrderSize++;
+                    // add "iSticker < iGroupEndToken"
+                    partialOrder[partialOrderSize][0] = iSticker;
+                    partialOrder[partialOrderSize][1] = iGroupEndToken;
+                    partialOrderSize++;
+                }
+            }
+
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            {
+                for (int iPolyThisSticker = 0; iPolyThisSticker < poly2twin[iSticker].length; ++iPolyThisSticker)
+                {
+                    int jSticker = poly2twin[iSticker][iPolyThisSticker][0];
+                    int jPolyThisSticker = poly2twin[iSticker][iPolyThisSticker][1];
+                    if (jSticker < iSticker)
+                        continue; // already did it
+                    boolean iStickerIsVisible = false; // XXX
+                    boolean jStickerIsVisible = false; // XXX
+                    if (!iStickerIsVisible && !jStickerIsVisible)
+                        continue;
+                    int iGroup = iSticker;
+                    int jGroup = jSticker;
+                    // Walk upwards until iGroup,jGroup are siblings...
+                    {
+                        while (depths[iGroup] > depths[jGroup])
+                            iGroup = parents[iGroup];
+                        while (depths[jGroup] > depths[iGroup])
+                            jGroup = parents[jGroup];
+                        while (parents[iGroup] != parents[jGroup])
+                        {
+                            iGroup = parents[iGroup];
+                            jGroup = parents[jGroup];
+                        }
+                    }
+                    if (iGroup == iSticker && jGroup == jSticker)
+                    {
+                        // The two stickers are immediate siblings,
+                        // i.e. both in the same (compressed) slice.
+                        // This relationship only matters if they are both visible.
+                        if (!iStickerIsVisible || !jStickerIsVisible)
+                            continue;
+                        boolean iStickerHasPolyBackfacing = false; // XXX 
+                        boolean jStickerHasPolyBackfacing = false; // XXX
+                        // XXX check both, at most one should be backfacing
+                        Assert(!(iStickerHasPolyBackfacing && jStickerHasPolyBackfacing)); // XXX should add some slack I think
+                        if (iStickerHasPolyBackfacing)
+                        {
+                            //add "jSticker < iSticker"
+                            partialOrder[partialOrderSize][0] = jSticker;
+                            partialOrder[partialOrderSize][1] = iSticker;
+                            partialOrderSize++;
+                        }
+                        else if (jStickerHasPolyBackfacing)
+                        {
+                            //add "iSticker < jSticker"
+                            partialOrder[partialOrderSize][0] = iSticker;
+                            partialOrder[partialOrderSize][1] = jSticker;
+                            partialOrderSize++;
+                        }
+                    }
+                    else if (iGroup == iSticker) // && jGroup != jSticker
+                    {
+                        // iSticker is adjacent to a group containing jSticker.
+                        // The group is twisted, so jSticker's
+                        // orientation of the poly is not relevant
+                        // (in fact jSticker might not even be visible);
+                        // only iSticker's orientation of the poly is relevant.
+                        if (!iStickerIsVisible)
+                            continue;
+                        boolean iStickerHasPolyBackfacing = false; // XXX 
+                        if (iStickerHasPolyBackfacing)
+                        {
+                            int jIndGroupEndToken = jGroup+1;
+                            //add "jIndGroupEndToken < iSticker";
+                            partialOrder[partialOrderSize][0] = jIndGroupEndToken;
+                            partialOrder[partialOrderSize][1] = iSticker;
+                            partialOrderSize++;
+                        }
+                        else
+                        {
+                            int jIndGroupStartToken = jGroup;
+                            //add "iSticker < jIndGroupStartToken;
+                            partialOrder[partialOrderSize][0] = iSticker;
+                            partialOrder[partialOrderSize][1] = jIndGroupStartToken;
+                            partialOrderSize++;
+                        }
+                    }
+                    else if (jGroup == jSticker) // && iGroup != iSticker
+                    {
+                        // same as previous case but reversed
+                        if (!jStickerIsVisible)
+                            continue;
+                        boolean jStickerHasPolyBackfacing = false; // XXX 
+                        if (jStickerHasPolyBackfacing)
+                        {
+                            int iIndGroupEndToken = iGroup+1;
+                            //add "iIndGroupEndToken < jSticker";
+                            partialOrder[partialOrderSize][0] = iIndGroupEndToken;
+                            partialOrder[partialOrderSize][1] = jSticker;
+                            partialOrderSize++;
+                        }
+                        else
+                        {
+                            int iIndGroupStartToken = iGroup;
+                            //add "jSticker < iIndGroupStartToken;
+                            partialOrder[partialOrderSize][0] = jSticker;
+                            partialOrder[partialOrderSize][1] = iIndGroupStartToken;
+                            partialOrderSize++;
+                        }
+                    }
+                    else
+                    {
+                        // This would mean the two stickers are adjacent
+                        // but the two different groups they are in are not.
+                        // This can't happen.
+                        Assert(false);
+                    }
+                }
+            }
+
+            //
+            // Okay, now we have the partial order.
+            // Topsort it into a total order.
+            //
+            com.donhatchsw.util.TopSorter topsorter = new com.donhatchsw.util.TopSorter(nStickers, polys.length/2); // XXX allocation
+            int stickerSortOrder[] = new int[nNodes]; // XXX allocation
+            topsorter.topsort(nNodes, stickerSortOrder,
+                              partialOrderSize, partialOrder);
+
+            //
+            // Compress out the group start and end tokens
+            // which we no longer care about
+            //
+            {
+                int iCompressedSorted = 0;
+                for (int iSorted = 0; iSorted < nNodes; ++iSorted)
+                {
+                    int iNode = stickerSortOrder[iSorted];
+                    if (iNode < nStickers)
+                    {
+                        int iSticker = iNode;
+                        // if (the sticker is front facing) XXX
+                        {
+                            stickerSortOrder[iCompressedSorted++] = iSticker;
+                        }
+                    }
+                }
+            }
+
+            return null;
+        } // sortStickersBackToFront
+    } // class VeryCleverPaintersSortingOfStickers
+
+
     private static float tmpTWAf1[] = new float[2], tmpTWAf2[] = new float[2]; // scratch vars
     private static float twice_triangle_area(float v0[], float v1[], float v2[])
     {
