@@ -747,7 +747,8 @@ public class GenericGlue
             com.donhatchsw.util.VecMath.mxmxmxm(
                 com.donhatchsw.util.VecMath.makeRowRotMat(3, 2, 1, (float)Math.PI/2),
                 com.donhatchsw.util.VecMath.makeRowRotMat(3, 2, 0, 1.f*(float)MagicCube.TWIRL*(float)Math.PI/180.f),
-                com.donhatchsw.util.VecMath.makeRowRotMat(3, 1, 2, 1.f*(float)MagicCube.TILT*(float)Math.PI/180.f),
+                //com.donhatchsw.util.VecMath.makeRowRotMat(3, 1, 2, 1.f*(float)MagicCube.TILT*(float)Math.PI/180.f),
+                com.donhatchsw.util.VecMath.makeRowRotMat(3, 1, 2, 1.f*15*(float)Math.PI/180.f),
                 com.donhatchsw.util.VecMath.mxs(viewMat, scaleFudge3d)),
             eyeZ,
 
