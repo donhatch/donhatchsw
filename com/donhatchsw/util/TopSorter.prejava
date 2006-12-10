@@ -24,6 +24,7 @@
 *       and nComponents<n if there was at least one cycle,
 *       so you can at least check whether there the graph was acyclic).
 */
+#include "macros.h"
 
 package com.donhatchsw.util;
 
@@ -63,8 +64,8 @@ public class TopSorter
     /** The optimized method that does no memory allocations.
     * Returns n if there were no cycles, or something less than n otherwise.
     */
-    public int topsort(int n, int result[/*n*/],
-                       int partialOrderSize, int partialOrder[][/*2*/])
+    public int dumbTopsort(int n, int result[/*n*/],
+                           int partialOrderSize, int partialOrder[][/*2*/])
     {
         if (n > successors.length)
             throw new IllegalArgumentException("TopSorter.topsort called with n="+n+" > maxN="+successors.length+"");
@@ -152,6 +153,110 @@ public class TopSorter
             return n;
         }
     } // non-static topsort
+
+    public int topsort(int n, int result[/*n*/],
+                       int partialOrderSize, int partialOrder[][/*2*/])
+    {
+        if (n > successors.length)
+            throw new IllegalArgumentException("TopSorter.topsort called with n="+n+" > maxN="+successors.length+"");
+        if (2*partialOrderSize > linkPool.length)
+            throw new IllegalArgumentException("TopSorter.topsort called with partialOrderSize="+partialOrderSize+" > maxN="+linkPool.length+"");
+
+        // Fill in the graph and reverse graph...
+        {
+            for (int i = 0; i < n; ++i)
+            {
+                successors[i] = null;
+                predecessors[i] = null;
+            }
+            int iLink = 0;
+            for (int iPair = 0; iPair < partialOrderSize; ++iPair)
+            {
+                int i = partialOrder[iPair][0];
+                int j = partialOrder[iPair][1];
+                if (i < 0 || i >= n)
+                    throw new IllegalArgumentException("TopSorter.topsort called with a number "+i+" out of bounds of array size "+n+"");
+                if (j < 0 || j >= n)
+                    throw new IllegalArgumentException("TopSorter.topsort called with a number "+j+" out of bounds of array size "+n+"");
+
+                linkPool[iLink].rest = successors[i];
+                successors[i] = linkPool[iLink++];
+                linkPool[iLink].rest = predecessors[i];
+                predecessors[j] = linkPool[iLink++];
+
+                successors[i].first = j;
+                predecessors[j].first = i;
+            }
+            Assert(iLink == 2*partialOrderSize);
+        }
+
+        boolean visited[] = new boolean[n]; // XXX allocation
+        int finishingArray[] = new int[n]; // XXX allocation
+
+        VecMath.fillvec(visited, false);
+        {
+            int arraySize = 0;
+            for (int i = 0; i < n; ++i)
+            {
+                if (!visited[i])
+                    arraySize = dfs(i, successors, visited,
+                                    null,
+                                    finishingArray, // append to this on pre
+                                    arraySize);
+            }
+            Assert(arraySize == n);
+        }
+        VecMath.fillvec(visited, false);
+        int nConnectedComponents = 0;
+        {
+            int arraySize = 0;
+            for (int _i = 0; _i < n; ++_i)
+            {
+                int i = finishingArray[n-1-_i];
+                if (!visited[i])
+                {
+                    nConnectedComponents++;
+                    arraySize = dfs(i, predecessors, visited,
+                                    result, // append to this on post
+                                    null,
+                                    arraySize);
+                }
+            }
+            Assert(arraySize == n);
+        }
+        return nConnectedComponents;
+    } // non-static topsort
+
+    // Depth-first search.
+    // Appends to either preArrayToAppendTo before traversing children,
+    // or postArrayToAppendTo after traversing children.
+    private static int dfs(int i,
+                           LinkedListOfInts successors[],
+                           boolean visited[],
+                           int preArrayToAppendTo[],
+                           int postArrayToAppendTo[],
+                           int arraySize)
+    {
+        Assert(!visited[i]);
+        visited[i] = true;
+        if (preArrayToAppendTo != null)
+            preArrayToAppendTo[arraySize++] = i;
+
+        for (LinkedListOfInts succs = successors[i]; succs != null; succs = succs.rest)
+        {
+            int j = succs.first;
+            if (!visited[j])
+                arraySize = dfs(j,
+                                successors,
+                                visited,
+                                preArrayToAppendTo,
+                                postArrayToAppendTo,
+                                arraySize);
+        }
+        if (postArrayToAppendTo != null)
+            postArrayToAppendTo[arraySize++] = i;
+        return arraySize;
+    } // dfs
 
     
 /*
