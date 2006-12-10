@@ -1,0 +1,241 @@
+/**
+* Class to perform a topological sort on the integers 0..n-1,
+* given a partial order (i.e. a list of pairs i,j such that result[i]<result[j]
+* is required to hold).
+* <p>
+* The simplest way to use this class is to simply say:
+*     int result[] = new int[n];
+*     int nComponents = TopSorter.topsort(result, partialOrder);
+* <p>
+* However, if you are going to be doing many topsorts,
+* it is more efficient to do the following instead, since all the memory
+* allocations are done up front:
+*     int result[] = new int[maxN];
+*     int partialOrder[] = new int[maxPartialOrderSize][2];
+*     TopSorter topsorter = new TopSorter(maxN, maxPartialOrderSize);
+*     ... fill in the first partialOrderSize entries of partialOrder ...
+*     topsorter.topsort(n, result, partialOrderSize, partialOrder)
+* <p>
+* NOTE: Currently this is done in a simple implementation that only works
+*       if there are no cycles.  If there are any cycles,
+*       it will return an arbitray order, and it won't count
+*       the number of connected components right either
+*       (although it does guarantee that nComponents==n if there were no cycles
+*       and nComponents<n if there was at least one cycle,
+*       so you can at least check whether there the graph was acyclic).
+*/
+
+package com.donhatchsw.util;
+
+public class TopSorter
+{
+    // always-compiled-in assertion
+    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+
+    private static class LinkedListOfInts
+    {
+        public int first = -1;
+        public LinkedListOfInts rest = null;
+    }
+
+    private LinkedListOfInts successors[];
+    private LinkedListOfInts predecessors[];
+    private LinkedListOfInts linkPool[];
+
+    private int sources[]; // XXX only used by simple version
+    private int nPredecessors[]; // XXX only used by simple version
+    private boolean finished[]; // XXX only used by simple version
+
+    public TopSorter(int maxN, int maxPartialOrderSize)
+    {
+        successors = new LinkedListOfInts[maxN];
+        predecessors = new LinkedListOfInts[maxN];
+        linkPool = new LinkedListOfInts[2*maxPartialOrderSize];
+        for (int i = 0; i < linkPool.length; ++i)
+            linkPool[i] = new LinkedListOfInts();
+
+        sources = new int[maxN];
+        nPredecessors = new int[maxN];
+        finished = new boolean[maxN];
+
+    } // TopSorter ctor
+
+    /** The optimized method that does no memory allocations.
+    * Returns n if there were no cycles, or something less than n otherwise.
+    */
+    public int topsort(int n, int result[/*n*/],
+                       int partialOrderSize, int partialOrder[][/*2*/])
+    {
+        if (n > successors.length)
+            throw new IllegalArgumentException("TopSorter.topsort called with n="+n+" > maxN="+successors.length+"");
+        if (2*partialOrderSize > linkPool.length)
+            throw new IllegalArgumentException("TopSorter.topsort called with partialOrderSize="+partialOrderSize+" > maxN="+linkPool.length+"");
+
+        // Fill in the graph and reverse graph...
+        {
+            for (int i = 0; i < n; ++i)
+            {
+                successors[i] = null;
+                predecessors[i] = null;
+            }
+            int iLink = 0;
+            for (int iPair = 0; iPair < partialOrderSize; ++iPair)
+            {
+                int i = partialOrder[iPair][0];
+                int j = partialOrder[iPair][1];
+                if (i < 0 || i >= n)
+                    throw new IllegalArgumentException("TopSorter.topsort called with a number "+i+" out of bounds of array size "+n+"");
+                if (j < 0 || j >= n)
+                    throw new IllegalArgumentException("TopSorter.topsort called with a number "+j+" out of bounds of array size "+n+"");
+
+                linkPool[iLink].rest = successors[i];
+                successors[i] = linkPool[iLink++];
+                linkPool[iLink].rest = predecessors[i];
+                predecessors[j] = linkPool[iLink++];
+
+                successors[i].first = j;
+                predecessors[j].first = i;
+            }
+            Assert(iLink == 2*partialOrderSize);
+        }
+
+        //
+        // Super simple algorithm, pending coding up Kosaraju's...
+        // Simply pluck source nodes (nodes with no predecessors) until done.
+        // This works fine if there are no cycles,
+        // but if there is a cycle near the beginning,
+        // it will return a completely arbitrary order.
+        //
+        {
+            int nSources = 0;
+            int nFinished = 0;
+            for (int i = 0; i < n; ++i)
+            {
+                finished[i] = false;
+                nPredecessors[i] = 0;
+            }
+            for (int iPair = 0; iPair < partialOrderSize; ++iPair)
+            {
+                ++nPredecessors[partialOrder[iPair][1]];
+            }
+            for (int i = 0; i < n; ++i)
+            {
+                if (nPredecessors[i] == 0)
+                    sources[nSources++] = i;
+            }
+            while (nSources > 0)
+            {
+                int source = sources[--nSources];
+                result[nFinished++] = source;
+                finished[source] = true;
+                for (LinkedListOfInts succs = successors[source]; succs != null; succs = succs.rest)
+                {
+                    int succ = succs.first;
+                    if (--nPredecessors[succ] == 0)
+                        sources[nSources++] = succ;
+                }
+            }
+            if (nFinished < n)
+            {
+                // There's a cycle!  Shoulda done a full Kosaraju
+                // strongly connected component decomposition...
+                // does that return the components topsorted?
+                // If not, it will require more thought.
+                for (int i = 0; i < n; ++i)
+                {
+                    if (!finished[i])
+                        result[nFinished++] = i;
+                }
+                Assert(nFinished == n);
+                return n-1; // should return number of connected components!
+            }
+            return n;
+        }
+    } // non-static topsort
+
+    
+/*
+In python:
+    # Depth first search, using a visited set
+    # and calling pre-order and post-order node callback functions.
+    def dfs(node, graph, visitedSet, preFun=None, postFun=None):
+        if node not in visitedSet:
+            visitedSet.add(node)
+            if preFun != None: preFun(node)
+            for next in graph[node]:
+                dfs(next, graph, visitedSet, preFun, postFun)
+            if postFun != None: postFun(node)
+
+    # Using Kosaraju's algorithm:
+    #     http://en.wikipedia.org/wiki/Strongly_connected_component
+    # Returns a list of components, each of which is a list of nodes.
+    def stronglyConnectedComponents(graph):
+        visitedSet = Set()
+        finishingArray = []
+        for node in graph.keys():
+            dfs(node,graph,visitedSet,
+                postFun = lambda node: finishingArray.append(node))
+        visitedSet = Set()
+        components = []
+        rgraph = reverseGraph(graph)
+        for node in finishingArray[::-1]: # in reverse order
+            if node not in visitedSet:
+                components.append([])
+                dfs(node,rgraph,visitedSet,
+                    preFun = lambda node: components[-1].append(node))
+        return components
+*/
+
+    /** The easy-to-use method. */
+    public static int topsort(int result[], int partialOrder[][/*2*/])
+    {
+        TopSorter topsorter = new TopSorter(result.length, partialOrder.length);
+        return topsorter.topsort(result.length, result,
+                                 partialOrder.length, partialOrder);
+    } // static topsort
+
+    /** Simple test/example program */
+    public static void main(String[] args)
+    {
+        {
+            int pairs[][] = {
+                {1,2},
+                        {3,5},
+                  {2,8},
+                    {8,7},
+                    {8,4},
+                      {4,3},
+                              //{5,4} // forms a cycle
+            };
+            int n = 10;
+            int result[] = new int[n];
+            int nComponents = TopSorter.topsort(result, pairs);
+            for (int i = 0; i < n; ++i)
+                System.out.print(" "+result[i]);
+            System.out.println();
+            System.out.println(""+nComponents+" components.");
+            Assert(nComponents == n);
+        }
+        {
+            int pairs[][] = {
+                {1,2},
+                        {3,5},
+                  {2,8},
+                    {8,7},
+                    {8,4},
+                      {4,3},
+                              {5,4} // forms a cycle
+            };
+            int n = 10;
+            int result[] = new int[n];
+            int nComponents = TopSorter.topsort(result, pairs);
+            for (int i = 0; i < n; ++i)
+                System.out.print(" "+result[i]);
+            System.out.println();
+            System.out.println(""+nComponents+" components.");
+            Assert(nComponents < n);
+        }
+
+    } // main
+
+} // class TopSorter
