@@ -73,6 +73,8 @@ public class GenericPipelineUtils
         // We keep this around so that a Frame can be reused
         // without having to do any memory allocations.
         public int drawListBuffer[/*nStickers*/][/*nPolysThisSticker*/][/*2*/];
+
+        public int[][/*2*/] partialOrder; // optional, for debugging
     } // class Frame
 
     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
@@ -106,7 +108,10 @@ public class GenericPipelineUtils
                                     
                                     float unitTowardsSunVec[/*3*/],
                                     float groundNormal[/*3*/], // null if no shadows
-                                    float groundOffset)
+                                    float groundOffset,
+
+                                    boolean useTopsort,
+                                        boolean showPartialOrder)
     {
         if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.computeFrame");
 
@@ -167,14 +172,24 @@ public class GenericPipelineUtils
         // XXX but there are... but they can be fixed.
         //
 
+        float vertsForTopsort[][] = new float[nVerts][4]; // XXX ALLOCATION
+
         //
         // Get the 4d verts from the puzzle description
         //
         if (iGripOfTwist == -1)
+        {
             puzzleDescription.computeStickerVertsAtRest(verts,
                                                         faceShrink,
                                                         stickerShrink);
+            puzzleDescription.computeStickerVertsAtRest(vertsForTopsort,
+                                                        //faceShrink,
+                                                        //stickerShrink);
+                                                        1.f, // XXX argh, not right
+                                                        1.f); // XXX argh, not right
+        }
         else
+        {
             puzzleDescription.computeStickerVertsPartiallyTwisted(
                                                         verts,
                                                         faceShrink,
@@ -183,6 +198,18 @@ public class GenericPipelineUtils
                                                         twistDir,
                                                         twistSliceMask,
                                                         fracIntoTwist);
+            puzzleDescription.computeStickerVertsPartiallyTwisted(
+                                                        vertsForTopsort,
+                                                        //faceShrink,
+                                                        //stickerShrink,
+                                                        1.f, // XXX argh, not right
+                                                        1.f, // XXX argh, not right
+                                                        iGripOfTwist,
+                                                        twistDir,
+                                                        twistSliceMask,
+                                                        fracIntoTwist);
+        }
+
         //
         // Rotate/scale in 4d
         //
@@ -197,6 +224,11 @@ public class GenericPipelineUtils
             {
                 VecMath.vxm(temp, verts[iVert], rotScale4d);
                 VecMath.copyvec(verts[iVert], temp);
+            }
+            for (int iVert = 0; iVert < vertsForTopsort.length; ++iVert)
+            {
+                VecMath.vxm(temp, vertsForTopsort[iVert], rotScale4d);
+                VecMath.copyvec(vertsForTopsort[iVert], temp);
             }
         }
         if (verboseLevel >= 3) System.out.println("        after 4d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
@@ -221,14 +253,24 @@ public class GenericPipelineUtils
                     verts[i][j] *= invW;
                 verts[i][3] = w; // keep this for future reference
             }
+            for (int i = 0; i < vertsForTopsort.length; ++i)
+            {
+                float w = eyeW - vertsForTopsort[i][3];
+                float invW = 1.f/w;
+                for (int j = 0; j < 3; ++j)
+                    vertsForTopsort[i][j] *= invW;
+                vertsForTopsort[i][3] = w; // keep this for future reference
+            }
         }
         if (verboseLevel >= 3) System.out.println("        after 4d->3d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+
+        boolean stickerVisibilities[] = new boolean[nStickers]; // XXX memory allocation!
 
         //
         // Front-cell cull
         //
         {
-            int nBackFacing = 0;
+            int nBackfacing = 0;
             float mat[][] = new float[3][3]; // XXX MEMORY ALLOCATION
             for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
             {
@@ -245,11 +287,16 @@ public class GenericPipelineUtils
                 {
                     // append references to this sticker's polys into drawList
                     for (int iPolyThisSticker = 0; iPolyThisSticker < thisStickerInds.length; ++iPolyThisSticker)
-                        drawList[nBackFacing++] = frame.drawListBuffer[iSticker][iPolyThisSticker]; // = {iSticker,iPolyThisSticker}
+                        drawList[nBackfacing++] = frame.drawListBuffer[iSticker][iPolyThisSticker]; // = {iSticker,iPolyThisSticker}
+                    stickerVisibilities[iSticker] = true;
+                }
+                else
+                {
+                    stickerVisibilities[iSticker] = false;
                 }
             }
-            drawListSize = nBackFacing;
-            shadowDrawListSize = groundNormal != null ? nBackFacing : 0;
+            drawListSize = nBackfacing;
+            shadowDrawListSize = groundNormal != null ? nBackfacing : 0;
         }
         if (verboseLevel >= 3) System.out.println("        after front-cell cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
@@ -268,6 +315,14 @@ public class GenericPipelineUtils
                 VecMath.vxm(tempOut, tempIn, rot3d); // only first 3... however the matrix can be 3x3 or 4x3
                 for (int i = 0; i < 3; ++i) // 3 out of 4
                     verts[iVert][i] = tempOut[i];
+            }
+            for (int iVert = 0; iVert < vertsForTopsort.length; ++iVert)
+            {
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    tempIn[i] = vertsForTopsort[iVert][i];
+                VecMath.vxm(tempOut, tempIn, rot3d); // only first 3... however the matrix can be 3x3 or 4x3
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    vertsForTopsort[iVert][i] = tempOut[i];
             }
         }
         if (verboseLevel >= 3) System.out.println("        after 3d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
@@ -369,6 +424,14 @@ public class GenericPipelineUtils
                     verts[i][j] *= invZ;
                 verts[i][2] = z; // keep this for future reference
             }
+            for (int i = 0; i < vertsForTopsort.length; ++i)
+            {
+                float z = eyeZ - vertsForTopsort[i][2];
+                float invZ = 1.f/z;
+                for (int j = 0; j < 2; ++j)
+                    vertsForTopsort[i][j] *= invZ;
+                vertsForTopsort[i][2] = z; // keep this for future reference
+            }
         }
         // XXX the following is dup code, lame
         if (groundNormal != null)
@@ -382,9 +445,15 @@ public class GenericPipelineUtils
                 shadowVerts[i][2] = z; // keep this for future reference
             }
         }
-
         if (verboseLevel >= 3) System.out.println("        after 3d->2d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
         if (verboseLevel >= 2) System.out.println("        after 3d->3d project: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
+
+        boolean stickerPolyIsBackfacing[][] = new boolean[nStickers][];
+        for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            stickerPolyIsBackfacing[iSticker] = new boolean[stickerInds[iSticker].length];
+        boolean stickerPolyIsBackfacingForTopsort[][] = new boolean[nStickers][];
+        for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            stickerPolyIsBackfacingForTopsort[iSticker] = new boolean[stickerInds[iSticker].length];
 
         //
         // Back-face cull
@@ -397,10 +466,25 @@ public class GenericPipelineUtils
             // XXX and put them back at the end, between
             // XXX drawListSize and shadowDrawListSize.
             int shadowExtraDrawList[][] = new int[drawListSize][]; // XXX MEMORY ALLOCATION
-            int nBackFacing = 0;
-
+            int nBackfacing = 0;
 
             float mat[][] = new float[2][2]; // XXX ALLOCATION
+
+            // do the one for topsort first BEFORE we cull down drawlist
+            for (int i = 0; i < drawListSize; ++i)
+            {
+                int i0i1[] = drawList[i];
+                int poly[] = stickerInds[i0i1[0]][i0i1[1]];
+                float v0[] = vertsForTopsort[poly[0]];
+                float v1[] = vertsForTopsort[poly[1]];
+                float v2[] = vertsForTopsort[poly[2]];
+                Vec_h._VMV2(mat[0], v1, v0); // 2 out of 4
+                Vec_h._VMV2(mat[1], v2, v0); // 2 out of 4
+                float area = VecMath.vxv2(mat[0], mat[1]);
+                boolean thisStickerPolyIsStrictlyBackfacing = area < 0.f; // retain *front* facing polygons-- note we haven't inverted Y yet so this test looks as expected
+                stickerPolyIsBackfacingForTopsort[i0i1[0]][i0i1[1]] = thisStickerPolyIsStrictlyBackfacing;
+            }
+
             int nFrontFacing = 0;
             for (int i = 0; i < drawListSize; ++i)
             {
@@ -412,19 +496,19 @@ public class GenericPipelineUtils
                 Vec_h._VMV2(mat[0], v1, v0); // 2 out of 4
                 Vec_h._VMV2(mat[1], v2, v0); // 2 out of 4
                 float area = VecMath.vxv2(mat[0], mat[1]);
-                if (area > 0.f) // retain *front* facing polygons-- not we haven't inverted Y yet so this test looks as expected
+                boolean thisStickerPolyIsStrictlyBackfacing = area < 0.f; // retain *front* facing polygons-- note we haven't inverted Y yet so this test looks as expected
+                if (!thisStickerPolyIsStrictlyBackfacing)
                     drawList[nFrontFacing++] = i0i1;
-                else
-                    shadowExtraDrawList[nBackFacing++] = i0i1;
+                stickerPolyIsBackfacing[i0i1[0]][i0i1[1]] = thisStickerPolyIsStrictlyBackfacing;
             }
             drawListSize = nFrontFacing;
 
             if (groundNormal != null)
             {
                 // Put the culled ones back at the end, for shadows later
-                for (int i = 0; i < nBackFacing; ++i)
+                for (int i = 0; i < nBackfacing; ++i)
                     drawList[drawListSize+i] = shadowExtraDrawList[i];
-                shadowDrawListSize = nFrontFacing+nBackFacing;
+                shadowDrawListSize = nFrontFacing+nBackfacing;
             }
         }
         if (verboseLevel >= 3) System.out.println("        after back-face cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(drawList));
@@ -464,44 +548,122 @@ public class GenericPipelineUtils
 
         if (verboseLevel >= 3) System.out.println("        after 2d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
-
-        //
-        // Sort drawlist polygons back-to-front,
-        // using the z values that we retained from before the 3d->2d projection
-        // (but there's less work to do now that we culled back faces).
-        //
+        if (useTopsort)
         {
-            float polyCentersZ[/*nStickers*/][/*nPolysThisSticker*/] = new float[nStickers][]; // XXX ALLOCATION!
-            for (int i = 0; i < nStickers; ++i)
-                polyCentersZ[i] = new float[stickerInds[i].length]; // XXX ALLOCATION!
-
-            for (int i = 0; i < drawListSize; ++i)
+            //
+            // Try spiffy topsorting
+            //
+            int nStickersToSort = nStickers; // set to something less to debug
+            //int nStickersToSort = 4; // set to something less to debug
+            float cutNormal[] = {1,0,0,0};
+            float cutOffsets[] = {};
+            int iFaceOfTwist = (iGripOfTwist==-1 ? -1 : puzzleDescription.getGrip2Face()[iGripOfTwist]);
+            if (iFaceOfTwist == -1) iFaceOfTwist = Math.min(mostRecentFaceOfTwist,nStickersToSort-1); else mostRecentFaceOfTwist = iFaceOfTwist; // XXX get rid!
+            if (iFaceOfTwist != -1)
             {
-                int i0i1[] = drawList[i];
-                int i0 = i0i1[0];
-                int i1 = i0i1[1];
-                int poly[] = stickerInds[i0][i1];
-                float sum = 0.f;
-                for (int j = 0; j < poly.length; ++j)
-                    sum += verts[poly[j]][2];
-                Assert(poly.length != 0);
-                polyCentersZ[i0][i1] = sum / poly.length;
+                double cutNormalD[] = puzzleDescription.getFaceInwardNormals()[iFaceOfTwist];
+                double cutOffsetsD[] = puzzleDescription.getFaceCutOffsets()[iFaceOfTwist];
+                cutNormal = new float[]{(float)cutNormalD[0],(float)cutNormalD[1],(float)cutNormalD[2],(float)cutNormalD[3]};
+                cutOffsets = new float[cutOffsetsD.length];
+                for (int iOffset = 0; iOffset < cutOffsets.length; ++iOffset)
+                    cutOffsets[iOffset] = (float)cutOffsetsD[iOffset];
             }
 
-            final float finalPolyCentersZ[][] = polyCentersZ;
-            com.donhatchsw.util.SortStuff.sortRange(drawList, 0, drawListSize-1, new com.donhatchsw.util.SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
-                public int compare(Object i, Object j)
+            // XXX ARGH!  Doing this all over again
+            // XXX because we clobbered the 4d verts...
+            // XXX we need to classify the stickers by slice earlier!
+
+            // XXX And really need to remove those offsets in cutOffsets whose two slices are moving together!
+            int sticker2Slice[] = new int[nStickers];
+            {
+                float stickerVertsAtRest[][] = new float[nVerts][4];
+                puzzleDescription.computeStickerVertsAtRest(stickerVertsAtRest,
+                                                            1.f, // faceShrink=1 is important-- otherwise everything gets shrunk into the middle slice!!!
+                                                            0.f); // stickerShrink=0 since we want the sticker centers-- this is an easy dumb way to get them
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
-                    int[] i0i1 = (int[])i;
-                    int[] j0j1 = (int[])j;
-                    float iZ = finalPolyCentersZ[i0i1[0]][i0i1[1]];
-                    float jZ = finalPolyCentersZ[j0j1[0]][j0j1[1]];
-                    // sort from increasing z to decreasing! that is because the z's got negated just before the projection!
-                    return iZ > jZ ? -1 :
-                           iZ < jZ ? 1 : 0;
+                    float stickerCenter[] = stickerVertsAtRest[stickerInds[iSticker][0][0]];
+                    float stickerCenterOffset = VecMath.dot(stickerCenter, cutNormal);
+                    int stickerSlice = 0;
+                    while (stickerSlice < cutOffsets.length
+                        && stickerCenterOffset > cutOffsets[stickerSlice])
+                        stickerSlice++;
+                    sticker2Slice[iSticker] = stickerSlice;
                 }
-            });
+            }
+
+            int stickerSortOrder[] = new int[nStickers]; // XXX allocation
+            int partialOrderAddress[][][] = (showPartialOrder ? new int[1][][] : null);
+            int nSortedStickers = VeryCleverPaintersSortingOfStickers.sortStickersBackToFront(
+                    nStickersToSort,
+                    puzzleDescription.getAdjacentStickerPairs(),
+                    stickerVisibilities,
+                    stickerPolyIsBackfacingForTopsort,
+                    VecMath.mxv(rot4d, new float[]{0,0,0,eyeW}), // in opposite order so we multiply the eye by the *inverse* of the matrix, to get it into object space  XXX put this elsewhere
+                    cutNormal,
+                    cutOffsets,
+                    sticker2Slice,
+                    stickerSortOrder,
+                    partialOrderAddress);
+            if (showPartialOrder)
+                frame.partialOrder = partialOrderAddress[0];
+
+            drawListSize = 0;
+            for (int iSorted = 0; iSorted < nSortedStickers; ++iSorted)
+            {
+                int iSticker = stickerSortOrder[iSorted];
+                if (!stickerVisibilities[iSticker])
+                    continue;
+                for (int iPolyThisSticker = 0; iPolyThisSticker < stickerInds[iSticker].length; ++iPolyThisSticker)
+                {
+                    if (doBackfaceCull
+                     && stickerPolyIsBackfacing[iSticker][iPolyThisSticker]) // NOT stickerPolyIsBackfacingForTopsort!!
+                        continue;
+                    drawList[drawListSize++] = frame.drawListBuffer[iSticker][iPolyThisSticker]; // = {iSticker,iPolyThisSticker}
+                }
+            }
         }
+        else
+        {
+            //
+            // Sort drawlist polygons back-to-front,
+            // using the z values that we retained from before the 3d->2d projection
+            // (but there's less work to do now that we culled back faces).
+            //
+            {
+                float polyCentersZ[/*nStickers*/][/*nPolysThisSticker*/] = new float[nStickers][]; // XXX ALLOCATION!
+                for (int i = 0; i < nStickers; ++i)
+                    polyCentersZ[i] = new float[stickerInds[i].length]; // XXX ALLOCATION!
+
+                for (int i = 0; i < drawListSize; ++i)
+                {
+                    int i0i1[] = drawList[i];
+                    int i0 = i0i1[0];
+                    int i1 = i0i1[1];
+                    int poly[] = stickerInds[i0][i1];
+                    float sum = 0.f;
+                    for (int j = 0; j < poly.length; ++j)
+                        sum += verts[poly[j]][2];
+                    Assert(poly.length != 0);
+                    polyCentersZ[i0][i1] = sum / poly.length;
+                }
+
+                final float finalPolyCentersZ[][] = polyCentersZ;
+                com.donhatchsw.util.SortStuff.sortRange(drawList, 0, drawListSize-1, new com.donhatchsw.util.SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
+                    public int compare(Object i, Object j)
+                    {
+                        int[] i0i1 = (int[])i;
+                        int[] j0j1 = (int[])j;
+                        float iZ = finalPolyCentersZ[i0i1[0]][i0i1[1]];
+                        float jZ = finalPolyCentersZ[j0j1[0]][j0j1[1]];
+                        // sort from increasing z to decreasing! that is because the z's got negated just before the projection!
+                        return iZ > jZ ? -1 :
+                               iZ < jZ ? 1 : 0;
+                    }
+                });
+            }
+        }
+
         if (verboseLevel >= 3) System.out.println("        after z-sort: stickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(stickerInds));
 
         frame.drawListSize = drawListSize;
@@ -509,6 +671,8 @@ public class GenericPipelineUtils
 
         if (verboseLevel >= 2) System.out.println("    out GenericPipelineUtils.computeFrame");
     } // computeFrame
+
+    private static int mostRecentFaceOfTwist = -1; // XXX get rid
 
     /**
     * Return the index of the sticker and polygon within sticker if hit,
@@ -634,7 +798,11 @@ public class GenericPipelineUtils
                                   int iStickerUnderMouse,
                                   boolean highlightByCubie,
                                   Color outlineColor,
-                                  Graphics g)
+                                  Graphics g,
+                                  
+                                  int jitterRadius,
+                                  boolean drawLabels,
+                                  boolean showPartialOrder)
     {
         if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.paintFrame");
         if (verboseLevel >= 2) System.out.println("        iStickerUnderMouse = "+iStickerUnderMouse);
@@ -648,6 +816,7 @@ public class GenericPipelineUtils
         int iCubieUnderMouse = (iStickerUnderMouse < 0
                              || iStickerUnderMouse >= sticker2cubie.length) ? -1 : sticker2cubie[iStickerUnderMouse];
 
+
         int xs[] = new int[0], // XXX ALLOCATION
             ys[] = new int[0]; // XXX ALLOCATION
         Color shadowcolor = ground == null ? Color.black : ground.darker().darker().darker().darker();
@@ -658,10 +827,145 @@ public class GenericPipelineUtils
             int drawListSize = isShadows ? frame.shadowDrawListSize : frame.drawListSize;
             //System.out.println("isShadows="+isShadows);
             //System.out.println("drawListSize="+drawListSize);
+
+            // XXX holy shit get this showPartialOrder crap out of here so it's
+            // XXX possible to see the loop structure
+            int predecessors[][] = null;
+            float partialOrderNodeCenters2d[][] = null;
+            if (showPartialOrder)
+            {
+                int partialOrderSize = frame.partialOrder.length;
+                int nStickers = puzzleDescription.nStickers();
+                int nNodes = VecMath.max((int[])com.donhatchsw.util.Arrays.flatten(frame.partialOrder, 0, 2))+1;
+                nNodes = Math.max(nNodes,puzzleDescription.nStickers());
+
+                predecessors = new int[nNodes][0];
+                for (int i = 0; i < partialOrderSize; ++i)
+                {
+                    predecessors[frame.partialOrder[i][1]] = (int[])com.donhatchsw.util.Arrays.append(predecessors[frame.partialOrder[i][1]], frame.partialOrder[i][0]);
+                }
+
+                partialOrderNodeCenters2d = new float[nNodes][2]; // zeros
+                int nContributorsThisNode[] = new int[nNodes]; // zeros
+                for (int iItem = 0; iItem < frame.drawListSize; ++iItem)
+                {
+                    int iSticker = drawList[iItem][0];
+                    int iPolyThisSticker = drawList[iItem][1];
+                    int poly[] = stickerInds[iSticker][iPolyThisSticker];
+                    for (int i = 0; i < poly.length; ++i)
+                    {
+                        float vert[] = verts[poly[i]];
+                        VecMath.vpv(partialOrderNodeCenters2d[iSticker], partialOrderNodeCenters2d[iSticker], vert);
+                        nContributorsThisNode[iSticker]++;
+                    }
+                }
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                {
+                    if (nContributorsThisNode[iSticker] != 0)
+                        VecMath.vxs(partialOrderNodeCenters2d[iSticker], partialOrderNodeCenters2d[iSticker], 1.f/nContributorsThisNode[iSticker]);
+                }
+
+                // Okay, now we've figured out 2d centers
+                // for all nodes that are stickers...
+                // Now figure out some centers for nodes that
+                // represent groups.
+                // We'll draw those at the average sticker center
+                // of each of their component stickers.
+                for (int iNode = nStickers; iNode < nNodes; ++iNode)
+                {
+                    for (int iPred = 0; iPred < predecessors[iNode].length; ++iPred)
+                    {
+                        int jSticker = predecessors[iNode][iPred];
+                        Assert(jSticker < nStickers);
+                        if (VecMath.normsqrd(partialOrderNodeCenters2d[jSticker]) != 0.)
+                        {
+                            VecMath.vpv(partialOrderNodeCenters2d[iNode],
+                                        partialOrderNodeCenters2d[iNode],
+                                        partialOrderNodeCenters2d[jSticker]);
+                            nContributorsThisNode[iNode]++;
+                        }
+                    }
+                    if (nContributorsThisNode[iNode] != 0)
+                        VecMath.vxs(partialOrderNodeCenters2d[iNode], partialOrderNodeCenters2d[iNode], 1.f/nContributorsThisNode[iNode]);
+                }
+                for (int iNode = nStickers; iNode < nNodes; ++iNode)
+                {
+                    if ((iNode-nStickers)%2 == 0)
+                    {
+                        // it's a start token... actually what we just did
+                        // doesnt' make any sense... set it to the same
+                        // as the corresponding end token instead.
+                        VecMath.copyvec(partialOrderNodeCenters2d[iNode], partialOrderNodeCenters2d[iNode+1]);
+                    }
+                }
+            }
+
+
             for (int iItem = 0; iItem < drawListSize; ++iItem)
             {
                 int iSticker = drawList[iItem][0];
                 int iPolyThisSticker = drawList[iItem][1];
+
+                if (showPartialOrder
+                        && (iItem==0 || drawList[iItem][0] != drawList[iItem-1][0]))
+                {
+                    int nStickers = puzzleDescription.nStickers();
+                    // Find any partial order items
+                    // otherSticker < thisSticker,
+                    // and draw them now.
+                    for (int iPred = 0; iPred < predecessors[iSticker].length; ++iPred)
+                    {
+                        int jSticker = predecessors[iSticker][iPred];
+
+                        if (true)
+                            if (jSticker >= nStickers
+                             && (jSticker-nStickers)%2 != 1)
+                                continue; // only draw to other-group end tokens
+
+                        if (false)
+                            if (jSticker >= nStickers
+                             && (jSticker-nStickers)%2 != 0)
+                                continue; // only draw to this-group start tokens
+
+                        float otherStickerCenter[] = partialOrderNodeCenters2d[jSticker];
+                        float myStickerCenter[] = partialOrderNodeCenters2d[iSticker];
+                        if (jitterRadius > 0)
+                        {
+                            otherStickerCenter = VecMath.copyvec(otherStickerCenter);
+                            myStickerCenter = VecMath.copyvec(myStickerCenter);
+                            for (int i = 0; i < 2; ++i)
+                            {
+                                otherStickerCenter[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
+                                myStickerCenter[i] += jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius;
+                            }
+                        }
+
+                        java.awt.Color colors[][] = {
+                            {
+                                ground.darker(), // lighter than the rest of the shadows
+                            },
+                            {
+                                java.awt.Color.red,
+                                java.awt.Color.orange,
+                                java.awt.Color.yellow,
+                                java.awt.Color.green,
+                                //java.awt.Color.cyan,
+                                //java.awt.Color.blue,
+                            }
+                        };
+                        int nSegs = colors[iPass].length;
+                        float points[][] = new float[nSegs+1][];
+                        for (int iPoint = 0; iPoint < points.length; ++iPoint)
+                            points[iPoint] = VecMath.lerp(otherStickerCenter, myStickerCenter, (float)iPoint/(float)nSegs);
+                        for (int iSeg = 0; iSeg < nSegs; ++iSeg)
+                        {
+                            g.setColor(colors[iPass][iSeg]);
+                            g.drawLine((int)points[iSeg][0], (int)points[iSeg][1],
+                                       (int)points[iSeg+1][0], (int)points[iSeg+1][1]);
+                        }
+                    }
+                }
+
                 int poly[] = stickerInds[iSticker][iPolyThisSticker];
                 float brightness = brightnesses[iSticker][iPolyThisSticker];
                 int colorOfSticker = puzzleState[iSticker];
@@ -700,6 +1004,21 @@ public class GenericPipelineUtils
                     // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
                     g.drawPolygon(xs, ys, poly.length);
                 }
+                if (drawLabels)
+                {
+                    String label = ""+iSticker+"("+iPolyThisSticker+")";
+                    int x = 0;
+                    int y = 0;
+                    for (int i = 0; i < poly.length; ++i)
+                    {
+                        x += xs[i];
+                        y += ys[i];
+                    }
+                    x /= poly.length;
+                    y /= poly.length;
+                    g.setColor(brightness > .5f ? Color.black : Color.white);
+                    g.drawString(label, x, y);
+                }
             }
         }
 
@@ -711,18 +1030,27 @@ public class GenericPipelineUtils
 
     private static class VeryCleverPaintersSortingOfStickers
     {
-        public int[] sortStickersBackToFront(
-                int poly2twin[/*nSticker*/][/*nPolygonsThisSticker*/][/*2*/])
+        // Function return value is number of stickers to draw
+        public static int sortStickersBackToFront(
+                int nStickers, // can be less than actual number, for debugging
+                int adjacentStickerPairs[][/*2*/][/*2*/],
+                boolean stickerVisibilities[/*nStickers*/],
+                boolean stickerPolyIsBackfacing[/*nStickers*/][/*nPolysThisSticker*/],
+                float eye[],
+                float cutNormal[],
+                float cutOffsets[], // in increasing order
+                int sticker2Slice[],
+                int returnStickerSortOrder[/*nStickers*/],
+                int returnPartialOrderOptionalForDebugging[][][]) // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the partial order
         {
-            int nStickers = 100;
-            int nCompressedSlices = 6; // XXX
+            int nSlices = cutOffsets.length + 1;
+            int nCompressedSlices = nSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
             int nNodes = nStickers + 2*nCompressedSlices;
             int parents[] = new int[nNodes];
-            int depths[] = new int[nNodes]; // XXX not really necessary, but to simplify for now
+            int depths[] = new int[nNodes]; // XXX this array is not really necessary, but it simplifies the code
 
-            int poly2stickers[][] = new int[1000][2]; // XXX
-            int polys[] = new int[1000]; // XXX
-            int maxPartialOrderSize = polys.length/2; // XXX
+            int maxPartialOrderSize = nStickers*2 // for group inclusion
+                                    + adjacentStickerPairs.length;
             int partialOrder[][] = new int[maxPartialOrderSize][2];
             int partialOrderSize = 0;
 
@@ -741,7 +1069,11 @@ public class GenericPipelineUtils
                 //
                 int eyeSlice; // which compressed slice eye is in
                 {
-                    eyeSlice = 2; // XXX
+                    float eyeOffset = VecMath.dot(eye, cutNormal);
+                    eyeSlice = 0;
+                    while (eyeSlice < cutOffsets.length
+                        && eyeOffset > cutOffsets[eyeSlice])
+                        eyeSlice++;
                 }
 
                 for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
@@ -771,7 +1103,7 @@ public class GenericPipelineUtils
 
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
-                    int iSlice = 0; // XXX which compressed slice iSticker is in;
+                    int iSlice = sticker2Slice[iSticker];
                     int iGroup = nStickers + 2*iSlice;
                     int iGroupStartToken = nStickers + 2*iSlice;
                     int iGroupEndToken = nStickers + 2*iSlice+1;
@@ -790,16 +1122,22 @@ public class GenericPipelineUtils
                 }
             }
 
-            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
-                for (int iPolyThisSticker = 0; iPolyThisSticker < poly2twin[iSticker].length; ++iPolyThisSticker)
+                for (int iPoly = 0; iPoly < adjacentStickerPairs.length; ++iPoly)
                 {
-                    int jSticker = poly2twin[iSticker][iPolyThisSticker][0];
-                    int jPolyThisSticker = poly2twin[iSticker][iPolyThisSticker][1];
+                    int stickersThisPoly[][] = adjacentStickerPairs[iPoly];
+                    int iSticker =         stickersThisPoly[0][0];
+                    int iPolyThisSticker = stickersThisPoly[0][1];
+                    int jSticker =         stickersThisPoly[1][0];
+                    int jPolyThisSticker = stickersThisPoly[1][1];
+                    if (iSticker >= nStickers
+                     || jSticker >= nStickers)
+                        continue; // caller probably set nStickers < actaul number of stickers for debugging
+
                     if (jSticker < iSticker)
                         continue; // already did it
-                    boolean iStickerIsVisible = false; // XXX
-                    boolean jStickerIsVisible = false; // XXX
+                    boolean iStickerIsVisible = stickerVisibilities[iSticker];
+                    boolean jStickerIsVisible = stickerVisibilities[jSticker];
                     if (!iStickerIsVisible && !jStickerIsVisible)
                         continue;
                     int iGroup = iSticker;
@@ -823,10 +1161,26 @@ public class GenericPipelineUtils
                         // This relationship only matters if they are both visible.
                         if (!iStickerIsVisible || !jStickerIsVisible)
                             continue;
-                        boolean iStickerHasPolyBackfacing = false; // XXX 
-                        boolean jStickerHasPolyBackfacing = false; // XXX
-                        // XXX check both, at most one should be backfacing
-                        Assert(!(iStickerHasPolyBackfacing && jStickerHasPolyBackfacing)); // XXX should add some slack I think
+                        //System.out.println("    stickers "+iSticker+","+jSticker+" in same slice "+sticker2Slice[iSticker]+"");
+                        boolean iStickerHasPolyBackfacing = stickerPolyIsBackfacing[iSticker][iPolyThisSticker];
+                        boolean jStickerHasPolyBackfacing = stickerPolyIsBackfacing[jSticker][jPolyThisSticker];
+                        if (iStickerHasPolyBackfacing && jStickerHasPolyBackfacing)
+                        {
+                            // XXX ARGH!  This wouldn't happen if we were
+                            // XXX projecting the original non-shrunken
+                            // XXX hyperfaces, but unfortunately we shrink them
+                            // XXX so it makes the two polygons not parallel
+                            // XXX in 3-space.  I *think* if both are backfacing
+                            // XXX it whould mean either draw order is okay though.
+
+                            //System.out.println("WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!!");
+                            continue;
+                        }
+                        else
+                        {
+                            //System.out.println("phew.");
+                        }
+
                         if (iStickerHasPolyBackfacing)
                         {
                             //add "jSticker < iSticker"
@@ -849,9 +1203,15 @@ public class GenericPipelineUtils
                         // orientation of the poly is not relevant
                         // (in fact jSticker might not even be visible);
                         // only iSticker's orientation of the poly is relevant.
+                        // XXX I thought that was true but then I got cycles in the 2x hypercube... think about this
                         if (!iStickerIsVisible)
                             continue;
-                        boolean iStickerHasPolyBackfacing = false; // XXX 
+                        //System.out.println("    sticker "+iSticker+" is adjacent to sticker "+jSticker+"'s slice "+sticker2Slice[jSticker]+"");
+                        boolean iStickerHasPolyBackfacing = stickerPolyIsBackfacing[iSticker][iPolyThisSticker];
+                        boolean jStickerHasPolyBackfacing = stickerPolyIsBackfacing[jSticker][jPolyThisSticker];
+                        if (false) // XXX bleah I thought this might fix some cycles but it actually makes flashing worse
+                            if (iStickerHasPolyBackfacing == jStickerHasPolyBackfacing)
+                                continue;
                         if (iStickerHasPolyBackfacing)
                         {
                             int jIndGroupEndToken = jGroup+1;
@@ -860,7 +1220,7 @@ public class GenericPipelineUtils
                             partialOrder[partialOrderSize][1] = iSticker;
                             partialOrderSize++;
                         }
-                        else
+                        else // jStickerHasPolyBackfacing
                         {
                             int jIndGroupStartToken = jGroup;
                             //add "iSticker < jIndGroupStartToken;
@@ -874,7 +1234,12 @@ public class GenericPipelineUtils
                         // same as previous case but reversed
                         if (!jStickerIsVisible)
                             continue;
-                        boolean jStickerHasPolyBackfacing = false; // XXX 
+                        //System.out.println("    sticker "+iSticker+"'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"");
+                        boolean jStickerHasPolyBackfacing = stickerPolyIsBackfacing[jSticker][jPolyThisSticker];
+                        boolean iStickerHasPolyBackfacing = stickerPolyIsBackfacing[iSticker][iPolyThisSticker];
+                        if (false) // XXX bleah I thought this might fix some cycles but it actually makes flashing worse
+                            if (iStickerHasPolyBackfacing == jStickerHasPolyBackfacing)
+                                continue;
                         if (jStickerHasPolyBackfacing)
                         {
                             int iIndGroupEndToken = iGroup+1;
@@ -883,7 +1248,7 @@ public class GenericPipelineUtils
                             partialOrder[partialOrderSize][1] = jSticker;
                             partialOrderSize++;
                         }
-                        else
+                        else // iStickerHasPolyBackfacing
                         {
                             int iIndGroupStartToken = iGroup;
                             //add "jSticker < iIndGroupStartToken;
@@ -902,36 +1267,157 @@ public class GenericPipelineUtils
                 }
             }
 
+            //System.out.println("partial order size = "+partialOrderSize);
+            //System.out.println("partial order = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize)));
+
+            // can turn this on to get a sense of
+            // what it cares about and what it doesn't, if it's screwing up
+            boolean doScramble = true;
+            int perm[] = null;
+            int invPerm[] = null;
+            if (doScramble)
+            {
+                perm = VecMath.randomperm(nNodes, jitterGenerator); // XXX argh, name it something else I guess
+                invPerm = VecMath.invertperm(perm);
+                for (int i = 0; i < partialOrderSize; ++i)
+                    for (int j = 0; j < 2; ++j)
+                        partialOrder[i][j] = perm[partialOrder[i][j]];
+            }
+
             //
             // Okay, now we have the partial order.
             // Topsort it into a total order.
             //
-            com.donhatchsw.util.TopSorter topsorter = new com.donhatchsw.util.TopSorter(nStickers, polys.length/2); // XXX allocation
-            int stickerSortOrder[] = new int[nNodes]; // XXX allocation
-            topsorter.topsort(nNodes, stickerSortOrder,
-                              partialOrderSize, partialOrder);
+            com.donhatchsw.util.TopSorter topsorter = new com.donhatchsw.util.TopSorter(nNodes, maxPartialOrderSize); // XXX allocation
+            int nodeSortOrder[] = new int[nNodes]; // XXX allocation
+            //System.out.println("nStickers = "+nStickers);
+            //System.out.println("nNodes = "+nNodes);
+            int nComponents = topsorter.topsort(nNodes, nodeSortOrder,
+                                                partialOrderSize, partialOrder,
+                                                null);
+            if (nComponents == nNodes)
+            {
+                //System.out.println("  no cycles!");
+            }
+            else
+            {
+                // Do it again, this time passing in a componentStarts array
+                // to get filled in so we can examine it
+                int nNontrivialCycles = 0;
+                int componentStarts[] = new int[nNodes+1]; // one extra for end of last one
+                int nComponentsAgain = topsorter.topsort(nNodes, nodeSortOrder,
+                                                         partialOrderSize, partialOrder,
+                                                         componentStarts);
+                Assert(nComponentsAgain == nComponents);
+                int nNontrivialComponents = 0;
+                for (int iComponent = 0; iComponent < nComponents; ++iComponent)
+                {
+                    int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
+                    if (componentSize >= 2)
+                    {
+                        System.out.println("    found a cycle of length "+componentSize+"");
+                        nNontrivialComponents++;
+                    }
+                }
+                // XXX not sure if this ever happens unless I have a bug
+                System.out.println("  ARGH! "+nNontrivialComponents+" cycle"+(nNontrivialComponents==1 ? "" : "s")+" in depth sort! This is unexpected, if you can reproduce this, please report it");
+                // The only further use of partialOrder is for rendering,
+                // Prune out everything except one cycle from each component.
+                if (returnPartialOrderOptionalForDebugging != null)
+                {
+                    int origToSorted[] = VecMath.invertperm(nodeSortOrder, nNodes);
+                    int successors[][] = new int[nNodes][0];
+                    for (int iPair = 0; iPair < partialOrder.length; ++iPair)
+                    {
+                        int i = partialOrder[iPair][0];
+                        int j = partialOrder[iPair][1];
+                        successors[i] = (int[])com.donhatchsw.util.Arrays.append(successors[i], j); // potentially O(n^2) but number of successors is usually at most 3 so whatever
+                    }
+                    int justTheCycles[][] = new int[partialOrderSize][];
+                    int justTheCyclesSize = 0;
+                    for (int iComponent = 0; iComponent < nComponents; ++iComponent)
+                    {
+                        int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
+                        if (componentSize >= 2)
+                        {
+                            System.out.println("    found a cycle of length "+componentSize+"");
+
+                            int iNode0 = nodeSortOrder[componentStarts[iComponent]];
+                            // Progress forward componentSize times,
+                            // to make sure we are within where it's going to loop
+                            for (int i = 0; i < componentSize; ++i)
+                            {
+                                int jNode = -1;
+                                for (int iSucc = 0; iSucc < successors[iNode0].length; ++iSucc)
+                                    if (origToSorted[successors[iNode0][iSucc]] >= componentStarts[iComponent]
+                                     && origToSorted[successors[iNode0][iSucc]] < componentStarts[iComponent+1])
+                                    {
+                                        jNode = successors[iNode0][iSucc];
+                                        break;
+                                    }
+                                Assert(jNode != -1);
+                                iNode0 = jNode;
+                            }
+                            System.out.println("====");
+                            for (int iNode = iNode0;;)
+                            {
+                                int jNode = -1;
+                                for (int iSucc = 0; iSucc < successors[iNode].length; ++iSucc)
+                                    if (origToSorted[successors[iNode][iSucc]] >= componentStarts[iComponent]
+                                     && origToSorted[successors[iNode][iSucc]] < componentStarts[iComponent+1])
+                                    {
+                                        jNode = successors[iNode][iSucc];
+                                        break;
+                                    }
+                                Assert(jNode != -1);
+                                justTheCycles[justTheCyclesSize++] = new int[]{iNode,jNode};
+                                System.out.println("    "+iNode+" -> "+jNode+"");
+
+                                iNode = jNode;
+                                if (jNode == iNode0)
+                                    break;
+                            }
+                        }
+                    }
+                    partialOrder = justTheCycles;
+                    partialOrderSize = justTheCyclesSize;
+                    //System.out.println("justTheCyclesSize = "+justTheCyclesSize);
+                    //System.out.println("justTheCycles = "+com.donhatchsw.util.Arrays.toStringCompact(justTheCycles));
+                }
+            }
+
+            if (doScramble)
+            {
+                for (int i = 0; i < nNodes; ++i)
+                    nodeSortOrder[i] = invPerm[nodeSortOrder[i]];
+                for (int i = 0; i < partialOrderSize; ++i)
+                    for (int j = 0; j < 2; ++j)
+                        partialOrder[i][j] = invPerm[partialOrder[i][j]];
+            }
+
 
             //
             // Compress out the group start and end tokens
             // which we no longer care about
             //
+            int nCompressedSorted = 0;
+            for (int iSorted = 0; iSorted < nNodes; ++iSorted)
             {
-                int iCompressedSorted = 0;
-                for (int iSorted = 0; iSorted < nNodes; ++iSorted)
+                int iNode = nodeSortOrder[iSorted];
+                if (iNode < nStickers)
                 {
-                    int iNode = stickerSortOrder[iSorted];
-                    if (iNode < nStickers)
-                    {
-                        int iSticker = iNode;
-                        // if (the sticker is front facing) XXX
-                        {
-                            stickerSortOrder[iCompressedSorted++] = iSticker;
-                        }
-                    }
+                    int iSticker = iNode;
+                    if (stickerVisibilities[iSticker]) // XXX hmm, this is checked in the caller too... maybe we don't need to check it here and in fact we don't need to return a count
+                        returnStickerSortOrder[nCompressedSorted++] = iSticker;
                 }
             }
 
-            return null;
+            if (returnPartialOrderOptionalForDebugging != null)
+            {
+                returnPartialOrderOptionalForDebugging[0] = (int[][])com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize);
+            }
+
+            return nCompressedSorted;
         } // sortStickersBackToFront
     } // class VeryCleverPaintersSortingOfStickers
 
