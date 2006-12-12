@@ -65,8 +65,8 @@ public class GenericGlue
     //
     public int nRotation = 0; // total number of rotation frames in progress
     public int iRotation = 0; // number of frames done so far
-     public double rotationFrom[]; // where rotation is rotating from, in 4space
-     public double rotationTo[]; // where rotation is rotating to, in 4space
+     public float rotationFrom[]; // where rotation is rotating from, in 4space
+     public float rotationTo[]; // where rotation is rotating to, in 4space
 
     //
     // A twist is currently in progress if iTwist < nTwist.
@@ -103,15 +103,26 @@ public class GenericGlue
             this.slicemask = slicemask;
         }
     }
-    java.util.Vector undoq = new java.util.Vector(); // of HistoryNode
-    int undoPartSize = 0; // undoq has undo part followed by redo part
+    public java.util.Vector undoq = new java.util.Vector(); // of HistoryNode
+    public int undoPartSize = 0; // undoq has undo part followed by redo part
 
     //
     // Two scratch Frames to use for computing and painting.
     //
-    GenericPipelineUtils.Frame untwistedFrame = new GenericPipelineUtils.Frame();
-    GenericPipelineUtils.Frame twistingFrame = new GenericPipelineUtils.Frame();
+    public GenericPipelineUtils.Frame untwistedFrame = new GenericPipelineUtils.Frame();
+    public GenericPipelineUtils.Frame twistingFrame = new GenericPipelineUtils.Frame();
         { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
+
+
+    //
+    // Debugging state variables
+    //
+    public boolean useTopsort = true;
+    public int jitterRadius = 0;
+    public boolean drawLabels = false;
+    public boolean showPartialOrder = false;
+    public boolean frozenForDebugging = false;
+        public int frozenPartialOrderForDebugging[][] = null;
 
 
     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
@@ -132,7 +143,7 @@ public class GenericGlue
                                                  System.err)));
             genericPuzzleDescription = new PolytopePuzzleDescription(
                 initialSchlafli,
-                initialLength,
+                initialLength, initialLength,
                 progressWriter);
             genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
         }
@@ -145,8 +156,9 @@ public class GenericGlue
     }
     public boolean isAnimating()
     {
-        return iRotation < nRotation
-            || iTwist < nTwist;
+        return !frozenForDebugging
+            && (iRotation < nRotation
+             || iTwist < nTwist);
     }
 
     // Call this from MC4DSwing ctor right after all
@@ -182,27 +194,27 @@ public class GenericGlue
         }
 
         String table[][] = {
-            {"{3,3,3}",  "1,1.9,2,3,4,5,6,7", "Simplex"},
-            {"{3}x{4}",  "1,2,3,4,5,6,7",     "Triangular Prism Prism"},
-            {"{4,3,3}",  "1,2,3,4,5,6,7,8,9", "Hypercube"},
-            {"{5}x{4}",  "1,2,2.5,3,4,5,6,7", "Pentagonal Prism Prism"},
-            {"{4}x{5}",  "1,2,2.5,3,4,5,6,7", "Pentagonal Prism Prism (alt)"},
-            {"{6}x{4}",  "1,2,2.5,3,4,5,6,7", "Hexagonal Prism Prism"},
-            {"{7}x{4}",  "1,2,2.5,3,4,5,6,7", "True HEPAgonal Prism Prism"},
-            {"{8}x{4}",  "1,2,2.5,3,4,5,6,7", "Octagonal Prism Prism"},
-            {"{8}x{4}",  "1,2,2.5,3,4,5,6,7", "Nonagonal Prism Prism"},
-            {"{10}x{4}", "1,2,2.5,3,4,5,6,7", "Decagonal Prism Prism"},
+            {"{3,3,3}",  "1,3(5.0),5(9.0),7(13.0)", "Simplex"},
+            {"{3}x{4}",  "1,3(4.0),5(7.0),7(10.0)",     "Triangular Prism Prism"},
+            {"{4,3,3}",  "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)", "Hypercube"},
+            {"{5}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Pentagonal Prism Prism"},
+            {"{4}x{5}",  "1,2,3(2.5),3,4,5,6,7", "Pentagonal Prism Prism (alt)"},
+            {"{6}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Hexagonal Prism Prism"},
+            {"{7}x{4}",  "1,2,3(2.5),3,4,5,6,7", "True HEPAgonal Prism Prism"},
+            {"{8}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Octagonal Prism Prism"},
+            {"{8}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Nonagonal Prism Prism"},
+            {"{10}x{4}", "1,2,3(2.5),3,4,5,6,7", "Decagonal Prism Prism"},
             {"{100}x{4}","1,3",               "Onehundredagonal Prism Prism"},
-            {"{3}x{3}",  "1,2,3,4,5,6,7",     ""},
-            {"{3}x{5}",  "1,2,2.5,3,4,5,6,7", ""},
-            {"{5}x{5}",  "1,2,2.5,3,4,5,6,7", ""}, // XXX 2 is ugly, has slivers
-            {"{5}x{10}",  "1,2.5,3",          ""}, // XXX 2 is ugly, has slivers
-            {"{10}x{5}",  "1,2.5,3",          ""}, // XXX 2 is ugly, has slivers
-            {"{10}x{10}", "1,2.5,3",          ""}, // XXX 2 is ugly, has slivers
-            {"{3,3}x{}", "1,2,3,4,5,6,7",     "Tetrahedral Prism"},
-            {"{5,3}x{}", "1,2,2.5,2.5,3,4,5,6,7", "Dodecahedral Prism"},
-            {"{}x{5,3}", "1,2,2.5,3,4,5,6,7", "Dodecahedral Prism (alt)"},
-            {"{5,3,3}",  "1,2,2.5,3",         "Hypermegaminx (BIG!)"},
+            {"{3}x{3}",  "1,2,3(4.0),4,5,6,7",     ""},
+            {"{3}x{5}",  "1,2,3(4.0),3,4,5,6,7", ""},
+            {"{5}x{5}",  "1,2,3(2.5),3,4,5,6,7", ""}, // XXX 2 is ugly, has slivers
+            {"{5}x{10}",  "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
+            {"{10}x{5}",  "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
+            {"{10}x{10}", "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
+            //{"{3,3}x{}", "1,2,3(4.9),4,5,6,7",     "Tetrahedral Prism"}, // XXX ARGH! doesn't work yet! throws assertion failure!
+            {"{5,3}x{}", "1,2,3(2.5),3,4,5,6,7", "Dodecahedral Prism"},
+            {"{}x{5,3}", "1,2,3(2.5),3,4,5,6,7", "Dodecahedral Prism (alt)"},
+            {"{5,3,3}",  "1,2,3(2.5),3",         "Hypermegaminx (BIG!)"},
             {null,       "",                  "Invent my own!"},
         };
         puzzlemenu.add(new MenuItem("-")); // separator
@@ -216,8 +228,8 @@ public class GenericGlue
 
             // Puzzles with triangles kind of suck so far,
             // so we might want to leave them out of the menu...
-            //boolean allowPuzzlesWithTriangles = true;
-            boolean allowPuzzlesWithTriangles = false;
+            boolean allowPuzzlesWithTriangles = true;
+            //boolean allowPuzzlesWithTriangles = false;
             if (!allowPuzzlesWithTriangles)
             {
                 if (schlafli != null && schlafli.indexOf("{3") != -1)
@@ -270,19 +282,45 @@ public class GenericGlue
                                 break; // got it
                             }
                         }
-                        double len;
-                        try { len = Double.parseDouble(lengthString); }
-                        catch (java.lang.NumberFormatException e)
+                        int intLength = 0;
+                        double doubleLength = 0.;
                         {
-                            System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
-                            initPuzzleCallback.call(); // XXX really just want a repaint I think
-                            return;
+                            lengthString = lengthString.trim();
+
+                            try {
+                                System.out.println("lengthString = "+lengthString);
+                                if (lengthString.length() >= 4
+                                 && lengthString.charAt(1) == '(' // XXX assumes intLength < 9
+                                 && lengthString.endsWith(")"))
+                                {
+                                    String intPart = lengthString.substring(0,1);
+                                    String doublePart = lengthString.substring(2, lengthString.length()-1);
+                                    //System.out.println("intPart = "+intPart);
+                                    //System.out.println("doublePart = "+doublePart);
+
+                                    intLength = Integer.parseInt(intPart);
+                                    doubleLength = Double.parseDouble(doublePart);
+                                }
+                                else
+                                {
+                                    doubleLength = Double.parseDouble(lengthString);
+                                    intLength = (int)Math.ceil(doubleLength);
+                                }
+                            }
+                            catch (java.lang.NumberFormatException e)
+                            {
+                                System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
+                                initPuzzleCallback.call(); // XXX really just want a repaint I think
+                                return;
+                            }
+                            //System.out.println("intLength = "+intLength);
+                            //System.out.println("doubleLength = "+doubleLength);
                         }
 
                         GenericPuzzleDescription newPuzzle = null;
                         try
                         {
-                            newPuzzle = new PolytopePuzzleDescription(schlafli, len, progressWriter);
+                            newPuzzle = new PolytopePuzzleDescription(schlafli, intLength, doubleLength, progressWriter);
                         }
                         catch (Throwable t)
                         {
@@ -332,13 +370,74 @@ public class GenericGlue
                         initPuzzleCallback.call(); // really just want a repaint I think
                         String statuslabel = name + "  length="+lengthString;
                         statusLabel.setText(statuslabel); // XXX BUG - hey, it's not set right on program startup!
+
+                        untwistedFrame = new GenericPipelineUtils.Frame();
+                        twistingFrame = new GenericPipelineUtils.Frame();
+                            { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
                     }
                 });
-                // XXX add a "pick my own"!
             }
         }
         if (verboseLevel >= 1) System.out.println("out GenericGlue.addMoreItemsToPuzzleMenu");
     } // addMoreItemsToPuzzleMenu
+
+
+    // Add a key listener for debugging.
+    // All of the key sequences it listens to are ctrl-alt-something
+    // so it should be difficult for the user to stumble on these
+    // by accident.
+    // Currently I call this automatically from inside mouseMovedAction
+    // since I don't have handy access to the view before that...
+    // So MC4DSwing doesn't really need to worry about calling this.
+    public void addAnotherKeyListenerToView(final Canvas view)
+    {
+        view.addKeyListener(new KeyAdapter() {
+            public void keyTyped(KeyEvent ke)
+            {
+                char c = ke.getKeyChar();
+                //System.out.println("generic key listener got key '"+c+"'("+(int)c+")");
+                if (c == 't'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-t
+                {
+                    System.out.println("useTopsort "+useTopsort+" -> "+!useTopsort+"");
+                    useTopsort = !useTopsort;
+                    view.repaint();
+                }
+                if (c == 'j'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-j
+                {
+                    jitterRadius++;
+                    if (jitterRadius == 10)
+                        jitterRadius = 0;
+                    System.out.println("jitterRadius -> "+jitterRadius+"");
+                    view.repaint();
+                }
+                if (c == 'l'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-l
+                {
+                    System.out.println("drawLabels "+drawLabels+" -> "+!drawLabels+"");
+                    drawLabels = !drawLabels;
+                    view.repaint();
+                }
+                if (c == 'p'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-p
+                {
+                    System.out.println("showPartialOrder "+showPartialOrder+" -> "+!showPartialOrder+"");
+                    showPartialOrder = !showPartialOrder;
+                    view.repaint();
+                }
+                if (c == ' ' && ke.isControlDown()
+                 && ke.isAltDown()) // ctrl-alt-space
+                {
+                    System.out.println("frozenForDebugging "+frozenForDebugging+" -> "+!frozenForDebugging+"");
+                    frozenForDebugging = !frozenForDebugging;
+                    frozenPartialOrderForDebugging = null;
+                    view.repaint();
+                }
+            }
+        });
+    } // addAnotherKeyListenerToView
+
 
 
     public void undoAction(Canvas view, JLabel statusLabel, float twistFactor)
@@ -362,7 +461,7 @@ public class GenericGlue
             //
             int order = glue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order;
-            glue.nTwist = (int)(totalRotationAngle/(Math.PI/2) * MagicCube.NFRAMES_180 * twistFactor); // XXX unscientific rounding-- and it's too fast for small angles!  It's more noticeable here than for twists because very small angles are possible here.  Really we'd like to bound the max acceleration.
+            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
             glue.twistDir = -node.dir;
@@ -395,7 +494,7 @@ public class GenericGlue
             //
             int order = glue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order;
-            glue.nTwist = (int)(totalRotationAngle/(Math.PI/2) * MagicCube.NFRAMES_180 * twistFactor);
+            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
             glue.twistDir = node.dir;
@@ -472,7 +571,19 @@ public class GenericGlue
         if (pickedSticker != genericGlue.iStickerUnderMouse)
             view.repaint(); // highlight changed (or turned on or off)
         genericGlue.iStickerUnderMouse = pickedSticker;
+
+
+        // Kind of hacky way to add a back door key listener for debugging...
+        if (view != mostRecentViewIAddedListenerTo)
+        {
+            addAnotherKeyListenerToView(view);
+
+            mostRecentViewIAddedListenerTo = view;
+        }
     } // mouseMovedAction
+
+    private Canvas mostRecentViewIAddedListenerTo = null;
+
 
     public void mouseClickedAction(MouseEvent e,
                                    float viewMat4d[/*4*/][/*4*/],
@@ -511,8 +622,9 @@ public class GenericGlue
                 //
                 // Initiate a rotation
                 // that takes the nice point to the center
-                // (i.e. to the -W axix)
+                // (i.e. to the -W axis)
                 // 
+                // XXX do all this in float since there are now float methods in VecMath
 
                 double viewMat4dD[][] = new double[4][4];
                 double nicePointD[] = new double[4];
@@ -529,12 +641,12 @@ public class GenericGlue
                                     nicePointOnScreen,
                                     minusWAxis);
 
-                genericGlue.nRotation = (int)(totalRotationAngle/(Math.PI/2) * MagicCube.NFRAMES_180 * twistFactor); // XXX unscientific rounding-- and it's too fast for small angles!  really we'd like to bound the max acceleration. XXX also this is duplicated below for nTwist
+                genericGlue.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
                 // XXX ARGH! we'd like the speed to vary as the user changes the slider,
                 // XXX but the above essentially locks in the speed for this rotation
                 genericGlue.iRotation = 0; // we are iRotation frames into nRotation
-                genericGlue.rotationFrom = nicePointOnScreen;
-                genericGlue.rotationTo = minusWAxis;
+                genericGlue.rotationFrom = com.donhatchsw.util.VecMath.doubleToFloat(nicePointOnScreen);
+                genericGlue.rotationTo = com.donhatchsw.util.VecMath.doubleToFloat(minusWAxis);
                 view.repaint();
 
                 if (genericGlue.iRotation == genericGlue.nRotation)
@@ -584,7 +696,7 @@ public class GenericGlue
                 //    dir *= 2;
 
                 double totalRotationAngle = 2*Math.PI/order;
-                genericGlue.nTwist = (int)(totalRotationAngle/(Math.PI/2) * MagicCube.NFRAMES_180 * twistFactor); // XXX unscientific rounding-- and it's too fast for small angles!  really we'd like to bound the max acceleration.  XXX also this is duplicated above for nRotate
+                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = iGrip;
                 genericGlue.twistDir = dir;
@@ -673,24 +785,18 @@ public class GenericGlue
             //
             // 4d rotation in progress
             //
-            double viewMat4dD[][] = new double[4][4];
-            for (int i = 0; i < 4; ++i)
-            for (int j = 0; j < 4; ++j)
-                viewMat4dD[i][j] = (double)viewMat4d[i][j];
-
-
-            double incFrac = interp.func((genericGlue.iRotation+1)/(float)genericGlue.nRotation)
+            float incFrac = interp.func((genericGlue.iRotation+1)/(float)genericGlue.nRotation)
                            - interp.func(genericGlue.iRotation/(float)genericGlue.nRotation);
-            double incmatD[][] = com.donhatchsw.util.VecMath.makeRowRotMatThatSlerps(genericGlue.rotationFrom, genericGlue.rotationTo, incFrac);
-            viewMat4dD = com.donhatchsw.util.VecMath.mxm(viewMat4dD, incmatD);
-            com.donhatchsw.util.VecMath.gramschmidt(viewMat4dD, viewMat4dD);
-
-            for (int i = 0; i < 4; ++i)
-            for (int j = 0; j < 4; ++j)
-                viewMat4d[i][j] = (float)viewMat4dD[i][j];
+            float incmat[][] = com.donhatchsw.util.VecMath.makeRowRotMatThatSlerps(genericGlue.rotationFrom, genericGlue.rotationTo, incFrac);
+            float newViewMat4d[][] = com.donhatchsw.util.VecMath.mxm(viewMat4d, incmat);
+            com.donhatchsw.util.VecMath.gramschmidt(newViewMat4d, newViewMat4d);
+            com.donhatchsw.util.VecMath.copymat(viewMat4d, newViewMat4d);
             //System.out.println("    "+genericGlue.iRotation+"/"+genericGlue.nRotation+" -> "+(genericGlue.iRotation+1)+"/"+genericGlue.nRotation+"");
-            genericGlue.iRotation++;
-            view.repaint(); // make sure we keep drawing while there's more to do
+            if (!frozenForDebugging)
+            {
+                genericGlue.iRotation++;
+                view.repaint(); // make sure we keep drawing while there's more to do
+            }
         }
 
         int iGripOfTwist = -1;
@@ -713,7 +819,8 @@ public class GenericGlue
             fracIntoTwist = (float)interp.func((genericGlue.iTwist+1)/(float)genericGlue.nTwist);
             //System.out.println("    "+genericGlue.iTwist+"/"+genericGlue.nTwist+" -> "+(genericGlue.iTwist+1)+"/"+genericGlue.nTwist+"");
 
-            view.repaint(); // make sure we keep drawing while there's more to do
+            if (!frozenForDebugging)
+                view.repaint(); // make sure we keep drawing while there's more to do
         }
 
         // old params... but I don't think it was doing it right
@@ -757,8 +864,18 @@ public class GenericGlue
                           {(float)xOff, (float)yOff}},
             com.donhatchsw.util.VecMath.normalize(towardsSunVec),
             groundNormal,
-            groundOffset);
+            groundOffset,
+            
+            useTopsort,
+            showPartialOrder);
 
+        if (frozenForDebugging)
+        {
+            if (frozenPartialOrderForDebugging != null)
+                glueFrameToDrawInto.partialOrder = frozenPartialOrderForDebugging;
+            else
+                frozenPartialOrderForDebugging = glueFrameToDrawInto.partialOrder;
+        }
 
         // THE COMPUTE PART ENDS HERE
         // THE PAINT PART STARTS HERE (maybe should be a separate function)
@@ -773,11 +890,22 @@ public class GenericGlue
                 genericGlue.iStickerUnderMouse,
                 highlightByCubie,
                 outlineColor,
-                g);
+                g,
+
+                jitterRadius,
+                drawLabels,
+                showPartialOrder);
+
+        if (frozenForDebugging)
+        {
+            glueFrameToDrawInto.partialOrder = null; // so we don't get stuck
+        }
+
 
         if (genericGlue.iTwist < genericGlue.nTwist)
         {
-            genericGlue.iTwist++;
+            if (!frozenForDebugging)
+                genericGlue.iTwist++;
             if (genericGlue.iTwist == genericGlue.nTwist)
             {
                 // End of twist animation-- apply the twist to the state.
@@ -813,7 +941,7 @@ public class GenericGlue
                 //
                 int order = genericGlue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
                 double totalRotationAngle = 2*Math.PI/order;
-                genericGlue.nTwist = (int)(totalRotationAngle/(Math.PI/2) * MagicCube.NFRAMES_180 * twistFactor); // XXX unscientific rounding-- and it's too fast for small angles!  It's more noticeable here than for twists because very small angles are possible here.  Really we'd like to bound the max acceleration. 
+                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = node.iGrip;
                 genericGlue.twistDir = -node.dir;
@@ -823,6 +951,97 @@ public class GenericGlue
             }
         }
     } // computeAndPaintFrame
+
+
+    //
+    // Attempt to implement roll correction.
+    //
+        /*
+        public static void unroll(float viewMat[][],
+               float slop) // don't let the puzzle's north pole get within this distance of the +Y or +Z axis, in radians.
+        {
+            //
+            // The puzzle that viewMat gets applied to when rendering
+            // has a hardcoded tilt/twirl baked into it.
+            // We want to work with the effective viewing matrix of the original puzzle
+            // WITHOUT the tilt/twirl baked in...
+            // that matrix is the tilt/twirl matrix times viewMat.
+            //
+            float viewMatOfOriginalPuzzle[][] = tiltTwirlMat * viewMat;
+
+            // Figure out which of the six xformed model axis directions
+            // (i.e. plus or minus the rows of the row-oriented rotation matrix)
+            // is closest to the "YZ arc", i.e. the arc between +Y and +Z in world space.
+            // Choose that axis of the puzzle as its north pole, and snap it
+            // to the YZ arc.
+            //
+            float unrestrictedBestNorthPoleInWorldSpace[] = new double[3];
+            float restrictedBestNorthPoleInWorldSpace[] = new double[3];
+            {
+                // We proceed by finding the shortest distance
+                // to the positive sector of the YZ plane, which is equivalent but simpler.
+                float bestDistSqrd = Float.MAX_VALUE;
+                float thisNorthPoleInWorldSpace[] = new double[3]; // scratch for loop
+                for (int axis = 0; axis < 3; ++axis)
+                for (int sign = -1; sign <= 1; ++sign)
+                {
+                    VecMath.sxv(thisNorthPoleInWorldSpace,
+                                viewMatOfOriginalPuzzle[axis],
+                                (float)sign);
+                    float closestPointOnPositiveYZSector[] = {
+                        0.f,
+                        MAX(thisNorthPoleInWorldSpace[1], 0.f),
+                        MAX(thisNorthPoleInWorldSpace[2], 0.f),
+                    }
+                    float thisDistSqrd = VecMath.distsqrd(thisNorthPoleInWorldSpace,
+                                                          closestPointOnPositiveYZSector);
+                    if (thisDistSqrd < bestDistSqrd)
+                    {
+                        bestDistSqrd = thisDistSqrd;
+                        VecMath.copyvec(unrestrictedBestNorthPoleInWorldSpace, northPoleMaybe)
+                        VecMath.copyvec(restrictedBestNorthPoleInWorldSpace, closestPointOnPositiveYZSector); // will normalize the winner below
+                    }
+                }
+                VecMath.normalize(restrictedBestNorthPoleInWorldSpace,
+                                  restrictedBestNorthPoleInWorldSpace);
+            }
+            //
+            // Find the smallest world-space rotation that takes the unrestricted pole
+            // to the restricted pole.
+            //
+
+            float restrictedBestNorthPoleInWorldSpace[]
+
+                closestPointOnPositiveYZSector[0] = 0;
+                float closestPointOnYZPlane = northPoleMaybe with x component zeroed
+                // restrict to +Y and +Z
+                if (closestPointOnYZPlane[1] < 0)
+                    closestPointOnYXPlane[1] = 0;
+                if (closestPointOnYZPlane[2] < 0)
+                    closestPointOnYXPlane[2] = 0;
+
+                if (closestPointOnYZPlane[1] < 0 // more than 90 degrees from y axis
+                 || closestPointOnYZPlane[2] < 0) // more than 90 degrees from x axis
+                {
+                    // Closest point to northPoleMaybe on the +Y+Z arc
+                    // is not the closest point on the YZ plane,
+                    // so it must be the +Y or +Z axis. Pick whichever one
+                    // is closer.
+                    if (northPoleMaybe[1] > northPoleMaybe[2])
+                        closestPointOnYZPlane = +Y axis
+                    else
+                        closestPointOnYZPlane = +Z axis
+                }
+
+                float distToYZ
+            }
+        }
+        unroll(...)
+        unrollSpinDelta(axis, rads)
+        {
+            // figure out what axis we *really* want to be using
+        }
+        */
 
 
 
