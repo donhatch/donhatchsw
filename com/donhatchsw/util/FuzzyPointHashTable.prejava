@@ -69,7 +69,8 @@ public class FuzzyPointHashTable
             throw new IllegalArgumentException("FuzzyPointHashTable: littleEps = "+littleEps+", must be >= 0");
         if (!(littleEps <= bigEps))
             throw new IllegalArgumentException("FuzzyPointHashTable: littleEps = "+littleEps+", bigEps = "+bigEps+", out of order");
-        if (!(1e6*bigEps <= bucketSize))
+        //if (!(1e6*bigEps <= bucketSize))
+        if (!(1e4*bigEps <= bucketSize))
             throw new IllegalArgumentException("FuzzyPointHashTable: bigEps = "+bigEps+", bucketSize = "+bucketSize+", bucketSize is not enough bigger than bigEps");
 
         this.bucketSize = bucketSize;
