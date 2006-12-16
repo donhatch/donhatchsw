@@ -1044,212 +1044,55 @@ public final class CSG
         /** Makes an n-dimensional simplex with edge length 2, centered at the origin. */
         public static SPolytope makeSimplex(int nDims)
         {
-            // XXX stopgap special cases for now
-            if (nDims == 2)
-                return makeRegularPolygon(3,1);
-            else if (nDims == 3)
-                return SPolytope.fromStringInPcalcFormat(pcalcString33);
-            else if (nDims == 4)
-                return SPolytope.fromStringInPcalcFormat(pcalcString333);
-
-            double verts[][] = new double[nDims+1][nDims];
-            FORI (iVert, nDims+1)
-                FORI (iAx, nDims)
-                    if (iVert == 0)
-                        verts[iVert][iAx] = Math.sqrt((double)(iAx+2)/(2*iAx+2)) / (iAx+2);
-                    else if (iVert <= iAx)
-                        verts[iVert][iAx] = verts[0][iAx];
-                    else if (iVert == iAx+1)
-                        verts[iVert][iAx] = -(iAx+1) * verts[iAx][iAx];
-                    else
-                        verts[iVert][iAx] = 0.;
-
-            // We treat verts as dual verts,
-            // to exercise the makeConvexPolytopeFromIntersectionOfHalfspaces function
-            double dualVerts[][] = verts;
-            verts = null;
-
-            double dualCircumRadius = VecMath.norm(dualVerts[0]);
-            double primalInRadius = 1./dualCircumRadius;
-            // XXX edge length is wrong-- fix this! what do do with primal inRadius?
-
-            //SPolytope result = makeConvexPolytopeFromIntersectionOfHalfspaces(nDims, dualVerts, VecMath.fillvec(nDims+1, 1.));
-            //return result;
-            unimplemented();
-            return null;
+            assumpt(nDims >= 1); // should just return a vert I guess
+            return makeRegularPolytope(VecMath.fillvec(nDims-1, 3));
         } // makeSimplex
 
+
+
+        /** Makes an n-dimensional hypercube of in-radius 1, centered at the origin. */
+        public static SPolytope makeHypercube(int nDims)
+        {
+            assumpt(nDims >= 1); // should just return a vert I guess
+            int schlafli[] = VecMath.fillvec(nDims-1, 3);
+            if (nDims-1 > 0)
+                schlafli[0] = 4;
+            return makeRegularPolytope(schlafli);
+        } // makeHypercube(unit inRadius, centered at origin)
 
         /** Makes an n-dimensional hypercube with given center and in-radius. */
         public static SPolytope makeHypercube(double center[],
                                               double inRadius)
         {
-            int fullDim = center.length;
-            int dim = fullDim;
-            if (verboseLevel >= 1)
-                System.out.println("in makeHypercube, dim="+dim);
-
-            int nVerts = 1<<dim;
-            int totalNumberOfPolytopes = intpow(3, dim);
-
-            //
-            // Create the hyperplanes...
-            //
-            Hyperplane hyperplanes[][] = new Hyperplane[dim][2];
+            SPolytope answer = makeHypercube(center.length);
+            Polytope verts[] = answer.p.getAllElements()[0];
+            FORI (iVert, verts.length)
             {
-                FORI (iDim, dim)
-                    FORI (iDir, 2)
-                    {
-                        double normal[] = VecMath.zerovec(dim);
-                        normal[iDim] = (iDir == 0 ? -1. : 1.);
-                        hyperplanes[iDim][iDir] = new Hyperplane(
-                                normal,
-                                VecMath.dot(normal, center) + inRadius);
-                    }
+                VecMath.vxs(verts[iVert].getCoords(),
+                            verts[iVert].getCoords(),
+                            inRadius);
+                VecMath.vpsxv(verts[iVert].getCoords(),
+                              center,
+                              inRadius,
+                              verts[iVert].getCoords());
             }
-
-            //
-            // Create a mondo array of Polytopes...
-            //
-            Polytope array[] = new Polytope[totalNumberOfPolytopes];
+            FORI (iFacet, answer.p.facets.length)
             {
-                FORI (i, totalNumberOfPolytopes)
-                {
-                    // dimension of polytope
-                    // is number of 1's in its base 3 representation...
-                    int subDim = 0;
-                    FORI (j, dim)
-                        if (digit(i,j,3) == 1)
-                            ++subDim;
-                    int nSubHyperplanes = dim - subDim;
-                    Hyperplane subHyperplanes[] = new Hyperplane[nSubHyperplanes];
-                    int iSubHyperplane = 0;
-                    FORI (j, dim)
-                    {
-                        int digit = digit(i,j,3);
-                        if (digit(i,j,3) != 1) // if it's 0 or 2
-                            subHyperplanes[iSubHyperplane++] = hyperplanes[j][digit/2];
-                    }
-                    assert(iSubHyperplane == nSubHyperplanes);
-                    array[i] = new Polytope(subDim,
-                                            fullDim,
-                                            null, // placeholder for facets
-                                            subHyperplanes,
-                                            null); // no aux
-                }
+                Hyperplane contributingHyperplanes[] = answer.p.facets[iFacet].p.contributingHyperplanes;
+                assert(contributingHyperplanes.length == 1);
+                Hyperplane hyperplane = contributingHyperplanes[0];
+                assert(hyperplane.offset == 1);
+                hyperplane.offset = VecMath.dot(hyperplane.normal, center) + inRadius;
             }
-
-            //
-            // For each polytope, assign to it
-            // all of its facets.
-            //
-            {
-                FORI (i, totalNumberOfPolytopes)
-                {
-                    Polytope p = array[i];
-                    int subDim = p.dim;
-                    int iFacet = 0, nFacets = 2 * subDim;
-                    SPolytope facets[] = new SPolytope[nFacets];
-                    FORI (j, dim)
-                        if (digit(i, j, 3) == 1)
-                        {
-                            int dist = intpow(3,j);
-                            int sign;
-                            {
-                                //
-                                // If there are no 0's or 2's
-                                // in higher-order places than j,
-                                // then sign is +.
-                                // If there is one of them,
-                                // then sign is -.
-                                // If there are two of them,
-                                // then sign is +.
-                                // Etc.
-                                // Don't ask me why this works.
-                                // it took me years of pain
-                                // before I discovered it.
-                                //
-                                sign = 1;
-                                for (int k = j+1; k < dim; ++k)
-                                    if (digit(i, k, 3) != 1)
-                                        sign = -sign;
-                            }
-                            facets[iFacet++] = new SPolytope(0,-sign, array[i - dist]);
-                            facets[iFacet++] = new SPolytope(0,sign, array[i + dist]);
-                        }
-                    assert(iFacet == nFacets);
-                    p.facets = facets;
-                }
-            }
-
-            //
-            // Set coords.
-            // (This isn't really necessary; I'm debating
-            // whether it should be done.)
-            // (XXX Note however that without it,
-            // I can't print out the result if dim >= 4,
-            // since the print routine attempts
-            // to compute the coords if they have not been set,
-            // which involves inverting a 4x4 matrix
-            // which I haven't implemented yet :-() )
-            //
-            if (true)
-            {
-                FORI (i, totalNumberOfPolytopes)
-                {
-                    Polytope p = array[i];
-                    if (p.dim == 0)
-                    {
-                        double coords[] = new double[dim];
-                        FORI (iDim, dim)
-                        {
-                            int sign = digit(i, iDim, 3) - 1;
-                            coords[iDim] = center[iDim] + sign * inRadius;
-                        }
-                        p.setCoords(coords);
-                    }
-                }
-            }
-
-            //
-            // The master polytope is the one right in the center of the array.
-            // 
-            Polytope p = array[(totalNumberOfPolytopes-1)/2];
-            if (true)
-            {
-                if (verboseLevel >= 1)
-                    System.out.println("    checking orientations deep...");
-                // Make sure we oriented everything consistently...
-                assert(isOrientedDeep(p));
-            }
-            SPolytope sp = new SPolytope(0,1, p);
-
-            // XXX currently, orientDeep does cosmetic stuff.
-            // XXX we want that cosmetic stuff...
-            if (true)
-            {
-                orientDeep(sp);
-            }
-
-            if (verboseLevel >= 1)
-                System.out.println("out makeHypercube");
-
-            return sp;
+            return answer;
         } // makeHypercube
 
-
-        /** Makes an n-dimensional hypercube of in-radius 1, centered at the origin. */
-        public static SPolytope makeHypercube(int dim)
-        {
-            return makeHypercube(VecMath.zerovec(dim), 1.);
-        } // makeHypercube(unit inRadius, centered at origin)
 
         /**
         * Makes a regular polytope of edge length 2, centered at the origin,
         * from its schlafli symbol.
-        * Currently not general, only knows about a few.
-        * The orientation is pretty much arbitrary (might be face-first,
-        * might be edge-first... depends on what you think of as "first", too.
+        * The orientation is facet-first along the negative last coordinate
+        * axis.
         */
         public static SPolytope makeRegularPolytope(int schlafli[/*nDims-1*/])
         {
@@ -1413,7 +1256,7 @@ public final class CSG
                 return sign*(1 - cosSquaredPiTimes(n, d));
             // so now 0 <= n/d <= 1/4, i.e. in [0..45] degrees
             assert(0 <= n && 4*n <= d);
-            System.out.println("    "+n+"/"+d+"");
+            //System.out.println("    "+n+"/"+d+"");
             if (true)
             {
                 // http://mathworld.wolfram.com/TrigonometryAngles.html
@@ -1432,7 +1275,7 @@ public final class CSG
                 if (n==1 && d==4)  // 45 degrees
                     return sign * (1./2.);
             }
-            System.out.println("    "+n+"/"+d+" !!!");
+            //System.out.println("    "+n+"/"+d+" !!!");
             double s = Math.sin(Math.PI*n/d);
             return sign*s*s;
         } // sinSquaredPiTimes
@@ -1467,14 +1310,13 @@ public final class CSG
             assert(schlafli.length == schlafliDenoms.length);
             if (schlafliDenoms == null)
                 schlafliDenoms = VecMath.fillvec(schlafli.length, 1);
-            int nDims = schlafli.length+1;
-            if (nDims == 1)
-                return true; // {}
-            if (nDims == 2)
+            // copy them so we can canonicalize them...
+            schlafli = VecMath.copyvec(schlafli);
+            schlafliDenoms = VecMath.copyvec(schlafliDenoms);
+            FORI (j, schlafli.length)
             {
-                // polygon {n/d}
-                int n = schlafli[0];
-                int d = schlafliDenoms[0];
+                int n = schlafli[j];
+                int d = schlafliDenoms[j];
                 if (n == 0) return false;
                 if (n < 0) n *= -1;
                 if (d < 0) d *= -1;
@@ -1483,7 +1325,16 @@ public final class CSG
                 d %= n; // if n/d is legal then n/(k*n+d) is legal
                 if (2*d > n)
                     d = n-d; // if n/d is legal then n/(n-d) is legal
-                if (d==0) return false;
+                if (d == 0) return false;
+                schlafli[j] = n;
+                schlafliDenoms[j] = d;
+            }
+            int nDims = schlafli.length+1;
+            if (nDims == 1)
+                return true; // {}
+            if (nDims == 2)
+            {
+                // polygon {n/d}
                 // XXX note currently 4/5 assert-fails for some reason even though I think it should probably be legal-- I think it has to do with negative char simplex edge lengths
                 return true;
             }
@@ -1511,17 +1362,27 @@ public final class CSG
             }
             // Finite number of special cases
             int specialCases[][][] = {
-                {{3},{5}}, // icosahedron
-                {{5},{3}}, // dodecahedron
+                {{3},  {5}}, // icosahedron
+                {{5},  {3}}, // dodecahedron
                 {{5,2},{5}}, // small stellated dodecahedron
                 {{5,2},{3}}, // great stellated dodecahedron
-                {{5},{5,2}}, // great dodecahedron
-                {{3},{5,2}}, // great icosahedron
-                {{3},{4},{3}},
-                {{5},{3},{3}},
-                {{3},{3},{5}},
-                // XXX star polychora!
+                {{5},  {5,2}}, // great dodecahedron
+                {{3},  {5,2}}, // great icosahedron
+                {{3},  {4},  {3}}, // 24-cell
+                {{5},  {3},  {3}}, // 120-cell
+                {{3},  {3},  {5}}, // 600-cell
+                {{5,2},{5},  {3}},
+                {{3},  {5},  {5,2}},
+                {{5},  {5,2},{5}},
+                {{5,2},{3},  {5}},
+                {{5},  {3},  {5,2}},
+                {{5,2},{5},  {5,2}},
+                {{3},  {5,2},{5}},
+                {{5},  {5,2},{3}},
+                {{5,2},{3},  {3}},
+                {{3},  {3},  {5,2}},
             };
+
             FORI (i, specialCases.length)
             {
                 if (schlafli.length != specialCases[i].length)
@@ -1531,14 +1392,6 @@ public final class CSG
                 {
                     int n = schlafli[j];
                     int d = schlafliDenoms[j];
-                    if (n == 0) return false;
-                    if (n < 0) n *= -1;
-                    if (d < 0) d *= -1;
-                    int gcd = gcd(n,d);
-                    n /= gcd; d /= gcd; // if n/d is legal then (k*n)/(k*d) is legal
-                    d %= n; // if n/d is legal then n/(k*n+d) is legal
-                    if (2*d > n)
-                        d = n-d; // if n/d is legal then n/(n-d) is legal
                     if (n != specialCases[i][j][0])
                         break; // doesn't match this special case
                     if (d != (specialCases[i][j].length==2 ? specialCases[i][j][1] : 1))
@@ -1549,10 +1402,12 @@ public final class CSG
             }
             return false;
         } // isLegalSchlafli
-        private static boolean XXX_TRY_NEW = true;
-        public static SPolytope NEWmakeRegularStarPolytope(int schlafli[/*nDims-1*/],
-                                                           int schlafliDenoms[/*nDims-1*/])
+
+        public static SPolytope makeRegularStarPolytope(int schlafli[/*nDims-1*/],
+                                                        int schlafliDenoms[/*nDims-1*/])
         {
+            boolean verbose = false; // can set to true to debug
+
             if (schlafliDenoms == null)
                 schlafliDenoms = VecMath.fillvec(schlafli.length, 1);
             if (schlafli.length != schlafliDenoms.length)
@@ -1589,7 +1444,7 @@ public final class CSG
                                                         schlafli,
                                                         schlafliDenoms,
                                                         characteristicSimplexEdgeLengthsSquared);
-            PRINTARRAY(characteristicSimplexEdgeLengthsSquared);
+            if (verbose) PRINTARRAY(characteristicSimplexEdgeLengthsSquared);
 
             //
             // Actually make a characteristic simplex.
@@ -1605,11 +1460,11 @@ public final class CSG
                 FORI (jDim, nDims)
                     characteristicSimplex[iDim][jDim] = (jDim>=iDim ? initialVertex[jDim] : 0.);
             }
-            PRINTMAT(characteristicSimplex);
+            if (verbose) PRINTMAT(characteristicSimplex);
 
             double circumRadius = Math.sqrt(VecMath.sum(characteristicSimplexEdgeLengthsSquared));
-            PRINT(circumRadius);
-            PRINT(VecMath.norm(characteristicSimplex[0]));
+            if (verbose) PRINT(circumRadius);
+            if (verbose) PRINT(VecMath.norm(characteristicSimplex[0]));
 
 
             //
@@ -1626,7 +1481,7 @@ public final class CSG
             double initialFlag[][] = new double[nDims][nDims];
             FORI (iDim, nDims)
                 VecMath.normalize(initialFlag[iDim], characteristicSimplex[iDim]);
-            PRINTMAT(initialFlag);
+            if (verbose) PRINTMAT(initialFlag);
 
             //
             // Figure out the flag normals.
@@ -1635,7 +1490,7 @@ public final class CSG
                                             VecMath.invertmat(initialFlag));
             FORI (iDim, nDims)
                 VecMath.normalize(initialFlagNormals[iDim], initialFlagNormals[iDim]); // XXX not really necessary, could generate the reflections without this!
-            PRINTMAT(initialFlagNormals);
+            if (verbose) PRINTMAT(initialFlagNormals);
 
             //
             // The generators for the symmetry group
@@ -1669,9 +1524,7 @@ public final class CSG
                 double scratchFlagFlattened[] = new double[nDims*nDims];
                 FORI (iFlag, flagList.size()) // while it's growing
                 {
-                    //PRINT(iFlag);
                     double flag[][] = (double[][])flagList.get(iFlag);
-                    //PRINTMAT(flag);
                     FORI (iGen, nDims)
                     {
                         VecMath.mxm(scratchFlag,
@@ -1699,7 +1552,7 @@ public final class CSG
                     //assert(flagList.size() < 100); // XXX not right, but for now
                 }
             }
-            PRINT(flagList.size());
+            if (verbose) PRINT(flagList.size());
 
             //
             // Enumerate all the polytope elements.
@@ -1710,7 +1563,7 @@ public final class CSG
             // polytopes some of whose faces pass through the origin).
             //
             Polytope wholeThing = new Polytope(nDims,nDims,new SPolytope[0],new Hyperplane[0],null);
-            PRINT(wholeThing.id);
+            if (verbose) PRINT(wholeThing.id);
             {
                 java.util.Vector elementLists[] = new java.util.Vector[nDims+1];
                 FuzzyPointHashTable elementHashTables[] = new FuzzyPointHashTable[nDims+1];
@@ -1792,7 +1645,7 @@ public final class CSG
                 int elementCounts[] = new int[nDims+1];
                 FORI (iDim, nDims+1)
                     elementCounts[iDim] = elementLists[iDim].size();
-                PRINTARRAY(elementCounts);
+                if (verbose) PRINTARRAY(elementCounts);
             }
 
             SPolytope sWholeThing = new SPolytope(0,1,wholeThing);
@@ -1846,73 +1699,6 @@ public final class CSG
                 orientDeep(sWholeThing);
             }
             return sWholeThing;
-        } // NEWmakeRegularStarPolytope
-
-        public static SPolytope makeRegularStarPolytope(int schlafli[/*nDims-1*/],
-                                                        int schlafliDenoms[/*nDims-1*/])
-        {
-            if (schlafliDenoms == null)
-                schlafliDenoms = VecMath.fillvec(schlafli.length, 1);
-            assert(schlafli.length == schlafliDenoms.length);
-            int nDims = schlafli.length+1;
-            if (nDims<2 || schlafli[0]==4 && arrayIsAll(schlafli, 1, schlafli.length-1, 3))
-            {
-                // {4,3,...,3} -- hypercube
-                if (!arrayIsAll(schlafliDenoms, 0, schlafliDenoms.length, 1))
-                    return null;
-                return makeHypercube(nDims);
-            }
-            else if (arrayIsAll(schlafli, 0, schlafli.length, 3))
-            {
-                // {3,3,...,3} -- simplex
-                if (!arrayIsAll(schlafliDenoms, 0, schlafliDenoms.length, 1))
-                    return null;
-                return makeSimplex(nDims);
-            }
-            else if (nDims>=2 && arrayIsAll(schlafli, 0, schlafli.length-1, 3) && schlafli[schlafli.length-1] == 4)
-            {
-                // {3,...,3,4} -- cross
-                unimplemented(); // XXX implement me! could do using reciprocation of hypercube
-            }
-            else if (nDims==2 && schlafli[0] >= 3)
-            {
-                // {p} -- polygon
-                return makeRegularPolygon(schlafli[0], schlafliDenoms[0]);
-            }
-            else
-            {
-                // Finite number of special cases
-                if (false)
-                    ;
-                else if (VecMath.equals(schlafli, new int[]{5,3})
-                      && VecMath.equals(schlafliDenoms, new int[]{1,1}))
-                {
-                    // {5,3} -- dodecahedron
-                    return SPolytope.fromStringInPcalcFormat(pcalcString53);
-                }
-                else if (VecMath.equals(schlafli, new int[]{5,3,3})
-                      && VecMath.equals(schlafliDenoms, new int[]{1,1,1}))
-                {
-                    return SPolytope.fromStringInPcalcFormat(pcalcString533);
-                }
-                else
-                {
-                    // hack together a visible representation of it real quick
-                    String s = "{";
-                    FORI (i, schlafli.length)
-                    {
-                        s += schlafli[i];
-                        if (schlafliDenoms[i] != 1)
-                            s += "/"+schlafliDenoms[i];
-                        if (i+1 < schlafli.length)
-                            s += ",";
-                    }
-                    s += "}";
-                    throw new Error("Schlafli symbol "+s+" not implemented yet! (if it's even valid at all)");
-                }
-            }
-            assert(false); // XXX I think this is unreachable, but compiler is bitching
-            return null;
         } // makeRegularStarPolytope
 
         // Tell whether array[i0]..array[i0+n-1] is all x's.
@@ -1934,14 +1720,7 @@ public final class CSG
             SPolytope product = null;
             FORI (iFactor, nFactors)
             {
-                SPolytope factor;
-                if (XXX_TRY_NEW)
-                {
-                    factor = NEWmakeRegularStarPolytope(schlaflis[iFactor],
-                                                               schlafliDenomss==null?null:schlafliDenomss[iFactor]);
-                }
-                else
-                    factor = makeRegularStarPolytope(schlaflis[iFactor],
+                SPolytope factor = makeRegularStarPolytope(schlaflis[iFactor],
                                                            schlafliDenomss==null?null:schlafliDenomss[iFactor]);
                 if (product == null)
                     product = factor;
@@ -4927,10 +4706,9 @@ public final class CSG
             System.exit(1);
         }
 
-        if (true)
+        if (false)
         {
             // just test make regular polytope
-            XXX_TRY_NEW = true;
             SPolytope p = makeRegularStarPolytopeCrossProductFromString(args[0]);
             PRINT(p);
             return;
@@ -5146,9 +4924,9 @@ public final class CSG
 
 
     //
-    // Some special purpose polytope specifications,
-    // pending getting a fully general makeRegularPolytope working.
-    // These were generated using the commands:
+    // Not used anywhere, but this is an example
+    // of pcalc format...
+    // Generated using the commans:
     //    pcalc "{3,3}"
     //    pcalc "{5,3}"
     //    pcalc "{3,3,3}"
@@ -5174,116 +4952,5 @@ public final class CSG
         +"1 3-cell:\n"
         +" 0:    +0 +1 +2 +3\n"
         ;
-    private static String pcalcString333 = ""
-        +"5 0-cells:\n"
-        +" 0:     0.5 0.28867513459481287 0.20412414523193151 0.15811388300841897\n"
-        +" 1:     0 0 0 -0.63245553203367588\n"
-        +" 2:     0 0 -0.61237243569579447 0.15811388300841897\n"
-        +" 3:     0 -0.57735026918962573 0.20412414523193151 0.15811388300841897\n"
-        +" 4:     -0.5 0.28867513459481287 0.20412414523193151 0.15811388300841897\n"
-        +"10 1-cells:\n"
-        +" 0:    -0 +1\n"
-        +" 1:    -2 +1\n"
-        +" 2:    -0 +2\n"
-        +" 3:    -3 +1\n"
-        +" 4:    -3 +2\n"
-        +" 5:    -0 +3\n"
-        +" 6:    -4 +1\n"
-        +" 7:    -4 +3\n"
-        +" 8:    -0 +4\n"
-        +" 9:    -4 +2\n"
-        +"10 2-cells:\n"
-        +" 0:    +0 -1 -2\n"
-        +" 1:    +1 -3 +4\n"
-        +" 2:    +0 -3 -5\n"
-        +" 3:    +2 -4 -5\n"
-        +" 4:    +3 -6 +7\n"
-        +" 5:    +0 -6 -8\n"
-        +" 6:    +5 -7 -8\n"
-        +" 7:    +4 -9 +7\n"
-        +" 8:    +2 -9 -8\n"
-        +" 9:    +1 -6 +9\n"
-        +"5 3-cells:\n"
-        +" 0:    +0 +1 -2 +3\n"
-        +" 1:    +2 +4 -5 +6\n"
-        +" 2:    -3 -7 +8 -6\n"
-        +" 3:    -0 -9 +5 -8\n"
-        +" 4:    -1 -4 +9 +7\n"
-        +"1 4-cell:\n"
-        +" 0:    +0 +1 +2 +3 +4\n"
-        ;
-    private static String pcalcString53 = ""
-        +"20 0-cells:\n"
-        +"  0:     1.3090169943749477 0.5 0\n"
-        +"  1:     0.80901699437494745 0.80901699437494745 -0.80901699437494745\n"
-        +"  2:     0 1.3090169943749477 -0.5\n"
-        +"  3:     0 1.3090169943749477 0.5\n"
-        +"  4:     0.80901699437494745 0.80901699437494745 0.80901699437494745\n"
-        +"  5:     0.5 0 -1.3090169943749477\n"
-        +"  6:     -0.5 0 -1.3090169943749477\n"
-        +"  7:     -0.80901699437494745 0.80901699437494745 -0.80901699437494745\n"
-        +"  8:     1.3090169943749477 -0.5 0\n"
-        +"  9:     0.80901699437494745 -0.80901699437494745 -0.80901699437494745\n"
-        +" 10:     0 -1.3090169943749477 -0.5\n"
-        +" 11:     -0.80901699437494745 -0.80901699437494745 -0.80901699437494745\n"
-        +" 12:     -1.3090169943749477 -0.5 0\n"
-        +" 13:     -1.3090169943749477 0.5 0\n"
-        +" 14:     -0.80901699437494745 0.80901699437494745 0.80901699437494745\n"
-        +" 15:     -0.80901699437494745 -0.80901699437494745 0.80901699437494745\n"
-        +" 16:     -0.5 0 1.3090169943749477\n"
-        +" 17:     0 -1.3090169943749477 0.5\n"
-        +" 18:     0.80901699437494745 -0.80901699437494745 0.80901699437494745\n"
-        +" 19:     0.5 0 1.3090169943749477\n"
-        +"30 1-cells:\n"
-        +"  0:    -0  +1\n"
-        +"  1:    -2  +1\n"
-        +"  2:    -3  +2\n"
-        +"  3:    -3  +4\n"
-        +"  4:    -0  +4\n"
-        +"  5:    -5  +1\n"
-        +"  6:    -5  +6\n"
-        +"  7:    -6  +7\n"
-        +"  8:    -2  +7\n"
-        +"  9:    -0  +8\n"
-        +" 10:    -8  +9\n"
-        +" 11:    -5  +9\n"
-        +" 12:    -10 +9\n"
-        +" 13:    -10 +11\n"
-        +" 14:    -6  +11\n"
-        +" 15:    -12 +11\n"
-        +" 16:    -13 +12\n"
-        +" 17:    -13 +7\n"
-        +" 18:    -13 +14\n"
-        +" 19:    -3  +14\n"
-        +" 20:    -12 +15\n"
-        +" 21:    -16 +15\n"
-        +" 22:    -16 +14\n"
-        +" 23:    -17 +15\n"
-        +" 24:    -17 +18\n"
-        +" 25:    -19 +18\n"
-        +" 26:    -19 +16\n"
-        +" 27:    -19 +4\n"
-        +" 28:    -8  +18\n"
-        +" 29:    -17 +10\n"
-        +"12 2-cells:\n"
-        +"  0:    +0  -1  -2  +3  -4\n"
-        +"  1:    +1  -5  +6  +7  -8\n"
-        +"  2:    -0  +9  +10 -11 +5\n"
-        +"  3:    -6  +11 -12 +13 -14\n"
-        +"  4:    -7  +14 -15 -16 +17\n"
-        +"  5:    +2  +8  -17 +18 -19\n"
-        +"  6:    +20 -21 +22 -18 +16\n"
-        +"  7:    -23 +24 -25 +26 +21\n"
-        +"  8:    -3  +19 -22 -26 +27\n"
-        +"  9:    +4  -27 +25 -28 -9\n"
-        +" 10:    +12 -10 +28 -24 +29\n"
-        +" 11:    -13 -29 +23 -20 +15\n"
-        +"1 3-cell:\n"
-        +" 0:    +0  +1  +2  +3  +4  +5  +6  +7  +8  +9  +10 +11\n"
-        ;
-
-    // Similar definition for pcalcString533,
-    // too big to include here
-    #include "CSGcrap.h"
 
 } // CSG
