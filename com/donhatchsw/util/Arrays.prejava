@@ -44,7 +44,6 @@ public final class Arrays
 {
     private Arrays() {} // uninstantiatable
 
-
     public static Object subarray(Object array, int starts[], int ns[])
     {
         return _subarray(array, starts, ns, 0);
@@ -250,6 +249,27 @@ public final class Arrays
             return to;
         }
     } // copy
+
+    public static boolean sizesMatch(Object a, Object b, int depth)
+    {
+        // XXX should the null checks come before or after the depth==0 check?  I think this is right but I'm not sure
+        if (a==null && b==null)
+            return true;
+        if (a==null || b==null)
+            return false;
+        if (depth == 0)
+            return true;
+        int aLen = java.lang.reflect.Array.getLength(a);
+        int bLen = java.lang.reflect.Array.getLength(b);
+        if (aLen != bLen)
+            return false;
+        FORI (i, aLen)
+            if (!sizesMatch(java.lang.reflect.Array.get(a, i),
+                            java.lang.reflect.Array.get(b, i),
+                            depth-1))
+                return false;
+        return true;
+    } // sizesMatch
 
     /**
      * Index into the given array, which is treated as one-dimensional.
@@ -950,15 +970,19 @@ public final class Arrays
      * XXX should probably make optimized versions for int[], double[],
      *     and Object[]
      */
-    public static void shuffle(Object array, java.util.Random rng)
+    public static void shuffle(Object array, int n, java.util.Random rng)
     {
-        int n = java.lang.reflect.Array.getLength(array);
         for (int i = 1; i < n; ++i)
         {
             int j = randomIndex(i+1, rng);
             if (j != i)
                 swap(array, i, array, j);
         }
+    } // shuffle
+    public static void shuffle(Object array, java.util.Random rng)
+    {
+        int n = java.lang.reflect.Array.getLength(array);
+        shuffle(array, n, rng);
     } // shuffle
 
     /** Allowing a different pre,sep,suf for each dimension... */
