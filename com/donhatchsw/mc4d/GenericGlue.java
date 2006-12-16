@@ -200,6 +200,8 @@ public class GenericGlue
         }
 
         String table[][] = {
+            {"-"},
+            /*
             {"{3,3,3}",  "1,3(5.0),5(9.0),7(13.0)", "Simplex"},
             {"{3}x{4}",  "1,3(4.0),5(7.0),7(10.0)", "Triangular Prism Prism"},
             {"{4,3,3}",  "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)", "Hypercube"},
@@ -208,11 +210,11 @@ public class GenericGlue
             {"{6}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Hexagonal Prism Prism"},
             {"{7}x{4}",  "1,2,3(2.5),3,4,5,6,7", "True HEPAgonal Prism Prism"},
             {"{8}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Octagonal Prism Prism"},
-            {"{8}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Nonagonal Prism Prism"},
+            {"{9}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Nonagonal Prism Prism"},
             {"{10}x{4}", "1,2,3(2.5),3,4,5,6,7", "Decagonal Prism Prism"},
             {"{100}x{4}","1,3",                  "Onehundredagonal Prism Prism"},
             {"{3}x{3}",  "1,2,3(4.0),4,5,6,7",     ""},
-            {"{3}x{5}",  "1,2,3(4.0),3,4,5,6,7", ""},
+            {"{3}x{5}",  "1,2,3(2.5),3(4.0),4,5,6,7", ""},
             {"{5}x{5}",  "1,2,3(2.5),3,4,5,6,7", ""}, // XXX 2 is ugly, has slivers
             {"{5}x{10}",  "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
             {"{10}x{5}",  "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
@@ -221,11 +223,118 @@ public class GenericGlue
             {"{5,3}x{}", "1,2,3(2.5),3,4,5,6,7", "Dodecahedral Prism"},
             {"{}x{5,3}", "1,2,3(2.5),3,4,5,6,7", "Dodecahedral Prism (alt)"},
             {"{5,3,3}",  "1,2,3(2.5),3",         "Hypermegaminx (BIG!)"},
+            */
+            {"-"},
+            {"(1)---(0)---(0)x{}",     "1,3",         "Tetrahedral prism"},
+            {"(1)---(1)---(0)x{}",     "1,3",         "Truncated-tetrahedron prism"},
+            //{"(0)---(1)---(0)x{}",     "1,3",         "Octahedral prism"}, // vertex figure not simplex
+            {"(0)---(1)---(1)x{}",     "1,3",         "Truncated-tetrahedron(dual) prism"},
+            {"(0)---(0)---(1)x{}",     "1,3",         "Tetrahedral(dual) prism"},
+            {"(1)---(1)---(1)x{}",     "1,3",         "Omnitruncated-tetrahedron prism"},
+            {"-"},
+            {"(1)-4-(0)---(0)x{}",     "1,3",         "Cube prism (hypercube)"},
+            {"(1)-4-(1)---(0)x{}",     "1,3",         "Truncated-cube prism"},
+            //{"(0)-4-(1)---(0)x{}",     "1,3",         "Cuboctahedral prism"}, // vertex figure not simplex
+            {"(0)-4-(1)---(1)x{}",     "1,3",         "Truncated-octahedron prism"},
+            //{"(0)-4-(0)---(1)x{}",     "1,3",         "Octahedral prism"}, // vertex figure not simplex
+            //{"(1)-4-(0)---(1)x{}",     "1,3",         "Somethingicated-cube prism"}, // vertex figure not simplex
+            {"(1)-4-(1)---(1)x{}",     "1,3",         "Omnitruncated-cube prism"},
+
+            {"-"},
+
+            {"(1)-5-(0)---(0)x{}",     "1,3",         "Dodecahedral prism"},
+            {"(1)-5-(1)---(0)x{}",     "1,3",         "Truncated-dodecahedron prism"},
+            //{"(0)-5-(1)---(0)x{}",     "1,3",         "Icosadodecahedral prism"}, // vertex figure not simplex
+            {"(0)-5-(1)---(1)x{}",     "1,3",         "Truncated-icosahedron (soccerball) prism"},
+            //{"(0)-5-(0)---(1)x{}",     "1,3",         "Icosahedral prism"}, // vertex figure not simplex
+            //{"(1)-5-(0)---(1)x{}",     "1,3",         "Somethingicated-icosadodecahedral prism"}, // vertex figure not simplex
+            {"(1)-5-(1)---(1)x{}",     "1,3",         "Omnitruncated-dodecahedron prism"},
+
+            {"-"},
+            {"(1)---(0)---(0)---(0)",  "1,3,3(9.0)",  "Simplex"},
+            {"(1)---(.25)---(0)---(0)",  "1,3,3(9.0)",  "Barely truncated simplex"},
+            {"(1)---(1)---(0)---(0)",  "1,3,3(9.0)",  "Truncated simplex"},
+            {"(0)---(1)---(0)---(0)",  "1,3,3(9.0)",  " (octas and tets)"}, // vertex figure not simplex
+            {"(0)---(1)---(1)---(0)",  "1,3,3(9.0)",  " (truncated tets)"},
+            {"(0)---(0)---(1)---(0)",  "1,3,3(9.0)",  " (tets and octas)"}, // vertex figure not simplex
+            {"(0)---(0)---(1)---(1)",  "1,3,3(9.0)",  "Truncated simplex (dual)"},
+            {"(0)---(0)---(.25)---(1)",  "1,3,3(9.0)",  "Barely truncated simplex (dual)"},
+            {"(0)---(0)---(0)---(1)",  "1,3,3(9.0)",  "Simplex (dual)"},
+
+            // XXX figure out which not simplex in the following
+            //{"(1)---(0)---(1)---(0)",  "1,3,3(9.0)",  ""}, // vertex figure not regular
+            {"(0)---(1)---(0)---(1)",  "1,3,3(9.0)",  ""},
+            //{"(1)---(0)---(0)---(1)",  "1,3,3(9.0)",  " (tets and triprisms)"}, // vertex figure not regular-- it's an octahedron
+            {"(1)---(1)---(1)---(0)",  "1,3,3(9.0)",  ""},
+            //{"(1)---(1)---(0)---(1)",  "1,3,3(9.0)",  ""}, // vertex figure not regular
+            //{"(1)---(0)---(1)---(1)",  "1,3,3(9.0)",  ""}, // vertex figure not regular
+            {"(0)---(1)---(1)---(1)",  "1,3,3(9.0)",  ""},
+            {"(1)---(1)---(1)---(1)",  "1,3,3(9.0)",  "Omnitruncated simplex"},
+            {"-"},
+
+            {"(1)-4-(0)---(0)---(0)",  "1,3",         "Hypercube"},
+            {"(1)-4-(1)---(0)---(0)",  "1,3",         "Truncated hypercube"},
+            //{"(0)-4-(1)---(0)---(0)",  "1,3",         " (cuboctas and tets)"}, // vertex figure not simplex
+            {"(0)-4-(1)---(1)---(0)",  "1,3",         "(truncated octas and truncated tets)"},
+            //{"(0)-4-(0)---(1)---(0)",  "1,3",         " (octas and tets)"}, // vertex figure not simplex
+            {"(0)-4-(0)---(1)---(1)",  "1,3",         "Truncated 16-cell"},
+            //{"(0)-4-(0)---(0)---(1)",  "1,3",         "16-cell"}, // vertex figure not simplex
+
+            //{"(1)-4-(0)---(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
+            //{"(0)-4-(1)---(0)---(1)",  "1,3",         " (cuboctas and cubes)"}, // vertex figure not simplex
+            //{"(1)-4-(0)---(0)---(1)",  "1,3",         ""}, // vertex figure not simplex, it's an octahedron! so all cells look okay
+            {"(1)-4-(1)---(1)---(0)",  "1,3",         ""},
+            //{"(1)-4-(1)---(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
+            //{"(1)-4-(0)---(1)---(1)",  "1,3",         ""}, // vertex figure not simplex
+            {"(0)-4-(1)---(1)---(1)",  "1,3",         " (truncated octas and cubes)"},
+            {"(1)-4-(1)---(1)---(1)",  "1,3",         "Omnitruncated hypercube"},
+            {"-"},
+
+
+            //{"(1)---(0)-4-(0)---(0)",  "1,3",         "24-cell"}, // vertex figure not simplex
+            {"(1)---(1)-4-(0)---(0)",  "1,3",         "Truncated 24-cell"},
+            //{"(0)---(1)-4-(0)---(0)",  "1,3",         ""}, // vertex figure not simplex
+            {"(0)---(1)-4-(1)---(0)",  "1,3",         " (truncated cubes)"},
+            //{"(0)---(0)-4-(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
+            {"(0)---(0)-4-(1)---(1)",  "1,3",         "Truncated 24-cell(dual)"},
+            //{"(0)---(0)-4-(0)---(1)",  "1,3",         "24-cell(dual)"}, // vertex figure not simplex
+
+            //{"(1)---(0)-4-(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
+            //{"(0)---(1)-4-(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
+            //{"(1)---(0)-4-(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
+            {"(1)---(1)-4-(1)---(0)",  "1,3",         ""},
+            //{"(1)---(1)-4-(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
+            //{"(1)---(0)-4-(1)---(1)",  "1,3",         ""}, // vertex figure not simplex
+            {"(0)---(1)-4-(1)---(1)",  "1,3",         ""},
+            {"(1)---(1)-4-(1)---(1)",  "1,3",         "Omnitruncated 24-cell"},
+            {"-"},
+            {"(1)-5-(0)---(0)---(0)",  "1,3",         "120-cell"},
+            {"(1)-5-(1)---(0)---(0)",  "1,3",         "Truncated 120-cell"},
+            //{"(0)-5-(1)---(0)---(0)",  "1,3",         ""}, // vertex figure not simplex
+            {"(0)-5-(1)---(1)---(0)",  "1,3",         " (truncated tets and truncated icosas)"},
+            //{"(0)-5-(0)---(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
+            {"(0)-5-(0)---(1)---(1)",  "1,3",         "Truncated 600-cell"},
+            //{"(0)-5-(0)---(0)---(1)",  "1,3",         "600-cell"}, // vertex figure not simplex
+
+            //{"(1)-5-(0)---(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
+            //{"(0)-5-(1)---(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
+            {"(1)-5-(0)---(0)---(1)",  "1,3",         ""},
+            {"(1)-5-(1)---(1)---(0)",  "1,3",         ""},
+            {"(1)-5-(1)---(0)---(1)",  "1,3",         ""},
+            //{"(1)-5-(0)---(1)---(1)",  "1,3",         ""}, // vertex figure not simplex
+            {"(0)-5-(1)---(1)---(1)",  "1,3",         ""},
+            {"(1)-5-(1)---(1)---(1)",  "1,3",         "Omnitruncated 120-cell"},
+            {"-"},
+
             {null,       "",                  "Invent my own!"},
         };
-        puzzlemenu.add(new MenuItem("-")); // separator
         for (int i = 0; i < table.length; ++i)
         {
+            if (table[i][0] != null && table[i][0].equals("-"))
+            {
+                puzzlemenu.add(new MenuItem("-")); // separator
+                continue;
+            }
 
             final String schlafli = table[i][0];
             String lengthStrings[] = table[i][1].split(",");
