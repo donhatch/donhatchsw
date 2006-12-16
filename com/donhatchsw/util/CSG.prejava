@@ -679,7 +679,9 @@ public final class CSG
 
             /** Parses a polytope from a string the "pcalc" program's format. */
             // XXX should really do this from a reader, then fromString... could just hook up a StringReader and go
-            public static Polytope fromStringInPcalcFormat(String s)
+            // XXX this is private because it does NOT initialize the hyperplanes, the caller does.
+            // XXX this should just be gotten rid of.
+            private static Polytope fromStringInPcalcFormat(String s)
             {
                 //System.out.println("scanning...");
                 //System.out.flush();
@@ -792,6 +794,7 @@ public final class CSG
                 // starting with the facets.
                 if (answer.dim != answer.fullDim)
                     throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: dimension "+answer.dim+" does not match dimension of vertices "+answer.fullDim+"!");
+
                 answer.contributingHyperplanes = new Hyperplane[0];
                 FORI (iFacet, answer.facets.length)
                 {
@@ -898,7 +901,11 @@ public final class CSG
                 {
                     if (initialDensity != 0)
                         sb.append(initialDensity);
-                    sb.append(signToString(sign) + p.toString(indentString, showAux, showGoryDetails, printedAlready));
+                    sb.append(signToString(sign));
+                    if (p != null)
+                        sb.append(p.toString(indentString, showAux, showGoryDetails, printedAlready));
+                    else
+                        sb.append("null");
                 }
                 return sb.toString();
             } // SPolytope.toString
@@ -933,6 +940,8 @@ public final class CSG
             public static SPolytope fromStringInPcalcFormat(String s)
             {
                 SPolytope answer = new SPolytope(0,1,Polytope.fromStringInPcalcFormat(s));
+                bootstrapHyperplanes(answer);
+                // XXX bleah, figure out whether the bootstrap function should do the following... note that bootstrapHyperplanes already called orientDeep twice :-(
                 //PRINT(volume(answer));
                 double vol = volume(answer);
                 if (vol < 0)
@@ -940,6 +949,7 @@ public final class CSG
                     answer.sign *= -1;
                     // XXX should do the push-down-sign thing? yes
                     orientDeep(answer); // XXX really only want push-down-sign thing
+                    // XXX and it's not even implemented!!! grrr
                 }
                 //PRINT(volume(answer));
                 return answer;
@@ -1096,7 +1106,7 @@ public final class CSG
         */
         public static SPolytope makeRegularPolytope(int schlafli[/*nDims-1*/])
         {
-            return makeRegularStarPolytope(schlafli, null);
+            return makeRegularStarPolytope(schlafli, null, null);
         } // makeRegularPolytope
 
         // Calculate the characteristic simplex edge lengths
@@ -1303,6 +1313,205 @@ public final class CSG
             return (1 - s) / s;
         }
 
+        private static String flagToString(Polytope flag[])
+        {
+            StringBuffer sb = new StringBuffer();
+            sb.append("(");
+            FORI (i, flag.length)
+            {
+                sb.append(" "+dimToPrefix(flag[i].dim)+flag[i].id);
+            }
+            sb.append(" )");
+            return sb.toString();
+        } // flagToString
+
+        /**
+        * Creates a Wythoff polytope from a given polytope.
+        * Returns a Wythoff-operator'ed p
+        * corresponding to the Coxeter-Dynkin symbol
+        * where a 1 in the symbol is a circled node,
+        * a 0 in the symbol is a non-circled node,
+        * and values between 0 and 1 (or greater than 1)
+        * can be used to linearly interpolate.
+        * In the general case, there is one facet for
+        * each element of any dimension in the original,
+        * but there may be less for specific cases
+        * (namely when only one node is circled).
+        * Assumptions:
+        *    p is regular
+        *    p is centered at the origin
+        *          XXX not sure whether this is really assumed; if it is, it should be fixed.
+        *    p is full-dimensional
+        *
+        * Starts by creating the topology of the full omnitruncated polytope
+        * and then squashes out degeneracies.
+        */
+        public static SPolytope makeWythoffPolytope(SPolytope sp,
+                                                    double wythoff[])
+        {
+            System.out.println("in makeWythoffPolytope");
+            PRINTARRAY(wythoff);
+            Polytope p = sp.p;
+            assert(wythoff != null);
+            assert(wythoff.length == p.dim);
+
+            System.out.println("XXX NEED TO FIGURE OUT THE REAL COORDS");
+
+            //
+            // The vertices of the omni correspond to the flags of p.
+            // So enumerate all the flags...
+            //
+            java.util.Vector/*<Polytope[]>*/ flags = new java.util.Vector();
+            {
+                java.util.Vector/*<Polytope[]>*/ partialFlags = new java.util.Vector();
+                partialFlags.addElement(new Polytope[]{p});
+                FORI (iPartialFlag, partialFlags.size()) // while growing
+                {
+                    Polytope partialFlag[] = (Polytope[])partialFlags.get(iPartialFlag);
+                    //System.out.println("    Looking at partial flag "+flagToString(partialFlag));
+                    Polytope elt = partialFlag[partialFlag.length-1];
+                    FORI (iFacet, elt.facets.length)
+                    {
+                        Polytope facet = elt.facets[iFacet].p;
+                        Polytope superPartialFlag[] = (Polytope[])Arrays.append(partialFlag, facet);
+                        if (superPartialFlag.length == p.dim+1)
+                        {
+
+                            Polytope flag[] = (Polytope[])Arrays.subarray(superPartialFlag,1,superPartialFlag.length-1); // omit the cell itself
+                            //System.out.println("        Adding flag "+flagToString(flag));
+                            flags.addElement(flag);
+                        }
+                        else
+                            partialFlags.addElement(superPartialFlag);
+                    }
+                }
+            }
+            
+            //
+            // The vertex of the omni corresponding to a given flag
+            // of the original is some weighted sum of the flag
+            // element centers.  What are the weights?
+            // Well, those element centers form a simplex,
+            // and we want the distance from the weighted sum to
+            // each of the sides of the simplex to be the corresponding
+            // wythoff coefficient.
+            // So if normal_i is the inward normal towards element i
+            // of the flag, we want
+            // I.e. we want a row vector w = [w0 w1 w2]
+            // such that:
+            //              [   vert    ]
+            // [w0 w1 w2] * [edge center] * (normal_i column vector) = wythoff_i
+            //              [face center]
+            // for each normal_i.
+            // Note that normal_i is simply the i'th column
+            // of the inverse of the flag mat, normalized.
+            //
+            // We are assuming the original is regular,
+            // which means we'll get the same weights no matter
+            // which flag we use.
+            //
+            double originalCG[] = new double[p.fullDim];
+            cgOfVerts(originalCG, p);
+            double weights[] = new double[p.dim];
+            {
+                int nDims = p.dim;
+                assert(p.fullDim == nDims);
+                double flagMat[][] = new double[nDims][nDims];
+                Polytope[] flag = (Polytope[])flags.get(0); // some flag
+                FORI (iDim, nDims)
+                {
+                    cgOfVerts(flagMat[iDim], flag[iDim]);
+                    VecMath.vmv(flagMat[iDim],flagMat[iDim],originalCG);
+                }
+                double inwardNormalsMat[][] = VecMath.transpose(
+                                              VecMath.invertmat(flagMat));
+                FORI (iDim, nDims)
+                    VecMath.normalize(inwardNormalsMat[iDim], inwardNormalsMat[iDim]);
+                double M[][] = VecMath.mxm(flagMat,
+                                           VecMath.transpose(inwardNormalsMat));
+                VecMath.vxinvm(weights, wythoff, M);
+            }
+            PRINTVEC(originalCG);
+            PRINTVEC(wythoff);
+            PRINTVEC(weights);
+
+            // XXX fudge for now since I can't handle zeros
+            FORI (iDim, p.dim)
+                weights[iDim] = Math.max(weights[iDim], .005);
+
+            //
+            // The elements of the omni correspond to chains
+            // of elements in p ordered by inclusion,
+            // where a single-element chain in p is a facet of the omni,
+            // and a maximal chain (i.e. a flag) of p is a vertex of the omni,
+            // and the null set chain is the whole omni.
+            //
+            java.util.Hashtable omniEltsHashTable = new java.util.Hashtable();
+
+            FORI (iFlag, flags.size())
+            {
+                Polytope flag[] = (Polytope[])flags.get(iFlag);
+                Polytope omniVert = new Polytope(0,p.fullDim,new SPolytope[0],new Hyperplane[0],null);
+                double coords[] = new double[p.fullDim];
+                VecMath.copyvec(coords, originalCG); // start here
+                double eltCenter[] = new double[p.fullDim]; // scratch
+                for (int iDim = 0; iDim < flag.length; ++iDim)
+                {
+                    cgOfVerts(eltCenter, flag[iDim]);
+                    VecMath.vmv(eltCenter, eltCenter, originalCG); // make it relative
+                    VecMath.vpsxv(coords,
+                                  coords,
+                                  weights[iDim],
+                                  eltCenter);
+                }
+                omniVert.setCoords(coords);
+                omniEltsHashTable.put(new HashableSortedArray(flag), omniVert);
+            }
+
+            java.util.Vector subFlags = flags;
+            flags = null;
+            FORI (iSubFlag, subFlags.size()) // while growing
+            {
+                Polytope subFlag[] = (Polytope[])subFlags.get(iSubFlag);
+                //System.out.println("    Looking at subFlag "+flagToString(subFlag));
+                Polytope subFlagOmniElt = (Polytope)omniEltsHashTable.get(new HashableSortedArray(subFlag));
+                FORI (i, subFlag.length)
+                {
+                    Polytope subSubFlag[] = (Polytope[])Arrays.delete(subFlag, i);
+                    Polytope subSubFlagOmniElt = (Polytope)omniEltsHashTable.get(new HashableSortedArray(subSubFlag));
+                    if (subSubFlagOmniElt == null)
+                    {
+                        subSubFlagOmniElt = new Polytope(p.dim-subSubFlag.length,p.fullDim,new SPolytope[0],new Hyperplane[0],null);
+                        omniEltsHashTable.put(new HashableSortedArray(subSubFlag), subSubFlagOmniElt);
+                        subFlags.addElement(subSubFlag);
+                    }
+                    // make subFlagOmniElt a facet of subSubFlagOmniElt
+                    subSubFlagOmniElt.facets = (SPolytope[])Arrays.append(subSubFlagOmniElt.facets, new SPolytope(0,1,subFlagOmniElt));
+                }
+            }
+
+            // The omni itself is the omni elt corresponding to the empty set.
+            Polytope omni = (Polytope)omniEltsHashTable.get(new HashableSortedArray(new Polytope[]{}));
+            SPolytope somni = new SPolytope(0,1,omni);
+
+            //
+            // Get rid of degeneracies:
+            //     For each zero-length edge, remove the edge and merge the vertices.
+            //     Then for each face with only two edges, remove the face and merge the edges.
+            //     Then for each cell with only two faces, remove the cell and merge the faces.
+            //     ...
+            //
+            System.out.println("XXX NEED GET RID OF DEGENERACIES");
+
+            //
+            // Make the hyperplanes.
+            //
+            bootstrapHyperplanes(somni);
+
+            System.out.println("out makeWythoffPolytope");
+            return somni;
+        } // makeWythoffPolytope
+
         private static boolean isLegalSchlafli(int schlafli[/*nDims-1*/],
                                                int schlafliDenoms[/*nDims-1*/])
         {
@@ -1402,9 +1611,9 @@ public final class CSG
             }
             return false;
         } // isLegalSchlafli
-
         public static SPolytope makeRegularStarPolytope(int schlafli[/*nDims-1*/],
-                                                        int schlafliDenoms[/*nDims-1*/])
+                                                        int schlafliDenoms[/*nDims-1*/],
+                                                        double wythoffCoeffs[/*nDims*/])
         {
             boolean verbose = false; // can set to true to debug
 
@@ -1649,11 +1858,25 @@ public final class CSG
             }
 
             SPolytope sWholeThing = new SPolytope(0,1,wholeThing);
+            if (wythoffCoeffs != null)
+            {
+                // makeWythoffPolytope doesn't need the hyperplanes,
+                // it just looks at the vertices and bootstraps its own hyperplanes
+                sWholeThing = makeWythoffPolytope(sWholeThing, wythoffCoeffs);
+            }
+            else
+                bootstrapHyperplanes(sWholeThing);
+            return sWholeThing;
+        } // makeRegularStarPolytope
+
+        // XXX argh, this is lame
+        private static void bootstrapHyperplanes(SPolytope sp)
+        {
             FORI (iStupidTimes, 2) // XXX this is stupid, the first time the normal calculation will be wrong, but it will fill the arrays which orientDeep needs
             {
                 {
                     // XXX clear the hperplanes, oh my god this is lame
-                    Polytope allElements[][] = wholeThing.getAllElements();
+                    Polytope allElements[][] = sp.p.getAllElements();
                     FORI (i, allElements.length)
                     FORI (j, allElements[i].length)
                         allElements[i][j].contributingHyperplanes = new Hyperplane[0];
@@ -1663,11 +1886,11 @@ public final class CSG
                 // and set the planes defining every element,
                 // starting with the facets.
                 // XXX duplicate code in fromStringInPcalcFormat, should make a function
-                wholeThing.contributingHyperplanes = new Hyperplane[0];
-                FORI (iFacet, wholeThing.facets.length)
+                sp.p.contributingHyperplanes = new Hyperplane[0];
+                FORI (iFacet, sp.p.facets.length)
                 {
-                    SPolytope facet = wholeThing.facets[iFacet];
-                    double normal[] = new double[wholeThing.fullDim];
+                    SPolytope facet = sp.p.facets[iFacet];
+                    double normal[] = new double[sp.p.fullDim];
                     areaNormal(normal, facet); // get area normal of facet
                     VecMath.normalize(normal,normal);
                     Polytope someVertexOnFacet = facet.p;
@@ -1696,10 +1919,9 @@ public final class CSG
                     }
                 }
 
-                orientDeep(sWholeThing);
+                orientDeep(sp);
             }
-            return sWholeThing;
-        } // makeRegularStarPolytope
+        } // bootstrapHyperplanes
 
         // Tell whether array[i0]..array[i0+n-1] is all x's.
         private static boolean arrayIsAll(int array[], int i0, int n, int x)
@@ -1712,7 +1934,8 @@ public final class CSG
 
         /** Makes a product of regular (star) polytopes. */
         public static SPolytope makeRegularStarPolytopeCrossProduct(int schlaflis[][],
-                                                                    int schlafliDenomss[][])
+                                                                    int schlafliDenomss[][],
+                                                                    double wythoffs[][])
         {
             int nFactors = schlaflis.length;
             assert(schlafliDenomss == null
@@ -1721,7 +1944,8 @@ public final class CSG
             FORI (iFactor, nFactors)
             {
                 SPolytope factor = makeRegularStarPolytope(schlaflis[iFactor],
-                                                           schlafliDenomss==null?null:schlafliDenomss[iFactor]);
+                                                           schlafliDenomss==null?null:schlafliDenomss[iFactor],
+                                                           wythoffs==null?null:wythoffs[iFactor]);
                 if (product == null)
                     product = factor;
                 else
@@ -1738,20 +1962,80 @@ public final class CSG
         * Makes a product of regular (star) polytopes from a string specification,
         * for example "{4,3}x{}x{5,3,3}x{3}x {3, 3,3,3,3 }x{} x {5/2,5} "
         * '*' can be used in place of 'x' as well.
+        *
+        * Also instead of {5,3,3}, any of the following will do:
+        *       5,3,3                    (the braces are optional)
+        *       (1)5(0)3(0)3(0)
+        *       (1)-5-(0)-3-(0)-3-(0)    (dashes are optional, you can insert them for readability)
+        *       (1)-5-(0)--(0)--(0)      (3's in the schlafli symbol may be omitted)
+        *       (1)5(0)(0)(0)
+        *       5,,                     (since the 3's may be omitted)
+        * You can put different things inside the parens to get
+        * different wythoff variants.  Just don't make them all zero.
+        *
+        * TODO:
+        *       2 = {}
+        *       p = {p}  for p>=3
+        *       5,, doesn't work yet for some reason
         */
         public static SPolytope makeRegularStarPolytopeCrossProductFromString(String s)
         {
             String factors[] = s.trim().split("[x*]");
             int schlaflis[][] = new int[factors.length][];
             int schlafliDenomss[][] = new int[factors.length][];
+            double wythoffs[][] = new double [factors.length][];
             FORI (iFactor, factors.length)
             {
                 String factor = factors[iFactor].trim();
+                /*
                 if (!factor.startsWith("{")
                  || !factor.endsWith("}"))
                     throw new IllegalArgumentException("makeRegularStartPolytopeCrossProductFromString: bad schlafli symbol \""+s+"\"");
-                factor = factor.substring(1, factor.length()-1); // trim off { and }
-                factor = factor.trim(); // and any white space inside
+                */
+                if (factor.startsWith("{")
+                 && factor.endsWith("}"))
+                {
+                    factor = factor.substring(1, factor.length()-1); // trim off { and }
+                    factor = factor.trim(); // and any white space inside
+                }
+                if (factor.indexOf("(") != -1)
+                {
+                    // Extract wythoff stuff
+                    factor = factor.replaceAll(",", "(0)");
+                    if (!factor.startsWith("("))
+                        factor = "(1)"+factor;
+                    if (!factor.endsWith(")"))
+                        factor += "(0)";
+                    factor = factor.replaceAll("\\)-*\\(", ")3("); // 3's in the schlafli symbol are implicit
+
+                    String foo = factor;
+
+                    factor = factor.replaceAll("-",""); // XXX seems unscientific
+                    factor = factor.replaceAll("\\([^)]+\\)", ",");
+                    if (factor.startsWith(","))
+                        factor = factor.substring(1);
+                    if (factor.endsWith(","))
+                        factor = factor.substring(0,factor.length()-1);
+
+                    PRINT(foo);
+                    PRINT(factor);
+
+                    // Now we can destroy foo if we like
+                    double wythoff[] = new double[0];
+                    while (foo.indexOf("(") != -1)
+                    {
+                        int open = foo.indexOf("(");
+                        int close = foo.indexOf(")", open+1);
+                        String coeffString = foo.substring(open+1, close);
+                        PRINT(coeffString);
+                        // XXX need to catch
+                        double coeff = Double.parseDouble(coeffString);
+                        wythoff = (double[])Arrays.append(wythoff, coeff);
+                        foo = foo.substring(close+1);
+                    }
+                    wythoffs[iFactor] = wythoff;
+                }
+
                 String fractions[] = factor.split(",");
                 if (factor.equals(""))
                     fractions = new String[0]; // to be safe (I don't trust split)
@@ -1778,7 +2062,10 @@ public final class CSG
             //PRINTARRAY(s);
             //PRINTARRAY(schlaflis);
             //PRINTARRAY(schlafliDenomss);
-            return makeRegularStarPolytopeCrossProduct(schlaflis, schlafliDenomss);
+            SPolytope sp = makeRegularStarPolytopeCrossProduct(schlaflis,
+                                                               schlafliDenomss,
+                                                               wythoffs);
+            return sp;
         } // makeRegularStarPolytopeCrossProductFromString
 
 
@@ -4706,7 +4993,7 @@ public final class CSG
             System.exit(1);
         }
 
-        if (false)
+        if (true)
         {
             // just test make regular polytope
             SPolytope p = makeRegularStarPolytopeCrossProductFromString(args[0]);
