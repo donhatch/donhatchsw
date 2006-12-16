@@ -83,6 +83,12 @@ public class GenericGlue
     public boolean cheating;
 
     //
+    // Most recently chosen zero-roll pole.
+    // It's a 4d vector but the w component is zero, generally.
+    //
+    public float zeroRollPoleAfterRot3d[] = null;
+
+    //
     // The sticker and cubie that the mouse is currently hovering over.
     //
     public int iStickerUnderMouse = -1;
@@ -195,7 +201,7 @@ public class GenericGlue
 
         String table[][] = {
             {"{3,3,3}",  "1,3(5.0),5(9.0),7(13.0)", "Simplex"},
-            {"{3}x{4}",  "1,3(4.0),5(7.0),7(10.0)",     "Triangular Prism Prism"},
+            {"{3}x{4}",  "1,3(4.0),5(7.0),7(10.0)", "Triangular Prism Prism"},
             {"{4,3,3}",  "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)", "Hypercube"},
             {"{5}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Pentagonal Prism Prism"},
             {"{4}x{5}",  "1,2,3(2.5),3,4,5,6,7", "Pentagonal Prism Prism (alt)"},
@@ -204,14 +210,14 @@ public class GenericGlue
             {"{8}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Octagonal Prism Prism"},
             {"{8}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Nonagonal Prism Prism"},
             {"{10}x{4}", "1,2,3(2.5),3,4,5,6,7", "Decagonal Prism Prism"},
-            {"{100}x{4}","1,3",               "Onehundredagonal Prism Prism"},
+            {"{100}x{4}","1,3",                  "Onehundredagonal Prism Prism"},
             {"{3}x{3}",  "1,2,3(4.0),4,5,6,7",     ""},
             {"{3}x{5}",  "1,2,3(4.0),3,4,5,6,7", ""},
             {"{5}x{5}",  "1,2,3(2.5),3,4,5,6,7", ""}, // XXX 2 is ugly, has slivers
             {"{5}x{10}",  "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
             {"{10}x{5}",  "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
             {"{10}x{10}", "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
-            //{"{3,3}x{}", "1,2,3(4.9),4,5,6,7",     "Tetrahedral Prism"}, // XXX ARGH! doesn't work yet! throws assertion failure!
+            {"{3,3}x{}", "1,2,3(5.0),5(9.0),7(13.0)",   "Tetrahedral Prism"},
             {"{5,3}x{}", "1,2,3(2.5),3,4,5,6,7", "Dodecahedral Prism"},
             {"{}x{5,3}", "1,2,3(2.5),3,4,5,6,7", "Dodecahedral Prism (alt)"},
             {"{5,3,3}",  "1,2,3(2.5),3",         "Hypermegaminx (BIG!)"},
@@ -637,16 +643,17 @@ public class GenericGlue
                 double nicePointOnScreen[] = com.donhatchsw.util.VecMath.vxm(nicePointD, viewMat4dD);
                 com.donhatchsw.util.VecMath.normalize(nicePointOnScreen, nicePointOnScreen); // if it's not already
                 double minusWAxis[] = {0,0,0,-1};
+                genericGlue.rotationFrom = com.donhatchsw.util.VecMath.doubleToFloat(nicePointOnScreen);
+                genericGlue.rotationTo = com.donhatchsw.util.VecMath.doubleToFloat(minusWAxis);
                 double totalRotationAngle = com.donhatchsw.util.VecMath.angleBetweenUnitVectors(
-                                    nicePointOnScreen,
-                                    minusWAxis);
+                                    genericGlue.rotationFrom,
+                                    genericGlue.rotationTo);
 
                 genericGlue.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                if (genericGlue.nRotation == 0) genericGlue.nRotation = 1;
                 // XXX ARGH! we'd like the speed to vary as the user changes the slider,
                 // XXX but the above essentially locks in the speed for this rotation
                 genericGlue.iRotation = 0; // we are iRotation frames into nRotation
-                genericGlue.rotationFrom = com.donhatchsw.util.VecMath.doubleToFloat(nicePointOnScreen);
-                genericGlue.rotationTo = com.donhatchsw.util.VecMath.doubleToFloat(minusWAxis);
                 view.repaint();
 
                 if (genericGlue.iRotation == genericGlue.nRotation)
@@ -748,7 +755,7 @@ public class GenericGlue
         float stickerShrink,
         float viewMat4d[/*4*/][/*4*/], // contents of this get incremented if animating!
         float eyeW,
-        float viewMat[/*3*/][/*3*/],
+        float viewMat3d[/*3*/][/*3*/],
         float eyeZ, // MagicCube.EYEZ
         float scale, // whatever the fuck that means
         float pixels2polySF, // whatever the fuck that means
@@ -765,6 +772,7 @@ public class GenericGlue
         Color outlineColor,
         Graphics g,
         float twistFactor,
+        boolean restrictRoll,
         Canvas view)
     {
         GenericGlue genericGlue = this;
@@ -796,6 +804,22 @@ public class GenericGlue
             {
                 genericGlue.iRotation++;
                 view.repaint(); // make sure we keep drawing while there's more to do
+
+                if (genericGlue.iRotation == genericGlue.nRotation
+                 && restrictRoll)
+                {
+                    // If we are finishing a rotate-to-center
+                    // and we are in restricted roll mode,
+                    // what we were using as a twirl axis is probably not
+                    // very good any more.  Choose another.
+                    if (genericGlue.rotationTo[3] < -.99999) // i.e. if it was a rot to center
+                    {
+                        initiateZeroRoll(viewMat4d,
+                                         viewMat3d,
+                                         twistFactor,
+                                         view);
+                    }
+                }
             }
         }
 
@@ -851,17 +875,14 @@ public class GenericGlue
 
             com.donhatchsw.util.VecMath.mxs(viewMat4d, scaleFudge4d),
             eyeW,
-            com.donhatchsw.util.VecMath.mxmxmxm(
-                com.donhatchsw.util.VecMath.makeRowRotMat(3, 2, 1, (float)Math.PI/2),
-                com.donhatchsw.util.VecMath.makeRowRotMat(3, 2, 0, 1.f*(float)MagicCube.TWIRL*(float)Math.PI/180.f),
-                //com.donhatchsw.util.VecMath.makeRowRotMat(3, 1, 2, 1.f*(float)MagicCube.TILT*(float)Math.PI/180.f),
-                com.donhatchsw.util.VecMath.makeRowRotMat(3, 1, 2, 1.f*15*(float)Math.PI/180.f),
-                com.donhatchsw.util.VecMath.mxs(viewMat, scaleFudge3d)),
+            com.donhatchsw.util.VecMath.mxm(
+                com.donhatchsw.util.VecMath.makeRowRotMat(3, 2, 1, (float)Math.PI/2), // XXX FUDGE that makes it nicer for the pentagonal prismprism... what do we need, a preferred viewing orientation for each puzzle as part of the model description?
+                com.donhatchsw.util.VecMath.mxs(viewMat3d, scaleFudge3d)),
             eyeZ,
-
             new float[][]{{scaleFudge2d*scale/pixels2polySF, 0},
                           {0, -scaleFudge2d*scale/pixels2polySF},
                           {(float)xOff, (float)yOff}},
+
             com.donhatchsw.util.VecMath.normalize(towardsSunVec),
             groundNormal,
             groundOffset,
@@ -956,94 +977,166 @@ public class GenericGlue
     //
     // Attempt to implement roll correction.
     //
-        /*
-        public static void unroll(float viewMat[][],
-               float slop) // don't let the puzzle's north pole get within this distance of the +Y or +Z axis, in radians.
+        public static int findFaceCenterClosestToYZArc(float faceCenters[][],
+                                                       float viewMat4d[/*4*/][/*4*/],
+                                                       float viewMat3d[/*3*/][/*3*/],
+                                                       float returnPointOnYZArc[/*>=3*/])
         {
-            //
-            // The puzzle that viewMat gets applied to when rendering
-            // has a hardcoded tilt/twirl baked into it.
-            // We want to work with the effective viewing matrix of the original puzzle
-            // WITHOUT the tilt/twirl baked in...
-            // that matrix is the tilt/twirl matrix times viewMat.
-            //
-            float viewMatOfOriginalPuzzle[][] = tiltTwirlMat * viewMat;
-
-            // Figure out which of the six xformed model axis directions
-            // (i.e. plus or minus the rows of the row-oriented rotation matrix)
-            // is closest to the "YZ arc", i.e. the arc between +Y and +Z in world space.
-            // Choose that axis of the puzzle as its north pole, and snap it
-            // to the YZ arc.
-            //
-            float unrestrictedBestNorthPoleInWorldSpace[] = new double[3];
-            float restrictedBestNorthPoleInWorldSpace[] = new double[3];
+            float viewMat[][] = com.donhatchsw.util.VecMath.mxm(viewMat4d, viewMat3d);
+            float thisFaceCenterInWorldSpace[] = new float[4]; // scratch for loop
+            float bestClosestPointOnPositiveYZSector[] = new float[4];
+            float bestDistSqrd = Float.MAX_VALUE;
+            int bestIFace = -1;
+            for (int iFace = 0; iFace < faceCenters.length; ++iFace)
             {
-                // We proceed by finding the shortest distance
-                // to the positive sector of the YZ plane, which is equivalent but simpler.
-                float bestDistSqrd = Float.MAX_VALUE;
-                float thisNorthPoleInWorldSpace[] = new double[3]; // scratch for loop
-                for (int axis = 0; axis < 3; ++axis)
-                for (int sign = -1; sign <= 1; ++sign)
+                com.donhatchsw.util.VecMath.vxm(thisFaceCenterInWorldSpace, faceCenters[iFace], viewMat);
+                // normalize to a unit vector in 4-space...
+                com.donhatchsw.util.VecMath.normalize(thisFaceCenterInWorldSpace,
+                                                      thisFaceCenterInWorldSpace);
+                thisFaceCenterInWorldSpace[3] = 0.f;
+                // Reject if the x,y,z part is too small, which means it was
+                // too close to the W axis (i.e. it's probably the element
+                // we are focused on, or its opposite)
+                if (com.donhatchsw.util.VecMath.normsqrd(thisFaceCenterInWorldSpace) < 1e-2*1e-2)
+                    continue;
+                // normalize to a unit vector in 3-space...
+                com.donhatchsw.util.VecMath.normalize(thisFaceCenterInWorldSpace,
+                                                      thisFaceCenterInWorldSpace);
+                float closestPointOnPositiveYZSector[/*4*/] = {
+                    0.f,
+                    Math.max(thisFaceCenterInWorldSpace[1], 0.f),
+                    Math.max(thisFaceCenterInWorldSpace[2], 0.f),
+                    0.f,
+                };
+                float thisDistSqrd = com.donhatchsw.util.VecMath.distsqrd(
+                                                thisFaceCenterInWorldSpace,
+                                                closestPointOnPositiveYZSector);
+                if (thisDistSqrd < bestDistSqrd)
                 {
-                    VecMath.sxv(thisNorthPoleInWorldSpace,
-                                viewMatOfOriginalPuzzle[axis],
-                                (float)sign);
-                    float closestPointOnPositiveYZSector[] = {
-                        0.f,
-                        MAX(thisNorthPoleInWorldSpace[1], 0.f),
-                        MAX(thisNorthPoleInWorldSpace[2], 0.f),
-                    }
-                    float thisDistSqrd = VecMath.distsqrd(thisNorthPoleInWorldSpace,
-                                                          closestPointOnPositiveYZSector);
-                    if (thisDistSqrd < bestDistSqrd)
-                    {
-                        bestDistSqrd = thisDistSqrd;
-                        VecMath.copyvec(unrestrictedBestNorthPoleInWorldSpace, northPoleMaybe)
-                        VecMath.copyvec(restrictedBestNorthPoleInWorldSpace, closestPointOnPositiveYZSector); // will normalize the winner below
-                    }
+                    bestDistSqrd = thisDistSqrd;
+                    bestIFace = iFace;
+                    com.donhatchsw.util.VecMath.copyvec(bestClosestPointOnPositiveYZSector,
+                                                        closestPointOnPositiveYZSector);
                 }
-                VecMath.normalize(restrictedBestNorthPoleInWorldSpace,
-                                  restrictedBestNorthPoleInWorldSpace);
             }
-            //
-            // Find the smallest world-space rotation that takes the unrestricted pole
-            // to the restricted pole.
-            //
+            Assert(bestIFace != -1);
+            com.donhatchsw.util.VecMath.normalize(bestClosestPointOnPositiveYZSector,
+                                                  bestClosestPointOnPositiveYZSector);
+            com.donhatchsw.util.VecMath.copyvec(3, returnPointOnYZArc,
+                                                   bestClosestPointOnPositiveYZSector);
+            return bestIFace;
+        } // findFaceCenterClosestToYZArc
 
-            float restrictedBestNorthPoleInWorldSpace[]
-
-                closestPointOnPositiveYZSector[0] = 0;
-                float closestPointOnYZPlane = northPoleMaybe with x component zeroed
-                // restrict to +Y and +Z
-                if (closestPointOnYZPlane[1] < 0)
-                    closestPointOnYXPlane[1] = 0;
-                if (closestPointOnYZPlane[2] < 0)
-                    closestPointOnYXPlane[2] = 0;
-
-                if (closestPointOnYZPlane[1] < 0 // more than 90 degrees from y axis
-                 || closestPointOnYZPlane[2] < 0) // more than 90 degrees from x axis
-                {
-                    // Closest point to northPoleMaybe on the +Y+Z arc
-                    // is not the closest point on the YZ plane,
-                    // so it must be the +Y or +Z axis. Pick whichever one
-                    // is closer.
-                    if (northPoleMaybe[1] > northPoleMaybe[2])
-                        closestPointOnYZPlane = +Y axis
-                    else
-                        closestPointOnYZPlane = +Z axis
-                }
-
-                float distToYZ
-            }
-        }
-        unroll(...)
-        unrollSpinDelta(axis, rads)
+        public void initiateZeroRoll(float viewMat4d[][],
+                                     float viewMat3d[][],
+                                     float twistFactor,
+                                     Canvas view)
         {
-            // figure out what axis we *really* want to be using
+            // XXX FUDGE! get rid of this when I get rid of corresponding fudge in display
+            {
+                viewMat3d = com.donhatchsw.util.VecMath.mxm(
+                    com.donhatchsw.util.VecMath.makeRowRotMat(3, 2, 1, (float)Math.PI/2), // XXX FUDGE that makes it nicer for the pentagonal prismprism... what do we need, a preferred viewing orientation for each puzzle as part of the model description?
+                    viewMat3d);
+            }
+            // XXX bleah, should be able to multiply a 4x4 by a 3x3 but it crashes currently, so...
+            {
+                float paddedViewMat3d[][] = new float[4][4];
+                Vec_h._SETMAT3(paddedViewMat3d, viewMat3d);
+                paddedViewMat3d[3][3] = 1.f;
+                viewMat3d = paddedViewMat3d;
+            }
+
+            float faceCenters[][] = this.genericPuzzleDescription.getFaceCentersAtRest();
+            float pointOnYZArc[] = new float[4]; // zeros... and [3] is left zero
+            int iFace = findFaceCenterClosestToYZArc(faceCenters,
+                                                     viewMat4d,
+                                                     viewMat3d,
+                                                     pointOnYZArc);
+            this.rotationFrom = com.donhatchsw.util.VecMath.vxm(faceCenters[iFace], viewMat4d);
+            this.rotationFrom[3] = 0.f;
+            com.donhatchsw.util.VecMath.normalize(this.rotationFrom,
+                                                  this.rotationFrom);
+            // pointOnYZArc is now in screen space...
+            // to get the point we want to rotate to,
+            // we undo the viewMat3d on it,
+            // i.e. apply viewMat3d's transpose, i.e. its inverse,
+            // i.e. multiply by it on the opposite side as usual
+            this.rotationTo = com.donhatchsw.util.VecMath.mxv(viewMat3d, pointOnYZArc);
+
+            double totalRotationAngle = com.donhatchsw.util.VecMath.angleBetweenUnitVectors(
+                                this.rotationFrom,
+                                this.rotationTo);
+            this.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            if (this.nRotation == 0) this.nRotation = 1;
+            this.iRotation = 0;
+
+            // Remember the zero roll pole
+            // for subsequent calls to zeroOutRollOnSpinDelta
+            this.zeroRollPoleAfterRot3d = pointOnYZArc;
+
+            //System.out.println("this.rotationFrom = "+com.donhatchsw.util.VecMath.toString(this.rotationFrom));
+            //System.out.println("this.rotationTo = "+com.donhatchsw.util.VecMath.toString(this.rotationTo));
+
+            view.repaint();
+        } // initiateZeroRoll
+
+        public SQuat zeroOutRollAndMaybeTiltOnSpinDelta(SQuat spindelta,        
+                                                        boolean zeroOutTilt)
+        {
+            // Use the zeroRollPoll from the most recent call
+            // to initiateZeroRoll.
+            Assert(spindelta.getHomoRotation() >= 0.f);
+
+            SQuat.Vector3 temp = new SQuat.Vector3();
+            spindelta.getHomoAxis(temp);
+            float homoAxis[] = temp.asArray();
+
+            float sinHalfTiltDeltaAngle = -homoAxis[0]; // XXX why minus? dammit
+            float sinHalfTwirlDeltaAngle = -homoAxis[1]; // XXX why minus? dammit
+            float tiltDeltaAngle = 2*(float)Math.asin(sinHalfTiltDeltaAngle);
+            float twirlDeltaAngle = 2*(float)Math.asin(sinHalfTwirlDeltaAngle);
+            if (zeroOutTilt)
+                tiltDeltaAngle = 0.f; // before clamping-- we do let the clamp do a tilt if it wants
+
+            Assert(zeroRollPoleAfterRot3d != null); // initiateZeroRoll must have been called previously
+            zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.copyvec(3, zeroRollPoleAfterRot3d); // XXX sigh... because vxm and other stuff freaks if I don't
+            // Clamp tilt to [0..pi/2]...
+            float currentTilt = (float)Math.atan2(zeroRollPoleAfterRot3d[2],
+                                                  zeroRollPoleAfterRot3d[1]);
+            //System.out.println("tiltDeltaAngle before = "+tiltDeltaAngle*180/Math.PI);
+            if (tiltDeltaAngle > (float)Math.PI/2 - currentTilt)
+                tiltDeltaAngle = (float)Math.PI/2 - currentTilt;
+            if (tiltDeltaAngle < 0 - currentTilt)
+                tiltDeltaAngle = 0 - currentTilt;
+            //System.out.println("tiltDeltaAngle after = "+tiltDeltaAngle*180/Math.PI);
+
+            SQuat twirlDelta = new SQuat(zeroRollPoleAfterRot3d,-twirlDeltaAngle); // XXX why minus? dammit
+            SQuat tiltDelta = new SQuat(1,0,0,-tiltDeltaAngle,false); // XXX why minus? dammit
+
+            //System.out.println("zeroRollPoleAfterRot3d = "+com.donhatchsw.util.VecMath.toString(zeroRollPoleAfterRot3d));
+
+            //return tiltDelta;
+            //return twirlDelta;
+            //return twirlDelta.mult(tiltDelta);
+            SQuat adjustedSpinDelta = twirlDelta.mult(tiltDelta);
+            // need to apply it to the pole...
+
+            zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.vxm(zeroRollPoleAfterRot3d,
+                                                                     new SQuat.Matrix3(adjustedSpinDelta).asArray());
+            return adjustedSpinDelta;
+        } // zeroOutRollOnSpinDelta
+
+        // when dragging, we allow tilt changes
+        public SQuat zeroOutRollOnSpinDelta(SQuat spindelta)
+        {
+            return zeroOutRollAndMaybeTiltOnSpinDelta(spindelta, false);
         }
-        */
-
-
+        // when autospinning, we don't allow tilt changes,
+        // or it would just drift to the min or max tilt, which looks dumb
+        public SQuat zeroOutRollAndTiltOnSpinDelta(SQuat spindelta)
+        {
+            return zeroOutRollAndMaybeTiltOnSpinDelta(spindelta, true);
+        }
 
 
     /*
