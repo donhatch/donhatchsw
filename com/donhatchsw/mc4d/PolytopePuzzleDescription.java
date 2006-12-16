@@ -2,6 +2,9 @@
     RELNOTES:
     =========
         This version has the following enhancements:
+            - speed of twists and rotations through different angles
+              have been adjusted to feel more uniform (small angles
+              slower and large angles faster than before).
             - Lots of new puzzle types available from the Puzzle menu.
               These are called "generic puzzles" and they are a work
               in progress.
@@ -12,9 +15,6 @@
             - only 8 colors still, even when more than 8 faces
             - some of the even-length puzzles have spurious extra
               very thin stickers at the halfway planes
-            - trying to make a puzzle based on triangles
-               (e.g. simplex, triangular prism)
-               will probably produce something ugly at this point, if anything
             - sometimes the highlighted sticker fails to get updated correctly
               at the end of a twist (jiggle the mouse to fix it)
             - no save/load (menus are probably misleading)
@@ -28,6 +28,7 @@
             - you can rotate any *cubie* of the length-3 puzzle
               to the center with the middle mouse
               (not just hyperface centers to the center).
+            - "Restrict Roll" preference (only works with generic puzzles currently)
 
     ISSUES:
     =======
@@ -80,8 +81,6 @@
     BUGS / URGENT TODOS:
     ===================
 
-        - bleah, dodecahedron is not face first! (noticable in {}x{5,3})
-
         - {5}x{5} 2 has sliver polygons-- I think the isPrismOfThisFace
           hack isn't adequate.  Also it doesnt work for {5}x{} (but that's 3d).
           I think I need to remove the slivers after the fact instead.
@@ -95,8 +94,11 @@
         - it's not oriented correctly at the end-- so I had to make orientDeep
           public and have the caller call it-- lame! need to send in all planes at once so it can do that automatically with some hope of being efficient
         - need more colors!
-
-
+        - sometimes exception during picking trying to access too big
+          an index right after switching to a smaller puzzle (e.g.
+          pentprismprism to hypercube)
+        - try to change the puzzle type while it's twisting, it goes into
+          an infinite exception loop I think
 
     NOT HAVING TO DO WITH THIS GENERIC STUFF:
     =====================================================
@@ -192,9 +194,12 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private float vertsMinusStickerCenters[][];
     private float vertStickerCentersMinusFaceCenters[][];
-    private float vertFaceCenters[][];
+    private float vertFaceCenters[][]; // XXX maybe silly since we hace faceCenters
     private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
 
+    private float faceCenters[/*nFaces*/][/*nDims*/];
+
+    private int adjacentStickerPairs[][/*2*/][/*2*/];
     private int face2OppositeFace[/*nFaces*/];
     private int sticker2face[/*nStickers*/];
     private int sticker2faceShadow[/*nStickers*/]; // so we can detect nefariousness
@@ -255,15 +260,21 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
      */
 
     public PolytopePuzzleDescription(String schlafliProduct,
-                                     double length, // usually int but can experiment with different cut depths
+                                     int intLength, // number of segments per edge
+                                     double doubleLength, // edge length / length of first edge segment
                                      java.io.PrintWriter progressWriter)
     {
-        if (length < 1)
-            throw new IllegalArgumentException("PolytopePuzzleDescription called with length="+length+", min legal length is 1");
+        if (intLength < 1)
+            throw new IllegalArgumentException("PolytopePuzzleDescription called with intLength="+intLength+", min legal intLength is 1");
+        if (doubleLength <= 0)
+            throw new IllegalArgumentException("PolytopePuzzleDescription called with doubleLength="+intLength+", doubleLength must be positive");
 
         if (progressWriter != null)
         {
-            progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+(Math.floor(length)==length ? ""+(int)length : ""+length)+"...");
+            if (doubleLength == (double)intLength)
+                progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+intLength+")...");
+            else
+                progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+intLength+" ("+doubleLength+")...");
             progressWriter.print("    Constructing polytope...");
             progressWriter.flush();
         }
@@ -416,29 +427,18 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
 
                 boolean isPrismOfThisFace = Math.abs(-1. - faceOffsets[iFace]) < 1e-6;
-                int ceilLength = (int)Math.ceil(length);
 
-                // Fractional lengths are basically a hack for pentagons
-                // and higher gons
-                // so that the middle edge width can be controlled
-                // by the user; we don't want it to apply
-                // to squares though
-                if (isPrismOfThisFace)
-                    length = ceilLength;
-
-                double sliceThickness = fullThickness / length;
+                double sliceThickness = fullThickness / doubleLength;
 
                 // If even length and *not* a prism of this face,
                 // then the middle-most cuts will meet,
                 // but the slice function can't handle that.
                 // So back off a little so they don't meet,
                 // so we'll get tiny invisible sliver faces there instead.
-                if (length == ceilLength
-                 && ceilLength % 2 == 0
+                if (intLength == doubleLength
+                 && intLength % 2 == 0
                  && !isPrismOfThisFace)
                     sliceThickness *= .99;
-
-                //sliceThickness = fullThickness/4;
 
                 /*
                    Think about what's appropriate for simplex...
@@ -453,9 +453,9 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             1/4 of full is the nice one for 3
                 */
 
-                int nNearCuts = ceilLength / 2; // (n-1)/2 if odd, n/2 if even
+                int nNearCuts = intLength / 2; // (n-1)/2 if odd, n/2 if even
                 int nFarCuts = face2OppositeFace[iFace]==-1 ? 0 :
-                               ceilLength%2==0 && isPrismOfThisFace ? nNearCuts-1 :
+                               intLength%2==0 && isPrismOfThisFace ? nNearCuts-1 :
                                nNearCuts;
                 faceCutOffsets[iFace] = new double[nNearCuts + nFarCuts];
 
@@ -607,8 +607,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
             }
         }
+        this.faceCenters = doubleToFloat(faceCentersD);
 
-        float faceCentersF[][] = doubleToFloat(faceCentersD);
         float stickerCentersMinusFaceCentersF[][] = new float[nStickers][];
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
@@ -652,26 +652,121 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         else if (nDims == 4)
         {
-            // Start by making a completely separate Poly
-            // out of each sticker.  There will be no
-            // vertex sharing between stickers.
-            com.donhatchsw.util.Poly stickerPolys[] = new com.donhatchsw.util.Poly[nStickers];
-            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            if (false) // this messes up indexing... XXX maybe should make it not?
             {
-                stickerPolys[iSticker] = com.donhatchsw.util.PolyCSG.PolyFromPolytope(stickers[iSticker]);
-                // So it gets grouped when we concatenate...
-                stickerPolys[iSticker].inds = new int[][][][] {(int[][][])stickerPolys[iSticker].inds};
-            }
-            //
-            // Now concatenate them all together (the verts
-            // and the inds).
-            //
-            com.donhatchsw.util.Poly slicedPoly = com.donhatchsw.util.Poly.concat(stickerPolys);
+                // Start by making a completely separate Poly
+                // out of each sticker.  There will be no
+                // vertex sharing between stickers.
+                com.donhatchsw.util.Poly stickerPolys[] = new com.donhatchsw.util.Poly[nStickers];
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                {
+                    stickerPolys[iSticker] = com.donhatchsw.util.PolyCSG.PolyFromPolytope(stickers[iSticker]);
+                    // So it gets grouped when we concatenate...
+                    stickerPolys[iSticker].inds = new int[][][][] {(int[][][])stickerPolys[iSticker].inds};
+                }
+                //
+                // Now concatenate them all together (the verts and the inds,
+                // re-indexing inds to point to flattened vert indices)
+                //
+                {
+                    com.donhatchsw.util.Poly slicedPoly = com.donhatchsw.util.Poly.concat(stickerPolys);
 
-            restVerts = (double[][])slicedPoly.verts;
-            // We assume there is only 1 contour per polygon,
-            // so we can flatten out the contours part.
-            this.stickerInds = (int[][][])com.donhatchsw.util.Arrays.flatten(slicedPoly.inds, 2, 2);
+                    restVerts = (double[][])slicedPoly.verts;
+                    // We assume there is only 1 contour per polygon,
+                    // so we can flatten out the contours part of the Poly.
+                    this.stickerInds = (int[][][])com.donhatchsw.util.Arrays.flatten(slicedPoly.inds, 2, 2);
+                }
+            }
+            else
+            {
+                class iVertAux {
+                    int iVert;
+                    Object savedAux;
+                    iVertAux(int iVert, Object savedAux)
+                    {
+                        this.iVert = iVert;
+                        this.savedAux = savedAux;
+                    }
+                };
+                CSG.Polytope allSlicedVerts[] = slicedPolytope.p.getAllElements()[0];
+                for (int iVert = 0; iVert < allSlicedVerts.length; ++iVert)
+                    allSlicedVerts[iVert].aux = new iVertAux(-1, allSlicedVerts[iVert].aux);
+
+                int nVerts = 0;
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                    nVerts += stickers[iSticker].getAllElements()[0].length;
+
+                restVerts = new double[nVerts][nDims];
+                this.stickerInds = new int[nStickers][][];
+
+                nVerts = 0; // reset, count again
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                {
+                    // XXX note, we MUST step through the polys in the order in which they appear in getAllElements, NOT the order in which they appear in the facets list.  however, we need to get the sign from the facets list!
+                    CSG.Polytope polysThisSticker[] = stickers[iSticker].getAllElements()[2];
+                    stickerInds[iSticker] = new int[polysThisSticker.length][];
+                    for (int iPolyThisSticker = 0; iPolyThisSticker < polysThisSticker.length; ++iPolyThisSticker)
+                    {
+                        CSG.Polytope polygon = polysThisSticker[iPolyThisSticker];
+                        stickerInds[iSticker][iPolyThisSticker] = new int[polygon.facets.length];
+                        for (int iVertThisPoly = 0; iVertThisPoly < polygon.facets.length; ++iVertThisPoly)
+                        {
+                            // assert this polygon is oriented
+                            // and nicely ordered the way we expect...
+                            CSG.SPolytope thisEdge = polygon.facets[iVertThisPoly];
+                            CSG.SPolytope nextEdge = polygon.facets[(iVertThisPoly+1)%polygon.facets.length];
+                            Assert(thisEdge.p.facets.length == 2);
+                            Assert(thisEdge.p.facets[0].sign == -1);
+                            Assert(thisEdge.p.facets[1].sign == 1);
+                            Assert(thisEdge.sign == -1 || thisEdge.sign == 1);
+                            Assert(nextEdge.sign == -1 || nextEdge.sign == 1);
+                            CSG.Polytope vertex = thisEdge.p.facets[thisEdge.sign==-1?0:1].p;
+                            Assert(vertex == nextEdge.p.facets[nextEdge.sign==-1?1:0].p);
+                            int iVert = ((iVertAux)vertex.aux).iVert;
+                            if (iVert == -1)
+                            {
+                                iVert = nVerts++;
+                                restVerts[iVert] = vertex.getCoords(); // okay to share with it, we aren't going to change it
+                                ((iVertAux)vertex.aux).iVert = iVert;
+                            }
+                            stickerInds[iSticker][iPolyThisSticker][iVertThisPoly] = iVert;
+                        }
+
+                        // Figure out this polygon's sign in the sticker.
+                        // Since we are iterating through sticker.allElements()[nDims-1] instead of through sticker's facet list (because we need that ordering),
+                        // we don't have access to the sign directly.
+                        // XXX bleah, this search sucks
+                        int indexOfPolyInStickersFacets = 0;
+                        while (stickers[iSticker].facets[indexOfPolyInStickersFacets].p != polygon)
+                            indexOfPolyInStickersFacets++;
+                        if (stickers[iSticker].facets[indexOfPolyInStickersFacets].sign == -1)
+                        {
+                            //
+                            // Reverse the polygon
+                            //
+                            com.donhatchsw.util.Arrays.reverse(
+                                stickerInds[iSticker][iPolyThisSticker],
+                                stickerInds[iSticker][iPolyThisSticker]);
+                        }
+                    }
+                    // clear the vertices' aux indices after each sticker,
+                    // so that different stickers won't share vertices.
+                    for (int iPolyThisSticker = 0; iPolyThisSticker < polysThisSticker.length; ++iPolyThisSticker)
+                    {
+                        CSG.Polytope polygon = polysThisSticker[iPolyThisSticker];
+                        for (int iVertThisPoly = 0; iVertThisPoly < polygon.facets.length; ++iVertThisPoly)
+                        {
+                            CSG.SPolytope thisEdge = polygon.facets[iVertThisPoly];
+                            CSG.Polytope vertex = thisEdge.p.facets[thisEdge.sign==-1?0:1].p;
+                            ((iVertAux)vertex.aux).iVert = -1;
+                        }
+                    }
+                }
+                Assert(nVerts == restVerts.length);
+
+                for (int iVert = 0; iVert < allSlicedVerts.length; ++iVert)
+                    allSlicedVerts[iVert].aux = ((iVertAux)allSlicedVerts[iVert].aux).savedAux;
+            }
 
             //
             // Fix up the indices on each sticker so that
@@ -708,6 +803,30 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
             }
+
+            //
+            // Get adjacent sticker pairs into this.adjacentStickerPairs...
+            //
+            {
+                int stickerIncidences[][][] = slicedPolytope.p.getAllIncidences()[nDims-1];
+                int nPolygons = slicedPolytope.p.getAllElements()[2].length;
+                this.adjacentStickerPairs = new int[nPolygons][2][];
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                {
+                    int thisStickersIncidentPolygons[] = stickerIncidences[iSticker][nDims-2];
+                    for (int iPolyThisSticker = 0; iPolyThisSticker < thisStickersIncidentPolygons.length; ++iPolyThisSticker)
+                    {
+                        int iPoly = thisStickersIncidentPolygons[iPolyThisSticker];
+                        int j = adjacentStickerPairs[iPoly][0]==null ? 0 : 1;
+                        Assert(adjacentStickerPairs[iPoly][j] == null);
+                        adjacentStickerPairs[iPoly][j] = new int[] {iSticker,iPolyThisSticker};
+                    }
+                }
+                for (int iPoly = 0; iPoly < adjacentStickerPairs.length; ++iPoly)
+                    for (int j = 0; j < 2; j++)
+                        Assert(adjacentStickerPairs[iPoly][j] != null);
+            }
+
         }
         else // nDims is something other than 3 or 4
         {
@@ -745,7 +864,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     {
                         vertsMinusStickerCenters[iVert] = doubleToFloat(com.donhatchsw.util.VecMath.vmv(restVerts[iVert], stickerCentersD[iSticker]));
                         vertStickerCentersMinusFaceCenters[iVert] = stickerCentersMinusFaceCentersF[iSticker];
-                        vertFaceCenters[iVert] = faceCentersF[iFace];
+                        vertFaceCenters[iVert] = faceCenters[iFace];
                     }
                 }
             }
@@ -995,6 +1114,16 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             return gripSymmetryOrders;
         }
+
+        public double[][] getFaceInwardNormals()
+        {
+            return faceInwardNormals;
+        }
+        public double[][] getFaceCutOffsets()
+        {
+            return faceCutOffsets;
+        }
+
         public int getClosestGrip(float pickCoords[/*4*/])
         {
             int bestIndex = -1;
@@ -1096,6 +1225,16 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             return face2OppositeFace;
         }
+        public int[][/*2*/][/*2*/]
+            getAdjacentStickerPairs()
+        {
+            return adjacentStickerPairs;
+        }
+        public float[/*nFaces*/][/*nDims*/]
+            getFaceCentersAtRest()
+        {
+            return faceCenters;
+        }
         public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
                                                     int gripIndex,
                                                     int dir,
@@ -1183,8 +1322,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                              System.err)));
 
         String schlafliProduct = args[0];
-        int length = Integer.parseInt(args[1]);
-        GenericPuzzleDescription descr = new PolytopePuzzleDescription(schlafliProduct, length, progressWriter);
+        double doubleLength = Double.parseDouble(args[1]);
+        GenericPuzzleDescription descr = new PolytopePuzzleDescription(schlafliProduct,
+                                                                       (int)Math.ceil(doubleLength),
+                                                                       doubleLength,
+                                                                       progressWriter);
         System.out.println("description = "+descr);
 
         System.out.println("out main");
