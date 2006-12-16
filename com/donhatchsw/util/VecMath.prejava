@@ -58,6 +58,12 @@ public final class VecMath
             result[i] = v0[i] - v1[i];
     }
     /** vector minus vector */
+    public static void vmv(float result[], float v0[], float v1[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] - v1[i];
+    }
+    /** vector minus vector */
     public static void vmv(int result[], int v0[], int v1[])
     {
         FORIDOWN (i, v0.length)
@@ -70,9 +76,22 @@ public final class VecMath
         FORIDOWN (i, v.length)
             result[i] = v[i] * s;
     }
+    /** vector times scalar */
+    public static void vxs(float result[], float v[], float s)
+    {
+        FORIDOWN (i, v.length)
+            result[i] = v[i] * s;
+    }
 
     /** matrix times scalar */
     public static void mxs(double result[][], double M[][], double s)
+    {
+        FORIDOWN (i, M.length)
+            if (result[i] != null)
+                vxs(result[i], M[i], s);
+    }
+    /** matrix times scalar */
+    public static void mxs(float result[][], float M[][], float s)
     {
         FORIDOWN (i, M.length)
             if (result[i] != null)
@@ -116,6 +135,12 @@ public final class VecMath
         FORIDOWN (i, v.length)
             result[i] = s * v[i];
     }
+    /** scalar times vector */
+    public static void sxv(float result[], float s, float v[])
+    {
+        FORIDOWN (i, v.length)
+            result[i] = s * v[i];
+    }
 
     /** scalar times vector */
     public static void sxv(int result[], int s, int v[])
@@ -135,8 +160,20 @@ public final class VecMath
     {
         return v[0]*w[1] - v[1]*w[0];
     }
+    /** determinant of matrix having the two vectors as rows */
+    public static float vxv2(float v[/*2*/], float w[/*2*/])
+    {
+        return v[0]*w[1] - v[1]*w[0];
+    }
     /** 3-dimensional cross product */
     public static void vxv3(double v0[/*3*/], final double v1[/*3*/], final double v2[/*3*/])
+    {
+        v0[0] = v1[1]*v2[2] - v1[2]*v2[1];
+        v0[1] = v1[2]*v2[0] - v1[0]*v2[2];
+        v0[2] = v1[0]*v2[1] - v1[1]*v2[0];
+    }
+    /** 3-dimensional cross product */
+    public static void vxv3(float v0[/*3*/], final float v1[/*3*/], final float v2[/*3*/])
     {
         v0[0] = v1[1]*v2[2] - v1[2]*v2[1];
         v0[1] = v1[2]*v2[0] - v1[0]*v2[2];
@@ -149,13 +186,20 @@ public final class VecMath
              + v0[1] * (v1[2]*v2[0] - v1[0]*v2[2])
              + v0[2] * (v1[0]*v2[1] - v1[1]*v2[0]);
     }
-    /** n-dimensional cross product of n-1 n-dimensional vectors */
+    /** determinant of matrix having the three vectors as rows */
+    public static float vxvxv3(float v0[/*3*/], float v1[/*3*/], float v2[/*3*/])
+    {
+        return v0[0] * (v1[1]*v2[2] - v1[2]*v2[1])
+             + v0[1] * (v1[2]*v2[0] - v1[0]*v2[2])
+             + v0[2] * (v1[0]*v2[1] - v1[1]*v2[0]);
+    }
+    /** n-dimensional cross product of the first n-1 n-dimensional vectors in the matrix */
     public static void crossprod(double result[/*dim*/], double vectors[/*dim-1*/][/*dim*/])
     {
         int dim = result.length;
-        assert(vectors.length == dim-1);        // dim-1 vectors of dimension dim
-        if (vectors.length > 0)
-            assert(vectors[0].length == dim);   // gotcha-- can't just look at ROWLENGTH, because in case vectors.length==0, it means 0 vectors of dim 1, not 0
+        if (dim == 0)
+            return; // not a lot of options here, don't think too hard about it
+        assert(vectors.length >= dim-1);
 
         if (true)
         {
@@ -350,6 +394,12 @@ public final class VecMath
         FORIDOWN (i, p0.length)
             result[i] = p0[i] + t*(p1[i]-p0[i]);
     }
+    /** linear interpolation between vectors */
+    public static void lerp(float result[], float p0[], float p1[], float t)
+    {
+        FORIDOWN (i, p0.length)
+            result[i] = p0[i] + t*(p1[i]-p0[i]);
+    }
     /** barycentric interpolation between vectors */
     public static void bary(double result[],
                             double p0[],
@@ -488,27 +538,17 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // interp5
 
 
+    /** copy vector */ public static void copyvec( double result[],  double v[]) { copyvec(MIN(result.length,v.length), result, v); }
+    /** copy vector */ public static void copyvec(  float result[],   float v[]) { copyvec(MIN(result.length,v.length), result, v); }
+    /** copy vector */ public static void copyvec(    int result[],     int v[]) { copyvec(MIN(result.length,v.length), result, v); }
+    /** copy vector */ public static void copyvec(boolean result[], boolean v[]) { copyvec(MIN(result.length,v.length), result, v); }
 
-    /** copy vector */
-    public static void copyvec(boolean result[], boolean v[])
-    {
-        FORIDOWN (i, MIN(result.length,v.length))
-            result[i] = v[i];
-    }
+    /** copy vector */ public static void copyvec(int n,  double result[],  double v[]) { FORI (i, n) result[i] = v[i]; }
+    /** copy vector */ public static void copyvec(int n,   float result[],   float v[]) { FORI (i, n) result[i] = v[i]; }
+    /** copy vector */ public static void copyvec(int n,     int result[],     int v[]) { FORI (i, n) result[i] = v[i]; }
+    /** copy vector */ public static void copyvec(int n, boolean result[], boolean v[]) { FORI (i, n) result[i] = v[i]; }
 
-    /** copy vector */
-    public static void copyvec(int result[], int v[])
-    {
-        FORIDOWN (i, MIN(result.length,v.length))
-            result[i] = v[i];
-    }
 
-    /** copy vector */
-    public static void copyvec(double result[], double v[])
-    {
-        FORIDOWN (i, MIN(result.length,v.length))
-            result[i] = v[i];
-    }
 
     /** set column of a matrix */
     public static void setcolumn(double M[][], int iCol, double v[])
@@ -573,6 +613,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             FORIDOWN(j, MIN(result[i].length, m[i].length))
                 result[i][j] = m[i][j];
     }
+    /** fill matrix with a constant scalar */
+    public static void copymat(float result[][], float m[][])
+    {
+        FORIDOWN (i, MIN(result.length, m.length))
+            FORIDOWN(j, MIN(result[i].length, m[i].length))
+                result[i][j] = m[i][j];
+    }
 
     /** zero a matrix */
     public static void zerovec(double result[])
@@ -604,7 +651,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** vector dot product */
     public static double dot(double v0[], double v1[])
     {
-        double result = 0.;
+        double result = (double)0;
+        FORIDOWN (i, v0.length)
+            result += v0[i]*v1[i];
+        return result;
+    }
+    /** vector dot product */
+    public static float dot(float v0[], float v1[])
+    {
+        float result = (float)0;
         FORIDOWN (i, v0.length)
             result += v0[i]*v1[i];
         return result;
@@ -720,6 +775,17 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
     // XXX duplicate code above
     /** matrix times matrix */
+    public static void mxm(float result[/*n*/][/*m*/],
+                           float m0[/*n*/][/*dotLength*/],
+                           float m1[/*dotLength*/][/*m*/])
+    {
+        assumpt(result != m0 && result != m1);
+        FORIDOWN (i, result.length) // == m0.length
+            vxm(result[i], m0[i], m1);
+    } // mxm
+
+    // XXX duplicate code above
+    /** matrix times matrix */
     public static void mxm(int result[/*n*/][/*m*/],
                            int m0[/*n*/][/*dotLength*/],
                            int m1[/*dotLength*/][/*m*/])
@@ -742,7 +808,28 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         FOR (i, nRows)
         {
             double m_i[] = m[i];
-            double sum = 0.;
+            double sum = (double)0;
+            FOR (j, nCols)
+            {
+                sum += m_i[j] * v[j];
+            }
+            result[i] = sum;
+        }
+    }
+    /** matrix times column vector */
+    public static void mxv(float result[], float m[][], float v[])
+    {
+        assumpt(result != v);
+        int nRows = m.length;
+        if (nRows == 0)
+            return;
+        int nCols = v.length; // = m[0].length
+        int i, j;
+        // XXX convert to FORIDOWN if appropriate; I didn't think about it for too long
+        FOR (i, nRows)
+        {
+            float m_i[] = m[i];
+            float sum = (float)0;
             FOR (j, nCols)
             {
                 sum += m_i[j] * v[j];
@@ -816,20 +903,48 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** vector distance squared */
-    public static double distsqrd(double v0[], double v1[])
+    public static double distsqrd(double v0[], double v1[], int n)
     {
-        double result = 0.;
-        FORIDOWN (i, v0.length) // == v1.length
+        double result = (float)0;
+        FORI (i, n)
         {
             double diff = v1[i]-v0[i];
             result += diff*diff;
         }
         return result;
     }
+    /** vector distance squared */
+    public static float distsqrd(float v0[], float v1[], int n)
+    {
+        float result = (float)0;
+        FORI (i, n)
+        {
+            float diff = v1[i]-v0[i];
+            result += diff*diff;
+        }
+        return result;
+    }
+    /** vector distance squared */
+    public static double distsqrd(double v0[], double v1[])
+    {
+        int n = v0.length; // == v1.length
+        return distsqrd(v0, v1, n);
+    }
+    /** vector distance squared */
+    public static float distsqrd(float v0[], float v1[])
+    {
+        int n = v0.length; // == v1.length
+        return distsqrd(v0, v1, n);
+    }
     /** vector distance */
     public static double dist(double v0[], double v1[])
     {
         return Math.sqrt(distsqrd(v0, v1));
+    }
+    /** vector distance */
+    public static float dist(float v0[], float v1[])
+    {
+        return (float)Math.sqrt(distsqrd(v0, v1));
     }
 
     /** vector norm (length) squared */
@@ -837,10 +952,20 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         return dot(v,v);
     }
+    /** vector norm (length) squared */
+    public static float normsqrd(float v[])
+    {
+        return dot(v,v);
+    }
     /** vector norm (length) */
     public static double norm(double v[])
     {
         return Math.sqrt(dot(v,v));
+    }
+    /** vector norm (length) */
+    public static float norm(float v[])
+    {
+        return (float)Math.sqrt(dot(v,v)); // XXX is there a sqrtf?
     }
 
     /** returns index of least element */
@@ -882,10 +1007,26 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             min = Math.min(min, v[i]);
         return min;
     }
+    /** returns minimum element */
+    public static int min(int v[])
+    {
+        int min = Integer.MAX_VALUE;
+        FORIDOWN (i, v.length)
+            min = Math.min(min, v[i]);
+        return min;
+    }
     /** returns maximum element */
     public static double max(double v[])
     {
         double max = Double.NEGATIVE_INFINITY;
+        FORIDOWN (i, v.length)
+            max = Math.max(max, v[i]);
+        return max;
+    }
+    /** returns maximum element */
+    public static int max(int v[])
+    {
+        int max = Integer.MIN_VALUE;
         FORIDOWN (i, v.length)
             max = Math.max(max, v[i]);
         return max;
@@ -949,11 +1090,24 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         FORIDOWN (i, inds.length)
             vpv(result, result, array[inds[i]]);
     }
+    /** vector sum of indexed list into array of vectors */
+    public static void sumIndexed(float result[], int inds[], float array[][])
+    {
+        zerovec(result);
+        FORIDOWN (i, inds.length)
+            vpv(result, result, array[inds[i]]);
+    }
     /** vector average of indexed list into array of vectors */
     public static void averageIndexed(double result[], int inds[], double array[][])
     {
         sumIndexed(result, inds, array);
-        vxs(result, result, 1./inds.length);
+        vxs(result, result, (double)1/(double)inds.length);
+    }
+    /** vector average of indexed list into array of vectors */
+    public static void averageIndexed(float result[], int inds[], float array[][])
+    {
+        sumIndexed(result, inds, array);
+        vxs(result, result, (float)1/(float)inds.length);
     }
     /** vector average of two-dimensional indexed list into array of vectors */
     public static void averageIndexed(double result[], int inds[][], double array[][])
@@ -969,7 +1123,23 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 totalInds++;
             }
         }
-        vxs(result, result, 1./totalInds);
+        vxs(result, result, (double)1/(double)totalInds);
+    }
+    /** vector average of two-dimensional indexed list into array of vectors */
+    public static void averageIndexed(float result[], int inds[][], float array[][])
+    {
+        int totalInds = 0;
+        zerovec(result);
+        FORIDOWN (i, inds.length)
+        {
+            int row[] = inds[i];
+            FORIDOWN(j, row.length)
+            {
+                vpv(result, result, array[row[j]]);
+                totalInds++;
+            }
+        }
+        vxs(result, result, (float)1/(float)totalInds);
     }
 
     /**
@@ -1706,15 +1876,35 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         FORIDOWN (i, M.length)
         FORIDOWN (j, M[i].length)
-            M[i][j] = (i==j ? 1. : 0);
+            M[i][j] = (i==j ? 1 : 0);
+    }
+    /** set matrix to identity */
+    public static void identitymat(float M[][])
+    {
+        FORIDOWN (i, M.length)
+        FORIDOWN (j, M[i].length)
+            M[i][j] = (i==j ? 1 : 0);
     }
 
     /** Finds the matrix that rotates radians in the direction from fromAxis to toAxis, when applied to a vector by multiplying the matrix on the right by the row vector on the left. */
     public static void makeRowRotMat(double M[][], int fromAxis, int toAxis, double radians)
     {
+        assert(fromAxis != toAxis); // which means dim must be >= 2
         identitymat(M);
         double s = Math.sin(radians);
         double c = Math.cos(radians);
+        M[fromAxis][fromAxis] = c;
+        M[fromAxis][toAxis] = s;
+        M[toAxis][fromAxis] = -s;
+        M[toAxis][toAxis] = c;
+    }
+    /** Finds the matrix that rotates radians in the direction from fromAxis to toAxis, when applied to a vector by multiplying the matrix on the right by the row vector on the left. */
+    public static void makeRowRotMat(float M[][], int fromAxis, int toAxis, float radians)
+    {
+        assert(fromAxis != toAxis); // which means dim must be >= 2
+        identitymat(M);
+        float s = (float)Math.sin(radians);
+        float c = (float)Math.cos(radians);
         M[fromAxis][fromAxis] = c;
         M[fromAxis][toAxis] = s;
         M[toAxis][fromAxis] = -s;
@@ -1759,12 +1949,23 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static double angleBetweenUnitVectors(double u0[], double u1[])
     {
         // XXX can we cleverly avoid the square root?
-        if (dot(u0, u1) > 0)
+        if (dot(u0, u1) > (double)0)
             return 2*Math.asin(.5*dist(u0,u1));
         else
         {
-            double minusU1[] = sxv(-1.,u1);
-            return Math.PI - 2*Math.asin(.5*dist(u0,minusU1));
+            double minusU1[] = sxv((double)-1,u1);
+            return (double)(Math.PI - 2*Math.asin(.5*dist(u0,minusU1)));
+        }
+    }
+    public static float angleBetweenUnitVectors(float u0[], float u1[])
+    {
+        // XXX can we cleverly avoid the square root?
+        if (dot(u0, u1) > (float)0)
+            return (float)(2*Math.asin(.5*dist(u0,u1)));
+        else
+        {
+            float minusU1[] = sxv((float)-1,u1);
+            return (float)(Math.PI - 2*Math.asin(.5*dist(u0,minusU1)));
         }
     }
 
@@ -2247,8 +2448,63 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static void normalize(double result[], double v[])
     {
         double len = norm(v);
-        vxs(result, v, len==0. ? 1. : 1./len);
+        vxs(result, v, len==(double)0 ? (double)1 : (double)1/len);
     }
+    /** Normalize a vector. XXX leaves 0 as 0! may be unexpected in some cases */
+    public static void normalize(float result[], float v[])
+    {
+        float len = norm(v);
+        vxs(result, v, len==(float)0 ? (float)1 : (float)1/len);
+    }
+
+    /** Gram-Schmidt orthonormalize the first k rows of a matrix. */
+    public static void gramschmidt(double result[][], double M[][], int k)
+    {
+        if (result != M)
+            copymat(result, M);
+        for (int i = 0; i < result.length; ++i)
+        {
+            for (int j = 0; j < i; ++j)
+            {
+                // result[j] is already unit length...
+                // result[i] -= (result[i] dot result[j])*result[j]
+                com.donhatchsw.util.VecMath.vpsxv(result[i],
+                              result[i],
+                              -com.donhatchsw.util.VecMath.dot(result[i],result[j]),
+                              result[j]);
+            }
+            com.donhatchsw.util.VecMath.normalize(result[i], result[i]);
+        }
+    } // gramschmidt
+    /** Gram-Schmidt orthonormalize the first k rows of a matrix. */
+    public static void gramschmidt(float result[][], float M[][], int k)
+    {
+        if (result != M)
+            copymat(result, M);
+        for (int i = 0; i < result.length; ++i)
+        {
+            for (int j = 0; j < i; ++j)
+            {
+                // result[j] is already unit length...
+                // result[i] -= (result[i] dot result[j])*result[j]
+                com.donhatchsw.util.VecMath.vpsxv(result[i],
+                              result[i],
+                              -com.donhatchsw.util.VecMath.dot(result[i],result[j]),
+                              result[j]);
+            }
+            com.donhatchsw.util.VecMath.normalize(result[i], result[i]);
+        }
+    } // gramschmidt
+    /** Gram-Schmidt orthonormalize a matrix. */
+    public static void gramschmidt(double result[][], double M[][])
+    {
+        gramschmidt(result, M, MIN(result.length, M.length));
+    } // gramschmidt
+    /** Gram-Schmidt orthonormalize a matrix. */
+    public static void gramschmidt(float result[][], float M[][])
+    {
+        gramschmidt(result, M, MIN(result.length, M.length));
+    } // gramschmidt
 
 
     /* XXX can we make a general method that takes any kind of array? yes, @see Arrays class */
@@ -2297,6 +2553,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         result += ">";
         return result;
     }
+    public static String toString(float v[])
+    {
+        if (v == null)
+            return "(null)";
+        int i, n = v.length;
+        String result = "<";
+        FOR (i, n)
+        {
+            result += v[i];
+            if (i < n-1)
+                result += ",";
+        }
+        result += ">";
+        return result;
+    }
     public static String toString(Object v[])
     {
         if (v == null)
@@ -2314,6 +2585,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     public static String toString(double m[][])
+    {
+        return Arrays.toStringNonCompact(m, "", "    ");
+    }
+
+    public static String toString(float m[][])
     {
         return Arrays.toStringNonCompact(m, "", "    ");
     }
@@ -2372,6 +2648,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** vector plus vector, returning newly allocated result */
+        public static float[] vpv(float v0[], float v1[])
+        {
+            float result[] = new float[v0.length];
+            vpv(result, v0, v1);
+            return result;
+        }
+        /** vector plus vector, returning newly allocated result */
         public static int[] vpv(int v0[], int v1[])
         {
             int result[] = new int[v0.length];
@@ -2382,6 +2665,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[] sxv(double s, double v[])
         {
             double result[] = new double[v.length];
+            sxv(result, s, v);
+            return result;
+        }
+        /** scalar times vector, returning newly allocated result */
+        public static float[] sxv(float s, float v[])
+        {
+            float result[] = new float[v.length];
             sxv(result, s, v);
             return result;
         }
@@ -2398,6 +2688,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             normalize(result, v);
             return result; // XXX should return NULL on failure?  Not sure
         }
+        public static float[] normalize(float v[])
+        {
+            float result[] = new float[v.length];
+            normalize(result, v);
+            return result; // XXX should return NULL on failure?  Not sure
+        }
         /** perp dot, returning newly allocated result */
         public static double[] xv2(double v[/*2*/])
         {
@@ -2409,6 +2705,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[] vmv(double v0[], double v1[])
         {
             double result[] = new double[v0.length];
+            vmv(result, v0, v1);
+            return result;
+        }
+        /** vector minus vector, returning newly allocated result */
+        public static float[] vmv(float v0[], float v1[])
+        {
+            float result[] = new float[v0.length];
             vmv(result, v0, v1);
             return result;
         }
@@ -2430,6 +2733,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[] lerp(double p0[], double p1[], double t)
         {
             double result[] = new double[p0.length];
+            lerp(result, p0, p1, t);
+            return result;
+        }
+        /** linear interpolation between vectors, returning newly allocated result */
+        public static float[] lerp(float p0[], float p1[], float t)
+        {
+            float result[] = new float[p0.length];
             lerp(result, p0, p1, t);
             return result;
         }
@@ -2510,11 +2820,29 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** vector average indexed, returning newly allocated result */
+        public static float[] averageIndexed(int inds[], float array[][])
+        {
+            if (array.length == 0)
+                return null;
+            float result[] = new float[array[0].length];
+            averageIndexed(result, inds, array);
+            return result;
+        }
+        /** vector average indexed, returning newly allocated result */
         public static double[] averageIndexed(int inds[][], double array[][])
         {
             if (array.length == 0)
                 return null;
             double result[] = new double[array[0].length];
+            averageIndexed(result, inds, array);
+            return result;
+        }
+        /** vector average indexed, returning newly allocated result */
+        public static float[] averageIndexed(int inds[][], float array[][])
+        {
+            if (array.length == 0)
+                return null;
+            float result[] = new float[array[0].length];
             averageIndexed(result, inds, array);
             return result;
         }
@@ -2615,10 +2943,61 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         /** vector copy, returning newly allocated result */
         public static double[] copyvec(double v[])
         {
-            double result[] = new double[v.length];
-            copyvec(result, v);
+            return copyvec(v.length, v);
+        }
+        /** vector copy, returning newly allocated result */
+        public static float[] copyvec(float v[])
+        {
+            return copyvec(v.length, v);
+        }
+        /** vector copy, returning newly allocated result */
+        public static double[] copyvec(int n, double v[])
+        {
+            double result[] = new double[n];
+            copyvec(n, result, v);
             return result;
         }
+        /** vector copy, returning newly allocated result */
+        public static float[] copyvec(int n, float v[])
+        {
+            float result[] = new float[n];
+            copyvec(n, result, v);
+            return result;
+        }
+
+        /** convert float to double vector, returning newly allocated result */
+        public static double[] floatToDouble(float v[])
+        {
+            double result[] = new double[v.length];
+            FORIDOWN(i, v.length)
+                result[i] = (double)v[i];
+            return result;
+        }
+        /** convert float to double matrix, returning newly allocated result */
+        public static double[][] floatToDouble(float m[][])
+        {
+            double result[][] = new double[m.length][];
+            FORIDOWN(i, m.length)
+                result[i] = floatToDouble(m[i]);
+            return result;
+        }
+        /** convert double to float vector, returning newly allocated result */
+        public static float[] doubleToFloat(double v[])
+        {
+            float result[] = new float[v.length];
+            FORIDOWN(i, v.length)
+                result[i] = (float)v[i];
+            return result;
+        }
+        /** convert double to float matrix, returning newly allocated result */
+        public static float[][] doubleToFloat(double m[][])
+        {
+            float result[][] = new float[m.length][];
+            FORIDOWN(i, m.length)
+                result[i] = doubleToFloat(m[i]);
+            return result;
+        }
+
         /** get matrix column, returning newly allocated result */
         public static double[] getcolumn(double M[][], int iCol)
         {
@@ -2664,6 +3043,18 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
         // XXX duplicate code
         /** matrix times matrix, returning newly allocated result */
+        public static float[][] mxm(float m0[/*n*/][/*dotLength*/],
+                                    float m1[/*dotLength*/][/*m*/])
+        {
+            int n = m0.length;
+            int dotLength = m1.length;
+            int m = (dotLength == 0 ? 0 : m1[0].length);
+            float[][] result = new float[n][m];
+            mxm(result, m0, m1);
+            return result;
+        }
+        // XXX duplicate code
+        /** matrix times matrix, returning newly allocated result */
         public static int[][] mxm(int m0[/*n*/][/*dotLength*/],
                                   int m1[/*dotLength*/][/*m*/])
         {
@@ -2690,6 +3081,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             mxs(result, M, s);
             return result;
         }
+        /** matrix times scalar, returning newly allocated result */
+        public static float[][] mxs(float M[][], float s)
+        {
+            float result[][] = new float[M.length][M.length==0 ? 0 : M[0].length];
+            mxs(result, M, s);
+            return result;
+        }
         /** scalar times matrix, returning newly allocated result */
         public static double[][] sxm(double s, double M[][])
         {
@@ -2701,6 +3099,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[] vxs(double v[], double s)
         {
             double result[] = new double[v.length];
+            vxs(result, v, s);
+            return result;
+        }
+        /** vector times scalar, returning newly allocated result */
+        public static float[] vxs(float v[], float s)
+        {
+            float result[] = new float[v.length];
             vxs(result, v, s);
             return result;
         }
@@ -2722,6 +3127,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[] mxv(double M[][], double v[])
         {
             double result[] = new double[M.length];
+            mxv(result, M, v);
+            return result;
+        }
+        /** matrix times column vector, returning newly allocated result */
+        public static float[] mxv(float M[][], float v[])
+        {
+            float result[] = new float[M.length];
             mxv(result, M, v);
             return result;
         }
@@ -2896,6 +3308,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             makeRowRotMat(result, fromAxis, toAxis, radians);
             return result;
         }
+        /** make row-oriented rotation matrix, returning newly allocated result */
+        public static float[][] makeRowRotMat(int n, int fromAxis, int toAxis, float radians)
+        {
+            float result[][] = new float[n][n];
+            makeRowRotMat(result, fromAxis, toAxis, radians);
+            return result;
+        }
 
         /** make row-oriented rotation matrix with tie points, returning newly allocated result */
         public static double[][] makeRowRotMat(int n, int fromAxis, int toAxis, double radians,
@@ -2923,7 +3342,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             int n = (nFixedAxes == 0 ? 2 : fixedAxes[0].length);
             assert(nFixedAxes == n-2);
 
-            assumpt(n == 3); // and so nFixedAxes == 0
+            assumpt(n == 3); // and so nFixedAxes == 1
 
             double fixedAxis[] = fixedAxes[0];
 
@@ -2949,6 +3368,75 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                          makeRowRotMat(3, 0, 1, radians),
                          rotPlusZToFixedAxis);
         } // makeRowRotMat around axis
+
+        /** make row-oriented rotation matrix that slerps from vector towards to vector */
+        public static double[][] makeRowRotMatThatSlerps(double from[], double to[], double t)
+        {
+            int n = from.length;
+            assert(n == to.length);
+            assert(n >= 2);
+            from = normalize(from);
+            to = normalize(to);
+            if (n == 2)
+            {
+                double angle = t * angleBetweenUnitVectors(from, to);
+                return vxv2(from,to) < 0 ? makeRowRotMat(2, 0,1, angle)
+                                         : makeRowRotMat(2, 1,0, angle);
+            }
+            assert(n >= 3);
+            if (1. + distsqrd(from, to) == 1.) // XXX I'm suspicious of this test.  I think this is the right threshold for when to switch between the trig formula and linear interpolation when slerping vectors themselves, but does that mean it makes sense here?
+            {
+                return identitymat(n);
+            }
+            if (1. + distsqrd(from, vxs(to, -1.)) == 1.)
+            {
+                // Vectors are opposite each other.
+                // Choose an arbitrary waypoint vector orthogonal
+                // to from and to, and use that instead.
+                // XXX this code is untested as far as I know
+                // choose ax in which abs(from[ax]) is minimal
+                int ax = 0;
+                for (int i = 1; i < n; ++i) // start at 1
+                    if (from[i]*from[i] < from[ax]*from[ax])
+                        ax = i;
+                double waypoint[] = new double[n]; // zeros
+                waypoint[ax] = 1.;
+                double fromAndWaypoint[][] = {from, waypoint};
+                gramschmidt(fromAndWaypoint, fromAndWaypoint);
+                to = waypoint;
+                t *= 2.;
+            }
+
+            double mat[][] = new double[n][n];
+            copyvec(mat[0], from);
+            copyvec(mat[1], to);
+            if (n > 3)
+            {
+                java.util.Random generator = new java.util.Random(3); // same thing each time XXX should try not to have to randomize at all!
+                for (int i = 2; i < n-1; ++i) // all but the last
+                    random(mat[i]);
+            }
+            crossprod(mat[n-1], mat); // last row is cross prod of other rows, guarantees positive determininant
+            gramschmidt(mat, mat);
+
+            double angle = t * angleBetweenUnitVectors(from, to);
+            double matXY[][] = makeRowRotMat(n, 0, 1, angle);
+            // Return the matrix that:
+            //    rotates from,to to the +X,+Y axes, then
+            //    rotates +X towards +Y by angle, then
+            //    rotates +X,+Y back to from,to
+            return mxmxm(transpose(mat),
+                         matXY,
+                         mat);
+        } // makeRowMatThatSlerps
+
+        /** make row-oriented rotation matrix that slerps from vector towards to vector */
+        public static float[][] makeRowRotMatThatSlerps(float from[], float to[], float t)
+        {
+            return doubleToFloat(makeRowRotMatThatSlerps(floatToDouble(from),
+                                                         floatToDouble(to),
+                                                         (double)t));
+        } // makeRotMatThatSlerps
 
         /**
          * Compute a matrix M
@@ -2980,6 +3468,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return M;
         } // makeRowTiePointMat
 
+
+        /** Flattens the rows of matrix M into a single vector. */
+        public static void flatten(double flattened[], double M[][])
+        {
+            int iFlat = 0;
+            FORI (i, M.length)
+                FORI (j, M[i].length)
+                    flattened[iFlat++] = M[i][j];
+        }
 
         /** Flattens the rows of matrix M into a single vector. */
         public static double[] flatten(double M[][])
@@ -3033,13 +3530,29 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             return mxm(mxm(A,B),C);
         }
+        /** product of three matrices, returning newly allocated result */
+        public static float[][] mxmxm(float A[][], float B[][], float C[][])
+        {
+            return mxm(mxm(A,B),C);
+        }
         /** product of four matrices, returning newly allocated result */
         public static double[][] mxmxmxm(double A[][], double B[][], double C[][], double D[][])
         {
             return mxm(mxmxm(A,B,C),D);
         }
+        /** product of four matrices, returning newly allocated result */
+        public static float[][] mxmxmxm(float A[][], float B[][], float C[][], float D[][])
+        {
+            return mxm(mxmxm(A,B,C),D);
+        }
         /** row vector times matrix times matrix, returning newly allocated result */
         public static double[] vxmxm(double a[], double B[][], double C[][])
+        {
+            // left-to-right to avoid matrix multiplication
+            return vxm(vxm(a,B),C);
+        }
+        /** row vector times matrix times matrix, returning newly allocated result */
+        public static float[] vxmxm(float a[], float B[][], float C[][])
         {
             // left-to-right to avoid matrix multiplication
             return vxm(vxm(a,B),C);
@@ -3079,10 +3592,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return true;
         }
         /** set the given permuation to the identity */
+        public static void identityperm(int perm[], int n)
+        {
+            FORI (i, n)
+                perm[i] = i;
+        } // identityperm
+        /** set the given permuation to the identity */
         public static void identityperm(int perm[])
         {
-            FORIDOWN (i, perm.length)
-                perm[i] = i;
+            identityperm(perm, perm.length);
         } // identityperm
         /** return newly allocated identity permutation of given length */
         public static int[] identityperm(int n)
@@ -3092,10 +3610,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         } // identityperm
         /** compute a random permutation of given length */
+        public static void randomperm(int perm[], int n, java.util.Random generator)
+        {
+            identityperm(perm, n);
+            Arrays.shuffle(perm, n, generator);
+        } // randomperm
+        /** compute a random permutation of given length */
         public static void randomperm(int perm[], java.util.Random generator)
         {
-            identityperm(perm);
-            Arrays.shuffle(perm, generator);
+            randomperm(perm, perm.length, generator);
         } // randomperm
         /** compute a random permutation of given length, returning newly allocated result */
         public static int[] randomperm(int n, java.util.Random generator)
@@ -3106,19 +3629,30 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         } // randomperm
 
         /** invert permutation */
-        public static void invertperm(int result[], int perm[])
+        public static void invertperm(int result[], int perm[], int n)
         {
             assumpt(result != perm);
-            int n = MIN(result.length, perm.length);
-            FORIDOWN (i, n)
+            FORI (i, n)
                 result[perm[i]] = i;
+        } // invertperm
+        /** invert permutation */
+        public static void invertperm(int result[], int perm[])
+        {
+            int n = MIN(result.length, perm.length);
+            invertperm(result, perm, n);
+        } // invertperm
+        /** invert permutation, returning newly allocated result */
+        public static int[] invertperm(int perm[], int n)
+        {
+            assert(n <= perm.length);
+            int result[] = new int[n];
+            invertperm(result, perm, n);
+            return result;
         } // invertperm
         /** invert permutation, returning newly allocated result */
         public static int[] invertperm(int perm[])
         {
-            int result[] = new int[perm.length];
-            invertperm(result, perm);
-            return result;
+            return invertperm(perm, perm.length);
         } // invertperm
 
         /**
