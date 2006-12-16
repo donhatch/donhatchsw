@@ -25,6 +25,7 @@
 #define PRINT7(x0,x1,x2,x3,x4,x5,x6) {PRINT_(x0);PRINT6(x1,x2,x3,x4,x5,x6);}
 #define PRINTSUB(x,i) System.out.println("    " + #x + "["+(i)+"] = " + (x)[i])
 #define PRINTSUBSUB(x,i,j) System.out.println("    " + #x + "["+(i)+"]["+(j)+"] = " + (x)[i][j])
+#define PRINTSUBSUBSUB(x,i,j,k) System.out.println("    " + #x + "["+(i)+"]["+(j)+"]["+(k)+"] = " + (x)[i][j][k])
 #define PRINTVEC(x) System.out.println(#x + " = " + VecMath.toString(x))
 #define PRINTMATROW(x,i) System.out.println("    " + #x + "["+(i)+"] = " + VecMath.toString((x)[i]))
 #define PRINTMAT(x) System.out.println(#x + " =\n" + VecMath.toString(x))
