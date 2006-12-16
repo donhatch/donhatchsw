@@ -374,6 +374,24 @@ public final class CSG
             *     getAllElements()[iDim][iElt].
             * The result of this function gets cached,
             * so it is not time-consuming to call it multiple times.
+            *
+            * TODO:
+            *     Should also return the back-indices...
+            *     could make getAllIncidences()[iDim][iElt][jDim][index]
+            *     be a pair {jElt,backIndex}
+            *     such that getAllElements()[jDim][jElt][iDim][backIndex]
+            *                                                 = {iElt,index}.
+            * That would be useful, for example,
+            * for mapping from an {iFacet,iRidgeThisFacet}
+            * pair to its twin {jFacet,jRidgeThisFacet}
+            * that refers to the same ridge (with opposite sign).
+            *
+            * Have to think about whether it is useful in general though,
+            * or only for ridges... if only ridges, maybe it would be
+            * a big waste of space.
+            *
+            * XXX If I do this, take a look at orientFacetsConsistently,
+            * XXX it could use it.
             */
             public int[/*dim+1*/][][/*dim+1*/][] getAllIncidences()
             {
@@ -913,7 +931,11 @@ public final class CSG
                 //PRINT(volume(answer));
                 double vol = volume(answer);
                 if (vol < 0)
-                    answer.sign *= -1; // XXX should do the push-down-sign thing?
+                {
+                    answer.sign *= -1;
+                    // XXX should do the push-down-sign thing? yes
+                    orientDeep(answer); // XXX really only want push-down-sign thing
+                }
                 //PRINT(volume(answer));
                 return answer;
             }
@@ -1228,6 +1250,487 @@ public final class CSG
         {
             return makeRegularStarPolytope(schlafli, null);
         } // makeRegularPolytope
+
+        // Calculate the characteristic simplex edge lengths
+        // for the characteristic simplex of a {p,q,r,...,z}
+        // with edge length 2.
+        // The result is:
+        //      x[0] = 1 (or something-- irrelevant)
+        //      x[1] = 1 = dist from vertex center to edge center
+        //      x[2] = dist from edge center to face center
+        //      x[3] = dist from face center to cell center
+        //      ...
+        //      x[nDims-2] = dist from peak center to ridge center
+        //      x[nDims-1] = dist from ridge center to facet center
+        //      x[nDims] = dist from facet center to whole thing center
+        private static void calcCharacteristicSimplexEdgeLengthsSquared(
+                        int nDims,
+                        int schlafli[/*nDims-1*/],
+                        int schlafliDenoms[/*nDims-1*/],
+                        double lengthsSquared[/*nDims+1*/]) // return
+        {
+            if (nDims > 0)
+                calcCharacteristicSimplexEdgeLengthsSquared(nDims-1, schlafli, schlafliDenoms, lengthsSquared);
+            if (nDims <= 1)
+            {
+                lengthsSquared[nDims] = 1;
+                return;
+            }
+            if (nDims == 2)
+            {
+                //double edgeLength = 1./Math.tan(Math.PI*schlafliDenoms[nDims-2]/schlafli[nDims-2]);
+                //lengthsSquared[nDims] = edgeLength*edgeLength;
+                lengthsSquared[nDims]= cotSquaredPiTimes(schlafliDenoms[nDims-2],schlafli[nDims-2]);
+                return;
+            }
+            assert(nDims >= 3);
+
+            // We want x[n] such that,
+            // if consider the hypersphere centered at {x[0]..x[n]}
+            // passing through the origin,
+            // if we project everything away from the center
+            // onto the tangent hyperplane at the origin,
+            // then the right triangle formed by the three projected points:
+            //          projected {x[0]..    x[n-1],0}  (i.e. projected facet center)
+            //          projected {x[0]..  x[n-2],0,0}  (i.e. projected ridge center)
+            //          projected {x[0]..x[n-3],0,0,0}  (i.e. projected peak center)
+            // has angle pi/schlafli[nDims-1] at the projected peak center.
+            // 
+            // Hmm, I think it will be easier if we think in the translated coord space
+            // in which the sphere center is at the origin.
+            // We want x[n] such that,
+            // if we consider the hypersphere centered at the origin
+            // and passing through the vertex -x[0]..-x[n],
+            // if we project everything away from the center onto the tangent hyperplane
+            // at -x[0]..-x[n], then the right triangle formed by the three projected points:
+            //          projected {0,0,...,                0,-x[n]}  (i.e. projected facet center)
+            //          projected {0,0,...,        0,-x[n-1],-x[n]}  (i.e. projected ridge center)
+            //          projected {0,0,...,0,-x[n-2],-x[n-1],-x[n]}  (i.e. projected peak center)
+            // has angle pi/schlafli[nDims-1] at the projected peak center.
+            //    sphere center = 0
+            //    sphere radius = ||x0..xn||
+            //    projected facet center = LERP(sphere center, facet center,  (sphere radius)^2 / ||sphere center - facet center||^2)
+            //                           = (facet center) * (sphere radius)^2/||facet center||^2
+            //                           = (...0,0,-x[n]) * (sphere radius)^2 / (x[n]^2)
+            //    projected ridge center = (...0,-x[n-1],-x[n]) * (sphere radius)^2 / (x[n-1]^2 + x[n]^2)
+            //    projected peak center = (...-x[n-2],-x[n-1],-x[n]) * (sphere radius)^2 / (x[n-2]^2 + x[n-1]^2 + x[n]^2)
+            //
+            // So we want x[n] that makes that right triangle
+            // have angle pi/schlafli[nDims-2] at the projected peak center.
+            // Note that in all three points, all but the last 3 coords is zero...
+            // so we get a similar triangle if we omit all but the last 3 coords
+            // and divide by (sphere radius)^2... and negate.
+            // So really it all boils down to the 3d case, if we define:
+            //         q = schlafli[n-2]
+            //        x1 = x[n-2]
+            //        x2 = x[n-1]
+            //        x3 = x[n]
+            //     facet = (0,0,x3) / x3^2
+            //     ridge = (0,x2,x3) / (x2^2 + x3^2)
+            //      peak = (x1,x2,x3) / (x1^2 + x2^2 + x3^2)
+            // So we want x3 such that the following holds (all equivalent):
+            //     ||ridge-peak||/||facet-peak|| = cos(pi/q)
+            //     ||facet-ridge||/||facet-peak|| = sin(pi/q)
+            //     ||facet-ridge||/||ridge-peak|| = tan(pi/q)
+            // If q is very big then the angle pi/q will be very small and so
+            // sin(pi/q) is the best formulation to use.
+            // The other extreme is when q is just barely bigger than 2,
+            // in which case pi/q is close to 90 degrees and so cos(pi/q) is the best to use.
+            // But I wonder if there is a formula that is accurate for both,
+            // that uses both the sin and cos (or uses the sin of the half-angle,
+            // which is also accurate for angles in 0..90).
+            // I'll just use the sin version for now.
+            //
+            // Feeding this into mathematica
+            // (making my own norm so it doesn't get overly complicated
+            // with abses)
+            /*
+                    facet = {0,0,x3} / (x3^2)
+                    ridge = {0,x2,x3} / (x2^2 + x3^2)
+                    peak  = {x1,x2,x3} / (x1^2 + x2^2 + x3^2)
+                    norm[{a_,b_,c_}] = Sqrt[a^2+b^2+c^2]
+                    Solve[norm[facet-ridge]/norm[facet-peak] == S, x3] // Simplify
+
+                    Solve[norm[ridge-peak]/norm[facet-peak] == C, x3]
+                    Solve[norm[facet-ridge]/norm[ridge-peak] == T, x3]
+            */
+            // Ha, got it!
+            //      +- sqrt( -(-1+S^2)*x2^2*(x1^2+x2^2) / (-x2^2 + S^2*(x1^2+x2^2) ))
+            // But it can probably be simplified...
+            // S = sin(pi/q)
+            double SS = sinSquaredPiTimes(schlafliDenoms[nDims-2],schlafli[nDims-2]);
+            double x1sqrd = lengthsSquared[nDims-2];
+            double x2sqrd = lengthsSquared[nDims-1];
+            double x3sqrd = (1-SS)*x2sqrd*(x1sqrd+x2sqrd) / (-x2sqrd + SS*(x1sqrd+x2sqrd));
+            lengthsSquared[nDims] = x3sqrd;
+        } // calcCharacteristicSimplexEdgeLengthsSquared
+
+        // greatest common divisor
+        private static int gcd(int a, int b)
+        {
+            return b==0 ? a : gcd(b, a%b);
+        }
+
+        // sin(pi*n/d) squared, but do it without trig if it's a nice angle
+        private static double sinSquaredPiTimes(int n, int d)
+        {
+            assert(d != 0);
+            int sign = 1;
+            if (n < 0)
+            {
+                n *= -1;
+                sign *= -1;
+            }
+            if (d < 0)
+            {
+                d *= -1;
+                sign *= -1;
+            }
+            int gcd = gcd(n,d);
+            n /= gcd;
+            d /= gcd;
+            n %= 2*d;
+            // so now 0 <= n/d < 2, i.e. in [0..360] degrees
+            if (n > d)
+            {
+                n = 2*d - n;
+                sign *= -1;
+            }
+            // so now 0 <= n/d <= 1, i.e. in [0..180] degrees
+            if (2*n > d)
+            {
+                n = d - n;
+            }
+            // so now 0 <= n/d <= 1/2, i.e. in [0..90] degrees
+            if (4*n > d)
+                return sign*(1 - cosSquaredPiTimes(n, d));
+            // so now 0 <= n/d <= 1/4, i.e. in [0..45] degrees
+            assert(0 <= n && 4*n <= d);
+            System.out.println("    "+n+"/"+d+"");
+            if (true)
+            {
+                // http://mathworld.wolfram.com/TrigonometryAngles.html
+                if (n==0)          // 0 degrees
+                    return sign * 0;
+                if (n==1 && d==12) // 15 degrees
+                    return sign * ((2.-Math.sqrt(3.))/4.);
+                if (n==1 && d==10) // 18 degrees
+                    return sign * ((3.-Math.sqrt(5.))/8.);
+                if (n==1 && d==8) // 22.5 degrees
+                    return sign * ((2.-Math.sqrt(2.))/4.);
+                if (n==1 && d==6)  // 30 degrees
+                    return sign * (1./4.);
+                if (n==1 && d==5)  // 36 degrees
+                    return sign * ((5.-Math.sqrt(5.))/8.);
+                if (n==1 && d==4)  // 45 degrees
+                    return sign * (1./2.);
+            }
+            System.out.println("    "+n+"/"+d+" !!!");
+            double s = Math.sin(Math.PI*n/d);
+            return sign*s*s;
+        } // sinSquaredPiTimes
+
+        // cos(pi*n/d) squared, but do it without trig if it's a nice angle
+        private static double cosSquaredPiTimes(int n, int d)
+        {
+            // cos(pi*n/d) = sin(pi/2 - pi*n/d)
+            //             = sin(pi * (1/2 - n/d))
+            //             = sin(pi * (1/2 - n/d))
+            //             = sin(pi * (d-2*n)/(2*d)
+            return sinSquaredPiTimes(d-2*n, 2*d);
+        }
+
+        // tan(pi*n/d) squared, but do it without trig if it's a nice angle
+        private static double tanSquaredPiTimes(int n, int d)
+        {
+            double s = sinSquaredPiTimes(n, d);
+            return s / (1 - s);
+        }
+        // cot(pi*n/d) squared, but do it without trig if it's a nice angle
+        private static double cotSquaredPiTimes(int n, int d)
+        {
+            double s = sinSquaredPiTimes(n, d);
+            return (1 - s) / s;
+        }
+
+        private static boolean XXX_TRY_NEW = false;
+        public static SPolytope NEWmakeRegularStarPolytope(int schlafli[/*nDims-1*/],
+                                                           int schlafliDenoms[/*nDims-1*/])
+        {
+            if (schlafliDenoms == null)
+                schlafliDenoms = VecMath.fillvec(schlafli.length, 1);
+            assert(schlafli.length == schlafliDenoms.length);
+            int nDims = schlafli.length+1;
+            if (nDims==2 && schlafli[0] >= 7)
+            {
+                // {p} -- polygon. The usual code would work
+                // but it's rather inaccurate, so calculate the vertices directly.
+                return makeRegularPolygon(schlafli[0], schlafliDenoms[0]);
+            }
+
+            //
+            // Figure out the edge lengths
+            // of the characteristic simplex.
+            //
+            double characteristicSimplexEdgeLengthsSquared[] = new double[nDims+1];
+            calcCharacteristicSimplexEdgeLengthsSquared(nDims,
+                                                        schlafli,
+                                                        schlafliDenoms,
+                                                        characteristicSimplexEdgeLengthsSquared);
+            PRINTARRAY(characteristicSimplexEdgeLengthsSquared);
+
+            //
+            // Actually make a characteristic simplex.
+            // It will be scaled so that the polytope's edge length is 1.
+            //
+            double characteristicSimplex[][] = new double[nDims+1][nDims];
+            if (nDims > 0)
+            {
+                double initialVertex[] = characteristicSimplex[0];
+                FORI (jDim, nDims)
+                    initialVertex[jDim] = -Math.sqrt(characteristicSimplexEdgeLengthsSquared[jDim+1]); // XXX hmm, maybe the edge lengths squared should be indexed differently
+                FORI (iDim, nDims+1)
+                FORI (jDim, nDims)
+                    characteristicSimplex[iDim][jDim] = (jDim>=iDim ? initialVertex[jDim] : 0.);
+            }
+            PRINTMAT(characteristicSimplex);
+
+            double circumRadius = Math.sqrt(VecMath.sum((double[])Arrays.subarray(characteristicSimplexEdgeLengthsSquared,1,nDims))); // XXX because I created it lamely, fix this
+            PRINT(circumRadius);
+            PRINT(VecMath.norm(characteristicSimplex[0]));
+
+
+            //
+            // Make the initial flag.
+            // It will be a spherical simplex,
+            // consisting of all the vertices of the characteristic simplex
+            // except the origin, projected onto the unit sphere.
+            // I.e. its vertices will be the projected-to-sphere centers
+            // of an incident vertex, edge, face, cell, ..., peak, ridge, facet.
+            // XXX hmm, I'm not sure about this normalizing everything to
+            // XXX sphere thing...  e.g. for cube, shouldn't everything
+            // be in exact arithmetic?
+            // 
+            double initialFlag[][] = new double[nDims][nDims];
+            FORI (iDim, nDims)
+                VecMath.normalize(initialFlag[iDim], characteristicSimplex[iDim]);
+            PRINTMAT(initialFlag);
+
+            //
+            // Figure out the flag normals.
+            //
+            double initialFlagNormals[][] = VecMath.transpose(
+                                            VecMath.invertmat(initialFlag));
+            FORI (iDim, nDims)
+                VecMath.normalize(initialFlagNormals[iDim], initialFlagNormals[iDim]); // XXX not really necessary, could generate the reflections without this!
+            PRINTMAT(initialFlagNormals);
+
+            //
+            // The generators for the symmetry group
+            // are the reflections in each of the flag normal directions.
+            //
+            double gens[][][] = new double[nDims][nDims][nDims];
+            FORI (iDim, nDims)
+            {
+                double normal[] = initialFlagNormals[iDim];
+                // gens[iDim] = I - 2 normal^T normal
+                VecMath.identitymat(gens[iDim]);
+                FORI (jDim, nDims)
+                FORI (kDim, nDims)
+                    gens[iDim][jDim][kDim] -= 2 * normal[jDim]
+                                                * normal[kDim];
+            }
+
+            //
+            // Reflect the initial flag in all possible ways
+            // using the generators repeatedly.
+            //
+            java.util.Vector flagList = new java.util.Vector();
+            {
+                FuzzyPointHashTable flagHashTable = new FuzzyPointHashTable(1e-9,
+                                                                            1e-8,
+                                                                            1./512);
+                flagList.addElement(initialFlag);
+                flagHashTable.put(VecMath.flatten(initialFlag), initialFlag);
+
+                double scratchFlag[][] = new double[nDims][nDims];
+                double scratchFlagFlattened[] = new double[nDims*nDims];
+                FORI (iFlag, flagList.size()) // while it's growing
+                {
+                    //PRINT(iFlag);
+                    double flag[][] = (double[][])flagList.get(iFlag);
+                    //PRINTMAT(flag);
+                    FORI (iGen, nDims)
+                    {
+                        VecMath.mxm(scratchFlag,
+                                    flag, gens[iGen]);
+                        // don't let it drift...
+                        FORI (iDim, nDims)
+                            VecMath.normalize(flag[iDim], flag[iDim]);
+
+                        VecMath.flatten(scratchFlagFlattened, scratchFlag);
+                        if (flagHashTable.put(scratchFlagFlattened,
+                                              scratchFlag) == null)
+                        {
+                            //
+                            // It wasn't already there... we found a new flag.
+                            //
+                            flagList.addElement(VecMath.copymat(scratchFlag));
+
+                            // The hash table now owns the scratch flag
+                            // and flattened, so we have to make another
+                            scratchFlag = new double[nDims][nDims];
+                            scratchFlagFlattened = new double[nDims*nDims];
+                        }
+                    }
+                    assert(flagList.size() < 1000*1000); // XXX not right, but for now
+                    //assert(flagList.size() < 100); // XXX not right, but for now
+                }
+            }
+            PRINT(flagList.size());
+
+            //
+            // Enumerate all the polytope elements.
+            // We assume any two elements of the same dimension
+            // and same projected-onto-sphere center are the same.
+            // (I think this is safe for regular polytopes,
+            // but wouldn't be safe in general, e.g. for uniform
+            // polytopes some of whose faces pass through the origin).
+            //
+            Polytope wholeThing = new Polytope(nDims,nDims,new SPolytope[0],new Hyperplane[0],null);
+            PRINT(wholeThing.id);
+            {
+                java.util.Vector elementLists[] = new java.util.Vector[nDims+1];
+                FuzzyPointHashTable elementHashTables[] = new FuzzyPointHashTable[nDims+1];
+
+                FORI (iDim, nDims+1)
+                {
+                    elementLists[iDim] = new java.util.Vector();
+                    elementHashTables[iDim] = new FuzzyPointHashTable(1e-9,
+                                                                      1e-8,
+                                                                      1./512);
+                }
+                // The whole one, which isn't mentioned explicitly
+                // in the flags.  Don't need to put it in the hash table
+                // because it's not going to collide with anyone.
+                elementLists[nDims].addElement(wholeThing);
+
+                //System.out.println("    starting something I think might be time consuming...");
+                Polytope flagElements[] = new Polytope[nDims+1];
+                FORI (iFlag, flagList.size())
+                {
+                    double flag[][] = (double[][])flagList.get(iFlag);
+                    FORI (iDim, nDims)
+                    {
+                        int index;
+                        {
+                            Integer got = (Integer)elementHashTables[iDim].get(flag[iDim]);
+                            if (got != null)
+                                index = got.intValue();
+                            else
+                            {
+                                index = elementLists[iDim].size();
+                                elementHashTables[iDim].put(flag[iDim], new Integer(index));
+                                Polytope elt = new Polytope(iDim,nDims,new SPolytope[0],new Hyperplane[0],null);
+                                if (iDim == 0)
+                                {
+                                    double coords[] = VecMath.vxs(flag[iDim],circumRadius);
+                                    // Integerize if it's really close...
+                                    FORI (jDim, nDims)
+                                    {
+                                        double roundedCoord = Math.round(coords[jDim]);
+                                        double off = coords[jDim]-roundedCoord;
+                                        if (1.+off*off == 1.)
+                                            coords[jDim] = roundedCoord;
+                                    }
+                                    elt.setCoords(coords);
+                                }
+                                elementLists[iDim].addElement(elt);
+                            }
+                        }
+                        flagElements[iDim] = (Polytope)elementLists[iDim].get(index);
+                    }
+                    //
+                    // For each iDim, make the iDim-dimensional element
+                    // a facet of the (iDim+1)-dimensional element,
+                    // if it isn't already.
+                    //
+                    FORI (iDim, nDims)
+                    {
+                        Polytope littleGuy = flagElements[iDim];
+                        Polytope bigGuy = iDim+1==nDims ? wholeThing
+                                                        : flagElements[iDim+1];
+
+                        // XXX shouldn't search or build the facets like this, it's O(n^2), argh! need hash table and vectors, or two passes counting first.
+                        // XXX although, this doesn't seem to be the bottleneck, for the 120-cell at least, which is surprising
+                        {
+                            int iFacet;
+                            FOR (iFacet, bigGuy.facets.length)
+                                if (bigGuy.facets[iFacet].p == littleGuy)
+                                    break;
+                            if (iFacet == bigGuy.facets.length)
+                            {
+                                //System.out.println("    adding "+iDim+"-elt "+littleGuy.id+" to "+(iDim+1)+"-elt "+bigGuy.id+"");
+                                bigGuy.facets = (SPolytope[])Arrays.append(bigGuy.facets, new SPolytope(0,1,littleGuy)); // XXX shouldn't build the array like this, it's O(n^2), argh!
+                            }
+                        }
+                    }
+                }
+                //System.out.println("    ending something I think might be time consuming.");
+                int elementCounts[] = new int[nDims+1];
+                FORI (iDim, nDims+1)
+                    elementCounts[iDim] = elementLists[iDim].size();
+                PRINTARRAY(elementCounts);
+            }
+
+            SPolytope sWholeThing = new SPolytope(0,1,wholeThing);
+            FORI (iStupidTimes, 2) // XXX this is stupid, the first time the normal calculation will be wrong, but it will fill the arrays which orientDeep needs
+            {
+                {
+                    // XXX clear the hperplanes, oh my god this is lame
+                    Polytope allElements[][] = wholeThing.getAllElements();
+                    FORI (i, allElements.length)
+                    FORI (j, allElements[i].length)
+                        allElements[i][j].contributingHyperplanes = new Hyperplane[0];
+                }
+
+                // Now we have to go through
+                // and set the planes defining every element,
+                // starting with the facets.
+                // XXX duplicate code in fromStringInPcalcFormat, should make a function
+                wholeThing.contributingHyperplanes = new Hyperplane[0];
+                FORI (iFacet, wholeThing.facets.length)
+                {
+                    SPolytope facet = wholeThing.facets[iFacet];
+                    double normal[] = new double[wholeThing.fullDim];
+                    areaNormal(normal, facet); // get area normal of facet
+                    VecMath.normalize(normal,normal);
+                    Polytope someVertexOnFacet = facet.p;
+                    while (someVertexOnFacet.dim > 0)
+                        someVertexOnFacet = someVertexOnFacet.facets[0].p;
+                    double offset = VecMath.dot(normal, someVertexOnFacet.getCoords());
+                    Hyperplane hyperplane = new Hyperplane(normal, offset);
+                    Hyperplane hyperplanes[] = {hyperplane};
+
+                    //
+                    // Add this hyperplane as a contributing
+                    // hyperplane to every cell of this facet
+                    // (including this facet itself).
+                    //
+                    Polytope allElements[][] = facet.p.getAllElements();
+                    FORI (i, allElements.length)
+                    FORI (j, allElements[i].length)
+                    {
+                        Polytope e = allElements[i][j];
+                        e.contributingHyperplanes = unionOfHyperplanesAndSort(e.contributingHyperplanes, hyperplanes);
+                    }
+                }
+
+                orientDeep(sWholeThing);
+            }
+            return sWholeThing;
+        } // NEWmakeRegularStarPolytope
+
         public static SPolytope makeRegularStarPolytope(int schlafli[/*nDims-1*/],
                                                         int schlafliDenoms[/*nDims-1*/])
         {
@@ -1277,7 +1780,18 @@ public final class CSG
                 }
                 else
                 {
-                    unimplemented(); // XXX need to code up more special cases!
+                    // hack together a visible representation of it real quick
+                    String s = "{";
+                    FORI (i, schlafli.length)
+                    {
+                        s += schlafli[i];
+                        if (schlafliDenoms[i] != 1)
+                            s += "/"+schlafliDenoms[i];
+                        if (i+1 < schlafli.length)
+                            s += ",";
+                    }
+                    s += "}";
+                    throw new Error("Schlafli symbol "+s+" not implemented yet! (if it's even valid at all)");
                 }
             }
             assert(false); // XXX I think this is unreachable, but compiler is bitching
@@ -1303,7 +1817,14 @@ public final class CSG
             SPolytope product = null;
             FORI (iFactor, nFactors)
             {
-                SPolytope factor = makeRegularStarPolytope(schlaflis[iFactor],
+                SPolytope factor;
+                if (XXX_TRY_NEW)
+                {
+                    factor = NEWmakeRegularStarPolytope(schlaflis[iFactor],
+                                                               schlafliDenomss==null?null:schlafliDenomss[iFactor]);
+                }
+                else
+                    factor = makeRegularStarPolytope(schlaflis[iFactor],
                                                            schlafliDenomss==null?null:schlafliDenomss[iFactor]);
                 if (product == null)
                     product = factor;
@@ -2001,6 +2522,9 @@ public final class CSG
 
         // Get the normal of the n-1-dimensional polytope sp,
         // with length equal to the hyper-area of sp.
+        // Uses the vertices but not the hyperplanes,
+        // so can be used to build the hyperplanes
+        // if only the vertices are known.
         private static void areaNormal(double result[], SPolytope sp)
         {
             VecMath.zerovec(result);
@@ -3427,6 +3951,7 @@ public final class CSG
             // is the index of the ridge in the neighbor facet's facet list.
             // XXX perhaps finished polytopes should always have these tables
             // XXX so we don't have to recalculate them?
+            // XXX YES, I think I'm on the road to that with getAllIncidences
             //
             int facetNeighbors[][][] = new int[nFacets][][/*2*/];
             {
@@ -4283,6 +4808,15 @@ public final class CSG
         {
             System.err.println("Usage: CSG <dim> [<expr>]");
             System.exit(1);
+        }
+
+        if (true)
+        {
+            // just test make regular polytope
+            XXX_TRY_NEW = true;
+            SPolytope p = makeRegularStarPolytopeCrossProductFromString(args[0]);
+            PRINT(p);
+            return;
         }
 
         int fullDim = Integer.parseInt(args[0]);
