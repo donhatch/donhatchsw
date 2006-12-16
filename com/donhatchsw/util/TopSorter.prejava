@@ -15,14 +15,6 @@
 *     TopSorter topsorter = new TopSorter(maxN, maxPartialOrderSize);
 *     ... fill in the first partialOrderSize entries of partialOrder ...
 *     topsorter.topsort(n, result, partialOrderSize, partialOrder)
-* <p>
-* NOTE: Currently this is done in a simple implementation that only works
-*       if there are no cycles.  If there are any cycles,
-*       it will return an arbitray order, and it won't count
-*       the number of connected components right either
-*       (although it does guarantee that nComponents==n if there were no cycles
-*       and nComponents<n if there was at least one cycle,
-*       so you can at least check whether there the graph was acyclic).
 */
 #include "macros.h"
 
@@ -37,15 +29,21 @@ public class TopSorter
     {
         public int first = -1;
         public LinkedListOfInts rest = null;
+        public String toString()
+        {
+            return rest==null ? "{"+first+"}" : "{"+first+","+rest+"}";
+        }
     }
 
     private LinkedListOfInts successors[];
     private LinkedListOfInts predecessors[];
     private LinkedListOfInts linkPool[];
 
-    private int sources[]; // XXX only used by simple version
-    private int nPredecessors[]; // XXX only used by simple version
-    private boolean finished[]; // XXX only used by simple version
+    private boolean visited[];
+    private int finishingArray[];
+
+    int perm[];
+    int invPerm[];
 
     public TopSorter(int maxN, int maxPartialOrderSize)
     {
@@ -55,22 +53,27 @@ public class TopSorter
         for (int i = 0; i < linkPool.length; ++i)
             linkPool[i] = new LinkedListOfInts();
 
-        sources = new int[maxN];
-        nPredecessors = new int[maxN];
-        finished = new boolean[maxN];
+        visited = new boolean[maxN];
+        finishingArray = new int[maxN];
 
+        perm = null; // created on first randomized call
+        invPerm = null; // created on first randomized call
     } // TopSorter ctor
 
     /** The optimized method that does no memory allocations.
-    * Returns n if there were no cycles, or something less than n otherwise.
+    * Returns the number of strongly connected components
+    * (which is n iff there are no cycles, less then n otherwise).
+    * XXX currently does in fact do memory allocations-- I need to fix this.
     */
-    public int dumbTopsort(int n, int result[/*n*/],
-                           int partialOrderSize, int partialOrder[][/*2*/])
+    public int topsort(int n, int result[/*>=n*/],
+                       int partialOrderSize, int partialOrder[/*>=partialOrderSize*/][/*2*/],
+                       int connectedComponentStarts[/*>=partialOrderSize+1*/]) // yes +1! null if not interested
     {
-        if (n > successors.length)
+        if (n > visited.length)
             throw new IllegalArgumentException("TopSorter.topsort called with n="+n+" > maxN="+successors.length+"");
         if (2*partialOrderSize > linkPool.length)
             throw new IllegalArgumentException("TopSorter.topsort called with partialOrderSize="+partialOrderSize+" > maxN="+linkPool.length+"");
+        //PRINTARRAY(partialOrder);
 
         // Fill in the graph and reverse graph...
         {
@@ -91,7 +94,7 @@ public class TopSorter
 
                 linkPool[iLink].rest = successors[i];
                 successors[i] = linkPool[iLink++];
-                linkPool[iLink].rest = predecessors[i];
+                linkPool[iLink].rest = predecessors[j];
                 predecessors[j] = linkPool[iLink++];
 
                 successors[i].first = j;
@@ -100,99 +103,7 @@ public class TopSorter
             Assert(iLink == 2*partialOrderSize);
         }
 
-        //
-        // Super simple algorithm, pending coding up Kosaraju's...
-        // Simply pluck source nodes (nodes with no predecessors) until done.
-        // This works fine if there are no cycles,
-        // but if there is a cycle near the beginning,
-        // it will return a completely arbitrary order.
-        //
-        {
-            int nSources = 0;
-            int nFinished = 0;
-            for (int i = 0; i < n; ++i)
-            {
-                finished[i] = false;
-                nPredecessors[i] = 0;
-            }
-            for (int iPair = 0; iPair < partialOrderSize; ++iPair)
-            {
-                ++nPredecessors[partialOrder[iPair][1]];
-            }
-            for (int i = 0; i < n; ++i)
-            {
-                if (nPredecessors[i] == 0)
-                    sources[nSources++] = i;
-            }
-            while (nSources > 0)
-            {
-                int source = sources[--nSources];
-                result[nFinished++] = source;
-                finished[source] = true;
-                for (LinkedListOfInts succs = successors[source]; succs != null; succs = succs.rest)
-                {
-                    int succ = succs.first;
-                    if (--nPredecessors[succ] == 0)
-                        sources[nSources++] = succ;
-                }
-            }
-            if (nFinished < n)
-            {
-                // There's a cycle!  Shoulda done a full Kosaraju
-                // strongly connected component decomposition...
-                // does that return the components topsorted?
-                // If not, it will require more thought.
-                for (int i = 0; i < n; ++i)
-                {
-                    if (!finished[i])
-                        result[nFinished++] = i;
-                }
-                Assert(nFinished == n);
-                return n-1; // should return number of connected components!
-            }
-            return n;
-        }
-    } // non-static topsort
-
-    public int topsort(int n, int result[/*n*/],
-                       int partialOrderSize, int partialOrder[][/*2*/])
-    {
-        if (n > successors.length)
-            throw new IllegalArgumentException("TopSorter.topsort called with n="+n+" > maxN="+successors.length+"");
-        if (2*partialOrderSize > linkPool.length)
-            throw new IllegalArgumentException("TopSorter.topsort called with partialOrderSize="+partialOrderSize+" > maxN="+linkPool.length+"");
-
-        // Fill in the graph and reverse graph...
-        {
-            for (int i = 0; i < n; ++i)
-            {
-                successors[i] = null;
-                predecessors[i] = null;
-            }
-            int iLink = 0;
-            for (int iPair = 0; iPair < partialOrderSize; ++iPair)
-            {
-                int i = partialOrder[iPair][0];
-                int j = partialOrder[iPair][1];
-                if (i < 0 || i >= n)
-                    throw new IllegalArgumentException("TopSorter.topsort called with a number "+i+" out of bounds of array size "+n+"");
-                if (j < 0 || j >= n)
-                    throw new IllegalArgumentException("TopSorter.topsort called with a number "+j+" out of bounds of array size "+n+"");
-
-                linkPool[iLink].rest = successors[i];
-                successors[i] = linkPool[iLink++];
-                linkPool[iLink].rest = predecessors[i];
-                predecessors[j] = linkPool[iLink++];
-
-                successors[i].first = j;
-                predecessors[j].first = i;
-            }
-            Assert(iLink == 2*partialOrderSize);
-        }
-
-        boolean visited[] = new boolean[n]; // XXX allocation
-        int finishingArray[] = new int[n]; // XXX allocation
-
+        //System.out.println("forward...");
         VecMath.fillvec(visited, false);
         {
             int arraySize = 0;
@@ -201,11 +112,13 @@ public class TopSorter
                 if (!visited[i])
                     arraySize = dfs(i, successors, visited,
                                     null,
-                                    finishingArray, // append to this on pre
+                                    finishingArray, // append to this on post
                                     arraySize);
             }
             Assert(arraySize == n);
         }
+        //PRINTARRAY(finishingArray);
+        //System.out.println("backward...");
         VecMath.fillvec(visited, false);
         int nConnectedComponents = 0;
         {
@@ -215,13 +128,20 @@ public class TopSorter
                 int i = finishingArray[n-1-_i];
                 if (!visited[i])
                 {
+                    //PRINT(i);
+                    //PRINT(visited[i]);
+                    if (connectedComponentStarts != null)
+                        connectedComponentStarts[nConnectedComponents] = arraySize;
+
                     nConnectedComponents++;
                     arraySize = dfs(i, predecessors, visited,
-                                    result, // append to this on post
+                                    result, // append to this on pre
                                     null,
                                     arraySize);
                 }
             }
+            if (connectedComponentStarts != null)
+                connectedComponentStarts[nConnectedComponents] = arraySize;
             Assert(arraySize == n);
         }
         return nConnectedComponents;
@@ -237,11 +157,13 @@ public class TopSorter
                            int postArrayToAppendTo[],
                            int arraySize)
     {
+        //System.out.println("in dfs(i="+i+")");
         Assert(!visited[i]);
         visited[i] = true;
         if (preArrayToAppendTo != null)
             preArrayToAppendTo[arraySize++] = i;
 
+        //PRINT(successors[i]);
         for (LinkedListOfInts succs = successors[i]; succs != null; succs = succs.rest)
         {
             int j = succs.first;
@@ -255,6 +177,7 @@ public class TopSorter
         }
         if (postArrayToAppendTo != null)
             postArrayToAppendTo[arraySize++] = i;
+        //System.out.println("out dfs(i="+i+"), returning "+arraySize+"");
         return arraySize;
     } // dfs
 
@@ -291,17 +214,54 @@ In python:
         return components
 */
 
+    /** Note, this temporarily modifies partialOrder, so it's not thread-safe. */
+    public int topsortRandomized(int n, int result[/*n*/],
+                                 int partialOrderSize, int partialOrder[][/*2*/],
+                                 int connectedComponentStarts[],
+                                 java.util.Random generator)
+    {
+        if (perm == null) perm = new int[visited.length];
+        if (invPerm == null) invPerm = new int[visited.length];
+        VecMath.randomperm(perm, n, generator);
+        VecMath.invertperm(invPerm, perm, n);
+
+        for (int i = 0; i < partialOrderSize; ++i)
+            for (int j = 0; j < 2; ++j)
+                partialOrder[i][j] = perm[partialOrder[i][j]];
+        int answer = topsort(n, result, partialOrderSize, partialOrder, connectedComponentStarts);
+
+        for (int i = 0; i < n; ++i)
+            result[i] = invPerm[result[i]];
+        for (int i = 0; i < partialOrderSize; ++i)
+            for (int j = 0; j < 2; ++j)
+                partialOrder[i][j] = invPerm[partialOrder[i][j]];
+
+        return answer;
+    } // non-static topsortRandomized
+
     /** The easy-to-use method. */
     public static int topsort(int result[], int partialOrder[][/*2*/])
     {
         TopSorter topsorter = new TopSorter(result.length, partialOrder.length);
         return topsorter.topsort(result.length, result,
-                                 partialOrder.length, partialOrder);
+                                 partialOrder.length, partialOrder, null);
     } // static topsort
+
+    public static int topsortRandomized(int result[], int partialOrder[][/*2*/],
+                                        java.util.Random generator)
+    {
+        TopSorter topsorter = new TopSorter(result.length, partialOrder.length);
+        return topsorter.topsortRandomized(result.length, result,
+                                 partialOrder.length, partialOrder,
+                                 null,
+                                 generator);
+    } // static topsortRandomized
+
 
     /** Simple test/example program */
     public static void main(String[] args)
     {
+        if (false)
         {
             int pairs[][] = {
                 {1,2},
@@ -318,9 +278,10 @@ In python:
             for (int i = 0; i < n; ++i)
                 System.out.print(" "+result[i]);
             System.out.println();
-            System.out.println(""+nComponents+" components.");
+            System.out.println(""+nComponents+" components ("+(n-nComponents)+" cycles).");
             Assert(nComponents == n);
         }
+        if (false)
         {
             int pairs[][] = {
                 {1,2},
@@ -337,10 +298,235 @@ In python:
             for (int i = 0; i < n; ++i)
                 System.out.print(" "+result[i]);
             System.out.println();
-            System.out.println(""+nComponents+" components.");
-            Assert(nComponents < n);
+            System.out.println(""+nComponents+" components ("+(n-nComponents)+" cycles).");
+            Assert(nComponents == n-2);
+        }
+        if (true)
+        {
+            int pairs[][] = {
+                {1,2},
+                {2,1},
+                {0,1},
+            };
+            int n = 3;
+            int result[] = new int[n];
+            int nComponents = TopSorter.topsort(result, pairs);
+            for (int i = 0; i < n; ++i)
+                System.out.print(" "+result[i]);
+            System.out.println();
+            System.out.println(""+nComponents+" components ("+(n-nComponents)+" cycles).");
+            Assert(n-nComponents == 1);
+        }
+        if (true)
+        {
+            int pairs[][] = {
+{271,0},{0,272},{271,1},{1,272},{271,2},{2,272},{271,3},{3,272},{271,4},{4,272},
+{271,5},{5,272},{271,6},{6,272},{271,7},{7,272},{271,8},{8,272},
+{271,9},{9,272},{271,10},{10,272},{271,11},{11,272},{271,12},{12,272},
+{271,13},{13,272},{271,14},{14,272},{271,15},{15,272},{271,16},{16,272},
+{271,17},{17,272},{271,18},{18,272},{271,19},{19,272},{271,20},{20,272},
+{271,21},{21,272},{267,22},{22,268},{269,23},{23,270},{267,24},{24,268},
+{269,25},{25,270},{267,26},{26,268},{269,27},{27,270},{267,28},{28,268},
+{269,29},{29,270},{267,30},{30,268},{269,31},{31,270},{267,32},{32,268},
+{269,33},{33,270},{267,34},{34,268},{269,35},{35,270},{267,36},{36,268},
+{269,37},{37,270},{267,38},{38,268},{269,39},{39,270},{267,40},{40,268},
+{269,41},{41,270},{267,42},{42,268},{269,43},{43,270},{267,44},{44,268},
+{269,45},{45,270},{267,46},{46,268},{269,47},{47,270},{267,48},{48,268},
+{269,49},{49,270},{267,50},{50,268},{269,51},{51,270},{267,52},{52,268},
+{269,53},{53,270},{267,54},{54,268},{269,55},{55,270},{267,56},{56,268},
+{269,57},{57,270},{267,58},{58,268},{269,59},{59,270},{267,60},{60,268},
+{269,61},{61,270},{267,62},{62,268},{269,63},{63,270},{267,64},{64,268},
+{269,65},{65,270},{267,66},{66,268},{269,67},{67,270},{271,68},{68,272},
+{267,69},{69,268},{269,70},{70,270},{271,71},{71,272},{267,72},{72,268},
+{269,73},{73,270},{271,74},{74,272},{267,75},{75,268},{269,76},{76,270},
+{271,77},{77,272},{267,78},{78,268},{269,79},{79,270},{271,80},{80,272},
+{267,81},{81,268},{269,82},{82,270},{271,83},{83,272},{267,84},{84,268},
+{269,85},{85,270},{271,86},{86,272},{267,87},{87,268},{269,88},{88,270},
+{271,89},{89,272},{267,90},{90,268},{269,91},{91,270},{271,92},{92,272},
+{267,93},{93,268},{269,94},{94,270},{271,95},{95,272},{267,96},{96,268},
+{269,97},{97,270},{271,98},{98,272},{267,99},{99,268},{269,100},{100,270},
+{271,101},{101,272},{267,102},{102,268},{269,103},{103,270},{271,104},{104,272},
+{267,105},{105,268},{269,106},{106,270},{271,107},{107,272},{267,108},{108,268},
+{269,109},{109,270},{271,110},{110,272},{271,111},{111,272},{271,112},{112,272},
+{271,113},{113,272},{271,114},{114,272},{271,115},{115,272},{271,116},{116,272},
+{271,117},{117,272},{271,118},{118,272},{271,119},{119,272},{271,120},{120,272},
+{271,121},{121,272},{267,122},{122,268},{267,123},{123,268},{267,124},{124,268},
+{267,125},{125,268},{267,126},{126,268},{267,127},{127,268},{267,128},{128,268},
+{267,129},{129,268},{267,130},{130,268},{267,131},{131,268},{267,132},{132,268},
+{267,133},{133,268},{267,134},{134,268},{269,135},{135,270},{269,136},{136,270},
+{271,137},{137,272},{271,138},{138,272},{267,139},{139,268},{267,140},{140,268},
+{269,141},{141,270},{269,142},{142,270},{271,143},{143,272},{271,144},{144,272},
+{267,145},{145,268},{267,146},{146,268},{269,147},{147,270},{269,148},{148,270},
+{271,149},{149,272},{271,150},{150,272},{267,151},{151,268},{267,152},{152,268},
+{269,153},{153,270},{269,154},{154,270},{271,155},{155,272},{271,156},{156,272},
+{267,157},{157,268},{267,158},{158,268},{269,159},{159,270},{269,160},{160,270},
+{271,161},{161,272},{271,162},{162,272},{267,163},{163,268},{267,164},{164,268},
+{269,165},{165,270},{269,166},{166,270},{271,167},{167,272},{271,168},{168,272},
+{267,169},{169,268},{267,170},{170,268},{269,171},{171,270},{269,172},{172,270},
+{271,173},{173,272},{271,174},{174,272},{267,175},{175,268},{267,176},{176,268},
+{269,177},{177,270},{269,178},{178,270},{271,179},{179,272},{271,180},{180,272},
+{267,181},{181,268},{267,182},{182,268},{269,183},{183,270},{269,184},{184,270},
+{271,185},{185,272},{271,186},{186,272},{267,187},{187,268},{267,188},{188,268},
+{269,189},{189,270},{269,190},{190,270},{271,191},{191,272},{271,192},{192,272},
+{267,193},{193,268},{267,194},{194,268},{269,195},{195,270},{269,196},{196,270},
+{271,197},{197,272},{271,198},{198,272},{267,199},{199,268},{267,200},{200,268},
+{269,201},{201,270},{269,202},{202,270},{271,203},{203,272},{271,204},{204,272},
+{267,205},{205,268},{267,206},{206,268},{269,207},{207,270},{269,208},{208,270},
+{271,209},{209,272},{271,210},{210,272},{267,211},{211,268},{267,212},{212,268},
+{269,213},{213,270},{269,214},{214,270},{271,215},{215,272},{271,216},{216,272},
+{267,217},{217,268},{267,218},{218,268},{269,219},{219,270},{269,220},{220,270},
+{271,221},{221,272},{271,222},{222,272},{271,223},{223,272},{271,224},{224,272},
+{271,225},{225,272},{271,226},{226,272},{271,227},{227,272},{271,228},{228,272},
+{271,229},{229,272},{271,230},{230,272},{271,231},{231,272},{271,232},{232,272},
+{271,233},{233,272},{271,234},{234,272},{271,235},{235,272},{271,236},{236,272},
+{271,237},{237,272},{271,238},{238,272},{271,239},{239,272},{271,240},{240,272},
+{271,241},{241,272},{271,242},{242,272},{271,243},{243,272},{271,244},{244,272},
+{267,245},{245,268},{267,246},{246,268},{267,247},{247,268},{267,248},{248,268},
+{267,249},{249,268},{267,250},{250,268},{267,251},{251,268},{267,252},{252,268},
+{267,253},{253,268},{267,254},{254,268},{267,255},{255,268},{267,256},{256,268},
+{267,257},{257,268},{267,258},{258,268},{267,259},{259,268},{267,260},{260,268},
+{267,261},{261,268},{267,262},{262,268},{267,263},{263,268},{267,264},{264,268},
+{267,265},{265,268},{267,266},{266,268},{265,64},{257,56},{259,58},{253,52},
+{255,54},{245,44},{247,46},{249,48},{251,50},{261,60},{263,62},{19,137},
+{20,143},{21,149},{155,17},{161,18},{167,21},{173,15},{179,16},{185,18},
+{191,13},{197,14},{203,16},{12,209},{14,215},{20,221},{11,19},{17,11},
+{15,11},{13,11},{11,12},{45,271},{12,20},{14,12},{47,271},{16,13},
+{13,14},{49,271},{51,271},{18,15},{16,15},{53,271},{55,271},{17,21},
+{18,17},{57,271},{59,271},{21,19},{19,20},{61,271},{63,271},{65,271},
+{60,133},{61,135},{62,139},{63,141},{64,145},{65,147},{151,56},{153,57},
+{157,58},{159,59},{163,64},{165,65},{169,52},{171,53},{175,54},{177,55},
+{181,58},{183,59},{187,48},{189,49},{193,50},{195,51},{199,54},{201,55},
+{46,205},{47,207},{50,211},{51,213},{62,217},{63,219},{44,60},{45,61},
+{56,44},{57,45},{52,44},{53,45},{48,44},{49,45},{44,46},{45,47},
+{268,45},{46,62},{47,63},{50,46},{51,47},{268,47},{54,48},{55,49},
+{48,50},{49,51},{268,49},{268,51},{58,52},{59,53},{54,52},{55,53},
+{268,53},{268,55},{56,64},{57,65},{58,56},{59,57},{268,57},{268,59},
+{64,60},{65,61},{60,62},{61,63},{268,61},{268,63},{268,65},{130,66},
+{72,66},{66,69},{268,67},{134,66},{73,67},{67,70},{67,271},{136,67},
+{74,68},{68,71},{138,68},{131,69},{268,70},{140,69},{70,271},{142,70},
+{144,71},{81,72},{132,72},{268,73},{146,72},{82,73},{73,271},{148,73},
+{83,74},{150,74},{75,128},{75,81},{78,75},{76,267},{75,152},{76,82},
+{79,76},{272,76},{76,154},{77,83},{80,77},{77,156},{90,78},{78,129},
+{79,267},{78,158},{91,79},{272,79},{79,160},{92,80},{80,162},{81,132},
+{82,267},{81,164},{272,82},{82,166},{83,168},{84,126},{84,87},{85,267},
+{84,170},{85,88},{272,85},{85,172},{86,89},{86,174},{87,99},{87,127},
+{88,267},{87,176},{88,100},{272,88},{88,178},{89,101},{89,180},{90,129},
+{91,267},{90,182},{272,91},{91,184},{92,186},{93,124},{99,93},{93,96},
+{94,267},{93,188},{100,94},{94,97},{272,94},{94,190},{101,95},{95,98},
+{95,192},{96,105},{96,125},{97,267},{96,194},{97,106},{272,97},{97,196},
+{98,107},{98,198},{99,127},{100,267},{99,200},{272,100},{100,202},{101,204},
+{123,102},{102,108},{105,102},{268,103},{206,102},{103,109},{106,103},{103,271},
+{208,103},{104,110},{107,104},{210,104},{125,105},{268,106},{212,105},{106,271},
+{214,106},{216,107},{131,108},{268,109},{218,108},{109,271},{220,109},{222,110},
+{122,130},{128,122},{126,122},{124,122},{122,123},{122,246},{123,131},{125,123},
+{123,248},{127,124},{124,125},{124,250},{125,252},{129,126},{127,126},{126,254},
+{127,256},{128,132},{129,128},{128,258},{129,260},{132,130},{130,131},{130,262},
+{131,264},{132,266},{261,133},{262,134},{145,133},{146,134},{133,139},{134,140},
+{268,135},{268,136},{133,134},{147,135},{148,136},{135,141},{136,142},{135,271},
+{136,271},{135,136},{149,137},{150,138},{137,143},{138,144},{137,138},{263,139},
+{264,140},{268,141},{268,142},{139,140},{141,271},{142,271},{141,142},{143,144},
+{163,145},{164,146},{265,145},{266,146},{268,147},{268,148},{145,146},{165,147},
+{166,148},{147,271},{148,271},{147,148},{167,149},{168,150},{149,150},{151,257},
+{152,258},{151,163},{152,164},{157,151},{158,152},{153,267},{154,267},{152,151},
+{153,165},{154,166},{159,153},{160,154},{272,153},{272,154},{154,153},{155,167},
+{156,168},{161,155},{162,156},{156,155},{181,157},{182,158},{157,259},{158,260},
+{159,267},{160,267},{158,157},{183,159},{184,160},{272,159},{272,160},{160,159},
+{185,161},{186,162},{162,161},{163,265},{164,266},{165,267},{166,267},{164,163},
+{272,165},{272,166},{166,165},{168,167},{169,253},{170,254},{169,175},{170,176},
+{171,267},{172,267},{170,169},{171,177},{172,178},{272,171},{272,172},{172,171},
+{173,179},{174,180},{174,173},{175,199},{176,200},{175,255},{176,256},{177,267},
+{178,267},{176,175},{177,201},{178,202},{272,177},{272,178},{178,177},{179,203},
+{180,204},{180,179},{181,259},{182,260},{183,267},{184,267},{182,181},{272,183},
+{272,184},{184,183},{186,185},{187,249},{188,250},{199,187},{200,188},{187,193},
+{188,194},{189,267},{190,267},{188,187},{201,189},{202,190},{189,195},{190,196},
+{272,189},{272,190},{190,189},{203,191},{204,192},{191,197},{192,198},{192,191},
+{193,211},{194,212},{193,251},{194,252},{195,267},{196,267},{194,193},{195,213},
+{196,214},{272,195},{272,196},{196,195},{197,215},{198,216},{198,197},{199,255},
+{200,256},{201,267},{202,267},{200,199},{272,201},{272,202},{202,201},{204,203},
+{247,205},{248,206},{205,217},{206,218},{211,205},{212,206},{268,207},{268,208},
+{205,206},{207,219},{208,220},{213,207},{214,208},{207,271},{208,271},{207,208},
+{209,221},{210,222},{215,209},{216,210},{209,210},{251,211},{252,212},{268,213},
+{268,214},{211,212},{213,271},{214,271},{213,214},{215,216},{263,217},{264,218},
+{268,219},{268,220},{217,218},{219,271},{220,271},{219,220},{221,222},{245,261},
+{246,262},{257,245},{258,246},{253,245},{254,246},{249,245},{250,246},{245,247},
+{246,248},{246,245},{247,263},{248,264},{251,247},{252,248},{248,247},{255,249},
+{256,250},{249,251},{250,252},{250,249},{252,251},{259,253},{260,254},{255,253},
+{256,254},{254,253},{256,255},{257,265},{258,266},{259,257},{260,258},{258,257},
+{260,259},{265,261},{266,262},{261,263},{262,264},{262,261},{264,263},{266,265}
+            } ;
+
+
+
+
+
+            /*
+            int pairs[][] = {
+                {1,4},
+                {4,2},
+                {6,4},
+                {2,6},
+                {4,1},
+                {0,1},
+            };
+            */
+            for (int i = 0; i < pairs.length; ++i)
+            for (int j = 0; j < i; ++j)
+            {
+                if (pairs[i][0] == pairs[j][0]
+                 && pairs[i][1] == pairs[j][1])
+                {
+                    System.out.println("HEY! "+pairs[i][0]+","+pairs[i][1]+" duplicated! at positions "+i+", "+j+"");
+                }
+                if (pairs[i][0] == pairs[j][1]
+                 && pairs[i][1] == pairs[j][0])
+                {
+                    System.out.println("HEY! "+pairs[i][0]+","+pairs[i][1]+" backwarded! at positions "+i+", "+j+"");
+                }
+            }
+            System.out.println("okay, no dups or switchbacks.");
+
+
+
+
+            //PRINT(VecMath.max((int[])Arrays.flatten(pairs,0,2))+1);
+            int minimal[][] = findMinimalBadSubset(pairs);
+            //PRINT(minimal.length);
+            //PRINTARRAY(minimal);
+            Assert(isBad(minimal));
         }
 
     } // main
+
+        static boolean isBad(int pairs[][])
+        {
+            int expectedNComponents = -1;
+            java.util.Random generator = new java.util.Random();
+            for (int iTry = 0; iTry < 100; ++iTry)
+            {
+                int n = VecMath.max((int[])Arrays.flatten(pairs,0,2))+1;
+                int result[] = new int[n];
+                int nComponents = TopSorter.topsortRandomized(result, pairs, generator);
+                if (iTry == 0)
+                    expectedNComponents = nComponents;
+                else
+                    if (nComponents != expectedNComponents)
+                        return true;
+            }
+            return false;
+        }
+        static int[][] findMinimalBadSubset(int pairs[][])
+        {
+            //PRINT(pairs.length);
+            for (int i = 0; i < pairs.length; ++i)
+            {
+                System.out.print(".");
+                int[][] subset = (int[][])Arrays.concat(
+                            Arrays.subarray(pairs, 0, i),
+                            Arrays.subarray(pairs, i+1, pairs.length-(i+1)));
+                if (isBad(subset))
+                    return findMinimalBadSubset(subset);
+            }
+            return pairs;
+        }
 
 } // class TopSorter
