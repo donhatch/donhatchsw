@@ -1349,13 +1349,11 @@ public final class CSG
         public static SPolytope makeWythoffPolytope(SPolytope sp,
                                                     double wythoff[])
         {
-            System.out.println("in makeWythoffPolytope");
-            PRINTARRAY(wythoff);
+            //System.out.println("in makeWythoffPolytope");
+            //PRINTARRAY(wythoff);
             Polytope p = sp.p;
             assert(wythoff != null);
             assert(wythoff.length == p.dim);
-
-            System.out.println("XXX NEED TO FIGURE OUT THE REAL COORDS");
 
             //
             // The vertices of the omni correspond to the flags of p.
@@ -1405,6 +1403,7 @@ public final class CSG
             // for each normal_i.
             // Note that normal_i is simply the i'th column
             // of the inverse of the flag mat, normalized.
+            // Oh, except wythoff is listed backwards.
             //
             // We are assuming the original is regular,
             // which means we'll get the same weights no matter
@@ -1429,15 +1428,16 @@ public final class CSG
                     VecMath.normalize(inwardNormalsMat[iDim], inwardNormalsMat[iDim]);
                 double M[][] = VecMath.mxm(flagMat,
                                            VecMath.transpose(inwardNormalsMat));
-                VecMath.vxinvm(weights, wythoff, M);
+                double wythoffBackwards[] = (double[])Arrays.reverse(wythoff);
+                VecMath.vxinvm(weights, wythoffBackwards, M);
             }
-            PRINTVEC(originalCG);
-            PRINTVEC(wythoff);
-            PRINTVEC(weights);
+            //PRINTVEC(originalCG);
+            //PRINTVEC(wythoff);
+            //PRINTVEC(weights);
 
             // XXX fudge for now since I can't handle zeros
             FORI (iDim, p.dim)
-                weights[iDim] = Math.max(weights[iDim], .005);
+                weights[iDim] = Math.max(weights[iDim], .01);
 
             //
             // The elements of the omni correspond to chains
@@ -1501,14 +1501,15 @@ public final class CSG
             //     Then for each cell with only two faces, remove the cell and merge the faces.
             //     ...
             //
-            System.out.println("XXX NEED GET RID OF DEGENERACIES");
+            if (VecMath.productUsingLog(wythoff) == 0.) // only need to if at least one of the coeffs was zero
+                System.out.println("XXX NEED GET RID OF DEGENERACIES SINCE THIS IS NOT OMNITRUNCATED");
 
             //
             // Make the hyperplanes.
             //
             bootstrapHyperplanes(somni);
 
-            System.out.println("out makeWythoffPolytope");
+            //System.out.println("out makeWythoffPolytope");
             return somni;
         } // makeWythoffPolytope
 
@@ -2017,8 +2018,8 @@ public final class CSG
                     if (factor.endsWith(","))
                         factor = factor.substring(0,factor.length()-1);
 
-                    PRINT(foo);
-                    PRINT(factor);
+                    //PRINT(foo);
+                    //PRINT(factor);
 
                     // Now we can destroy foo if we like
                     double wythoff[] = new double[0];
@@ -2027,7 +2028,7 @@ public final class CSG
                         int open = foo.indexOf("(");
                         int close = foo.indexOf(")", open+1);
                         String coeffString = foo.substring(open+1, close);
-                        PRINT(coeffString);
+                        //PRINT(coeffString);
                         // XXX need to catch
                         double coeff = Double.parseDouble(coeffString);
                         wythoff = (double[])Arrays.append(wythoff, coeff);
