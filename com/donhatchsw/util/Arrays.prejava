@@ -32,7 +32,6 @@ package com.donhatchsw.util;
  *      <li> array compare to given depth using == </li>
  *      <li> array toString with depth (then PRINTVEC and PRINTMAT can have more control) </li>
  *      <li> get() taking additional integer argument specifying dimension of array being indexed into </li>
- *      <li> delete an element at given index </li>
  *      <li> linear search using equals </li>
  *      <li> linear search using == </li>
  *      <li> subarray allowing permutation or general lut into original dims
@@ -171,6 +170,21 @@ public final class Arrays
     {
         return append(append(array, secondToLast),last); // XXX not efficient
     } // append2
+
+    /**
+    * Returns the array obtained by deleting the i'th element
+    * from the given array.
+    */
+    public static Object delete(Object array, int i)
+    {
+        int n = java.lang.reflect.Array.getLength(array);
+        Object newArray = java.lang.reflect.Array.newInstance(
+                                array.getClass().getComponentType(),
+                                n-1);
+        System.arraycopy(array, 0, newArray, 0, i);
+        System.arraycopy(array, i+1, newArray, i, n-(i+1));
+        return newArray;
+    } // delete
 
     /**
      * Returns a newly allocated array
