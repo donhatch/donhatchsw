@@ -1058,15 +1058,23 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         double logProd = 0.;
         FORIDOWN (i, array.length)
+        {
+            if (array[i] == 0.)
+                return 0.;
             logProd += Math.log(array[i]);
-        return Math.exp(logProd / array.length);
+        }
+        return Math.exp(logProd);
     }
     /** geometric average of elements */
     public static double geomAverage(double array[])
     {
         double logProd = 0.;
         FORIDOWN (i, array.length)
+        {
+            if (array[i] == 0.)
+                return 0.;
             logProd += Math.log(array[i]);
+        }
         return Math.exp(logProd / array.length);
     }
 
