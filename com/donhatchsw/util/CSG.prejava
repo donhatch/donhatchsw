@@ -2565,7 +2565,7 @@ public final class CSG
             // but we tested it anyway as a sanity check-- it better have succeeded.
             assert(false);
             return 1;
-        } // calcRotationPeriod
+        } // calcRotationGroupOrder
 
 
 
