@@ -2,13 +2,24 @@
     RELNOTES:
     =========
         This version has the following enhancements:
-            - speed of twists and rotations through different angles
-              have been adjusted to feel more uniform (small angles
-              slower and large angles faster than before).
+            - speed of twists and rotations
+               have been adjusted to feel more uniform for different angles
+               (small angles are slower and large angles are faster
+               than before, so that the acceleration is the same
+               in all types of moves)
+            - "Requre Ctrl Key to Spin Drag" preference
+            - "Restrict Roll" preference
+               (only works for generic puzzles currently)
+            - you can 4d-rotate any element
+               (vertex, edge, 2d face, hyperface) of the puzzle
+               to the center with the middle mouse, not just hyperface centers
+               (only works for generic puzzles currently)
             - Lots of new puzzle types available from the Puzzle menu.
-              These are called "generic puzzles" and they are a work
-              in progress.
+               These are called "generic puzzles" and they are a work
+               in progress.
         Generic puzzles have the following limitations currently:
+            - no save/load (menus are probably misleading)
+            - no macros (menus are probably misleading)
             - can't twist (or undo or redo)
                while a twist or cheat is in progress
                (which means you can't double-click to do a move twice)
@@ -17,18 +28,16 @@
               very thin stickers at the halfway planes
             - sometimes the highlighted sticker fails to get updated correctly
               at the end of a twist (jiggle the mouse to fix it)
-            - no save/load (menus are probably misleading)
             - no real solve
             - scramble only affects outer or 2nd slices (you'll
               only notice this if your puzzle length is >= 6)
-            - no macros (menus are probably misleading)
             - contiguous cubies not implemented (even if gui says otherwise)
+            - The frame display routines are not optimized for memory use,
+              which means they place a heavy load on the garbage collector.
+              This can cause short but noticeable pauses during
+              twisting or rotating.  This will be fixed in a future release.
             - exceptions everywhere if you try to do unimplemented stuff
         And the following enhancements:
-            - you can rotate any *cubie* of the length-3 puzzle
-              to the center with the middle mouse
-              (not just hyperface centers to the center).
-            - "Restrict Roll" preference (only works with generic puzzles currently)
 
     ISSUES:
     =======
@@ -56,31 +65,21 @@
             5. (Optional) Actually "Shrink towards face boundaries"
                doesn't need to be boolean, it can be a slider value
                between 0 and 1.
-        - Possible rot-element-to-center behaviors,
-          from least to most restrictive
-            - don't do it
-            - only do it if enabled via checkbox or esoteric modifier combo
-            - only do it on stickers that are already on the center face,
-              or if there is no center face; 
-              if there is a center face, clicking anywhere on a diff face
-              just centers that face, you have to click a non-center
-              sticker on that face again once the face is in the center
-              to focus it
-            - do it everywhere-- on one hand this is nice and clean
-              and powerful, but on the other hand sometimes it's
-              hard to click on the face-center sticker which is
-              what is most often wanted
         - It would be nice to have "face shrink 4d", "sticker shrink 4d",
-              "face shrink 3d", "sticker shrink 3d".  The 4d and 4d versions
+              "face shrink 3d", "sticker shrink 3d".  The 4d and 3d versions
               do qualitatively different things (I was surprised when
-              I first say the 120-cell, until I realized this--
+              I first saw the 120-cell, until I realized this--
               I was expecting 3d sticker shrink which preserves 3d shape,
               but instead the program does 4d sticker shrink which
-              regularizes the 3d shape as it gets smaller).
+              has the effect of regularizing the final 3d shape
+              as it gets smaller).
 
     BUGS / URGENT TODOS:
     ===================
 
+        - side of prefs menu cut off
+        - truncated tet is picking inconsistent slices!
+        - progress meter on the slice-- just notice when it's taking a long time, and start spewing percentage  (started doing this, need nicer)
         - {5}x{5} 2 has sliver polygons-- I think the isPrismOfThisFace
           hack isn't adequate.  Also it doesnt work for {5}x{} (but that's 3d).
           I think I need to remove the slivers after the fact instead.
@@ -91,7 +90,7 @@
         - 2x2x2x2 does corner twists, should do face (I think)
         - why is scale different before I touch the slider??
         - scale doesn't quite match original
-        - it's not oriented correctly at the end-- so I had to make orientDeep
+        - it's not oriented correctly at the end after slicing-- so I had to make orientDeep
           public and have the caller call it-- lame! need to send in all planes at once so it can do that automatically with some hope of being efficient
         - need more colors!
         - sometimes exception during picking trying to access too big
@@ -127,6 +126,9 @@
                   with triangles in it yet)
                   (and we want the 2.5 thing to work on only the pents,
                    not the squares, of a {5}x{4} and the {5,3}x{})
+            - invention form should come up with current puzzle or previous
+                  failed attempt
+            - should mention Johnson numbers where applicable
         MISC:
             - can't twist while twist is in progress yet-- sucks for usability
             - the cool rotate-arbitrary-element-to-center thing
@@ -142,6 +144,7 @@
               instead of using a gzillion Vectors one for each element
 
         NON-IMMEDIATE:
+            - Grand Antiprism
             - 3 level cascading menus for {3..12}x{3..12}?
             - nframes proportional to angle actually kind of sucks...
                 should be proportionally less frames when rot angle is big,
@@ -155,6 +158,9 @@
             - ooh, make more slices proportionally slower, would feel more massive!
             - completely general solve?
             - general uniform polytopes! yeah!
+            - make slicing faster-- for humongous polytopes, only need to 
+                look at neighbor facets (and slices thereof) and no farther,
+                that should cut stuff down by a factor of 100 maybe
 
         PIE IN THE SKY:
             - figure out how to do "contiguous cubies" generically-- is it possible in terms of the others?  probably not... unless I modify the shrink behavior so it always likes up the outer ones?  Hmm, I think this would be a different "shrink mode" that shrinks stickers towards the face boundaries?  YES!  DO IT!
@@ -253,10 +259,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
      *
      * Note that {4} can also be expressed as {}x{} in any of the above.
      *
-     * XXX would also be cool to support other uniform polyhedra or polychora
-     *     with simplex vertex figures, e.g.
-     *      truncated regular
-     *      omnitruncated regular
      */
 
     public PolytopePuzzleDescription(String schlafliProduct,
@@ -278,7 +280,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.print("    Constructing polytope...");
             progressWriter.flush();
         }
-        this.originalPolytope = com.donhatchsw.util.CSG.makeRegularStarPolytopeCrossProductFromString(schlafliProduct);
+        this.originalPolytope = com.donhatchsw.util.CSG.makeRegularStarPolytopeProductFromString(schlafliProduct);
         if (progressWriter != null)
         {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
@@ -483,30 +485,59 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             int maxCuts = -1; // unlimited
             //maxCuts = 6; // set to some desired number for debugging
-            int totalCuts = 0;
+
+            //
+            // First find out how many cuts we are going to make...
+            //
+            int nTotalCuts = 0;
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
-                if (maxCuts >= 0 && totalCuts >= maxCuts) break;
+                if (maxCuts >= 0 && nTotalCuts >= maxCuts) break;
+                if (face2OppositeFace[iFace] != -1
+                 && face2OppositeFace[iFace] < iFace)
+                    continue; // already saw opposite face and made the cuts
+                for (int iCut = 0; iCut < faceCutOffsets[iFace].length; ++iCut)
+                {
+                    if (maxCuts >= 0 && nTotalCuts >= maxCuts) break;
+                    nTotalCuts++;
+                }
+            }
+            System.out.print("("+nTotalCuts+" cuts)");
+
+            int iTotalCut = 0;
+            for (int iFace = 0; iFace < nFaces; ++iFace)
+            {
+                if (maxCuts >= 0 && iTotalCut >= maxCuts) break;
                 if (face2OppositeFace[iFace] != -1
                  && face2OppositeFace[iFace] < iFace)
                     continue; // already saw opposite face and made the cuts
                 //System.out.println("REALLY doing facet "+iFace);
                 for (int iCut = 0; iCut < faceCutOffsets[iFace].length; ++iCut)
                 {
-                    if (maxCuts >= 0 && totalCuts >= maxCuts) break;
+                    if (maxCuts >= 0 && iTotalCut >= maxCuts) break;
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
                         faceInwardNormals[iFace],
                         faceCutOffsets[iFace][iCut]);
                     Object auxOfCut = null; // we don't set any aux on the cut for now
                     slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, auxOfCut);
+                    iTotalCut++;
                     if (progressWriter != null)
                     {
                         progressWriter.print("."); // one dot per cut
+
+                        // We know we are doing an O(n^2) algorithm
+                        // so our actual progress fraction is proportional to
+                        // the square of the apparent fraction of items done.
+                        if ((nTotalCuts-iTotalCut)%10 == 0)
+                        {
+                            progressWriter.print("("+percent_g_dammit(2,(double)100*iTotalCut*iTotalCut/nTotalCuts/nTotalCuts)+"%)");
+                        }
+
                         progressWriter.flush();
                     }
-                    totalCuts++;
                 }
             }
+            Assert(iTotalCut == nTotalCuts);
 
             if (progressWriter != null)
             {
@@ -526,6 +557,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.flush();
             }
         }
+
 
         CSG.Polytope stickers[] = slicedPolytope.p.getAllElements()[nDims-1];
         int nStickers = stickers.length;
@@ -585,6 +617,34 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // XXX so that they are consecutive, if we cared
         }
 
+        if (false) // XXX remove if not necessary
+        {
+            //
+            // Now that we've sliced it in its natural number of dimensions,
+            // pad up to 4 dimensions for calculation of
+            // coordinate stuff, by prismifying
+            // by a small segment, square, or cube
+            // as necessary.
+            //
+            CSG.SPolytope slicedPolytope4d;
+            if (nDims < 4)
+            {
+                slicedPolytope = com.donhatchsw.util.CSG.cross(slicedPolytope,
+                                                               com.donhatchsw.util.CSG.makeHypercube(new double[4-nDims], .1));
+                Assert(slicedPolytope.p.dim == 4);
+                stickers = slicedPolytope.p.getAllElements()[3];
+            }
+            else if (nDims == 4)
+            {
+                slicedPolytope4d = slicedPolytope;
+            }
+            else // nDims >= 5
+            {
+                slicedPolytope4d = null;
+            }
+        }
+
+
 
         //
         // Find the face centers and sticker centers.
@@ -630,27 +690,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 allElements[iDim][iElt].aux = null;
         }
 
+        // If less than 4 dimensions, pad up to
         //
         // Get the rest verts (with no shrinkage)
         // and the sticker polygon indices.
         // This is dimension-specific.
         //
         double restVerts[][];
-        if (nDims == 3)
-        {
-            com.donhatchsw.util.Poly slicedPoly = com.donhatchsw.util.PolyCSG.PolyFromPolytope(slicedPolytope.p);
-            restVerts = (double[][])slicedPoly.verts;
-
-            // slicedPoly.inds is a list of faces, each of which
-            // is a list of contours.  We assume there is always
-            // one contour per face (i.e. no holes),
-            // so we can now just re-interpret the one contour per face
-            // as one face per sticker (instead of flattening
-            // and re-expanding which would just give us back
-            // what we started with).
-            this.stickerInds = (int[][][])slicedPoly.inds;
-        }
-        else if (nDims == 4)
+        if (nDims <= 4)
         {
             if (false) // this messes up indexing... XXX maybe should make it not?
             {
@@ -702,8 +749,9 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 nVerts = 0; // reset, count again
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
+                    CSG.Polytope sticker = stickers[iSticker];
                     // XXX note, we MUST step through the polys in the order in which they appear in getAllElements, NOT the order in which they appear in the facets list.  however, we need to get the sign from the facets list!
-                    CSG.Polytope polysThisSticker[] = stickers[iSticker].getAllElements()[2];
+                    CSG.Polytope polysThisSticker[] = sticker.getAllElements()[2];
                     stickerInds[iSticker] = new int[polysThisSticker.length][];
                     for (int iPolyThisSticker = 0; iPolyThisSticker < polysThisSticker.length; ++iPolyThisSticker)
                     {
@@ -828,7 +876,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
 
         }
-        else // nDims is something other than 3 or 4
+        else // nDims >= 5
         {
             // Make a vertex array of the right size,
             // just so nVerts() will return something sane for curiosity
@@ -879,81 +927,94 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // XXX but actually it wouldn't hurt, could just make that
         // XXX rotate the whole puzzle.
         //
-        if (nDims == 4)
+        if (intLength == 1)
         {
-            if (progressWriter != null)
-            {
-                progressWriter.print("    Thinking about possible twists...");
-                progressWriter.flush();
-            }
-
+            // Don't bother with grips for now, it's taking too long
+            // for the big ones
             int nGrips = 0;
-            for (int iFace = 0; iFace < nFaces; ++iFace)
-            {
-                com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalFaces[iFace].getAllElements();
-                for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
-                    nGrips += allElementsOfCell[iDim].length;
-            }
             this.gripSymmetryOrders = new int[nGrips];
             this.gripUsefulMats = new double[nGrips][nDims][nDims];
             this.gripCentersF = new float[nGrips][];
             this.grip2face = new int[nGrips];
-            double gripCenterD[] = new double[nDims];
-            int iGrip = 0;
-            for (int iFace = 0; iFace < nFaces; ++iFace)
+        }
+        else
+        {
+            if (nDims == 4)
             {
-                CSG.Polytope cell = originalFaces[iFace];
-                com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = cell.getAllElements();
-                for (int iDim = 0; iDim <= 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
+                if (progressWriter != null)
                 {
-                    for (int iElt = 0; iElt < allElementsOfCell[iDim].length; ++iElt)
+                    progressWriter.print("    Thinking about possible twists...");
+                    progressWriter.flush();
+                }
+
+                int nGrips = 0;
+                for (int iFace = 0; iFace < nFaces; ++iFace)
+                {
+                    com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalFaces[iFace].getAllElements();
+                    for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
+                        nGrips += allElementsOfCell[iDim].length;
+                }
+                this.gripSymmetryOrders = new int[nGrips];
+                this.gripUsefulMats = new double[nGrips][nDims][nDims];
+                this.gripCentersF = new float[nGrips][];
+                this.grip2face = new int[nGrips];
+                double gripCenterD[] = new double[nDims];
+                int iGrip = 0;
+                for (int iFace = 0; iFace < nFaces; ++iFace)
+                {
+                    CSG.Polytope cell = originalFaces[iFace];
+                    com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = cell.getAllElements();
+                    for (int iDim = 0; iDim <= 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
                     {
-                        CSG.Polytope elt = allElementsOfCell[iDim][iElt];
-                        gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
-                                                originalPolytope.p, cell, elt,
-                                                gripUsefulMats[iGrip]);
-
-                        com.donhatchsw.util.CSG.cgOfVerts(gripCenterD, elt);
-                        // !! We can't use the element center,
-                        // that will end up having the same center
-                        // for different stickers on the same cubie!
-                        // So fudge it a little towards the cell center.
-                        // XXX should try to be more scientific...
-                        VecMath.lerp(gripCenterD, gripCenterD, faceCentersD[iFace], .01);
-
-                        gripCentersF[iGrip] = doubleToFloat(gripCenterD);
-                        grip2face[iGrip] = iFace;
-                        if (progressWriter != null)
+                        for (int iElt = 0; iElt < allElementsOfCell[iDim].length; ++iElt)
                         {
-                            //progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
-                            //progressWriter.print(".");
+                            CSG.Polytope elt = allElementsOfCell[iDim][iElt];
+                            gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
+                                                    originalPolytope.p, cell, elt,
+                                                    gripUsefulMats[iGrip]);
 
-                            progressWriter.flush();
+                            com.donhatchsw.util.CSG.cgOfVerts(gripCenterD, elt);
+                            // !! We can't use the element center,
+                            // that will end up having the same center
+                            // for different stickers on the same cubie!
+                            // So fudge it a little towards the cell center.
+                            // XXX should try to be more scientific...
+                            VecMath.lerp(gripCenterD, gripCenterD, faceCentersD[iFace], .01);
+
+                            gripCentersF[iGrip] = doubleToFloat(gripCenterD);
+                            grip2face[iGrip] = iFace;
+                            if (progressWriter != null)
+                            {
+                                //progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
+                                //progressWriter.print(".");
+
+                                progressWriter.flush();
+                            }
+
+                            iGrip++;
                         }
-
-                        iGrip++;
                     }
                 }
-            }
-            Assert(iGrip == nGrips);
+                Assert(iGrip == nGrips);
 
-            /*
-            want to know, for each grip:
-                - the grip center coords
-                - its face center coords
-                - its period
-                for each slice using this grip (i.e. iterate through the slices parallel to the face the grip is on):
-                    - from indices of a CCW twist of this slice
-                    - to indices of a CCW twist of this slice
-            */
+                /*
+                want to know, for each grip:
+                    - the grip center coords
+                    - its face center coords
+                    - its period
+                    for each slice using this grip (i.e. iterate through the slices parallel to the face the grip is on):
+                        - from indices of a CCW twist of this slice
+                        - to indices of a CCW twist of this slice
+                */
 
-            if (progressWriter != null)
-            {
-                progressWriter.print(" ("+nGrips+" grips)");
-                progressWriter.println(" done.");
-                progressWriter.flush();
-            }
-        } // nDims == 4
+                if (progressWriter != null)
+                {
+                    progressWriter.print(" ("+nGrips+" grips)");
+                    progressWriter.println(" done.");
+                    progressWriter.flush();
+                }
+            } // nDims == 4
+        } // intLength > 1
 
         //
         // Select points worthy of being rotated to the center (-W axis).
@@ -983,27 +1044,39 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
     } // ctor from schlafli and length
 
-    public String toString()
+    public String toString(boolean verbose)
     {
         String nl = System.getProperty("line.separator");
         com.donhatchsw.util.CSG.Polytope[][] allElements = slicedPolytope.p.getAllElements();
-        int sizes[] = new int[allElements.length];
-        for (int iDim = 0; iDim < sizes.length; ++iDim)
-            sizes[iDim] = allElements[iDim].length;
-        String answer = "{polytope counts per dim = "
-                      +com.donhatchsw.util.Arrays.toStringCompact(sizes)
+        String answer = "{sliced polytope counts per dim = "
+                      +com.donhatchsw.util.Arrays.toStringCompact(
+                       com.donhatchsw.util.CSG.counts(slicedPolytope.p))
                       +", "+nl+"  nDims = "+nDims()
+                      +", "+nl+"  nFaces = "+nFaces()
                       +", "+nl+"  nStickers = "+nStickers()
                       +", "+nl+"  nGrips = "+nGrips()
-                      +", "+nl+"  slicedPolytope = "+slicedPolytope.toString(true)
+                      +", "+nl+"  nVisibleCubies = "+nCubies()
+                      +", "+nl+"  nStickerVerts = "+nVerts();
+        if (verbose)
+        {
+            answer +=
+                      ", "+nl+"  slicedPolytope = "+slicedPolytope.toString(true)
+
                       +", "+nl+"  vertsMinusStickerCenters = "+com.donhatchsw.util.Arrays.toStringNonCompact(vertsMinusStickerCenters, "    ", "    ")
                       +", "+nl+"  vertStickerCentersMinusFaceCenters = "+com.donhatchsw.util.Arrays.toStringNonCompact(vertStickerCentersMinusFaceCenters, "    ", "    ")
                       +", "+nl+"  vertFaceCenters = "+com.donhatchsw.util.Arrays.toStringNonCompact(vertFaceCenters, "    ", "    ")
                       +", "+nl+"  stickerInds = "+com.donhatchsw.util.Arrays.toStringNonCompact(stickerInds, "    ", "    ")
-                      +", "+nl+"  sticker2face = "+com.donhatchsw.util.Arrays.toStringNonCompact(sticker2face, "    ", "    ")
-                      +"}";
+                      +", "+nl+"  sticker2face = "+com.donhatchsw.util.Arrays.toStringNonCompact(sticker2face, "    ", "    ");
+        }
+        answer += "}";
         return answer;
     } // toString
+
+    public String toString()
+    {
+        return toString(false); // non verbose
+    }
+
 
 
     //
@@ -1034,6 +1107,35 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                  VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle),
                                  gripUsefulMats[gripIndex]);
         } // getTwistMat
+
+        // format x using printf format "%.17g", dammit
+        private static String percent_g_dammit(int seventeen, // digits of precision
+                                       double x)
+        {
+            if (x == 0)
+                return "0";
+
+            double threshold = Math.round(Math.pow(10, seventeen));
+            double scale = 1.;
+            while (x < threshold)
+            {
+                x *= 10;
+                scale *= 10;
+            }
+            while (x >= threshold)
+            {
+                x /= 10;
+                scale /= 10;
+            }
+            x = Math.floor(x);
+            x /= scale;
+            if (Math.floor(x) == x)
+                return ""+(int)Math.floor(x);
+            else
+                return ""+x;
+        } // percent_g_dammit
+
+
 
 
 
@@ -1293,8 +1395,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             boolean answer = (slicemask & (1<<iSlice)) != 0;
             return answer;
         }
-
-
     //
     // END OF GENERICPUZZLEDESCRIPTION INTERFACE METHODS
     //======================================================================
@@ -1327,7 +1427,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                        (int)Math.ceil(doubleLength),
                                                                        doubleLength,
                                                                        progressWriter);
-        System.out.println("description = "+descr);
+        System.out.println("description = "+descr.toString());
 
         System.out.println("out main");
     } // main
