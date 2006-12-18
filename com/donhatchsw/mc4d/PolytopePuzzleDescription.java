@@ -103,14 +103,6 @@
     =====================================================
         - fucking twisting after I let up on the mouse sucks! fix it!!!
         - fucking gui lies... not acceptable.
-        - disallow spin dragging gives me the original orientation-- argh.
-            - but sometimes that's what I want... bleah.
-              need a way to save and restore my "favorite" orientation.
-        - hey, I think clicking on a sticker shouldn't kill spin dragging--
-            only clicking on boundary should stop it.
-            that way can solve while it's spinning!  fun drinking game!
-            ooh and make it speed up and slow down and tumble randomly
-            while you are trying to solve it!
         - just noticed, Esc doesn't work to cancel immediately, have to click
             at least one thing first
 
