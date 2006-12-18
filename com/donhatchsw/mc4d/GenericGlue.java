@@ -202,7 +202,7 @@ public class GenericGlue
         String menuScheme[][] = {
           {"-"}, // separator
           //{"Generic puzzles (no saving or macros)"},
-          {"Other 2d puzzles"},
+          {"2d puzzles"},
           {"    {3} Triangle",        "1,2,3,4,5"},
           {"    {4} Square",          "1,2,3,4,5"},
           {"    {5} Pentagon",        "1,2,3,4,5"},
@@ -213,11 +213,11 @@ public class GenericGlue
           {"    {10} Decagon",        "1,2,3,4,5"},
           {"    {11} Hendecagon",     "1,2,3,4,5"},
           {"    {12} Dodecagon",      "1,2,3,4,5"},
-          {"Other 3d puzzles"},
+          {"3d puzzles"},
           {"    3d regular"},
-          {"        {3,3} Tetrahedron",             "1,3(4.0),5(7.0),7(10.0),9(13.0),11(16.0)"},
-          {"        {4,3} Cube",                    "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"},
-          {"        {5,3} Dodecahedron (megaminx)", "1,2,3(2.5),3,5,7,9"},
+          {"        {3,3} Tetrahedron (Meier-Halpern Pyramid (tm))",             "1,3(4.0),5(7.0),7(10.0),9(13.0),11(16.0)"},
+          {"        {4,3} Cube (Rubik's Cube (tm))",                    "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"},
+          {"        {5,3} Dodecahedron (Megaminx)", "1,2,3(2.5),3,5,7,9"},
           {"    3d wythoff"},
           {"        Tetrahedron based"},
           {"            (1)---(0)---(0) Tetrahedron",                       "1,3"},
@@ -254,7 +254,7 @@ public class GenericGlue
           {"        {10}x{} Decagonal prism",    "1,2,3,4,5"},
           {"        {11}x{} Hendecagonal prism", "1,2,3,4,5"},
           {"        {12}x{} Dodecagonal prism",  "1,2,3,4,5"},
-          {"Other 4d puzzles"},
+          {"4d puzzles"},
           {"    4d regular"},
           {"        {3,3,3} Simplex (5-cell)",          "1,3(5.0),5(9.0),7(13.0)"},
           {"        {4,3,3} Hypercube (8-cell)",        "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
@@ -337,24 +337,6 @@ public class GenericGlue
           {"            (1)-5-(1)---(1)---(1) Omnitruncated 120-cell/600-cell", "1,3"},
           {"    4d uniform anomolous"},
           {"        Grand Antiprism", "1"}, // XXX not supported yet
-          {"    2d x 2d  products"},
-          {"        {3}x{4} Triangular prism prism",            "1,3(4.0),5(7.0),7(10.0)"},
-          {"        {4}x{4} Hypercube",                         "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
-          {"        {5}x{4} Pentagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
-          {"        {4}x{5} Pentagonal prism prism (alt)",      "1,2,3(2.5),3,4,5,6,7"},
-          {"        {6}x{4} Hexagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
-          {"        {7}x{4} Heptagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
-          {"        {8}x{4} Octagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
-          {"        {9}x{4} Nonagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
-          {"        {10}x{4} Decagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
-          {"        {50}x{4} Fiftyagonal prism prism",          "1,3"},
-          {"        {100}x{4} Onehundredagonal prism prism",    "1,3"},
-          {"        {3}x{3}",                                   "1,2,3(4.0),4,5,6,7"},
-          {"        {3}x{5}",                                   "1,2,3(2.5),3(4.0),4,5,6,7"},
-          {"        {5}x{5}",                                   "1,2,3(2.5),3,4,5,6,7"}, // XXX 2 is ugly, has slivers
-          {"        {5}x{10}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
-          {"        {10}x{5}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
-          {"        {10}x{10}",                                 "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
           {"    3d regular x 1d  hyperprisms"},
           {"        {3,3}x{} Tetrahedral prism",                "1,2,3(5.0),5(9.0),7(13.0)"},
           {"        {4,3}x{} Hypercube",                        "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
@@ -385,11 +367,29 @@ public class GenericGlue
           {"            (0)-5-(0)---(1)x{} Icosahedral prism",                  "1"}, // vertex figure not simplex
           {"            (1)-5-(0)---(1)x{} Cantellated-icosadodecahedral prism","1"}, // vertex figure not simplex
           {"            (1)-5-(1)---(1)x{} Omnitruncated-dodecahedron prism",   "1,3"},
-          {"Other 5d puzzles"},
+          {"    2d x 2d  duoprisms"},
+          {"        {3}x{4} Triangular prism prism",            "1,3(4.0),5(7.0),7(10.0)"},
+          {"        {4}x{4} Hypercube",                         "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
+          {"        {5}x{4} Pentagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
+          {"        {4}x{5} Pentagonal prism prism (alt)",      "1,2,3(2.5),3,4,5,6,7"},
+          {"        {6}x{4} Hexagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
+          {"        {7}x{4} Heptagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
+          {"        {8}x{4} Octagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
+          {"        {9}x{4} Nonagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
+          {"        {10}x{4} Decagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
+          {"        {50}x{4} Fiftyagonal prism prism",          "1,3"},
+          {"        {100}x{4} Onehundredagonal prism prism",    "1,3"},
+          {"        {3}x{3}",                                   "1,2,3(4.0),4,5,6,7"},
+          {"        {3}x{5}",                                   "1,2,3(2.5),3(4.0),4,5,6,7"},
+          {"        {5}x{5}",                                   "1,2,3(2.5),3,4,5,6,7"}, // XXX 2 is ugly, has slivers
+          {"        {5}x{10}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
+          {"        {10}x{5}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
+          {"        {10}x{10}",                                 "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
+          {"5d puzzles"},
           {"    {3,3,3,3} Simplex",        "1,2,3,4,5"},
           {"    {4,3,3,3} Hypercube",      "1,2,3,4,5"},
           {"    {3,3,3,4} Cross",          "1"}, // vertex figure not simplex
-          {"Other 6d puzzles"},
+          {"6d puzzles"},
           {"    {3,3,3,3,3} Simplex",      "1,2,3"},
           {"    {4,3,3,3,3} Hypercube",    "1,2,3"},
           {"    {3,3,3,3,4} Cross",        "1"}, // vertex figure not simplex
@@ -535,7 +535,7 @@ public class GenericGlue
                                 }
 
                                 int nDims = newPuzzle.nDims();
-                                if (nDims != 4)
+                                if (nDims > 4)
                                 {
                                     JOptionPane.showMessageDialog(null,
                                         "Re: Your invention \""+schlafli+"  "+lengthString+"\"\n"+
@@ -1009,9 +1009,41 @@ public class GenericGlue
 
                 double nicePointOnScreen[] = com.donhatchsw.util.VecMath.vxm(nicePointD, viewMat4dD);
                 com.donhatchsw.util.VecMath.normalize(nicePointOnScreen, nicePointOnScreen); // if it's not already
-                double minusWAxis[] = {0,0,0,-1};
+                float minusWAxis[] = {0,0,0,-1};
                 genericGlue.rotationFrom = com.donhatchsw.util.VecMath.doubleToFloat(nicePointOnScreen);
-                genericGlue.rotationTo = com.donhatchsw.util.VecMath.doubleToFloat(minusWAxis);
+                genericGlue.rotationTo = minusWAxis;
+
+                if (genericGlue.genericPuzzleDescription.nDims() < 4)
+                {
+                    //
+                    // In less-than-4d puzzles,
+                    // if the projection is flattened
+                    // and they clicked on the center sticker,
+                    // un-flatten it such a direction
+                    // that it appears they are pushing
+                    // on the polygon they clicked on.
+                    //
+                    if (com.donhatchsw.util.VecMath.distsqrd(genericGlue.rotationFrom, genericGlue.rotationTo) <= 1e-4*1e-4)
+                    {
+                        float polyAndStickerCenter[][] = GenericPipelineUtils.pickPolyAndStickerCenter(
+                             e.getX(), e.getY(),
+                             genericGlue.untwistedFrame,
+                             genericGlue.genericPuzzleDescription);
+                        Assert(polyAndStickerCenter != null); // hit once, should hit again
+                        float polyCenter[] = polyAndStickerCenter[0];
+                        float polyCenterOnScreen[] = com.donhatchsw.util.VecMath.vxm(polyCenter, viewMat4d);
+                        com.donhatchsw.util.VecMath.normalize(polyCenterOnScreen, polyCenterOnScreen);
+
+                        //System.out.println("nicePoint = "+com.donhatchsw.util.VecMath.toString(nicePoint));
+                        //System.out.println("polyCenter = "+com.donhatchsw.util.VecMath.toString(polyCenter));
+                        //System.out.println("polyCenterOnScreen = "+com.donhatchsw.util.VecMath.toString(polyCenterOnScreen));
+                        //System.out.println();
+
+                        genericGlue.rotationFrom = com.donhatchsw.util.VecMath.vmv(polyCenterOnScreen, minusWAxis);
+                        com.donhatchsw.util.VecMath.normalize(genericGlue.rotationFrom, genericGlue.rotationFrom);
+                    }
+                }
+
                 double totalRotationAngle = com.donhatchsw.util.VecMath.angleBetweenUnitVectors(
                                     genericGlue.rotationFrom,
                                     genericGlue.rotationTo);
