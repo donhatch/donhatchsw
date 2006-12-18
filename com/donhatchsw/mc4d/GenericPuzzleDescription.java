@@ -11,6 +11,7 @@
 interface GenericPuzzleDescription {
 
     public int nDims();
+    public int nDisplayDims();
     public int nVerts();
     public int nFaces();
     public int nCubies();

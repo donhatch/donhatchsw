@@ -194,6 +194,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private com.donhatchsw.util.CSG.SPolytope originalPolytope;
     private com.donhatchsw.util.CSG.SPolytope slicedPolytope;
 
+    private int _nDisplayDims = 4; // never tried anything else, it will probably crash
     private float _circumRadius;
     private float _inRadius;
     private int _nCubies;
@@ -617,35 +618,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // XXX so that they are consecutive, if we cared
         }
 
-        if (false) // XXX remove if not necessary
-        {
-            //
-            // Now that we've sliced it in its natural number of dimensions,
-            // pad up to 4 dimensions for calculation of
-            // coordinate stuff, by prismifying
-            // by a small segment, square, or cube
-            // as necessary.
-            //
-            CSG.SPolytope slicedPolytope4d;
-            if (nDims < 4)
-            {
-                slicedPolytope = com.donhatchsw.util.CSG.cross(slicedPolytope,
-                                                               com.donhatchsw.util.CSG.makeHypercube(new double[4-nDims], .1));
-                Assert(slicedPolytope.p.dim == 4);
-                stickers = slicedPolytope.p.getAllElements()[3];
-            }
-            else if (nDims == 4)
-            {
-                slicedPolytope4d = slicedPolytope;
-            }
-            else // nDims >= 5
-            {
-                slicedPolytope4d = null;
-            }
-        }
-
-
-
         //
         // Find the face centers and sticker centers.
         // The center of mass of the vertices is probably
@@ -690,41 +662,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 allElements[iDim][iElt].aux = null;
         }
 
-        // If less than 4 dimensions, pad up to
         //
         // Get the rest verts (with no shrinkage)
         // and the sticker polygon indices.
         // This is dimension-specific.
         //
         double restVerts[][];
-        if (nDims <= 4)
+        if (nDims <= _nDisplayDims) // if 4d or less
         {
-            if (false) // this messes up indexing... XXX maybe should make it not?
-            {
-                // Start by making a completely separate Poly
-                // out of each sticker.  There will be no
-                // vertex sharing between stickers.
-                com.donhatchsw.util.Poly stickerPolys[] = new com.donhatchsw.util.Poly[nStickers];
-                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                {
-                    stickerPolys[iSticker] = com.donhatchsw.util.PolyCSG.PolyFromPolytope(stickers[iSticker]);
-                    // So it gets grouped when we concatenate...
-                    stickerPolys[iSticker].inds = new int[][][][] {(int[][][])stickerPolys[iSticker].inds};
-                }
-                //
-                // Now concatenate them all together (the verts and the inds,
-                // re-indexing inds to point to flattened vert indices)
-                //
-                {
-                    com.donhatchsw.util.Poly slicedPoly = com.donhatchsw.util.Poly.concat(stickerPolys);
-
-                    restVerts = (double[][])slicedPoly.verts;
-                    // We assume there is only 1 contour per polygon,
-                    // so we can flatten out the contours part of the Poly.
-                    this.stickerInds = (int[][][])com.donhatchsw.util.Arrays.flatten(slicedPoly.inds, 2, 2);
-                }
-            }
-            else
             {
                 class iVertAux {
                     int iVert;
@@ -741,17 +686,33 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 int nVerts = 0;
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                    nVerts += stickers[iSticker].getAllElements()[0].length;
+                    nVerts += stickers[iSticker].getAllElements()[0].length
+                            * (1<<(_nDisplayDims-nDims)); // cross with a segment or square if necessary
 
-                restVerts = new double[nVerts][nDims];
+                restVerts = new double[nVerts][_nDisplayDims];
                 this.stickerInds = new int[nStickers][][];
 
                 nVerts = 0; // reset, count again
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
                     CSG.Polytope sticker = stickers[iSticker];
+                    CSG.Polytope sticker4d = sticker;
+                    if (nDims < _nDisplayDims)
+                    {
+                        double padRadius = .1;
+                        //double padRadius = .2;
+                        //double padRadius = .25;
+                        sticker4d = CSG.cross(new CSG.SPolytope(0,1,sticker),
+                                              CSG.makeHypercube(new double[_nDisplayDims-nDims], padRadius)).p;
+                        CSG.Polytope stickerVerts4d[] = sticker4d.getAllElements()[0];
+                        for (int iVert = 0; iVert < stickerVerts4d.length; ++iVert)
+                        {
+                            stickerVerts4d[iVert].aux = new iVertAux(-1, stickerVerts4d[iVert].aux);
+                            stickerVerts4d[iVert].getCoords()[3] *= -1; // XXX FUDGE-- and this is not really legal... should do this afterwards
+                        }
+                    }
                     // XXX note, we MUST step through the polys in the order in which they appear in getAllElements, NOT the order in which they appear in the facets list.  however, we need to get the sign from the facets list!
-                    CSG.Polytope polysThisSticker[] = sticker.getAllElements()[2];
+                    CSG.Polytope polysThisSticker[] = sticker4d.getAllElements()[2];
                     stickerInds[iSticker] = new int[polysThisSticker.length][];
                     for (int iPolyThisSticker = 0; iPolyThisSticker < polysThisSticker.length; ++iPolyThisSticker)
                     {
@@ -780,14 +741,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             stickerInds[iSticker][iPolyThisSticker][iVertThisPoly] = iVert;
                         }
 
-                        // Figure out this polygon's sign in the sticker.
-                        // Since we are iterating through sticker.allElements()[nDims-1] instead of through sticker's facet list (because we need that ordering),
+                        // Figure out this polygon's sign in the sticker4d.
+                        // Since we are iterating through sticker4d.allElements()[nDims-1] instead of through sticker4d's facet list (because we need that ordering),
                         // we don't have access to the sign directly.
-                        // XXX bleah, this search sucks
+                        // XXX bleah, this search sucks, should be a way to fast query this!
                         int indexOfPolyInStickersFacets = 0;
-                        while (stickers[iSticker].facets[indexOfPolyInStickersFacets].p != polygon)
+                        while (sticker4d.facets[indexOfPolyInStickersFacets].p != polygon)
                             indexOfPolyInStickersFacets++;
-                        if (stickers[iSticker].facets[indexOfPolyInStickersFacets].sign == -1)
+                        if (sticker4d.facets[indexOfPolyInStickersFacets].sign == -1)
                         {
                             //
                             // Reverse the polygon
@@ -855,6 +816,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             //
             // Get adjacent sticker pairs into this.adjacentStickerPairs...
             //
+            if (nDims == 4) // XXX need to figure this out for nDims==3 too!
             {
                 int stickerIncidences[][][] = slicedPolytope.p.getAllIncidences()[nDims-1];
                 int nPolygons = slicedPolytope.p.getAllElements()[2].length;
@@ -874,7 +836,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     for (int j = 0; j < 2; j++)
                         Assert(adjacentStickerPairs[iPoly][j] != null);
             }
-
+            else
+            {
+                // XXX stopgap for now
+                //this.adjacentStickerPairs = new int[0][2][];
+            }
         }
         else // nDims >= 5
         {
@@ -883,8 +849,21 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             int nVerts = 0;
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 nVerts += stickers[iSticker].getAllElements()[0].length;
-            restVerts = new double[nVerts][nDims]; // zeros
+            restVerts = new double[nVerts][_nDisplayDims]; // zeros
             this.stickerInds = new int[nStickers][0][];
+        }
+
+        // Expand out any arrays we have
+        // from nDims to 4 dims
+        for (int iPad = 0; iPad < _nDisplayDims-nDims; ++iPad)
+        {
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            {
+                stickerCentersD[iSticker] = (double[])com.donhatchsw.util.Arrays.append(stickerCentersD[iSticker], 0.);
+                stickerCentersMinusFaceCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerCentersMinusFaceCentersF[iSticker], 0.f);
+            }
+            for (int iFace = 0; iFace < nFaces; ++iFace)
+                faceCenters[iFace] = (float[])com.donhatchsw.util.Arrays.append(faceCenters[iFace], 0.f);
         }
 
 
@@ -917,6 +896,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
             }
         }
+
 
         //
         // Now think about the twist grips.
@@ -1014,6 +994,10 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.flush();
                 }
             } // nDims == 4
+            else
+            {
+                this.grip2face = new int[0];
+            }
         } // intLength > 1
 
         //
@@ -1023,15 +1007,15 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             int nNicePoints = 0;
             for (int iDim = 0; iDim < originalElements.length; ++iDim)
                 nNicePoints += originalElements[iDim].length;
-            this.nicePointsToRotateToCenter = new float[nNicePoints][nDims];
-            double eltCenter[] = new double[nDims];
+            this.nicePointsToRotateToCenter = new float[nNicePoints][_nDisplayDims];
+            double eltCenter[] = new double[nDims]; // in original dimension
             int iNicePoint = 0;
             for (int iDim = 0; iDim < originalElements.length; ++iDim)
             for (int iElt = 0; iElt < originalElements[iDim].length; ++iElt)
             {
                 com.donhatchsw.util.CSG.cgOfVerts(eltCenter, originalElements[iDim][iElt]);
-                nicePointsToRotateToCenter[iNicePoint++] = doubleToFloat(eltCenter);
-
+                VecMath.copyvec(nicePointsToRotateToCenter[iNicePoint++],
+                                VecMath.doubleToFloat(eltCenter)); // XXX lame way to do this
             }
             Assert(iNicePoint == nNicePoints);
         }
@@ -1147,6 +1131,10 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         public int nDims()
         {
             return slicedPolytope.p.fullDim;
+        }
+        public int nDisplayDims()
+        {
+            return _nDisplayDims;
         }
         public int nVerts()
         {

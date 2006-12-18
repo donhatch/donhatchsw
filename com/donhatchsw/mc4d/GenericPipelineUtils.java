@@ -39,9 +39,9 @@ public class GenericPipelineUtils
 
     public static int verboseLevel = 0; // set to something else to debug
         // 0: nothing
-        // 1: print on picks // XXX argh, that's OBNOXIOUS now that picks happen on hover
+        // 1: print when there's a cycle in the topsort
         // 2: and on computes and paints
-        // 3: and dump arrays at each step
+        // 3: and on picks, and dump arrays at each step
 
     /**
      * Geometry data for an animation frame.
@@ -115,8 +115,8 @@ public class GenericPipelineUtils
     {
         if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.computeFrame");
 
-        int nDims = puzzleDescription.nDims();
-        Assert(nDims == 4);
+        int nOriginalDims = puzzleDescription.nDims();
+        int nDisplayDims = puzzleDescription.nDisplayDims();
         int nVerts = puzzleDescription.nVerts();
         int nStickers = puzzleDescription.nStickers();
 
@@ -128,8 +128,8 @@ public class GenericPipelineUtils
         {
             if (frame.verts == null
              || frame.verts.length != nVerts
-             || nVerts>0 && frame.verts[0].length != nDims)
-                frame.verts = new float[nVerts][nDims];
+             || nVerts>0 && frame.verts[0].length != nDisplayDims)
+                frame.verts = new float[nVerts][nDisplayDims];
             int nPolys = 0;
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 nPolys += stickerInds[iSticker].length;
@@ -156,8 +156,8 @@ public class GenericPipelineUtils
             {
                 if (frame.shadowVerts == null
                  || frame.shadowVerts.length != nVerts
-                 || nVerts>0 && frame.shadowVerts[0].length != nDims)
-                    frame.shadowVerts = new float[nVerts][nDims-1];
+                 || nVerts>0 && frame.shadowVerts[0].length != nDisplayDims)
+                    frame.shadowVerts = new float[nVerts][nDisplayDims-1];
             }
         }
 
@@ -239,6 +239,10 @@ public class GenericPipelineUtils
         //
         // Front-cell cull
         //
+        boolean doFrontCellCull = true;
+        if (false) // XXX it's interesting to set this to true! think about it
+            if (nOriginalDims != nDisplayDims)
+                doFrontCellCull = false;
         {
             int nBackfacing = 0;
             float mat[][] = new float[3][3]; // XXX MEMORY ALLOCATION
@@ -253,7 +257,7 @@ public class GenericPipelineUtils
                 Vec_h._VMV3(mat[1], v2, v0); // 3 out of 4
                 Vec_h._VMV3(mat[2], v3, v0); // 3 out of 4
                 float volume = VecMath.vxvxv3(mat[0], mat[1], mat[2]);
-                if (volume < 0.f) // only draw *back* cells; cull front ones
+                if (!doFrontCellCull || volume < 0.f) // only draw *back* cells; cull front ones
                 {
                     // append references to this sticker's polys into drawList
                     for (int iPolyThisSticker = 0; iPolyThisSticker < thisStickerInds.length; ++iPolyThisSticker)
@@ -268,7 +272,7 @@ public class GenericPipelineUtils
             drawListSize = nBackfacing;
             shadowDrawListSize = groundNormal != null ? nBackfacing : 0;
         }
-        if (verboseLevel >= 3) System.out.println("        after front-cell cull: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 3) System.out.println("        after front-cell cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(drawList,0,drawListSize)));
 
         //
         // Rotate/scale in 3d
@@ -455,7 +459,7 @@ public class GenericPipelineUtils
             }
         }
         if (verboseLevel >= 3) System.out.println("        after 3d->2d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
-        if (verboseLevel >= 2) System.out.println("        after 3d->3d project: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
+        if (verboseLevel >= 2) if (shadowVerts != null) System.out.println("        after 3d->3d project: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
 
         boolean stickerPolyIsStrictlyBackfacing[][] = new boolean[nStickers][];
         for (int iSticker = 0; iSticker < nStickers; ++iSticker)
@@ -502,7 +506,7 @@ public class GenericPipelineUtils
                 shadowDrawListSize = nFrontFacing+nBackfacing;
             }
         }
-        if (verboseLevel >= 3) System.out.println("        after back-face cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(drawList));
+        if (verboseLevel >= 3) System.out.println("        after back-face cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(drawList,0,drawListSize)));
 
         //
         // Rotate/scale in 2d
@@ -539,6 +543,13 @@ public class GenericPipelineUtils
 
         if (verboseLevel >= 3) System.out.println("        after 2d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
+        if (useTopsort
+         && puzzleDescription.getAdjacentStickerPairs() == null)
+        {
+            if (verboseLevel >= 2)
+                System.out.println("        topsort forced off because this puzzle description didn't give any adjacent sticker pairs!");
+            useTopsort = false; // XXX bleah! haven't got it implemented for 3d puzzles yet
+        }
         if (useTopsort)
         {
             //
@@ -701,7 +712,7 @@ public class GenericPipelineUtils
                              Frame frame,
                              GenericPuzzleDescription puzzleDescription)
     {
-        if (verboseLevel >= 1) System.out.println("    in GenericPipelineUtils.pick");
+        if (verboseLevel >= 3) System.out.println("    in GenericPipelineUtils.pick");
         float thispoint[] = {x, y};
         // From front to back, returning the first hit
         float verts[][] = frame.verts;
@@ -724,7 +735,7 @@ public class GenericPipelineUtils
                 break;
             }
         }
-        if (verboseLevel >= 1) System.out.println("    out GenericPipelineUtils.pick, returning "+(pickedItem==null?"null":("{iSticker="+pickedItem[0]+",iPolyWithinSticker="+pickedItem[1]+"}")));
+        if (verboseLevel >= 3) System.out.println("    out GenericPipelineUtils.pick, returning "+(pickedItem==null?"null":("{iSticker="+pickedItem[0]+",iPolyWithinSticker="+pickedItem[1]+"}")));
         return pickedItem;
     }
 
@@ -736,10 +747,9 @@ public class GenericPipelineUtils
         return iStickerAndPoly != null ? iStickerAndPoly[0] : -1;
     }
 
-    // Pick poly center if it's a 2x2x2x2, sticker center otherwise.
-    public static float[] pickPolyOrStickerCenter(float x, float y,
-                                                  Frame frame,
-                                                  GenericPuzzleDescription puzzleDescription)
+    public static float[][] pickPolyAndStickerCenter(float x, float y,
+                                                     Frame frame,
+                                                     GenericPuzzleDescription puzzleDescription)
     {
         int hit[] = pick(x, y, frame, puzzleDescription);
         if (hit == null)
@@ -748,7 +758,7 @@ public class GenericPipelineUtils
         // XXX for now, map the polygon center back.
 
         // XXX argh, this is sure overkill here...
-        float verts[][] = new float[puzzleDescription.nVerts()][puzzleDescription.nDims()];
+        float verts[][] = new float[puzzleDescription.nVerts()][puzzleDescription.nDisplayDims()];
         puzzleDescription.computeStickerVertsAtRest(verts,
                                                     1.f,  // faceShrink
                                                     1.f); // stickerShrink
@@ -762,6 +772,19 @@ public class GenericPipelineUtils
 
         //System.out.println("        poly center = "+VecMath.toString(polyCenter));
         //System.out.println("        sticker center = "+VecMath.toString(stickerCenter));
+        return new float[][]{polyCenter, stickerCenter};
+    } // pickPolyAndStickerCenter
+
+    // Pick poly center if it's a 2x2x2x2, sticker center otherwise.
+    public static float[] pickPolyOrStickerCenter(float x, float y,
+                                                  Frame frame,
+                                                  GenericPuzzleDescription puzzleDescription)
+    {
+        float polyAndStickerCenter[][] = pickPolyAndStickerCenter(x, y, frame, puzzleDescription);
+        if (polyAndStickerCenter == null)
+            return null;
+        float polyCenter[] = polyAndStickerCenter[0];
+        float stickerCenter[] = polyAndStickerCenter[1];
 
         // XXX total hack-- use poly center if we think it's the 2x2x2x2 puzzle
         // XXX and the sticker center otherwise.
@@ -769,13 +792,9 @@ public class GenericPipelineUtils
         boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
                                && (VecMath.normsqrd(polyCenter) == 1.5
                                 || VecMath.normsqrd(polyCenter) == 2.5);
-        if (verboseLevel >= 1) System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
+        if (verboseLevel >= 3) System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
 
-        if (itsProbablyThe2)
-            center = polyCenter;
-        else
-            center = stickerCenter;
-        return center;
+        return itsProbablyThe2 ? polyCenter : stickerCenter;
     } // pickPolyOrStickerCenter
 
     public static int pickGrip(float x, float y,
