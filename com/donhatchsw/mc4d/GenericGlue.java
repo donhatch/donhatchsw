@@ -199,298 +199,554 @@ public class GenericGlue
             });
         }
 
-        String table[][] = {
-            {"-"},
-            /*
-            {"{3,3,3}",  "1,3(5.0),5(9.0),7(13.0)", "Simplex"},
-            {"{3}x{4}",  "1,3(4.0),5(7.0),7(10.0)", "Triangular Prism Prism"},
-            {"{4,3,3}",  "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)", "Hypercube"},
-            {"{5}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Pentagonal Prism Prism"},
-            {"{4}x{5}",  "1,2,3(2.5),3,4,5,6,7", "Pentagonal Prism Prism (alt)"},
-            {"{6}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Hexagonal Prism Prism"},
-            {"{7}x{4}",  "1,2,3(2.5),3,4,5,6,7", "True HEPAgonal Prism Prism"},
-            {"{8}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Octagonal Prism Prism"},
-            {"{9}x{4}",  "1,2,3(2.5),3,4,5,6,7", "Nonagonal Prism Prism"},
-            {"{10}x{4}", "1,2,3(2.5),3,4,5,6,7", "Decagonal Prism Prism"},
-            {"{100}x{4}","1,3",                  "Onehundredagonal Prism Prism"},
-            {"{3}x{3}",  "1,2,3(4.0),4,5,6,7",     ""},
-            {"{3}x{5}",  "1,2,3(2.5),3(4.0),4,5,6,7", ""},
-            {"{5}x{5}",  "1,2,3(2.5),3,4,5,6,7", ""}, // XXX 2 is ugly, has slivers
-            {"{5}x{10}",  "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
-            {"{10}x{5}",  "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
-            {"{10}x{10}", "1,3(2.5),3",          ""}, // XXX 2 is ugly, has slivers
-            {"{3,3}x{}", "1,2,3(5.0),5(9.0),7(13.0)",   "Tetrahedral Prism"},
-            {"{5,3}x{}", "1,2,3(2.5),3,4,5,6,7", "Dodecahedral Prism"},
-            {"{}x{5,3}", "1,2,3(2.5),3,4,5,6,7", "Dodecahedral Prism (alt)"},
-            {"{5,3,3}",  "1,2,3(2.5),3",         "Hypermegaminx (BIG!)"},
-            */
-            {"-"},
-            {"(1)---(0)---(0)x{}",     "1,3",         "Tetrahedral prism"},
-            {"(1)---(1)---(0)x{}",     "1,3",         "Truncated-tetrahedron prism"},
-            //{"(0)---(1)---(0)x{}",     "1,3",         "Octahedral prism"}, // vertex figure not simplex
-            {"(0)---(1)---(1)x{}",     "1,3",         "Truncated-tetrahedron(dual) prism"},
-            {"(0)---(0)---(1)x{}",     "1,3",         "Tetrahedral(dual) prism"},
-            {"(1)---(1)---(1)x{}",     "1,3",         "Omnitruncated-tetrahedron prism"},
-            {"-"},
-            {"(1)-4-(0)---(0)x{}",     "1,3",         "Cube prism (hypercube)"},
-            {"(1)-4-(1)---(0)x{}",     "1,3",         "Truncated-cube prism"},
-            //{"(0)-4-(1)---(0)x{}",     "1,3",         "Cuboctahedral prism"}, // vertex figure not simplex
-            {"(0)-4-(1)---(1)x{}",     "1,3",         "Truncated-octahedron prism"},
-            //{"(0)-4-(0)---(1)x{}",     "1,3",         "Octahedral prism"}, // vertex figure not simplex
-            //{"(1)-4-(0)---(1)x{}",     "1,3",         "Somethingicated-cube prism"}, // vertex figure not simplex
-            {"(1)-4-(1)---(1)x{}",     "1,3",         "Omnitruncated-cube prism"},
+        String menuScheme[][] = {
+          {"-"}, // separator
+          //{"Generic puzzles (no saving or macros)"},
+          {"Other 2d puzzles"},
+          {"    {3} Triangle",        "1,2,3,4,5"},
+          {"    {4} Square",          "1,2,3,4,5"},
+          {"    {5} Pentagon",        "1,2,3,4,5"},
+          {"    {6} Hexagon",         "1,2,3,4,5"},
+          {"    {7} Heptagon",        "1,2,3,4,5"},
+          {"    {8} Octagon",         "1,2,3,4,5"},
+          {"    {9} Nonagon",         "1,2,3,4,5"},
+          {"    {10} Decagon",        "1,2,3,4,5"},
+          {"    {11} Hendecagon",     "1,2,3,4,5"},
+          {"    {12} Dodecagon",      "1,2,3,4,5"},
+          {"Other 3d puzzles"},
+          {"    3d regular"},
+          {"        {3,3} Tetrahedron",             "1,3(4.0),5(7.0),7(10.0),9(13.0),11(16.0)"},
+          {"        {4,3} Cube",                    "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"},
+          {"        {5,3} Dodecahedron (megaminx)", "1,2,3(2.5),3,5,7,9"},
+          {"    3d wythoff"},
+          {"        Tetrahedron based"},
+          {"            (1)---(0)---(0) Tetrahedron",                       "1,3"},
+          {"            (1)---(1)---(0) Truncated tetrahedron",             "1,3"},
+          {"            (0)---(1)---(0) Octahedron",                        "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(1) Truncated tetrahedron (dual)",      "1,3"},
+          {"            (0)---(0)---(1) Tetrahedron(dual)",                 "1,3"},
+          {"            (1)---(0)---(1) Cantellated tetrahedron",       "1"}, // vertex figure not simplex
+          {"            (1)---(1)---(1) Omnitruncated tetrahedron",         "1,3"}, 
+          {"        Cube/Octahedron based"},
+          {"            (1)-4-(0)---(0) Cube",                              "1,3"},
+          {"            (1)-4-(1)---(0) Truncated cube",                    "1,3"},
+          {"            (0)-4-(1)---(0) Cuboctahedron",                     "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(1) Truncated octahedron",              "1,3"},
+          {"            (0)-4-(0)---(1) Octahedron",                        "1"}, // vertex figure not simplex
+          {"            (1)-4-(0)---(1) Cantellated cuboctahedron",         "1"}, // vertex figure not simplex
+          {"            (1)-4-(1)---(1) Omnitruncated cuboctahedron",       "1,3"},
+          {"        Dodecahedron/Icosahedron based"},
+          {"            (1)-5-(0)---(0) Dodecahedron",                      "1,3"},
+          {"            (1)-5-(1)---(0) Truncated dodecahedron",            "1,3"},
+          {"            (0)-5-(1)---(0) Icosadodecahedron",                 "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(1) Truncated icosahedron (soccer ball)", "1,3"},
+          {"            (0)-5-(0)---(1) Icosahedron",                       "1"}, // vertex figure not simplex
+          {"            (1)-5-(0)---(1) Cantellated icosadodecahedron",     "1"}, // vertex figure not simplex
+          {"            (1)-5-(1)---(1) Omnitruncated dodecahedron",        "1,3"},
+          {"    2d x 1d prisms"},
+          {"        {3}x{} Triangular prism",    "1,2,3,4,5"},
+          {"        {4}x{} Cube",                "1,2,3,4,5"},
+          {"        {5}x{} Pentagonal prism",    "1,2,3,4,5"},
+          {"        {6}x{} Hexagonal prism",     "1,2,3,4,5"},
+          {"        {7}x{} Heptagonal prism",    "1,2,3,4,5"},
+          {"        {8}x{} Octagonal prism",     "1,2,3,4,5"},
+          {"        {9}x{} Nonagonal prism",     "1,2,3,4,5"},
+          {"        {10}x{} Decagonal prism",    "1,2,3,4,5"},
+          {"        {11}x{} Hendecagonal prism", "1,2,3,4,5"},
+          {"        {12}x{} Dodecagonal prism",  "1,2,3,4,5"},
+          {"Other 4d puzzles"},
+          {"    4d regular"},
+          {"        {3,3,3} Simplex (5-cell)",          "1,3(5.0),5(9.0),7(13.0)"},
+          {"        {4,3,3} Hypercube (8-cell)",        "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
+          {"        {3,3,4} Cross (16-cell)",           "1"}, // vertex figure not simplex
+          {"        {3,4,3} 24-cell",                   "1"}, // vertex figure not simplex
+          {"        {5,3,3} 120-cell (hypermegaminx)",  "1,2,3(2.5),3"},
+          {"        {3,3,5} 600-cell",                  "1"}, // vertex figure not simplex
+          {"    4d uniform wythoff"}, // XXX should be at bottom of menu, so when someone is shooting for the moon they always to to the bottom of each cascading menu?
+          {"        Simplex based"},
+          {"            (1)---(0)---(0)---(0) Simplex",                         "1,3(5.0),5(9.0),7(13.0)"},
+          {"            (1)---(.5)---(0)---(0) Barely truncated simplex",      "1,3(9.0)"},
+          {"            (1)---(1)---(0)---(0) Truncated simplex",               "1,3(5.0)"},
+          {"            (0)---(1)---(0)---(0)   (octas and tets)",              "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(1)---(0)   (truncated tets)",              "1,3,3(9.0)"},
+          {"            (0)---(0)---(1)---(0)   (tets and octas)",              "1"}, // vertex figure not simplex
+          {"            (0)---(0)---(1)---(1) Truncated simplex (dual)",        "1,3,3(9.0)"},
+          {"            (0)---(0)---(.5)---(1) Barely truncated simplex (dual)","1,3,3(9.0)"},
+          {"            (0)---(0)---(0)---(1) Simplex (dual)",                  "1,3,3(9.0)"},
+          {"            (1)---(0)---(0)---(1)   (tets and triprisms)",          "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)---(0)---(1)---(0)",                                 "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(0)---(1)",                                 "1,3,3(9.0)"},
+          {"            (1)---(1)---(1)---(0)",                                 "1,3,3(9.0)"},
+          {"            (1)---(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
+          {"            (1)---(0)---(1)---(1)",                                 "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(1)---(1)",                                 "1,3,3(9.0)"},
+          {"            (1)---(1)---(1)---(1) Omnitruncated simplex",           "1,3,3(9.0)"}, // XXX get rid of these 9s?
+          {"        Hypercube/Cross based"},
+          {"            (1)-4-(0)---(0)---(0) Hypercube",                       "1,3"},
+          {"            (1)-4-(.5)---(0)---(0) Barely truncated hypercube",    "1,3(5.0)"},
+          {"            (1)-4-(1)---(0)---(0) Truncated hypercube",             "1,3(5.0)"},
+          {"            (0)-4-(1)---(0)---(0)   (cuboctas and tets)",           "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(1)---(0)   (truncated octas and truncated tets)", "1,3"},
+          {"            (0)-4-(0)---(1)---(0)   (octas and tets)",              "1"}, // vertex figure not simplex
+          {"            (0)-4-(0)---(1)---(1) Truncated cross",                 "1,3"},
+          {"            (0)-4-(0)---(.5)---(1) Barely truncated cross",        "1,3"},
+          {"            (0)-4-(0)---(0)---(1) Cross",                           "1,3"},
+          {"            (1)-4-(0)---(0)---(1)   (cubes, tets, and tri prisms)", "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)-4-(0)---(1)---(0)",                                 "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(0)---(1)   (cuboctas and cubes)",          "1"},  // vertex figure not simplex
+          {"            (1)-4-(1)---(1)---(0)",                                 "1,3"},
+          {"            (1)-4-(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
+          {"            (1)-4-(0)---(1)---(1)",                                 "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(1)---(1)   (truncated octas and cubes)",   "1,3"},
+          {"            (1)-4-(1)---(1)---(1) Omnitruncated hypercube/cross",   "1,3"},
+          {"        24-cell based"},
+          {"            (1)---(0)-4-(0)---(0) 24-cell",                         "1,3(2.5),3"},
+          {"            (1)---(.5)-4-(0)---(0) Barely truncated 24-cell",      "1,3"},
+          {"            (1)---(1)-4-(0)---(0) Truncated 24-cell",               "1,3"},
+          {"            (0)---(1)-4-(0)---(0)   (cuboctas and cubes)",          "1"}, // vertex figure not simplex
+          {"            (0)---(1)-4-(1)---(0)   (truncated cubes)",             "1,3"},
+          {"            (0)---(0)-4-(1)---(0)   (cubes and cuboctas)",          "1"}, // vertex figure not simplex
+          {"            (0)---(0)-4-(1)---(1) Truncated 24-cell (dual)",        "1,3"},
+          {"            (0)---(0)-4-(.5)---(1) Barely truncated 24-cell (dual)","1,3"},
+          {"            (0)---(0)-4-(0)---(1) 24-cell (dual)",                  "1,3"},
+          {"            (1)---(0)-4-(0)---(1)",                                 "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)---(0)-4-(1)---(0)",                                 "1"}, // vertex figure not simplex
+          {"            (0)---(1)-4-(0)---(1)",                                 "1"},  // vertex figure not simplex
+          {"            (1)---(1)-4-(1)---(0)",                                 "1,3"},
+          {"            (1)---(1)-4-(0)---(1)",                                 "1"}, // vertex figure not simplex
+          {"            (1)---(0)-4-(1)---(1)",                                 "1"}, // vertex figure not simplex
+          {"            (0)---(1)-4-(1)---(1)",                                 "1,3"},
+          {"            (1)---(1)-4-(1)---(1) Omnitruncated 24-cell",           "1,3"},
+          {"        120-cell/600-cell based"},
+          {"            (1)-5-(0)---(0)---(0) 120-cell (hypermegaminx)",        "1,3(2.5),3"},
+          {"            (1)-5-(.5)---(0)---(0) Barely truncated 120-cell",    "1,3"},
+          {"            (1)-5-(1)---(0)---(0) Truncated 120-cell",             "1,3(5.0)"},
+          {"            (0)-5-(1)---(0)---(0) Rectified 120/600-cell (icosadodecas and tets)",           "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(1)---(0) Bitruncated 120-cell (truncated icosas and truncated tets)", "1,3"},
+          {"            (0)-5-(0)---(1)---(0) Rectified 600-cell (icosas and octas)",            "1"}, // vertex figure not simplex
+          {"            (0)-5-(0)---(1)---(1) Truncated 600-cell",              "1,3"},
+          {"            (0)-5-(0)---(.5)---(1) Barely truncated 600-cell",      "1,3"},
+          {"            (0)-5-(0)---(0)---(1) 600-cell",                        "1,3"},
+          {"            (1)-5-(0)---(0)---(1) Runcinated 120/600-cell",                                 "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)-5-(0)---(1)---(0) Cantellated 120-cell",            "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(0)---(1) Cantellated 600-cell",            "1"},  // vertex figure not simplex
+          {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1,3"},
+          {"            (1)-5-(1)---(0)---(1) Runcitruncated 120-cell",         "1"}, // vertex figure not simplex
+          {"            (1)-5-(0)---(1)---(1) Runcitruncated 600-cell",         "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(1)---(1) Cantitruncated 600-cell",         "1,3"},
+          {"            (1)-5-(1)---(1)---(1) Omnitruncated 120-cell/600-cell", "1,3"},
+          {"    4d uniform anomolous"},
+          {"        Grand Antiprism", "1"}, // XXX not supported yet
+          {"    2d x 2d  products"},
+          {"        {3}x{4} Triangular prism prism",            "1,3(4.0),5(7.0),7(10.0)"},
+          {"        {4}x{4} Hypercube",                         "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
+          {"        {5}x{4} Pentagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
+          {"        {4}x{5} Pentagonal prism prism (alt)",      "1,2,3(2.5),3,4,5,6,7"},
+          {"        {6}x{4} Hexagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
+          {"        {7}x{4} Heptagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
+          {"        {8}x{4} Octagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
+          {"        {9}x{4} Nonagonal prism prism",             "1,2,3(2.5),3,4,5,6,7"},
+          {"        {10}x{4} Decagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
+          {"        {50}x{4} Fiftyagonal prism prism",          "1,3"},
+          {"        {100}x{4} Onehundredagonal prism prism",    "1,3"},
+          {"        {3}x{3}",                                   "1,2,3(4.0),4,5,6,7"},
+          {"        {3}x{5}",                                   "1,2,3(2.5),3(4.0),4,5,6,7"},
+          {"        {5}x{5}",                                   "1,2,3(2.5),3,4,5,6,7"}, // XXX 2 is ugly, has slivers
+          {"        {5}x{10}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
+          {"        {10}x{5}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
+          {"        {10}x{10}",                                 "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
+          {"    3d regular x 1d  hyperprisms"},
+          {"        {3,3}x{} Tetrahedral prism",                "1,2,3(5.0),5(9.0),7(13.0)"},
+          {"        {4,3}x{} Hypercube",                        "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
+          {"        {5,3}x{} Dodecahedral prism",               "1,2,3(2.5),3,4,5,6,7"},
+          {"        {}x{5,3} Dodecahedral prism (alt)",         "1,2,3(2.5),3,4,5,6,7"},
+          {"    3d wythoff x 1d  hyperprisms"},
+          {"        Tetrahedron based"},
+          {"            (1)---(0)---(0)x{} Tetrahedral prism",                  "1,3"},
+          {"            (1)---(1)---(0)x{} Truncated-tetrahedron prism",        "1,3"},
+          {"            (0)---(1)---(0)x{} Octahedral prism",                   "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(1)x{} Truncated-tetrahedron(dual) prism",  "1,3"},
+          {"            (0)---(0)---(1)x{} Tetrahedral(dual) prism",            "1,3"},
+          {"            (1)---(0)---(1)x{} Cantellated-tetrahedral prism",       "1"}, // vertex figure not simplex
+          {"            (1)---(1)---(1)x{} Omnitruncated-tetrahedron prism",    "1,3"}, 
+          {"        Cube/Octahedron based"},
+          {"            (1)-4-(0)---(0)x{} Cube prism (hypercube)",             "1,3"},
+          {"            (1)-4-(1)---(0)x{} Truncated-cube prism",               "1,3"},
+          {"            (0)-4-(1)---(0)x{} Cuboctahedral prism",                "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(1)x{} Truncated-octahedron prism",         "1,3"},
+          {"            (0)-4-(0)---(1)x{} Octahedral prism",                   "1"}, // vertex figure not simplex
+          {"            (1)-4-(0)---(1)x{} Cantellated-cuboctahedral prism",    "1"}, // vertex figure not simplex
+          {"            (1)-4-(1)---(1)x{} Omnitruncated-cube prism",           "1,3"},
+          {"        Dodecahedron/Icosahedron based"},
+          {"            (1)-5-(0)---(0)x{} Dodecahedral prism",                 "1,3"},
+          {"            (1)-5-(1)---(0)x{} Truncated-dodecahedron prism",       "1,3"},
+          {"            (0)-5-(1)---(0)x{} Icosadodecahedral prism",            "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(1)x{} Truncated-icosahedron (soccer ball) prism",        "1,3"},
+          {"            (0)-5-(0)---(1)x{} Icosahedral prism",                  "1"}, // vertex figure not simplex
+          {"            (1)-5-(0)---(1)x{} Cantellated-icosadodecahedral prism","1"}, // vertex figure not simplex
+          {"            (1)-5-(1)---(1)x{} Omnitruncated-dodecahedron prism",   "1,3"},
+          {"Other 5d puzzles"},
+          {"    {3,3,3,3} Simplex",        "1,2,3,4,5"},
+          {"    {4,3,3,3} Hypercube",      "1,2,3,4,5"},
+          {"    {3,3,3,4} Cross",          "1"}, // vertex figure not simplex
+          {"Other 6d puzzles"},
+          {"    {3,3,3,3,3} Simplex",      "1,2,3"},
+          {"    {4,3,3,3,3} Hypercube",    "1,2,3"},
+          {"    {3,3,3,3,4} Cross",        "1"}, // vertex figure not simplex
+          //{"-"}, // separator
+          //{"Invent my own!",}, // XXX currently done by the older code down below-- need to port and get rid of that
+        }; // menuScheme
 
-            {"-"},
-
-            {"(1)-5-(0)---(0)x{}",     "1,3",         "Dodecahedral prism"},
-            {"(1)-5-(1)---(0)x{}",     "1,3",         "Truncated-dodecahedron prism"},
-            //{"(0)-5-(1)---(0)x{}",     "1,3",         "Icosadodecahedral prism"}, // vertex figure not simplex
-            {"(0)-5-(1)---(1)x{}",     "1,3",         "Truncated-icosahedron (soccerball) prism"},
-            //{"(0)-5-(0)---(1)x{}",     "1,3",         "Icosahedral prism"}, // vertex figure not simplex
-            //{"(1)-5-(0)---(1)x{}",     "1,3",         "Somethingicated-icosadodecahedral prism"}, // vertex figure not simplex
-            {"(1)-5-(1)---(1)x{}",     "1,3",         "Omnitruncated-dodecahedron prism"},
-
-            {"-"},
-            {"(1)---(0)---(0)---(0)",  "1,3,3(9.0)",  "Simplex"},
-            {"(1)---(.25)---(0)---(0)",  "1,3,3(9.0)",  "Barely truncated simplex"},
-            {"(1)---(1)---(0)---(0)",  "1,3,3(9.0)",  "Truncated simplex"},
-            {"(0)---(1)---(0)---(0)",  "1,3,3(9.0)",  " (octas and tets)"}, // vertex figure not simplex
-            {"(0)---(1)---(1)---(0)",  "1,3,3(9.0)",  " (truncated tets)"},
-            {"(0)---(0)---(1)---(0)",  "1,3,3(9.0)",  " (tets and octas)"}, // vertex figure not simplex
-            {"(0)---(0)---(1)---(1)",  "1,3,3(9.0)",  "Truncated simplex (dual)"},
-            {"(0)---(0)---(.25)---(1)",  "1,3,3(9.0)",  "Barely truncated simplex (dual)"},
-            {"(0)---(0)---(0)---(1)",  "1,3,3(9.0)",  "Simplex (dual)"},
-
-            // XXX figure out which not simplex in the following
-            //{"(1)---(0)---(1)---(0)",  "1,3,3(9.0)",  ""}, // vertex figure not regular
-            {"(0)---(1)---(0)---(1)",  "1,3,3(9.0)",  ""},
-            //{"(1)---(0)---(0)---(1)",  "1,3,3(9.0)",  " (tets and triprisms)"}, // vertex figure not regular-- it's an octahedron
-            {"(1)---(1)---(1)---(0)",  "1,3,3(9.0)",  ""},
-            //{"(1)---(1)---(0)---(1)",  "1,3,3(9.0)",  ""}, // vertex figure not regular
-            //{"(1)---(0)---(1)---(1)",  "1,3,3(9.0)",  ""}, // vertex figure not regular
-            {"(0)---(1)---(1)---(1)",  "1,3,3(9.0)",  ""},
-            {"(1)---(1)---(1)---(1)",  "1,3,3(9.0)",  "Omnitruncated simplex"},
-            {"-"},
-
-            {"(1)-4-(0)---(0)---(0)",  "1,3",         "Hypercube"},
-            {"(1)-4-(1)---(0)---(0)",  "1,3",         "Truncated hypercube"},
-            //{"(0)-4-(1)---(0)---(0)",  "1,3",         " (cuboctas and tets)"}, // vertex figure not simplex
-            {"(0)-4-(1)---(1)---(0)",  "1,3",         "(truncated octas and truncated tets)"},
-            //{"(0)-4-(0)---(1)---(0)",  "1,3",         " (octas and tets)"}, // vertex figure not simplex
-            {"(0)-4-(0)---(1)---(1)",  "1,3",         "Truncated 16-cell"},
-            //{"(0)-4-(0)---(0)---(1)",  "1,3",         "16-cell"}, // vertex figure not simplex
-
-            //{"(1)-4-(0)---(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
-            //{"(0)-4-(1)---(0)---(1)",  "1,3",         " (cuboctas and cubes)"}, // vertex figure not simplex
-            //{"(1)-4-(0)---(0)---(1)",  "1,3",         ""}, // vertex figure not simplex, it's an octahedron! so all cells look okay
-            {"(1)-4-(1)---(1)---(0)",  "1,3",         ""},
-            //{"(1)-4-(1)---(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
-            //{"(1)-4-(0)---(1)---(1)",  "1,3",         ""}, // vertex figure not simplex
-            {"(0)-4-(1)---(1)---(1)",  "1,3",         " (truncated octas and cubes)"},
-            {"(1)-4-(1)---(1)---(1)",  "1,3",         "Omnitruncated hypercube"},
-            {"-"},
-
-
-            //{"(1)---(0)-4-(0)---(0)",  "1,3",         "24-cell"}, // vertex figure not simplex
-            {"(1)---(1)-4-(0)---(0)",  "1,3",         "Truncated 24-cell"},
-            //{"(0)---(1)-4-(0)---(0)",  "1,3",         ""}, // vertex figure not simplex
-            {"(0)---(1)-4-(1)---(0)",  "1,3",         " (truncated cubes)"},
-            //{"(0)---(0)-4-(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
-            {"(0)---(0)-4-(1)---(1)",  "1,3",         "Truncated 24-cell(dual)"},
-            //{"(0)---(0)-4-(0)---(1)",  "1,3",         "24-cell(dual)"}, // vertex figure not simplex
-
-            //{"(1)---(0)-4-(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
-            //{"(0)---(1)-4-(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
-            //{"(1)---(0)-4-(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
-            {"(1)---(1)-4-(1)---(0)",  "1,3",         ""},
-            //{"(1)---(1)-4-(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
-            //{"(1)---(0)-4-(1)---(1)",  "1,3",         ""}, // vertex figure not simplex
-            {"(0)---(1)-4-(1)---(1)",  "1,3",         ""},
-            {"(1)---(1)-4-(1)---(1)",  "1,3",         "Omnitruncated 24-cell"},
-            {"-"},
-            {"(1)-5-(0)---(0)---(0)",  "1,3",         "120-cell"},
-            {"(1)-5-(1)---(0)---(0)",  "1,3",         "Truncated 120-cell"},
-            //{"(0)-5-(1)---(0)---(0)",  "1,3",         ""}, // vertex figure not simplex
-            {"(0)-5-(1)---(1)---(0)",  "1,3",         " (truncated tets and truncated icosas)"},
-            //{"(0)-5-(0)---(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
-            {"(0)-5-(0)---(1)---(1)",  "1,3",         "Truncated 600-cell"},
-            //{"(0)-5-(0)---(0)---(1)",  "1,3",         "600-cell"}, // vertex figure not simplex
-
-            //{"(1)-5-(0)---(1)---(0)",  "1,3",         ""}, // vertex figure not simplex
-            //{"(0)-5-(1)---(0)---(1)",  "1,3",         ""}, // vertex figure not simplex
-            {"(1)-5-(0)---(0)---(1)",  "1,3",         ""},
-            {"(1)-5-(1)---(1)---(0)",  "1,3",         ""},
-            {"(1)-5-(1)---(0)---(1)",  "1,3",         ""},
-            //{"(1)-5-(0)---(1)---(1)",  "1,3",         ""}, // vertex figure not simplex
-            {"(0)-5-(1)---(1)---(1)",  "1,3",         ""},
-            {"(1)-5-(1)---(1)---(1)",  "1,3",         "Omnitruncated 120-cell"},
-            {"-"},
-
-            {null,       "",                  "Invent my own!"},
-        };
-        for (int i = 0; i < table.length; ++i)
+        java.util.Stack menuStack = new java.util.Stack();
+        menuStack.push(puzzlemenu);
+        for (int i = 0; i < menuScheme.length; ++i)
         {
-            if (table[i][0] != null && table[i][0].equals("-"))
+            Assert(menuScheme[i].length <= 2);
+            String item0 = menuScheme[i][0];
+            String item1 = (menuScheme[i].length==1 ? null : menuScheme[i][1]);
+
+            String item0Trimmed = item0.trim();
+            int nLeadingSpaces = item0.length() - item0Trimmed.length();
+            Assert(nLeadingSpaces % 4 == 0);
+            int depth = nLeadingSpaces/4 + 1; // our whole scheme is at depth 1 already
+            item0 = item0.substring(nLeadingSpaces);
+
+            //System.out.println("item0 = "+item0);
+            //System.out.println("    depth = "+depth);
+            //System.out.println("    menuStack.size() = "+menuStack.size());
+            while (depth < menuStack.size())
             {
-                puzzlemenu.add(new MenuItem("-")); // separator
-                continue;
+                //System.out.println("    popping");
+                menuStack.pop();
             }
-
-            final String schlafli = table[i][0];
-            String lengthStrings[] = table[i][1].split(",");
-            final String name = (schlafli==null ? table[i][2] :
-                                 schlafli + "  " + table[i][2]);
-
-            // Puzzles with triangles kind of suck so far,
-            // so we might want to leave them out of the menu...
-            boolean allowPuzzlesWithTriangles = true;
-            //boolean allowPuzzlesWithTriangles = false;
-            if (!allowPuzzlesWithTriangles)
+            Assert(depth == menuStack.size());
+            if (item0.equals("-"))
             {
-                if (schlafli != null && schlafli.indexOf("{3") != -1)
-                    continue;
-            }
-
-            Menu submenu;
-            if (schlafli != null)
-            {
-                submenu = new Menu(name+"    "); // XXX padding so the > doesn't clobber the end of the longest names!? lame
-                puzzlemenu.add(submenu);
+                ((Menu)menuStack.peek()).add(new MenuItem("-")); // separator
             }
             else
-                submenu = puzzlemenu;
-            final String finalSchlafli = schlafli;
-            final String finalName = name;
-            for (int j = 0; j < lengthStrings.length; ++j)
             {
-                final String lengthString = lengthStrings[j];
-                final String finalLengthString = lengthString;
-                submenu.add(new MenuItem(schlafli==null ? name : ""+lengthString)).addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent ae)
+                Menu submenu = new Menu(item0+"    "); // padding so the > doesn't clobber the end of the longest names!? lame
+                ((Menu)menuStack.peek()).add(submenu);
+                //System.out.println("    pushing");
+                menuStack.push(submenu);
+                if (item1 != null)
+                {
+                    final String finalName = item0; // including the schlafli symbol
+                    final String finalSchlafli = (item0.equalsIgnoreCase("Grand Antiprism") ? item0 : item0.split(" ")[0]);
+                    String lengthStrings[] = item1.split(",");
+                    for (int j = 0; j < lengthStrings.length; ++j)
                     {
-                        String schlafli = finalSchlafli;
-                        String lengthString = finalLengthString;
-                        String name = finalName;
-                        if (schlafli == null)
-                        {
-                            String prompt = "Enter your invention:";
-                            String initialInput = "{4,3,3} 3";
-
-                            while (true)
+                        final String finalLengthString = lengthStrings[j];
+                        submenu.add(new MenuItem(finalLengthString)).addActionListener(new ActionListener() {
+                            public void actionPerformed(ActionEvent ae)
                             {
-                                String reply = JOptionPane.showInputDialog(prompt, initialInput);
-                                if (reply == null)
+                                String name = finalName;
+                                String schlafli = finalSchlafli;
+                                String lengthString = finalLengthString;
+
+                                //System.out.println("    name = "+name);
+                                //System.out.println("    schlafli = "+schlafli);
+                                //System.out.println("    lengthString = "+lengthString);
+
+                                if (schlafli == null)
                                 {
+                                    String prompt = "Enter your invention:";
+                                    String initialInput = "{4,3,3} 3";
+
+                                    while (true)
+                                    {
+                                        String reply = JOptionPane.showInputDialog(prompt, initialInput);
+                                        if (reply == null)
+                                        {
+                                            initPuzzleCallback.call(); // XXX really just want a repaint I think
+                                            return; // cancelled
+                                        }
+                                        String schlafliAndLength[] = reply.trim().split("\\s+");
+                                        if (schlafliAndLength.length != 2)
+                                        {
+                                            prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again!";
+                                            initialInput = reply;
+                                            continue;
+                                        }
+                                        schlafli = schlafliAndLength[0];
+                                        lengthString = schlafliAndLength[1];
+                                        name = "My own invention!  "+schlafli;
+                                        break; // got it
+                                    }
+                                }
+                                int intLength = 0;
+                                double doubleLength = 0.;
+                                {
+                                    lengthString = lengthString.trim();
+
+                                    try {
+                                        //System.out.println("lengthString = "+lengthString);
+                                        if (lengthString.length() >= 4
+                                         && lengthString.charAt(1) == '(' // XXX assumes intLength < 9
+                                         && lengthString.endsWith(")"))
+                                        {
+                                            String intPart = lengthString.substring(0,1);
+                                            String doublePart = lengthString.substring(2, lengthString.length()-1);
+                                            //System.out.println("intPart = "+intPart);
+                                            //System.out.println("doublePart = "+doublePart);
+
+                                            intLength = Integer.parseInt(intPart);
+                                            doubleLength = Double.parseDouble(doublePart);
+                                        }
+                                        else
+                                        {
+                                            doubleLength = Double.parseDouble(lengthString);
+                                            intLength = (int)Math.ceil(doubleLength);
+                                        }
+                                    }
+                                    catch (java.lang.NumberFormatException e)
+                                    {
+                                        System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
+                                        initPuzzleCallback.call(); // XXX really just want a repaint I think
+                                        return;
+                                    }
+                                    //System.out.println("intLength = "+intLength);
+                                    //System.out.println("doubleLength = "+doubleLength);
+                                }
+
+                                GenericPuzzleDescription newPuzzle = null;
+                                try
+                                {
+                                    newPuzzle = new PolytopePuzzleDescription(schlafli, intLength, doubleLength, progressWriter);
+                                }
+                                catch (Throwable t)
+                                {
+                                    //t.printStacktrace();
+                                    String explanation = t.toString();
+                                    // yes, this is lame... AND the user
+                                    // can't even cut and paste it to mail it to me
+                                    if (explanation.equals("java.lang.Error: Assertion failed"))
+                                    {
+                                        java.io.StringWriter sw = new java.io.StringWriter();
+                                        t.printStackTrace(new java.io.PrintWriter(sw));
+                                        explanation = "\n" + sw.toString();
+                                    }
+                                    JOptionPane.showMessageDialog(null,
+                                        "Something went horribly wrong when trying to build your invention \""+schlafli+"  "+lengthString+"\":\n"+explanation,
+                                        "Your Invention Sucks",
+                                        JOptionPane.ERROR_MESSAGE);
+                                    return;
+                                }
+
+                                int nDims = newPuzzle.nDims();
+                                if (nDims != 4)
+                                {
+                                    JOptionPane.showMessageDialog(null,
+                                        "Re: Your invention \""+schlafli+"  "+lengthString+"\"\n"+
+                                        "\n"+
+                                        "That is a truly BRILLIANT "+nDims+"-dimensional invention.\n"+
+                                        "It has:\n"+
+                                        "        "+newPuzzle.nFaces()+" faces\n"+
+                                        "        "+newPuzzle.nStickers()+" stickers\n"+
+                                        "        "+newPuzzle.nCubies()+" visible cubie"+(newPuzzle.nCubies()==1?"":"s")+"\n"+
+                                        "        "+newPuzzle.nVerts()+" sticker vertices\n"+
+                                        "However, we are only accepting 4-dimensional inventions at this time.",
+                                        "Invention Rejection Form Letter",
+                                        JOptionPane.ERROR_MESSAGE);
+                                    // XXX Lame, should try to get back in the loop and prompt again instead
+                                    return;
+                                }
+                                genericPuzzleDescription = newPuzzle;
+                                genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+
+                                undoq.setSize(0);
+                                undoPartSize = 0;
+
+                                // PropertyManager.userprefs.setProperty("genericSchlafli", schlafli); // XXX not yet
+                                // PropertyManager.userprefs.setProperty("genericLength", ""+len); // XXX not yet
+                                initPuzzleCallback.call(); // really just want a repaint I think
+                                String statuslabel = name + "  length="+lengthString;
+                                statusLabel.setText(statuslabel); // XXX BUG - hey, it's not set right on program startup!
+
+                                untwistedFrame = new GenericPipelineUtils.Frame();
+                                twistingFrame = new GenericPipelineUtils.Frame();
+                                    { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
+                            }
+                        });
+                    }
+                }
+            }
+        } // for each pair in menuScheme
+
+
+
+        if (true)
+        {
+            // XXX left over from previous implementation of the table...
+            // XXX need to port the "invent my own" item and get rid of this!
+            String table[][] = {
+                {null,       "",                  "Invent my own!"},
+            };
+            for (int i = 0; i < table.length; ++i)
+            {
+                if (table[i][0] != null && table[i][0].equals("-"))
+                {
+                    puzzlemenu.add(new MenuItem("-")); // separator
+                    continue;
+                }
+
+                final String schlafli = table[i][0];
+                String lengthStrings[] = table[i][1].split(",");
+                final String name = (schlafli==null ? table[i][2] :
+                                     schlafli + "  " + table[i][2]);
+
+                // Puzzles with triangles kind of suck so far,
+                // so we might want to leave them out of the menu...
+                boolean allowPuzzlesWithTriangles = true;
+                //boolean allowPuzzlesWithTriangles = false;
+                if (!allowPuzzlesWithTriangles)
+                {
+                    if (schlafli != null && schlafli.indexOf("{3") != -1)
+                        continue;
+                }
+
+                Menu submenu;
+                if (schlafli != null)
+                {
+                    submenu = new Menu(name+"    "); // XXX padding so the > doesn't clobber the end of the longest names!? lame
+                    puzzlemenu.add(submenu);
+                }
+                else
+                    submenu = puzzlemenu;
+                final String finalSchlafli = schlafli;
+                final String finalName = name;
+                for (int j = 0; j < lengthStrings.length; ++j)
+                {
+                    final String lengthString = lengthStrings[j];
+                    final String finalLengthString = lengthString;
+                    submenu.add(new MenuItem(schlafli==null ? name : ""+lengthString)).addActionListener(new ActionListener() {
+                        public void actionPerformed(ActionEvent ae)
+                        {
+                            String schlafli = finalSchlafli;
+                            String lengthString = finalLengthString;
+                            String name = finalName;
+                            if (schlafli == null)
+                            {
+                                String prompt = "Enter your invention:";
+                                String initialInput = "{4,3,3} 3";
+
+                                while (true)
+                                {
+                                    String reply = JOptionPane.showInputDialog(prompt, initialInput);
+                                    if (reply == null)
+                                    {
+                                        initPuzzleCallback.call(); // XXX really just want a repaint I think
+                                        return; // cancelled
+                                    }
+                                    String schlafliAndLength[] = reply.trim().split("\\s+");
+                                    if (schlafliAndLength.length != 2)
+                                    {
+                                        prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again!";
+                                        initialInput = reply;
+                                        continue;
+                                    }
+                                    schlafli = schlafliAndLength[0];
+                                    lengthString = schlafliAndLength[1];
+                                    name = "My own invention!  "+schlafli;
+                                    break; // got it
+                                }
+                            }
+                            int intLength = 0;
+                            double doubleLength = 0.;
+                            {
+                                lengthString = lengthString.trim();
+
+                                try {
+                                    System.out.println("lengthString = "+lengthString);
+                                    if (lengthString.length() >= 4
+                                     && lengthString.charAt(1) == '(' // XXX assumes intLength < 9
+                                     && lengthString.endsWith(")"))
+                                    {
+                                        String intPart = lengthString.substring(0,1);
+                                        String doublePart = lengthString.substring(2, lengthString.length()-1);
+                                        //System.out.println("intPart = "+intPart);
+                                        //System.out.println("doublePart = "+doublePart);
+
+                                        intLength = Integer.parseInt(intPart);
+                                        doubleLength = Double.parseDouble(doublePart);
+                                    }
+                                    else
+                                    {
+                                        doubleLength = Double.parseDouble(lengthString);
+                                        intLength = (int)Math.ceil(doubleLength);
+                                    }
+                                }
+                                catch (java.lang.NumberFormatException e)
+                                {
+                                    System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
                                     initPuzzleCallback.call(); // XXX really just want a repaint I think
-                                    return; // cancelled
+                                    return;
                                 }
-                                String schlafliAndLength[] = reply.trim().split("\\s+");
-                                if (schlafliAndLength.length != 2)
-                                {
-                                    prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again!";
-                                    initialInput = reply;
-                                    continue;
-                                }
-                                schlafli = schlafliAndLength[0];
-                                lengthString = schlafliAndLength[1];
-                                name = "My own invention!  "+schlafli;
-                                break; // got it
+                                //System.out.println("intLength = "+intLength);
+                                //System.out.println("doubleLength = "+doubleLength);
                             }
-                        }
-                        int intLength = 0;
-                        double doubleLength = 0.;
-                        {
-                            lengthString = lengthString.trim();
 
-                            try {
-                                System.out.println("lengthString = "+lengthString);
-                                if (lengthString.length() >= 4
-                                 && lengthString.charAt(1) == '(' // XXX assumes intLength < 9
-                                 && lengthString.endsWith(")"))
-                                {
-                                    String intPart = lengthString.substring(0,1);
-                                    String doublePart = lengthString.substring(2, lengthString.length()-1);
-                                    //System.out.println("intPart = "+intPart);
-                                    //System.out.println("doublePart = "+doublePart);
-
-                                    intLength = Integer.parseInt(intPart);
-                                    doubleLength = Double.parseDouble(doublePart);
-                                }
-                                else
-                                {
-                                    doubleLength = Double.parseDouble(lengthString);
-                                    intLength = (int)Math.ceil(doubleLength);
-                                }
-                            }
-                            catch (java.lang.NumberFormatException e)
+                            GenericPuzzleDescription newPuzzle = null;
+                            try
                             {
-                                System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
-                                initPuzzleCallback.call(); // XXX really just want a repaint I think
+                                newPuzzle = new PolytopePuzzleDescription(schlafli, intLength, doubleLength, progressWriter);
+                            }
+                            catch (Throwable t)
+                            {
+                                //t.printStacktrace();
+                                String explanation = t.toString();
+                                // yes, this is lame... AND the user
+                                // can't even cut and paste it to mail it to me
+                                if (explanation.equals("java.lang.Error: Assertion failed"))
+                                {
+                                    java.io.StringWriter sw = new java.io.StringWriter();
+                                    t.printStackTrace(new java.io.PrintWriter(sw));
+                                    explanation = "\n" + sw.toString();
+                                }
+                                JOptionPane.showMessageDialog(null,
+                                    "Something went horribly wrong when trying to build your invention \""+schlafli+"  "+lengthString+"\":\n"+explanation,
+                                    "Your Invention Sucks",
+                                    JOptionPane.ERROR_MESSAGE);
                                 return;
                             }
-                            //System.out.println("intLength = "+intLength);
-                            //System.out.println("doubleLength = "+doubleLength);
-                        }
 
-                        GenericPuzzleDescription newPuzzle = null;
-                        try
-                        {
-                            newPuzzle = new PolytopePuzzleDescription(schlafli, intLength, doubleLength, progressWriter);
-                        }
-                        catch (Throwable t)
-                        {
-                            //t.printStacktrace();
-                            String explanation = t.toString();
-                            // yes, this is lame... AND the user
-                            // can't even cut and paste it to mail it to me
-                            if (explanation.equals("java.lang.Error: Assertion failed"))
+                            int nDims = newPuzzle.nDims();
+                            if (nDims != 4)
                             {
-                                java.io.StringWriter sw = new java.io.StringWriter();
-                                t.printStackTrace(new java.io.PrintWriter(sw));
-                                explanation = "\n" + sw.toString();
+                                JOptionPane.showMessageDialog(null,
+                                    "Re: Your invention \""+schlafli+"  "+lengthString+"\"\n"+
+                                    "\n"+
+                                    "That is a truly BRILLIANT "+nDims+"-dimensional invention.\n"+
+                                    "It has:\n"+
+                                    "        "+newPuzzle.nFaces()+" faces\n"+
+                                    "        "+newPuzzle.nStickers()+" stickers\n"+
+                                    "        "+newPuzzle.nCubies()+" visible cubie"+(newPuzzle.nCubies()==1?"":"s")+"\n"+
+                                    "        "+newPuzzle.nVerts()+" sticker vertices\n"+
+                                    "However, we are only accepting 4-dimensional inventions at this time.",
+                                    "Invention Rejection Form Letter",
+                                    JOptionPane.ERROR_MESSAGE);
+                                // XXX Lame, should try to get back in the loop and prompt again instead
+                                return;
                             }
-                            JOptionPane.showMessageDialog(null,
-                                "Something went very wrong when trying to build your invention \""+schlafli+"  "+lengthString+"\":\n"+explanation,
-                                "Your Invention Sucks",
-                                JOptionPane.ERROR_MESSAGE);
-                            return;
+                            genericPuzzleDescription = newPuzzle;
+                            genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+
+                            undoq.setSize(0);
+                            undoPartSize = 0;
+
+                            // PropertyManager.userprefs.setProperty("genericSchlafli", schlafli); // XXX not yet
+                            // PropertyManager.userprefs.setProperty("genericLength", ""+len); // XXX not yet
+                            initPuzzleCallback.call(); // really just want a repaint I think
+                            String statuslabel = name + "  length="+lengthString;
+                            statusLabel.setText(statuslabel); // XXX BUG - hey, it's not set right on program startup!
+
+                            untwistedFrame = new GenericPipelineUtils.Frame();
+                            twistingFrame = new GenericPipelineUtils.Frame();
+                                { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
                         }
-
-                        int nDims = newPuzzle.nDims();
-                        if (nDims != 4)
-                        {
-                            JOptionPane.showMessageDialog(null,
-                                "Re: Your invention \""+schlafli+"  "+lengthString+"\"\n"+
-                                "\n"+
-                                "That is a truly BRILLIANT "+nDims+"-dimensional invention.\n"+
-                                "It has:\n"+
-                                "        "+newPuzzle.nFaces()+" faces\n"+
-                                "        "+newPuzzle.nStickers()+" stickers\n"+
-                                "        "+newPuzzle.nCubies()+" visible cubie"+(newPuzzle.nCubies()==1?"":"s")+"\n"+
-                                "        "+newPuzzle.nVerts()+" sticker vertices\n"+
-                                "However, we are only accepting 4-dimensional inventions at this time.",
-                                "Invention Rejection Form Letter",
-                                JOptionPane.ERROR_MESSAGE);
-                            // XXX Lame, should try to get back in the loop and prompt again instead
-                            return;
-                        }
-                        genericPuzzleDescription = newPuzzle;
-                        genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
-
-                        undoq.setSize(0);
-                        undoPartSize = 0;
-
-                        // PropertyManager.userprefs.setProperty("genericSchlafli", schlafli); // XXX not yet
-                        // PropertyManager.userprefs.setProperty("genericLength", ""+len); // XXX not yet
-                        initPuzzleCallback.call(); // really just want a repaint I think
-                        String statuslabel = name + "  length="+lengthString;
-                        statusLabel.setText(statuslabel); // XXX BUG - hey, it's not set right on program startup!
-
-                        untwistedFrame = new GenericPipelineUtils.Frame();
-                        twistingFrame = new GenericPipelineUtils.Frame();
-                            { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
-                    }
-                });
+                    });
+                }
             }
         }
         if (verboseLevel >= 1) System.out.println("out GenericGlue.addMoreItemsToPuzzleMenu");
@@ -577,6 +833,7 @@ public class GenericGlue
             int order = glue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order;
             glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            if (glue.nTwist == 0) glue.nTwist = 1;
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
             glue.twistDir = -node.dir;
@@ -610,6 +867,7 @@ public class GenericGlue
             int order = glue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order;
             glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            if (glue.nTwist == 0) glue.nTwist = 1;
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
             glue.twistDir = node.dir;
@@ -813,6 +1071,7 @@ public class GenericGlue
 
                 double totalRotationAngle = 2*Math.PI/order;
                 genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = iGrip;
                 genericGlue.twistDir = dir;
@@ -1072,6 +1331,7 @@ public class GenericGlue
                 int order = genericGlue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
                 double totalRotationAngle = 2*Math.PI/order;
                 genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = node.iGrip;
                 genericGlue.twistDir = -node.dir;
