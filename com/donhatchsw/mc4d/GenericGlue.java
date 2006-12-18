@@ -1019,8 +1019,8 @@ public class GenericGlue
                     // In less-than-4d puzzles,
                     // if the projection is flattened
                     // and they clicked on the center sticker,
-                    // un-flatten it such a direction
-                    // that it appears they are pushing
+                    // un-flatten it in such a direction
+                    // that it appears that the user is pushing
                     // on the polygon they clicked on.
                     //
                     if (com.donhatchsw.util.VecMath.distsqrd(genericGlue.rotationFrom, genericGlue.rotationTo) <= 1e-4*1e-4)
@@ -1031,15 +1031,15 @@ public class GenericGlue
                              genericGlue.genericPuzzleDescription);
                         Assert(polyAndStickerCenter != null); // hit once, should hit again
                         float polyCenter[] = polyAndStickerCenter[0];
+
+                        // Only interested in the w component
+                        // (and the z component if the puzzle is 2d).
+                        // So zero out the first nDims dimensions...
+                        polyCenter = com.donhatchsw.util.VecMath.copyvec(polyCenter);
+                        com.donhatchsw.util.VecMath.zerovec(genericGlue.genericPuzzleDescription.nDims(),
+                                                            polyCenter);
                         float polyCenterOnScreen[] = com.donhatchsw.util.VecMath.vxm(polyCenter, viewMat4d);
-                        com.donhatchsw.util.VecMath.normalize(polyCenterOnScreen, polyCenterOnScreen);
-
-                        //System.out.println("nicePoint = "+com.donhatchsw.util.VecMath.toString(nicePoint));
-                        //System.out.println("polyCenter = "+com.donhatchsw.util.VecMath.toString(polyCenter));
-                        //System.out.println("polyCenterOnScreen = "+com.donhatchsw.util.VecMath.toString(polyCenterOnScreen));
-                        //System.out.println();
-
-                        genericGlue.rotationFrom = com.donhatchsw.util.VecMath.vmv(polyCenterOnScreen, minusWAxis);
+                        genericGlue.rotationFrom = polyCenterOnScreen;
                         com.donhatchsw.util.VecMath.normalize(genericGlue.rotationFrom, genericGlue.rotationFrom);
                     }
                 }
@@ -1096,10 +1096,49 @@ public class GenericGlue
                     return;
                 }
 
-              int dir = (isLeftMouseButton(e) || isMiddleMouseButton(e)) ? MagicCube.CCW : MagicCube.CW;
+                int dir = (isLeftMouseButton(e) || isMiddleMouseButton(e)) ? MagicCube.CCW : MagicCube.CW;
 
                 //if(e.isShiftDown()) // experimental control to allow double twists but also requires speed control.
                 //    dir *= 2;
+
+                if (genericGlue.genericPuzzleDescription.nDims() < 4)
+                {
+                    //
+                    // In less-than-4d puzzles,
+                    // we need to check which side of the sticker
+                    // the click is on... if it's on the "inside" of the puzzle
+                    // (which may currently look to the user like it's outside)
+                    // then we need to reverse the direction of the twist.
+                    //
+                    float polyAndStickerCenter[][] = GenericPipelineUtils.pickPolyAndStickerCenter(
+                         e.getX(), e.getY(),
+                         genericGlue.untwistedFrame,
+                         genericGlue.genericPuzzleDescription);
+                    Assert(polyAndStickerCenter != null); // hit once, should hit again
+                    float polyCenter[] = polyAndStickerCenter[0];
+                    for (int iDim = genericGlue.genericPuzzleDescription.nDims(); iDim < 4; ++iDim)
+                    {
+                        if (polyCenter[iDim] < -1e-6)
+                            dir *= -1;
+                        else if (polyCenter[iDim] > 1e-6)
+                            dir *= 1;
+                        else
+                        {
+                            //
+                            // They clicked on a sticker edge!
+                            // (or its 2d, in which case we always get here).
+                            // Should do the cute turn-inside-out thing
+                            // in the appropriate direction.
+                            // for now, just pretend they clicked on the outside.
+                            // Also need a way to express the rotation
+                            // that's currently happening,
+                            // for the incremental frame calculation later.
+                            //
+                            System.out.println("you clicked on a sticker edge (axis="+iDim+")! oh my! what shall we do?");
+                            return;
+                        }
+                    }
+                }
 
                 double totalRotationAngle = 2*Math.PI/order;
                 genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
