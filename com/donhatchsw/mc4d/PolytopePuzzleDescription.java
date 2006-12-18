@@ -98,6 +98,8 @@
           pentprismprism to hypercube)
         - try to change the puzzle type while it's twisting, it goes into
           an infinite exception loop I think
+        - if in ctrl-to-spindrag mode, shouldn't hightlight sticker
+          when ctrl key is down
 
     NOT HAVING TO DO WITH THIS GENERIC STUFF:
     =====================================================
@@ -631,12 +633,12 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
             }
         }
-        this.faceCenters = doubleToFloat(faceCentersD);
+        this.faceCenters = com.donhatchsw.util.VecMath.doubleToFloat(faceCentersD);
 
         float stickerCentersMinusFaceCentersF[][] = new float[nStickers][];
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                stickerCentersMinusFaceCentersF[iSticker] = doubleToFloat(com.donhatchsw.util.VecMath.vmv(stickerCentersD[iSticker], faceCentersD[sticker2face[iSticker]]));
+                stickerCentersMinusFaceCentersF[iSticker] = com.donhatchsw.util.VecMath.doubleToFloat(com.donhatchsw.util.VecMath.vmv(stickerCentersD[iSticker], faceCentersD[sticker2face[iSticker]]));
         }
 
 
@@ -855,7 +857,10 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 stickerCentersMinusFaceCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerCentersMinusFaceCentersF[iSticker], 0.f);
             }
             for (int iFace = 0; iFace < nFaces; ++iFace)
+            {
                 faceCenters[iFace] = (float[])com.donhatchsw.util.Arrays.append(faceCenters[iFace], 0.f);
+                faceInwardNormals[iFace] = (double[])com.donhatchsw.util.Arrays.append(faceInwardNormals[iFace], 0.f);
+            }
         }
 
 
@@ -881,7 +886,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     int iVert = stickerInds[iSticker][j][k];
                     if (vertsMinusStickerCenters[iVert] == null)
                     {
-                        vertsMinusStickerCenters[iVert] = doubleToFloat(com.donhatchsw.util.VecMath.vmv(restVerts[iVert], stickerCentersD[iSticker]));
+                        vertsMinusStickerCenters[iVert] = com.donhatchsw.util.VecMath.doubleToFloat(com.donhatchsw.util.VecMath.vmv(restVerts[iVert], stickerCentersD[iSticker]));
                         vertStickerCentersMinusFaceCenters[iVert] = stickerCentersMinusFaceCentersF[iSticker];
                         vertFaceCenters[iVert] = faceCenters[iFace];
                     }
@@ -904,21 +909,21 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // Don't bother with grips for now, it's taking too long
             // for the big ones
             int nGrips = 0;
+            this.gripCentersF = new float[nGrips][];
             this.gripSymmetryOrders = new int[nGrips];
             this.gripUsefulMats = new double[nGrips][nDims][nDims];
-            this.gripCentersF = new float[nGrips][];
             this.grip2face = new int[nGrips];
         }
         else
         {
+            if (progressWriter != null)
+            {
+                progressWriter.print("    Thinking about possible twists...");
+                progressWriter.flush();
+            }
+
             if (nDims == 4)
             {
-                if (progressWriter != null)
-                {
-                    progressWriter.print("    Thinking about possible twists...");
-                    progressWriter.flush();
-                }
-
                 int nGrips = 0;
                 for (int iFace = 0; iFace < nFaces; ++iFace)
                 {
@@ -926,9 +931,9 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
                         nGrips += allElementsOfCell[iDim].length;
                 }
+                this.gripCentersF = new float[nGrips][];
                 this.gripSymmetryOrders = new int[nGrips];
                 this.gripUsefulMats = new double[nGrips][nDims][nDims];
-                this.gripCentersF = new float[nGrips][];
                 this.grip2face = new int[nGrips];
                 double gripCenterD[] = new double[nDims];
                 int iGrip = 0;
@@ -953,7 +958,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             // XXX should try to be more scientific...
                             VecMath.lerp(gripCenterD, gripCenterD, faceCentersD[iFace], .01);
 
-                            gripCentersF[iGrip] = doubleToFloat(gripCenterD);
+                            gripCentersF[iGrip] = com.donhatchsw.util.VecMath.doubleToFloat(gripCenterD);
                             grip2face[iGrip] = iFace;
                             if (progressWriter != null)
                             {
@@ -979,16 +984,61 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         - to indices of a CCW twist of this slice
                 */
 
-                if (progressWriter != null)
-                {
-                    progressWriter.print(" ("+nGrips+" grips)");
-                    progressWriter.println(" done.");
-                    progressWriter.flush();
-                }
             } // nDims == 4
+            else if (nDims == 3)
+            {
+                int nGrips = nFaces;
+                this.gripCentersF = new float[nGrips][nDims];
+                this.gripSymmetryOrders = new int[nGrips];
+                this.gripUsefulMats = new double[nGrips][nDims][nDims];
+                this.grip2face = new int[nGrips];
+
+                this.gripCentersF = this.faceCenters;
+                for (int iFace = 0; iFace < nFaces; ++iFace)
+                {
+                    this.gripSymmetryOrders[iFace] = CSG.calcRotationGroupOrder(
+                                                       originalPolytope.p,
+                                                       originalPolytope.p, // cell
+                                                       originalFaces[iFace], // elt
+                                                       gripUsefulMats[iFace]);
+                    {
+                        // XXX bleah, clumsy
+                        double temp[][] = VecMath.identitymat(4);
+                        VecMath.copymat(temp, gripUsefulMats[iFace]);
+                        VecMath.copymat(gripUsefulMats[iFace] = temp);
+                    }
+
+                    this.grip2face[iFace] = iFace;
+                }
+            }
+            else if (nDims == 2)
+            {
+                int nGrips = nFaces;
+                this.gripCentersF = new float[nGrips][nDims];
+                this.gripSymmetryOrders = new int[nGrips];
+                this.gripUsefulMats = new double[nGrips][nDims][nDims];
+                this.grip2face = new int[nGrips];
+
+                this.gripCentersF = this.faceCenters;
+
+                double identity4[][] = com.donhatchsw.util.VecMath.identitymat(4);
+                for (int iFace = 0; iFace < nFaces; ++iFace)
+                {
+                    this.gripSymmetryOrders[iFace] = 2;
+                    this.gripUsefulMats[iFace] = identity4;
+                    this.grip2face[iFace] = iFace;
+                }
+            }
             else
             {
+                // not thinking very hard
                 this.grip2face = new int[0];
+            }
+            if (progressWriter != null)
+            {
+                progressWriter.print(" ("+this.grip2face.length+" grips)");
+                progressWriter.println(" done.");
+                progressWriter.flush();
             }
         } // intLength > 1
 
@@ -1007,7 +1057,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 com.donhatchsw.util.CSG.cgOfVerts(eltCenter, originalElements[iDim][iElt]);
                 VecMath.copyvec(nicePointsToRotateToCenter[iNicePoint++],
-                                VecMath.doubleToFloat(eltCenter)); // XXX lame way to do this
+                                com.donhatchsw.util.VecMath.doubleToFloat(eltCenter)); // XXX lame way to do this
             }
             Assert(iNicePoint == nNicePoints);
         }
@@ -1058,30 +1108,20 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     //
     // Utilities...
     //
-        private static float[] doubleToFloat(double in[])
-        {
-            float out[] = new float[in.length];
-            for (int i = 0; i < in.length; ++i)
-                out[i] = (float)in[i];
-            return out;
-        }
-        private static float[][] doubleToFloat(double in[][])
-        {
-            float out[][] = new float[in.length][];
-            for (int i = 0; i < in.length; ++i)
-                out[i] = doubleToFloat(in[i]);
-            return out;
-        }
-
         // magic crap used in a couple of methods below
         private double[][] getTwistMat(int gripIndex, int dir, double frac)
         {
             int order = gripSymmetryOrders[gripIndex];
             double angle = dir * (2*Math.PI/order) * frac;
             int nDims = slicedPolytope.p.fullDim;
-            return VecMath.mxmxm(VecMath.transpose(gripUsefulMats[gripIndex]),
-                                 VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle),
+            double gripUsefulMat[][] = gripUsefulMats[gripIndex];
+            Assert(gripUsefulMat.length == _nDisplayDims);
+            double mat[][] = VecMath.mxmxm(VecMath.transpose(gripUsefulMats[gripIndex]),
+                                 VecMath.makeRowRotMat(_nDisplayDims,
+                                                       nDims-2,nDims-1,
+                                                       angle),
                                  gripUsefulMats[gripIndex]);
+            return mat;
         } // getTwistMat
 
         // format x using printf format "%.17g", dammit
@@ -1259,9 +1299,9 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 slicemask = 1; // XXX is this the right place for this? lower and it might be time consuming, higher and too many callers will have to remember to do it
 
             double matD[][] = getTwistMat(gripIndex, dir, frac);
-            float matF[][] = doubleToFloat(matD);
+            float matF[][] = com.donhatchsw.util.VecMath.doubleToFloat(matD);
 
-            float restVerts[][] = new float[nVerts()][nDims()];
+            float restVerts[][] = new float[nVerts()][nDisplayDims()];
             computeStickerVertsAtRest(restVerts, faceShrink, stickerShrink);
             boolean whichVertsGetMoved[] = new boolean[restVerts.length]; // false initially
             int iFace = grip2face[gripIndex];
@@ -1312,7 +1352,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             return adjacentStickerPairs;
         }
-        public float[/*nFaces*/][/*nDims*/]
+        public float[/*nFaces*/][/*nDisplayDims*/]
             getFaceCentersAtRest()
         {
             return faceCenters;
