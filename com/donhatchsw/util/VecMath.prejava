@@ -621,21 +621,38 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 result[i][j] = m[i][j];
     }
 
-    /** zero a matrix */
+    /** zero a vector */
+    public static void zerovec(int n, double result[])
+    {
+        FORI (i, n)
+            result[i] = (double)0;
+    }
+    /** zero a vector */
+    public static void zerovec(int n, float result[])
+    {
+        FORI (i, n)
+            result[i] = (float)0;
+    }
+    /** zero a vector */
+    public static void zerovec(int n, int result[])
+    {
+        FORI (i, n)
+            result[i] = (int)0;
+    }
+
+    /** zero a vector */
     public static void zerovec(double result[])
     {
         FORIDOWN (i, result.length)
             result[i] = (double)0;
     }
-    // XXX duplicate code
-    /** zero a matrix */
+    /** zero a vector */
     public static void zerovec(float result[])
     {
         FORIDOWN (i, result.length)
             result[i] = (float)0;
     }
-    // XXX duplicate code
-    /** zero a matrix */
+    /** zero a vector */
     public static void zerovec(int result[])
     {
         FORIDOWN (i, result.length)
