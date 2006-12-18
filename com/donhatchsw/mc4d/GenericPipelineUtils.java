@@ -372,6 +372,61 @@ public class GenericPipelineUtils
         }
         //if (verboseLevel >= 3) System.out.println("        after 3d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
+        //
+        // Compute and save the polygon normals in 3d.
+        // These will be needed later for the topsort.
+        // XXX since we're doing this anyway, could do the backface culling here too
+        // XXX instead of later on the 2d polygons
+        //
+        float polyCenters3d[][][] = null;
+        float polyNormals3d[][][] = null;
+        if (useTopsort)
+        {
+            polyCenters3d = new float[nStickers][][]; // XXX ALLOCATION
+            polyNormals3d = new float[nStickers][][]; // XXX ALLOCATION
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            {
+                polyCenters3d[iSticker] = new float[stickerInds[iSticker].length][3];
+                polyNormals3d[iSticker] = new float[stickerInds[iSticker].length][3];
+            }
+
+            float mat[][] = new float[2][3]; // XXX ALLOCATION
+
+            for (int i = 0; i < drawListSize; ++i)
+            {
+                int i0i1[] = drawList[i];
+                int iSticker = i0i1[0];
+                int iPolyThisSticker = i0i1[1];
+                int poly[] = stickerInds[iSticker][iPolyThisSticker];
+                float v0[] = verts[poly[0]];
+                float v1[] = verts[poly[1]];
+                float v2[] = verts[poly[2]];
+                Vec_h._VMV3(mat[0], v1, v0); // 3 out of 4
+                Vec_h._VMV3(mat[1], v2, v0); // 3 out of 4
+                VecMath.vxv3(polyNormals3d[iSticker][iPolyThisSticker],
+                             mat[0], mat[1]);
+                VecMath.normalize(polyNormals3d[iSticker][iPolyThisSticker],
+                                  polyNormals3d[iSticker][iPolyThisSticker]);
+
+                float polyCenter3d[] = polyCenters3d[iSticker][iPolyThisSticker];
+                for (int iVertThisPoly = 0; iVertThisPoly < poly.length; ++iVertThisPoly)
+                    Vec_h._VPV3(polyCenter3d,
+                                polyCenter3d,
+                                verts[poly[iVertThisPoly]]); // 3 out of 4
+                VecMath.vxs(polyCenter3d,
+                            polyCenter3d,
+                            1.f/poly.length);
+                // XXX Oh BLEAH! This will mess up if the polygons are coincident!
+                // XXX really want a point behind the polygon... i.e. the sticker center?
+                // XXX but it seems to me there are cases when that would give
+                // XXX the wrong answer... namely the sticker center is on the 
+                // XXX inside out side but the polygon isn't!  bleah.
+                // XXX okay I know, I'll test for the coincident case with epsilon...
+                // XXX if the centers are almost coincident, I'll assume the adjacency
+                // XXX is valid.
+            }
+        }
+
 
         //
         // Project down to 2d
@@ -563,7 +618,9 @@ public class GenericPipelineUtils
                     sticker2Slice,
                     stickerSortOrder,
                     partialOrderAddress,
-                    stickerCentersZ);
+                    stickerCentersZ,
+                    polyCenters3d,
+                    polyNormals3d);
 
             if (showPartialOrder)
                 frame.partialOrder = partialOrderAddress[0];
@@ -882,7 +939,7 @@ public class GenericPipelineUtils
                              && (jSticker-nStickers)%2 != 1)
                                 continue; // only draw to other-group end tokens
 
-                        if (false)
+                        if (true)
                             if (jSticker >= nStickers
                              && (jSticker-nStickers)%2 != 0)
                                 continue; // only draw to this-group start tokens
@@ -964,6 +1021,7 @@ public class GenericPipelineUtils
                     // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
                     g.drawPolygon(xs, ys, poly.length);
                 }
+//if (iSticker == 63 || iSticker == 219) // XXX get rid
                 if (drawLabels)
                 {
                     String label = ""+iSticker+"("+iPolyThisSticker+")";
@@ -1002,7 +1060,9 @@ public class GenericPipelineUtils
                 int sticker2Slice[],
                 int returnStickerSortOrder[/*nStickers*/],
                 int returnPartialOrderOptionalForDebugging[][][], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the partial order
-                final float stickerCentersZ[])
+                final float stickerCentersZ[],
+                float polyCenters3d[][][],
+                float polyNormals3d[][][])
         {
             int nSlices = cutOffsets.length + 1;
             int nCompressedSlices = nSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
@@ -1087,6 +1147,7 @@ public class GenericPipelineUtils
             }
 
             {
+                float jPolyCenterMinusIPolyCenter[] = new float[3]; // scratch
                 for (int iPoly = 0; iPoly < adjacentStickerPairs.length; ++iPoly)
                 {
                     int stickersThisPoly[][] = adjacentStickerPairs[iPoly];
@@ -1118,6 +1179,41 @@ public class GenericPipelineUtils
                             jGroup = parents[jGroup];
                         }
                     }
+
+                    //
+                    // See whether things are so inside out
+                    // that the polygons are facing away from each other...
+                    // If so, then this polygon should not restrict anything.
+                    //
+                    if (true)
+                    {
+                        if (iStickerIsVisible && jStickerIsVisible
+                         && parents[iSticker] == parents[jSticker]) // XXX floundering
+                        {
+                            VecMath.vmv(jPolyCenterMinusIPolyCenter,
+                                        polyCenters3d[jSticker][jPolyThisSticker],
+                                        polyCenters3d[iSticker][iPolyThisSticker]);
+                            // we add a tiny bit of slop to make sure we consider
+                            // the adjacency valid if the faces are coincident
+                            if (VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter) < -1e-3
+                             || VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter) > 1e-3)
+                            {
+                                if (false)
+                                {
+                                    System.out.println("HA!  I don't CARE because it's SO WARPED! stickers "+iSticker+"("+iPolyThisSticker+") "+jSticker+"("+jPolyThisSticker+")");
+                                    System.out.println("    inormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[iSticker][iPolyThisSticker]));
+                                    System.out.println("    jnormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[jSticker][jPolyThisSticker]));
+                                    System.out.println("    j-i = "+com.donhatchsw.util.Arrays.toStringCompact(jPolyCenterMinusIPolyCenter));
+                                    System.out.println("    inormal dot j-i = "+VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter));
+                                    System.out.println("    jnormal dot j-i = "+VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter));
+                                }
+
+                                continue;
+                            }
+                        }
+                    }
+
+
                     if (iGroup == iSticker && jGroup == jSticker)
                     {
                         // The two stickers are immediate siblings,
