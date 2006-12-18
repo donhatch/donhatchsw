@@ -1021,12 +1021,36 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 this.gripCentersF = this.faceCenters;
 
-                double identity4[][] = com.donhatchsw.util.VecMath.identitymat(4);
                 for (int iFace = 0; iFace < nFaces; ++iFace)
                 {
                     this.gripSymmetryOrders[iFace] = 2;
-                    this.gripUsefulMats[iFace] = identity4;
                     this.grip2face[iFace] = iFace;
+
+                    // Usefulmat is defined as an orthogonal matrix
+                    // the last two rows of which are in the plane
+                    // of the rotation.
+                    // What is the plane of the rotation?
+                    // Well, it should be in the xyz space,
+                    // it should contain the z axis, and it should be
+                    // orthogonal to the face normal.
+                    // Currently "last two rows" are with respect to
+                    // nDims(=2), not nDisplayDims(=4)
+                    // (not sure that makes sense,
+                    // but that's the way it is at the moment)...
+                    // so we need to put them at rows 0 and 1.
+                    double mat2[][] = new double[2][2];
+                    VecMath.normalize(mat2[0], faceCentersD[iFace]);
+                    VecMath.xv2(mat2[1], mat2[0]);
+                    double mat4[][] = VecMath.identitymat(4);
+                    VecMath.copymat(mat4, mat2);
+                    // we want to put mat4[1] and mat4[2] at rows 0 and 1 in the result
+                    this.gripUsefulMats[iFace] = new double[][]{
+                        mat4[1],
+                        mat4[2],
+                        mat4[0],
+                        mat4[3],
+                    };
+                    //System.out.println("usefulMat = "+Arrays.toString(this.gripUsefulMats[iFace]));
                 }
             }
             else

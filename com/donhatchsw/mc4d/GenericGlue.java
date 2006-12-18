@@ -1127,7 +1127,8 @@ public class GenericGlue
                          genericGlue.genericPuzzleDescription);
                     Assert(polyAndStickerCenter != null); // hit once, should hit again
                     float polyCenter[] = polyAndStickerCenter[0];
-                    for (int iDim = genericGlue.genericPuzzleDescription.nDims(); iDim < 4; ++iDim)
+                    for (int iDim = 3; iDim < 4; ++iDim) // to treat only one part of the sticker as an edge, in 2d
+                    //for (int iDim = genericGlue.genericPuzzleDescription.nDims(); iDim < 4; ++iDim) // to treat all parts of the sticker as an edge, in 2d
                     {
                         if (polyCenter[iDim] < -1e-6)
                             dir *= -1;
