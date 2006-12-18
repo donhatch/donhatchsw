@@ -187,7 +187,7 @@ public final class CSG
             private double _coords[];      // if vertex, null otherwise.  XXX should probably calculate only on demand, but then need a way to differentiate between dirty and nonexistent (for example, this is needed in getBBox below). XXX ctually not currently calculated at all.
             private double _bbox[/*2*/][]; // bounding box of all vertices, so it can be finite even if the polytope is infinite (co-finite).  calculated Lazily via getBBox().
             private Polytope[/*dim+1*/][] _allElements; // sorted lists of vertices, edges, ..., ridges, facets, calculated lazily via getAllElements()
-            private int[/*dim+1*/][][/*dim+1*/][] _allIncidences; // calculated lazily via getAllElements
+            private int[/*dim+1*/][][/*dim+1*/][] _allIncidences; // calculated lazily via getAllIncidences
 
             public Polytope(int dim,
                             int fullDim,
@@ -1349,6 +1349,7 @@ public final class CSG
         public static SPolytope makeWythoffPolytope(SPolytope sp,
                                                     double wythoff[])
         {
+            long baseId = nIds; // snapshot
             //System.out.println("in makeWythoffPolytope");
             //PRINTARRAY(wythoff);
             Polytope p = sp.p;
@@ -1435,10 +1436,6 @@ public final class CSG
             //PRINTVEC(wythoff);
             //PRINTVEC(weights);
 
-            // XXX fudge for now since I can't handle zeros
-            FORI (iDim, p.dim)
-                weights[iDim] = Math.max(weights[iDim], .01);
-
             //
             // The elements of the omni correspond to chains
             // of elements in p ordered by inclusion,
@@ -1491,8 +1488,7 @@ public final class CSG
             }
 
             // The omni itself is the omni elt corresponding to the empty set.
-            Polytope omni = (Polytope)omniEltsHashTable.get(new HashableSortedArray(new Polytope[]{}));
-            SPolytope somni = new SPolytope(0,1,omni);
+            SPolytope somni = new SPolytope(0,1,(Polytope)omniEltsHashTable.get(new HashableSortedArray(new Polytope[]{})));
 
             //
             // Get rid of degeneracies:
@@ -1501,11 +1497,135 @@ public final class CSG
             //     Then for each cell with only two faces, remove the cell and merge the faces.
             //     ...
             //
-            if (VecMath.productUsingLog(wythoff) == 0.) // only need to if at least one of the coeffs was zero
-                System.out.println("XXX NEED GET RID OF DEGENERACIES SINCE THIS IS NOT OMNITRUNCATED");
+            if (true)
+            {
+                java.util.Hashtable deadList = new java.util.Hashtable();
+                Polytope allElements[][] = somni.p.getAllElements();
+                MergeFind mergeFind = new MergeFind((int)(nIds-baseId));
+                Polytope bulletinBoard[] = new Polytope[(int)(nIds-baseId)];
+                boolean mergedSomething = false;
+                FORI (iDim, somni.p.dim)
+                {
+                    FORI (jElt, allElements[iDim+1].length)
+                    {
+                        Polytope elt = allElements[iDim+1][jElt];
+                        if (iDim == 0)
+                        {
+                            //
+                            // elt is an edge;
+                            // if its two endpoints are coincident,
+                            // remove the edge and merge the two
+                            // vertices.
+                            //
+                            assert(elt.facets.length == 2);
+                            //PRINTVEC(elt.facets[0].p.getCoords());
+                            //PRINTVEC(elt.facets[1].p.getCoords());
+                            if (VecMath.distsqrd(elt.facets[0].p.getCoords(),
+                                                 elt.facets[1].p.getCoords()) <= 1e-6*1e-6) // XXX not completely sure this is right, maybe should be a param
+                            {
+                                mergedSomething = true;
+                                //System.out.println("    MERGING!");
+                                // The two vertices are coincident;
+                                // merge them
+                                mergeFind.merge((int)(elt.facets[0].p.id-baseId),
+                                                (int)(elt.facets[1].p.id-baseId));
+                                bulletinBoard[(int)(elt.facets[0].p.id-baseId)] = elt.facets[0].p;
+                                bulletinBoard[(int)(elt.facets[1].p.id-baseId)] = elt.facets[1].p;
+                                // kill this edge
+                                deadList.put(elt,elt);
+                            }
+                            else
+                            {
+                                //System.out.println("    not merging!");
+                            }
+                        }
+                        else
+                        {
+                            //
+                            // Elt is a polygon or higher.
+                            // Compress out the dead facets from
+                            // elt's facets list.
+                            // There will be 0, or 2, or >=3 facets left.
+                            // If there are exactly 2, merge them.
+                            // If there were 0 or 2, kill elt.
+                            //
+                            int nLivingFacets = 0;
+                            FORI (kFacet, elt.facets.length)
+                            {
+                                if (deadList.get(elt.facets[kFacet].p) == null)
+                                    elt.facets[nLivingFacets++] = elt.facets[kFacet];
+                            }
+                            assert(nLivingFacets == 0
+                                || nLivingFacets == 2
+                                || nLivingFacets >= 3);
+                            if (nLivingFacets == 2)
+                            {
+                                mergedSomething = true;
+                                //System.out.println("    MERGING!");
+                                // merge them
+                                mergeFind.merge((int)(elt.facets[0].p.id-baseId),
+                                                (int)(elt.facets[1].p.id-baseId));
+                                bulletinBoard[(int)(elt.facets[0].p.id-baseId)] = elt.facets[0].p;
+                                bulletinBoard[(int)(elt.facets[1].p.id-baseId)] = elt.facets[1].p;
+                            }
+                            else
+                            {
+                                //System.out.println("    not merging!");
+                            }
+                            if (nLivingFacets <= 2)
+                            {
+                                //System.out.println("    KILLING ELT!");
+                                // kill elt
+                                deadList.put(elt, elt);
+                            }
+                            else
+                            {
+                                //System.out.println("    not killing elt!");
+                                elt.facets = (SPolytope[])Arrays.subarray(elt.facets, 0, nLivingFacets);
+                            }
+                        }
+                    }
+                    // Go through the iDim-dimensional elements' facet lists
+                    // again and replace any merged facets
+                    // with the merged group leader; then all but the leader
+                    // will die
+                    FORI (jElt, allElements[iDim+1].length)
+                    {
+                        Polytope elt = allElements[iDim+1][jElt];
+                        FORI (kFacet, elt.facets.length)
+                        {
+                            int key = (int)(elt.facets[kFacet].p.id - baseId);
+                            int leader = mergeFind.find(key);
+                            if (leader != key)
+                                elt.facets[kFacet].p = bulletinBoard[leader];
+                        }
+                    }
+                }
+
+
+                if (mergedSomething)
+                {
+                    //System.out.println("CLEARING ALLELEMENTS");
+                    // We called allElements (which triggers
+                    // all elements to populate their _allElements lists)
+                    // and then changed stuff,
+                    // so all the element lists are bogus now.
+                    // Clear them.
+                    FORI (iDim, sp.p.dim+1)
+                        FORI (jElt, allElements[iDim].length)
+                            allElements[iDim][jElt]._allElements = null;
+                }
+
+                // If completely dead (which happens if all the wythoff
+                // coeffs were zero), set somni.p to the single merged vertex.
+                // Note this is a funny case; somni.p.dim ends up 0
+                // but somni.p.fullDim ends up the original dimension.
+                if (deadList.get(somni.p) != null)
+                    somni.p = bulletinBoard[mergeFind.find((int)(allElements[0][0].id-baseId))];
+            }
 
             //
-            // Make the hyperplanes.
+            // Make the hyperplanes, and orient and everything.
             //
             bootstrapHyperplanes(somni);
 
@@ -1934,9 +2054,9 @@ public final class CSG
         } // isAll
 
         /** Makes a product of regular (star) polytopes. */
-        public static SPolytope makeRegularStarPolytopeCrossProduct(int schlaflis[][],
-                                                                    int schlafliDenomss[][],
-                                                                    double wythoffs[][])
+        public static SPolytope makeRegularStarPolytopeProduct(int schlaflis[][],
+                                                               int schlafliDenomss[][],
+                                                               double wythoffs[][])
         {
             int nFactors = schlaflis.length;
             assert(schlafliDenomss == null
@@ -1957,7 +2077,7 @@ public final class CSG
             if (product == null)
                 return new SPolytope(0,1,new Polytope(0,0,new SPolytope[0],new Hyperplane[0],null));
             return product;
-        } // makeRegularStarPolytopeCrossProduct
+        } // makeRegularStarPolytopeProduct
 
         /**
         * Makes a product of regular (star) polytopes from a string specification,
@@ -1979,7 +2099,7 @@ public final class CSG
         *       p = {p}  for p>=3
         *       5,, doesn't work yet for some reason
         */
-        public static SPolytope makeRegularStarPolytopeCrossProductFromString(String s)
+        public static SPolytope makeRegularStarPolytopeProductFromString(String s)
         {
             String factors[] = s.trim().split("[x*]");
             int schlaflis[][] = new int[factors.length][];
@@ -1991,7 +2111,7 @@ public final class CSG
                 /*
                 if (!factor.startsWith("{")
                  || !factor.endsWith("}"))
-                    throw new IllegalArgumentException("makeRegularStartPolytopeCrossProductFromString: bad schlafli symbol \""+s+"\"");
+                    throw new IllegalArgumentException("makeRegularStartPolytopeProductFromString: bad schlafli symbol \""+s+"\"");
                 */
                 if (factor.startsWith("{")
                  && factor.endsWith("}"))
@@ -2057,17 +2177,17 @@ public final class CSG
                         schlafliDenomss[iFactor][iFraction] = 1;
                     }
                     else
-                        throw new IllegalArgumentException("makeRegularStartPolytopeCrossProductFromString: bad schlafli symbol \""+s+"\"");
+                        throw new IllegalArgumentException("makeRegularStartPolytopeProductFromString: bad schlafli symbol \""+s+"\"");
                 }
             }
             //PRINTARRAY(s);
             //PRINTARRAY(schlaflis);
             //PRINTARRAY(schlafliDenomss);
-            SPolytope sp = makeRegularStarPolytopeCrossProduct(schlaflis,
-                                                               schlafliDenomss,
-                                                               wythoffs);
+            SPolytope sp = makeRegularStarPolytopeProduct(schlaflis,
+                                                          schlafliDenomss,
+                                                          wythoffs);
             return sp;
-        } // makeRegularStarPolytopeCrossProductFromString
+        } // makeRegularStarPolytopeProductFromString
 
 
     //
@@ -2745,8 +2865,8 @@ public final class CSG
             VecMath.vxs(result, result, 1./vertPolytopes.length);
         } // cgOfVerts
 
-        private static SPolytope cross(SPolytope A,
-                                       SPolytope B)
+        public static SPolytope cross(SPolytope A,
+                                      SPolytope B)
         {
             SPolytope AB = new SPolytope(A.initialDensity*B.initialDensity,
                                          A.sign*B.sign,
@@ -4997,8 +5117,10 @@ public final class CSG
         if (true)
         {
             // just test make regular polytope
-            SPolytope p = makeRegularStarPolytopeCrossProductFromString(args[0]);
-            PRINT(p);
+            SPolytope sp = makeRegularStarPolytopeProductFromString(args[0]);
+
+            PRINTVEC(counts(sp.p));
+            //PRINT(sp);
             return;
         }
 
