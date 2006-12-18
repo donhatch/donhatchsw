@@ -26,6 +26,7 @@ interface GenericPuzzleDescription {
     public void computeStickerVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
                                           float faceShrink,
                                           float stickerShrink);
+
     /**
     * Get the indices (into the vertices returned by getDrawVertsAtRest()
     * or getDrawVertsPartiallyTwisted())
@@ -93,6 +94,12 @@ interface GenericPuzzleDescription {
                                             int slicemask,
                                             float frac);
 
+    /* XXX doc me */
+    public double[/*nFaces*/][/*nDims*/]
+        getFaceInwardNormals();
+    public double[/*nFaces*/][/*nCutsThisFace*/]
+        getFaceCutOffsets(); // in increasing order
+
     /**
     * Get a nearby point that would be a nice point to rotate to the center.
     * Nice points are vertices, edge centers, cell centers, ...
@@ -121,7 +128,18 @@ interface GenericPuzzleDescription {
     */
     public int[/*nStickers*/] getGrip2Face();
 
+    /**
+    * Returns a list of pairs-of-pairs {{i,j},{k,l}}
+    * such that the polygons stickerInds[i][j] and stickerInds[k][l]
+    * where the two stickers meet (when non-shrunk).
+    */
+    public int[][/*2*/][/*2*/] getAdjacentStickerPairs();
 
+    /**
+    * Get the face centers of the puzzle at rest.
+    * The returned array should be considered immutable.
+    */
+    public float[/*nFaces*/][/*nDims*/] getFaceCentersAtRest();
 
     /**
     * Apply a move to an array of colors (face indices)
