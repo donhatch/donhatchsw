@@ -1038,6 +1038,17 @@ public class GenericGlue
                         polyCenter = com.donhatchsw.util.VecMath.copyvec(polyCenter);
                         com.donhatchsw.util.VecMath.zerovec(genericGlue.genericPuzzleDescription.nDims(),
                                                             polyCenter);
+                        if (com.donhatchsw.util.VecMath.normsqrd(polyCenter) < 1e-4*1e-4)
+                        {
+                            // They clicked on an *edge* of a sticker
+                            // that's already in the center of the screen--
+                            // we don't know which way to push.
+                            // nothing sensible we can do here, just ignore it.
+                            // (Actually, treat it the same as we treat clicking on a sticker
+                            // that's already in the center in a 4d puzzle, i.e. nothing).
+                            //System.out.println("NICE TRY!");
+                            return;
+                        }
                         float polyCenterOnScreen[] = com.donhatchsw.util.VecMath.vxm(polyCenter, viewMat4d);
                         genericGlue.rotationFrom = polyCenterOnScreen;
                         com.donhatchsw.util.VecMath.normalize(genericGlue.rotationFrom, genericGlue.rotationFrom);
