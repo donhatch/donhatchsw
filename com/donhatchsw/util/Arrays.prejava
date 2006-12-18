@@ -137,6 +137,14 @@ public final class Arrays
         result[n] = last;
         return result;
     } // append double
+    public static float[] append(float v[], float last)
+    {
+        int i, n = v.length;
+        float result[] = new float[n+1];
+        System.arraycopy(v, 0, result, 0, n);
+        result[n] = last;
+        return result;
+    } // append double
     public static int[] append(int v[], int last)
     {
         int i, n = v.length;
