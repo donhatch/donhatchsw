@@ -101,6 +101,8 @@
         - if in ctrl-to-spindrag mode, shouldn't hightlight sticker
           when ctrl key is down
         - length 1: polygons should be grips, I think
+        - 3d: really shouldn't do rotates except on face center sticker, it's confusing...
+          actually edge clicks that perfectly line up with the face center sticker are okay
 
     NOT HAVING TO DO WITH THIS GENERIC STUFF:
     =====================================================
@@ -935,7 +937,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             if (nDims <= 4)
             {
-                boolean doTheOddFaceIn3dThing = false; // XXX not ready for prime time
+                boolean doTheOddFaceIn3dThing = true;
                 int nGrips = 0;
                 for (int iFace = 0; iFace < nFaces; ++iFace)
                 {
@@ -981,8 +983,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             CSG.Polytope elt = allElementsOfFace[iDim][iElt];
                             VecMath.copyvec(gripUsefulMats[iGrip][0], faceCentersD[iFace]);
                             CSG.cgOfVerts(gripUsefulMats[iGrip][1], elt);
-                            this.gripDirsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][0]);
-                            this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
+                            this.gripDirsF[iGrip] = VecMath.doubleToFloat(VecMath.normalize(gripUsefulMats[iGrip][0]));
+                            this.gripOffsF[iGrip] = VecMath.doubleToFloat(VecMath.normalize(gripUsefulMats[iGrip][1]));
                             VecMath.extendAndGramSchmidt(2,4,
                                                          gripUsefulMats[iGrip],
                                                          gripUsefulMats[iGrip]);
@@ -1015,10 +1017,10 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                     this.gripOffsF[iGrip] = VecMath.sxv(-1.f, this.gripOffsF[iGrip-1]);
                                     this.grip2face[iGrip] = this.grip2face[iGrip-1];
                                     this.gripUsefulMats[iGrip] = new double[][] {
-                                        this.gripUsefulMats[iGrip-1][0],
                                         this.gripUsefulMats[iGrip-1][1],
-                                        this.gripUsefulMats[iGrip-1][2],
+                                        this.gripUsefulMats[iGrip-1][0],
                                         this.gripUsefulMats[iGrip-1][3],
+                                        this.gripUsefulMats[iGrip-1][2],
                                     };
                                     iGrip++;
                                 }
@@ -1289,8 +1291,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             float bestOffDistSqrd = Float.MAX_VALUE;
             for (int iGrip = 0; iGrip < gripDirsF.length; ++iGrip)
             {
-                //if (iGrip < 6) System.out.println("    gripDirsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripDirsF[iGrip]));
-                //if (iGrip < 6) System.out.println("    gripOffsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripOffsF[iGrip]));
+                //if (iGrip < 12) System.out.println("    gripDirsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripDirsF[iGrip]));
+                //if (iGrip < 12) System.out.println("    gripOffsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripOffsF[iGrip]));
                 float thisDistSqrd = VecMath.distsqrd(gripDirsF[iGrip],
                                                       dir);
                 if (thisDistSqrd > bestDistSqrd + eps2)

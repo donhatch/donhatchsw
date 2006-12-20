@@ -1028,12 +1028,12 @@ public class GenericGlue
                     //
                     if (com.donhatchsw.util.VecMath.distsqrd(genericGlue.rotationFrom, genericGlue.rotationTo) <= 1e-4*1e-4)
                     {
-                        float polyAndStickerCenter[][] = GenericPipelineUtils.pickPolyAndStickerCenter(
+                        float polyAndStickerAndFaceCenter[][] = GenericPipelineUtils.pickPolyAndStickerAndFaceCenter(
                              e.getX(), e.getY(),
                              genericGlue.untwistedFrame,
                              genericGlue.genericPuzzleDescription);
-                        Assert(polyAndStickerCenter != null); // hit once, should hit again
-                        float polyCenter[] = polyAndStickerCenter[0];
+                        Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
+                        float polyCenter[] = polyAndStickerAndFaceCenter[0];
 
                         // Only interested in the w component
                         // (and the z component if the puzzle is 2d).

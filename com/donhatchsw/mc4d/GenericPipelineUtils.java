@@ -747,7 +747,7 @@ public class GenericPipelineUtils
         return iStickerAndPoly != null ? iStickerAndPoly[0] : -1;
     }
 
-    public static float[][] pickPolyAndStickerCenter(float x, float y,
+    public static float[][] pickPolyAndStickerAndFaceCenter(float x, float y,
                                                      Frame frame,
                                                      GenericPuzzleDescription puzzleDescription)
     {
@@ -768,11 +768,11 @@ public class GenericPipelineUtils
         int poly[] = sticker[hit[1]];
         float polyCenter[] = VecMath.averageIndexed(poly, verts);
         float stickerCenter[] = VecMath.averageIndexed(sticker, verts);
-        float center[];
+        float faceCenter[] = puzzleDescription.getFaceCentersAtRest()[puzzleDescription.getSticker2Face()[hit[0]]];
 
         //System.out.println("        poly center = "+VecMath.toString(polyCenter));
         //System.out.println("        sticker center = "+VecMath.toString(stickerCenter));
-        return new float[][]{polyCenter, stickerCenter};
+        return new float[][]{polyCenter, stickerCenter, faceCenter};
     } // pickPolyAndStickerCenter
 
     // Pick poly center if it's a 2x2x2x2, sticker center otherwise.
@@ -781,7 +781,7 @@ public class GenericPipelineUtils
                                                   Frame frame,
                                                   GenericPuzzleDescription puzzleDescription)
     {
-        float polyAndStickerCenter[][] = pickPolyAndStickerCenter(x, y, frame, puzzleDescription);
+        float polyAndStickerCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame, puzzleDescription);
         if (polyAndStickerCenter == null)
             return null;
         float polyCenter[] = polyAndStickerCenter[0];
@@ -802,12 +802,13 @@ public class GenericPipelineUtils
                                Frame frame,
                                GenericPuzzleDescription puzzleDescription)
     {
-        float polyAndStickerCenter[][] = pickPolyAndStickerCenter(x, y, frame, puzzleDescription);
-        if (polyAndStickerCenter == null)
+        float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame, puzzleDescription);
+        if (polyAndStickerAndFaceCenter == null)
             return -1;
 
-        float polyCenter[] = polyAndStickerCenter[0];
-        float stickerCenter[] = polyAndStickerCenter[1];
+        float polyCenter[] = polyAndStickerAndFaceCenter[0];
+        float stickerCenter[] = polyAndStickerAndFaceCenter[1];
+        float faceCenter[] = polyAndStickerAndFaceCenter[2];
         boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
                                && (VecMath.normsqrd(polyCenter) == 1.5
                                 || VecMath.normsqrd(polyCenter) == 2.5);
@@ -815,8 +816,8 @@ public class GenericPipelineUtils
         if (puzzleDescription.nDims() < 4
          || itsProbablyThe2)
         {
-            int iGrip = puzzleDescription.getClosestGrip(polyCenter,
-                                                         stickerCenter);
+            int iGrip = puzzleDescription.getClosestGrip(VecMath.vmv(polyCenter, stickerCenter),
+                                                         faceCenter);
             return iGrip;
         }
         else
