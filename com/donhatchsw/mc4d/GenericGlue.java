@@ -890,6 +890,7 @@ public class GenericGlue
     public void scrambleAction(Canvas view, JLabel statusLabel, int scramblechenfrengensen)
     {
         GenericGlue glue = this;
+        int nDims = glue.genericPuzzleDescription.nDims();
         java.util.Random rand = new java.util.Random();
         int previous_face = -1;
         for(int s = 0; s < scramblechenfrengensen; s++) {
@@ -902,6 +903,8 @@ public class GenericGlue
             }
             while (
                 order < 2 || // don't use trivial ones
+                (nDims==3 && order==2) || // don't use the cute flips, in 3d
+                (nDims==2 && order==4) || // don't use the cute twirls, in 2d
                 iFace == previous_face || // mixing it up
                 (previous_face!=-1 && glue.genericPuzzleDescription.getFace2OppositeFace()[previous_face] == iFace));
             previous_face = iFace;
@@ -1089,6 +1092,7 @@ public class GenericGlue
                 {
                     System.err.println("    Grip "+iGrip+"");
                     System.err.println("        order "+order);
+                    System.err.println("        usefulMat = "+com.donhatchsw.util.VecMath.toString(((PolytopePuzzleDescription)genericGlue.genericPuzzleDescription).gripUsefulMats[iGrip]));
                 }
 
                 if (genericGlue.iTwist < genericGlue.nTwist)
@@ -1111,48 +1115,6 @@ public class GenericGlue
 
                 //if(e.isShiftDown()) // experimental control to allow double twists but also requires speed control.
                 //    dir *= 2;
-
-                // XXX get rid of the following when all grips installed properly
-                if (genericGlue.genericPuzzleDescription.nDims() == 2)
-                //if (genericGlue.genericPuzzleDescription.nDims() < 3)
-                {
-                    //
-                    // In less-than-4d puzzles,
-                    // we need to check which side of the sticker
-                    // the click is on... if it's on the "inside" of the puzzle
-                    // (which may currently look to the user like it's outside)
-                    // then we need to reverse the direction of the twist.
-                    //
-                    float polyAndStickerCenter[][] = GenericPipelineUtils.pickPolyAndStickerCenter(
-                         e.getX(), e.getY(),
-                         genericGlue.untwistedFrame,
-                         genericGlue.genericPuzzleDescription);
-                    Assert(polyAndStickerCenter != null); // hit once, should hit again
-                    float polyCenter[] = polyAndStickerCenter[0];
-                    for (int iDim = 3; iDim < 4; ++iDim) // to treat only one part of the sticker as an edge, in 2d
-                    //for (int iDim = genericGlue.genericPuzzleDescription.nDims(); iDim < 4; ++iDim) // to treat all parts of the sticker as an edge, in 2d
-                    {
-                        if (polyCenter[iDim] < -1e-6)
-                            dir *= -1;
-                        else if (polyCenter[iDim] > 1e-6)
-                            dir *= 1;
-                        else
-                        {
-                            //
-                            // They clicked on a sticker edge!
-                            // (or its 2d, in which case we always get here).
-                            // Should do the cute turn-inside-out thing
-                            // in the appropriate direction.
-                            // for now, just pretend they clicked on the outside.
-                            // Also need a way to express the rotation
-                            // that's currently happening,
-                            // for the incremental frame calculation later.
-                            //
-                            System.out.println("you clicked on a sticker edge (axis="+iDim+")! oh my! what shall we do?");
-                            return;
-                        }
-                    }
-                }
 
                 double totalRotationAngle = 2*Math.PI/order;
                 genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
