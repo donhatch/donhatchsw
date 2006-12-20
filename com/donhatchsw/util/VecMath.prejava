@@ -607,18 +607,28 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** fill matrix with a constant scalar */
-    public static void copymat(double result[][], double m[][])
+    public static void copymat(int k, double result[][], double m[][])
     {
-        FORIDOWN (i, MIN(result.length, m.length))
+        FORIDOWN (i, k)
             FORIDOWN(j, MIN(result[i].length, m[i].length))
                 result[i][j] = m[i][j];
     }
     /** fill matrix with a constant scalar */
-    public static void copymat(float result[][], float m[][])
+    public static void copymat(int k, float result[][], float m[][])
     {
-        FORIDOWN (i, MIN(result.length, m.length))
+        FORIDOWN (i, k)
             FORIDOWN(j, MIN(result[i].length, m[i].length))
                 result[i][j] = m[i][j];
+    }
+    /** fill matrix with a constant scalar */
+    public static void copymat(double result[][], double m[][])
+    {
+        copymat(MIN(result.length, m.length), result, m);
+    }
+    /** fill matrix with a constant scalar */
+    public static void copymat(float result[][], float m[][])
+    {
+        copymat(MIN(result.length, m.length), result, m);
     }
 
     /** zero a vector */
@@ -2482,8 +2492,63 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         vxs(result, v, len==(float)0 ? (float)1 : (float)1/len);
     }
 
+    /** Extend the k vectors to l vectors and gramschmidt.  If the result is a square matrix and the original wasn't, make sure the result's determinant is +1, not -1. */
+    public static void extendAndGramSchmidt(int k, int n, double result[][], double vecs[][])
+    {
+        copymat(k, result, vecs);
+        for (int i = k; i < n; ++i)
+        {
+            if (i == result[0].length-1)
+                crossprod(result[i], result);
+            else
+            {
+                zerovec(result[i]);
+                result[i][mostOrthogonalAxis(i, result)] = 1;
+            }
+        }
+        gramschmidt(n, result, result);
+        //if (result.length > 0 && result[0].length == n) PRINT(det(result));
+    } // extendAndGramSchmidt
+
+    /** Find the axis that is most orthogonal to the given k vectors. */
+    public static int mostOrthogonalAxis(int k, double vecs[][])
+    {
+        if (vecs.length == 0)
+            return 0;
+        double mat[][] = new double[k+1][vecs[0].length];
+        double matTransposed[][] = new double[vecs[0].length][k+1];
+        double product[][] = new double[k+1][k+1];
+        int bestAxis = -1;
+        double bestAbsDet = -1.;
+        copymat(k, mat, vecs); // same for all iterations
+        FORI (iAxis, vecs[0].length)
+        {
+            zerovec(mat[k]);
+            mat[k][iAxis] = 1.;
+            transpose(matTransposed, mat);
+            mxm(product, mat, matTransposed);
+            double det = detDestructive(product);
+            double absDet = Math.abs(det);
+            //PRINT(iAxis);
+            //PRINTMAT(mat);
+            //PRINTMAT(matTransposed);
+            //PRINTMAT(product);
+            //PRINT(absDet);
+            if (absDet > bestAbsDet)
+            {
+                bestAbsDet = absDet;
+                bestAxis = iAxis;
+            }
+        }
+        //PRINT(k);
+        //PRINTVEC(vecs[0]);
+        //PRINTVEC(vecs[1]);
+        //PRINT(bestAxis);
+        return bestAxis;
+    } // mostOrthogonalAxis
+
     /** Gram-Schmidt orthonormalize the first k rows of a matrix. */
-    public static void gramschmidt(double result[][], double M[][], int k)
+    public static void gramschmidt(int k, double result[][], double M[][])
     {
         if (result != M)
             copymat(result, M);
@@ -2502,7 +2567,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // gramschmidt
     /** Gram-Schmidt orthonormalize the first k rows of a matrix. */
-    public static void gramschmidt(float result[][], float M[][], int k)
+    public static void gramschmidt(int k, float result[][], float M[][])
     {
         if (result != M)
             copymat(result, M);
@@ -2523,12 +2588,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** Gram-Schmidt orthonormalize a matrix. */
     public static void gramschmidt(double result[][], double M[][])
     {
-        gramschmidt(result, M, MIN(result.length, M.length));
+        gramschmidt(MIN(result.length, M.length), result, M);
     } // gramschmidt
     /** Gram-Schmidt orthonormalize a matrix. */
     public static void gramschmidt(float result[][], float M[][])
     {
-        gramschmidt(result, M, MIN(result.length, M.length));
+        gramschmidt(MIN(result.length, M.length), result, M);
     } // gramschmidt
 
 
@@ -3217,6 +3282,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[] vxv3(final double v1[/*3*/], final double v2[/*3*/])
         {
             double result[] = new double[3];
+            vxv3(result, v1, v2);
+            return result;
+        }
+        /** 3-dimensional cross product, returning newly allocated result */
+        public static float[] vxv3(final float v1[/*3*/], final float v2[/*3*/])
+        {
+            float result[] = new float[3];
             vxv3(result, v1, v2);
             return result;
         }
