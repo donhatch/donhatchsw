@@ -187,6 +187,9 @@
                 for the 2x and lower dim polygons it should be the polygon,
                 for 4x it should be the whole panel of stickers
                 that map to the same grip.
+                Definitely in 3d, if there is a center tile,
+                that is the only one that should map to a grip
+                and that is the only one that should light up
 */
 
 import com.donhatchsw.util.*; // XXX get rid
