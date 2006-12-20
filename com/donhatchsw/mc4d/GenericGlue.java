@@ -1092,7 +1092,6 @@ public class GenericGlue
                 {
                     System.err.println("    Grip "+iGrip+"");
                     System.err.println("        order "+order);
-                    System.err.println("        usefulMat = "+com.donhatchsw.util.VecMath.toString(((PolytopePuzzleDescription)genericGlue.genericPuzzleDescription).gripUsefulMats[iGrip]));
                 }
 
                 if (genericGlue.iTwist < genericGlue.nTwist)

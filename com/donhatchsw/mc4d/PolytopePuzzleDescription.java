@@ -912,7 +912,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // XXX but actually it wouldn't hurt, could just make that
         // XXX rotate the whole puzzle.
         //
-        if (intLength == 1)
+        if (nDims == 4 && intLength == 1)
         {
             // Don't bother with grips for now, it's taking too long
             // for the big ones
@@ -931,260 +931,370 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.flush();
             }
 
-            if (nDims == 4)
+            if (true) // new way... when it works
             {
-                int nGrips = 0;
-                for (int iFace = 0; iFace < nFaces; ++iFace)
+                if (nDims <= 4)
                 {
-                    com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalFaces[iFace].getAllElements();
-                    for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
-                        nGrips += allElementsOfCell[iDim].length;
-                }
-                this.gripDirsF = new float[nGrips][];
-                this.gripOffsF = new float[nGrips][];
-                this.gripSymmetryOrders = new int[nGrips];
-                this.gripUsefulMats = new double[nGrips][nDims][nDims];
-                this.grip2face = new int[nGrips];
-                double gripCenterD[] = new double[nDims];
-                int iGrip = 0;
-                for (int iFace = 0; iFace < nFaces; ++iFace)
-                {
-                    CSG.Polytope cell = originalFaces[iFace];
-                    com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = cell.getAllElements();
-                    for (int iDim = 0; iDim <= 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
+                    boolean doTheOddFaceIn3dThing = false; // XXX not ready for prime time
+                    int nGrips = 0;
+                    for (int iFace = 0; iFace < nFaces; ++iFace)
                     {
-                        for (int iElt = 0; iElt < allElementsOfCell[iDim].length; ++iElt)
+                        com.donhatchsw.util.CSG.Polytope[][] allElementsOfFace = originalFaces[iFace].getAllElements();
+                        if (nDims == 4)
+                            for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
+                                nGrips += allElementsOfFace[iDim].length;
+                        else if (nDims ==3)
                         {
-                            CSG.Polytope elt = allElementsOfCell[iDim][iElt];
-                            gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
-                                                    originalPolytope.p, cell, elt,
-                                                    gripUsefulMats[iGrip]);
-
-                            com.donhatchsw.util.CSG.cgOfVerts(gripCenterD, elt);
-                            /* XXX get rid
-                            // !! We can't use the element center,
-                            // that will end up having the same center
-                            // for different stickers on the same cubie!
-                            // So fudge it a little towards the cell center.
-                            // XXX should try to be more scientific...
-                            VecMath.lerp(gripCenterD, gripCenterD, faceCentersD[iFace], .01);
-                            */
-
-                            gripDirsF[iGrip] = com.donhatchsw.util.VecMath.doubleToFloat(VecMath.normalize(faceCentersD[iFace]));
-                            gripOffsF[iGrip] = VecMath.doubleToFloat(VecMath.vmv(gripCenterD, faceCentersD[iFace]));
-                            grip2face[iGrip] = iFace;
-                            if (progressWriter != null)
+                            nGrips += 2;
+                            nGrips += allElementsOfFace[1].length;
+                            if (doTheOddFaceIn3dThing)
                             {
-                                //progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
-                                //progressWriter.print(".");
-
-                                progressWriter.flush();
+                                if (allElementsOfFace[1].length % 2 == 1)
+                                    nGrips += allElementsOfFace[1].length;
                             }
-
-                            iGrip++;
+                        }
+                        else  if (nDims == 2)
+                        {
+                            nGrips += 6;
                         }
                     }
-                }
-                Assert(iGrip == nGrips);
-
-                /*
-                want to know, for each grip:
-                    - the grip center coords
-                    - its face center coords
-                    - its period
-                    for each slice using this grip (i.e. iterate through the slices parallel to the face the grip is on):
-                        - from indices of a CCW twist of this slice
-                        - to indices of a CCW twist of this slice
-                */
-
-            } // nDims == 4
-            else if (nDims == 3)
-            {
-                int nGrips = 0;
-                for (int iFace = 0; iFace < nFaces; ++iFace)
-                {
-                    nGrips += 1; // primary polygon
-                    nGrips += 1; // opposite polygon
-                    nGrips += originalFaces[iFace].facets.length;
-                    if (originalFaces[iFace].facets.length % 2 == 1)
-                        nGrips += originalFaces[iFace].facets.length;
-                }
-
-                this.gripDirsF = new float[nGrips][];
-                this.gripOffsF = new float[nGrips][];
-                this.gripSymmetryOrders = new int[nGrips];
-                this.gripUsefulMats = new double[nGrips][_nDisplayDims][_nDisplayDims];
-                this.grip2face = new int[nGrips];
-
-                int iGrip = 0;
-                for (int iFace = 0; iFace < nFaces; ++iFace)
-                {
-                    //
-                    // The primary (frontfacing in initial view) polygon...
-                    //
+                    this.gripDirsF = new float[nGrips][];
+                    this.gripOffsF = new float[nGrips][];
+                    this.gripSymmetryOrders = new int[nGrips];
+                    this.gripUsefulMats = new double[nGrips][_nDisplayDims][_nDisplayDims];
+                    this.grip2face = new int[nGrips];
+                    CSG.SPolytope padHypercube = nDims < 4 ? CSG.makeHypercube(4-nDims) : null;
+                    int iGrip = 0;
+                    for (int iFace = 0; iFace < nFaces; ++iFace)
                     {
-                        double gripUsefulMat[][] = new double[nDims][nDims];
-                        this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
-                                                           originalPolytope.p,
-                                                           originalPolytope.p, // cell
-                                                           originalFaces[iFace], // elt
-                                                           gripUsefulMat);
+                        CSG.Polytope face = originalFaces[iFace];
+                        if (padHypercube != null)
+                            face = CSG.cross(new CSG.SPolytope(0,1,face), padHypercube).p;
+                        com.donhatchsw.util.CSG.Polytope[][] allElementsOfFace = face.getAllElements();
+                        int minDim = nDims==4 ? 0 : 2;
+                        int maxDim = nDims==4 ? 3 : 2; // yes, even for cell center, which doesn't do anything
+                        int allIncidencesThisFace[][][][] = face.getAllIncidences();
+                        for (int iDim = minDim; iDim <= maxDim; ++iDim)
                         {
-                            // XXX bleah, clumsy
-                            VecMath.identitymat(gripUsefulMats[iGrip]);
-                            VecMath.copymat(gripUsefulMats[iGrip], gripUsefulMat);
-                        }
-
-                        this.gripDirsF[iGrip] = VecMath.normalize(this.faceCentersF[iFace]);
-                        this.gripOffsF[iGrip] = new float[]{0,0,0,1};
-                        this.grip2face[iGrip] = iFace;
-                        iGrip++;
-                    }
-                    //
-                    // The backfacing polygon...
-                    //
-                    if (true)
-                    {
-                        // swap first and second row, and negate first row.
-                        // that will accomplish the backwards rotation.
-                        this.gripUsefulMats[iGrip] = new double[][] {
-                            VecMath.sxv(-1., this.gripUsefulMats[iGrip-1][0]),
-                            this.gripUsefulMats[iGrip-1][2],
-                            this.gripUsefulMats[iGrip-1][1],
-                            this.gripUsefulMats[iGrip-1][3],
-                        };
-                        this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
-                        this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
-                        this.gripOffsF[iGrip] = new float[]{0,0,0,-1};
-                        this.grip2face[iGrip] = iFace;
-                        iGrip++;
-                    }
-                    //
-                    // The edges of the polygon...
-                    //
-                    if (true)
-                    {
-                        for (int iEdgeThisFace = 0;
-                             iEdgeThisFace < originalFaces[iFace].facets.length;
-                             ++iEdgeThisFace)
-                        {
-                            double edgeCenterD[] = new double[nDims];
-                            CSG.cgOfVerts(edgeCenterD, originalFaces[iFace].facets[iEdgeThisFace].p);
-                            float edgeCenterF[] = VecMath.doubleToFloat(edgeCenterD);
-
-                            this.grip2face[iGrip] = iFace;
-                            this.gripSymmetryOrders[iGrip] = 2;
-                            double mat3[][] = {
-                                faceCentersD[iFace],
-                                edgeCenterD,
-                                VecMath.vxv3(faceCentersD[iFace],
-                                             edgeCenterD),
-                            };
-                            VecMath.gramschmidt(mat3, mat3);
-                            //
-                            // Usefulmat is defined as an orthogonal matrix
-                            // the last two rows of which are in the plane
-                            // of the desired rotation.
-                            // What is the plane of the desired rotation?
-                            // Well, it contains the w axis
-                            // and is normal to the 3d normal of the polygon.
-                            // Currently "last two rows" are with respect to
-                            // nDims(=2), not nDisplayDims(=4)
-                            // (not sure that makes sense,
-                            // but that's the way it is at the moment)...
-                            // so we need to put them at rows 0 and 1.
-                            //
-                            double otherPlaneVector[] = {mat3[2][0],mat3[2][1],mat3[2][2], 0};
-                            double minusWAxis[] = {0,0,0,-1};
-                            double mat4[][] = new double[4][4];
-                            VecMath.copyvec(mat4[0], minusWAxis);
-                            VecMath.copyvec(mat4[1], mat3[2]); // other plane vector
-                            VecMath.copyvec(mat4[2], mat3[0]);
-                            VecMath.copyvec(mat4[3], mat3[1]);
-                            VecMath.gramschmidt(mat4, mat4);
-                            this.gripUsefulMats[iGrip] = new double[][] {
-                                mat4[3],
-                                mat4[0],
-                                mat4[1],
-                                mat4[2],
-                            };
-                            // XXX if sign came out right it's by luck
-                            this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
-                            this.gripOffsF[iGrip] = new float[]{(float)mat3[1][0],(float)mat3[1][1],(float)mat3[1][2],0};
-                            iGrip++;
-                            if (true)
+                            for (int iElt = 0; iElt < allElementsOfFace[iDim].length; ++iElt)
                             {
-                                // Need opposite-facing face too
-                                if (originalFaces[iFace].facets.length % 2 == 1)
+                                CSG.Polytope elt = allElementsOfFace[iDim][iElt];
+                                VecMath.copyvec(gripUsefulMats[iGrip][0], faceCentersD[iFace]);
+                                CSG.cgOfVerts(gripUsefulMats[iGrip][1], elt);
+                                this.gripDirsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][0]);
+                                this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
+                                VecMath.extendAndGramSchmidt(2,4,
+                                                             gripUsefulMats[iGrip],
+                                                             gripUsefulMats[iGrip]);
+
+                                int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFace[0][iElt][1].length :
+                                                           iDim==1 ? 2 :
+                                                           iDim==2 ? allIncidencesThisFace[2][iElt][1].length :
+                                                           iDim==3 ? 0 : -1 :
+                                                nDims==3 ? originalFaces[iFace].facets.length%2==0 ? originalFaces[iFace].facets.length : 2*originalFaces[iFace].facets.length : // not the proxy face!  it will be either the face gonality or 2
+                                                nDims==2 ? 4 : -1);
+
+                                //System.out.println("maxOrder = "+maxOrder);
+                                this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
+                                                                       originalPolytope.p,
+                                                                       maxOrder,
+                                                                       gripUsefulMats[iGrip]);
+                                grip2face[iGrip] = iFace;
+                                //System.out.println("iGrip = "+iGrip);
+                                //System.out.println("this.gripSymmetryOrders["+iGrip+"] = "+VecMath.toString(gripUsefulMats[iGrip]));
+
+                                iGrip++;
+                                if (doTheOddFaceIn3dThing)
                                 {
-                                    this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
-                                    this.gripOffsF[iGrip] = VecMath.sxv(-1.f, this.gripOffsF[iGrip-1]);
-                                    this.grip2face[iGrip] = this.grip2face[iGrip-1];
-                                    this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
-                                    this.gripUsefulMats[iGrip] = new double[][] {
-                                        this.gripUsefulMats[iGrip-1][3],
-                                        this.gripUsefulMats[iGrip-1][2],
-                                        this.gripUsefulMats[iGrip-1][1],
-                                        this.gripUsefulMats[iGrip-1][0],
-                                    };
-                                    iGrip++;
+                                    if (nDims==3 && originalFaces[iFace].facets.length%2 == 1 && this.gripSymmetryOrders[iGrip-1] == 2)
+                                    {
+                                        // It's an edge of an odd polygon face in 3d...
+                                        // need the opposite edge too, for adjacent tiles facing it the opposite way
+                                        this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
+                                        this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
+                                        this.gripOffsF[iGrip] = VecMath.sxv(-1.f, this.gripOffsF[iGrip-1]);
+                                        this.grip2face[iGrip] = this.grip2face[iGrip-1];
+                                        this.gripUsefulMats[iGrip] = new double[][] {
+                                            this.gripUsefulMats[iGrip-1][0],
+                                            this.gripUsefulMats[iGrip-1][1],
+                                            this.gripUsefulMats[iGrip-1][2],
+                                            this.gripUsefulMats[iGrip-1][3],
+                                        };
+                                        iGrip++;
+                                    }
                                 }
                             }
                         }
                     }
+                    //System.out.println("nGrips = "+nGrips);
+                    //System.out.println("iGrip = "+iGrip);
+                    Assert(iGrip == nGrips);
+                    //System.out.println("this.gripSymmetryOrders = "+com.donhatchsw.util.Arrays.toStringCompact(this.gripSymmetryOrders));
                 }
-                Assert(iGrip == nGrips);
-            }
-            else if (nDims == 2)
-            {
-                int nGrips = nFaces;
-                this.gripDirsF = new float[nGrips][];
-                this.gripOffsF = new float[nGrips][];
-                this.gripSymmetryOrders = new int[nGrips];
-                this.gripUsefulMats = new double[nGrips][nDims][nDims];
-                this.grip2face = new int[nGrips];
-
-                int iGrip = 0;
-                for (int iFace = 0; iFace < nFaces; ++iFace)
+                else
                 {
-                    this.gripSymmetryOrders[iGrip] = 2;
-                    this.grip2face[iGrip] = iFace;
-                    this.gripDirsF[iGrip] = VecMath.normalize(this.faceCentersF[iFace]);
-                    this.gripOffsF[iGrip] = new float[_nDisplayDims]; // XXX fix
-
-                    // Usefulmat is defined as an orthogonal matrix
-                    // the last two rows of which are in the plane
-                    // of the rotation.
-                    // What is the plane of the rotation?
-                    // Well, it should be in the xyz space,
-                    // it should contain the z axis, and it should be
-                    // orthogonal to the face normal.
-                    // Currently "last two rows" are with respect to
-                    // nDims(=2), not nDisplayDims(=4)
-                    // (not sure that makes sense,
-                    // but that's the way it is at the moment)...
-                    // so we need to put them at rows 0 and 1.
-                    double mat2[][] = new double[2][2];
-                    VecMath.normalize(mat2[0], faceCentersD[iFace]);
-                    VecMath.xv2(mat2[1], mat2[0]);
-                    double mat4[][] = VecMath.identitymat(4);
-                    VecMath.copymat(mat4, mat2);
-                    // we want to put mat4[1] and mat4[2] at rows 0 and 1 in the result
-                    this.gripUsefulMats[iGrip] = new double[][]{
-                        mat4[1],
-                        mat4[2],
-                        mat4[0],
-                        mat4[3],
-                    };
-                    //System.out.println("usefulMat = "+Arrays.toString(this.gripUsefulMats[iFace]));
-                    iGrip++;
+                    // not thinking very hard
+                    this.grip2face = new int[0];
                 }
-                Assert(iGrip == nGrips);
             }
-            else
+
+            else // XXX old way-- get rid
             {
-                // not thinking very hard
-                this.grip2face = new int[0];
+                if (nDims == 4)
+                {
+                    int nGrips = 0;
+                    for (int iFace = 0; iFace < nFaces; ++iFace)
+                    {
+                        com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = originalFaces[iFace].getAllElements();
+                        for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
+                            nGrips += allElementsOfCell[iDim].length;
+                    }
+                    this.gripDirsF = new float[nGrips][];
+                    this.gripOffsF = new float[nGrips][];
+                    this.gripSymmetryOrders = new int[nGrips];
+                    this.gripUsefulMats = new double[nGrips][nDims][nDims];
+                    this.grip2face = new int[nGrips];
+                    double gripCenterD[] = new double[nDims];
+                    int iGrip = 0;
+                    for (int iFace = 0; iFace < nFaces; ++iFace)
+                    {
+                        CSG.Polytope cell = originalFaces[iFace];
+                        com.donhatchsw.util.CSG.Polytope[][] allElementsOfCell = cell.getAllElements();
+                        for (int iDim = 0; iDim <= 3; ++iDim) // XXX should we have a grip for the cell center, which doesn't do anything? maybe!
+                        {
+                            for (int iElt = 0; iElt < allElementsOfCell[iDim].length; ++iElt)
+                            {
+                                CSG.Polytope elt = allElementsOfCell[iDim][iElt];
+                                gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
+                                                        originalPolytope.p, cell, elt,
+                                                        gripUsefulMats[iGrip]);
+
+                                com.donhatchsw.util.CSG.cgOfVerts(gripCenterD, elt);
+                                /* XXX get rid
+                                // !! We can't use the element center,
+                                // that will end up having the same center
+                                // for different stickers on the same cubie!
+                                // So fudge it a little towards the cell center.
+                                // XXX should try to be more scientific...
+                                VecMath.lerp(gripCenterD, gripCenterD, faceCentersD[iFace], .01);
+                                */
+
+                                gripDirsF[iGrip] = com.donhatchsw.util.VecMath.doubleToFloat(VecMath.normalize(faceCentersD[iFace]));
+                                gripOffsF[iGrip] = VecMath.doubleToFloat(VecMath.vmv(gripCenterD, faceCentersD[iFace]));
+                                grip2face[iGrip] = iFace;
+                                if (progressWriter != null)
+                                {
+                                    //progressWriter.print("("+iDim+":"+gripSymmetryOrders[iGrip]+")");
+                                    //progressWriter.print(".");
+
+                                    progressWriter.flush();
+                                }
+
+                                iGrip++;
+                            }
+                        }
+                    }
+                    Assert(iGrip == nGrips);
+
+                    /*
+                    want to know, for each grip:
+                        - the grip center coords
+                        - its face center coords
+                        - its period
+                        for each slice using this grip (i.e. iterate through the slices parallel to the face the grip is on):
+                            - from indices of a CCW twist of this slice
+                            - to indices of a CCW twist of this slice
+                    */
+
+                } // nDims == 4
+                else if (nDims == 3)
+                {
+                    int nGrips = 0;
+                    for (int iFace = 0; iFace < nFaces; ++iFace)
+                    {
+                        nGrips += 1; // primary polygon
+                        nGrips += 1; // opposite polygon
+                        nGrips += originalFaces[iFace].facets.length;
+                        if (originalFaces[iFace].facets.length % 2 == 1)
+                            nGrips += originalFaces[iFace].facets.length;
+                    }
+
+                    this.gripDirsF = new float[nGrips][];
+                    this.gripOffsF = new float[nGrips][];
+                    this.gripSymmetryOrders = new int[nGrips];
+                    this.gripUsefulMats = new double[nGrips][_nDisplayDims][_nDisplayDims];
+                    this.grip2face = new int[nGrips];
+
+                    int iGrip = 0;
+                    for (int iFace = 0; iFace < nFaces; ++iFace)
+                    {
+                        //
+                        // The primary (frontfacing in initial view) polygon...
+                        //
+                        {
+                            double gripUsefulMat[][] = new double[nDims][nDims];
+                            this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
+                                                               originalPolytope.p,
+                                                               originalPolytope.p, // cell
+                                                               originalFaces[iFace], // elt
+                                                               gripUsefulMat);
+                            {
+                                // XXX bleah, clumsy
+                                VecMath.identitymat(gripUsefulMats[iGrip]);
+                                VecMath.copymat(gripUsefulMats[iGrip], gripUsefulMat);
+                            }
+
+                            this.gripDirsF[iGrip] = VecMath.normalize(this.faceCentersF[iFace]);
+                            this.gripOffsF[iGrip] = new float[]{0,0,0,1};
+                            this.grip2face[iGrip] = iFace;
+                            iGrip++;
+                        }
+                        //
+                        // The backfacing polygon...
+                        //
+                        if (true)
+                        {
+                            // swap first and second row, and negate first row.
+                            // that will accomplish the backwards rotation.
+                            this.gripUsefulMats[iGrip] = new double[][] {
+                                VecMath.sxv(-1., this.gripUsefulMats[iGrip-1][0]),
+                                this.gripUsefulMats[iGrip-1][2],
+                                this.gripUsefulMats[iGrip-1][1],
+                                this.gripUsefulMats[iGrip-1][3],
+                            };
+                            this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
+                            this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
+                            this.gripOffsF[iGrip] = new float[]{0,0,0,-1};
+                            this.grip2face[iGrip] = iFace;
+                            iGrip++;
+                        }
+                        //
+                        // The edges of the polygon...
+                        //
+                        if (true)
+                        {
+                            for (int iEdgeThisFace = 0;
+                                 iEdgeThisFace < originalFaces[iFace].facets.length;
+                                 ++iEdgeThisFace)
+                            {
+                                double edgeCenterD[] = new double[nDims];
+                                CSG.cgOfVerts(edgeCenterD, originalFaces[iFace].facets[iEdgeThisFace].p);
+                                float edgeCenterF[] = VecMath.doubleToFloat(edgeCenterD);
+
+                                this.grip2face[iGrip] = iFace;
+                                this.gripSymmetryOrders[iGrip] = 2;
+                                double mat3[][] = {
+                                    faceCentersD[iFace],
+                                    edgeCenterD,
+                                    VecMath.vxv3(faceCentersD[iFace],
+                                                 edgeCenterD),
+                                };
+                                VecMath.gramschmidt(mat3, mat3);
+                                //
+                                // Usefulmat is defined as an orthogonal matrix
+                                // the last two rows of which are in the plane
+                                // of the desired rotation.
+                                // What is the plane of the desired rotation?
+                                // Well, it contains the w axis
+                                // and is normal to the 3d normal of the polygon.
+                                // Currently "last two rows" are with respect to
+                                // nDims(=2), not nDisplayDims(=4)
+                                // (not sure that makes sense,
+                                // but that's the way it is at the moment)...
+                                // so we need to put them at rows 0 and 1.
+                                //
+                                double otherPlaneVector[] = {mat3[2][0],mat3[2][1],mat3[2][2], 0};
+                                double minusWAxis[] = {0,0,0,-1};
+                                double mat4[][] = new double[4][4];
+                                VecMath.copyvec(mat4[0], minusWAxis);
+                                VecMath.copyvec(mat4[1], mat3[2]); // other plane vector
+                                VecMath.copyvec(mat4[2], mat3[0]);
+                                VecMath.copyvec(mat4[3], mat3[1]);
+                                VecMath.gramschmidt(mat4, mat4);
+                                this.gripUsefulMats[iGrip] = new double[][] {
+                                    mat4[3],
+                                    mat4[0],
+                                    mat4[1],
+                                    mat4[2],
+                                };
+                                // XXX if sign came out right it's by luck
+                                this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
+                                this.gripOffsF[iGrip] = new float[]{(float)mat3[1][0],(float)mat3[1][1],(float)mat3[1][2],0};
+                                iGrip++;
+                                if (true)
+                                {
+                                    // Need opposite-facing face too
+                                    if (originalFaces[iFace].facets.length % 2 == 1)
+                                    {
+                                        this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
+                                        this.gripOffsF[iGrip] = VecMath.sxv(-1.f, this.gripOffsF[iGrip-1]);
+                                        this.grip2face[iGrip] = this.grip2face[iGrip-1];
+                                        this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
+                                        this.gripUsefulMats[iGrip] = new double[][] {
+                                            this.gripUsefulMats[iGrip-1][3],
+                                            this.gripUsefulMats[iGrip-1][2],
+                                            this.gripUsefulMats[iGrip-1][1],
+                                            this.gripUsefulMats[iGrip-1][0],
+                                        };
+                                        iGrip++;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Assert(iGrip == nGrips);
+                }
+                else if (nDims == 2)
+                {
+                    int nGrips = nFaces;
+                    this.gripDirsF = new float[nGrips][];
+                    this.gripOffsF = new float[nGrips][];
+                    this.gripSymmetryOrders = new int[nGrips];
+                    this.gripUsefulMats = new double[nGrips][nDims][nDims];
+                    this.grip2face = new int[nGrips];
+
+                    int iGrip = 0;
+                    for (int iFace = 0; iFace < nFaces; ++iFace)
+                    {
+                        this.gripSymmetryOrders[iGrip] = 2;
+                        this.grip2face[iGrip] = iFace;
+                        this.gripDirsF[iGrip] = VecMath.normalize(this.faceCentersF[iFace]);
+                        this.gripOffsF[iGrip] = new float[_nDisplayDims]; // XXX fix
+
+                        // Usefulmat is defined as an orthogonal matrix
+                        // the last two rows of which are in the plane
+                        // of the rotation.
+                        // What is the plane of the rotation?
+                        // Well, it should be in the xyz space,
+                        // it should contain the z axis, and it should be
+                        // orthogonal to the face normal.
+                        // Currently "last two rows" are with respect to
+                        // nDims(=2), not nDisplayDims(=4)
+                        // (not sure that makes sense,
+                        // but that's the way it is at the moment)...
+                        // so we need to put them at rows 0 and 1.
+                        double mat2[][] = new double[2][2];
+                        VecMath.normalize(mat2[0], faceCentersD[iFace]);
+                        VecMath.xv2(mat2[1], mat2[0]);
+                        double mat4[][] = VecMath.identitymat(4);
+                        VecMath.copymat(mat4, mat2);
+                        // we want to put mat4[1] and mat4[2] at rows 0 and 1 in the result
+                        this.gripUsefulMats[iGrip] = new double[][]{
+                            mat4[1],
+                            mat4[2],
+                            mat4[0],
+                            mat4[3],
+                        };
+                        //System.out.println("usefulMat = "+Arrays.toString(this.gripUsefulMats[iFace]));
+                        iGrip++;
+                    }
+                    Assert(iGrip == nGrips);
+                }
+                else
+                {
+                    // not thinking very hard
+                    this.grip2face = new int[0];
+                }
             }
             if (progressWriter != null)
             {
@@ -1270,7 +1380,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             Assert(gripUsefulMat.length == _nDisplayDims);
             double mat[][] = VecMath.mxmxm(VecMath.transpose(gripUsefulMats[gripIndex]),
                                  VecMath.makeRowRotMat(_nDisplayDims,
-                                                       nDims-2,nDims-1,
+                                                       _nDisplayDims-2,_nDisplayDims-1,
                                                        angle),
                                  gripUsefulMats[gripIndex]);
             return mat;
