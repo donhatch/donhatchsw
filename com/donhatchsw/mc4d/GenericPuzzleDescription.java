@@ -62,7 +62,7 @@ interface GenericPuzzleDescription {
     * XXX geometry for picking.  If it needs to be subdivided for picking,
     * XXX then that's the way it will be drawn.
     * XXX and then have a stickerPolygon2Grip array.
-    * XXX Bleah, maybe that will show cracks :-(
+    * XXX Bleah, that will show cracks :-(
     */
     public int[/*nGrips*/][/*nPolygonsThisGrip*/][/*nVertsThisPolygon*/]
         getGripInds();
@@ -78,7 +78,9 @@ interface GenericPuzzleDescription {
     /**
     * XXX floundering here... closest in what sense? normalized vectors on a sphere?
     */
-    public int getClosestGrip(float pickCoords[/*4*/]);
+    public int getClosestGrip(float pickCoords[/*4*/]); // XXX maybe should go away?  still trying to figure out the cleanest way
+    public int getClosestGrip(float polyCenter[/*4*/],
+                              float stickerCenter[/*4*/]);
 
     /**
     * Get the vertices of the geometry that gets drawn

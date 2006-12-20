@@ -100,6 +100,7 @@
           an infinite exception loop I think
         - if in ctrl-to-spindrag mode, shouldn't hightlight sticker
           when ctrl key is down
+        - length 1: polygons should be grips, I think
 
     NOT HAVING TO DO WITH THIS GENERIC STUFF:
     =====================================================
@@ -180,6 +181,12 @@
                 In general this will make the symmetry of a twist
                 be dependent on the symmetry of the face,
                 which can be more than the symmetry of the whole puzzle.
+            - what should be highlighted is not the sticker, but everything
+                that maps to the same grip as what the mouse is over.
+                So for the 3x it should be the sticker like it is now,
+                for the 2x and lower dim polygons it should be the polygon,
+                for 4x it should be the whole panel of stickers
+                that map to the same grip.
 */
 
 import com.donhatchsw.util.*; // XXX get rid
@@ -195,10 +202,10 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private float vertsMinusStickerCenters[][];
     private float vertStickerCentersMinusFaceCenters[][];
-    private float vertFaceCenters[][]; // XXX maybe silly since we hace faceCenters
+    private float vertFaceCenters[][]; // XXX maybe silly since we hace faceCentersF
     private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
 
-    private float faceCenters[/*nFaces*/][/*nDims*/];
+    private float faceCentersF[/*nFaces*/][/*nDims*/];
 
     private int adjacentStickerPairs[][/*2*/][/*2*/];
     private int face2OppositeFace[/*nFaces*/];
@@ -206,7 +213,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int sticker2faceShadow[/*nStickers*/]; // so we can detect nefariousness
     private int sticker2cubie[/*nStickers*/];
 
-    private float gripCentersF[/*nGrips*/][];
+    private float gripDirsF[/*nGrips*/][];
+    private float gripOffsF[/*nGrips*/][];
     private int grip2face[/*nGrips*/];
     private int gripSymmetryOrders[/*nGrips*/];
     private double gripUsefulMats[/*nGrips*/][/*nDims*/][/*nDims*/]; // weird name
@@ -633,7 +641,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
             }
         }
-        this.faceCenters = com.donhatchsw.util.VecMath.doubleToFloat(faceCentersD);
+        this.faceCentersF = com.donhatchsw.util.VecMath.doubleToFloat(faceCentersD);
 
         float stickerCentersMinusFaceCentersF[][] = new float[nStickers][];
         {
@@ -858,7 +866,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
-                faceCenters[iFace] = (float[])com.donhatchsw.util.Arrays.append(faceCenters[iFace], 0.f);
+                faceCentersF[iFace] = (float[])com.donhatchsw.util.Arrays.append(faceCentersF[iFace], 0.f);
                 faceInwardNormals[iFace] = (double[])com.donhatchsw.util.Arrays.append(faceInwardNormals[iFace], 0.f);
             }
         }
@@ -888,7 +896,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     {
                         vertsMinusStickerCenters[iVert] = com.donhatchsw.util.VecMath.doubleToFloat(com.donhatchsw.util.VecMath.vmv(restVerts[iVert], stickerCentersD[iSticker]));
                         vertStickerCentersMinusFaceCenters[iVert] = stickerCentersMinusFaceCentersF[iSticker];
-                        vertFaceCenters[iVert] = faceCenters[iFace];
+                        vertFaceCenters[iVert] = faceCentersF[iFace];
                     }
                 }
             }
@@ -909,7 +917,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // Don't bother with grips for now, it's taking too long
             // for the big ones
             int nGrips = 0;
-            this.gripCentersF = new float[nGrips][];
+            this.gripDirsF = new float[nGrips][];
+            this.gripOffsF = new float[nGrips][];
             this.gripSymmetryOrders = new int[nGrips];
             this.gripUsefulMats = new double[nGrips][nDims][nDims];
             this.grip2face = new int[nGrips];
@@ -931,7 +940,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
                         nGrips += allElementsOfCell[iDim].length;
                 }
-                this.gripCentersF = new float[nGrips][];
+                this.gripDirsF = new float[nGrips][];
+                this.gripOffsF = new float[nGrips][];
                 this.gripSymmetryOrders = new int[nGrips];
                 this.gripUsefulMats = new double[nGrips][nDims][nDims];
                 this.grip2face = new int[nGrips];
@@ -951,14 +961,17 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                     gripUsefulMats[iGrip]);
 
                             com.donhatchsw.util.CSG.cgOfVerts(gripCenterD, elt);
+                            /* XXX get rid
                             // !! We can't use the element center,
                             // that will end up having the same center
                             // for different stickers on the same cubie!
                             // So fudge it a little towards the cell center.
                             // XXX should try to be more scientific...
                             VecMath.lerp(gripCenterD, gripCenterD, faceCentersD[iFace], .01);
+                            */
 
-                            gripCentersF[iGrip] = com.donhatchsw.util.VecMath.doubleToFloat(gripCenterD);
+                            gripDirsF[iGrip] = com.donhatchsw.util.VecMath.doubleToFloat(VecMath.normalize(faceCentersD[iFace]));
+                            gripOffsF[iGrip] = VecMath.doubleToFloat(VecMath.vmv(gripCenterD, faceCentersD[iFace]));
                             grip2face[iGrip] = iFace;
                             if (progressWriter != null)
                             {
@@ -987,44 +1000,157 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             } // nDims == 4
             else if (nDims == 3)
             {
-                int nGrips = nFaces;
-                this.gripCentersF = new float[nGrips][nDims];
-                this.gripSymmetryOrders = new int[nGrips];
-                this.gripUsefulMats = new double[nGrips][nDims][nDims];
-                this.grip2face = new int[nGrips];
-
-                this.gripCentersF = this.faceCenters;
+                int nGrips = 0;
                 for (int iFace = 0; iFace < nFaces; ++iFace)
                 {
-                    this.gripSymmetryOrders[iFace] = CSG.calcRotationGroupOrder(
-                                                       originalPolytope.p,
-                                                       originalPolytope.p, // cell
-                                                       originalFaces[iFace], // elt
-                                                       gripUsefulMats[iFace]);
-                    {
-                        // XXX bleah, clumsy
-                        double temp[][] = VecMath.identitymat(4);
-                        VecMath.copymat(temp, gripUsefulMats[iFace]);
-                        VecMath.copymat(gripUsefulMats[iFace] = temp);
-                    }
-
-                    this.grip2face[iFace] = iFace;
+                    nGrips += 1; // primary polygon
+                    nGrips += 1; // opposite polygon
+                    nGrips += originalFaces[iFace].facets.length;
+                    if (originalFaces[iFace].facets.length % 2 == 1)
+                        nGrips += originalFaces[iFace].facets.length;
                 }
+
+                this.gripDirsF = new float[nGrips][];
+                this.gripOffsF = new float[nGrips][];
+                this.gripSymmetryOrders = new int[nGrips];
+                this.gripUsefulMats = new double[nGrips][_nDisplayDims][_nDisplayDims];
+                this.grip2face = new int[nGrips];
+
+                int iGrip = 0;
+                for (int iFace = 0; iFace < nFaces; ++iFace)
+                {
+                    //
+                    // The primary (frontfacing in initial view) polygon...
+                    //
+                    {
+                        double gripUsefulMat[][] = new double[nDims][nDims];
+                        this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
+                                                           originalPolytope.p,
+                                                           originalPolytope.p, // cell
+                                                           originalFaces[iFace], // elt
+                                                           gripUsefulMat);
+                        {
+                            // XXX bleah, clumsy
+                            VecMath.identitymat(gripUsefulMats[iGrip]);
+                            VecMath.copymat(gripUsefulMats[iGrip], gripUsefulMat);
+                        }
+
+                        this.gripDirsF[iGrip] = VecMath.normalize(this.faceCentersF[iFace]);
+                        this.gripOffsF[iGrip] = new float[]{0,0,0,1};
+                        this.grip2face[iGrip] = iFace;
+                        iGrip++;
+                    }
+                    //
+                    // The backfacing polygon...
+                    //
+                    if (true)
+                    {
+                        // swap first and second row, and negate first row.
+                        // that will accomplish the backwards rotation.
+                        this.gripUsefulMats[iGrip] = new double[][] {
+                            VecMath.sxv(-1., this.gripUsefulMats[iGrip-1][0]),
+                            this.gripUsefulMats[iGrip-1][2],
+                            this.gripUsefulMats[iGrip-1][1],
+                            this.gripUsefulMats[iGrip-1][3],
+                        };
+                        this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
+                        this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
+                        this.gripOffsF[iGrip] = new float[]{0,0,0,-1};
+                        this.grip2face[iGrip] = iFace;
+                        iGrip++;
+                    }
+                    //
+                    // The edges of the polygon...
+                    //
+                    if (true)
+                    {
+                        for (int iEdgeThisFace = 0;
+                             iEdgeThisFace < originalFaces[iFace].facets.length;
+                             ++iEdgeThisFace)
+                        {
+                            double edgeCenterD[] = new double[nDims];
+                            CSG.cgOfVerts(edgeCenterD, originalFaces[iFace].facets[iEdgeThisFace].p);
+                            float edgeCenterF[] = VecMath.doubleToFloat(edgeCenterD);
+
+                            this.grip2face[iGrip] = iFace;
+                            this.gripSymmetryOrders[iGrip] = 2;
+                            double mat3[][] = {
+                                faceCentersD[iFace],
+                                edgeCenterD,
+                                VecMath.vxv3(faceCentersD[iFace],
+                                             edgeCenterD),
+                            };
+                            VecMath.gramschmidt(mat3, mat3);
+                            //
+                            // Usefulmat is defined as an orthogonal matrix
+                            // the last two rows of which are in the plane
+                            // of the desired rotation.
+                            // What is the plane of the desired rotation?
+                            // Well, it contains the w axis
+                            // and is normal to the 3d normal of the polygon.
+                            // Currently "last two rows" are with respect to
+                            // nDims(=2), not nDisplayDims(=4)
+                            // (not sure that makes sense,
+                            // but that's the way it is at the moment)...
+                            // so we need to put them at rows 0 and 1.
+                            //
+                            double otherPlaneVector[] = {mat3[2][0],mat3[2][1],mat3[2][2], 0};
+                            double minusWAxis[] = {0,0,0,-1};
+                            double mat4[][] = new double[4][4];
+                            VecMath.copyvec(mat4[0], minusWAxis);
+                            VecMath.copyvec(mat4[1], mat3[2]); // other plane vector
+                            VecMath.copyvec(mat4[2], mat3[0]);
+                            VecMath.copyvec(mat4[3], mat3[1]);
+                            VecMath.gramschmidt(mat4, mat4);
+                            this.gripUsefulMats[iGrip] = new double[][] {
+                                mat4[3],
+                                mat4[0],
+                                mat4[1],
+                                mat4[2],
+                            };
+                            // XXX if sign came out right it's by luck
+                            this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
+                            this.gripOffsF[iGrip] = new float[]{(float)mat3[1][0],(float)mat3[1][1],(float)mat3[1][2],0};
+                            iGrip++;
+                            if (true)
+                            {
+                                // Need opposite-facing face too
+                                if (originalFaces[iFace].facets.length % 2 == 1)
+                                {
+                                    this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
+                                    this.gripOffsF[iGrip] = VecMath.sxv(-1.f, this.gripOffsF[iGrip-1]);
+                                    this.grip2face[iGrip] = this.grip2face[iGrip-1];
+                                    this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
+                                    this.gripUsefulMats[iGrip] = new double[][] {
+                                        this.gripUsefulMats[iGrip-1][3],
+                                        this.gripUsefulMats[iGrip-1][2],
+                                        this.gripUsefulMats[iGrip-1][1],
+                                        this.gripUsefulMats[iGrip-1][0],
+                                    };
+                                    iGrip++;
+                                }
+                            }
+                        }
+                    }
+                }
+                Assert(iGrip == nGrips);
             }
             else if (nDims == 2)
             {
                 int nGrips = nFaces;
-                this.gripCentersF = new float[nGrips][nDims];
+                this.gripDirsF = new float[nGrips][];
+                this.gripOffsF = new float[nGrips][];
                 this.gripSymmetryOrders = new int[nGrips];
                 this.gripUsefulMats = new double[nGrips][nDims][nDims];
                 this.grip2face = new int[nGrips];
 
-                this.gripCentersF = this.faceCenters;
-
+                int iGrip = 0;
                 for (int iFace = 0; iFace < nFaces; ++iFace)
                 {
-                    this.gripSymmetryOrders[iFace] = 2;
-                    this.grip2face[iFace] = iFace;
+                    this.gripSymmetryOrders[iGrip] = 2;
+                    this.grip2face[iGrip] = iFace;
+                    this.gripDirsF[iGrip] = VecMath.normalize(this.faceCentersF[iFace]);
+                    this.gripOffsF[iGrip] = new float[_nDisplayDims]; // XXX fix
 
                     // Usefulmat is defined as an orthogonal matrix
                     // the last two rows of which are in the plane
@@ -1044,14 +1170,16 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     double mat4[][] = VecMath.identitymat(4);
                     VecMath.copymat(mat4, mat2);
                     // we want to put mat4[1] and mat4[2] at rows 0 and 1 in the result
-                    this.gripUsefulMats[iFace] = new double[][]{
+                    this.gripUsefulMats[iGrip] = new double[][]{
                         mat4[1],
                         mat4[2],
                         mat4[0],
                         mat4[3],
                     };
                     //System.out.println("usefulMat = "+Arrays.toString(this.gripUsefulMats[iFace]));
+                    iGrip++;
                 }
+                Assert(iGrip == nGrips);
             }
             else
             {
@@ -1274,9 +1402,14 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             int bestIndex = -1;
             float bestDistSqrd = Float.MAX_VALUE;
-            for (int i = 0; i < gripCentersF.length; ++i)
+            float gripDirPlusGripOffF[] = new float[_nDisplayDims];
+            for (int i = 0; i < gripDirsF.length; ++i)
             {
-                float thisDistSqrd = VecMath.distsqrd(gripCentersF[i],
+                VecMath.vpsxv(gripDirPlusGripOffF,
+                              gripDirsF[i],
+                              .99f,
+                              gripOffsF[i]);
+                float thisDistSqrd = VecMath.distsqrd(gripDirPlusGripOffF,
                                                       pickCoords);
                 if (thisDistSqrd < bestDistSqrd)
                 {
@@ -1286,6 +1419,46 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             return bestIndex;
         }
+        // XXX lame, this should be precomputed and looked up by
+        // XXX poly and sticker index
+        public int getClosestGrip(float polyCenter[/*4*/],
+                                  float stickerCenter[/*4*/])
+        {
+            float mat[][] = {VecMath.copyvec(stickerCenter),
+                             VecMath.copyvec(polyCenter)};
+            VecMath.gramschmidt(mat, mat);
+            float dir[] = mat[0];
+            float off[] = mat[1];
+            //System.out.println("    poly center = "+com.donhatchsw.util.Arrays.toStringCompact(polyCenter));
+            //System.out.println("    sticker center = "+com.donhatchsw.util.Arrays.toStringCompact(stickerCenter));
+            //System.out.println("        dir= "+com.donhatchsw.util.Arrays.toStringCompact(dir));
+            //System.out.println("        off= "+com.donhatchsw.util.Arrays.toStringCompact(off));
+            float eps2 = 1e-6f*1e-6f;
+            int bestGrip = -1;
+            float bestDistSqrd = Float.MAX_VALUE;
+            float bestOffDistSqrd = Float.MAX_VALUE;
+            for (int iGrip = 0; iGrip < gripDirsF.length; ++iGrip)
+            {
+                //if (iGrip < 6) System.out.println("    gripDirsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripDirsF[iGrip]));
+                //if (iGrip < 6) System.out.println("    gripOffsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripOffsF[iGrip]));
+                float thisDistSqrd = VecMath.distsqrd(gripDirsF[iGrip],
+                                                      dir);
+                if (thisDistSqrd > bestDistSqrd + eps2)
+                    continue;
+                float thisOffDistSqrd = VecMath.distsqrd(gripOffsF[iGrip],
+                                                         off);
+                if (thisDistSqrd >= bestDistSqrd - eps2
+                 && thisOffDistSqrd > bestOffDistSqrd + eps2)
+                        continue;
+                bestDistSqrd = thisDistSqrd;
+                bestOffDistSqrd = thisOffDistSqrd;
+                bestGrip = iGrip;
+                //System.out.println("            best grip = "+bestGrip);
+            }
+            //System.out.println("        best grip = "+bestGrip);
+            return bestGrip;
+        } // getClosestGrip
+
         public float[/*nDims*/] getClosestNicePointToRotateToCenter(float pickCoords[])
         {
             int bestIndex = -1;
@@ -1379,7 +1552,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         public float[/*nFaces*/][/*nDisplayDims*/]
             getFaceCentersAtRest()
         {
-            return faceCenters;
+            return faceCentersF;
         }
         public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
                                                     int gripIndex,
