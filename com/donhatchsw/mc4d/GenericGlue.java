@@ -1112,7 +1112,9 @@ public class GenericGlue
                 //if(e.isShiftDown()) // experimental control to allow double twists but also requires speed control.
                 //    dir *= 2;
 
-                if (genericGlue.genericPuzzleDescription.nDims() < 4)
+                // XXX get rid of the following when all grips installed properly
+                if (genericGlue.genericPuzzleDescription.nDims() == 2)
+                //if (genericGlue.genericPuzzleDescription.nDims() < 3)
                 {
                     //
                     // In less-than-4d puzzles,
