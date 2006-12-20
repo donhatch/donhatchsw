@@ -2388,6 +2388,91 @@ public final class CSG
             return index != -1;
         } // contains
 
+        //
+        // usefulMat should be an orthogonal matrix
+        // whose last two rows are in the plane of the desired rotation.
+        //
+        public static int calcRotationGroupOrder(Polytope p,
+                                                 int maxPossibleOrder,
+                                                 double usefulMat[][])
+        {
+            if (maxPossibleOrder == 0)
+                return 0; // XXX maybe the caller should not call in this case... I doubt usefulMat is sane here
+            //PRINT(maxPossibleOrder);
+            //PRINTMAT(usefulMat);
+            int nDims = usefulMat.length;
+
+            //
+            // Compute a rotation matrix
+            // that rotates by 2pi/maxPossibleOrder
+            // in the plane spanned by the last two rows of usefulMat.
+            // The rotation we want to describe is:
+            //     take the rows of mat to the canonical basis vectors e[0]..e[n-1]
+            //     rotate e[n-2] towards e[n-1]
+            //     take the canonical basis vectors back to the original rows
+            //
+            double maxPossibleOrderMat[][] = 
+                VecMath.mxmxm(VecMath.transpose(usefulMat),
+                              VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, 2*Math.PI/maxPossibleOrder),
+                              usefulMat);
+
+            FuzzyPointHashTable hashTable = new FuzzyPointHashTable(1e-9,
+                                                                    1e-8,
+                                                                    1./512);
+            Polytope verts[] = p.getAllElements()[0];
+            int nVerts = verts.length;
+            {
+                Object something = new Object();
+                FORI (iVert, nVerts)
+                {
+                    double vertCoords[] = verts[iVert].getCoords();
+                    while (vertCoords.length < nDims)
+                        vertCoords = Arrays.append(vertCoords, 0.);
+                    hashTable.put(vertCoords, something);
+                }
+            }
+
+            // The actual order will be some factor of maxPossibleOrder.
+            // Try all possibilities, from big to little.
+            for (int order = maxPossibleOrder; order >= 1; order--)
+            {
+                if (maxPossibleOrder % order != 0)
+                    continue;
+                //System.err.println("(Trying order "+order+"/"+maxPossibleOrder+")");
+                double mat[][];
+                {
+                    // XXX should have VecMath.pow(double[][], int) that does it the smart way so it's only O(sqrt(n)) matrix multiplies
+                    mat = VecMath.identitymat(nDims);
+                    FORI (i, maxPossibleOrder/order)
+                        mat = VecMath.mxm(mat, maxPossibleOrderMat);
+                }
+
+                double scratchVert[] = new double[nDims];
+                int iVert = 0;
+                FOR (iVert, nVerts)
+                {
+                    double vertCoords[] = verts[iVert].getCoords();
+                    while (vertCoords.length < nDims)
+                        vertCoords = Arrays.append(vertCoords, 0.);
+                    VecMath.vxm(scratchVert, vertCoords, mat);
+                    if (hashTable.get(scratchVert) == null)
+                    {
+                        //System.err.print("(HEY! order "+order+"/"+maxPossibleOrder+" didn't work!)");
+                        break; // no good!
+                    }
+                }
+                if (iVert == nVerts) // everything was good!
+                {
+                    return order; // everything was good!
+                }
+            }
+            // order 1 should have succeeded, so we can't get here.
+            // Actually we could have just returned 1 if all larger orders failed,
+            // but we tested it anyway as a sanity check-- it better have succeeded.
+            PRINT(maxPossibleOrder);
+            assert(false);
+            return 1;
+        } // calcRotationGroupOrder
 
         /**
         * calculates the order of the group of symmetries
