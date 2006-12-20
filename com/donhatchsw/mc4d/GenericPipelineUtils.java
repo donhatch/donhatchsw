@@ -776,6 +776,7 @@ public class GenericPipelineUtils
     } // pickPolyAndStickerCenter
 
     // Pick poly center if it's a 2x2x2x2, sticker center otherwise.
+    // XXX not sure this is used any more? well it's used when rotating to center, but I'm not sure it should be... have to check
     public static float[] pickPolyOrStickerCenter(float x, float y,
                                                   Frame frame,
                                                   GenericPuzzleDescription puzzleDescription)
@@ -801,11 +802,28 @@ public class GenericPipelineUtils
                                Frame frame,
                                GenericPuzzleDescription puzzleDescription)
     {
-        float polyOrStickerCenter[] = pickPolyOrStickerCenter(x, y, frame, puzzleDescription);
-        if (polyOrStickerCenter == null)
+        float polyAndStickerCenter[][] = pickPolyAndStickerCenter(x, y, frame, puzzleDescription);
+        if (polyAndStickerCenter == null)
             return -1;
-        int iGrip = puzzleDescription.getClosestGrip(polyOrStickerCenter);
-        return iGrip;
+
+        float polyCenter[] = polyAndStickerCenter[0];
+        float stickerCenter[] = polyAndStickerCenter[1];
+        boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
+                               && (VecMath.normsqrd(polyCenter) == 1.5
+                                || VecMath.normsqrd(polyCenter) == 2.5);
+        if (verboseLevel >= 3) System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
+        if (puzzleDescription.nDims() < 4
+         || itsProbablyThe2)
+        {
+            int iGrip = puzzleDescription.getClosestGrip(polyCenter,
+                                                         stickerCenter);
+            return iGrip;
+        }
+        else
+        {
+            int iGrip = puzzleDescription.getClosestGrip(stickerCenter);
+            return iGrip;
+        }
     }
 
     public static float[] pickNicePointToRotateToCenter(float x, float y,
