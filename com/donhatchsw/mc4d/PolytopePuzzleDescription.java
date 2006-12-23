@@ -983,24 +983,35 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             CSG.Polytope elt = allElementsOfFace[iDim][iElt];
                             VecMath.copyvec(gripUsefulMats[iGrip][0], faceCentersD[iFace]);
                             CSG.cgOfVerts(gripUsefulMats[iGrip][1], elt);
-                            this.gripDirsF[iGrip] = VecMath.doubleToFloat(VecMath.normalize(gripUsefulMats[iGrip][0]));
-                            this.gripOffsF[iGrip] = VecMath.doubleToFloat(VecMath.normalize(gripUsefulMats[iGrip][1]));
-                            VecMath.extendAndGramSchmidt(2,4,
-                                                         gripUsefulMats[iGrip],
-                                                         gripUsefulMats[iGrip]);
+                            VecMath.vmv(gripUsefulMats[iGrip][1],
+                                        gripUsefulMats[iGrip][1],
+                                        gripUsefulMats[iGrip][0]);
+                            this.gripDirsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][0]);
+                            this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
+                            if (VecMath.normsqrd(this.gripOffsF[iGrip]) <= 1e-4*1e-4)
+                            {
+                                VecMath.zeromat(gripUsefulMats[iGrip]);
+                                this.gripSymmetryOrders[iGrip] = 0;
+                            }
+                            else
+                            {
+                                VecMath.extendAndGramSchmidt(2,4,
+                                                             gripUsefulMats[iGrip],
+                                                             gripUsefulMats[iGrip]);
 
-                            int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFace[0][iElt][1].length :
-                                                       iDim==1 ? 2 :
-                                                       iDim==2 ? allIncidencesThisFace[2][iElt][1].length :
-                                                       iDim==3 ? 0 : -1 :
-                                            nDims==3 ? originalFaces[iFace].facets.length%2==0 ? originalFaces[iFace].facets.length : 2*originalFaces[iFace].facets.length : // not the proxy face!  it will be either the face gonality or 2
-                                            nDims==2 ? 4 : -1);
+                                int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFace[0][iElt][1].length :
+                                                           iDim==1 ? 2 :
+                                                           iDim==2 ? allIncidencesThisFace[2][iElt][1].length :
+                                                           iDim==3 ? 0 : -1 :
+                                                nDims==3 ? originalFaces[iFace].facets.length%2==0 ? originalFaces[iFace].facets.length : 2*originalFaces[iFace].facets.length : // not the proxy face!  it will be either the face gonality or 2... would be more efficient to use lcm for maxOrder, but this is 3d so whatever, the whole thing is small
+                                                nDims==2 ? 4 : -1);
 
-                            //System.out.println("maxOrder = "+maxOrder);
-                            this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
-                                                                   originalPolytope.p,
-                                                                   maxOrder,
-                                                                   gripUsefulMats[iGrip]);
+                                //System.out.println("maxOrder = "+maxOrder);
+                                this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
+                                                                       originalPolytope.p,
+                                                                       maxOrder,
+                                                                       gripUsefulMats[iGrip]);
+                            }
                             grip2face[iGrip] = iFace;
                             //System.out.println("iGrip = "+iGrip);
                             //System.out.println("this.gripSymmetryOrders["+iGrip+"] = "+VecMath.toString(gripUsefulMats[iGrip]));
