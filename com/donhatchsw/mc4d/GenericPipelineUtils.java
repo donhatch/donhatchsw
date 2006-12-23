@@ -823,6 +823,7 @@ public class GenericPipelineUtils
         else
         {
             int iGrip = puzzleDescription.getClosestGrip(stickerCenter);
+            //System.out.println("    the closest grip to "+VecMath.toString(stickerCenter)+" is "+iGrip);
             return iGrip;
         }
     }
