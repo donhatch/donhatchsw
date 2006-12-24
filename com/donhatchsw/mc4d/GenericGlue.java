@@ -4,9 +4,12 @@
 //      GenericPuzzleDescription (interface)
 //      PolytopePuzzleDescription (implements GenericPuzzleDescription)
 //      GenericPipelineUtils
-// onto MC4DSwing/MC4DView with as minimal impact on the existing code
+// onto MC4DSwing/MC4DView with as minimal impact on Melinda's existing code
 // as possible, prior to Melinda getting a look at it
 // and figuring out where it should really go.
+//
+// Although, there is some stuff in here that Don
+// needs to move down into the generic utilities.
 //
 // Functions currently in here:
 //
@@ -52,6 +55,10 @@ import javax.swing.*;
 
 public class GenericGlue
 {
+    // XXX bogus variables that currently must be kept in sync with the corresponding ones in MagicCube.java
+    public int MagicCube_NFRAMES_90 = 15; // XXX should be a param that whoever initiates a rotation passes in, we should not need to know this
+    public int MagicCube_FULL_SCRAMBLE = 15; // XXX should be a param that whoever initiates a scramble passes in, we should not need to know this
+
     public static int verboseLevel = 0; // set to something else to debug
 
     //
@@ -89,13 +96,16 @@ public class GenericGlue
     public float zeroRollPoleAfterRot3d[] = null;
 
     //
-    // The sticker and cubie that the mouse is currently hovering over.
+    // The sticker and polygon-within-sticker
+    // that the mouse is currently hovering over.
     //
     public int iStickerUnderMouse = -1;
+    public int iPolyUnderMouse = -1;
+    public boolean highlightByGrip = true;
 
 
     //
-    // Rudimentaty undo queue.
+    // Rudimentary undo queue.
     //
     public static class HistoryNode
     {
@@ -121,7 +131,8 @@ public class GenericGlue
 
 
     //
-    // Debugging state variables
+    // Debugging state variables.
+    // Most of these are settable using secret ctrl-alt key combinations.
     //
     public boolean useTopsort = true;
     public int jitterRadius = 0;
@@ -831,8 +842,8 @@ public class GenericGlue
             // Initiate the undo twist (opposite dir from original)
             //
             int order = glue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
-            double totalRotationAngle = 2*Math.PI/order;
-            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
+            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
             if (glue.nTwist == 0) glue.nTwist = 1;
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
@@ -865,8 +876,8 @@ public class GenericGlue
             // Initiate the redo twist (same dir as original)
             //
             int order = glue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
-            double totalRotationAngle = 2*Math.PI/order;
-            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
+            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
             if (glue.nTwist == 0) glue.nTwist = 1;
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
@@ -926,7 +937,7 @@ public class GenericGlue
 
         }
         view.repaint();
-        boolean fully = scramblechenfrengensen == MagicCube.FULL_SCRAMBLE;
+        boolean fully = scramblechenfrengensen == MagicCube_FULL_SCRAMBLE;
         // scrambleState = fully ? SCRAMBLE_FULL : SCRAMBLE_PARTIAL; XXX do we need to do this here?
         statusLabel.setText(fully ? "Fully Scrambled" : scramblechenfrengensen + " Random Twist" + (scramblechenfrengensen==1?"":"s"));
     } // scrambleAction
@@ -939,15 +950,19 @@ public class GenericGlue
                                  Canvas view)
     {
         GenericGlue genericGlue = this;
-        int pickedSticker = GenericPipelineUtils.pickSticker(
-                                    e.getX(), e.getY(),
-                                    genericGlue.untwistedFrame,
-                                    genericGlue.genericPuzzleDescription);
-        //System.out.println("    hover sticker "+genericGlue.iStickerUnderMouse+" -> "+pickedSticker+"");
-        if (pickedSticker != genericGlue.iStickerUnderMouse)
-            view.repaint(); // highlight changed (or turned on or off)
-        genericGlue.iStickerUnderMouse = pickedSticker;
-
+        int pickedStickerPoly[] = GenericPipelineUtils.pick(
+                                        e.getX(), e.getY(),
+                                        genericGlue.untwistedFrame,
+                                        genericGlue.genericPuzzleDescription);
+        int newSticker = pickedStickerPoly!=null ? pickedStickerPoly[0] : -1;
+        int newPoly = pickedStickerPoly!=null ? pickedStickerPoly[1] : -1;
+        if (newSticker != genericGlue.iStickerUnderMouse
+         || newPoly != genericGlue.iPolyUnderMouse)
+        {
+            genericGlue.iStickerUnderMouse = newSticker;
+            genericGlue.iPolyUnderMouse = newPoly;
+            view.repaint();
+        }
 
         // Kind of hacky way to add a back door key listener for debugging...
         if (view != mostRecentViewIAddedListenerTo)
@@ -969,7 +984,7 @@ public class GenericGlue
                                    Canvas view)
     {
         GenericGlue genericGlue = this;
-        boolean isRotate = e.isControlDown() || isMiddleMouseButton(e);
+        boolean isRotate = isMiddleMouseButton(e);
         if (false) // make this true to debug the pick
         {
             int hit[] = GenericPipelineUtils.pick(e.getX(), e.getY(),
@@ -988,8 +1003,10 @@ public class GenericGlue
 
         if (isRotate)
         {
+            boolean allowArbitraryElements = e.isControlDown();
             float nicePoint[] = GenericPipelineUtils.pickNicePointToRotateToCenter(
                              e.getX(), e.getY(),
+                             allowArbitraryElements,
                              genericGlue.untwistedFrame,
                              genericGlue.genericPuzzleDescription);
 
@@ -1062,7 +1079,7 @@ public class GenericGlue
                                     genericGlue.rotationFrom,
                                     genericGlue.rotationTo);
 
-                genericGlue.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                genericGlue.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
                 if (genericGlue.nRotation == 0) genericGlue.nRotation = 1;
                 // XXX ARGH! we'd like the speed to vary as the user changes the slider,
                 // XXX but the above essentially locks in the speed for this rotation
@@ -1110,13 +1127,13 @@ public class GenericGlue
                     return;
                 }
 
-                int dir = (isLeftMouseButton(e) || isMiddleMouseButton(e)) ? MagicCube.CCW : MagicCube.CW;
+                int dir = (isLeftMouseButton(e) || isMiddleMouseButton(e)) ? 1 : -1; // ccw is 1, cw is -1
 
-                //if(e.isShiftDown()) // experimental control to allow double twists but also requires speed control.
-                //    dir *= 2;
+                if(e.isShiftDown()) // experimental control to allow double twists but also requires speed control.
+                    dir *= 2;
 
-                double totalRotationAngle = 2*Math.PI/order;
-                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                double totalRotationAngle = 2*Math.PI/order*Math.abs(dir);
+                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
                 if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = iGrip;
@@ -1183,6 +1200,7 @@ public class GenericGlue
         Color ground,
         float faceRGB[][],
         boolean highlightByCubie,
+        boolean highlightByGrip,
         Color outlineColor,
         Graphics g,
         float twistFactor,
@@ -1226,7 +1244,7 @@ public class GenericGlue
                     // and we are in restricted roll mode,
                     // what we were using as a twirl axis is probably not
                     // very good any more.  Choose another.
-                    if (genericGlue.rotationTo[3] < -.99999) // i.e. if it was a rot to center
+                    if (genericGlue.rotationTo[3] < -.9999) // i.e. if it was a rot to center
                     {
                         initiateZeroRoll(viewMat4d,
                                          viewMat3d,
@@ -1323,7 +1341,9 @@ public class GenericGlue
                 ground,
                 faceRGB,
                 genericGlue.iStickerUnderMouse,
+                genericGlue.iPolyUnderMouse,
                 highlightByCubie,
+                highlightByGrip,
                 outlineColor,
                 g,
 
@@ -1375,8 +1395,8 @@ public class GenericGlue
                 // Initiate the undo twist (opposite dir from original)
                 //
                 int order = genericGlue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
-                double totalRotationAngle = 2*Math.PI/order;
-                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
+                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
                 if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = node.iGrip;
@@ -1456,7 +1476,7 @@ public class GenericGlue
             // XXX bleah, should be able to multiply a 4x4 by a 3x3 but it crashes currently, so...
             {
                 float paddedViewMat3d[][] = new float[4][4];
-                Vec_h._SETMAT3(paddedViewMat3d, viewMat3d);
+                com.donhatchsw.util.VecMath.copymat(paddedViewMat3d, viewMat3d);
                 paddedViewMat3d[3][3] = 1.f;
                 viewMat3d = paddedViewMat3d;
             }
@@ -1481,7 +1501,7 @@ public class GenericGlue
             double totalRotationAngle = com.donhatchsw.util.VecMath.angleBetweenUnitVectors(
                                 this.rotationFrom,
                                 this.rotationTo);
-            this.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube.NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            this.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
             if (this.nRotation == 0) this.nRotation = 1;
             this.iRotation = 0;
 
@@ -1495,64 +1515,63 @@ public class GenericGlue
             view.repaint();
         } // initiateZeroRoll
 
-        public SQuat zeroOutRollAndMaybeTiltOnSpinDelta(SQuat spindelta,        
-                                                        boolean zeroOutTilt)
+        // Uses the zeroRollPole from the most recent call
+        // to initiatezeroRoll.
+        public float[][] zeroOutRollAndMaybeTiltOnSpinDelta(float spindelta[][],
+                                                            boolean zeroOutTiltToo)
         {
-            // Use the zeroRollPoll from the most recent call
-            // to initiateZeroRoll.
-            Assert(spindelta.getHomoRotation() >= 0.f);
+            double tiltDeltaAngle, twirlDeltaAngle;
+            {
+                // ASSUMPTION: spindelta is from a trackball drag,
+                // which means its axis is somewhere in the xy plane
+                // and can therefore be expressed as pure tilt and twirl.
+                tiltDeltaAngle = Math.atan2(spindelta[1][2], spindelta[1][1]);
+                twirlDeltaAngle = Math.atan2(spindelta[2][0], spindelta[2][2]);
+                //System.out.println("  using mat: tiltDeltaAngle = "+tiltDeltaAngle);
+                //System.out.println("  using mat: twirlDeltaAngle = "+twirlDeltaAngle);
+            }
 
-            SQuat.Vector3 temp = new SQuat.Vector3();
-            spindelta.getHomoAxis(temp);
-            float homoAxis[] = temp.asArray();
-
-            float sinHalfTiltDeltaAngle = -homoAxis[0]; // XXX why minus? dammit
-            float sinHalfTwirlDeltaAngle = -homoAxis[1]; // XXX why minus? dammit
-            float tiltDeltaAngle = 2*(float)Math.asin(sinHalfTiltDeltaAngle);
-            float twirlDeltaAngle = 2*(float)Math.asin(sinHalfTwirlDeltaAngle);
-            if (zeroOutTilt)
+            if (zeroOutTiltToo)
                 tiltDeltaAngle = 0.f; // before clamping-- we do let the clamp do a tilt if it wants
 
             Assert(zeroRollPoleAfterRot3d != null); // initiateZeroRoll must have been called previously
             zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.copyvec(3, zeroRollPoleAfterRot3d); // XXX sigh... because vxm and other stuff freaks if I don't
             // Clamp tilt to [0..pi/2]...
-            float currentTilt = (float)Math.atan2(zeroRollPoleAfterRot3d[2],
-                                                  zeroRollPoleAfterRot3d[1]);
+            double currentTilt = Math.atan2(zeroRollPoleAfterRot3d[2],
+                                            zeroRollPoleAfterRot3d[1]);
             //System.out.println("tiltDeltaAngle before = "+tiltDeltaAngle*180/Math.PI);
-            if (tiltDeltaAngle > (float)Math.PI/2 - currentTilt)
-                tiltDeltaAngle = (float)Math.PI/2 - currentTilt;
+            if (tiltDeltaAngle > Math.PI/2 - currentTilt)
+                tiltDeltaAngle = Math.PI/2 - currentTilt;
             if (tiltDeltaAngle < 0 - currentTilt)
                 tiltDeltaAngle = 0 - currentTilt;
             //System.out.println("tiltDeltaAngle after = "+tiltDeltaAngle*180/Math.PI);
 
-            SQuat twirlDelta = new SQuat(zeroRollPoleAfterRot3d,-twirlDeltaAngle); // XXX why minus? dammit
-            SQuat tiltDelta = new SQuat(1,0,0,-tiltDeltaAngle,false); // XXX why minus? dammit
+            double twirlDelta[][] = com.donhatchsw.util.VecMath.makeRowRotMat(twirlDeltaAngle, new double[][]{com.donhatchsw.util.VecMath.floatToDouble(zeroRollPoleAfterRot3d)});
+            double tiltDelta[][] = com.donhatchsw.util.VecMath.makeRowRotMat(tiltDeltaAngle, new double[][]{{1,0,0}});
+            float adjustedSpinDelta[][] = com.donhatchsw.util.VecMath.doubleToFloat(com.donhatchsw.util.VecMath.mxm(twirlDelta, tiltDelta));
 
-            //System.out.println("zeroRollPoleAfterRot3d = "+com.donhatchsw.util.VecMath.toString(zeroRollPoleAfterRot3d));
+            // Gram-schmidt so we don't drift to non-orthogonal
+            // XXX wasn't there a nicer more symmetric way of doing this?
+            com.donhatchsw.util.VecMath.gramschmidt(adjustedSpinDelta,
+                                                    adjustedSpinDelta);
 
-            //return tiltDelta;
-            //return twirlDelta;
-            //return twirlDelta.mult(tiltDelta);
-            SQuat adjustedSpinDelta = twirlDelta.mult(tiltDelta);
             // need to apply it to the pole...
-
             zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.vxm(zeroRollPoleAfterRot3d,
-                                                                     new SQuat.Matrix3(adjustedSpinDelta).asArray());
+                                                                     adjustedSpinDelta);
             return adjustedSpinDelta;
-        } // zeroOutRollOnSpinDelta
+        } // zeroOutRollAndMaybeTiltOnSpinDelta
 
         // when dragging, we allow tilt changes
-        public SQuat zeroOutRollOnSpinDelta(SQuat spindelta)
+        public float[][] zeroOutRollOnSpinDelta(float spindelta[][])
         {
             return zeroOutRollAndMaybeTiltOnSpinDelta(spindelta, false);
         }
         // when autospinning, we don't allow tilt changes,
         // or it would just drift to the min or max tilt, which looks dumb
-        public SQuat zeroOutRollAndTiltOnSpinDelta(SQuat spindelta)
+        public float[][] zeroOutRollAndTiltOnSpinDelta(float spindelta[][])
         {
             return zeroOutRollAndMaybeTiltOnSpinDelta(spindelta, true);
         }
-
 
     /*
      * Shamelessly copied from someone who shamelessly copied it from SwingUtilities.java since that is in JDK 1.3 and we'd like to keep this to 1.2 and below.
