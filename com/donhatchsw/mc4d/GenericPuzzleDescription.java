@@ -132,6 +132,13 @@ interface GenericPuzzleDescription {
     public int[/*nStickers*/] getGrip2Face();
 
     /**
+    * Get a table mapping sticker and polygon index to grip index.
+    */
+    public int[/*nStickers*/][/*nPolygonsThisSticker*/]
+        getStickerPoly2Grip();
+
+
+    /**
     * Returns a list of pairs-of-pairs {{i,j},{k,l}}
     * such that the polygons stickerInds[i][j] and stickerInds[k][l]
     * where the two stickers meet (when non-shrunk).

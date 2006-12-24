@@ -2,17 +2,25 @@
     RELNOTES:
     =========
         This version has the following enhancements:
-            - speed of twists and rotations
-               have been adjusted to feel more uniform for different angles
-               (small angles are slower and large angles are faster
-               than before, so that the acceleration is the same
-               in all types of moves)
-            - "Requre Ctrl Key to Spin Drag" preference
+            - "Require Ctrl Key to Spin Drag" preference
             - "Restrict Roll" preference
                (only works for generic puzzles currently)
-            - you can 4d-rotate any element
+            - Friendlier interface to the 2x2x2x2 puzzle
+               that lets you use the same moves as for the other puzzles
+            - You can now 4d-rotate any element
                (vertex, edge, 2d face, hyperface) of the puzzle
-               to the center with the middle mouse, not just hyperface centers
+               to the center, not just hyperface centers.
+               To 4d-rotate an arbitrary element to the center,
+               ctrl-middle-click on it.  Middle-click without ctrl
+               rotates the face to the center, as it always did.
+               (only works for generic puzzles currently)
+            - Speed of twists and rotations
+               have been adjusted to feel more uniform for different angles
+               (small angles are slower and large angles are faster
+               than before, so that the acceleration feels the same
+               for all types of moves).
+            - Better depth sorting of polygons
+               (still doesn't always work though)
                (only works for generic puzzles currently)
             - Lots of new puzzle types available from the Puzzle menu.
                These are called "generic puzzles" and they are a work
@@ -77,9 +85,11 @@
     BUGS / URGENT TODOS:
     ===================
 
+        - in the 2x2x2x2, rotate-arbitrary-element-to-center should rotate a grip to center, not a sticker
+        - XXX why isn't this working, when clicking when spinDragRequiresCtrl is on
         - side of prefs menu cut off
         - truncated tet is picking inconsistent slices!
-        - progress meter on the slice-- just notice when it's taking a long time, and start spewing percentage  (started doing this, need nicer)
+        - progress meter on the slice-- just notice when it's taking a long time, and start spewing percentage  (started doing this, need to make it nicer)
         - {5}x{5} 2 has sliver polygons-- I think the isPrismOfThisFace
           hack isn't adequate.  Also it doesnt work for {5}x{} (but that's 3d).
           I think I need to remove the slivers after the fact instead.
@@ -87,11 +97,12 @@
           rotation handles!  Think about this... maybe draw them smaller
           and white, or something!
 
-        - 2x2x2x2 does corner twists, should do face (I think)
         - why is scale different before I touch the slider??
         - scale doesn't quite match original
-        - it's not oriented correctly at the end after slicing-- so I had to make orientDeep
-          public and have the caller call it-- lame! need to send in all planes at once so it can do that automatically with some hope of being efficient
+        - it's not oriented correctly at the end after slicing-- so I had
+           to make orientDeep public and have the caller call it-- lame!
+           need to send in all planes at once so it can do that automatically
+           with some hope of being efficient
         - need more colors!
         - sometimes exception during picking trying to access too big
           an index right after switching to a smaller puzzle (e.g.
@@ -99,7 +110,8 @@
         - try to change the puzzle type while it's twisting, it goes into
           an infinite exception loop I think
         - if in ctrl-to-spindrag mode, shouldn't hightlight sticker
-          when ctrl key is down
+          when ctrl key is down... oh but fooey, that's still relevant
+          when using ctrl for rotate-arbitrary-element-to-center.
         - length 1: polygons should be grips, I think
         - 3d: really shouldn't do rotates except on face center sticker, it's confusing...
           actually edge clicks that perfectly line up with the face center sticker are okay
@@ -134,6 +146,10 @@
                I'm really confused on what the relationship is
                between those and viewScale, faceShrink, stickerShrink
             - history compression
+
+        HIGHLIGHT BY GRIP:
+            - 2x shows cracks :-(
+            - 2x outlines shows too much
 
         POLYTOPE STUFF:
             - getAllIncidences would be faster
@@ -194,7 +210,7 @@
                 and that is the only one that should light up
 */
 
-import com.donhatchsw.util.*; // XXX get rid
+import com.donhatchsw.util.*; // XXX get rid... at least get more specific
 
 class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private com.donhatchsw.util.CSG.SPolytope originalPolytope;
@@ -223,6 +239,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int grip2face[/*nGrips*/];
     private int gripSymmetryOrders[/*nGrips*/];
     private double gripUsefulMats[/*nGrips*/][/*nDims*/][/*nDims*/]; // weird name
+    private int stickerPoly2Grip[/*nStickers*/][/*nPolygonsThisSticker*/];
+
     private double faceInwardNormals[/*nFaces*/][/*nDims*/];
     private double faceCutOffsets[/*nFaces*/][/*nCutsThisFace*/]; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
 
@@ -363,7 +381,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         this.face2OppositeFace = new int[nFaces];
         {
-            FuzzyPointHashTable table = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
+            FuzzyPointHashTable table = new FuzzyPointHashTable(1e-9, 1e-8, 1./64);  // 1e-9, 1e-8, 1/128 made something hit a wall on the omnitruncated 120cell
             for (int iFace = 0; iFace < nFaces; ++iFace)
                 table.put(faceInwardNormals[iFace], originalFaces[iFace]);
             double oppositeNormalScratch[] = new double[nDims];
@@ -481,6 +499,16 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //System.out.println("face inward normals = "+com.donhatchsw.util.Arrays.toStringCompact(faceInwardNormals));
         //System.out.println("cut offsets = "+com.donhatchsw.util.Arrays.toStringCompact(faceCutOffsets));
 
+        // There are many different inputs that produce the 2x2x2x2,
+        // so take a guess based on cut depth and element counts
+        boolean itsProbablyThe2 = nDims==4
+                               && doubleLength == 2. // XXX make fuzzy?
+                               && originalElements[0].length == 16
+                               && originalElements[1].length == 32
+                               && originalElements[2].length == 24
+                               && originalElements[3].length == 8;
+        boolean doFurtherCuts = itsProbablyThe2;
+
         //
         // Slice!
         //
@@ -551,6 +579,33 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers).");
                 progressWriter.flush();
+            }
+
+            if (doFurtherCuts)
+            {
+                if (progressWriter != null)
+                {
+                    progressWriter.print("    Further slicing for grips("+slicedPolytope.p.getAllElements()[2].length+" polygons)");
+                    progressWriter.flush();
+                }
+                for (int iFace = 0; iFace < nFaces; ++iFace)
+                {
+                    com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
+                        faceInwardNormals[iFace],
+                        (faceOffsets[iFace]+faceCutOffsets[iFace][0])/2.);
+                    Object auxOfCut = null; // we don't set any aux on the cut for now
+                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut);
+                    if (progressWriter != null)
+                    {
+                        progressWriter.print("."); // one dot per cut
+                        progressWriter.flush();
+                    }
+                }
+                if (progressWriter != null)
+                {
+                    progressWriter.println(" done ("+slicedPolytope.p.getAllElements()[2].length+" polygons).");
+                    progressWriter.flush();
+                }
             }
 
             if (progressWriter != null)
@@ -790,10 +845,44 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // does not occur on the first face;
             // that will guarantee that [0][0], [0][1], [0][2], [1][0]
             // form a non-degenerate simplex, as required.
+            // There is a subtlety in the case when the sticker polygons
+            // are further carved up into grips... in that case
+            // we have to do further checking to make sure we don't choose
+            // [1] in the same plane as [0].
             //
             {
                 for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
                 {
+                    if (doFurtherCuts)
+                    {
+                        // Find one that's not adjacent to [0] at all.
+                        int polys[][] = stickerInds[iSticker];
+                        int iPoly = 0;
+                        int jPoly;
+                        for (jPoly = 1; jPoly < polys.length; ++jPoly)
+                        {
+                            boolean incident = false; // until proven true
+                            for (int i = 0; i < polys[iPoly].length; ++i)
+                            {
+                                for (int j = 0; j < polys[jPoly].length; ++j)
+                                    if (polys[iPoly][i] == polys[jPoly][j])
+                                    {
+                                        incident = true;
+                                        break;
+                                    }
+                                if (incident)
+                                    break;
+                            }
+                            if (!incident)
+                            {
+                                com.donhatchsw.util.Arrays.swap(polys, 1,
+                                                                polys, jPoly);
+                                break;
+                            }
+                        }
+                        Assert(jPoly < polys.length); // had to find one
+                    }
+
                     int polygon0[] = stickerInds[iSticker][0];
                     int polygon1[] = stickerInds[iSticker][1];
                     int i;
@@ -803,7 +892,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         for (j = 0; j < polygon0.length; ++j)
                         {
                             if (polygon1[i] == polygon0[j])
-                                break; // this i is no good
+                                break; // this i is no good, it's on polygon0
                         }
                         if (j == polygon0.length)
                             break; // this i is good
@@ -965,84 +1054,114 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.gripSymmetryOrders = new int[nGrips];
                 this.gripUsefulMats = new double[nGrips][_nDisplayDims][_nDisplayDims];
                 this.grip2face = new int[nGrips];
-                CSG.SPolytope padHypercube = nDims < 4 ? CSG.makeHypercube(4-nDims) : null;
-                int iGrip = 0;
-                for (int iFace = 0; iFace < nFaces; ++iFace)
                 {
-                    CSG.Polytope face = originalFaces[iFace];
-                    if (padHypercube != null)
-                        face = CSG.cross(new CSG.SPolytope(0,1,face), padHypercube).p;
-                    com.donhatchsw.util.CSG.Polytope[][] allElementsOfFace = face.getAllElements();
-                    int minDim = nDims==4 ? 0 : 2;
-                    int maxDim = nDims==4 ? 3 : 2; // yes, even for cell center, which doesn't do anything
-                    int allIncidencesThisFace[][][][] = face.getAllIncidences();
-                    for (int iDim = minDim; iDim <= maxDim; ++iDim)
+                    CSG.SPolytope padHypercube = nDims < 4 ? CSG.makeHypercube(4-nDims) : null;
+                    int iGrip = 0;
+                    for (int iFace = 0; iFace < nFaces; ++iFace)
                     {
-                        for (int iElt = 0; iElt < allElementsOfFace[iDim].length; ++iElt)
+                        CSG.Polytope face = originalFaces[iFace];
+                        if (padHypercube != null)
+                            face = CSG.cross(new CSG.SPolytope(0,1,face), padHypercube).p;
+                        com.donhatchsw.util.CSG.Polytope[][] allElementsOfFace = face.getAllElements();
+                        int minDim = nDims==4 ? 0 : 2;
+                        int maxDim = nDims==4 ? 3 : 2; // yes, even for cell center, which doesn't do anything
+                        int allIncidencesThisFace[][][][] = face.getAllIncidences();
+                        for (int iDim = minDim; iDim <= maxDim; ++iDim)
                         {
-                            CSG.Polytope elt = allElementsOfFace[iDim][iElt];
-                            VecMath.copyvec(gripUsefulMats[iGrip][0], faceCentersD[iFace]);
-                            CSG.cgOfVerts(gripUsefulMats[iGrip][1], elt);
-                            VecMath.vmv(gripUsefulMats[iGrip][1],
-                                        gripUsefulMats[iGrip][1],
-                                        gripUsefulMats[iGrip][0]);
-                            this.gripDirsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][0]);
-                            this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
-                            if (VecMath.normsqrd(this.gripOffsF[iGrip]) <= 1e-4*1e-4)
+                            for (int iElt = 0; iElt < allElementsOfFace[iDim].length; ++iElt)
                             {
-                                VecMath.zeromat(gripUsefulMats[iGrip]);
-                                this.gripSymmetryOrders[iGrip] = 0;
-                            }
-                            else
-                            {
-                                VecMath.extendAndGramSchmidt(2,4,
-                                                             gripUsefulMats[iGrip],
-                                                             gripUsefulMats[iGrip]);
-
-                                int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFace[0][iElt][1].length :
-                                                           iDim==1 ? 2 :
-                                                           iDim==2 ? allIncidencesThisFace[2][iElt][1].length :
-                                                           iDim==3 ? 0 : -1 :
-                                                nDims==3 ? originalFaces[iFace].facets.length%2==0 ? originalFaces[iFace].facets.length : 2*originalFaces[iFace].facets.length : // not the proxy face!  it will be either the face gonality or 2... would be more efficient to use lcm for maxOrder, but this is 3d so whatever, the whole thing is small
-                                                nDims==2 ? 4 : -1);
-
-                                //System.out.println("maxOrder = "+maxOrder);
-                                this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
-                                                                       originalPolytope.p,
-                                                                       maxOrder,
-                                                                       gripUsefulMats[iGrip]);
-                            }
-                            grip2face[iGrip] = iFace;
-                            //System.out.println("iGrip = "+iGrip);
-                            //System.out.println("this.gripSymmetryOrders["+iGrip+"] = "+VecMath.toString(gripUsefulMats[iGrip]));
-
-                            iGrip++;
-                            if (doTheOddFaceIn3dThing)
-                            {
-                                if (nDims==3 && originalFaces[iFace].facets.length%2 == 1 && this.gripSymmetryOrders[iGrip-1] == 2)
+                                CSG.Polytope elt = allElementsOfFace[iDim][iElt];
+                                VecMath.copyvec(gripUsefulMats[iGrip][0], faceCentersD[iFace]);
+                                CSG.cgOfVerts(gripUsefulMats[iGrip][1], elt);
+                                VecMath.vmv(gripUsefulMats[iGrip][1],
+                                            gripUsefulMats[iGrip][1],
+                                            gripUsefulMats[iGrip][0]);
+                                this.gripDirsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][0]);
+                                this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
+                                if (VecMath.normsqrd(this.gripOffsF[iGrip]) <= 1e-4*1e-4)
                                 {
-                                    // It's an edge of an odd polygon face in 3d...
-                                    // need the opposite edge too, for adjacent tiles facing it the opposite way
-                                    this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
-                                    this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
-                                    this.gripOffsF[iGrip] = VecMath.sxv(-1.f, this.gripOffsF[iGrip-1]);
-                                    this.grip2face[iGrip] = this.grip2face[iGrip-1];
-                                    this.gripUsefulMats[iGrip] = new double[][] {
-                                        this.gripUsefulMats[iGrip-1][1],
-                                        this.gripUsefulMats[iGrip-1][0],
-                                        this.gripUsefulMats[iGrip-1][3],
-                                        this.gripUsefulMats[iGrip-1][2],
-                                    };
-                                    iGrip++;
+                                    VecMath.zeromat(gripUsefulMats[iGrip]);
+                                    this.gripSymmetryOrders[iGrip] = 0;
+                                }
+                                else
+                                {
+                                    VecMath.extendAndGramSchmidt(2,4,
+                                                                 gripUsefulMats[iGrip],
+                                                                 gripUsefulMats[iGrip]);
+
+                                    int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFace[0][iElt][1].length :
+                                                               iDim==1 ? 2 :
+                                                               iDim==2 ? allIncidencesThisFace[2][iElt][1].length :
+                                                               iDim==3 ? 0 : -1 :
+                                                    nDims==3 ? originalFaces[iFace].facets.length%2==0 ? originalFaces[iFace].facets.length : 2*originalFaces[iFace].facets.length : // not the proxy face!  it will be either the face gonality or 2... would be more efficient to use lcm for maxOrder, but this is 3d so whatever, the whole thing is small
+                                                    nDims==2 ? 4 : -1);
+
+                                    //System.out.println("maxOrder = "+maxOrder);
+                                    this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
+                                                                           originalPolytope.p,
+                                                                           maxOrder,
+                                                                           gripUsefulMats[iGrip]);
+                                }
+                                grip2face[iGrip] = iFace;
+                                //System.out.println("iGrip = "+iGrip);
+                                //System.out.println("this.gripSymmetryOrders["+iGrip+"] = "+VecMath.toString(gripUsefulMats[iGrip]));
+
+                                iGrip++;
+                                if (doTheOddFaceIn3dThing)
+                                {
+                                    if (nDims==3 && originalFaces[iFace].facets.length%2 == 1 && this.gripSymmetryOrders[iGrip-1] == 2)
+                                    {
+                                        // It's an edge of an odd polygon face in 3d...
+                                        // need the opposite edge too, for adjacent tiles facing it the opposite way
+                                        this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
+                                        this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
+                                        this.gripOffsF[iGrip] = VecMath.sxv(-1.f, this.gripOffsF[iGrip-1]);
+                                        this.grip2face[iGrip] = this.grip2face[iGrip-1];
+                                        this.gripUsefulMats[iGrip] = new double[][] {
+                                            this.gripUsefulMats[iGrip-1][1],
+                                            this.gripUsefulMats[iGrip-1][0],
+                                            this.gripUsefulMats[iGrip-1][3],
+                                            this.gripUsefulMats[iGrip-1][2],
+                                        };
+                                        iGrip++;
+                                    }
                                 }
                             }
                         }
                     }
+                    //System.out.println("nGrips = "+nGrips);
+                    //System.out.println("iGrip = "+iGrip);
+                    Assert(iGrip == nGrips);
+                    //System.out.println("this.gripSymmetryOrders = "+com.donhatchsw.util.Arrays.toStringCompact(this.gripSymmetryOrders));
                 }
-                //System.out.println("nGrips = "+nGrips);
-                //System.out.println("iGrip = "+iGrip);
-                Assert(iGrip == nGrips);
-                //System.out.println("this.gripSymmetryOrders = "+com.donhatchsw.util.Arrays.toStringCompact(this.gripSymmetryOrders));
+
+                if (doFurtherCuts)
+                {
+                    // Precompute sticker-and-polygon-to-face.
+                    this.stickerPoly2Grip = new int[nStickers][];
+                    for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                    {
+                        int nPolysThisSticker = stickerInds[iSticker].length;
+                        stickerPoly2Grip[iSticker] = new int[nPolysThisSticker];
+                        for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
+                        {
+                            float stickerCenter[] = VecMath.doubleToFloat(stickerCentersD[iSticker]);
+                            float polyCenter[] = VecMath.doubleToFloat(VecMath.averageIndexed(stickerInds[iSticker][iPolyThisSticker], restVerts));
+                            // So that it doesn't get confused and get
+                            // the wrong face...
+                            VecMath.lerp(polyCenter, polyCenter, stickerCenter, .01f);
+                            int iGrip = getClosestGrip(polyCenter);
+                            // Don't highlight the one that's going to say "Can't twist that"...
+                            // XXX actually we should, if rotate-arbitrary-elements-to-center is on... maybe
+                            if (iGrip != -1 && gripSymmetryOrders[iGrip] == 0)
+                                iGrip = -1;
+
+                            stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
+
+                            //System.out.println("stickerPoly2Grip["+iSticker+"]["+iPolyThisSticker+"] = "+stickerPoly2Grip[iSticker][iPolyThisSticker]);
+                        }
+                    }
+                }
             }
             else
             {
@@ -1402,6 +1521,10 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         public int[/*nFaces*/] getGrip2Face()
         {
             return grip2face;
+        }
+        public int[/*nStickers*/][/*nPolygonsThisSticker*/] getStickerPoly2Grip()
+        {
+            return stickerPoly2Grip;
         }
         public int[/*nFaces*/] getFace2OppositeFace()
         {
