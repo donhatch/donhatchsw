@@ -843,7 +843,7 @@ public class GenericPipelineUtils
         float stickerCenter[] = polyAndStickerAndFaceCenter[1];
         float faceCenter[] = polyAndStickerAndFaceCenter[2];
         if (allowArbitraryElements)
-            return puzzleDescription.getClosestNicePointToRotateToCenter(stickerCenter, allowArbitraryElements);
+            return puzzleDescription.getClosestNicePointToRotateToCenter(stickerCenter);
         else
             return faceCenter;
     }
