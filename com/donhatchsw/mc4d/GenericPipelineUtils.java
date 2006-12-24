@@ -253,9 +253,9 @@ public class GenericPipelineUtils
                 float v1[] = verts[thisStickerInds[0][1]];
                 float v2[] = verts[thisStickerInds[0][2]];
                 float v3[] = verts[thisStickerInds[1][0]];
-                Vec_h._VMV3(mat[0], v1, v0); // 3 out of 4
-                Vec_h._VMV3(mat[1], v2, v0); // 3 out of 4
-                Vec_h._VMV3(mat[2], v3, v0); // 3 out of 4
+                VecMath.vmv(3, mat[0], v1, v0); // 3 out of 4
+                VecMath.vmv(3, mat[1], v2, v0); // 3 out of 4
+                VecMath.vmv(3, mat[2], v3, v0); // 3 out of 4
                 float volume = VecMath.vxvxv3(mat[0], mat[1], mat[2]);
                 if (!doFrontCellCull || volume < 0.f) // only draw *back* cells; cull front ones
                 {
@@ -352,9 +352,9 @@ public class GenericPipelineUtils
                 float v0[] = verts[poly[0]];
                 float v1[] = verts[poly[1]];
                 float v2[] = verts[poly[2]];
-                Vec_h._VMV3(e1, v1, v0);
-                Vec_h._VMV3(e2, v2, v0);
-                Vec_h._VXV3(triangleNormal, e1, e2);
+                VecMath.vmv(3, e1, v1, v0);
+                VecMath.vmv(3, e2, v2, v0);
+                VecMath.vxv3(triangleNormal, e1, e2);
                 VecMath.normalize(triangleNormal, triangleNormal);
                 float brightness = VecMath.dot(triangleNormal, unitTowardsSunVec);
                 if (brightness < 0)
@@ -405,8 +405,8 @@ public class GenericPipelineUtils
                 float v0[] = verts[poly[0]];
                 float v1[] = verts[poly[1]];
                 float v2[] = verts[poly[2]];
-                Vec_h._VMV3(mat[0], v1, v0); // 3 out of 4
-                Vec_h._VMV3(mat[1], v2, v0); // 3 out of 4
+                VecMath.vmv(3, mat[0], v1, v0); // 3 out of 4
+                VecMath.vmv(3, mat[1], v2, v0); // 3 out of 4
                 VecMath.vxv3(polyNormals3d[iSticker][iPolyThisSticker],
                              mat[0], mat[1]);
                 VecMath.normalize(polyNormals3d[iSticker][iPolyThisSticker],
@@ -414,9 +414,9 @@ public class GenericPipelineUtils
 
                 float polyCenter3d[] = polyCenters3d[iSticker][iPolyThisSticker];
                 for (int iVertThisPoly = 0; iVertThisPoly < poly.length; ++iVertThisPoly)
-                    Vec_h._VPV3(polyCenter3d,
-                                polyCenter3d,
-                                verts[poly[iVertThisPoly]]); // 3 out of 4
+                    VecMath.vpv(3, polyCenter3d,
+                                   polyCenter3d,
+                                   verts[poly[iVertThisPoly]]); // 3 out of 4
                 VecMath.vxs(polyCenter3d,
                             polyCenter3d,
                             1.f/poly.length);
@@ -488,8 +488,8 @@ public class GenericPipelineUtils
                 float v0[] = verts[poly[0]];
                 float v1[] = verts[poly[1]];
                 float v2[] = verts[poly[2]];
-                Vec_h._VMV2(mat[0], v1, v0); // 2 out of 4
-                Vec_h._VMV2(mat[1], v2, v0); // 2 out of 4
+                VecMath.vmv(2, mat[0], v1, v0); // 2 out of 4
+                VecMath.vmv(2, mat[1], v2, v0); // 2 out of 4
                 float area = VecMath.vxv2(mat[0], mat[1]);
                 boolean thisStickerPolyIsStrictlyBackfacing = area < 0.f; // retain *front* facing polygons-- note we haven't inverted Y yet so this test looks as expected
                 if (!thisStickerPolyIsStrictlyBackfacing)
@@ -789,10 +789,10 @@ public class GenericPipelineUtils
 
         // XXX total hack-- use poly center if we think it's the 2x2x2x2 puzzle
         // XXX and the sticker center otherwise.
-
-        boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
-                               && (VecMath.normsqrd(polyCenter) == 1.5
-                                || VecMath.normsqrd(polyCenter) == 2.5);
+        //boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
+        //                     && (VecMath.normsqrd(polyCenter) == 1.5
+        //                      || VecMath.normsqrd(polyCenter) == 2.5);
+        boolean itsProbablyThe2 = puzzleDescription.getStickerPoly2Grip() != null;
         if (verboseLevel >= 3) System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
 
         return itsProbablyThe2 ? polyCenter : stickerCenter;
@@ -802,6 +802,14 @@ public class GenericPipelineUtils
                                Frame frame,
                                GenericPuzzleDescription puzzleDescription)
     {
+        if (puzzleDescription.getStickerPoly2Grip() != null)
+        {
+            int stickerAndPoly[] = pick(x, y, frame, puzzleDescription);
+            if (stickerAndPoly == null)
+                return -1;
+            return puzzleDescription.getStickerPoly2Grip()[stickerAndPoly[0]][stickerAndPoly[1]];
+        }
+
         float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame, puzzleDescription);
         if (polyAndStickerAndFaceCenter == null)
             return -1;
@@ -809,12 +817,7 @@ public class GenericPipelineUtils
         float polyCenter[] = polyAndStickerAndFaceCenter[0];
         float stickerCenter[] = polyAndStickerAndFaceCenter[1];
         float faceCenter[] = polyAndStickerAndFaceCenter[2];
-        boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
-                               && (VecMath.normsqrd(polyCenter) == 1.5
-                                || VecMath.normsqrd(polyCenter) == 2.5);
-        if (verboseLevel >= 3) System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
-        if (puzzleDescription.nDims() < 4
-         || itsProbablyThe2)
+        if (puzzleDescription.nDims() < 4)
         {
             int iGrip = puzzleDescription.getClosestGrip(VecMath.vmv(polyCenter, stickerCenter),
                                                          faceCenter);
@@ -826,17 +829,23 @@ public class GenericPipelineUtils
             //System.out.println("    the closest grip to "+VecMath.toString(stickerCenter)+" is "+iGrip);
             return iGrip;
         }
-    }
+    } // pickGrip
 
     public static float[] pickNicePointToRotateToCenter(float x, float y,
+                                                        boolean allowArbitraryElements,
                                                         Frame frame,
                                                         GenericPuzzleDescription puzzleDescription)
     {
-        float polyOrStickerCenter[] = pickPolyOrStickerCenter(x, y, frame, puzzleDescription);
-        if (polyOrStickerCenter == null)
+        float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame, puzzleDescription);
+        if (polyAndStickerAndFaceCenter == null)
             return null;
-        float nicePoint[] = puzzleDescription.getClosestNicePointToRotateToCenter(polyOrStickerCenter);
-        return nicePoint;
+        float polyCenter[] = polyAndStickerAndFaceCenter[0];
+        float stickerCenter[] = polyAndStickerAndFaceCenter[1];
+        float faceCenter[] = polyAndStickerAndFaceCenter[2];
+        if (allowArbitraryElements)
+            return puzzleDescription.getClosestNicePointToRotateToCenter(stickerCenter, allowArbitraryElements);
+        else
+            return faceCenter;
     }
 
 
@@ -848,11 +857,13 @@ public class GenericPipelineUtils
                                   GenericPuzzleDescription puzzleDescription,
                                   int puzzleState[],
 
-                                  boolean showShadows, // XXX or isShadows? haven't decided whether this should get called again for shadows or if we should do both here
+                                  boolean showShadows,
                                   Color ground,
                                   float faceRGB[][],
                                   int iStickerUnderMouse,
+                                  int iPolyUnderMouse,
                                   boolean highlightByCubie,
+                                  boolean highlightByGrip,
                                   Color outlineColor,
                                   Graphics g,
                                   
@@ -871,6 +882,17 @@ public class GenericPipelineUtils
         // (e.g. if left over from a previous larger puzzle).
         int iCubieUnderMouse = (iStickerUnderMouse < 0
                              || iStickerUnderMouse >= sticker2cubie.length) ? -1 : sticker2cubie[iStickerUnderMouse];
+        int stickerPoly2Grip[][] = puzzleDescription.getStickerPoly2Grip();
+        int iGripUnderMouse = (stickerPoly2Grip == null
+                            || iStickerUnderMouse < 0
+                            || iStickerUnderMouse >= stickerPoly2Grip.length
+                            || iPolyUnderMouse < 0
+                            || iPolyUnderMouse >= stickerPoly2Grip[iStickerUnderMouse].length) ? -1 : stickerPoly2Grip[iStickerUnderMouse][iPolyUnderMouse];
+        if (stickerPoly2Grip == null)
+            highlightByGrip = false;
+        boolean highlightBySticker = !highlightByCubie && !highlightByGrip;
+        if (iGripUnderMouse == -1)
+            highlightByGrip = false; // otherwise the polys that don't map to grips will light up
 
 
         int xs[] = new int[0], // XXX ALLOCATION
@@ -1047,10 +1069,17 @@ public class GenericPipelineUtils
                     brightness*faceRGBThisSticker[0],
                     brightness*faceRGBThisSticker[1],
                     brightness*faceRGBThisSticker[2]);
-                boolean highlight = highlightByCubie ? sticker2cubie[iSticker]==iCubieUnderMouse
-                                                     : iSticker==iStickerUnderMouse;
+                boolean highlight = false;
+                //System.out.println("iGripUnderMouse = "+iGripUnderMouse);
+                if (highlightByCubie && sticker2cubie[iSticker]==iCubieUnderMouse)
+                    highlight = true;
+                else if (highlightByGrip && stickerPoly2Grip[iSticker][iPolyThisSticker]==iGripUnderMouse)
+                    highlight = true;
+                else if (highlightBySticker && iSticker==iStickerUnderMouse)
+                    highlight = true;
                 if(highlight)
                     stickercolor = stickercolor.brighter().brighter();
+
 
                 g.setColor(isShadows ? shadowcolor : stickercolor);
                 g.fillPolygon(xs, ys, poly.length);
@@ -1542,9 +1571,9 @@ public class GenericPipelineUtils
     private static float twice_triangle_area(float v0[], float v1[], float v2[])
     {
         //float tmpTNf1[] = new float[2], tmpTNf2[] = new float[2];
-        Vec_h._VMV2(tmpTWAf1, v1, v0);
-        Vec_h._VMV2(tmpTWAf2, v2, v0);
-        return Vec_h._VXV2(tmpTWAf1, tmpTWAf2);
+        VecMath.vmv(2, tmpTWAf1, v1, v0);
+        VecMath.vmv(2, tmpTWAf2, v2, v0);
+        return VecMath.vxv2(tmpTWAf1, tmpTWAf2);
     }
 
 } // class GenericPipelineUtils
