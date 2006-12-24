@@ -1,0 +1,495 @@
+//
+// Really dumb stopgap implementation of some regex utilities
+// that don't exist in java pre-1.4.
+//
+// XXX it turns out maybe I don't need this after all? not sure
+//
+
+package com.donhatchsw.util;
+
+#include "macros.h"
+
+class regex
+{
+    public static boolean checkAgainstStandardVersion = true;
+    public static boolean useStandardVersion = true;
+    public static int verboseLevel = 2;
+    public static int indentLevel = 0;
+
+    private regex() {} // uninstantiatable
+
+    public static String[] split(String s, String patString, int limit)
+    {
+        //return s.split(patString, limit); // only exists in >=1.4
+        return Pattern.compile(patString).split(s, limit);
+    }
+    public static String[] split(String s, String patString)
+    {
+        //return s.split(patString); // only exists in >=1.4
+        return split(s, patString, 0);
+    }
+    public static String replaceAll(String s, String patString, String replacement)
+    {
+        //return s.replaceAll(patString, replacement); // only exists in >=1.4
+        return Pattern.compile(patString).matcher(s).replaceAll(replacement);
+    }
+
+
+
+    public abstract static class Pattern
+    {
+        private String patString;
+        // uninstantiatable by itself-- only subclasses are instantiatable
+        private Pattern(String patString)
+        {
+            this.patString = patString;
+        }
+        // Return the end pos of the match, or -1 if the match failed.
+        // Each node type knows how to do this in its own way.
+        protected abstract int __match(String input, int inputStart, int inputEnd);
+
+        // Whenever recursing, we go through this
+        // so we have a debugging hook.
+        private static int _match(Pattern pattern, String input, int inputStart, int inputEnd)
+        {
+            if (verboseLevel >= 2)
+            {
+                System.out.println("    matching input \""+input.substring(inputStart,inputEnd)+"\" with pattern \""+pattern.patString+"\"");
+            }
+            int matchEnd = pattern.__match(input, inputStart, inputEnd);
+            if (verboseLevel >= 2)
+            {
+                System.out.println("    matching input \""+input.substring(inputStart,inputEnd)+"\" with pattern \""+pattern.patString+"\" returned "+(matchEnd<0 ? ""+matchEnd : "+"+(matchEnd-inputStart))+"");
+            }
+            return matchEnd;
+        }
+
+        //
+        // A pattern is a parse tree; these are the possible types of nodes.
+        // Each node knows how to match an initial part of a string.
+        //
+            private static class ZeroOrMore extends Pattern
+            {
+                private Pattern child;
+                public ZeroOrMore(String patString, Pattern child)
+                {
+                    super(patString);
+                    this.child = child;
+                }
+                protected int __match(String input, int inputStart, int inputEnd)
+                {
+                    int matchEnd = inputStart;
+                    while (true)
+                    {
+                        int newMatchEnd = _match(child, input, matchEnd, inputEnd);
+                        if (newMatchEnd == -1)
+                            return matchEnd;
+                        matchEnd = newMatchEnd;
+                    }
+                }
+            }
+            private static class OneOrMore extends Pattern
+            {
+                private Pattern child;
+                public OneOrMore(String patString, Pattern child)
+                {
+                    super(patString);
+                    this.child = child;
+                }
+                protected int __match(String input, int inputStart, int inputEnd)
+                {
+                    int matchEnd = _match(child, input, inputStart, inputEnd);
+                    if (matchEnd == -1)
+                        return -1;
+                    while (true)
+                    {
+                        int newMatchEnd = _match(child, input, matchEnd, inputEnd);
+                        if (newMatchEnd == -1)
+                            return matchEnd;
+                        matchEnd = newMatchEnd;
+                    }
+                }
+            }
+            private static class Or extends Pattern
+            {
+                private Pattern children[];
+                public Or(String patString, Pattern children[])
+                {
+                    super(patString);
+                    this.children = children;
+                }
+                protected int __match(String input, int inputStart, int inputEnd)
+                {
+                    FORI (iChild, children.length)
+                    {
+                        int matchEnd = _match(children[iChild], input, inputStart, inputEnd);
+                        if (matchEnd != -1)
+                            return matchEnd;
+                    }
+                    return -1;
+                }
+            }
+            private static class Cat extends Pattern
+            {
+                public Pattern children[];
+                public Cat(String patString, Pattern children[])
+                {
+                    super(patString);
+                    this.children = children;
+                }
+                protected int __match(String input, int inputStart, int inputEnd)
+                {
+                    int matchEnd = inputStart;
+                    FORI (iChild, children.length)
+                    {
+                        matchEnd = _match(children[iChild], input, matchEnd, inputEnd);
+                        if (matchEnd == -1)
+                            return -1;
+                    }
+                    return matchEnd;
+                }
+            }
+            private static class Literal extends Pattern
+            {
+                public String literalString;
+                public Literal(String patString, String literalString)
+                {
+                    super(patString);
+                    this.literalString = literalString;
+                }
+                protected int __match(String input, int inputStart, int inputEnd)
+                {
+                    int literalStringLength = literalString.length();
+                    if (inputEnd >= inputStart+literalStringLength
+                     && input.substring(inputStart, inputStart+literalStringLength).equals(literalString))
+                        return inputStart + literalStringLength;
+                    else
+                        return -1;
+                }
+            }
+            private static class AnyOfTheseChars extends Pattern
+            {
+                public String chars;
+                public AnyOfTheseChars(String patString, String chars)
+                {
+                    super(patString);
+                    this.chars = chars;
+                }
+                protected int __match(String input, int inputStart, int inputEnd)
+                {
+                    if (inputStart >= inputEnd)
+                        return -1;
+                    char c = input.charAt(inputStart);
+                    if (chars.indexOf(c) == -1)
+                        return -1; // didn't match, we wanted to
+                    return inputStart+1;
+                }
+            }
+            private static class AnyCharButThese extends Pattern
+            {
+                public String chars;
+                public AnyCharButThese(String patString, String chars)
+                {
+                    super(patString);
+                    this.chars = chars;
+                }
+                protected int __match(String input, int inputStart, int inputEnd)
+                {
+                    if (inputStart >= inputEnd)
+                        return -1;
+                    char c = input.charAt(inputStart);
+                    if (chars.indexOf(c) != -1)
+                        return -1; // matched, we didn't want to
+                    return inputStart+1;
+                }
+            }
+
+        public static Pattern compile(String patString)
+        {
+            if (verboseLevel >= 1)
+            {
+                System.out.println("=================");
+                System.out.println("in Pattern.compile(patString=\""+patString+"\")");
+            }
+            // XXX Need to parse the pattern!
+            // XXX For now, just a whole mess of special cases.
+            if (patString.equals("[x*]"))
+                return new Or(patString, new Pattern[]{
+                    compile("x"),
+                    compile("\\*"),
+                });
+            else if (patString.equals("\\)-*\\("))
+                return new Cat(patString, new Pattern[]{
+                    compile("\\)"),
+                    compile("-*"),
+                    compile("\\("),
+                });
+            else if (patString.equals("-*"))
+                return new ZeroOrMore(patString,
+                    compile("-"));
+            else if (patString.equals("\\([^)]+\\)"))
+                return new Cat(patString, new Pattern[]{
+                    compile("\\("),
+                    compile("[^)]+"),
+                    compile("\\)"),
+                });
+            else if (patString.equals("[^)]+"))
+                return new OneOrMore(patString,
+                    compile("[^)]"));
+            else if (patString.equals("[^)]"))
+                    return new AnyCharButThese("[^)]", ")");
+            else if (patString.equals("\\s*\n\\s*"))
+                return new Cat(patString, new Pattern[]{
+                    compile("\\s*"),
+                    compile("\n"),
+                    compile("\\s*")
+                });
+            else if (patString.length() == 2
+                  && patString.charAt(0) == '\\')
+            {
+                char c = patString.charAt(1);
+                if (c == 'd')
+                    return new AnyOfTheseChars(patString, "0123456789");
+                else if (c == 'D')
+                    return new AnyCharButThese(patString, "0123456789");
+                else if (c == '*'
+                 || c == '\\'
+                 || c == '('
+                 || c == ')')
+                    return new Literal(patString, ""+c);
+                else
+                {
+                    unimplemented();
+                    return null;
+                }
+            }
+            else if (patString.length() == 1)
+            {
+                char c = patString.charAt(0);
+                if (c >= 'a' && c <= 'z'
+                 || c >= 'A' && c <= 'Z'
+                 || c >= '0' && c <= '9'
+                 || c == ','
+                 || c == '-'
+                 || c == ':'
+                 || c == '/')
+                    return new Literal(patString, patString);
+                else if (c == '.')
+                {
+                    return new AnyCharButThese(patString, ""); // XXX but may or may not match line terminator!
+                }
+                else
+                {
+                    unimplemented();
+                    return null;
+                }
+            }
+            else
+            {
+                unimplemented();
+                return null;
+            }
+        }
+        public Matcher matcher(String input)
+        {
+            return new Matcher(this, input);
+        }
+        public String[] split(String input, int limit)
+        {
+            String theirs[] = null, mine[] = null;
+            if (useStandardVersion || checkAgainstStandardVersion)
+            {
+                theirs = java.util.regex.Pattern.compile(patString).split(input, limit);
+            }
+            if (!useStandardVersion || checkAgainstStandardVersion)
+            {
+                if (verboseLevel >= 1)
+                {
+                    System.out.println("=================");
+                    System.out.println("in Pattern.split(patString=\""+patString+"\", input=\""+input+"\", limit="+limit+")");
+                }
+
+                java.util.Vector resultVector = new java.util.Vector();
+                int inputLength = input.length();
+                int patStringLength = patString.length();
+
+                for (int i = 0;;) // don't test or increment here
+                {
+                    int matchStart = -1, matchEnd = -1;
+                    if (resultVector.size()+1 == limit)
+                    {
+                        //PRINT("HIT LIMIT");
+                        matchStart = inputLength;
+                    }
+                    else
+                    {
+                        for (matchStart = i; matchStart < inputLength; ++matchStart)
+                        {
+                            matchEnd = _match(this, input, matchStart, inputLength);
+                            if (matchEnd != -1)
+                                break;
+                        }
+                    }
+                    //PRINT(i);
+                    //PRINT(j);
+                    resultVector.addElement(input.substring(i, matchStart));
+                    if (matchStart == inputLength)
+                        break;
+                    i = matchEnd;
+                }
+                if (limit == 0)
+                {
+                    // special case: trailing empty strings are discarded
+                    while (!resultVector.isEmpty()
+                        && ((String)resultVector.lastElement()).equals(""))
+                        resultVector.remove(resultVector.size()-1);
+                }
+                mine = new String[resultVector.size()];
+                resultVector.copyInto(mine);
+            }
+            if (checkAgainstStandardVersion)
+            {
+                if (verboseLevel >= 1) PRINTARRAY(theirs);
+                if (verboseLevel >= 1) PRINTARRAY(mine);
+                assert(theirs != null && mine != null);
+                assert(theirs.length == mine.length);
+                for (int i = 0; i < theirs.length; ++i)
+                    assert(theirs[i].equals(mine[i]));
+            }
+            return useStandardVersion ? theirs : mine;
+        } // split
+    } // class Pattern
+    public static class Matcher
+    {
+        private Pattern pattern; // the Pattern who made me
+        private String input;
+        private Object theirMatcher = null;
+        private int theirGroups[][/*2*/] = null;
+        private int myGroups[][/*2*/] = null;
+        private Matcher(Pattern pattern, String input)
+        {
+            this.pattern = pattern;
+            this.input = input;
+        }
+
+        // Attempts to match the internally stored string
+        // against the internally stored pattern.
+        // If it succeeds, returns true and stores
+        // the group starts and ends of the matched substrings.
+        public boolean matches()
+        {
+            boolean theirs = false, mine = false;
+            if (useStandardVersion || checkAgainstStandardVersion)
+            {
+                if (theirMatcher == null)
+                    theirMatcher = java.util.regex.Pattern.compile(pattern.patString).matcher(input);
+                theirs = ((java.util.regex.Matcher)theirMatcher).matches();
+                if (theirs)
+                {
+                    theirGroups = new int[((java.util.regex.Matcher)theirMatcher).groupCount()][2];
+                    FORI (iGroup, theirGroups.length)
+                    {
+                        theirGroups[iGroup][0] = ((java.util.regex.Matcher)theirMatcher).start(iGroup);
+                        theirGroups[iGroup][1] = ((java.util.regex.Matcher)theirMatcher).end(iGroup);
+                    }
+                }
+                else
+                    theirGroups = null;
+            }
+            if (!useStandardVersion || checkAgainstStandardVersion)
+            {
+                unimplemented(); // XXX implement me!
+            }
+            if (checkAgainstStandardVersion)
+            {
+                assert(theirs == mine);
+                if (theirs)
+                {
+                    assert(theirGroups != null && myGroups != null);
+                    FORI (iGroup, theirGroups.length)
+                    {
+                        assert(theirGroups[iGroup].length == 2 && myGroups[iGroup].length == 2);
+                        assert(theirGroups[iGroup][0] == myGroups[iGroup][0]);
+                        assert(theirGroups[iGroup][1] == myGroups[iGroup][1]);
+                    }
+                }
+            }
+            return useStandardVersion ? theirs : mine;
+        }
+        public String group(int iGroup)
+        {
+            assert(false); // XXX coverage-- remove when hit
+            String theirs = null, mine = null;
+            if (useStandardVersion || checkAgainstStandardVersion)
+            {
+                theirs = ((java.util.regex.Matcher)theirMatcher).group(iGroup);
+                assert(theirs.equals(input.substring(theirGroups[iGroup][0], theirGroups[iGroup][1])));
+            }
+            if (!useStandardVersion || checkAgainstStandardVersion)
+            {
+                mine = input.substring(myGroups[iGroup][0], myGroups[iGroup][1]);
+            }
+            if (checkAgainstStandardVersion)
+            {
+                assert(theirs != null && mine != null);
+                assert(theirs.equals(mine));
+            }
+            return useStandardVersion ? theirs : mine;
+        }
+        public String replaceAll(String replacement)
+        {
+            String theirs = null, mine = null;
+            if (useStandardVersion || checkAgainstStandardVersion)
+            {
+                theirs = java.util.regex.Pattern.compile(pattern.patString).matcher(input).replaceAll(replacement);
+            }
+            if (!useStandardVersion || checkAgainstStandardVersion)
+            {
+                if (verboseLevel >= 1)
+                {
+                    System.out.println("=================");
+                    System.out.println("in Matcher.replaceAll()");
+                    PRINT(pattern.patString);
+                    PRINT(input);
+                    PRINT(replacement);
+                }
+                String[] splitted = pattern.split(input, -1); // don't discard trailing empties
+                assert(splitted.length >= 1); // XXX I think this is right? need to check
+                StringBuffer sb = new StringBuffer(splitted[0]);
+                FORI (i, splitted.length-1)
+                {
+                    sb.append(replacement);
+                    sb.append(splitted[i+1]);
+                }
+                mine = sb.toString();
+            }
+            if (checkAgainstStandardVersion)
+            {
+                assert(theirs != null && mine != null);
+            }
+            return useStandardVersion ? theirs : mine;
+        }
+    } // class Matcher
+
+
+
+    private int tryToMatchAtPosition(Pattern pat, String input, int pos)
+    {
+        return -1;
+    } // tryToMatchAtPosition
+
+    // Some examples from the doc...
+    public static void main(String args[])
+    {
+        checkAgainstStandardVersion = true; // reagrdless of what it was before
+        split("boo:and:foo", ":", 2);
+        split("boo:and:foo", ":", 5);
+        split("boo:and:foo", ":", -2);
+        split("boo:and:foo", "o", 5);
+        split("boo:and:foo", "o", -2);
+        split("boo:and:foo", "o", 0);
+        split(" \n ", "\\s*\n\\s*");
+        System.out.println("All good!");
+    } // main
+
+} // class regex
