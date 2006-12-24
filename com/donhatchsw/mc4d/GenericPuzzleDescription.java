@@ -8,6 +8,9 @@
  * NOTE: All returned arrays are immutable!!!!!
  * (They would be const if java had a way to express that.)
  */
+
+package com.donhatchsw.MagicCube;
+
 interface GenericPuzzleDescription {
 
     public int nDims();

@@ -19,6 +19,8 @@
 *    pick       - picks what is at a given point in the Frame
 */
 
+package com.donhatchsw.MagicCube;
+
 // XXX blindly using same imports as MC4DSwing
 // XXX these are the imports from MC4DSwing, with the ones we don't need commented out
 import java.awt.*;

@@ -210,6 +210,7 @@
                 and that is the only one that should light up
 */
 
+package com.donhatchsw.MagicCube;
 import com.donhatchsw.util.*; // XXX get rid... at least get more specific
 
 class PolytopePuzzleDescription implements GenericPuzzleDescription {

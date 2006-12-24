@@ -49,6 +49,8 @@
 //          if isActive() is true
 //
 
+package com.donhatchsw.MagicCube;
+
 import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
