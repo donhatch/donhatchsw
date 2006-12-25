@@ -5,9 +5,11 @@
 *  XXX TODO: split uses greedy matching, not longest matching... need to think about how to do it better
 */
 
-package com.donhatchsw.util;
+package com.donhatchsw.compat;
 
-#include "macros.h"
+import com.donhatchsw.util.Arrays; // XXX get rid of this dependency... it's for toStringCompact and append
+
+#include "macros.h" // XXX should try to get rid of this
 
 public class regex
 {
@@ -15,7 +17,7 @@ public class regex
 
     public static boolean checkAgainstStandardVersion = true; // if available
     public static boolean useStandardVersion = false; // if available
-    public static int verboseLevel = 1;
+    public static int verboseLevel = 0;
 
     public static boolean matches(String input, String patString)
     {
@@ -92,8 +94,8 @@ public class regex
                 mine = myPattern.split(input, limit);
             if (checkAgainstStandardVersion)
             {
-                if (verboseLevel >= 1) PRINTARRAY(theirs);
-                if (verboseLevel >= 1) PRINTARRAY(mine);
+                if (verboseLevel >= 1) System.out.println("    theirs = "+Arrays.toStringCompact(theirs));
+                if (verboseLevel >= 1) System.out.println("    mine = "+Arrays.toStringCompact(mine));
                 assert(theirs != null && mine != null);
                 assert(theirs.length == mine.length);
                 for (int i = 0; i < theirs.length; ++i)
@@ -129,7 +131,7 @@ public class regex
                 if (theirs)
                 {
                     theirGroups = new int[theirMatcher.groupCount()+1][2]; // note the +1
-                    FORI (iGroup, theirGroups.length)
+                    for (int iGroup = 0; iGroup < theirGroups.length; ++iGroup)
                     {
                         theirGroups[iGroup][0] = theirMatcher.start(iGroup);
                         theirGroups[iGroup][1] = theirMatcher.end(iGroup);
@@ -140,7 +142,7 @@ public class regex
                 if (mine)
                 {
                     myGroups = new int[theirMatcher.groupCount()+1][2]; // note the +1
-                    FORI (iGroup, myGroups.length)
+                    for (int iGroup = 0; iGroup < myGroups.length; ++iGroup)
                     {
                         myGroups[iGroup][0] = theirMatcher.start(iGroup);
                         myGroups[iGroup][1] = theirMatcher.end(iGroup);
@@ -154,7 +156,7 @@ public class regex
                     //PRINTARRAY(myGroups);
                     assert(theirGroups != null && myGroups != null);
                     assert(theirGroups.length == myGroups.length);
-                    FORI (iGroup, theirGroups.length)
+                    for (int iGroup = 0; iGroup < theirGroups.length; ++iGroup)
                     {
                         assert(theirGroups[iGroup].length == 2 && myGroups[iGroup].length == 2);
                         assert(theirGroups[iGroup][0] == myGroups[iGroup][0]);
@@ -260,7 +262,7 @@ public class regex
                 int patStringLength = patString.length();
 
                 this.states = new State[patStringLength];
-                FORI (iState, states.length)
+                for (int iState = 0; iState < states.length; ++iState)
                     states[iState] = new State();
 
                 this.nCaptureGroups = 0; // and counting
@@ -269,10 +271,10 @@ public class regex
                 int nOpenParens = 0;
                 int otherParen[] = new int[patStringLength]; // from each paren to its opposite
                 int patIndexToCaptureGroupIndex[] = new int[patStringLength];
-                FORI (i, patStringLength)
+                for (int i = 0; i < patStringLength; ++i)
                     otherParen[i] = -1;
                 int thingStart = -1; // start of thing that ?,*,+ will be applied to if there is one following
-                FORI (i, patStringLength)
+                for (int i = 0; i < patStringLength; ++i)
                 {
                     int iState = i;
                     Transition transition = null;
@@ -541,12 +543,13 @@ public class regex
                 StringBuffer sb = new StringBuffer();
                 sb.append("    patString=\""+patString+"\"\n");
                 sb.append("    "+states.length+" states\n");
-                FORI (iState, states.length)
+                for (int iState = 0; iState < states.length; ++iState)
                 {
                     sb.append("        "+iState+":\n");
-                    FORI (iTransition, states[iState].transitions.length)
+                    Transition transitions[] = states[iState].transitions;
+                    for (int iTransition = 0; iTransition < transitions.length; ++iTransition)
                     {
-                        Transition t = states[iState].transitions[iTransition];
+                        Transition t = transitions[iTransition];
                         if (t.chars == null)
                             sb.append("            --> "+t.nextState+"\n");
                         else
@@ -565,7 +568,7 @@ public class regex
                 if (iState == states.length)
                     return inputStart;
                 Transition transitions[] = states[iState].transitions;
-                FORI (iTransition, transitions.length)
+                for (int iTransition = 0; iTransition < transitions.length; ++iTransition)
                 {
                     Transition transition = transitions[iTransition];
                     int matchEnd = -1;
@@ -720,7 +723,7 @@ public class regex
                     System.out.println("in Matcher.matches(patString=\""+pattern.patString+"\", input=\""+input+"\")");
                 }
                 myGroups = new int[pattern.fsm.nCaptureGroups+1][2]; // note the +1
-                FORI (iCaptureGroup, pattern.fsm.nCaptureGroups)
+                for (int iCaptureGroup = 0; iCaptureGroup < pattern.fsm.nCaptureGroups; ++iCaptureGroup)
                 {
                     myGroups[iCaptureGroup][0] = -1;
                     myGroups[iCaptureGroup][1] = -1;
@@ -734,7 +737,7 @@ public class regex
                     // I don't think this will cut it when people inquire
                     // capture groups of other things though.
                     // Need to incorporate this into the fsm first-class.
-                    FORIDOWN (i, pattern.fsm.nCaptureGroups)
+                    for (int i = pattern.fsm.nCaptureGroups-1; i >= 0; --i)
                     {
                         myGroups[i+1][0] = myGroups[i][0];
                         myGroups[i+1][1] = myGroups[i][1];
@@ -764,14 +767,14 @@ public class regex
                 {
                     System.out.println("=================");
                     System.out.println("in Matcher.replaceAll()");
-                    PRINT(pattern.patString);
-                    PRINT(input);
-                    PRINT(replacement);
+                    System.out.println("    pattern.patString = "+pattern.patString);
+                    System.out.println("    input = "+input);
+                    System.out.println("    replacement = "+replacement);
                 }
                 String[] splitted = pattern.split(input, -1); // don't discard trailing empties
                 assert(splitted.length >= 1); // XXX I think this is right? need to check
                 StringBuffer sb = new StringBuffer(splitted[0]);
-                FORI (i, splitted.length-1)
+                for (int i = 0; i < splitted.length-1; ++i)
                 {
                     sb.append(replacement);
                     sb.append(splitted[i+1]);
@@ -783,7 +786,7 @@ public class regex
 
 
 
-    //=====================================================================================
+    //=========================================================================
     // Way to get at the native versions
     // using reflection, so it will compile on <1.4
     //
@@ -824,8 +827,10 @@ public class regex
                 charSequenceClass = Class.forName("java.lang.CharSequence");
             } catch (ClassNotFoundException e) {
                 // This is the <1.4 case.
-                if (verboseLevel >= 0)
+                if (verboseLevel >= 1)
+                {
                     System.out.println("I guess we don't have regex: "+e);
+                }
                 return;
             }
 
@@ -925,7 +930,7 @@ public class regex
             {
                 //return nativeMatcher.matches();
                 try {
-                    return ((Boolean)matcherMatchesMethod.invoke(nativeMatcher, new Object[]{})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
+                    return ((java.lang.Boolean)matcherMatchesMethod.invoke(nativeMatcher, new Object[]{})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.matches!?");
                     assert(false);
@@ -1015,7 +1020,7 @@ public class regex
     } // java_util_regex
 
     //
-    //=====================================================================================
+    //=========================================================================
 
 
     // Some examples from the doc,
@@ -1068,11 +1073,9 @@ public class regex
         matches("X144 13-cell:", "(\\d+) (\\d+)-cell[^:]*:"); // no
         matches("144 13-cells:", "(\\d+) (\\d+)-cell[^:]*:"); // yes
         matches("144 13-cell:", "(\\d+) (\\d+)-cell[^:]*:"); // yes
-        //split("XababacY", "((ab)*|aba)c?", -1); // oh frickin heck, they got the non-greedy longest match.  How did they do that??  This sucks.
+        //split("XababacY", "((ab)*|aba)c?", -1); // XXX Oh frickin heck, they got the non-greedy longest match.  How did they do that??  This sucks.
 
         System.out.println("All good!");
     } // main
-
-
 
 } // class regex
