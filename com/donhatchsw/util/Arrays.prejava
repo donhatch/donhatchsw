@@ -1361,18 +1361,18 @@ public final class Arrays
                  * Guess the primitive type.
                  * If all arrays are ultimately empty, int will be used.
                  */
-                Class primType = (s.indexOf("true") != -1 ? boolean.class : // XXX should ignore case
-                                  s.indexOf("false") != -1 ? boolean.class : // XXX should ignore case
-                                  s.indexOf(".") != -1 ? double.class :
-                                  s.indexOf("E") != -1 ? double.class :
-                                  s.indexOf("e") != -1 ? double.class :
-                                  s.indexOf("f") != -1 ? float.class :
-                                  s.indexOf("F") != -1 ? float.class :
+                Class primType = (s.indexOf("true") != -1 ? (Class)boolean.class : // XXX should ignore case
+                                  s.indexOf("false") != -1 ? (Class)boolean.class : // XXX should ignore case
+                                  s.indexOf(".") != -1 ? (Class)double.class :
+                                  s.indexOf("E") != -1 ? (Class)double.class :
+                                  s.indexOf("e") != -1 ? (Class)double.class :
+                                  s.indexOf("f") != -1 ? (Class)float.class :
+                                  s.indexOf("F") != -1 ? (Class)float.class :
 #ifdef NOTYET // XXX this messes up when there's a "null" 
-                                  s.indexOf("L") != -1 ? long.class :
-                                  s.indexOf("l") != -1 ? long.class :
+                                  s.indexOf("L") != -1 ? (Class)long.class :
+                                  s.indexOf("l") != -1 ? (Class)long.class :
 #endif // NOTYET
-                                  s.indexOf("'") != -1 ? char.class : int.class);
+                                  s.indexOf("'") != -1 ? (Class)char.class : (Class)int.class);
                 int nDims = braceDepth(s, start, end);
 
                 /**
