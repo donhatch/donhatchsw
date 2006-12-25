@@ -2919,59 +2919,12 @@ public final class CSG
         } // slice
 
         /**
-         * Slices up the boundary of a signed polytope,
-         * returning a new signed polytope.
-         * XXX this is actually not a great way to do this,
-         * XXX since often we make a bunch of parallel cuts
-         * XXX and we know the stuff on a particular side of the first cut
-         * XXX isn't going to be affected by the next cut
-         */
-        public static SPolytope sliceFacets(SPolytope slicee,
-                                            Hyperplane hyperplane,
-                                            Object aux) // to be put in the aux field of all new elements that lie in the cut hyperplane
-        {
-            if (verboseLevel >= 1)
-            {
-                System.out.println("in CSG.sliceFacets");
-                PRINT(hyperplane);
-            }
-
-            if (true) // XXX new way-- get rid of old when it works!
-            {
-                return sliceElements(slicee, slicee.p.dim-1, hyperplane, aux);
-            }
-
-
-            java.util.Hashtable ocean = new java.util.Hashtable();
-
-            SPolytope newFacets[] = new SPolytope[2*slicee.p.facets.length]; // at most
-            int nNewFacets = 0;
-            FORI (iFacet, slicee.p.facets.length)
-            {
-                SPolytope facetStuff[] = _slice(slicee.p.facets[iFacet], hyperplane, aux, ocean, "        ");
-                if (facetStuff[0] != null)
-                    newFacets[nNewFacets++] = facetStuff[0];
-                if (facetStuff[1] != null)
-                    newFacets[nNewFacets++] = facetStuff[1];
-            }
-            if (nNewFacets == slicee.p.facets.length)
-                return slicee;
-            newFacets = (SPolytope[])Arrays.subarray(newFacets, 0, nNewFacets); // resize
-            SPolytope result = new SPolytope(slicee.initialDensity,
-                                             slicee.sign,
-                                             new Polytope(slicee.p.dim,
-                                                          slicee.p.fullDim,
-                                                          newFacets,
-                                                          slicee.p.contributingHyperplanes,
-                                                          slicee.p.aux));
-            if (verboseLevel >= 1)
-                System.out.println("out CSG.sliceFacets");
-            return result;
-        } // sliceFacets
-
-        /**
         * Convenience method for when there is only one slicee
         * and we know there will be only one sliced result
+        * XXX this is actually not a great way to do this,
+        * XXX since often we make a bunch of parallel cuts
+        * XXX and we know the stuff on a particular side of the first cut
+        * XXX isn't going to be affected by the next cut
         */
         public static SPolytope sliceElements(SPolytope slicee,
                                               int eltDim,
