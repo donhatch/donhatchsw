@@ -34,16 +34,26 @@ public final class VecMath
 
 
     /** vector plus vector */
+    public static void vpv(int n, double result[], double v0[], double v1[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] + v1[i];
+    }
+    /** vector plus vector */
+    public static void vpv(int n, float result[], float v0[], float v1[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] + v1[i];
+    }
+    /** vector plus vector */
     public static void vpv(double result[], double v0[], double v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] + v1[i];
+        vpv(MIN3(result.length, v0.length, v1.length), result, v0, v1);
     }
     /** vector plus vector */
     public static void vpv(float result[], float v0[], float v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] + v1[i];
+        vpv(MIN3(result.length, v0.length, v1.length), result, v0, v1);
     }
     /** vector plus vector */
     public static void vpv(int result[], int v0[], int v1[])
@@ -52,16 +62,26 @@ public final class VecMath
             result[i] = v0[i] + v1[i];
     }
     /** vector minus vector */
+    public static void vmv(int n, double result[], double v0[], double v1[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] - v1[i];
+    }
+    /** vector minus vector */
+    public static void vmv(int n, float result[], float v0[], float v1[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] - v1[i];
+    }
+    /** vector minus vector */
     public static void vmv(double result[], double v0[], double v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] - v1[i];
+        vmv(MIN3(result.length, v0.length, v1.length), result, v0, v1);
     }
     /** vector minus vector */
     public static void vmv(float result[], float v0[], float v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] - v1[i];
+        vmv(MIN3(result.length, v0.length, v1.length), result, v0, v1);
     }
     /** vector minus vector */
     public static void vmv(int result[], int v0[], int v1[])
@@ -2792,10 +2812,24 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** vector minus vector, returning newly allocated result */
+        public static double[] vmv(int n, double v0[], double v1[])
+        {
+            double result[] = new double[n];
+            vmv(n, result, v0, v1);
+            return result;
+        }
+        /** vector minus vector, returning newly allocated result */
         public static double[] vmv(double v0[], double v1[])
         {
             double result[] = new double[v0.length];
             vmv(result, v0, v1);
+            return result;
+        }
+        /** vector minus vector, returning newly allocated result */
+        public static float[] vmv(int n, float v0[], float v1[])
+        {
+            float result[] = new float[n];
+            vmv(n, result, v0, v1);
             return result;
         }
         /** vector minus vector, returning newly allocated result */
@@ -2907,6 +2941,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return null;
             double result[] = new double[array[0].length];
             average(result, array);
+            return result;
+        }
+        /** vector average indexed, returning newly allocated result */
+        public static double[] averageIndexed(int inds[], double array[][])
+        {
+            if (array.length == 0)
+                return null;
+            double result[] = new double[array[0].length];
+            averageIndexed(result, inds, array);
             return result;
         }
         /** vector average indexed, returning newly allocated result */
@@ -3433,6 +3476,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
 
         /** make row-oriented rotation matrix that fixes a given subset of the n-2 axes, returning newly allocated result */
+        // XXX hmm, can simplify and generalize this with extendAndGramSchmidt, I think
         public static double[][] makeRowRotMat(double radians, double fixedAxes[/*n-2*/][])
         {
             int nFixedAxes = fixedAxes.length;
