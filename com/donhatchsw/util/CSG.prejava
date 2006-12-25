@@ -71,6 +71,8 @@
 
 package com.donhatchsw.util;
 
+import com.donhatchsw.compat.regex;
+
 #include "macros.h"
 
 
@@ -741,7 +743,7 @@ public final class CSG
                                     }
                                 double coords[] = new double[fullDim];
                                 FORI (iCoord, fullDim)
-                                    coords[iCoord] = compat.Double.parseDouble(tokens[iCoord]);
+                                    coords[iCoord] = com.donhatchsw.compat.Double.parseDouble(tokens[iCoord]);
                                 cells[iCell] = new Polytope(iDim,
                                                             fullDim,
                                                             new SPolytope[0],
@@ -2150,7 +2152,7 @@ public final class CSG
                         String coeffString = foo.substring(open+1, close);
                         //PRINT(coeffString);
                         // XXX need to catch
-                        double coeff = compat.Double.parseDouble(coeffString);
+                        double coeff = com.donhatchsw.compat.Double.parseDouble(coeffString);
                         wythoff = (double[])Arrays.append(wythoff, coeff);
                         foo = foo.substring(close+1);
                     }
@@ -4175,10 +4177,10 @@ public final class CSG
                                    new SortStuff.Comparator() {
                                        public int compare(Object _a, Object _b)
                                        {
-                                           SPolytope a = (SPolytope)_a;
-                                           SPolytope b = (SPolytope)_b;
-                                           double aDot = VecMath.dot(a.p.getCoords(), dir);
-                                           double bDot = VecMath.dot(b.p.getCoords(), dir);
+                                           SPolytope A = (SPolytope)_a;
+                                           SPolytope B = (SPolytope)_b;
+                                           double aDot = VecMath.dot(A.p.getCoords(), dir);
+                                           double bDot = VecMath.dot(B.p.getCoords(), dir);
                                            return aDot < bDot ? -1 :
                                                   aDot > bDot ? 1 : 0;
                                        }
