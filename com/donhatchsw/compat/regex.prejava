@@ -53,12 +53,6 @@ public class regex
 
         public static Pattern compile(String patString)
         {
-            if (verboseLevel >= 1)
-            {
-                System.out.println("=================");
-                System.out.println("in Pattern.compile(patString=\""+patString+"\")");
-            }
-
             if (!java_util_regex.exists())
             {
                 // We're on our own!
@@ -114,17 +108,13 @@ public class regex
             this.myMatcher = myMatcher;
         }
 
-        // Attempts to match the internally stored string
-        // against the internally stored pattern.
-        // If it succeeds, returns true and stores
-        // the group starts and ends of the matched substrings.
-        public boolean matches()
+        private boolean _find_or_matches(boolean isFind, int inputStartIfIsFind)
         {
             boolean theirs = false, mine = false;
             if (useStandardVersion || checkAgainstStandardVersion)
-                theirs = theirMatcher.matches();
+                theirs = isFind ? theirMatcher.find(inputStartIfIsFind) : theirMatcher.matches();
             if (!useStandardVersion || checkAgainstStandardVersion)
-                mine = myMatcher.matches();
+                mine = isFind ? myMatcher.find(inputStartIfIsFind) : myMatcher.matches();
             if (checkAgainstStandardVersion)
             {
                 int theirGroups[][/*2*/] = null;
@@ -144,15 +134,17 @@ public class regex
                     myGroups = new int[theirMatcher.groupCount()+1][2]; // note the +1
                     for (int iGroup = 0; iGroup < myGroups.length; ++iGroup)
                     {
-                        myGroups[iGroup][0] = theirMatcher.start(iGroup);
-                        myGroups[iGroup][1] = theirMatcher.end(iGroup);
+                        myGroups[iGroup][0] = myMatcher.start(iGroup);
+                        myGroups[iGroup][1] = myMatcher.end(iGroup);
                     }
                 }
 
                 assert(theirs == mine);
                 if (theirs)
                 {
+                    //PRINT(theirGroups.length);
                     //PRINTARRAY(theirGroups);
+                    //PRINT(myGroups.length);
                     //PRINTARRAY(myGroups);
                     assert(theirGroups != null && myGroups != null);
                     assert(theirGroups.length == myGroups.length);
@@ -166,9 +158,21 @@ public class regex
             }
             return useStandardVersion ? theirs : mine;
         }
+        public boolean find(int inputStart)
+        {
+            return _find_or_matches(true, inputStart);
+        }
+
+        // Attempts to match the internally stored string
+        // against the internally stored pattern.
+        // If it succeeds, returns true and stores
+        // the group starts and ends of the matched substrings.
+        public boolean matches()
+        {
+            return _find_or_matches(false, 1000);
+        }
         public int groupCount()
         {
-            assert(false); // XXX coverage-- remove when hit
             int theirs = -1, mine = -1;
             if (useStandardVersion || checkAgainstStandardVersion)
                 theirs = theirMatcher.groupCount();
@@ -201,9 +205,39 @@ public class regex
             }
             if (checkAgainstStandardVersion)
             {
-                assert(theirs != null && mine != null);
-                assert(theirs.equals(mine));
+                //PRINT(theirs);
+                //PRINT(mine);
+                assert((theirs != null) == (mine != null));
+                if (theirs != null)
+                    assert(theirs.equals(mine));
             }
+            return useStandardVersion ? theirs : mine;
+        }
+        public int start(int iGroup)
+        {
+            int theirs = -1, mine = -1;
+            if (useStandardVersion || checkAgainstStandardVersion)
+                theirs = theirMatcher.start(iGroup);
+            if (!useStandardVersion || checkAgainstStandardVersion)
+                mine = myMatcher.start(iGroup);
+            //PRINT(iGroup);
+            //PRINT(theirs);
+            //PRINT(mine);
+            //PRINT(myMatcher.myGroups.length);
+            //PRINTARRAY(myMatcher.myGroups);
+            if (checkAgainstStandardVersion)
+                assert(theirs == mine);
+            return useStandardVersion ? theirs : mine;
+        }
+        public int end(int iGroup)
+        {
+            int theirs = -1, mine = -1;
+            if (useStandardVersion || checkAgainstStandardVersion)
+                theirs = theirMatcher.end(iGroup);
+            if (!useStandardVersion || checkAgainstStandardVersion)
+                mine = myMatcher.end(iGroup);
+            if (checkAgainstStandardVersion)
+                assert(theirs == mine);
             return useStandardVersion ? theirs : mine;
         }
         public String replaceAll(String replacement)
@@ -233,7 +267,7 @@ public class regex
         //
         private static class FSM
         {
-            public String patString;
+            public String patString; // for debugging so we can print where we are
             public State states[];
             public int nCaptureGroups;
 
@@ -323,10 +357,17 @@ public class regex
                         // Do NOT put any transitions from here yet... there will be
                         // a free transition from here to the end of the current paren block
                         // or end of string.
-                        int fromState = (nOpenParens==0 ? 0 : openParensStack[nOpenParens-1]+1);
+
+                        // look for the top *real* open paren, not bar
+                        int iOpenParen = nOpenParens-1;
+                        while (iOpenParen > 0 && openParensStack[iOpenParen] == '|')
+                            iOpenParen--;
+                        int fromState = (iOpenParen>=0 ? openParensStack[iOpenParen]+1 : 0);
+
                         // XXX do this into a Vector first
                         states[fromState].transitions = (Transition[])Arrays.append(states[fromState].transitions, new Transition(null, false, i+1, -1));
                         thingStart = -1; // following ?,*,+ is illegal
+                        openParensStack[nOpenParens++] = i; // push the '|' paren position on stack
                     }
                     else if (c == '?')
                     {
@@ -627,22 +668,30 @@ public class regex
             {
                 if (verboseLevel >= 1)
                 {
-                    System.out.println("=================");
-                    System.out.println("in Pattern.compile(patString=\""+patString+"\")");
+                    System.out.println("    =================");
+                    System.out.println("    in Pattern.compile(patString=\""+patString+"\")");
                 }
-                return new Pattern(patString);
+                Pattern pattern = new Pattern(patString);
+                if (verboseLevel >= 1)
+                {
+                    System.out.println("    fsm = ");
+                    System.out.println("    "+pattern.fsm);
+                    System.out.println("    =================");
+                }
+                return pattern;
             }
             public Matcher matcher(String input)
             {
                 return new Matcher(this, input);
             }
+
+            // XXX I think this should use find? not sure
             public String[] split(String input, int limit)
             {
                 if (verboseLevel >= 1)
                 {
                     System.out.println("=================");
                     System.out.println("in Pattern.split(patString=\""+patString+"\", input=\""+input+"\", limit="+limit+")");
-                    System.out.println(fsm);
                 }
 
                 java.util.Vector resultVector = new java.util.Vector();
@@ -709,7 +758,67 @@ public class regex
             {
                 this.pattern = pattern;
                 this.input = input;
+
+                // XXX could be lazy about the following, since it's not needed for split and stuff like that
+                this.myGroups = new int[pattern.fsm.nCaptureGroups+1][2]; // note the +1
+                // XXX maybe this should be in reset?
+                for (int iGroup = 0; iGroup < myGroups.length; ++iGroup)
+                {
+                    myGroups[iGroup][0] = -1;
+                    myGroups[iGroup][1] = -1;
+                }
             }
+
+            public boolean find(int inputStart)
+            {
+                if (verboseLevel >= 1)
+                {
+                    System.out.println("=================");
+                    System.out.println("in Matcher.find(patString=\""+pattern.patString+"\", input tail=\""+input.substring(inputStart)+"\")");
+                }
+
+                // XXX maybe this should be in reset?
+                for (int iGroup = 0; iGroup < myGroups.length; ++iGroup)
+                {
+                    myGroups[iGroup][0] = -1;
+                    myGroups[iGroup][1] = -1;
+                }
+
+                int inputLength = input.length();
+                int matchEnd = -1;
+                while (inputStart <= inputLength) // yes, test even at end
+                {
+                    matchEnd = pattern.fsm._match(input, inputStart, inputLength, 0, myGroups);
+                    if (matchEnd != -1)
+                    {
+                        if (verboseLevel >= 1)
+                        {
+                            System.out.println("mine DID match");
+                            System.out.println("=================");
+                        }
+
+                        {
+                            // XXX Hack to get the 0'th capture group...
+                            for (int i = pattern.fsm.nCaptureGroups-1; i >= 0; --i)
+                            {
+                                myGroups[i+1][0] = myGroups[i][0];
+                                myGroups[i+1][1] = myGroups[i][1];
+                            }
+                            myGroups[0][0] = inputStart;
+                            myGroups[0][1] = matchEnd;
+                        }
+                        return true;
+                    }
+                    inputStart++;
+                }
+                if (verboseLevel >= 1)
+                {
+                    System.out.println("mine DID NOT match");
+                    System.out.println("=================");
+                }
+                return false;
+            } // My.Matcher.find
+
 
             // Attempts to match the internally stored string
             // against the internally stored pattern.
@@ -722,12 +831,7 @@ public class regex
                     System.out.println("=================");
                     System.out.println("in Matcher.matches(patString=\""+pattern.patString+"\", input=\""+input+"\")");
                 }
-                myGroups = new int[pattern.fsm.nCaptureGroups+1][2]; // note the +1
-                for (int iCaptureGroup = 0; iCaptureGroup < pattern.fsm.nCaptureGroups; ++iCaptureGroup)
-                {
-                    myGroups[iCaptureGroup][0] = -1;
-                    myGroups[iCaptureGroup][1] = -1;
-                }
+
                 int matchEnd = pattern.fsm._match(input, 0, input.length(), /*initialState=*/0, myGroups);
                 boolean matched = (matchEnd == input.length());
                 if (matched)
@@ -751,15 +855,25 @@ public class regex
                     System.out.println("=================");
                 }
                 return matched;
-            }
+            } // My.Matcher.matches
             public int groupCount()
             {
-                assert(false); // XXX coverage-- remove when hit
                 return pattern.fsm.nCaptureGroups;
             }
             public String group(int iGroup)
             {
-                return input.substring(myGroups[iGroup][0], myGroups[iGroup][1]);
+                //PRINT(iGroup);
+                //PRINTARRAY(myGroups);
+                return myGroups[iGroup][0] == -1 ? null :
+                            input.substring(myGroups[iGroup][0], myGroups[iGroup][1]);
+            }
+            public int start(int iGroup)
+            {
+                return myGroups[iGroup][0];
+            }
+            public int end(int iGroup)
+            {
+                return myGroups[iGroup][1];
             }
             public String replaceAll(String replacement)
             {
@@ -807,6 +921,7 @@ public class regex
         private static java.lang.reflect.Method patternCompileMethod;
         private static java.lang.reflect.Method patternMatcherMethod;
         private static java.lang.reflect.Method patternSplitMethod;
+        private static java.lang.reflect.Method matcherFindMethod;
         private static java.lang.reflect.Method matcherMatchesMethod;
         private static java.lang.reflect.Method matcherGroupCountMethod;
         private static java.lang.reflect.Method matcherStartMethod;
@@ -838,6 +953,7 @@ public class regex
                 patternCompileMethod = patternClass.getMethod("compile", new Class[]{String.class});
                 patternMatcherMethod = patternClass.getMethod("matcher", new Class[]{charSequenceClass});
                 patternSplitMethod = patternClass.getMethod("split", new Class[]{charSequenceClass, int.class});
+                matcherFindMethod = matcherClass.getMethod("find", new Class[]{int.class});
                 matcherMatchesMethod = matcherClass.getMethod("matches", new Class[]{});
                 matcherGroupCountMethod = matcherClass.getMethod("groupCount", new Class[]{});
                 matcherStartMethod = matcherClass.getMethod("start", new Class[]{int.class});
@@ -878,7 +994,7 @@ public class regex
                     assert(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Pattern.compile!?");
+                    System.err.println("InvocationTargetException trying to invoke Pattern.compile: "+e.getTargetException());
                     assert(false);
                     return null;
                 }
@@ -926,6 +1042,21 @@ public class regex
                 this.nativeMatcher = nativeMatcher;
             }
 
+            public boolean find(int inputStart)
+            {
+                //return nativeMatcher.find();
+                try {
+                    return ((java.lang.Boolean)matcherFindMethod.invoke(nativeMatcher, new Object[]{new Integer(inputStart)})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
+                } catch (IllegalAccessException e) {
+                    System.err.println("IllegalAccessException trying to invoke Matcher.find!?");
+                    assert(false);
+                    return false;
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    System.err.println("InvocationTargetException trying to invoke Matcher.find!?");
+                    assert(false);
+                    return false;
+                }
+            }
             public boolean matches()
             {
                 //return nativeMatcher.matches();
@@ -996,7 +1127,7 @@ public class regex
                     assert(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.group!?");
+                    System.err.println("InvocationTargetException trying to invoke Matcher.group: "+e.getTargetException());
                     assert(false);
                     return null;
                 }
@@ -1027,53 +1158,75 @@ public class regex
     // and others that exercise stuff.
     public static void main(String args[])
     {
-        split("boo:and:foo", ":", 2);
-        split("boo:and:foo", ":", 5);
-        split("boo:and:foo", ":", -2);
-        split("boo:and:foo", "o", 5);
-        split("boo:and:foo", "o", -2);
-        split("boo:and:foo", "o", 0);
+        if (true)
+        {
+            split("boo:and:foo", ":", 2);
+            split("boo:and:foo", ":", 5);
+            split("boo:and:foo", ":", -2);
+            split("boo:and:foo", "o", 5);
+            split("boo:and:foo", "o", -2);
+            split("boo:and:foo", "o", 0);
 
-        split("boo:and:foo", "", 0);
-        split("boo:and:foo", ".", 0);
-        split("boo:and:foo", ".?", 0);
-        split("boo:and:foo", ".*", 0);
-        split("boo:and:foo", ".+", 0);
+            split("boo:and:foo", "", 0);
+            split("boo:and:foo", ".", 0);
+            split("boo:and:foo", ".?", 0);
+            split("boo:and:foo", ".*", 0);
+            split("boo:and:foo", ".+", 0);
 
-        split("b", "a", -1);
-        split("b", "a?", -1);
-        split("b", "a*", -1);
-        split("b", "a+", -1);
-        split("b", "[a]", -1);
-        split("b", "[a]*", -1);
-        split("b", "[a]+", -1);
-        split("b", "[^a]", -1);
-        split("b", "[^a]?", -1);
-        split("b", "[^a]*", -1);
-        split("b", "[^a]+", -1);
-        split("bbabaabaaa", "a?", -1);
-        split("bbabaabaaa", "a*", -1);
-        split("bbabaabaaa", "a+", -1);
-        split("bbabaabaaa", "[a]?", -1);
-        split("bbabaabaaa", "[a]*", -1);
-        split("bbabaabaaa", "[a]+", -1);
-        split("bbabaabaaa", "[^a]?", -1);
-        split("bbabaabaaa", "[^a]*", -1);
-        split("bbabaabaaa", "[^a]+", -1);
-        split("boo:and:foo", "o+", -1);
-        split("boo:and:foo", "o?", -1);
-        split("boo:and:foo", "o*", -1);
-        split(" \n ", "\\s*\n\\s*", -1);
-        split("(1)5/2(0)3(0)", "\\([^)]+\\)", -1);
-        split("X144 13-cells:Y", "(\\d+) (\\d+)-cell[^:]*:", -1);
-        split("X144 13-cell:Y", "(\\d+) (\\d+)-cell[^:]*:", -1);
-        matches("X144 13-cells:Y", "(\\d+) (\\d+)-cell[^:]*:"); // no
-        matches("X144 13-cell:Y", "(\\d+) (\\d+)-cell[^:]*:"); // no
-        matches("X144 13-cells:", "(\\d+) (\\d+)-cell[^:]*:"); // no
-        matches("X144 13-cell:", "(\\d+) (\\d+)-cell[^:]*:"); // no
-        matches("144 13-cells:", "(\\d+) (\\d+)-cell[^:]*:"); // yes
-        matches("144 13-cell:", "(\\d+) (\\d+)-cell[^:]*:"); // yes
-        //split("XababacY", "((ab)*|aba)c?", -1); // XXX Oh frickin heck, they got the non-greedy longest match.  How did they do that??  This sucks.
+            split("b", "a", -1);
+            split("b", "a?", -1);
+            split("b", "a*", -1);
+            split("b", "a+", -1);
+            split("b", "[a]", -1);
+            split("b", "[a]*", -1);
+            split("b", "[a]+", -1);
+            split("b", "[^a]", -1);
+            split("b", "[^a]?", -1);
+            split("b", "[^a]*", -1);
+            split("b", "[^a]+", -1);
+            split("bbabaabaaa", "a?", -1);
+            split("bbabaabaaa", "a*", -1);
+            split("bbabaabaaa", "a+", -1);
+            split("bbabaabaaa", "[a]?", -1);
+            split("bbabaabaaa", "[a]*", -1);
+            split("bbabaabaaa", "[a]+", -1);
+            split("bbabaabaaa", "[^a]?", -1);
+            split("bbabaabaaa", "[^a]*", -1);
+            split("bbabaabaaa", "[^a]+", -1);
+            split("boo:and:foo", "o+", -1);
+            split("boo:and:foo", "o?", -1);
+            split("boo:and:foo", "o*", -1);
+            split(" \n ", "\\s*\n\\s*", -1);
+            split("(1)5/2(0)3(0)", "\\([^)]+\\)", -1);
+            split("X144 13-cells:Y", "(\\d+) (\\d+)-cell[^:]*:", -1);
+            split("X144 13-cell:Y", "(\\d+) (\\d+)-cell[^:]*:", -1);
+            matches("X144 13-cells:Y", "(\\d+) (\\d+)-cell[^:]*:"); // no
+            matches("X144 13-cell:Y", "(\\d+) (\\d+)-cell[^:]*:"); // no
+            matches("X144 13-cells:", "(\\d+) (\\d+)-cell[^:]*:"); // no
+            matches("X144 13-cell:", "(\\d+) (\\d+)-cell[^:]*:"); // no
+            matches("144 13-cells:", "(\\d+) (\\d+)-cell[^:]*:"); // yes
+            matches("144 13-cell:", "(\\d+) (\\d+)-cell[^:]*:"); // yes
+            matches("a", "(a|b)");
+            matches("a", "a|b");
+            matches("%.2g", "%\\.((\\d+))g");
+            matches("%.2g", "%\\.((\\d+)|(\\*))g");
+            matches("%.2g", "%\\.((\\d+)|(\\*))?g");
+        }
+        if (false)
+        {
+            // These fail currently
+            split("XababacY", "((ab)*|aba)c?", -1); // XXX Oh frickin heck, they got the non-greedy longest match.  How did they do that??  This sucks.
+        }
+        if (false)
+        {
+            // Purposely try to throw exceptions to exercise that
+            matches("%.2g", "%\\(.((\\d+)|(\\*)))?g"); // Unmatched closing ')' near index 15
+        }
+        if (true)
+        {
+            matches("abc%d%x%%%.17g", "(%|[^%])*");
+            matches("abc%d%f%%%.17g", "((%(-)?((\\d+)|(\\*))?(\\.((\\d+)|(\\*)))?([gdf]))|(%%)|([^%]))*");
+        }
 
         System.out.println("All good!");
     } // main
