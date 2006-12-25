@@ -470,8 +470,8 @@ public class GenericGlue
 
                                     while (true)
                                     {
-                                        //String reply = JOptionPane.showInputDialog(prompt, initialInput); // XXX doesn't exist in 1.3-- find a substitute if possible!
-                                        String reply = JOptionPane.showInputDialog(prompt);
+                                        String reply = JOptionPane.showInputDialog(prompt, initialInput); // XXX doesn't exist in 1.3-- find a substitute if possible!
+                                        //String reply = JOptionPane.showInputDialog(prompt);
                                         if (reply == null)
                                         {
                                             initPuzzleCallback.call(); // XXX really just want a repaint I think
@@ -645,8 +645,8 @@ public class GenericGlue
 
                                 while (true)
                                 {
-                                    //String reply = JOptionPane.showInputDialog(prompt, initialInput); // XXX doesn't exist in 1.3-- find a substitute if possible!
-                                    String reply = JOptionPane.showInputDialog(prompt);
+                                    String reply = JOptionPane.showInputDialog(prompt, initialInput); // XXX doesn't exist in 1.3-- find a substitute if possible!
+                                    //String reply = JOptionPane.showInputDialog(prompt);
                                     if (reply == null)
                                     {
                                         initPuzzleCallback.call(); // XXX really just want a repaint I think
