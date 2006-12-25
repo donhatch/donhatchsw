@@ -14,7 +14,10 @@ package com.donhatchsw.compat;
 
 public class Format
 {
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    private static void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+
+    public static int verboseLevel = 0;
+
 
     public static String sprintf(String format, Object args[])
     {
@@ -35,11 +38,11 @@ public class Format
         StringBuffer sb = new StringBuffer();
         int iArg = 0;
         int indexIntoFormat = 0;
-        while (matcher.find(indexIntoFormat))
+        while (matcher.find())
         {
             Assert(matcher.start(0) == indexIntoFormat); // always matches at the beginning
-            indexIntoFormat = matcher.end(0);
-            if (false)
+            indexIntoFormat = matcher.end();
+            if (verboseLevel >= 1)
             {
                 System.out.println("    format = "+format);
                 int nGroups = matcher.groupCount();
@@ -54,7 +57,7 @@ public class Format
             String widthString = matcher.group(4);
             String precisionString = matcher.group(8);
             String formatCharString = matcher.group(11);
-            if (false)
+            if (verboseLevel >= 1)
             {
                 System.out.println("    leftJustifyString = "+leftJustifyString);
                 System.out.println("    widthString = "+widthString);
@@ -102,14 +105,15 @@ public class Format
                 else
                     precision = 6;
 
-                if (iArg+1 != args.length)
-                    throw new IllegalArgumentException("sprintf expected "+(iArg+1)+" args, got "+args.length+"");
                 Assert(formatCharString != null
                     && formatCharString.length() == 1);
                 char formatChar = formatCharString.charAt(0);
-                String result;
+                String thisConversionResult;
                 if (formatChar == 'g')
                 {
+                    if (iArg >= args.length)
+                        throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type double, got end of argument list instead");
+
                     if (!(args[iArg] instanceof java.lang.Double))
                         throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type double, got type "+args[iArg].getClass()+" instead");
 
@@ -130,32 +134,40 @@ public class Format
                     x = Math.floor(x);
                     x /= scale;
                     if (Math.floor(x) == x)
-                        result = ""+(int)Math.floor(x);
+                        thisConversionResult = ""+(int)Math.floor(x);
                     else
-                        result = ""+x;
+                        thisConversionResult = ""+x;
                 }
                 else if (formatChar == 'd')
                 {
+                    if (iArg >= args.length)
+                        throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type int, got end of argument list instead");
                     if (!(args[iArg] instanceof java.lang.Integer))
                         throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type int, got type "+args[iArg].getClass()+" instead");
 
                     int x = ((java.lang.Integer)args[iArg++]).intValue();
-                    result = ""+x;
+                    thisConversionResult = ""+x;
+                }
+                else if (formatChar == '%')
+                {
+                    thisConversionResult = "%";
                 }
                 else
                 {
                     throw new Error("sprintf: format char '"+formatChar+"' in \""+format+"\" unimplemented");
                 }
-                while (result.length() < width) // XXX inefficient
+                while (thisConversionResult.length() < width) // XXX inefficient
                 {
                     if (leftJustify)
-                        result = result + " ";
+                        thisConversionResult = thisConversionResult + " ";
                     else
-                        result = " " + result;
+                        thisConversionResult = " " + thisConversionResult;
                 }
-                sb.append(result);
+                sb.append(thisConversionResult);
             }
         }
+        if (indexIntoFormat != format.length())
+            throw new IllegalArgumentException("sprintf got bad format \""+format+"\" (or not implemented yet)");
         return sb.toString();
     } // sprintf
 
@@ -196,59 +208,80 @@ public class Format
 
     public static void main(String args[])
     {
-        System.out.println(sprintf("%41.26g", 1/3.));
-        System.out.println(sprintf("%.26g", 1/3.));
-        System.out.println(sprintf("%.17g", 1/3.));
-        System.out.println(sprintf("%.*g", 9, 1/3.));
-        System.out.println(sprintf("%g", 1/3.));
-        System.out.println("|"+sprintf("%10.3g", 1/3.)+"|");
-        System.out.println("|"+sprintf("%-10.3g", 1/3.)+"|");
-        System.out.println("|"+sprintf("%*.3g", 20, 1/3.)+"|");
-        System.out.println("|"+sprintf("%-*.3g", 20, 1/3.)+"|");
-        System.out.println("|"+sprintf("%*.*g", 30, 3, 1/3.)+"|");
-        System.out.println("|"+sprintf("%-*.*g", 30, 3, 1/3.)+"|");
-
-        String leftJustifies[] = {"","-"};
-        int widths[] = {0,1,2,3,10,20,30};
-        int precisions[] = {0,1,2,3,4,5,6};
-        int vals[] = {-123,-101,-100,-99,-11,-10,-9,-1,0,1,9,10,11,99,100,101,123};
-        FORI (iVal, vals.length)
-        FORI (iWidth, widths.length)
-        FORI (iLeftJustify, leftJustifies.length)
-        FORI (iPrecision, precisions.length)
+        if (true)
         {
-            String result00 = sprintf("[%"+leftJustifies[iLeftJustify]
-                                          +widths[iWidth]
-                                          +"."
-                                          +precisions[iPrecision]
-                                          +"d]",
-                                       vals[iVal]);
-            System.out.println(result00);
-            String result01 = sprintf("[%"+leftJustifies[iLeftJustify]
-                                          +widths[iWidth]
-                                          +"."
-                                          +"*"
-                                          +"d]",
-                                       precisions[iPrecision],
-                                       vals[iVal]);
-            Assert(result01.equals(result00));
-            String result02 = sprintf("[%"+leftJustifies[iLeftJustify]
-                                          +"*"
-                                          +"."
-                                          +precisions[iPrecision]
-                                          +"d]",
-                                       widths[iWidth],
-                                       vals[iVal]);
-            Assert(result02.equals(result00));
-            String result03 = sprintf("[%"+leftJustifies[iLeftJustify]
-                                          +"*"
-                                          +"."
-                                          +"*"
-                                          +"d]",
-                                       widths[iWidth],
-                                       precisions[iPrecision],
-                                       vals[iVal]);
-            Assert(result03.equals(result00));
+            // XXX should check these against the real printf
+            System.out.println(sprintf("%41.26g", 1/3.));
+            System.out.println(sprintf("%.26g", 1/3.));
+            System.out.println(sprintf("%.17g", 1/3.));
+            System.out.println(sprintf("%.*g", 9, 1/3.));
+            System.out.println(sprintf("%g", 1/3.));
+            System.out.println("|"+sprintf("%10.3g", 1/3.)+"|");
+            System.out.println("|"+sprintf("%-10.3g", 1/3.)+"|");
+            System.out.println("|"+sprintf("%*.3g", 20, 1/3.)+"|");
+            System.out.println("|"+sprintf("%-*.3g", 20, 1/3.)+"|");
+            System.out.println("|"+sprintf("%*.*g", 30, 3, 1/3.)+"|");
+            System.out.println("|"+sprintf("%-*.*g", 30, 3, 1/3.)+"|");
+            System.out.println(sprintf("(%d %d %g)", 1, 2, 1/3.));
+            System.out.println(sprintf("%%"));
+            System.out.println(sprintf("%% %d %% d %% %d %% d %%", 1,2));
+            System.out.println(sprintf("%%%d%%d%%%d%%d%%", 1,2));
+
+            String leftJustifies[] = {"","-"};
+            int widths[] = {0,1,2,3,10,20,30};
+            int precisions[] = {0,1,2,3,4,5,6};
+            int vals[] = {-123,-101,-100,-99,-11,-10,-9,-1,0,1,9,10,11,99,100,101,123};
+            FORI (iVal, vals.length)
+            FORI (iWidth, widths.length)
+            FORI (iLeftJustify, leftJustifies.length)
+            FORI (iPrecision, precisions.length)
+            {
+                String result00 = sprintf("[%"+leftJustifies[iLeftJustify]
+                                              +widths[iWidth]
+                                              +"."
+                                              +precisions[iPrecision]
+                                              +"d]",
+                                           vals[iVal]);
+                System.out.println(result00);
+                String result01 = sprintf("[%"+leftJustifies[iLeftJustify]
+                                              +widths[iWidth]
+                                              +"."
+                                              +"*"
+                                              +"d]",
+                                           precisions[iPrecision],
+                                           vals[iVal]);
+                Assert(result01.equals(result00));
+                String result02 = sprintf("[%"+leftJustifies[iLeftJustify]
+                                              +"*"
+                                              +"."
+                                              +precisions[iPrecision]
+                                              +"d]",
+                                           widths[iWidth],
+                                           vals[iVal]);
+                Assert(result02.equals(result00));
+                String result03 = sprintf("[%"+leftJustifies[iLeftJustify]
+                                              +"*"
+                                              +"."
+                                              +"*"
+                                              +"d]",
+                                           widths[iWidth],
+                                           precisions[iPrecision],
+                                           vals[iVal]);
+                Assert(result03.equals(result00));
+            }
+        }
+        if (false)
+        {
+            // Should exercise ones that throw exceptions too, like these
+            System.out.println(sprintf("%"));
+            System.out.println(sprintf("%-"));
+            System.out.println(sprintf("%."));
+            System.out.println(sprintf("%8."));
+            System.out.println(sprintf("%-8."));
+            System.out.println(sprintf("%8"));
+            System.out.println(sprintf("%8.8"));
+            System.out.println(sprintf("%.8"));
+            System.out.println(sprintf("%.-8g"));
         }
     } // main
 
