@@ -325,7 +325,7 @@ public final class CSG
                         flatList.addElement(this);
                         FORI (flatIndex, flatList.size()) // while flatList.size() is increasing!
                         {
-                            Polytope elt = (Polytope)flatList.get(flatIndex);
+                            Polytope elt = (Polytope)flatList.elementAt(flatIndex); // not get, for 1.1
                             lists[elt.dim].addElement(elt);
                             FORI (iFacet, elt.facets.length)
                             {
@@ -690,7 +690,7 @@ public final class CSG
                     int fullDim = -1;
                     Polytope facets[] = null;
 
-                    String lines[] = s.trim().split("\\s*\n\\s*");
+                    String lines[] = regex.split(s.trim(), "\\s*\n\\s*");
                     int iLine = 0;
                     for (int iDim = 0; ; iDim++)
                     {
@@ -698,7 +698,7 @@ public final class CSG
                             break;
                         String line = lines[iLine++];
                         // scan "%d %d-cel%*[^:]:", &nCells, &shouldBeIDim
-                        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+) (\\d+)-cell[^:]*:").matcher(line);
+                        regex.Matcher matcher = regex.Pattern.compile("(\\d+) (\\d+)-cell[^:]*:").matcher(line);
                         if (!matcher.matches())
                             throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected number of "+iDim+"-cells, got \""+line+"\"!");
                         int nCells = Integer.parseInt(matcher.group(1));
@@ -718,7 +718,7 @@ public final class CSG
                             // Read the index and colon.  This is for human-readability
                             // and sanity checking.
                             // scan "%d:", &shouldBeICell
-                            matcher = java.util.regex.Pattern.compile("(\\d+):(.*)").matcher(line);
+                            matcher = regex.Pattern.compile("(\\d+):(.*)").matcher(line);
                             if (!matcher.matches())
                                 throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected "+iDim+"-cell "+iCell+", got \""+line+"\"!");
                             int shouldBeICell = Integer.parseInt(matcher.group(1));
@@ -726,7 +726,7 @@ public final class CSG
 
                             if (shouldBeICell != iCell)
                                 throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected "+iDim+"-cell "+iCell+", got "+shouldBeICell+"!");
-                            String tokens[] = rest.trim().split("\\s+");
+                            String tokens[] = regex.split(rest.trim(), "\\s+");
                             if (iDim == 0)
                             {
                                 //
@@ -741,7 +741,7 @@ public final class CSG
                                     }
                                 double coords[] = new double[fullDim];
                                 FORI (iCoord, fullDim)
-                                    coords[iCoord] = Double.parseDouble(tokens[iCoord]);
+                                    coords[iCoord] = compat.Double.parseDouble(tokens[iCoord]);
                                 cells[iCell] = new Polytope(iDim,
                                                             fullDim,
                                                             new SPolytope[0],
@@ -953,7 +953,7 @@ public final class CSG
                 }
                 //PRINT(volume(answer));
                 return answer;
-            }
+            } // fromStringInPcalcFormat
 
         } // class SPolytope
 
@@ -1854,7 +1854,7 @@ public final class CSG
                 double scratchFlagFlattened[] = new double[nDims*nDims];
                 FORI (iFlag, flagList.size()) // while it's growing
                 {
-                    double flag[][] = (double[][])flagList.get(iFlag);
+                    double flag[][] = (double[][])flagList.elementAt(iFlag); // not get, for 1.1
                     FORI (iGen, nDims)
                     {
                         VecMath.mxm(scratchFlag,
@@ -1914,7 +1914,7 @@ public final class CSG
                 Polytope flagElements[] = new Polytope[nDims+1];
                 FORI (iFlag, flagList.size())
                 {
-                    double flag[][] = (double[][])flagList.get(iFlag);
+                    double flag[][] = (double[][])flagList.elementAt(iFlag); // not get, for 1.1
                     FORI (iDim, nDims)
                     {
                         int index;
@@ -1943,7 +1943,7 @@ public final class CSG
                                 elementLists[iDim].addElement(elt);
                             }
                         }
-                        flagElements[iDim] = (Polytope)elementLists[iDim].get(index);
+                        flagElements[iDim] = (Polytope)elementLists[iDim].elementAt(index); // not get, for 1.1
                     }
                     //
                     // For each iDim, make the iDim-dimensional element
@@ -2101,7 +2101,7 @@ public final class CSG
         */
         public static SPolytope makeRegularStarPolytopeProductFromString(String s)
         {
-            String factors[] = s.trim().split("[x*]");
+            String factors[] = regex.split(s.trim(), "[x*]");
             int schlaflis[][] = new int[factors.length][];
             int schlafliDenomss[][] = new int[factors.length][];
             double wythoffs[][] = new double [factors.length][];
@@ -2122,17 +2122,17 @@ public final class CSG
                 if (factor.indexOf("(") != -1)
                 {
                     // Extract wythoff stuff
-                    factor = factor.replaceAll(",", "(0)");
+                    factor = regex.replaceAll(factor, ",", "(0)");
                     if (!factor.startsWith("("))
                         factor = "(1)"+factor;
                     if (!factor.endsWith(")"))
                         factor += "(0)";
-                    factor = factor.replaceAll("\\)-*\\(", ")3("); // 3's in the schlafli symbol are implicit
+                    factor = regex.replaceAll(factor, "\\)-*\\(", ")3("); // 3's in the schlafli symbol are implicit
 
                     String foo = factor;
 
-                    factor = factor.replaceAll("-",""); // XXX seems unscientific
-                    factor = factor.replaceAll("\\([^)]+\\)", ",");
+                    factor = regex.replaceAll(factor, "-",""); // XXX seems unscientific
+                    factor = regex.replaceAll(factor, "\\([^)]+\\)", ",");
                     if (factor.startsWith(","))
                         factor = factor.substring(1);
                     if (factor.endsWith(","))
@@ -2150,14 +2150,14 @@ public final class CSG
                         String coeffString = foo.substring(open+1, close);
                         //PRINT(coeffString);
                         // XXX need to catch
-                        double coeff = Double.parseDouble(coeffString);
+                        double coeff = compat.Double.parseDouble(coeffString);
                         wythoff = (double[])Arrays.append(wythoff, coeff);
                         foo = foo.substring(close+1);
                     }
                     wythoffs[iFactor] = wythoff;
                 }
 
-                String fractions[] = factor.split(",");
+                String fractions[] = regex.split(factor, ",");
                 if (factor.equals(""))
                     fractions = new String[0]; // to be safe (I don't trust split)
                 schlaflis[iFactor] = new int[fractions.length];
@@ -2165,7 +2165,7 @@ public final class CSG
                 FORI (iFraction, fractions.length)
                 {
                     String fraction = fractions[iFraction].trim();
-                    String n_and_d[] = fraction.split("/");
+                    String n_and_d[] = regex.split(fraction, "/");
                     if (n_and_d.length == 2)
                     {
                         schlaflis[iFactor][iFraction] = Integer.parseInt(n_and_d[0]);
@@ -2928,13 +2928,20 @@ public final class CSG
          */
         public static SPolytope sliceFacets(SPolytope slicee,
                                             Hyperplane hyperplane,
-                                            Object aux) // to be put in the aux field of all new elements
+                                            Object aux) // to be put in the aux field of all new elements that lie in the cut hyperplane
         {
             if (verboseLevel >= 1)
             {
-                System.out.println("in CSG.slice");
+                System.out.println("in CSG.sliceFacets");
                 PRINT(hyperplane);
             }
+
+            if (true) // XXX new way-- get rid of old when it works!
+            {
+                return sliceElements(slicee, slicee.p.dim-1, hyperplane, aux);
+            }
+
+
             java.util.Hashtable ocean = new java.util.Hashtable();
 
             SPolytope newFacets[] = new SPolytope[2*slicee.p.facets.length]; // at most
@@ -2956,14 +2963,87 @@ public final class CSG
                                                           slicee.p.fullDim,
                                                           newFacets,
                                                           slicee.p.contributingHyperplanes,
-                                                          null)); // aux gets lost
+                                                          slicee.p.aux));
             if (verboseLevel >= 1)
-                System.out.println("out CSG.slice");
+                System.out.println("out CSG.sliceFacets");
             return result;
         } // sliceFacets
 
+        /**
+        * Convenience method for when there is only one slicee
+        * and we know there will be only one sliced result
+        */
+        public static SPolytope sliceElements(SPolytope slicee,
+                                              int eltDim,
+                                              Hyperplane hyperplane,
+                                              Object aux)
+        {
+            SPolytope slicees[] = {slicee};
+            SPolytope results[] = sliceElements(slicees,
+                                                eltDim,
+                                                hyperplane,
+                                                aux);
+            assert(results.length == 1); // XXX this is more of an illegal argument thing that we should throw legitimately
+            return results[0];
+        }
+        /**
+        * Slice up the eltDim-dimensional elements of the given list
+        * of signed polytopes using a single hyperplane,
+        * returning a new list of signed polytopes
+        * (at most twice the size of the original list).
+        */
+        public static SPolytope[] sliceElements(SPolytope slicees[],
+                                                int eltDim,
+                                                Hyperplane hyperplane,
+                                                Object aux)
+        {
+            return _sliceElements(slicees, eltDim, hyperplane, aux,
+                                  new java.util.Hashtable());
+        } // sliceElements
+
+        private static SPolytope[] _sliceElements(SPolytope slicees[],
+                                                  int eltDim,
+                                                  Hyperplane hyperplane,
+                                                  Object aux,
+                                                  java.util.Hashtable ocean)
+        {
+            SPolytope result[] = new SPolytope[2*slicees.length]; // at most XXX could be smarter about this, if all slicees have dim > eltDim then we only need slicees.length
+            int nResult = 0;
+            FORI (iSlicee, slicees.length)
+            {
+                SPolytope slicee = slicees[iSlicee];
+                if (slicee.p.dim <= eltDim)
+                {
+                    // Carve slicee up, replacing slicee with multiple sliceds
+                    SPolytope[] aboveBelowOn = _slice(slicee, hyperplane, aux, ocean, "        ");
+                    if (aboveBelowOn[0] != null)
+                        result[nResult++] = aboveBelowOn[0];
+                    if (aboveBelowOn[1] != null)
+                        result[nResult++] = aboveBelowOn[1];
+                    // can ignore On
+                }
+                else // slicee.p.dim > eltDim
+                {
+                    // Carve up facets, replacing slicee with a single sliced
+                    SPolytope newFacets[] = _sliceElements(slicee.p.facets, eltDim, hyperplane, aux, ocean);
+                    SPolytope sliced = new SPolytope(
+                                         slicee.initialDensity,
+                                         slicee.sign,
+                                         new Polytope(slicee.p.dim,
+                                                      slicee.p.fullDim,
+                                                      newFacets,
+                                                      slicee.p.contributingHyperplanes,
+                                                      slicee.p.aux)); // not aux, since this one is a full-dimensional piece of slicee
+                    result[nResult++] = sliced;
+                }
+            }
+            result = (SPolytope[])Arrays.subarray(result, 0, nResult);
+            return result;
+        } // sliceElements
+
         // recursive work function used by slice() and sliceFacets().
-        // returns an array {above,below,on}.
+        // returns an array {above,below,on},
+        // of dimensions slicee.dim, slicee.dim-1, slicee.dim.
         private static SPolytope[/*3*/] _slice(SPolytope slicee,
                                                Hyperplane hyperplane,
                                                Object aux,
@@ -2990,7 +3070,7 @@ public final class CSG
                     else if (height < 0.) // XXX need to make this fuzzy
                         below = slicee;
                     else
-                        unimplemented(); // vertices on the plane mess everything hup later
+                        unimplemented(); // vertices on the plane mess everything up later
                 }
                 else if (slicee.p.dim == 1)
                 {
@@ -5029,7 +5109,7 @@ public final class CSG
             System.exit(1);
         }
 
-        if (true)
+        if (false)
         {
             // just test make regular polytope
             SPolytope sp = makeRegularStarPolytopeProductFromString(args[0]);

@@ -2,19 +2,20 @@
 *  Stopgap implementation of some regex utilities
 *  that don't exist in java pre-1.4.
 *  Not everything is implemented but it's getting me by.
+*  XXX TODO: split uses greedy matching, not longest matching... need to think about how to do it better
 */
 
 package com.donhatchsw.util;
 
 #include "macros.h"
 
-class regex
+public class regex
 {
+    private regex() {} // uninstantiatable
+
     public static boolean checkAgainstStandardVersion = true; // if available
     public static boolean useStandardVersion = false; // if available
     public static int verboseLevel = 1;
-
-    private regex() {} // uninstantiatable
 
     public static boolean matches(String input, String patString)
     {
@@ -687,7 +688,7 @@ class regex
                     // special case: trailing empty strings are discarded
                     while (!resultVector.isEmpty()
                         && ((String)resultVector.lastElement()).equals(""))
-                        resultVector.remove(resultVector.size()-1);
+                        resultVector.removeElementAt(resultVector.size()-1); // not remove, for 1.1
                 }
                 String result[] = new String[resultVector.size()];
                 resultVector.copyInto(result);
@@ -1068,6 +1069,7 @@ class regex
         matches("144 13-cells:", "(\\d+) (\\d+)-cell[^:]*:"); // yes
         matches("144 13-cell:", "(\\d+) (\\d+)-cell[^:]*:"); // yes
         //split("XababacY", "((ab)*|aba)c?", -1); // oh frickin heck, they got the non-greedy longest match.  How did they do that??  This sucks.
+
         System.out.println("All good!");
     } // main
 
