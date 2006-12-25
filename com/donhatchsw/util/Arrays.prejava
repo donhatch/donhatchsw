@@ -880,6 +880,7 @@ public final class Arrays
     /**
      * XXX should take a class instead of an item, right?
      * XXX then need to figure out the isAssignableFrom() thing or whatever.
+     * XXX look into maybe using Integer.TYPE etc.
      */
     public static Class getUnwrappedClass(Object item)
     {
@@ -1361,18 +1362,23 @@ public final class Arrays
                  * Guess the primitive type.
                  * If all arrays are ultimately empty, int will be used.
                  */
-                Class primType = (s.indexOf("true") != -1 ? (Class)boolean.class : // XXX should ignore case
-                                  s.indexOf("false") != -1 ? (Class)boolean.class : // XXX should ignore case
-                                  s.indexOf(".") != -1 ? (Class)double.class :
-                                  s.indexOf("E") != -1 ? (Class)double.class :
-                                  s.indexOf("e") != -1 ? (Class)double.class :
-                                  s.indexOf("f") != -1 ? (Class)float.class :
-                                  s.indexOf("F") != -1 ? (Class)float.class :
+                // The (Class) cast is necessary as of 1.5 because the various Classes
+                // have slightly different types now,
+                // e.g. boolean.class is of type Class<boolean>.
+                // And once we've done that, it's necessary to parenthesize the (int.class)
+                // or whatever, or the 1.2 compiler gets confused.  Whee compatibility is fun!
+                Class primType = (s.indexOf("true") != -1 ? (Class)(boolean.class) : // XXX should ignore case
+                                  s.indexOf("false") != -1 ? (Class)(boolean.class) : // XXX should ignore case
+                                  s.indexOf(".") != -1 ? (Class)(double.class) :
+                                  s.indexOf("E") != -1 ? (Class)(double.class) :
+                                  s.indexOf("e") != -1 ? (Class)(double.class) :
+                                  s.indexOf("f") != -1 ? (Class)(float.class) :
+                                  s.indexOf("F") != -1 ? (Class)(float.class) :
 #ifdef NOTYET // XXX this messes up when there's a "null" 
-                                  s.indexOf("L") != -1 ? (Class)long.class :
-                                  s.indexOf("l") != -1 ? (Class)long.class :
+                                  s.indexOf("L") != -1 ? (Class)(long.class) :
+                                  s.indexOf("l") != -1 ? (Class)(long.class) :
 #endif // NOTYET
-                                  s.indexOf("'") != -1 ? (Class)char.class : (Class)int.class);
+                                  s.indexOf("'") != -1 ? (Class)(char.class) : (Class)(int.class));
                 int nDims = braceDepth(s, start, end);
 
                 /**

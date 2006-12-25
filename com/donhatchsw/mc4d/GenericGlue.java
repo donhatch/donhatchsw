@@ -50,6 +50,7 @@
 //
 
 package com.donhatchsw.MagicCube;
+import com.donhatchsw.compat.regex;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -446,8 +447,8 @@ public class GenericGlue
                 if (item1 != null)
                 {
                     final String finalName = item0; // including the schlafli symbol
-                    final String finalSchlafli = (item0.equalsIgnoreCase("Grand Antiprism") ? item0 : item0.split(" ")[0]);
-                    String lengthStrings[] = item1.split(",");
+                    final String finalSchlafli = (item0.equalsIgnoreCase("Grand Antiprism") ? item0 : regex.split(item0, " ")[0]);
+                    String lengthStrings[] = regex.split(item1, ",");
                     for (int j = 0; j < lengthStrings.length; ++j)
                     {
                         final String finalLengthString = lengthStrings[j];
@@ -469,13 +470,14 @@ public class GenericGlue
 
                                     while (true)
                                     {
-                                        String reply = JOptionPane.showInputDialog(prompt, initialInput);
+                                        //String reply = JOptionPane.showInputDialog(prompt, initialInput); // XXX doesn't exist in 1.3-- find a substitute if possible!
+                                        String reply = JOptionPane.showInputDialog(prompt);
                                         if (reply == null)
                                         {
                                             initPuzzleCallback.call(); // XXX really just want a repaint I think
                                             return; // cancelled
                                         }
-                                        String schlafliAndLength[] = reply.trim().split("\\s+");
+                                        String schlafliAndLength[] = regex.split(reply.trim(), "\\s+");
                                         if (schlafliAndLength.length != 2)
                                         {
                                             prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again!";
@@ -604,10 +606,10 @@ public class GenericGlue
                     continue;
                 }
 
-                final String schlafli = table[i][0];
-                String lengthStrings[] = table[i][1].split(",");
-                final String name = (schlafli==null ? table[i][2] :
-                                     schlafli + "  " + table[i][2]);
+                final String finalSchlafli = table[i][0];
+                String lengthStrings[] = regex.split(table[i][1], ",");
+                final String finalName = (finalSchlafli==null ? table[i][2] :
+                                          finalSchlafli + "  " + table[i][2]);
 
                 // Puzzles with triangles kind of suck so far,
                 // so we might want to leave them out of the menu...
@@ -615,25 +617,22 @@ public class GenericGlue
                 //boolean allowPuzzlesWithTriangles = false;
                 if (!allowPuzzlesWithTriangles)
                 {
-                    if (schlafli != null && schlafli.indexOf("{3") != -1)
+                    if (finalSchlafli != null && finalSchlafli.indexOf("{3") != -1)
                         continue;
                 }
 
                 Menu submenu;
-                if (schlafli != null)
+                if (finalSchlafli != null)
                 {
-                    submenu = new Menu(name+"    "); // XXX padding so the > doesn't clobber the end of the longest names!? lame
+                    submenu = new Menu(finalName+"    "); // XXX padding so the > doesn't clobber the end of the longest names!? lame
                     puzzlemenu.add(submenu);
                 }
                 else
                     submenu = puzzlemenu;
-                final String finalSchlafli = schlafli;
-                final String finalName = name;
                 for (int j = 0; j < lengthStrings.length; ++j)
                 {
-                    final String lengthString = lengthStrings[j];
-                    final String finalLengthString = lengthString;
-                    submenu.add(new MenuItem(schlafli==null ? name : ""+lengthString)).addActionListener(new ActionListener() {
+                    final String finalLengthString = lengthStrings[j];
+                    submenu.add(new MenuItem(finalSchlafli==null ? finalName : ""+finalLengthString)).addActionListener(new ActionListener() {
                         public void actionPerformed(ActionEvent ae)
                         {
                             String schlafli = finalSchlafli;
@@ -646,13 +645,14 @@ public class GenericGlue
 
                                 while (true)
                                 {
-                                    String reply = JOptionPane.showInputDialog(prompt, initialInput);
+                                    //String reply = JOptionPane.showInputDialog(prompt, initialInput); // XXX doesn't exist in 1.3-- find a substitute if possible!
+                                    String reply = JOptionPane.showInputDialog(prompt);
                                     if (reply == null)
                                     {
                                         initPuzzleCallback.call(); // XXX really just want a repaint I think
                                         return; // cancelled
                                     }
-                                    String schlafliAndLength[] = reply.trim().split("\\s+");
+                                    String schlafliAndLength[] = regex.split(reply.trim(), "\\s+");
                                     if (schlafliAndLength.length != 2)
                                     {
                                         prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again!";
