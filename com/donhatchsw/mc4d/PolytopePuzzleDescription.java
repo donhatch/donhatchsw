@@ -556,7 +556,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         faceInwardNormals[iFace],
                         faceCutOffsets[iFace][iCut]);
                     Object auxOfCut = null; // we don't set any aux on the cut for now
-                    slicedPolytope = com.donhatchsw.util.CSG.sliceFacets(slicedPolytope, cutHyperplane, auxOfCut);
+                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut);
                     iTotalCut++;
                     if (progressWriter != null)
                     {
@@ -567,7 +567,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         // the square of the apparent fraction of items done.
                         if ((nTotalCuts-iTotalCut)%10 == 0)
                         {
-                            progressWriter.print("("+percent_g_dammit(2,(double)100*iTotalCut*iTotalCut/nTotalCuts/nTotalCuts)+"%)");
+                            progressWriter.print("("+com.donhatchsw.compat.Format.sprintf("%.2g", (double)100*iTotalCut*iTotalCut/nTotalCuts/nTotalCuts)+"%)");
                         }
 
                         progressWriter.flush();
@@ -1258,37 +1258,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                  gripUsefulMats[gripIndex]);
             return mat;
         } // getTwistMat
-
-        // format x using printf format "%.17g", dammit
-        private static String percent_g_dammit(int seventeen, // digits of precision
-                                       double x)
-        {
-            if (x == 0)
-                return "0";
-
-            double threshold = Math.round(Math.pow(10, seventeen));
-            double scale = 1.;
-            while (x < threshold)
-            {
-                x *= 10;
-                scale *= 10;
-            }
-            while (x >= threshold)
-            {
-                x /= 10;
-                scale /= 10;
-            }
-            x = Math.floor(x);
-            x /= scale;
-            if (Math.floor(x) == x)
-                return ""+(int)Math.floor(x);
-            else
-                return ""+x;
-        } // percent_g_dammit
-
-
-
-
 
 
     //======================================================================
