@@ -773,7 +773,7 @@ public class GenericGlue
     // Currently I call this automatically from inside mouseMovedAction
     // since I don't have handy access to the view before that...
     // So MC4DSwing doesn't really need to worry about calling this.
-    public void addAnotherKeyListenerToView(final Canvas view)
+    public void addAnotherKeyListenerToView(final Component view)
     {
         view.addKeyListener(new KeyAdapter() {
             public void keyTyped(KeyEvent ke)
@@ -824,7 +824,7 @@ public class GenericGlue
 
 
 
-    public void undoAction(Canvas view, JLabel statusLabel, float twistFactor)
+    public void undoAction(Component view, JLabel statusLabel, float twistFactor)
     {
         GenericGlue glue = this;
         if (glue.undoPartSize > 0)
@@ -858,7 +858,7 @@ public class GenericGlue
             statusLabel.setText("Nothing to undo.");
     } // undoAction
 
-    public void redoAction(Canvas view, JLabel statusLabel, float twistFactor)
+    public void redoAction(Component view, JLabel statusLabel, float twistFactor)
     {
         GenericGlue glue = this;
         if (glue.undoq.size()-glue.undoPartSize > 0)
@@ -892,7 +892,7 @@ public class GenericGlue
             statusLabel.setText("Nothing to redo.");
     } // redoAction
 
-    public void cheatAction(Canvas view, JLabel statusLabel)
+    public void cheatAction(Component view, JLabel statusLabel)
     {
         GenericGlue glue = this;
         glue.cheating = true; // each repaint will trigger another til done
@@ -900,7 +900,7 @@ public class GenericGlue
         statusLabel.setText("");
     } // cheatAction
 
-    public void scrambleAction(Canvas view, JLabel statusLabel, int scramblechenfrengensen)
+    public void scrambleAction(Component view, JLabel statusLabel, int scramblechenfrengensen)
     {
         GenericGlue glue = this;
         int nDims = glue.genericPuzzleDescription.nDims();
@@ -949,7 +949,7 @@ public class GenericGlue
 
 
     public void mouseMovedAction(MouseEvent e,
-                                 Canvas view)
+                                 Component view)
     {
         GenericGlue genericGlue = this;
         int pickedStickerPoly[] = GenericPipelineUtils.pick(
@@ -975,7 +975,7 @@ public class GenericGlue
         }
     } // mouseMovedAction
 
-    private Canvas mostRecentViewIAddedListenerTo = null;
+    private Component mostRecentViewIAddedListenerTo = null;
 
 
     public void mouseClickedAction(MouseEvent e,
@@ -983,7 +983,8 @@ public class GenericGlue
                                    float twistFactor,
                                    int slicemask,
 
-                                   Canvas view)
+                                   Component viewForViewChanges,
+                                   Component viewForModelChanges)
     {
         GenericGlue genericGlue = this;
         boolean isRotate = isMiddleMouseButton(e);
@@ -1086,7 +1087,7 @@ public class GenericGlue
                 // XXX ARGH! we'd like the speed to vary as the user changes the slider,
                 // XXX but the above essentially locks in the speed for this rotation
                 genericGlue.iRotation = 0; // we are iRotation frames into nRotation
-                view.repaint();
+                viewForViewChanges.repaint();
 
                 if (genericGlue.iRotation == genericGlue.nRotation)
                 {
@@ -1170,7 +1171,7 @@ public class GenericGlue
                                                     genericGlue.twistSliceMask));
                 genericGlue.undoPartSize++;
 
-                view.repaint();
+                viewForModelChanges.repaint();
             }
             else
                 System.out.println("missed");
@@ -1207,7 +1208,7 @@ public class GenericGlue
         Graphics g,
         float twistFactor,
         boolean restrictRoll,
-        Canvas view)
+        Component view)
     {
         GenericGlue genericGlue = this;
 
@@ -1467,7 +1468,7 @@ public class GenericGlue
         public void initiateZeroRoll(float viewMat4d[][],
                                      float viewMat3d[][],
                                      float twistFactor,
-                                     Canvas view)
+                                     Component view)
         {
             // XXX FUDGE! get rid of this when I get rid of corresponding fudge in display
             {
