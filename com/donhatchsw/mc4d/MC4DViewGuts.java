@@ -1,47 +1,48 @@
 /**
 * All right, here's how to make everyone happy...
 * A completely generic viewer that can be stuck inside
-* an ancient Canvas or icky Applet,
-* or a modern JPanel or whatever.
+* an ancient Canvas or icky Applet
+* or a beautiful modern JPanel or whatever.
 *
 * We can't derive it from Canvas,
 * and we can't derive it from JComponent either...
 * Let's not derive it from anything.
 * The only reason for deriving from anything anyway
-* is so we can subclass paint-- so we just
-* let the caller do that let it call us.
+* is so we can overload the paint() method--
+* so we just let the caller do that and let it call us.
 *
 * For example:
-*
+* <pre>
 *       class ModernMC4DView
-            extends JPanel
-        {
-            MC4DViewGuts guts; // has-a, not is-a
-
-            public ModernMC4DView()
-            {
-                guts = new MC4DViewGuts(this); // adds listeners to this
-            }
-            public void paintComponent(java.awt.Graphics g)
-            {
-                guts.paint(this, g);
-            }
-        }
-
-        class AncientMC4DView
-            extends java.awt.Canvas
-        {
-            MC4DViewGuts guts; // has-a, not is-a
-
-            public AncientMC4DView()
-            {
-                guts = new MC4DViewGuts(this); // adds listeners to this
-            }
-            public void paint(java.awt.Graphics g)
-            {
-                guts.paint(this, g);
-            }
-        }
+*           extends JPanel
+*       {
+*           MC4DViewGuts guts; // has-a, not is-a
+*
+*           public ModernMC4DView()
+*           {
+*               guts = new MC4DViewGuts(this); // adds listeners to this
+*           }
+*           public void paintComponent(java.awt.Graphics g)
+*           {
+*               guts.paint(this, g);
+*           }
+*       }
+*
+*       class AncientMC4DView
+*           extends java.awt.Canvas
+*       {
+*           MC4DViewGuts guts; // has-a, not is-a
+*
+*           public AncientMC4DView()
+*           {
+*               guts = new MC4DViewGuts(this); // adds listeners to this
+*           }
+*           public void paint(java.awt.Graphics g)
+*           {
+*               guts.paint(this, g);
+*           }
+*       }
+* </pre>
 */
 
 package com.donhatchsw.MagicCube;
@@ -81,7 +82,6 @@ public class MC4DViewGuts
             //     4: and enter/exit (can be obnoxious)
             //     5: and mouse motion (can be obnoxious)
 
-
         public float faceShrink = .4f;
         public float stickerShrink = .5f;
         public float viewMat4d[][] = {
@@ -93,7 +93,7 @@ public class MC4DViewGuts
         public float eyeW = 5.2f;
         public float viewMat3d[][] =
             VecMath.mxm(VecMath.makeRowRotMat(3, 2,0, -42*(float)Math.PI/180), // twirl
-                        VecMath.makeRowRotMat(3, 1,2, 30*(float)Math.PI/180)); // tilt
+                        VecMath.makeRowRotMat(3, 1,2,  30*(float)Math.PI/180)); // tilt
         public float eyeZ = 10.f;
         public float scale = 1.f;
         public float sunvec[] = {.82f, 1.55f, 3.3f};
