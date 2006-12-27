@@ -115,9 +115,16 @@ public class MC4DViewGuts
         public java.awt.Color outlineColor = null;
         public float twistFactor = 1.f;
         public boolean restrictRoll = false;
+        public boolean spinDragRequiresCtrl = false;
 
-        public int slicemask = 1;
-
+        //
+        // Mouse and keyboard state...
+        //
+        public int slicemask = 0; // bitmask representing which number keys are down
+        public int lastDrag[] = null; // non-null == dragging
+        public long lastDragTime = -1L; // timestamp of last drag event
+        public float spinDelta[][] = null; // rotation to add for each frame while spinning. null == stopped
+        public float dragDelta[][] = null; // while dragging, we keep track of the most recent drag delta, this is what will be turned into spinDelta when we let go.  Melinda's applet used spinDelta for both, but that made things complicated in paint when deciding whether to keep spinning or not when mouse was down, especially when combined with spinDragRequiresCtrl.
 
         private KeyListener keyListener;
         private MouseListener mouseListener;
@@ -159,16 +166,6 @@ public class MC4DViewGuts
             }
         Assert(false);
         return null;
-    }
-
-
-    // Call repaint on all views.
-    // XXX not used yet but I bet it will be
-    public void repaint()
-    {
-        int nViews = views.size();
-        for (int i = 0; i < nViews; ++i)
-            ((Component)views.get(i)).repaint();
     }
 
     /** Detaches this view from these guts. */
@@ -215,14 +212,6 @@ public class MC4DViewGuts
             }
         });
         view.addMouseListener(perViewState.mouseListener = new MouseListener() {
-            public void mousePressed(MouseEvent me)
-            {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("mousePressed on a "+view.getClass().getSuperclass().getName());
-            }
-            public void mouseReleased(MouseEvent me)
-            {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseReleased on a "+view.getClass().getSuperclass().getName());
-            }
             public void mouseClicked(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseClicked on a "+view.getClass().getSuperclass().getName());
@@ -235,6 +224,40 @@ public class MC4DViewGuts
                                         view, // for view changes
                                         viewAfter(view)); // for model changes
             }
+            public void mousePressed(MouseEvent me)
+            {
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("mousePressed on a "+view.getClass().getSuperclass().getName());
+                perViewState.lastDrag = new int[]{me.getX(), me.getY()};
+                perViewState.lastDragTime = me.getWhen();
+                if (!(perViewState.spinDragRequiresCtrl && !me.isControlDown()))
+                {
+                    perViewState.spinDelta = null;
+                    perViewState.dragDelta = null;
+                }
+            }
+            public void mouseReleased(MouseEvent me)
+            {
+                long timedelta = me.getWhen() - perViewState.lastDragTime;
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseReleased on a "+view.getClass().getSuperclass().getName()+", time = "+me.getWhen()+", timedelta = "+timedelta);
+                perViewState.lastDrag = null;
+                perViewState.lastDragTime = -1L;
+                if (!(perViewState.spinDragRequiresCtrl && !me.isControlDown()))
+                {
+                    if (timedelta == 0)
+                    {
+                        // Released at same time as previous drag-- lift off.
+                        perViewState.spinDelta = perViewState.dragDelta;
+                        view.repaint();
+                    }
+                    else
+                    {
+                        // Failed to lift off.
+                        perViewState.spinDelta = null;
+                        view.repaint(); // so it can use higher quality paint
+                    }
+                    perViewState.dragDelta = null; // no longer dragging
+                }
+            }
             public void mouseEntered(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 4) System.out.println("mouseExited on a "+view.getClass().getSuperclass().getName());
@@ -244,10 +267,36 @@ public class MC4DViewGuts
                 if (perViewState.eventVerboseLevel >= 4) System.out.println("mouseExited on a "+view.getClass().getSuperclass().getName());
             }
         });
+        // watch for dragging gestures to rotate the 3D view
         view.addMouseMotionListener(perViewState.mouseMotionListener = new MouseMotionListener() {
             public void mouseDragged(MouseEvent me)
             {
-                if (perViewState.eventVerboseLevel >= 2) System.out.println("    mouseDragged on a "+view.getClass().getSuperclass().getName());
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseDragged on a "+view.getClass().getSuperclass().getName()+", time = "+me.getWhen());
+                if (perViewState.lastDrag == null)
+                    return;
+                int thisDrag[] = {me.getX(), me.getY()};
+                if (!(perViewState.spinDragRequiresCtrl && !me.isControlDown()))
+                {
+                    int pixelsMovedSqrd = VecMath.distsqrd(perViewState.lastDrag, thisDrag);
+                    if (pixelsMovedSqrd > 0) // do nothing if ended where we started
+                    {
+                        int dragDir[] = VecMath.vmv(thisDrag, perViewState.lastDrag);
+                        dragDir[1] *= -1; // in java, y is down, so invert it
+                        float axis[] = {-dragDir[1],dragDir[0],0.f};
+                        float radians = (float)Math.sqrt(pixelsMovedSqrd) / 300f;
+                        perViewState.dragDelta = VecMath.makeRowRotMat(radians, new float[][]{axis});
+                        if (perViewState.restrictRoll)
+                            perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, glue.zeroOutRollOnSpinDelta(perViewState.dragDelta));
+                        else
+                            perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, perViewState.dragDelta);
+                        if (pixelsMovedSqrd < 2*2)
+                            perViewState.dragDelta = null;
+                    }
+                }
+                perViewState.lastDrag = thisDrag;
+                perViewState.lastDragTime = me.getWhen();
+                System.out.println("calling repaint");
+                view.repaint();
             }
             public void mouseMoved(MouseEvent me)
             {
@@ -286,6 +335,16 @@ public class MC4DViewGuts
         int xOff = ((W>H) ? (W-H)/2 : 0) + min/2;
         int yOff = ((H>W) ? (H-W)/2 : 0) + min/2;
 
+        // XXX if model is animating, something...?
+
+        if (perViewState.spinDelta != null) // note, the old applet had an additional test "and not dragging" but we don't need it because spinDelta is never set during dragging now, dragDelta is instead
+        {
+            if (perViewState.restrictRoll)
+                perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, glue.zeroOutRollOnSpinDelta(perViewState.spinDelta));
+            else
+                perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, perViewState.spinDelta);
+            view.repaint();
+        }
 
         glue.computeAndPaintFrame(
           // used by compute part...
@@ -319,6 +378,181 @@ public class MC4DViewGuts
 
 
 
+    //
+    // Make a modern viewer based on a JPanel.
+    //
+    public static void makeExampleModernViewer(final MC4DViewGuts guts,
+                                               final int x, final int y,
+                                               final int w, final int h)
+    {
+        final JPanel myPanel = new JPanel() {
+            public void paintComponent(Graphics g)
+            {
+                g.setColor(new Color(20,170,235)); // sky
+                g.fillRect(0, 0, getWidth(), getHeight());
+                g.setColor(new Color(20, 130, 20));
+                g.fillRect(0, getHeight()*6/9, getWidth(), getHeight()); // ground
+                guts.paint(this, g);
+
+                g.setColor(Color.white);
+                g.drawString("ctrl-n for another modern view", 10, getHeight()-10);
+            }
+            // So we can type immediately in it
+            public boolean isFocusTraversable()
+            {
+                return true;
+            }
+        };
+        guts.attachListeners(myPanel, false);
+        //myPanel.setPreferredSize(new java.awt.Dimension(w,h)); // set size bottom up
+
+
+        JFrame jframe = new JFrame("Spiffy new world");
+
+        jframe.setForeground(java.awt.Color.white);
+        jframe.setBackground(java.awt.Color.black);
+
+        jframe.setContentPane(myPanel);
+        jframe.addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent event)
+            {
+                System.out.println("Chow!");
+                guts.detachListeners(myPanel);
+                if (guts.nViews() == 0)
+                    System.exit(0); // asinine way of doing things
+            }
+        });
+
+        jframe.pack();
+        jframe.setSize(w,h); // set size top down
+        jframe.setLocation(x,y);
+        jframe.setVisible(true);
+
+        // Make it so ctrl-n spawns another view of the same model,
+        // and ctrl-shift-N spawns the opposite kind of view of the same model.
+        myPanel.addKeyListener(new KeyAdapter() {
+            public void keyTyped(KeyEvent ke)
+            {
+                char c = ke.getKeyChar();
+                if (c == '\016')
+                    if (ke.isShiftDown())
+                        makeExampleAncientViewer(guts,x+20+w,y+20,w,h,false); // ctrl-shift-N
+                    else
+                        makeExampleModernViewer(guts,x+20,y+20,w,h);  // ctrl-n
+            }
+        });
+    } // makeExampleModernViewer
+
+
+    //
+    // Make an ancient viewer based on a canvas.
+    //
+    public static void makeExampleAncientViewer(final MC4DViewGuts guts,
+                                                final int x, final int y,
+                                                final int w, final int h,
+                                                final boolean doDoubleBuffer)
+    {
+        final Canvas myCanvas = new Canvas() {
+            private Image backBuffer = null;
+            int bbw=0, bbh=0;
+            public void update(Graphics g) { paint(g); } // don't flash
+            public void paint(Graphics frontBufferGraphics)
+            {
+                if (doDoubleBuffer)
+                {
+                    if (backBuffer == null
+                     || getWidth() != bbw
+                     || getHeight() != bbh)
+                    {
+                        backBuffer = this.createImage(bbw=getWidth(), bbh=getHeight());
+                        System.out.println("created back buffer of size "+bbw+"x"+bbh+"");
+                    }
+                }
+                else
+                    backBuffer = null;
+                Graphics g = backBuffer != null ? backBuffer.getGraphics() : frontBufferGraphics;
+
+                g.setColor(new Color(20,170,235)); // sky
+                g.fillRect(0, 0, getWidth(), getHeight());
+                g.setColor(new Color(20, 130, 20)); // ground
+                g.fillRect(0, getHeight()*6/9, getWidth(), getHeight());
+                guts.paint(this, g);
+
+                g.setColor(Color.white);
+                g.drawString("ctrl-n for another ancient view", 10, getHeight()-10);
+
+                if (backBuffer != null)
+                    frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
+            }
+            // So we can type immediately in it
+            public boolean isFocusTraversable()
+            {
+                return true;
+            }
+        };
+        guts.attachListeners(myCanvas, true);
+        //myCanvas.setSize(new java.awt.Dimension(w,h)); // set size bottom up
+
+
+        final Frame frame = new Frame("Sucky old world") { 
+            public boolean handleEvent(java.awt.Event event)
+            {
+                switch(event.id)
+                {
+                    case java.awt.Event.WINDOW_DESTROY:
+                        System.out.println("bye!");
+                        // Empirically, either of the following
+                        // cause the app to exit-- do both to be safe!
+                        // (XXX I've heard rumors that just doing dispose()
+                        //  messes up the debugger)
+                        // (XXX but doing exit is evil)
+                        dispose(); // hide() doesn't delete the windows
+                        guts.detachListeners(myCanvas);
+                        if (guts.nViews() == 0)
+                            System.exit(0); // asinine way of doing things
+                        return true;
+                }
+                return super.handleEvent(event);
+            }
+        };
+        // The above handleEvent no longer seems to work as of java 1.5.
+        // So we have to use a listener.
+        // XXX not sure how far back this exists, we'll need to use reflection to get it
+        {
+            frame.addWindowListener(new java.awt.event.WindowAdapter() {
+                public void windowClosing(java.awt.event.WindowEvent we) {
+                    System.out.println("ciao!");
+                    frame.dispose(); // hide() doesn't delete the windows
+                    guts.detachListeners(myCanvas);
+                    if (guts.nViews() == 0)
+                        System.exit(0); // asinine way of doing things
+                }
+            });
+        }
+
+        frame.add(myCanvas);
+        frame.pack();
+        frame.resize(w, h); // set size top down
+        frame.move(x,y);
+        frame.show();
+
+        // Make it so ctrl-n spawns another view of the same model,
+        // and ctrl-shift-N spawns the opposite kind of view of the same model.
+        myCanvas.addKeyListener(new KeyAdapter() {
+            public void keyTyped(KeyEvent ke)
+            {
+                char c = ke.getKeyChar();
+                if (c == '\016')
+                    if (ke.isShiftDown())
+                        makeExampleModernViewer(guts,x+20-w,y+20,w,h); // ctrl-shift-N
+                    else
+                        makeExampleAncientViewer(guts,x+20,y+20,w,h,doDoubleBuffer);  // ctrl-n
+            }
+        });
+    } // makeExampleAncientViewer
+
+
+
     public static void main(String args[])
     {
         if (args.length != 0 && args.length != 2)
@@ -330,118 +564,13 @@ public class MC4DViewGuts
         int length = Integer.parseInt(args.length > 1 ? args[1] : "3");
 
         GenericGlue glue = new GenericGlue(schlafli, length);
-        final MC4DViewGuts guts = new MC4DViewGuts(glue);
+        MC4DViewGuts guts = new MC4DViewGuts(glue);
 
-        //
-        // Make a modern one
-        //
-        {
-            final JPanel myPanel = new JPanel() {
-                public void paintComponent(Graphics g)
-                {
-                    g.setColor(new Color(20,170,235)); // sky
-                    g.fillRect(0, 0, getWidth(), getHeight());
-                    g.setColor(new Color(20, 130, 20));
-                    g.fillRect(0, getHeight()*6/9, getWidth(), getHeight()); // ground
-                    guts.paint(this, g);
-                }
-                // So we can type immediately in it
-                public boolean isFocusTraversable()
-                {
-                    return true;
-                }
-            };
-            guts.attachListeners(myPanel, false);
-            //myPanel.setPreferredSize(new java.awt.Dimension(250,250)); // set size bottom up
+        makeExampleModernViewer(guts, 50,50, 300,300);
 
+        boolean doDoubleBuffer = true; // make it even more sucky than necessary
+        makeExampleAncientViewer(guts, 350,50, 300,300, doDoubleBuffer);
 
-            JFrame jframe = new JFrame("Spiffy new world");
-
-            jframe.setForeground(java.awt.Color.white);
-            jframe.setBackground(java.awt.Color.black);
-
-            jframe.setContentPane(myPanel);
-            jframe.addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent event)
-                {
-                    System.out.println("Chow!");
-                    guts.detachListeners(myPanel);
-                    if (guts.nViews() == 0) // what a load of CRAP!! why can't the app just exit like it's supposed to??
-                        System.exit(0);
-                }
-            });
-
-            jframe.pack();
-            jframe.setSize(300,300); // set size top down
-            jframe.setLocation(50,50);
-            jframe.setVisible(true);
-        }
-
-        //
-        // Make an ancient one
-        //
-        {
-            final Canvas myCanvas = new Canvas() {
-                public void paint(Graphics g)
-                {
-                    g.setColor(new Color(20,170,235)); // sky
-                    g.fillRect(0, 0, getWidth(), getHeight());
-                    g.setColor(new Color(20, 130, 20)); // ground
-                    g.fillRect(0, getHeight()*6/9, getWidth(), getHeight());
-                    guts.paint(this, g);
-                }
-                // So we can type immediately in it
-                public boolean isFocusTraversable()
-                {
-                    return true;
-                }
-            };
-            guts.attachListeners(myCanvas, true);
-            myCanvas.setSize(new java.awt.Dimension(250,250)); // set size bottom up
-
-
-            final Frame frame = new Frame("Sucky old world") { 
-                public boolean handleEvent(java.awt.Event event)
-                {
-                    switch(event.id)
-                    {
-                        case java.awt.Event.WINDOW_DESTROY:
-                            System.out.println("bye!");
-                            // Empirically, either of the following
-                            // cause the app to exit-- do both to be safe!
-                            // (XXX I've heard rumors that just doing dispose()
-                            //  messes up the debugger)
-                            // (XXX but doing exit is evil)
-                            dispose(); // hide() doesn't delete the windows
-                            guts.detachListeners(myCanvas);
-                            if (guts.nViews() == 0) // what a load of CRAP!! why can't the app just exit like it's supposed to??
-                                System.exit(0);
-                            return true;
-                    }
-                    return super.handleEvent(event);
-                }
-            };
-            // The above handleEvent no longer seems to work as of java 1.5.
-            // So we have to use a listener.
-            // XXX not sure how far back this exists, we'll need to use reflection to get it
-            {
-                frame.addWindowListener(new java.awt.event.WindowAdapter() {
-                    public void windowClosing(java.awt.event.WindowEvent we) {
-                        System.out.println("ciao!");
-                        frame.dispose(); // hide() doesn't delete the windows
-                        guts.detachListeners(myCanvas);
-                        if (guts.nViews() == 0) // what a load of CRAP!! why can't the app just exit like it's supposed to??
-                            System.exit(0);
-                    }
-                });
-            }
-
-            frame.add(myCanvas);
-            frame.pack();
-            frame.resize(300, 300); // set size top down
-            frame.move(350,50);
-            frame.show();
-        }
     } // main
 
 } // MC4DViewGuts
