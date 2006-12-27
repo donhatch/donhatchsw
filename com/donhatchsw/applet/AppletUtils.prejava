@@ -1,0 +1,103 @@
+// From java tip #57, essentially:
+//    http://www.javaworld.com/javaworld/javatips/jw-javatip57.html
+// except
+//    1. I never care about the prefix thing,
+//    2. boolean true can be expressed as any nonzero integer, or
+//       any of the following (case insensitive): "true", "yes", "t", "y".
+
+package com.donhatchsw.applet; // APP-SPECIFIC: remove or change this as desired
+
+public class AppletUtils
+{
+    // Make this class uninstantiatable...
+    private AppletUtils() {}
+
+
+    public static void getParametersIntoPublicFields(java.applet.Applet applet,
+                                                     int verboseLevel)
+    {
+        Class appletClass = applet.getClass();
+        java.lang.reflect.Field[] fields = appletClass.getFields();
+        for (int i = 0; i < fields.length; i++)
+        {
+            java.lang.reflect.Field field = fields[i];
+
+            if (java.lang.reflect.Modifier.isFinal(field.getModifiers()))
+            {
+                continue;
+            }
+            if (verboseLevel >= 1)
+                System.out.println("Setting param "+field+" ("+field.getType()+")...");
+            String paramValueString = applet.getParameter(field.getName());
+            if (paramValueString == null)
+            {
+                if (verboseLevel >= 1)
+                    System.out.println("    (no value given)");
+                continue;
+            }
+            Class fieldType = field.getType();
+            try {
+                if (fieldType.equals(boolean.class)) {
+                    //field.setBoolean(applet, Boolean.valueOf(paramValueString).booleanValue());
+                    field.setBoolean(applet, parseBoolean(paramValueString));
+                }
+                else if (fieldType.equals(byte.class)) {
+                    field.setByte(applet, Byte.valueOf(paramValueString).byteValue());
+                }
+                else if (fieldType.equals(char.class)) {
+                    field.setChar(applet, paramValueString.charAt(0));
+                }
+                else if (fieldType.equals(double.class)) {
+                    field.setDouble(applet, Double.valueOf(paramValueString).doubleValue());
+                }
+                else if (fieldType.equals(float.class)) {
+                    field.setFloat(applet, Float.valueOf(paramValueString).floatValue());
+                }
+                else if (fieldType.equals(int.class)) {
+                    //field.setInt(applet, Integer.valueOf(paramValueString).intValue());
+                    field.setInt(applet, parseInt(paramValueString));
+                }
+                else if (fieldType.equals(long.class)) {
+                    field.setLong(applet, Long.valueOf(paramValueString).longValue());
+                }
+                else if (fieldType.equals(short.class)) {
+                    field.setShort(applet, Short.valueOf(paramValueString).shortValue());
+                }
+
+                else if (fieldType.equals(String.class)) {
+                    field.set(applet, paramValueString); // done
+                }
+                if (verboseLevel >= 1)
+                    System.out.println("    "+field.get(applet));
+            } catch (Exception e) {
+                System.err.println(e + " while initializing " + field);
+            }
+        }
+    } // getParametersIntoPublicFields
+
+    // XXX should do other types like this too
+    public static int parseInt(String s)
+    {
+        try
+        {
+            return Integer.decode(s).intValue();
+        }
+        catch (NumberFormatException e)
+        {
+            if (s.equalsIgnoreCase("true")
+             || s.equalsIgnoreCase("yes")
+             || s.equalsIgnoreCase("t")
+             || s.equalsIgnoreCase("y"))
+                return 1;
+            return 0;
+        }
+    } // parseInt
+
+    private static boolean parseBoolean(String s)
+    {
+        // Too simplistic, only honors case-sensitive "true"
+        //return Boolean.valueOf(paramValueString).booleanValue();
+        return parseInt(s) != 0;
+    } // parseBoolean
+
+} // AppletUtils

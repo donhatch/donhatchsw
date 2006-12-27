@@ -1,0 +1,36 @@
+//
+// DoubleBufferedCanvas.java
+//
+// Implements simple methods for a subclass's paint() method to use:
+//      protected java.awt.Image getBackBufferCache()
+//      protected void freeBackBufferCache()
+// XXX Actually this is pretty lame-- doesn't even use anything from the parent class
+// any more, since width and height can be (and often are) faked.
+// Maybe should call this something else.
+//
+
+package com.donhatchsw.applet; // APP-SPECIFIC: remove or change this as desired
+
+public class DoubleBufferedCanvas
+    extends java.awt.Canvas
+{
+    protected java.awt.Image getBackBufferCache(int width, int height, int verboseLevel)
+    {
+        if (backBufferCache == null
+         || backBufferCache.getWidth(this) != width
+         || backBufferCache.getHeight(this) != height)
+        {
+            if (verboseLevel >= 1) System.out.println("        Creating canvas back buffer " + width + "x" + height);
+            backBufferCache = this.createImage(width, height);
+        }
+        return backBufferCache;
+    } // getBackBufferCache
+
+    protected void freeBackBufferCache()
+    {
+        backBufferCache = null;
+    }
+
+    private java.awt.Image backBufferCache = null; // cache
+
+} // DoubleBufferedCanvas
