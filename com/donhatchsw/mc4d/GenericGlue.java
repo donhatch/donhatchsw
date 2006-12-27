@@ -1,6 +1,7 @@
 //
-// This file is mostly throwaway--
-// it is an attempt to quickly glue the good new classes:
+// This file has stuff that should eventually be moved to
+// various more permanent homes.
+// It was an attempt to quickly glue the good new classes:
 //      GenericPuzzleDescription (interface)
 //      PolytopePuzzleDescription (implements GenericPuzzleDescription)
 //      GenericPipelineUtils
@@ -65,10 +66,9 @@ public class GenericGlue
     public static int verboseLevel = 0; // set to something else to debug
 
     //
-    // State.  And not much of it!
+    // State.
     //
-    public GenericPuzzleDescription genericPuzzleDescription = null;
-    public int genericPuzzleState[] = null;
+    public MC4DModel model = null;
 
     //
     // A rotation is currently in progress if iRotation < nRotation.
@@ -161,18 +161,18 @@ public class GenericGlue
                                                  new java.io.BufferedWriter(
                                                  new java.io.OutputStreamWriter(
                                                  System.err)));
-            genericPuzzleDescription = new PolytopePuzzleDescription(
+            GenericPuzzleDescription puzzleDescription = new PolytopePuzzleDescription(
                 initialSchlafli,
                 initialLength, initialLength,
                 progressWriter);
-            genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+            model = new MC4DModel(puzzleDescription);
         }
         if (verboseLevel >= 1) System.out.println("out GenericGlue ctor");
     }
 
     public boolean isActive()
     {
-        return genericPuzzleDescription != null;
+        return model != null;
     }
     public boolean isAnimating()
     {
@@ -199,7 +199,7 @@ public class GenericGlue
 
         // Selecting any of the previously existing menu items
         // should have the side effect of setting
-        // genericPuzzleDescription to null-- that's the indicator
+        // model to null-- that's the indicator
         // that the glue overlay mechanism is no longer active.
         for (int i = 0; i < puzzlemenu.getItemCount(); ++i)
         {
@@ -207,8 +207,7 @@ public class GenericGlue
                 public void actionPerformed(ActionEvent ae)
                 {
                     if (verboseLevel >= 1) System.out.println("GenericGlue: deactivating");
-                    genericPuzzleDescription = null;
-                    genericPuzzleState = null;
+                    model = null;
                 }
             });
         }
@@ -567,8 +566,7 @@ public class GenericGlue
                                     // XXX Lame, should try to get back in the loop and prompt again instead
                                     return;
                                 }
-                                genericPuzzleDescription = newPuzzle;
-                                genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+                                model = new MC4DModel(newPuzzle);
 
                                 undoq.setSize(0);
                                 undoPartSize = 0;
@@ -742,8 +740,7 @@ public class GenericGlue
                                 // XXX Lame, should try to get back in the loop and prompt again instead
                                 return;
                             }
-                            genericPuzzleDescription = newPuzzle;
-                            genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+                            model = new MC4DModel(newPuzzle);
 
                             undoq.setSize(0);
                             undoPartSize = 0;
@@ -787,7 +784,7 @@ public class GenericGlue
                     useTopsort = !useTopsort;
                     view.repaint();
                 }
-                if (c == 'j'-'a'+1
+                else if (c == 'j'-'a'+1
                  && ke.isAltDown()) // ctrl-alt-j
                 {
                     jitterRadius++;
@@ -796,27 +793,32 @@ public class GenericGlue
                     System.out.println("jitterRadius -> "+jitterRadius+"");
                     view.repaint();
                 }
-                if (c == 'l'-'a'+1
+                else if (c == 'l'-'a'+1
                  && ke.isAltDown()) // ctrl-alt-l
                 {
                     System.out.println("drawLabels "+drawLabels+" -> "+!drawLabels+"");
                     drawLabels = !drawLabels;
                     view.repaint();
                 }
-                if (c == 'p'-'a'+1
+                else if (c == 'p'-'a'+1
                  && ke.isAltDown()) // ctrl-alt-p
                 {
                     System.out.println("showPartialOrder "+showPartialOrder+" -> "+!showPartialOrder+"");
                     showPartialOrder = !showPartialOrder;
                     view.repaint();
                 }
-                if (c == ' ' && ke.isControlDown()
+                else if (c == ' ' && ke.isControlDown()
                  && ke.isAltDown()) // ctrl-alt-space
                 {
                     System.out.println("frozenForDebugging "+frozenForDebugging+" -> "+!frozenForDebugging+"");
                     frozenForDebugging = !frozenForDebugging;
                     frozenPartialOrderForDebugging = null;
                     view.repaint();
+                }
+                else if (ke.isControlDown()
+                      && ke.isAltDown())
+                {
+                    System.out.println("Unrecognized key sequence ctrl-alt-"+(char)(c|64)+"");
                 }
             }
         });
@@ -843,7 +845,7 @@ public class GenericGlue
             //
             // Initiate the undo twist (opposite dir from original)
             //
-            int order = glue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
+            int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
             glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
             if (glue.nTwist == 0) glue.nTwist = 1;
@@ -877,7 +879,7 @@ public class GenericGlue
             //
             // Initiate the redo twist (same dir as original)
             //
-            int order = glue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
+            int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
             glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
             if (glue.nTwist == 0) glue.nTwist = 1;
@@ -903,29 +905,30 @@ public class GenericGlue
     public void scrambleAction(Component view, JLabel statusLabel, int scramblechenfrengensen)
     {
         GenericGlue glue = this;
-        int nDims = glue.genericPuzzleDescription.nDims();
+        int nDims = model.genericPuzzleDescription.nDims();
         java.util.Random rand = new java.util.Random();
         int previous_face = -1;
         for(int s = 0; s < scramblechenfrengensen; s++) {
             // select a random grip that is unrelated to the last one (if any)
             int iGrip, iFace, order;
             do {
-                iGrip = rand.nextInt(glue.genericPuzzleDescription.nGrips());
-                iFace = glue.genericPuzzleDescription.getGrip2Face()[iGrip];
-                order = glue.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
+                iGrip = rand.nextInt(model.genericPuzzleDescription.nGrips());
+                iFace = model.genericPuzzleDescription.getGrip2Face()[iGrip];
+                order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
             }
             while (
                 order < 2 || // don't use trivial ones
                 (nDims==3 && order==2) || // don't use the cute flips, in 3d
                 (nDims==2 && order==4) || // don't use the cute twirls, in 2d
                 iFace == previous_face || // mixing it up
-                (previous_face!=-1 && glue.genericPuzzleDescription.getFace2OppositeFace()[previous_face] == iFace));
+                (previous_face!=-1 && model.genericPuzzleDescription.getFace2OppositeFace()[previous_face] == iFace));
             previous_face = iFace;
             int slicemask = 1<<rand.nextInt(2); // XXX there's no getLength()! oh I think it's because I didn't think that was a generic enough concept to put in GenericPuzzleDescription, but I might have to rethink that.  for now, we just pick the first or second slice... this is fine for up to 4x, and even 5x (sort of)
             int dir = rand.nextBoolean() ? -1 : 1;
 
-            glue.genericPuzzleDescription.applyTwistToState(
-                    glue.genericPuzzleState,
+            // XXX let the model do this!!!!!
+            model.genericPuzzleDescription.applyTwistToState(
+                    model.genericPuzzleState,
                     iGrip,
                     dir,
                     slicemask);
@@ -955,7 +958,7 @@ public class GenericGlue
         int pickedStickerPoly[] = GenericPipelineUtils.pick(
                                         e.getX(), e.getY(),
                                         genericGlue.untwistedFrame,
-                                        genericGlue.genericPuzzleDescription);
+                                        model.genericPuzzleDescription);
         int newSticker = pickedStickerPoly!=null ? pickedStickerPoly[0] : -1;
         int newPoly = pickedStickerPoly!=null ? pickedStickerPoly[1] : -1;
         if (newSticker != genericGlue.iStickerUnderMouse
@@ -967,15 +970,15 @@ public class GenericGlue
         }
 
         // Kind of hacky way to add a back door key listener for debugging...
-        if (view != mostRecentViewIAddedListenerTo)
+        if (viewsIAddedListenerTo.get(view) == null)
         {
             addAnotherKeyListenerToView(view);
 
-            mostRecentViewIAddedListenerTo = view;
+            viewsIAddedListenerTo.put(view, view);
         }
     } // mouseMovedAction
 
-    private Component mostRecentViewIAddedListenerTo = null;
+    private java.util.Hashtable viewsIAddedListenerTo = new java.util.Hashtable();
 
 
     public void mouseClickedAction(MouseEvent e,
@@ -992,12 +995,12 @@ public class GenericGlue
         {
             int hit[] = GenericPipelineUtils.pick(e.getX(), e.getY(),
                                                   genericGlue.untwistedFrame,
-                                                  genericGlue.genericPuzzleDescription);
+                                                  model.genericPuzzleDescription);
             if (hit != null)
             {
                 int iSticker = hit[0];
-                int iFace = genericGlue.genericPuzzleDescription.getSticker2Face()[iSticker];
-                int iCubie = genericGlue.genericPuzzleDescription.getSticker2Cubie()[iSticker];
+                int iFace = model.genericPuzzleDescription.getSticker2Face()[iSticker];
+                int iCubie = model.genericPuzzleDescription.getSticker2Cubie()[iSticker];
                 System.err.println("    Hit sticker "+iSticker+"(polygon "+hit[1]+")");
                 System.err.println("        face "+iFace);
                 System.err.println("        cubie "+iCubie);
@@ -1011,7 +1014,7 @@ public class GenericGlue
                              e.getX(), e.getY(),
                              allowArbitraryElements,
                              genericGlue.untwistedFrame,
-                             genericGlue.genericPuzzleDescription);
+                             model.genericPuzzleDescription);
 
             if (nicePoint != null)
             {
@@ -1036,7 +1039,7 @@ public class GenericGlue
                 genericGlue.rotationFrom = com.donhatchsw.util.VecMath.doubleToFloat(nicePointOnScreen);
                 genericGlue.rotationTo = minusWAxis;
 
-                if (genericGlue.genericPuzzleDescription.nDims() < 4)
+                if (model.genericPuzzleDescription.nDims() < 4)
                 {
                     //
                     // In less-than-4d puzzles,
@@ -1051,7 +1054,7 @@ public class GenericGlue
                         float polyAndStickerAndFaceCenter[][] = GenericPipelineUtils.pickPolyAndStickerAndFaceCenter(
                              e.getX(), e.getY(),
                              genericGlue.untwistedFrame,
-                             genericGlue.genericPuzzleDescription);
+                             model.genericPuzzleDescription);
                         Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
                         float polyCenter[] = polyAndStickerAndFaceCenter[0];
 
@@ -1059,7 +1062,7 @@ public class GenericGlue
                         // (and the z component if the puzzle is 2d).
                         // So zero out the first nDims dimensions...
                         polyCenter = com.donhatchsw.util.VecMath.copyvec(polyCenter);
-                        com.donhatchsw.util.VecMath.zerovec(genericGlue.genericPuzzleDescription.nDims(),
+                        com.donhatchsw.util.VecMath.zerovec(model.genericPuzzleDescription.nDims(),
                                                             polyCenter);
                         if (com.donhatchsw.util.VecMath.normsqrd(polyCenter) < 1e-4*1e-4)
                         {
@@ -1103,10 +1106,10 @@ public class GenericGlue
             int iGrip = GenericPipelineUtils.pickGrip(
                             e.getX(), e.getY(),
                             genericGlue.untwistedFrame,
-                            genericGlue.genericPuzzleDescription);
+                            model.genericPuzzleDescription);
             if (iGrip != -1)
             {
-                int order = genericGlue.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
+                int order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
 
                 if (false)
                 {
@@ -1299,7 +1302,7 @@ public class GenericGlue
         GenericPipelineUtils.computeFrame(
             glueFrameToDrawInto,
 
-            genericGlue.genericPuzzleDescription,
+            model.genericPuzzleDescription,
             faceShrink,
             stickerShrink,
 
@@ -1338,8 +1341,8 @@ public class GenericGlue
 
         GenericPipelineUtils.paintFrame(
                 glueFrameToDrawInto,
-                genericGlue.genericPuzzleDescription,
-                genericGlue.genericPuzzleState,
+                model.genericPuzzleDescription,
+                model.genericPuzzleState,
                 showShadows,
                 ground,
                 faceRGB,
@@ -1369,8 +1372,8 @@ public class GenericGlue
                 // End of twist animation-- apply the twist to the state.
                 // The move has already been recorded in the undo queue
                 // (if it's a forward move and not an undo).
-                genericGlue.genericPuzzleDescription.applyTwistToState(
-                            genericGlue.genericPuzzleState,
+                model.genericPuzzleDescription.applyTwistToState(
+                            model.genericPuzzleState,
                             genericGlue.iTwistGrip,
                             genericGlue.twistDir,
                             genericGlue.twistSliceMask);
@@ -1397,7 +1400,7 @@ public class GenericGlue
                 //
                 // Initiate the undo twist (opposite dir from original)
                 //
-                int order = genericGlue.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
+                int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
                 double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
                 genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
                 if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
@@ -1484,7 +1487,7 @@ public class GenericGlue
                 viewMat3d = paddedViewMat3d;
             }
 
-            float faceCenters[][] = this.genericPuzzleDescription.getFaceCentersAtRest();
+            float faceCenters[][] = model.genericPuzzleDescription.getFaceCentersAtRest();
             float pointOnYZArc[] = new float[4]; // zeros... and [3] is left zero
             int iFace = findFaceCenterClosestToYZArc(faceCenters,
                                                      viewMat4d,
