@@ -2,7 +2,6 @@
 * Example applet to use as a starting point.
 * I usually copy this file and make changes.
 *
-* XXX haha, getting carried away with the debugClearOnResize thing right now... hope I succeed
 */
 
 package com.donhatchsw.applet; // APP-SPECIFIC: remove or change this as desired
@@ -29,7 +28,6 @@ public class ExampleApplet
             //     5: and enter/exit (can be obnoxious)
             //     6: and mouse motion (can be obnoxious)
             //     7: and stack trace of every paint
-    public boolean debugClearOnResize = false;
     public boolean doDoubleBuffer = true;
 
 
@@ -72,73 +70,6 @@ public class ExampleApplet
     } // Simulation
     // APP-SPECIFIC: end
 
-
-    // XXX debugging... trying to catch the bad clear that happens during resize!
-    public void setBounds(int a, int b, int c, int d)
-    {
-        if (debugClearOnResize)
-        {
-            System.out.println("====================================");
-            System.out.println("in ExampleApplet.setBounds("+a+","+b+","+c+","+d+"");
-            //try {Thread.sleep(250);} catch (InterruptedException e) {}
-            PRINT(getPeer());
-            System.out.println("    calling super's");
-        }
-        // this is IT baby! right HERE is the evil call
-        // that clears when resizing!!!
-        // but how can I make it not do that,
-        // but still do something needed???
-        super.setBounds(a,b,c,d);
-        if (debugClearOnResize)
-        {
-            System.out.println("    returned from super's");
-            //try {Thread.sleep(250);} catch (InterruptedException e) {}
-            System.out.println("out ExampleApplet.setBounds");
-            System.out.println("====================================");
-        }
-    }
-    public void update(java.awt.Graphics g)
-    {
-        if (debugClearOnResize)
-        {
-            System.out.println("====================================");
-            System.out.println("in ExampleApplet.update");
-            //try {Thread.sleep(250);} catch (InterruptedException e) {}
-            System.out.println("    calling super's");
-        }
-        super.update(g);
-        if (debugClearOnResize)
-        {
-            System.out.println("    returned from super's");
-            //try {Thread.sleep(250);} catch (InterruptedException e) {}
-            System.out.println("out ExampleApplet.update");
-            System.out.println("====================================");
-        }
-    }
-    public void paint(java.awt.Graphics g)
-    {
-setBackground(java.awt.Color.red); // XXX debugging who's clearing... applet is red
-((java.awt.Graphics2D)g).setBackground(java.awt.Color.red); // XXX debugging who's clearing
-((java.awt.Graphics2D)g).setColor(java.awt.Color.red); // XXX debugging who's clearing
-        if (debugClearOnResize)
-        {
-            System.out.println("        ====================================");
-            System.out.println("        in ExampleApplet.paint");
-            //try {Thread.sleep(250);} catch (InterruptedException e) {}
-            System.out.println("            calling super's");
-        }
-        super.paint(g);
-        if (debugClearOnResize)
-        {
-            System.out.println("            returned from super's");
-            //try {Thread.sleep(250);} catch (InterruptedException e) {}
-            System.out.println("        out ExampleApplet.paint");
-            System.out.println("        ====================================");
-        }
-    }
-
-
-
     /**
      * Constructor
      */
@@ -146,7 +77,9 @@ setBackground(java.awt.Color.red); // XXX debugging who's clearing... applet is 
     {
         if (eventVerbose >= 1) System.out.println("in ctor"); // note this is before eventVerbose is fetched
 
+                { setBackground(java.awt.Color.red); } // applet is red
         final java.awt.Component canvas = new DoubleBufferedCanvas() {
+                { setBackground(java.awt.Color.yellow); } // canvas is yellow
             //
             // Make it so we get keyboard focus on startup,
             // without having to click first.  Thanks, Melinda!
@@ -171,194 +104,31 @@ setBackground(java.awt.Color.red); // XXX debugging who's clearing... applet is 
                 return true;
             }
 
-            public void validate()
-            {
-                // XXX tracking down that bogus clear!!!
-                // the clear happened BEFORE I got here
-                System.out.println("HEY!!!!!!!!!!!!!!!!!!!!!");
-                    //try {Thread.sleep(250);} catch (InterruptedException e) {}
-                System.out.println("HO!!!!!!!!!!!!!!!!!!!!!");
-            }
-
 //int foo = 0; // XXX
             // override to not clear...
             public void update(java.awt.Graphics g)
             {
 //ExampleApplet.this.setBounds(5 + (foo++%5),28,100,100); // XXX total hack... and THIS is where the bogus clear is.  how can I do it without the clear?
-                if (eventVerbose >= 4 || debugClearOnResize) System.out.println("in update");
+                if (eventVerbose >= 4) System.out.println("in update");
                 paint(g);
-                if (eventVerbose >= 4 || debugClearOnResize) System.out.println("out update");
+                if (eventVerbose >= 4) System.out.println("out update");
+            }
+            // XXX get rid of the following when through fucking around
+            public void setBounds(int a, int b, int c, int d)
+            {
+                PRINT4(a, b, c, d);
+                super.setBounds(a, b, c, d);
+            }
+            public void reshape(int a, int b, int c, int d)
+            {
+                PRINT4(a, b, c, d);
+                super.reshape(a, b, c, d);
             }
             // PAINT
             java.awt.Dimension requestedSize = null;
             public void paint(java.awt.Graphics frontBufferGraphics)
             {
-setBackground(java.awt.Color.yellow); // XXX debugging who's clearing... canvas is yellow
-((java.awt.Graphics2D)frontBufferGraphics).setBackground(java.awt.Color.yellow); // XXX debugging who's clearing
-((java.awt.Graphics2D)frontBufferGraphics).setColor(java.awt.Color.yellow); // XXX debugging who's clearing
-PRINT(frontBufferGraphics);
-                if (eventVerbose >= 4 || debugClearOnResize) System.out.println("    in paint");
-                if (eventVerbose >= 7 || debugClearOnResize)
-                {
-                    // Print current stack trace.
-                    // Would be nice to try to make it not clear to background
-                    // color during resize, but it doesn't look like we
-                    // have control over that like we do when called from inside update.
-                    // XXX Note if we make an app based on a JPanel, and use paintComponent(),
-                    // it doesn't have this problem--
-                    // should trace one of those and see what it's doing and if I can emulate it.
-                    // The trace when being resized is:
-                    /*
-                        at ExampleApplet$1.paint(ExampleApplet.java:136)
-                        at sun.awt.RepaintArea.paint(RepaintArea.java:177)
-                        at sun.awt.motif.MComponentPeer.handleEvent(MComponentPeer.java:405)
-                        at java.awt.Component.dispatchEventImpl(Component.java:3678)
-                        at java.awt.Component.dispatchEvent(Component.java:3477)
-                        at java.awt.EventQueue.dispatchEvent(EventQueue.java:456)
-                        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:201)
-                        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:151)
-                        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:145)
-                        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:137)
-                        at java.awt.EventDispatchThread.run(EventDispatchThread.java:100)
-                    */
-                    // The normal trace is:
-                    /*
-                        Stack trace:java.lang.Throwable
-                        at com.donhatchsw.applet.ExampleApplet$1.paint(com/donhatchsw/applet/ExampleApplet.prejava:139)
-                        at com.donhatchsw.applet.ExampleApplet$1.update(com/donhatchsw/applet/ExampleApplet.prejava:108)
-                        at sun.awt.RepaintArea.paint(RepaintArea.java:169)
-                        at sun.awt.motif.MComponentPeer.handleEvent(MComponentPeer.java:405)
-                        at java.awt.Component.dispatchEventImpl(Component.java:3678)
-                        at java.awt.Component.dispatchEvent(Component.java:3477)
-                        at java.awt.EventQueue.dispatchEvent(EventQueue.java:456)
-                        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:201)
-                        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:151)
-                        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:145)
-                        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:137)
-                        at java.awt.EventDispatchThread.run(EventDispatchThread.java:100)
-                    */
-                    // So sun.awt.RepaintArea.paint is doing a good thing in one case
-                    // (calling update) but doing a bad thing in the other
-                    // (calling paint directly).  Should disassemble that
-                    // and see what the heck it's thinking.
-                    // Oh hmm, it's only in 1.4 that paint sometimes calls update and sometimes paint,
-                    // and there's no update method.
-                    // In 1.3 there's an update method.
-                    // Okay let's get the 1.3 traces...
-                    //  The good one:
-                    /*
-                        at com.donhatchsw.applet.ExampleApplet$1.paint(com/donhatchsw/applet/ExampleApplet.prejava:139)
-                        at com.donhatchsw.applet.ExampleApplet$1.update(com/donhatchsw/applet/ExampleApplet.prejava:108)
-                        at sun.awt.RepaintArea.update(RepaintArea.java:332)
-                        at sun.awt.motif.MComponentPeer.handleEvent(MComponentPeer.java:348)
-                        at java.awt.Component.dispatchEventImpl(Component.java:2658)
-                        at java.awt.Component.dispatchEvent(Component.java:2492)
-                        at java.awt.EventQueue.dispatchEvent(EventQueue.java:334)
-                        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:126)
-                        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:93)
-                        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:88)
-                        at java.awt.EventDispatchThread.run(EventDispatchThread.java:80)
-                    */
-                    // The bad one:
-                    /*
-                        at com.donhatchsw.applet.ExampleApplet$1.paint(com/donhatchsw/applet/ExampleApplet.prejava:139)
-                        at sun.awt.RepaintArea.paint(RepaintArea.java:293)
-                        at sun.awt.motif.MComponentPeer.handleEvent(MComponentPeer.java:344)
-                        at java.awt.Component.dispatchEventImpl(Component.java:2658)
-                        at java.awt.Component.dispatchEvent(Component.java:2492)
-                        at java.awt.EventQueue.dispatchEvent(EventQueue.java:334)
-                        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:126)
-                        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:93)
-                        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:88)
-                        at java.awt.EventDispatchThread.run(EventDispatchThread.java:80)
-                    */
-
-                    // WAITAMINUTE... some parent component's update
-                    // must have got called?  SOMEONE did that clearRect...
-                    // who was it???
-
-
-                    //
-                    /*
-                        In the JPanel based app, in 1.4 the resize one is:
-        Stack trace:java.lang.Throwable
-        at com.donhatchsw.util.Arrows$MyDemoPanel$MyCanvas.paintComponent(com/donhatchsw/util/Arrows.prejava:905)
-        at javax.swing.JComponent.paint(JComponent.java:1003)
-        at javax.swing.JComponent.paintChildren(JComponent.java:840)
-        at javax.swing.JComponent.paint(JComponent.java:1012)
-        at javax.swing.JComponent.paintChildren(JComponent.java:840)
-        at javax.swing.JComponent.paint(JComponent.java:1012)
-        at javax.swing.JLayeredPane.paint(JLayeredPane.java:559)
-        at javax.swing.JComponent.paintChildren(JComponent.java:840)
-        at javax.swing.JComponent.paint(JComponent.java:1012)
-        at javax.swing.JComponent.paintWithOffscreenBuffer(JComponent.java:4923)
-        at javax.swing.JComponent.paintDoubleBuffered(JComponent.java:4876)
-        at javax.swing.JComponent._paintImmediately(JComponent.java:4819)
-        at javax.swing.JComponent.paintImmediately(JComponent.java:4626)
-        at javax.swing.RepaintManager.paintDirtyRegions(RepaintManager.java:451)
-        at javax.swing.SystemEventQueueUtilities$ComponentWorkRequest.run(SystemEventQueueUtilities.java:114)
-        at java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:209)
-        at java.awt.EventQueue.dispatchEvent(EventQueue.java:461)
-        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:234)
-        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:163)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:157)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:149)
-        at java.awt.EventDispatchThread.run(EventDispatchThread.java:110)
-        Stack trace:java.lang.Throwable
-        at com.donhatchsw.util.Arrows$MyDemoPanel$MyCanvas.paintComponent(com/donhatchsw/util/Arrows.prejava:905)
-        at javax.swing.JComponent.paint(JComponent.java:1003)
-        at javax.swing.JComponent.paintWithOffscreenBuffer(JComponent.java:4923)
-        at javax.swing.JComponent.paintDoubleBuffered(JComponent.java:4876)
-        at javax.swing.JComponent._paintImmediately(JComponent.java:4819)
-        at javax.swing.JComponent.paintImmediately(JComponent.java:4626)
-        at javax.swing.RepaintManager.paintDirtyRegions(RepaintManager.java:451)
-        at javax.swing.SystemEventQueueUtilities$ComponentWorkRequest.run(SystemEventQueueUtilities.java:114)
-        at java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:209)
-        at java.awt.EventQueue.dispatchEvent(EventQueue.java:461)
-        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:234)
-        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:163)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:157)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:149)
-        at java.awt.EventDispatchThread.run(EventDispatchThread.java:110)
-
-and a normal one is:
-        Stack trace:java.lang.Throwable
-        at com.donhatchsw.util.Arrows$MyDemoPanel$MyCanvas.paintComponent(com/donhatchsw/util/Arrows.prejava:905)
-        at javax.swing.JComponent.paint(JComponent.java:1003)
-        at javax.swing.JComponent.paintWithOffscreenBuffer(JComponent.java:4923)
-        at javax.swing.JComponent.paintDoubleBuffered(JComponent.java:4876)
-        at javax.swing.JComponent._paintImmediately(JComponent.java:4819)
-        at javax.swing.JComponent.paintImmediately(JComponent.java:4626)
-        at javax.swing.RepaintManager.paintDirtyRegions(RepaintManager.java:451)
-        at javax.swing.SystemEventQueueUtilities$ComponentWorkRequest.run(SystemEventQueueUtilities.java:114)
-        at java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:209)
-        at java.awt.EventQueue.dispatchEvent(EventQueue.java:461)
-        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:234)
-        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:163)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:157)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:149)
-        at java.awt.EventDispatchThread.run(EventDispatchThread.java:110)
-        Stack trace:java.lang.Throwable
-        at com.donhatchsw.util.Arrows$MyDemoPanel$MyCanvas.paintComponent(com/donhatchsw/util/Arrows.prejava:905)
-        at javax.swing.JComponent.paint(JComponent.java:1003)
-        at javax.swing.JComponent.paintWithOffscreenBuffer(JComponent.java:4923)
-        at javax.swing.JComponent.paintDoubleBuffered(JComponent.java:4876)
-        at javax.swing.JComponent._paintImmediately(JComponent.java:4819)
-        at javax.swing.JComponent.paintImmediately(JComponent.java:4626)
-        at javax.swing.RepaintManager.paintDirtyRegions(RepaintManager.java:451)
-        at javax.swing.SystemEventQueueUtilities$ComponentWorkRequest.run(SystemEventQueueUtilities.java:114)
-        at java.awt.event.InvocationEvent.dispatch(InvocationEvent.java:209)
-        at java.awt.EventQueue.dispatchEvent(EventQueue.java:461)
-        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:234)
-        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:163)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:157)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:149)
-        at java.awt.EventDispatchThread.run(EventDispatchThread.java:110)
-*/
-                    System.out.print("        Stack trace:");
-                    new Throwable().printStackTrace();
-                }
-
+                if (eventVerbose >= 4) System.out.println("    in paint");
                 java.awt.Dimension size = getSize();
                 if (true)
                 {
@@ -366,15 +136,35 @@ and a normal one is:
                     // If we are inside a ScrollPane with policy NEVER,
                     // assume the purpose of that ScrollPane
                     // is to keep us from flashing by never resizing us.
-                    // In that case we draw into the size of the ScrollPane.
+                    // In that case we draw into the size of the ScrollPane
+                    // (which may be smaller than our size but won't be larger).
                     // XXX should maybe assert its size is <= ours?
                     //
+                    if (true)
+                    {
+                        OUT("=========================");
+                        PRINT(getClass().getSuperclass());
+                        PRINT(size());
+                        PRINT(getParent().getClass().getSuperclass());
+                        PRINT(getParent().size());
+                        PRINT(getParent().getParent().getClass().getSuperclass());
+                        PRINT(getParent().getParent().size());
+                        if (getParent().getParent().getParent() != null)
+                        {
+                            PRINT(getParent().getParent().getParent().getClass().getSuperclass());
+                            PRINT(getParent().getParent().getParent().size());
+                        }
+                        OUT("=========================");
+                    }
                     java.awt.Container parent = getParent();
-                    if (parent instanceof java.awt.ScrollPane
+                    while (parent != null && !(parent instanceof java.awt.ScrollPane))
+                        parent = parent.getParent();
+                    if (parent != null
+                     && parent instanceof java.awt.ScrollPane
                      && ((java.awt.ScrollPane)parent).getScrollbarDisplayPolicy()
                        == java.awt.ScrollPane.SCROLLBARS_NEVER)
                     {
-                        System.out.println("USING PARENT SCROLL PANE SIZE");
+                        if (eventVerbose >= 4) System.out.println("        parent is a scrollpane without scrollbars; using its size "+parent.getSize().width+","+parent.getSize().height+" instead of mine "+size.width+","+size.height+"");
                         size = parent.getSize();
                     }
                 }
@@ -394,9 +184,7 @@ and a normal one is:
                 // Clear to white...
                 //
                 g.setColor(java.awt.Color.white);
-                BREAKPOINT();
                 g.fillRect(0, 0, size.width, size.height);
-                BREAKPOINT();
 
                 // APP-SPECIFIC PAINT STUFF HERE
                 {
@@ -436,7 +224,7 @@ and a normal one is:
                     }
                 }
 
-                if (eventVerbose >= 4 || debugClearOnResize)
+                if (eventVerbose >= 4)
                 {
                     System.out.println("    out paint");
                     //System.out.println();
@@ -448,6 +236,71 @@ and a normal one is:
 
         this.setLayout(new java.awt.GridBagLayout());
 
+        /*
+            Possible configurations:
+
+                frame
+                    applet
+                        canvas
+                                    FLASHES
+
+                frame
+                    scrollpane
+                        applet
+                            canvas
+                                    GOOD EVERYWHERE  or maybe not
+                frame
+                    applet
+                        scrollpane
+                            canvas
+                                    GOOD ON 1.5 BUT FLASHES ON 1.4
+                frame
+                    scrollpane
+                        applet
+                            scrollpane
+                                canvas
+                                    GOOD EVERYWHERE BUT OVERKILL I GUESS  or maybe not
+
+
+        */
+
+
+        if (false)
+        {
+            addViaScrollPaneHack(this, canvas); // with just this one (even if fill disabled), it flashes on 1.4
+        }
+        else
+        {
+            this.add(canvas, new java.awt.GridBagConstraints() {
+                {
+                    // stretch or shrink child scrollpane to fit parent
+                    fill = java.awt.GridBagConstraints.BOTH;
+                    weightx = 1.;
+                    weighty = 1.;
+                }
+            });
+        }
+
+
+        //canvas.setSize(1280, 1024); // greedy initial size, so we never see that flashing! (may not be appropriate-- think about this!)
+
+        makeAndAddTheEventListeners(canvas);
+
+        if (eventVerbose >= 1) System.out.println("out ctor");
+    } // ExampleApplet ctor
+
+    // XXX not sure this should go here
+    // Propagate repaints down to child.
+    // This is silly, should just be the child, get rid of the extra level of heirarchy...
+    // maybe.
+    public void repaint()
+    {
+        getComponent(0).repaint();
+        super.repaint();
+    }
+
+    static void addViaScrollPaneHack(java.awt.Container parent, java.awt.Component child)
+    {
         //
         // THE SECRET to making it not flash on resize--
         // put the Applet inside a ScrollPane.
@@ -460,15 +313,36 @@ and a normal one is:
         // the size of its child-- so we'll get flashing at the beginning
         // whenever the user stretches it, but it will never shrink.
         //
+        // Oh ffs this only works in >=1.4 -- but it's better than nothing.
+        // Need to get in there AGAIN and debug the hell out of it
+        /*
+            stop in sun.awt.motif.MComponentPeer.setBounds
+        */
+        //
+        // XXX think about whether this actually belongs in the applet or not--
+        // XXX it could go in the frame.
+        // XXX You know the funny thing though... the applet itself
+        // XXX isn't doing that crap, is it?  So can't we just draw
+        // XXX directly onto the applet and avoid this entirely???
+        //
+        // XXX ARGH!!!!!!! This works on 1.5 but not on 1.4!!!!
+        // XXX okay wtf?   I think maybe it's the applet itself?
+        //
 
         java.awt.ScrollPane scrollpane = new java.awt.ScrollPane(java.awt.ScrollPane.SCROLLBARS_NEVER) {
             public void setBounds(int a, int b, int c, int d)
             {
-                super.setBounds(a,b,c,d);
+                PRINT4(a,b,c,d);
+                super.setBounds(a,b,c,d);  // THIS IS THE EVIL ONE RIGHT HERE!!!
                 getComponent(0).repaint(); // it wouldn't know to otherwise, since it's not being resized
             }
         };
-        this.add(scrollpane, new java.awt.GridBagConstraints() {
+        try
+        {
+            scrollpane.setWheelScrollingEnabled(false); // ha!
+        } catch (NoSuchMethodError e) {}
+        assert(parent.getLayout() instanceof java.awt.GridBagLayout);
+        parent.add(scrollpane, new java.awt.GridBagConstraints() {
             {
                 // stretch or shrink child scrollpane to fit parent
                 fill = java.awt.GridBagConstraints.BOTH;
@@ -477,14 +351,8 @@ and a normal one is:
             }
         });
         // scrollpane stretches child to fit parent, but never shrinks it
-        scrollpane.add(canvas);
-
-        canvas.setSize(1280, 1024); // greedy initial size, so we never see that flashing!
-
-        makeAndAddTheEventListeners(canvas);
-
-        if (eventVerbose >= 1) System.out.println("out ctor");
-    } // ExampleApplet ctor
+        scrollpane.add(child);
+    } // addViaScrollPaneHack
 
 
     //
@@ -673,8 +541,8 @@ and a normal one is:
 
         final ExampleApplet applet = new ExampleApplet();
 
-        final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
-        //final java.awt.Frame frame = new java.awt.Frame("Example Applet") {
+        //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
+        final java.awt.Frame frame = new java.awt.Frame("Example Applet") {
             public boolean handleEvent(java.awt.Event event)
             {
                 switch(event.id)
@@ -693,334 +561,11 @@ and a normal one is:
                 return super.handleEvent(event);
             }
 
-            // XXX debugging... trying to catch the bad clear that happens during resize!
-            // XXX apparently this does call clearRect... but it doesn't seem to be the problem;
-            // XXX the problem already happened.
-            public void update(java.awt.Graphics g)
-            {
-                if (true)
-                {
-                    if (applet.debugClearOnResize)
-                    {
-                        System.out.println("====================================");
-                        System.out.println("in frame.update");
-                        //try {Thread.sleep(250);} catch (InterruptedException e) {}
-                        System.out.println("    calling super's");
-                    }
-                    super.update(g);
-                    if (applet.debugClearOnResize)
-                    {
-                        System.out.println("    returned from super's");
-                        //try {Thread.sleep(250);} catch (InterruptedException e) {}
-                        System.out.println("out frame.update");
-                        System.out.println("====================================");
-                    }
-                }
-                else
-                    paint(g);
-            }
-
             // can't override dispatchEvent because it's final
             public void dispatchEventImpl(java.awt.AWTEvent g)
             {
                 System.out.println("        in frame.dispatchEventImpl");
                 System.out.println("        out frame.dispatchEventImpl");
-            }
-
-            public void paint(java.awt.Graphics g)
-            {
-setBackground(java.awt.Color.green); // XXX debugging who's clearing
-((java.awt.Graphics2D)g).setBackground(java.awt.Color.green); // XXX debugging who's clearing
-((java.awt.Graphics2D)g).setColor(java.awt.Color.green); // XXX debugging who's clearing
-                if (applet.debugClearOnResize)
-                {
-                    BREAKPOINT(); // for debugger
-                    System.out.println("        ====================================");
-                    System.out.println("        in frame.paint");
-                    {
-                        // Right HERE is right after the bad clear happened.
-                        // It's got to be from inside someone's Component.update()!!!!! whose???
-                        System.out.print("        Stack trace:");
-                        new Throwable().printStackTrace();
-                        // Walk up the component heirarchy...
-                        PRINT(this);
-                        PRINT(getParent()); // damn! it's null.
-                        PRINT(getPeer());
-                        /*
-        at com.donhatchsw.applet.ExampleApplet$5.paint(com/donhatchsw/applet/ExampleApplet.prejava:634)
-        at sun.awt.RepaintArea.paint(RepaintArea.java:293)
-        at sun.awt.motif.MComponentPeer.handleEvent(MComponentPeer.java:344)
-        at java.awt.Component.dispatchEventImpl(Component.java:2658)
-        at java.awt.Container.dispatchEventImpl(Container.java:1208)
-        at java.awt.Window.dispatchEventImpl(Window.java:930)
-        at java.awt.Component.dispatchEvent(Component.java:2492)    // IS IT AROUND HERE?
-        at java.awt.EventQueue.dispatchEvent(EventQueue.java:334)
-        at java.awt.EventDispatchThread.pumpOneEventForHierarchy(EventDispatchThread.java:126)
-        at java.awt.EventDispatchThread.pumpEventsForHierarchy(EventDispatchThread.java:93)
-        at java.awt.EventDispatchThread.pumpEvents(EventDispatchThread.java:88)
-        at java.awt.EventDispatchThread.run(EventDispatchThread.java:80)
-    this = com.donhatchsw.applet.ExampleApplet$5[frame0,399,20,803x805,layout=java.awt.BorderLayout,resizable,title=Example Applet]
-    getParent() = null
-    getPeer() = sun.awt.motif.MFramePeer[com.donhatchsw.applet.ExampleApplet$5[frame0,399,20,803x805,layout=java.awt.BorderLayout,resizable,title=Example Applet]]
-                        */
-                        // Bleah!  There is a bloody Window
-                        // somewhere in the heirarchy above the peer... how to get to it?
-                        // Trying jdb...
-                        // My graphics is a: sun.awt.motif.X11Graphics
-                        // So:
-                        /*
-                            stop in sun.awt.motif.X11Graphics.clearRect
-                            stop in sun.awt.motif.X11Graphics.fillRect
-                        */
-                        // That doesn't seem to get it...
-                        // There is a clearRect that gets called, from frame.update,
-                        // but it's after all the damage has been done.
-                        // Oh wait there's also a sun.java2d.SunGraphics2D ...
-                        /*
-                            stop in sun.java2d.SunGraphics2D.clearRect
-                            stop in sun.java2d.SunGraphics2D.fillRect
-
-                        */
-                        // Bleah, no, the damage has already been done
-                        // by the time we get to those too.
-                        // (there are two inside createImage
-                        // and one inside my canvas paint).
-                        // Okay I need to stop it exactly there!
-                        /*
-                            stop in com.donhatchsw.applet.ExampleApplet.BREAKPOINT
-                            stop in sun.awt.motif.X11Graphics.clearRect
-
-    Let's see, what's the earliest I can catch it?
-    Got here:
-  [1] java.awt.Component.getBackground (Component.java:1030)
-  [2] sun.awt.motif.X11Graphics.<init> (X11Graphics.java:125)
-  [3] sun.awt.motif.MComponentPeer.getGraphics (MComponentPeer.java:375)
-  [4] java.awt.Component.getGraphics (Component.java:1846)
-  [5] sun.awt.RepaintArea.paint (RepaintArea.java:252)
-  [6] sun.awt.motif.MComponentPeer.handleEvent (MComponentPeer.java:344)
-  [7] java.awt.Component.dispatchEventImpl (Component.java:2658)
-  [8] java.awt.Container.dispatchEventImpl (Container.java:1208)
-  [9] java.awt.Window.dispatchEventImpl (Window.java:930)
-  [10] java.awt.Component.dispatchEvent (Component.java:2492)
-  [11] java.awt.EventQueue.dispatchEvent (EventQueue.java:334)
-  [12] java.awt.EventDispatchThread.pumpOneEventForHierarchy (EventDispatchThread.java:126)
-  [13] java.awt.EventDispatchThread.pumpEventsForHierarchy (EventDispatchThread.java:93)
-  [14] java.awt.EventDispatchThread.pumpEvents (EventDispatchThread.java:88)
-  [15] java.awt.EventDispatchThread.run (EventDispatchThread.java:80)
-    stop in sun.awt.RepaintArea.paint
-  That got here:
-    [1] sun.awt.RepaintArea.paint (RepaintArea.java:252)
-    [2] sun.awt.motif.MComponentPeer.handleEvent (MComponentPeer.java:344)
-    [3] java.awt.Component.dispatchEventImpl (Component.java:2658)
-    [4] java.awt.Container.dispatchEventImpl (Container.java:1208)
-    [5] java.awt.Window.dispatchEventImpl (Window.java:930)
-    [6] java.awt.Component.dispatchEvent (Component.java:2492)
-    [7] java.awt.EventQueue.dispatchEvent (EventQueue.java:334)
-    [8] java.awt.EventDispatchThread.pumpOneEventForHierarchy (EventDispatchThread.java:126)
-    [9] java.awt.EventDispatchThread.pumpEventsForHierarchy (EventDispatchThread.java:93)
-    [10] java.awt.EventDispatchThread.pumpEvents (EventDispatchThread.java:88)
-    [11] java.awt.EventDispatchThread.run (EventDispatchThread.java:80)
-
-    stop in sun.awt.motif.MComponentPeer.handleEvent
- That gives too much.
- The stack trace of the call right before,
- and of right after, it happens, is here:
-  [1] sun.awt.motif.MComponentPeer.handleEvent (MComponentPeer.java:339)
-  [2] java.awt.Component.dispatchEventImpl (Component.java:2658)
-  [3] java.awt.Container.dispatchEventImpl (Container.java:1208)
-  [4] java.awt.Window.dispatchEventImpl (Window.java:930)
-  [5] java.awt.Component.dispatchEvent (Component.java:2492)
-  [6] java.awt.EventQueue.dispatchEvent (EventQueue.java:334)
-  [7] java.awt.EventDispatchThread.pumpOneEventForHierarchy (EventDispatchThread.java:126)
-  [8] java.awt.EventDispatchThread.pumpEventsForHierarchy (EventDispatchThread.java:93)
-  [9] java.awt.EventDispatchThread.pumpEvents (EventDispatchThread.java:88)
-  [10] java.awt.EventDispatchThread.run (EventDispatchThread.java:80)
- So,
-        run
-        stop in sun.awt.motif.MComponentPeer.handleEvent
-    (resize the window manually)
-        cont
-        cont
-        cont
-        step up
-            Step completed: AWT-EventQueue-0[1] thread="AWT-EventQueue-0", java.awt.Component.dispatchEventImpl(), line=2660, bci=509
-        step up
-            Step completed: thread="AWT-EventQueue-0", java.awt.Container.dispatchEventImpl(), line=1210, bci=45
-        step up
-            Step completed: thread="AWT-EventQueue-0", java.awt.Window.dispatchEventImpl(), line=931, bci=109
-        step up
-            Step completed: thread="AWT-EventQueue-0", java.awt.Component.dispatchEvent(), line=2493, bci=5
-        step up
-            Step completed: thread="AWT-EventQueue-0", java.awt.EventQueue.dispatchEvent(), line=334, bci=39
-        step up
-            Step completed: thread="AWT-EventQueue-0", java.awt.EventDispatchThread.pumpOneEventForHierarchy(), line=127, bci=75
-        step up
-            Step completed: thread="AWT-EventQueue-0", java.awt.EventDispatchThread.pumpEventsForHierarchy(), line=93, bci=15
-    (if I step up again it goes too far)
-        stop in java.awt.Component.dispatchEvent
-        cont
-    (if I step up from here it goes too far)
-        stop in java.awt.Window.dispatchEventImpl
- Okay, easier session:
-        run
-        cont
-    (make it the desired start size)
-        stop in java.awt.Window.dispatchEventImpl
-    (resize the window manually)
-        cont
-        cont
-        cont
-        cont
-    (now if I step up it goes too far...)
-    (and even if I stop in java.awt.Container.dispatchEventImpl
-    or java.awt.Component.dispatchEventImpl it goes too far)
-    Okay, it looks like it must be in this block of code inside java.awt.Window.dispatchEventImpl:
-        switch(awt.getID())
-            ...
-            case 101:
-                invalidate();
-                validate();
-                repaint();
-                break;
-            ...
-        }
-        java.awt.Container.dispatchEventImpl(awtevent);
-
-        stop in java.awt.Component.repaint
-        cont
-    okay it's bad before it hits it!!!
-        stop in java.awt.Container.invalidate
-        stop in java.awt.Container.validate
-        stop in java.awt.Component.invalidate
-        stop in java.awt.Component.validate
-
-
-        it got to:
-            Container.invalidate
-               which called Component.invalidate
-            Container.validate
-                which calls a child's invalidate
-
-    so the last thing I got that I couldn't step out of (or even to the next Container.invalidate)
-    is a Container.validate.
-
-    Okay another session:
-        run
-        cont
-    (make it the desired start size)
-        stop in java.awt.Container.validate
-    (resize the window manually)
-    (now it hits the breakpoint and can't step up... it's somewhere inside!)
-    (in fact it's inside an inner one...)
-        stop in java.awt.Container.validateTree
-    (yep, it's inside there)
-    okay it's in a trace that looks like this:
-        java.awt.Container.validateTree
-            java.awt.Container.validateTree
-                SOMETHING.validate or SOMETHING.doLayout?
-                (and it gets called before my canvas validate I think!)
-    it's strange though... if I break there and step up, it says
-    it hits another BEFORE it turns yellow...
-    but if I break there and cont, it turns yellow before it hits there.
-    That is REALLY strange.
-
-        stop in java.awt.Container.layout
-    all right, it's inside layout!!!!!
-    which means it's in some frickin layoutmanager's layoutContainer()!
-    okay I need to figure out how to tell jdb to step into something.
-    "step into" sure is not working.  this sucks.
-
-    Okay another session:
-        run
-        cont
-    (make it the desired start size)
-        stop in java.awt.Container.layout
-
-    Okay I don't know what kind of layout is the offender,
-    so I'll just have to stop in all known ones:
-
-    stop in java.awt.GridLayout.layoutContainer
-    stop in java.awt.FlowLayout.layoutContainer
-    stop in javax.swing.ViewportLayout.layoutContainer
-    stop in javax.swing.ScrollPaneLayout.layoutContainer
-    stop in javax.swing.plaf.basic.BasicOptionPaneUI.ButtonAreaLayout.layoutContainer
-    stop in javax.swing.plaf.basic.BasicTabbedPaneUI.TabbedPaneLayout.layoutContainer
-    stop in javax.swing.plaf.basic.BasicInternalFrameTitlePane.TitlePaneLayout.layoutContainer
-    stop in javax.swing.plaf.basic.BasicScrollBarUI.layoutContainer
-    stop in javax.swing.plaf.basic.BasicInternalFrameUI.InternalFrameLayout.layoutContainer
-    stop in javax.swing.plaf.basic.BasicComboBoxUI.ComboBoxLayoutManager.layoutContainer
-    stop in javax.swing.plaf.basic.BasicSplitPaneDivider.DividerLayout.layoutContainer
-
-    stop in java.awt.CardLayout.layoutContainer
-    stop in java.awt.BorderLayout.layoutContainer
-    stop in java.awt.GridBagLayout.layoutContainer
-    stop in javax.swing.BoxLayout.layoutContainer
-    stop in javax.swing.OverlayLayout.layoutContainer
-    stop in javax.swing.JRootPane.RootLayout.layoutContainer
-    stop in javax.swing.plaf.basic.BasicSplitPaneUI.BasicHorizontalLayoutManager.layoutContainer
-
-`   GOT IT!!!!! It's inside a friggin BorderLayout!!!!!!
-    This breakpoint got it:
-        stop in java.awt.BorderLayout.layoutContainer
-    oh shoot maybe didn't get it after all.
-    Okay this is not making sense...
-    If I stop in the borderLayout and then cont,
-    it goes yellow before hitting another layoutContainer.
-    But if I stop there and step up, it steps up into the parent
-    which is Container.layout...  oh wait it went yellow before
-    it got there.
-    when contracting, step up makes it turn yellow.
-    when expanding, it does NOT!
-    No, it's just random :-(
-    So it definitely does it from inside the BorderLayout.layoutContainer
-    SOMETIMES.
-    Okay, looking at that source, it looks like
-    it's doing its stuff inside:
-        stop in java.awt.Component.setBounds(int,int,int,int)
-    ARGH!!!! it's actually inside a container.invalidate()
-        that's inside it!!!
-        stop in java.awt.Container.invalidate
-    except sometimes it's BEFORE that invalidate!
-    Oh I bet the reason it's sometimes before and sometimes after
-    is that there is no X synchronization.  I wonder if there's
-    a way to get it to force to be synced.
-    I think the work might be getting done down inside peer.setBounds?  Not sure.
-        stop in sun.awt.motif.MComponentPeer.setBounds
-    YES that's it...  it only happens sometimes due to sync but it's definitely there.
-    And unfortunately since it's a peer I don't think I can override anything...
-    BAD BAD BAD MComponentPeer!
-    And I think it's calling the native pReshape... and that's all she wrote.
-    Okay I need to use something whose peer does NOT derive from MComponentPeer I guess!
-    Okay googled MComponentPeer pReshape and people have been here before, in 1998, java 1.1...
-        http://archives.java.sun.com/cgi-bin/wa?A2=ind9805&L=java2d-interest&P=2144
-
-
-   
-
-
-
-
-
-
-
-
-
-
-
-                        */
-                    }
-
-                    //try {Thread.sleep(250);} catch (InterruptedException e) {}
-                    System.out.println("            calling super's");
-                }
-                super.paint(g);
-                if (applet.debugClearOnResize)
-                {
-                    System.out.println("            returned from super's");
-                    //try {Thread.sleep(250);} catch (InterruptedException e) {}
-                    System.out.println("        out frame.paint");
-                    System.out.println("        ====================================");
-                }
             }
 
         };
@@ -1039,6 +584,7 @@ setBackground(java.awt.Color.green); // XXX debugging who's clearing
 
         // The following seems to be necessary, or getParameter() will crash, at least in 1.4.
         // And we need it anyway, to send params from the command line.
+        // XXX need a clever way to detect spurious extra params! not sure there is a way when in a web page, but if using main's args, could remove them as we read them and see if anything is left over
         applet.setStub(new java.applet.AppletStub() {
              public void appletResize(int width, int height) 
              {
@@ -1064,8 +610,13 @@ setBackground(java.awt.Color.green); // XXX debugging who's clearing
              public boolean isActive() { return true; }
         });
 
-        //frame.add(applet); // if it's a Frame
-        frame.getContentPane().add(applet); // if it's a JFrame
+        if (true)
+        {
+            frame.setLayout(new java.awt.GridBagLayout());
+            addViaScrollPaneHack(frame, applet); // with just this one (and fill disabled), it's good on 1.4
+        }
+        else
+            frame.add(applet);
 
         applet.init();
         applet.start();
@@ -1083,11 +634,5 @@ setBackground(java.awt.Color.green); // XXX debugging who's clearing
 
         System.out.println("out main");
     } // main
-
-    // XXX for debugger
-    public static void BREAKPOINT()
-    {
-        System.out.println("BREAKPOINT");
-    }
 
 } // ExampleApplet
