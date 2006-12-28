@@ -12,9 +12,13 @@
  * all derived classes must also define a constructor
  * that takes arguments (String puzzleDescription, java.io.PrintWriter progressWriter);
  * this is used by GenericPuzzleFactory to deserialize a puzzle description.
+ *
  * (Interfaces don't seem to be able to enforce that...
  * nor can they enforce static methods, which would have worked too...
- * so we'll just get a runtime error instead, which kinda sucks.)
+ * nor can I make this an actual class method with a dummy "this" param that accepts null,
+ * since java will throw a NullPointerException on such a thing (I think... XXX maybe try it!)
+ * so subclasses that mess this up just won't be able to be created
+ * at the factory, which kinda sucks.)
  * XXX hmm, if I make this be not actually a constructor, I can enforce it through here.
  * XXX hmm, actually I guess not... unless I give it a dummy "this"?  oh this is so stupid
  */
