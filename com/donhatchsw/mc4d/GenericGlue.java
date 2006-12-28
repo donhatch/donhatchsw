@@ -1,4 +1,12 @@
 //
+//      Roadmap:
+//              model/view stuff uses glue now
+//              make model/view stuff do its own clean thing instead
+//              then make the glue use model/view stuff and get rid of the corresponding stuff from glue
+//              then make MC4DSwing call the model/view stuff instead of the glue stuff where possible
+//              yow!
+//
+
 // This file has stuff that should eventually be moved to
 // various more permanent homes.
 // It was an attempt to quickly glue the good new classes:
@@ -50,7 +58,7 @@
 //          if isActive() is true
 //
 
-package com.donhatchsw.MagicCube;
+package com.donhatchsw.mc4d;
 import com.donhatchsw.compat.regex;
 
 import java.awt.*;
@@ -72,14 +80,16 @@ public class GenericGlue
 
     //
     // A rotation is currently in progress if iRotation < nRotation.
+    // XXX this is moving to the View and should go away
     //
-    public int nRotation = 0; // total number of rotation frames in progress
+    public int nRotation = 0; // total number of rotation frames in progress // XXX need to make this variable, it sucks when the speed isn't responsive to the slider!
     public int iRotation = 0; // number of frames done so far
      public float rotationFrom[]; // where rotation is rotating from, in 4space
      public float rotationTo[]; // where rotation is rotating to, in 4space
 
     //
     // A twist is currently in progress if iTwist < nTwist.
+    // XXX this is moving to the Model and should go away
     //
     public int nTwist = 0; // total number of twist frames in progress
     public int iTwist = 0; // number of twist frames done so far
@@ -151,23 +161,9 @@ public class GenericGlue
 
 
 
-    public GenericGlue(String initialSchlafli, int initialLength)
+    public GenericGlue(MC4DModel model)
     {
-        super();
-        if (verboseLevel >= 1) System.out.println("in GenericGlue ctor");
-        if (initialSchlafli != null)
-        {
-            java.io.PrintWriter progressWriter = new java.io.PrintWriter(
-                                                 new java.io.BufferedWriter(
-                                                 new java.io.OutputStreamWriter(
-                                                 System.err)));
-            GenericPuzzleDescription puzzleDescription = new PolytopePuzzleDescription(
-                initialSchlafli,
-                initialLength, initialLength,
-                progressWriter);
-            model = new MC4DModel(puzzleDescription);
-        }
-        if (verboseLevel >= 1) System.out.println("out GenericGlue ctor");
+        this.model = model;
     }
 
     public boolean isActive()
@@ -527,7 +523,7 @@ public class GenericGlue
                                 GenericPuzzleDescription newPuzzle = null;
                                 try
                                 {
-                                    newPuzzle = new PolytopePuzzleDescription(schlafli, intLength, doubleLength, progressWriter);
+                                    newPuzzle = new PolytopePuzzleDescription(schlafli+" "+intLength+"("+doubleLength+")", progressWriter);
                                 }
                                 catch (Throwable t)
                                 {
@@ -701,7 +697,7 @@ public class GenericGlue
                             GenericPuzzleDescription newPuzzle = null;
                             try
                             {
-                                newPuzzle = new PolytopePuzzleDescription(schlafli, intLength, doubleLength, progressWriter);
+                                newPuzzle = new PolytopePuzzleDescription(schlafli+" "+intLength+"("+doubleLength+")", progressWriter);
                             }
                             catch (Throwable t)
                             {
@@ -826,7 +822,7 @@ public class GenericGlue
 
 
 
-    public void undoAction(Component view, JLabel statusLabel, float twistFactor)
+    public void undoAction(Component view, JLabel statusLabel, float nFrames90)
     {
         GenericGlue glue = this;
         if (glue.undoPartSize > 0)
@@ -847,7 +843,7 @@ public class GenericGlue
             //
             int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
-            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
             if (glue.nTwist == 0) glue.nTwist = 1;
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
@@ -860,7 +856,7 @@ public class GenericGlue
             statusLabel.setText("Nothing to undo.");
     } // undoAction
 
-    public void redoAction(Component view, JLabel statusLabel, float twistFactor)
+    public void redoAction(Component view, JLabel statusLabel, float nFrames90)
     {
         GenericGlue glue = this;
         if (glue.undoq.size()-glue.undoPartSize > 0)
@@ -881,7 +877,7 @@ public class GenericGlue
             //
             int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
-            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
             if (glue.nTwist == 0) glue.nTwist = 1;
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
@@ -983,7 +979,7 @@ public class GenericGlue
 
     public void mouseClickedAction(MouseEvent e,
                                    float viewMat4d[/*4*/][/*4*/],
-                                   float twistFactor,
+                                   float nFrames90,
                                    int slicemask,
 
                                    Component viewForViewChanges,
@@ -1085,7 +1081,7 @@ public class GenericGlue
                                     genericGlue.rotationFrom,
                                     genericGlue.rotationTo);
 
-                genericGlue.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                genericGlue.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
                 if (genericGlue.nRotation == 0) genericGlue.nRotation = 1;
                 // XXX ARGH! we'd like the speed to vary as the user changes the slider,
                 // XXX but the above essentially locks in the speed for this rotation
@@ -1139,7 +1135,7 @@ public class GenericGlue
                     dir *= 2;
 
                 double totalRotationAngle = 2*Math.PI/order*Math.abs(dir);
-                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
                 if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = iGrip;
@@ -1209,7 +1205,7 @@ public class GenericGlue
         boolean highlightByGrip,
         Color outlineColor,
         Graphics g,
-        float twistFactor,
+        float nFrames90,
         boolean restrictRoll,
         Component view)
     {
@@ -1254,7 +1250,7 @@ public class GenericGlue
                     {
                         initiateZeroRoll(viewMat4d,
                                          viewMat3d,
-                                         twistFactor,
+                                         nFrames90,
                                          view);
                     }
                 }
@@ -1402,7 +1398,7 @@ public class GenericGlue
                 //
                 int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
                 double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
-                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
+                genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
                 if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = node.iGrip;
@@ -1470,7 +1466,7 @@ public class GenericGlue
 
         public void initiateZeroRoll(float viewMat4d[][],
                                      float viewMat3d[][],
-                                     float twistFactor,
+                                     float nFrames90,
                                      Component view)
         {
             // XXX FUDGE! get rid of this when I get rid of corresponding fudge in display
@@ -1507,7 +1503,7 @@ public class GenericGlue
             double totalRotationAngle = com.donhatchsw.util.VecMath.angleBetweenUnitVectors(
                                 this.rotationFrom,
                                 this.rotationTo);
-            this.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * MagicCube_NFRAMES_90 * twistFactor); // XXX unscientific rounding
+            this.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
             if (this.nRotation == 0) this.nRotation = 1;
             this.iRotation = 0;
 
