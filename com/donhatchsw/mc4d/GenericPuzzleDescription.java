@@ -7,9 +7,19 @@
  * Note, even derived classes will carry no scrambled state!
  * NOTE: All returned arrays are immutable!!!!!
  * (They would be const if java had a way to express that.)
+ *
+ * In addition to the interface methods,
+ * all derived classes must also define a constructor
+ * that takes arguments (String puzzleDescription, java.io.PrintWriter progressWriter);
+ * this is used by GenericPuzzleFactory to deserialize a puzzle description.
+ * (Interfaces don't seem to be able to enforce that...
+ * nor can they enforce static methods, which would have worked too...
+ * so we'll just get a runtime error instead, which kinda sucks.)
+ * XXX hmm, if I make this be not actually a constructor, I can enforce it through here.
+ * XXX hmm, actually I guess not... unless I give it a dummy "this"?  oh this is so stupid
  */
 
-package com.donhatchsw.MagicCube;
+package com.donhatchsw.mc4d;
 
 interface GenericPuzzleDescription {
 
