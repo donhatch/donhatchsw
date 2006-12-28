@@ -1008,6 +1008,32 @@ public final class Arrays
         shuffle(array, n, rng);
     } // shuffle
 
+    private static String escapify(char c, char quoteChar)
+    {
+        if (c == quoteChar) return "\\"+c;
+        if (c == '\\') return "\\\\";
+        if (c == '\n') return "\\n";
+        if (c == '\r') return "\\r";
+        if (c == '\t') return "\\t";
+        if (c == '\f') return "\\f";
+        if (c == '\b') return "\\b";
+        if (c == '\007') return "\\a";
+        if (c == '\033') return "\\e";
+        if (c < 32 || c >= 127)
+            return "\\"+((((int)c)>>6)&7)
+                       +((((int)c)>>3)&7)
+                       +((((int)c)>>0)&7);
+        return ""+c;
+    }
+    private static String escapify(String s)
+    {
+        StringBuffer sb = new StringBuffer();
+        int n = s.length();
+        for (int i = 0; i < n; ++i)
+            sb.append(escapify(s.charAt(i), '"'));
+        return sb.toString();
+    }
+
     /** Allowing a different pre,sep,suf for each dimension... */
     public static String toString(Object array,
                                   String preSepSuf[][/*3*/],
@@ -1016,9 +1042,9 @@ public final class Arrays
         if (array == null)
             return "null";
         else if (array.getClass() == String.class)
-            return "\""+array.toString()+"\""; // XXX should escapify
+            return "\""+escapify((String)array)+"\"";
         else if (array.getClass() == Character.class)
-            return "'"+array.toString()+"."; // XXX should escapify
+            return "'"+escapify(((Character)array).charValue(), '\'')+"'";
 
 #ifdef DEFUNCT
         if (array.getClass().getComponentType() == null)
@@ -1065,6 +1091,16 @@ public final class Arrays
     {
         return toString(array, "{", ",", "}");
     } // toStringCompact
+
+    /** so that callers can blindly call toStringCompact(whatever)... */
+    public static String toStringCompact(byte x)    { return toStringCompact(new Byte(x)); }
+    public static String toStringCompact(double x)  { return toStringCompact(new Double(x)); }
+    public static String toStringCompact(float x)   { return toStringCompact(new Float(x)); }
+    public static String toStringCompact(int x)     { return toStringCompact(new Integer(x)); }
+    public static String toStringCompact(long x)    { return toStringCompact(new Long(x)); }
+    public static String toStringCompact(short x)   { return toStringCompact(new Short(x)); }
+    public static String toStringCompact(boolean x) { return toStringCompact(new Boolean(x)); }
+    public static String toStringCompact(char x)    { return toStringCompact(new Character(x)); }
 
     /** XXX might I want even the individual elements on separate lines? */
     public static String toStringNonCompact(Object array,
