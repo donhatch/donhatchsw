@@ -13,19 +13,17 @@
 
 
 
-CLASSPATH=/usr/java/jdk1.3.1_18/jre/lib/javaplugin.jar
-
 #JAVAROOT=/usr/java/jdk1.2.2
 #JAVAROOT=/usr/java/jdk1.3.1_18
-#JAVAC=${JAVAROOT}/bin/javac -target 1.1 classpath=${CLASSPATH}
+#JAVAC=${JAVAROOT}/bin/javac -target 1.1
 
 JAVAROOT=/usr/java/j2sdk1.4.2
 #JAVAROOT=/usr/java/jdk1.5.0
 #JAVAROOT=/usr/java/jdk1.5.0_01
-JAVAC=${JAVAROOT}/bin/javac -source 1.2 -target 1.1 -g -classpath ${CLASSPATH}:.
+JAVAC=${JAVAROOT}/bin/javac -source 1.2 -target 1.1 -g
 
 #JAVAROOT=/usr/java/jdk1.3.1_18
-#JAVAC=jikes +P -source 1.4 -classpath ${JAVAROOT}/jre/lib/rt.jar:${CLASSPATH}
+#JAVAC=jikes +P -source 1.4 -classpath ${JAVAROOT}/jre/lib/rt.jar
 
 donhatchsw.jar:
 
