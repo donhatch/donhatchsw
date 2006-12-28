@@ -22,7 +22,7 @@ public class regex
     public static int verboseLevel = 0;
         // 0: nothing
         // 1: basic
-        // 2: more detail (to really debug, may need to manually uncomment some stuff)
+        // 2: more detail, print out the FSM and execution trace and everything
 
     /**
     * An IllegalArgumentException
@@ -1331,21 +1331,7 @@ public class regex
             matches("abc%d%x%%%.17g", "(%|[^%])*");
             matches("abc%d%f%%%.17g", "((%(-)?((\\d+)|(\\*))?(\\.((\\d+)|(\\*)))?([gdf]))|(%%)|([^%]))*");
             matches("%%", "((%(-)?((\\d+)|(\\*))?(\\.((\\d+)|(\\*)))?([gdf]))|(%%)|([^%]))*");
-        }
-        if (false)
-        {
-            // These fail currently
-            split("XababacY", "((ab)*|aba)c?", -1); // XXX Oh frickin heck, they got the non-greedy longest match.  How did they do that??  This sucks.
-            matches("b", "[A-]"); // XXX I considered this illegal... I guess it's not? weird
-        }
-        if (false)
-        {
-            // Purposely try to throw exceptions to exercise that
-            matches("b", "[z-b0-9]"); // Backwards range near index 3
-            matches("%.2g", "%\\(.((\\d+)|(\\*  )  )  )?g"); // Unmatched closing ')' near index 22 (theirs says 21, I like mine better because it points to the ')')
-        }
-        if (true)
-        {
+
             matches("b", "[a-z0-9]");
             matches("b", "[A-Z]");
             matches("b", "[A-Za-z]");
@@ -1358,6 +1344,24 @@ public class regex
             matches("Z", "[a-z-]");
             matches("Z", "[----]");
             split("ab .abX 0cd dq.z hello(there)", "[._a-zA-Z][._a-zA-Z0-9]*");
+        }
+        if (false)
+        {
+            // These fail currently
+            split("XababacY", "((ab)*|aba)c?", -1); // XXX Oh frickin heck, they got the non-greedy longest match.  How did they do that??  This sucks.
+            matches("b", "[A-]"); // XXX I considered this illegal... I guess it's not? weird
+            matches("new foo(\"bar\")", "\\s*new\\s+([a-zA-Z0-9.]+)\\s*\\(\"(([^\\]|\\\\.)*)\"\\s*\\)\\s*"); // XXX they say that char range is unmatched...  oh guess it is, I forgot to make the \ inside the [] be \\\\... and mine accepts it, wrongly, because it doesn't properly parse escapes inside char ranges
+            replaceAll("f\\oo", "\\\\(.)", "\\1"); // XXX I can't handle backrefs yet
+        }
+        if (false)
+        {
+            // Purposely try to throw exceptions to exercise that
+            matches("b", "[z-b0-9]"); // Backwards range near index 3
+            matches("%.2g", "%\\(.((\\d+)|(\\*  )  )  )?g"); // Unmatched closing ')' near index 22 (theirs says 21, I like mine better because it points to the ')')
+        }
+        if (true)
+        {
+            replaceAll("aabfooaabfooabfoob", "a*b", "-");
         }
 
         System.out.println("All good!");

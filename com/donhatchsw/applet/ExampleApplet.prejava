@@ -299,6 +299,7 @@ public class ExampleApplet
         super.repaint();
     }
 
+    // XXX is also in AppletViewer... make it a utility?
     static void addViaScrollPaneHack(java.awt.Container parent, java.awt.Component child)
     {
         //
