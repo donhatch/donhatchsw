@@ -11,7 +11,7 @@
 			width="100%" height="80%"
                         mayscript="true"
                 >
-			<PARAM NAME="puzzleDescription" VALUE="{5,3,3} 3">
+			<PARAM NAME="puzzleDescription" VALUE="{5,3}x{} 3">
 			<PARAM NAME="doDoubleBuffer" VALUE="true">
 		</applet>
 		Click a hypersticker to twist a hyperface.<br>
