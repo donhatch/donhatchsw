@@ -917,6 +917,8 @@ public class regex
             {
                 return end(0);
             }
+            // Resets the matcher and then replaces all.
+            // Doesn't need to reset afterwards.
             public String replaceAll(String replacement)
             {
                 if (verboseLevel >= 1)
@@ -927,27 +929,74 @@ public class regex
                     System.out.println("    input = "+input);
                     System.out.println("    replacement = "+replacement);
                 }
-                String[] splitted = pattern.split(input, -1); // don't discard trailing empties
-                if (verboseLevel >= 1)
+                this.reset(); // so that we start at the beginning
+                int replacementLength = replacement.length();
+                StringBuffer sb = new StringBuffer();
                 {
-                    System.out.println("    splitted = "+Arrays.toStringCompact(splitted));
-                }
-                assert(splitted.length >= 1); // XXX I think this is right? need to check
-                // LAME special case... I think this broke
-                // because I put the special case in split which
-                // I disagreed with in the first place!!!
-                if (input.equals("")
-                 && regex.matches(input, pattern.patString))
-                    splitted = new String[]{"",""};
+                    int inputLength = input.length();
+                    int prevSearchStart = -1;
+                    int i = 0;
+                    while (true)
+                    {
+                        int searchStart = i==prevSearchStart ? i+1 : i; // never do the same search twice, or we will endless loop    XXX make sure we have a test case for this
+                        if (searchStart > inputLength)
+                            break;
+                        if (!this.find(searchStart))
+                            break;
+                        prevSearchStart = searchStart;
 
-                StringBuffer sb = new StringBuffer(splitted[0]);
-                for (int i = 0; i < splitted.length-1; ++i)
-                {
-                    sb.append(replacement);
-                    sb.append(splitted[i+1]);
+                        // Found a match; send everything up to it...
+                        sb.append(input.substring(i, this.start(0)));
+
+                        // and send the replacement...
+                        // dollar signs are backrefs, backslashes are
+                        // escapes.
+                        {
+                            for (int iReplacement = 0; iReplacement < replacementLength; ++iReplacement)
+                            {
+                                char c = replacement.charAt(iReplacement);
+                                if (c == '\\')
+                                {
+                                    if (iReplacement+1 == replacementLength)
+                                        throw new IllegalArgumentException("replacement \""+replacement+"\" ends in a backslash!"); // XXX escapify   XXX don't need to check this every time, just sanity check once at start maybe
+                                    sb.append(replacement.charAt(++iReplacement));
+                                }
+                                else if (c == '$')
+                                {
+                                    // XXX not clear on what happens if followed by more than one digit... we will just assume we should get a single digit.
+                                    if (iReplacement+1 == replacementLength)
+                                        throw new IllegalArgumentException("replacement \""+replacement+"\" ends in a dollar sign!"); // XXX escapify   XXX don't need to check this every time, just sanity check once at start maybe
+                                    char d = replacement.charAt(++iReplacement);
+                                    if (d < '0' || d > '9')
+                                        throw new IllegalArgumentException("replacement \""+replacement+"\" has a dollar sign not followed by a digit!"); // XXX escapify   XXX don't need to check this every time, just sanity check once at start maybe
+                                    int iGroup = d - '0';
+                                    int iGroupMaybe;
+                                    while (iReplacement+1 < replacementLength
+                                        && (iGroupMaybe = iGroup*10 + (replacement.charAt(iReplacement+1)-'0')) < groups.length)
+                                    {
+                                        iGroup = iGroupMaybe;
+                                        iReplacement++;
+                                    }
+                                    if (groups[iGroup][0] != -1)
+                                        sb.append(input.substring(groups[iGroup][0], groups[iGroup][1]));
+                                    else
+                                    {
+                                        // XXX am I doing the right thing here? need a test
+                                    }
+                                }
+                                else
+                                    sb.append(c);
+                            }
+                        }
+
+                        // and advance past it.
+                        i = this.end(0);
+                    }
+                    // Send the rest of the input.
+                    sb.append(input.substring(i));
                 }
                 return sb.toString();
-            }
+            } // replaceAll
             public Matcher reset(String input)
             {
                 this.input = input;
@@ -1271,6 +1320,11 @@ public class regex
     // and others that exercise stuff.
     public static void main(String args[])
     {
+        if (args.length == 1)
+        {
+            verboseLevel = Integer.parseInt(args[0]);
+        }
+
         if (true)
         {
             testSplit(new String[]{"","a"},
@@ -1344,6 +1398,14 @@ public class regex
             matches("Z", "[a-z-]");
             matches("Z", "[----]");
             split("ab .abX 0cd dq.z hello(there)", "[._a-zA-Z][._a-zA-Z0-9]*");
+            replaceAll("aabfooaabfooabfoob", "a*b", "-");
+            String prepattern = " { genericPuzzleDescription = ([^\\n,]+) , \\n genericPuzzleState = ([^\\n,]+) , \\n history = ([^\\n,]+) , \\n undoPartSize = (\\d+) ";
+            split(prepattern, " ");
+            replaceAll(prepattern, " ", "\\\\s*");
+            replaceAll(prepattern, " ", "\\s*");
+            replaceAll("aaafoo", "(...)(...)", "$2bar");
+            replaceAll("aaaaaaaaabbbbbbbbb", "(.)(.)(.)(.)(.)(.)(.)(.)(.)", "\\\\\\$$100"); // the back ref is $1 because $10 is illegal
+            replaceAll("aaaaaaaaaabbbbbbbbbb", "(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)", "\\\\\\$$100"); // the back ref is $10
         }
         if (false)
         {
@@ -1361,7 +1423,6 @@ public class regex
         }
         if (true)
         {
-            replaceAll("aabfooaabfooabfoob", "a*b", "-");
         }
 
         System.out.println("All good!");
