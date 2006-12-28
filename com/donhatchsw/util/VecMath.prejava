@@ -74,6 +74,12 @@ public final class VecMath
             result[i] = v0[i] - v1[i];
     }
     /** vector minus vector */
+    public static void vmv(int n, int result[], int v0[], int v1[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] - v1[i];
+    }
+    /** vector minus vector */
     public static void vmv(double result[], double v0[], double v1[])
     {
         vmv(MIN3(result.length, v0.length, v1.length), result, v0, v1);
@@ -86,8 +92,7 @@ public final class VecMath
     /** vector minus vector */
     public static void vmv(int result[], int v0[], int v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] - v1[i];
+        vmv(MIN3(result.length, v0.length, v1.length), result, v0, v1);
     }
 
     /** vector times scalar */
@@ -972,6 +977,17 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return result;
     }
     /** vector distance squared */
+    public static int distsqrd(int v0[], int v1[], int n)
+    {
+        int result = (int)0;
+        FORI (i, n)
+        {
+            int diff = v1[i]-v0[i];
+            result += diff*diff;
+        }
+        return result;
+    }
+    /** vector distance squared */
     public static double distsqrd(double v0[], double v1[])
     {
         int n = v0.length; // == v1.length
@@ -979,6 +995,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
     /** vector distance squared */
     public static float distsqrd(float v0[], float v1[])
+    {
+        int n = v0.length; // == v1.length
+        return distsqrd(v0, v1, n);
+    }
+    /** vector distance squared */
+    public static int distsqrd(int v0[], int v1[])
     {
         int n = v0.length; // == v1.length
         return distsqrd(v0, v1, n);
@@ -2819,13 +2841,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** vector minus vector, returning newly allocated result */
-        public static double[] vmv(double v0[], double v1[])
-        {
-            double result[] = new double[v0.length];
-            vmv(result, v0, v1);
-            return result;
-        }
-        /** vector minus vector, returning newly allocated result */
         public static float[] vmv(int n, float v0[], float v1[])
         {
             float result[] = new float[n];
@@ -2833,9 +2848,30 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** vector minus vector, returning newly allocated result */
+        public static int[] vmv(int n, int v0[], int v1[])
+        {
+            int result[] = new int[n];
+            vmv(n, result, v0, v1);
+            return result;
+        }
+        /** vector minus vector, returning newly allocated result */
+        public static double[] vmv(double v0[], double v1[])
+        {
+            double result[] = new double[v0.length];
+            vmv(result, v0, v1);
+            return result;
+        }
+        /** vector minus vector, returning newly allocated result */
         public static float[] vmv(float v0[], float v1[])
         {
             float result[] = new float[v0.length];
+            vmv(result, v0, v1);
+            return result;
+        }
+        /** vector minus vector, returning newly allocated result */
+        public static int[] vmv(int v0[], int v1[])
+        {
+            int result[] = new int[v0.length];
             vmv(result, v0, v1);
             return result;
         }
@@ -3482,33 +3518,22 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             int nFixedAxes = fixedAxes.length;
             int n = (nFixedAxes == 0 ? 2 : fixedAxes[0].length);
             assert(nFixedAxes == n-2);
+            double rotXtoFixedAxes[][] = new double[n][n];
+            extendAndGramSchmidt(nFixedAxes, n, rotXtoFixedAxes, fixedAxes);
+            return mxmxm(transpose(rotXtoFixedAxes),
+                         makeRowRotMat(n, n-2,n-1, radians),
+                         rotXtoFixedAxes);
 
-            assumpt(n == 3); // and so nFixedAxes == 1
 
-            double fixedAxis[] = fixedAxes[0];
+        } // makeRowRotMat around axes
 
-            double rotPlusZToFixedAxis[][];
-            {
-                rotPlusZToFixedAxis = new double[3][3];
-                VecMath.copyvec(rotPlusZToFixedAxis[2], fixedAxis);
-                VecMath.normalize(rotPlusZToFixedAxis[2], rotPlusZToFixedAxis[2]);
-                int mini = VecMath.mini(fixedAxis);
-                VecMath.zerovec(rotPlusZToFixedAxis[1]);
-                rotPlusZToFixedAxis[1][mini] = 1.;
+        /** make row-oriented rotation matrix that fixes a given subset of the n-2 axes, returning newly allocated result */
+        public static float[][] makeRowRotMat(float radians, float fixedAxes[/*n-2*/][])
+        {
+            return doubleToFloat(makeRowRotMat((double)radians,
+                                               floatToDouble(fixedAxes)));
+        }
 
-                VecMath.vxv3(rotPlusZToFixedAxis[0],
-                             rotPlusZToFixedAxis[1],
-                             rotPlusZToFixedAxis[2]);
-                VecMath.normalize(rotPlusZToFixedAxis[0], rotPlusZToFixedAxis[0]);
-                VecMath.vxv3(rotPlusZToFixedAxis[1],
-                             rotPlusZToFixedAxis[2],
-                             rotPlusZToFixedAxis[0]);
-            }
-
-            return mxmxm(VecMath.transpose(rotPlusZToFixedAxis),
-                         makeRowRotMat(3, 0, 1, radians),
-                         rotPlusZToFixedAxis);
-        } // makeRowRotMat around axis
 
         /** make row-oriented rotation matrix that slerps from vector towards to vector */
         public static double[][] makeRowRotMatThatSlerps(double from[], double to[], double t)
@@ -3839,7 +3864,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             System.exit(1);
         }
 
-        int mindim = 2; // XXX change this to 0
+        int mindim = 0;
         int maxdim = Integer.parseInt(args[0]);
 
         for (int dim = mindim; dim <= maxdim; ++dim)
@@ -3870,8 +3895,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 PRINTMAT(vectors);
                 PRINTVEC(crossprod(vectors));
             }
+            if (dim == 3) // XXX make this more general when makeRowRotMat more general
+            {
+                float v[] = new float[dim];
+                v[1] = -1;
+                PRINTMAT(makeRowRotMat(0.f, new float[][]{v}));
+                PRINTMAT(makeRowRotMat(1.f, new float[][]{v}));
+            }
         }
-
     } // main
 
 } // class VecMath
