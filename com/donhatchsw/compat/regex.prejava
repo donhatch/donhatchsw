@@ -35,13 +35,25 @@ public class regex
                                String patString,
                                int index)
         {
-            // XXX implement me!
+            super(description+" near index "+index
+                             +System.getProperty("line.separator")
+                             +patString
+                             +System.getProperty("line.separator")
+                             +spaces(index)
+                             +"^");
         }
-        public String getMessage()
+
+        // Could just do Format.sprintf("%*s", n, "") but
+        // Format depends on regex so that would form
+        // a cyclic compilation dependency, which I try to avoid
+        private static String spaces(int n)
         {
-            return super.getMessage(); // XXX should do the cool point-at-the-error thing!
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < n; ++i)
+                sb.append(' ');
+            return sb.toString();
         }
-    }
+    } // PatternSyntaxException
 
     public static boolean matches(String input, String patString)
     {
@@ -1050,11 +1062,11 @@ public class regex
                     return new Pattern(nativePattern);
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Pattern.compile!?");
-                    assert(false);
+                    assert(false); // XXX should rethrow? maybe not if only checking?  get straight on this
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Pattern.compile: "+e.getTargetException());
-                    assert(false);
+                    assert(false); // XXX should rethrow? maybe not if only checking?  get straight on this
                     return null;
                 }
             }
@@ -1324,12 +1336,13 @@ public class regex
         {
             // These fail currently
             split("XababacY", "((ab)*|aba)c?", -1); // XXX Oh frickin heck, they got the non-greedy longest match.  How did they do that??  This sucks.
+            matches("b", "[A-]"); // XXX I considered this illegal... I guess it's not? weird
         }
         if (false)
         {
             // Purposely try to throw exceptions to exercise that
-            matches("%.2g", "%\\(.((\\d+)|(\\*)))?g"); // Unmatched closing ')' near index 15
-            matches("b", "[z-b0-9]"); // Backwards range near index 4
+            matches("b", "[z-b0-9]"); // Backwards range near index 3
+            matches("%.2g", "%\\(.((\\d+)|(\\*  )  )  )?g"); // Unmatched closing ')' near index 22 (theirs says 21, I like mine better because it points to the ')')
         }
         if (true)
         {
@@ -1338,6 +1351,12 @@ public class regex
             matches("b", "[A-Za-z]");
             matches("b", "[A-Za-z]");
             matches("B", "[A-Za-z]");
+            matches("B", "[-Za-z]");
+            matches("-", "[-Za-z]");
+            matches("Z", "[-Za-z]");
+            matches("z", "[a-z-]");
+            matches("Z", "[a-z-]");
+            matches("Z", "[----]");
             split("ab .abX 0cd dq.z hello(there)", "[._a-zA-Z][._a-zA-Z0-9]*");
         }
 
