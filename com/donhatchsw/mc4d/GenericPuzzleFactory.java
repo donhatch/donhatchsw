@@ -16,9 +16,7 @@ public class GenericPuzzleFactory
     * Each subclass of GenericPuzzleDescription
     * must provide a constructor that takes a single string.
     */
-    static GenericPuzzleDescription construct(String s, java.io.PrintWriter progressWriter)
-        throws ClassNotFoundException,
-               IllegalAccessException
+    public static GenericPuzzleDescription construct(String s, java.io.PrintWriter progressWriter)
     {
         com.donhatchsw.compat.regex.Matcher matcher =
         com.donhatchsw.compat.regex.Pattern.compile(
@@ -55,6 +53,10 @@ public class GenericPuzzleFactory
         catch (InstantiationException e)
         {
             throw new IllegalArgumentException("GenericPuzzleFactory.construct: "+theClass.getName()+" is in interface or abstract class!");
+        }
+        catch (IllegalAccessException e)
+        {
+            throw new IllegalArgumentException("GenericPuzzleFactory.construct: "+theClass.getName()+" got "+e);
         }
         catch (java.lang.reflect.InvocationTargetException e)
         {
@@ -98,18 +100,7 @@ public class GenericPuzzleFactory
                                              new java.io.BufferedWriter(
                                              new java.io.OutputStreamWriter(
                                              System.err)));
-        try
-        {
-            GenericPuzzleDescription puzzleDescription = GenericPuzzleFactory.construct(s, progressWriter);
-        }
-        catch (ClassNotFoundException e)
-        {
-            System.err.println("caught "+e);
-        }
-        catch (IllegalAccessException e)
-        {
-            System.err.println("caught "+e);
-        }
+        GenericPuzzleDescription puzzleDescription = GenericPuzzleFactory.construct(s, progressWriter);
     } // main
 
 } // GenericPuzzleFactory
