@@ -20,6 +20,8 @@ package com.donhatchsw.mc4d;
 
 public class MC4DModel
 {
+    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+
     /**
     * Anyone can set this at any time to debug the model's activity;
     * possible values are as follows.
@@ -56,7 +58,8 @@ public class MC4DModel
         {
             com.donhatchsw.compat.regex.Matcher matcher =
             com.donhatchsw.compat.regex.Pattern.compile(
-                "((-)|(-?\\d+)\\*)?(\\d+)(:(-?\\d+))?").matcher(s);
+                "\\s*((-)|(-?\\d+)\\*)?(\\d+)(:(-?\\d+))?\\s*"
+            ).matcher(s);
             if (!matcher.matches())
                 return null; // XXX this will probably lead to a null pointer exception in the caller which is lame... should throw an IllegalArgumentException instead
             String dirStringJustMinus = matcher.group(2);
@@ -105,12 +108,12 @@ public class MC4DModel
     // SERIALIZABLE PART
     //
         public GenericPuzzleDescription genericPuzzleDescription;
-        public int genericPuzzleState[]; // only accessible via listener notification   XXX MAKE THIS PRIVATE WHEN I MAKE GLUE USE ME PROPERLY
+        public int genericPuzzleState[]; // only accessible via listener notification     XXX make this private!  glue looks at it currently
 
         public java.util.Vector/*<Twist>*/ history = new java.util.Vector();
         public int undoPartSize = 0; // history has undo part followed by redo part
     //
-    // NON-SERIALIZABLE PART
+    // VOLATILE NON-SERIALIZABLE PART
     //
         private java.util.LinkedList/*<Twist>*/ pendingTwists = new java.util.LinkedList();
         private double timeFractionOfWayThroughFirstPendingTwist = 0.f;
@@ -120,6 +123,28 @@ public class MC4DModel
     //
     // PUBLIC METHODS
     //
+
+        // (No, this one's private... called from fromString once
+        // it's parsed everything.  Acquires ownership of the args,
+        // which is not the usual way we do things.)
+        public MC4DModel(GenericPuzzleDescription genericPuzzleDescription,
+                         int genericPuzzleState[],
+                         java.util.Vector history,
+                         int undoPartSize)
+        {
+            if (genericPuzzleState.length != genericPuzzleDescription.nStickers())
+                throw new IllegalArgumentException("MC4DModel.fromString: puzzle description has "+genericPuzzleDescription.nStickers()+" stickers, but state has size "+genericPuzzleState.length+"!?");
+            if (undoPartSize < 0
+             || undoPartSize > history.size())
+                throw new IllegalArgumentException("MC4DModel.fromString: undoPartSize = "+undoPartSize+" but history only has size "+history.size()+"");
+
+            this.genericPuzzleDescription = genericPuzzleDescription;
+            this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleState);
+            this.history = history;
+            this.undoPartSize = undoPartSize;
+        }
+
+
         // For a caller who already has a puzzle description...
         public MC4DModel(GenericPuzzleDescription genericPuzzleDescription)
         {
@@ -127,12 +152,12 @@ public class MC4DModel
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
         }
 
-        public MC4DModel(String puzzleDescriptionString)
+        public MC4DModel(String prescription)
         {
-            init(puzzleDescriptionString);
+            init(prescription);
         }
 
-        private void init(String puzzleDescriptionString)
+        private void init(String prescription)
         {
             // XXX probably bogus to do this here-- caller should have the opportunity to redirect the progress messages!
             java.io.PrintWriter progressWriter = new java.io.PrintWriter(
@@ -140,7 +165,7 @@ public class MC4DModel
                                                  new java.io.OutputStreamWriter(
                                                  System.err)));
             this.genericPuzzleDescription = new PolytopePuzzleDescription(
-                                                    puzzleDescriptionString,
+                                                    prescription,
                                                     progressWriter);
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
         }
@@ -350,11 +375,10 @@ public class MC4DModel
         /**
         * Convert the model to a string,
         * suitable for saving in a save file or whatever.
-        * XXX genericPuzzleDescription should have a method for doing its part
         */
         public String toString()
         {
-            String nl = System.getProperty("line.separator");
+            String nl = System.getProperty("line.separator"); // XXX ACK! this will mess up everything on the mac!!!  I think maybe I should just use '\n'!
 
             StringBuffer sb = new StringBuffer();
             sb.append("{"+nl);
@@ -368,10 +392,63 @@ public class MC4DModel
             sb.append("}");
             return sb.toString();
         } // toString
+        // XXX get clear on who does what... this could be a constructor, but would need to be smart and differentiate it from just a prescription
         public static MC4DModel fromString(String s)
         {
-            // XXX implement me!
-            return null;
+            // First replace anything that looks like it could be
+            // a line separator with a single newline, for consistency...
+            s = com.donhatchsw.compat.regex.replaceAll(s, "\n|\r\n|\r", "\n"); // XXX hasn't been tested yet
+            // XXX doing it all in one bite like this is powerful, but unfortunately it doesn't let us give very good error messages :-(
+            // I can write the pattern more clearly if I use a single space
+            // whenever I mean \s*, and then convert...
+            //com.donhatchsw.compat.regex.verboseLevel = 1;
+            String prepattern = " \\{ genericPuzzleDescription = ([^\n]+) , \n genericPuzzleState = ([^\n]+) , \n history = ([^\n]+) , \n undoPartSize = (\\d+) ,? \\} ";
+                   //prepattern = " \\{ genericPuzzleDescription = ([^\n]+) ,  (.|\r|\n)*"; // XXX
+            String pattern = com.donhatchsw.compat.regex.replaceAll(prepattern, " ", "\\\\s*");
+            System.out.println("pattern = "+com.donhatchsw.util.Arrays.toStringCompact(pattern)+"");
+            com.donhatchsw.compat.regex.Matcher matcher =
+            com.donhatchsw.compat.regex.Pattern.compile(pattern).matcher(s);
+            if (!matcher.matches())
+                throw new IllegalArgumentException("MC4DModel.fromString called on a bad string of length "+s.length()+": "+com.donhatchsw.util.Arrays.toStringCompact(s)+"");
+            Assert(matcher.groupCount() == 4);
+            String genericPuzzleDescriptionString = matcher.group(1);
+            String genericPuzzleStateString = matcher.group(2);
+            String historyString = matcher.group(3);
+            String undoPartSizeString = matcher.group(4);
+            if (false)
+            {
+                System.out.println("genericPuzzleDescriptionString = "+genericPuzzleDescriptionString);
+                System.out.println("genericPuzzleStateString = "+genericPuzzleStateString);
+                System.out.println("historyString = "+historyString);
+                System.out.println("undoPartSizeString = "+undoPartSizeString);
+            }
+
+            historyString.replaceAll("\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
+            String historyTwistStrings[] = com.donhatchsw.compat.regex.split(historyString, ",");
+            java.util.Vector history = new java.util.Vector();
+            for (int i = 0; i < historyTwistStrings.length; ++i)
+                history.addElement(Twist.fromString(historyTwistStrings[i]));
+            int undoPartSize = Integer.parseInt(undoPartSizeString);
+
+            int genericPuzzleState[] = null;
+            try {
+                genericPuzzleState = (int[])com.donhatchsw.util.Arrays.fromString(genericPuzzleStateString);
+                // XXX also can be class cast problem if it looked like the wrong kind of array
+            } catch (java.text.ParseException e) {
+                throw new IllegalArgumentException("MC4DModel.fromString called on bogus int array string "+com.donhatchsw.util.Arrays.toStringCompact(genericPuzzleStateString)+": "+e);
+            }
+
+            GenericPuzzleDescription genericPuzzleDescription = GenericPuzzleFactory.construct(genericPuzzleDescriptionString,
+                                                 new java.io.PrintWriter(
+                                                 new java.io.BufferedWriter(
+                                                 new java.io.OutputStreamWriter(
+                                                 System.err))));
+
+            MC4DModel model = new MC4DModel(genericPuzzleDescription,
+                                            genericPuzzleState,
+                                            history,
+                                            undoPartSize);
+            return model;
         } // fromString
 
 
