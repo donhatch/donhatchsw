@@ -82,12 +82,12 @@ public class Format
                     {
                         if (iArg >= args.length)
                             throw new IllegalArgumentException("sprintf expected width arg "+iArg+" of type int, got end of argument list instead");
-                        if (!(args[iArg] instanceof java.lang.Integer))
+                        if (!(args[iArg] instanceof Integer))
                             throw new IllegalArgumentException("sprintf expected width arg "+iArg+" of type int, got type "+args[iArg].getClass()+" instead");
-                        width = ((java.lang.Integer)args[iArg++]).intValue();
+                        width = ((Integer)args[iArg++]).intValue();
                     }
                     else
-                        width = java.lang.Integer.parseInt(widthString);
+                        width = Integer.parseInt(widthString);
                 }
                 if (precisionString != null)
                 {
@@ -95,15 +95,15 @@ public class Format
                     {
                         if (iArg >= args.length)
                             throw new IllegalArgumentException("sprintf expected precision arg "+iArg+" of type int, got end of argument list instead");
-                        if (!(args[iArg] instanceof java.lang.Integer))
+                        if (!(args[iArg] instanceof Integer))
                             throw new IllegalArgumentException("sprintf expected precision arg "+iArg+" of type int, got type "+args[iArg].getClass()+" instead");
-                        precision = ((java.lang.Integer)args[iArg++]).intValue();
+                        precision = ((Integer)args[iArg++]).intValue();
                     }
                     else
-                        precision = java.lang.Integer.parseInt(precisionString);
+                        precision = Integer.parseInt(precisionString);
                 }
                 else
-                    precision = 6;
+                    precision = 6; // XXX wait, this is the default for %g, not everything else in the universe!!
 
                 Assert(formatCharString != null
                     && formatCharString.length() == 1);
@@ -142,11 +142,24 @@ public class Format
                 {
                     if (iArg >= args.length)
                         throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type int, got end of argument list instead");
-                    if (!(args[iArg] instanceof java.lang.Integer))
+                    if (!(args[iArg] instanceof Integer))
                         throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type int, got type "+args[iArg].getClass()+" instead");
 
-                    int x = ((java.lang.Integer)args[iArg++]).intValue();
+                    int x = ((Integer)args[iArg++]).intValue();
                     thisConversionResult = ""+x;
+                }
+                else if (formatChar == 's')
+                {
+                    if (iArg >= args.length)
+                        throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type String, got end of argument list instead");
+                    if (!(args[iArg] instanceof String))
+                        throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type int, got type "+args[iArg].getClass()+" instead");
+                    String s = (String)args[iArg++];
+                    // precision means truncate it in this case
+                    if (precisionString != null
+                     && precision < s.length())
+                        s = s.substring(precision);
+                    thisConversionResult = s;
                 }
                 else if (formatChar == '%')
                 {
@@ -177,7 +190,7 @@ public class Format
     }
     public static String sprintf(String format, int arg0)
     {
-        return sprintf(format, new Object[]{new java.lang.Integer(arg0)});
+        return sprintf(format, new Object[]{new Integer(arg0)});
     }
     public static String sprintf(String format, double arg0)
     {
@@ -185,24 +198,29 @@ public class Format
     }
     public static String sprintf(String format, int arg0, int arg1)
     {
-        return sprintf(format, new Object[]{new java.lang.Integer(arg0),
-                                            new java.lang.Integer(arg1)});
+        return sprintf(format, new Object[]{new Integer(arg0),
+                                            new Integer(arg1)});
     }
     public static String sprintf(String format, int arg0, double arg1)
     {
-        return sprintf(format, new Object[]{new java.lang.Integer(arg0),
+        return sprintf(format, new Object[]{new Integer(arg0),
                                             new java.lang.Double(arg1)});
+    }
+    public static String sprintf(String format, int arg0, String arg1)
+    {
+        return sprintf(format, new Object[]{new Integer(arg0),
+                                            arg1});
     }
     public static String sprintf(String format, int arg0, int arg1, int arg2)
     {
-        return sprintf(format, new Object[]{new java.lang.Integer(arg0),
-                                            new java.lang.Integer(arg1),
-                                            new java.lang.Integer(arg2)});
+        return sprintf(format, new Object[]{new Integer(arg0),
+                                            new Integer(arg1),
+                                            new Integer(arg2)});
     }
     public static String sprintf(String format, int arg0, int arg1, double arg2)
     {
-        return sprintf(format, new Object[]{new java.lang.Integer(arg0),
-                                            new java.lang.Integer(arg1),
+        return sprintf(format, new Object[]{new Integer(arg0),
+                                            new Integer(arg1),
                                             new java.lang.Double(arg2)});
     }
 
