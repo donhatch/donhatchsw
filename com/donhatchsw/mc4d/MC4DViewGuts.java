@@ -1037,6 +1037,7 @@ public class MC4DViewGuts
         jframe.setSize(w,h); // set size top down
         jframe.setLocation(x,y);
         jframe.setVisible(true);
+        myPanel.requestFocus(); // seems to be needed initially, if running in <=1.3 on linux, anyway.  weird!
 
         // Make it so ctrl-n spawns another view of the same model,
         // and ctrl-shift-N spawns the opposite kind of view of the same model.
