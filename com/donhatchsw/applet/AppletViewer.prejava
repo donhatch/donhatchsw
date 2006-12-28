@@ -1,0 +1,235 @@
+/**
+* Applet viewer.
+*/
+
+package com.donhatchsw.applet; // APP-SPECIFIC: remove or change this as desired
+
+
+
+#include "macros.h"
+
+public class AppletViewer
+{
+    // XXX decide whether I want this here...
+    // XXX could be a utility if it's useful
+    static void addViaScrollPaneHack(java.awt.Container parent, java.awt.Component child)
+    {
+        //
+        // THE SECRET to making it not flash on resize--
+        // put the Applet inside a ScrollPane.
+        // This is because components
+        // whose peers are sun.awt.motif.MComponentPeer
+        // have bad behavior when resized...
+        // sun.awt.motif.MComponentPeer.setBounds calls the native pReshape
+        // and it all sucks... and it has special voodoo for ScrollPanes...
+        // and apparently the scroll pane will increase but never decrease
+        // the size of its child-- so we'll get flashing at the beginning
+        // whenever the user stretches it, but it will never shrink.
+        //
+        // Oh ffs this only works in >=1.4 -- but it's better than nothing.
+        // Need to get in there AGAIN and debug the hell out of it
+        /*
+            stop in sun.awt.motif.MComponentPeer.setBounds
+        */
+        //
+        // XXX think about whether this actually belongs in the applet or not--
+        // XXX it could go in the frame.
+        // XXX You know the funny thing though... the applet itself
+        // XXX isn't doing that crap, is it?  So can't we just draw
+        // XXX directly onto the applet and avoid this entirely???
+        //
+        // XXX ARGH!!!!!!! This works on 1.5 but not on 1.4!!!!
+        // XXX okay wtf?   I think maybe it's the applet itself?
+        //
+
+        java.awt.ScrollPane scrollpane = new java.awt.ScrollPane(java.awt.ScrollPane.SCROLLBARS_NEVER) {
+            public void setBounds(int a, int b, int c, int d)
+            {
+                PRINT4(a,b,c,d);
+                super.setBounds(a,b,c,d);  // THIS IS THE EVIL ONE RIGHT HERE!!!
+                getComponent(0).repaint(); // it wouldn't know to otherwise, since it's not being resized
+            }
+        };
+        try
+        {
+            scrollpane.setWheelScrollingEnabled(false); // ha!
+        } catch (NoSuchMethodError e) {}
+        assert(parent.getLayout() instanceof java.awt.GridBagLayout);
+        parent.add(scrollpane, new java.awt.GridBagConstraints() {
+            {
+                // stretch or shrink child scrollpane to fit parent
+                fill = java.awt.GridBagConstraints.BOTH;
+                weightx = 1.;
+                weighty = 1.;
+            }
+        });
+        // scrollpane stretches child to fit parent, but never shrinks it
+        scrollpane.add(child);
+    } // addViaScrollPaneHack
+
+    public static void main(final String[] args)
+    {
+        System.out.println("in main");
+
+        if (args.length < 1)
+        {
+            System.err.println("Usage: AppletViewer <AppletClassName> [param0=value0 parem1=value1 ...]");
+            System.exit(1);
+        }
+        String appletClassName = args[0];
+
+        java.applet.Applet applet = null;
+        {
+            Class appletClass = null;
+            {
+                try
+                {
+                    appletClass = Class.forName(appletClassName);
+                }
+                catch (ClassNotFoundException e)
+                {
+                    System.err.println("Couldn't find class named \""+appletClassName+"\"");
+                    System.exit(1);
+                }
+            }
+            java.lang.reflect.Constructor appletConstructor = null;
+            {
+                try
+                {
+                    appletConstructor = appletClass.getConstructor(new Class[]{});
+                }
+                catch (NoSuchMethodException e)
+                {
+                    System.err.println("Couldn't find public no-arg constructor for \""+appletClassName+"\"");
+                    System.exit(1);
+                }
+            }
+            Object appletObject = null;
+            {
+                try
+                {
+                    appletObject = appletConstructor.newInstance(new Object[]{});
+                }
+                catch (InstantiationException e)
+                {
+                    System.err.println("Couldn't instantiate \""+appletClassName+"\" from its no-arg constructor: "+e);
+                    System.exit(1);
+                }
+                catch (IllegalAccessException e)
+                {
+                    System.err.println("Couldn't instantiate \""+appletClassName+"\" from its no-arg constructor: "+e);
+                    System.exit(1);
+                }
+                catch (java.lang.reflect.InvocationTargetException e)
+                {
+                    System.err.println("Couldn't instantiate \""+appletClassName+"\" from its no-arg constructor: "+e.getTargetException());
+                    System.exit(1);
+                }
+            }
+            try
+            {
+                applet = (java.applet.Applet)appletObject;
+            }
+            catch (ClassCastException e)
+            {
+                System.err.println("AppletViewer: class "+appletClass.getName()+" doesn't seem to be derived from "+java.applet.Applet.class.getName()+"");
+                System.exit(1);
+            }
+        }
+
+
+        //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
+        final java.awt.Frame frame = new java.awt.Frame("Example Applet") {
+            public boolean handleEvent(java.awt.Event event)
+            {
+                switch(event.id)
+                {
+                    case java.awt.Event.WINDOW_DESTROY:
+                        System.out.println("bye!");
+                        // Empirically, either of the following
+                        // cause the app to exit-- do both to be safe!
+                        // (XXX I've heard rumors that just doing dispose()
+                        //  messes up the debugger)
+                        // (XXX but doing exit is evil)
+                        dispose(); // hide() doesn't delete the windows
+                        System.exit(0);
+                        return true;
+                }
+                return super.handleEvent(event);
+            }
+
+            // can't override dispatchEvent because it's final
+            public void dispatchEventImpl(java.awt.AWTEvent g)
+            {
+                System.out.println("        in frame.dispatchEventImpl");
+                System.out.println("        out frame.dispatchEventImpl");
+            }
+
+        };
+        // The above handleEvent no longer seems to work as of java 1.5.
+        // So we have to use a listener.
+        // XXX not sure how far back this exists, may need to use reflection to get it
+        {
+            frame.addWindowListener(new java.awt.event.WindowAdapter() {
+                public void windowClosing(java.awt.event.WindowEvent we) {
+                    System.out.println("ciao!");
+                    frame.dispose(); // hide() doesn't delete the windows
+                    System.exit(0);
+                }
+            });
+        }
+
+        // The following seems to be necessary, or getParameter() will crash, at least in 1.4.
+        // And we need it anyway, to send params from the command line.
+        // XXX need a clever way to detect spurious extra params! not sure there is a way when in a web page, but if using main's args, could remove them as we read them and see if anything is left over
+        applet.setStub(new java.applet.AppletStub() {
+             public void appletResize(int width, int height) 
+             {
+                /* should resize frame, but an ExampleApplet never asks to be resized */
+                // XXX for now, print this... not sure when this gets called, if ever
+                System.out.println("in appletResize(width="+width+", height="+height+")");
+             }
+             public java.applet.AppletContext getAppletContext() { return null;}
+             public java.net.URL getCodeBase() { return null; }
+             public java.net.URL getDocumentBase() { return null; }
+             public String getParameter(String name)
+             {
+                 // case insensitive... and unfortunately there's no
+                 // startsWithIgnoreCase
+                 String prefix = name.toLowerCase() + "=";
+                 // search backwards from end, so later ones take precedence...
+                 for (int i = args.length-1; i >= 0; --i)
+                     if (args[i].toLowerCase().startsWith(prefix))
+                         return args[i].substring(prefix.length());
+                 return null;
+             }
+             // XXX what's this mean?
+             public boolean isActive() { return true; }
+        });
+
+        if (true)
+        {
+            frame.setLayout(new java.awt.GridBagLayout());
+            addViaScrollPaneHack(frame, applet); // with just this one (and fill disabled), it's good on 1.4
+        }
+        else
+            frame.add(applet);
+
+        applet.init();
+        applet.start();
+
+        //frame.pack();
+        //frame.move(20,20);
+        frame.move(400,20);
+
+        // XXX needs to be a command line param
+        //frame.resize(512, 512);
+        frame.resize(800, 800);
+        //frame.resize(1100, 1100);
+
+        frame.show();
+
+        System.out.println("out main");
+    } // main
+
+} // AppletViewer
