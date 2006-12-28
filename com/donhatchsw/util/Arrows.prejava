@@ -896,6 +896,14 @@ public class Arrows
                         } catch (InterruptedException e) { }
                     }
                 }
+                if (true)
+                {
+                    // print the stack trace, so I can ponder why
+                    // this works so well when resizing but
+                    // a simple applet with a canvas doesn't
+                    System.out.print("        Stack trace:");
+                    new Throwable().printStackTrace();
+                }
 
                 // we delay creating assets till now, when we know window size...
                 if (assets == null)
@@ -1567,7 +1575,7 @@ public class Arrows
                     {
                         if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
 
-                        canvas.requestFocus();
+                        canvas.requestFocus(); // XXX does this do anything? not sure
 
                         // XXX this was messing things up
                         //mouseState = STATE_MOVING;
