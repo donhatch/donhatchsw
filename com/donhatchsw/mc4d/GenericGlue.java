@@ -146,6 +146,7 @@ public class GenericGlue
     //
     // Debugging state variables.
     // Most of these are settable using secret ctrl-alt key combinations.
+    // XXX not any more.  all that is moved over to the View now.
     //
     public boolean useTopsort = true;
     public int jitterRadius = 0;
@@ -758,70 +759,6 @@ public class GenericGlue
         if (verboseLevel >= 1) System.out.println("out GenericGlue.addMoreItemsToPuzzleMenu");
     } // addMoreItemsToPuzzleMenu
 
-
-    // Add a key listener for debugging.
-    // All of the key sequences it listens to are ctrl-alt-something
-    // so it should be difficult for the user to stumble on these
-    // by accident.
-    // Currently I call this automatically from inside mouseMovedAction
-    // since I don't have handy access to the view before that...
-    // So MC4DSwing doesn't really need to worry about calling this.
-    public void addAnotherKeyListenerToView(final Component view)
-    {
-        view.addKeyListener(new KeyAdapter() {
-            public void keyTyped(KeyEvent ke)
-            {
-                char c = ke.getKeyChar();
-                //System.out.println("generic key listener got key '"+c+"'("+(int)c+")");
-                if (c == 't'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-t
-                {
-                    System.out.println("useTopsort "+useTopsort+" -> "+!useTopsort+"");
-                    useTopsort = !useTopsort;
-                    view.repaint();
-                }
-                else if (c == 'j'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-j
-                {
-                    jitterRadius++;
-                    if (jitterRadius == 10)
-                        jitterRadius = 0;
-                    System.out.println("jitterRadius -> "+jitterRadius+"");
-                    view.repaint();
-                }
-                else if (c == 'l'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-l
-                {
-                    System.out.println("drawLabels "+drawLabels+" -> "+!drawLabels+"");
-                    drawLabels = !drawLabels;
-                    view.repaint();
-                }
-                else if (c == 'p'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-p
-                {
-                    System.out.println("showPartialOrder "+showPartialOrder+" -> "+!showPartialOrder+"");
-                    showPartialOrder = !showPartialOrder;
-                    view.repaint();
-                }
-                else if (c == ' ' && ke.isControlDown()
-                 && ke.isAltDown()) // ctrl-alt-space
-                {
-                    System.out.println("frozenForDebugging "+frozenForDebugging+" -> "+!frozenForDebugging+"");
-                    frozenForDebugging = !frozenForDebugging;
-                    frozenPartialOrderForDebugging = null;
-                    view.repaint();
-                }
-                else if (ke.isControlDown()
-                      && ke.isAltDown())
-                {
-                    System.out.println("Unrecognized key sequence ctrl-alt-"+(char)(c|64)+"");
-                }
-            }
-        });
-    } // addAnotherKeyListenerToView
-
-
-
     public void undoAction(Component view, JLabel statusLabel, float nFrames90)
     {
         GenericGlue glue = this;
@@ -964,18 +901,7 @@ public class GenericGlue
             genericGlue.iPolyUnderMouse = newPoly;
             view.repaint();
         }
-
-        // Kind of hacky way to add a back door key listener for debugging...
-        if (viewsIAddedListenerTo.get(view) == null)
-        {
-            addAnotherKeyListenerToView(view);
-
-            viewsIAddedListenerTo.put(view, view);
-        }
     } // mouseMovedAction
-
-    private java.util.Hashtable viewsIAddedListenerTo = new java.util.Hashtable();
-
 
     public void mouseClickedAction(MouseEvent e,
                                    float viewMat4d[/*4*/][/*4*/],
