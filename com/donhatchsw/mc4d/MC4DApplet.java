@@ -1,19 +1,8 @@
-package com.donhatchsw.MagicCube;
+package com.donhatchsw.mc4d;
 
 import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
-
-
-
-// See http://www.cookiecentral.com/code/javacook2.htm
-// for how do do cookies.
-// To compile, need put one of the following in my classpath:
-/*
-    /usr/java/jdk1.3.1_18/jre/lib/javaplugin.jar
-*/
-import netscape.javascript.JSObject;
-import netscape.javascript.JSException;
 
 
 
@@ -22,20 +11,16 @@ public class MC4DViewApplet
 {
     //
     // Note, all public fields are settable as params
-    // from the web page (e.g. <PARAM NAME='schlafli' VALUE='{4,3,3}'>)
-    // or command line (e.g. "schlafli='{4,3,3}'")
-    // XXX ha ha, if I had a command line
+    // from the web page (e.g. <PARAM NAME='puzzleDescription' VALUE='{4,3,3} 3'>)
+    // or command line (e.g. "puzzleDescription='{4,3,3} 3'")
     //
-    public String schlafli = "{4,3,3}";
-    public int length = 3;
-    public double doubleLength = -1;
+    public String puzzleDescription = "{4,3,3} 3";
     public int x = 50, y = 50; // for spawned viewers
     public int w = 300, h = 300; // for spawned viewers
     public boolean doDoubleBuffer = false; // crappier than we need to
 
-    private int backBufferWidth = -1;
-    private int backBufferHeight = -1;
     Image backBuffer = null;
+    private Dimension backBufferSize = null;
 
     public MC4DViewApplet()
     {
@@ -47,30 +32,28 @@ public class MC4DViewApplet
 
         com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, 0);
 
-        if (doubleLength == -1)
-            doubleLength = (double)length;
-        final MC4DViewGuts guts = new MC4DViewGuts(schlafli, length, doubleLength);
+        final MC4DViewGuts guts = new MC4DViewGuts(puzzleDescription);
 
         Canvas canvas = new Canvas() {
             public void update(Graphics g) { paint(g); } // don't flash
             public void paint(Graphics frontBufferGraphics)
             {
-                int w = getWidth(), h = getHeight();
+                Dimension size = size();
+                int w = size.width, h = size.height;
+
                 if (doDoubleBuffer)
                 {
                     if (backBuffer == null
-                     || w != backBufferWidth
-                     || h != backBufferHeight)
+                     || !size.equals(backBufferSize))
                     {
                         System.out.println("    creating back buffer of size "+w+"x"+h+"");
                         backBuffer = this.createImage(w, h);
-                        backBufferWidth = w;
-                        backBufferHeight = h;
+                        backBufferSize = size;
                     }
                 }
                 else
                     backBuffer = null;
-                Graphics g = backBuffer != null ? backBuffer.getGraphics() : frontBufferGraphics;
+                Graphics g = doDoubleBuffer ? backBuffer.getGraphics() : frontBufferGraphics;
 
                 g.setColor(new Color(20,170,235)); // sky
                 g.fillRect(0, 0, w, h);
@@ -81,7 +64,7 @@ public class MC4DViewApplet
                 g.setColor(Color.white);
                 g.drawString("ctrl-n for another ancient view", 10, h-10);
 
-                if (backBuffer != null)
+                if (doDoubleBuffer)
                     frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
             }
         };
@@ -101,15 +84,12 @@ public class MC4DViewApplet
                         else
                             MC4DViewGuts.makeExampleAncientViewer(guts,x+20,y+20,w,h,doDoubleBuffer);  // ctrl-n
                         break;
-                    case 'S'-'A'+1: // ctrl-s -- save
-                        saveTheCookie("moose", "a\nb\r\nc");
-                        saveTheCookie("mc4dpuzzlestate", guts.model.genericPuzzleDescription.toString());
+                    case 'S'-'A'+1: // ctrl-s -- save to a cookie
+                        com.donhatchsw.applet.CookieUtils.setCookie(MC4DViewApplet.this, "mc4dmodelstate", guts.model.toString());
                         break;
-                    case 'L'-'A'+1: // ctrl-l -- load
-                        String stateString = loadTheCookie("mc4dpuzzlestate");
-                        break;
-                    case 'E'-'A'+1: // ctrl-e -- example
-                        cookieExample();
+                    case 'L'-'A'+1: // ctrl-l -- load from a cookie
+                        String stateString = com.donhatchsw.applet.CookieUtils.getCookie(MC4DViewApplet.this, "mc4dmodelstate");
+                        // XXX do something with it! model needs a fromString!
                         break;
                 }
             }
@@ -121,89 +101,20 @@ public class MC4DViewApplet
         //System.out.println("out MC4DViewApplet init");
     } // init
 
-
-
-    private void cookieExample()
+    /**
+    * Invoking this main is the same thing as invoking
+    * the applet viewer's main with this class name as the first arg.
+    * You can set the parameters on the command line,
+    * e.g. puzzleDescription="{4,3,3} 3"
+    */
+    public static void main(String args[])
     {
-        System.out.println("in cookieExample");
-     try
-         {
-         JSObject window = JSObject.getWindow(this );
-         JSObject document = (JSObject)window.getMember( "document" );
+        String appletViewerArgs[] = new String[args.length+1];
+        appletViewerArgs[0] = "com.donhatchsw.mc4d.MC4DViewApplet";
+        for (int i = 0; i < args.length; ++i)
+            appletViewerArgs[i+1] = args[i];
 
-         // write a one more new cookie
-         //document.setMember( "cookie", "drink='root beer'; expires=Fri, 31-Jan-2007 00:00:01 GMT;" );
-         java.util.Calendar cal = java.util.Calendar.getInstance();
-         cal.add(java.util.Calendar.YEAR, 1); // expires in 1 year
-         String expires=cal.getTime().toString();
-         document.setMember( "cookie", "drink='coke beer'; expires="+expires+";");
-
-         // get all the unexpired cookies
-         String mycookies = (String) document.getMember( "cookie" );
-         System.out.println("======================");
-         System.out.println(mycookies);
-         System.out.println("======================");
-         }
-      catch ( Exception e )
-         {
-         }
-        System.out.println("out cookieExample");
-    }
-
-    private void saveTheCookie(String name, String rawValue)
-    {
-        String cookedValue = null;
-        try
-        {
-            cookedValue = java.net.URLEncoder.encode(rawValue, "UTF-8");
-        }
-        catch (Throwable ex)
-        {
-            System.out.println("couldn't save cooked named "+name+": uuencoding failed");
-        }
-
-        System.out.println("in saveTheCookie");
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        cal.add(java.util.Calendar.YEAR, 1); // expires in 1 year
-        String expires = cal.getTime().toString();
-        try
-        {
-            JSObject window = JSObject.getWindow(this );
-            JSObject document = (JSObject)window.getMember( "document" );
-            // write a one more new cookie
-            document.setMember( "cookie", name+"="+cookedValue+"; expires="+expires+";");
-
-
-        }
-        catch (Throwable ex)
-        {
-            System.out.println("Caught something bad trying to save the cookie: "+ex);
-        }
-        System.out.println("out saveTheCookie");
-    } // saveTheCookie
-
-    private String loadTheCookie(String name)
-    {
-        System.out.println("in loadTheCookie");
-        StringBuffer sb = new StringBuffer();
-        try
-        {
-            JSObject window = JSObject.getWindow(this );
-            JSObject document = (JSObject)window.getMember( "document" );
-            // get all the unexpired cookies
-            String mycookies = (String) document.getMember( "cookie" );
-            System.out.println("======================");
-            System.out.println(mycookies);
-            System.out.println("======================");
-            sb.append(mycookies);
-        }
-        catch (Throwable ex)
-        {
-            System.out.println("This browser may not support Java to Javascript communication:"+ex);
-        }
-        System.out.println("out loadTheCookie");
-        return "moose";
-    } // loadTheCookie
-
+        com.donhatchsw.applet.AppletViewer.main(appletViewerArgs);
+    } // main
 
 } // class MC4DViewApplet

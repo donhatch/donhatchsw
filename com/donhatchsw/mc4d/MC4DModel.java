@@ -1,4 +1,4 @@
-package com.donhatchsw.MagicCube;
+package com.donhatchsw.mc4d;
 
 /**
 * The model.  Several views can look at the same model.
@@ -7,20 +7,28 @@ package com.donhatchsw.MagicCube;
 *       Serializable part:
 *           - an immutable puzzle desciption (can be shared among multiple models)
 *           - the puzzle state (an array of ints)
-*           - a history (undo/redo queue)
+*           - a history (undo/redo stack of (grip,dir,slicemask) tuples)
 *       Non-serializable part:
 *           - a queue of pending twists
 *           - time fraction of the way done with the first pending twist
-*                XXX think about the implication if we store time fraction versus space fraction
-*           - a list of listeners
+*               (it's the view's responsibility to smooth this into a space fraction,
+*               so different viewers viewing the same model animation
+*               can have different smoothing functions)
+*           - a list of listeners (views) that have attached
 * </pre>
 */
 
 public class MC4DModel
 {
+    /**
+    * Anyone can set this at any time to debug the model's activity;
+    * possible values are as follows.
+    * <pre>
+    *    0: nothing (default)
+    *    1: print something on each basic action
+    * </pre>
+    */
     public int verboseLevel = 0;
-        // 0: nothing
-        // 1; print something when basic actions triggered
 
     //
     // CLASSES
@@ -29,7 +37,7 @@ public class MC4DModel
     public static class Twist
     {
         public int grip;
-        public int dir; // -1 = CCW, 1 = CW, can double or triple etc. for power
+        public int dir; /** -1 = CCW, 1 = CW, can double or triple etc., for power */
         public int slicemask;
         public Twist(int grip, int dir, int slicemask)
         {
@@ -42,11 +50,13 @@ public class MC4DModel
         {
             return (dir == 1 ? "" : dir==-1 ? "-" : ""+dir+"*")
                  + grip
-                 + (slicemask==1 ? "" : ":"+slicemask);
+                 + (slicemask==1||slicemask==0 ? "" : ":"+slicemask); // XXX strange place to the 0->1 thing
         }
         public static Twist fromString(String s)
         {
-            com.donhatchsw.compat.regex.Matcher matcher = com.donhatchsw.compat.regex.Pattern.compile("((-)|(-?\\d+)\\*)?(\\d+)(:(-?\\d+))?").matcher(s);
+            com.donhatchsw.compat.regex.Matcher matcher =
+            com.donhatchsw.compat.regex.Pattern.compile(
+                "((-)|(-?\\d+)\\*)?(\\d+)(:(-?\\d+))?").matcher(s);
             if (!matcher.matches())
                 return null; // XXX this will probably lead to a null pointer exception in the caller which is lame... should throw an IllegalArgumentException instead
             String dirStringJustMinus = matcher.group(2);
@@ -61,7 +71,7 @@ public class MC4DModel
 
             return new Twist(grip, dir, slicemask);
         }
-    }
+    } // Twist
 
     private static class TwistForAnimationQueue
     {
@@ -117,38 +127,22 @@ public class MC4DModel
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
         }
 
-        public MC4DModel(String initialSchlafli,
-                         int initialLength)
+        public MC4DModel(String puzzleDescriptionString)
         {
-            init(initialSchlafli,
-                 initialLength,
-                 (double)initialLength);
-        }
-        public MC4DModel(String initialSchlafli,
-                         int initialIntLength,
-                         double initialDoubleLength)
-        {
-            init(initialSchlafli,
-                 initialIntLength,
-                 initialDoubleLength);
+            init(puzzleDescriptionString);
         }
 
-        private void init(String initialSchlafli,
-                          int initialIntLength,
-                          double initialDoubleLength)
+        private void init(String puzzleDescriptionString)
         {
-            if (initialSchlafli != null)
-            {
-                java.io.PrintWriter progressWriter = new java.io.PrintWriter(
-                                                     new java.io.BufferedWriter(
-                                                     new java.io.OutputStreamWriter(
-                                                     System.err)));
-                this.genericPuzzleDescription = new PolytopePuzzleDescription(
-                    initialSchlafli,
-                    initialIntLength, initialDoubleLength,
-                    progressWriter);
-                this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
-            }
+            // XXX probably bogus to do this here-- caller should have the opportunity to redirect the progress messages!
+            java.io.PrintWriter progressWriter = new java.io.PrintWriter(
+                                                 new java.io.BufferedWriter(
+                                                 new java.io.OutputStreamWriter(
+                                                 System.err)));
+            this.genericPuzzleDescription = new PolytopePuzzleDescription(
+                                                    puzzleDescriptionString,
+                                                    progressWriter);
+            this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
         }
 
         /** Adds a listener that will be notified when the puzzle animation progresses. */
@@ -306,8 +300,9 @@ public class MC4DModel
 
 
         /**
-        * Returns true if a call to advanceAnimation will actually
-        * change anything (and notify anyone).
+        * Returns true if a call to advanceAnimation() will actually
+        * change anything (and notify anyone); i.e. if getAnimationState()
+        * would return different results before and after an advanceAnimation() call.
         * This might be used to decide whether to do a high quality
         * render or not.
         * Note, if advanceAnimation actually does something,
@@ -331,8 +326,8 @@ public class MC4DModel
         *  of the progress into the twist.
         *  (Note, the caller needs to convert this time fraction
         *  into a space fraction before passing it to the GenericPipeline
-        *  stuff, using some smoothing function f
-        *  such that f(0)=0, f(1)=1, f'(0)=0, f1(1)=0.)
+        *  stuff, typically using some smoothing function f
+        *  such that f(0)=0, f(1)=1, f'(0)=0, f'(1)=0.)
         */
         public synchronized double getAnimationState(Listener listener,
                                                      int returnPuzzleState[],
