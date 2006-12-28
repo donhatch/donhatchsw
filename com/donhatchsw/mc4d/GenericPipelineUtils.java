@@ -19,7 +19,7 @@
 *    pick       - picks what is at a given point in the Frame
 */
 
-package com.donhatchsw.MagicCube;
+package com.donhatchsw.mc4d;
 
 // XXX blindly using same imports as MC4DSwing
 // XXX these are the imports from MC4DSwing, with the ones we don't need commented out
@@ -855,6 +855,7 @@ public class GenericPipelineUtils
     private static java.util.Random jitterGenerator = new java.util.Random();
     private static int jitterRadius = 0; // haha, for debugging, but cool effect, should publicize it
 
+    // PAINT
     public static void paintFrame(Frame frame,
                                   GenericPuzzleDescription puzzleDescription,
                                   int puzzleState[],
