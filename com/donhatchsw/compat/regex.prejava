@@ -2,7 +2,7 @@
 *  Stopgap implementation of some regex utilities
 *  that don't exist in java pre-1.4.
 *  Not everything is implemented but it's getting me by.
-*  My god what a lot of CRAP in these classes.
+*  My god what a lot of CRAP in this interface.
 *  XXX TODO: split uses greedy matching, not longest matching... need to think about how to do it better
 *  XXX TODO: should throw a PatternSyntaxException (which is a kind of IllegalArgumentException) and emulate the cool pointing-to-the-error thing.  http://java.sun.com/j2se/1.4.2/docs/api/java/util/regex/PatternSyntaxException.html#getMessage()
 */
@@ -494,9 +494,9 @@ public class regex
                     else if (c == '.')
                     {
                         // Any character (may or may not match line terminators)
-                        // XXX not doing the line terminator thing currently
+                        // XXX currently never matches line terminators
                         thingStart = i;
-                        transition = new Transition("", true, i+1, -1);
+                        transition = new Transition("\r\n", true, i+1, -1);
                     }
                     else if (c == '^')
                     {
@@ -1331,6 +1331,9 @@ public class regex
                       new String[]{"","a","a?","a*","a+"},
                       new int[]{-1,0,1,2});
 
+            split("boo:and:foo", ":");
+            split("boo:and:foo", "o");
+
             split("boo:and:foo", ":", 2);
             split("boo:and:foo", ":", 5);
             split("boo:and:foo", ":", -2);
@@ -1406,6 +1409,8 @@ public class regex
             replaceAll("aaafoo", "(...)(...)", "$2bar");
             replaceAll("aaaaaaaaabbbbbbbbb", "(.)(.)(.)(.)(.)(.)(.)(.)(.)", "\\\\\\$$100"); // the back ref is $1 because $10 is illegal
             replaceAll("aaaaaaaaaabbbbbbbbbb", "(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)", "\\\\\\$$100"); // the back ref is $10
+            matches("foo", "\\s*\\{\\s*genericPuzzleDescription\\s*=\\s*([^\\n,]+)\\s*,\\s*\\n\\s*genericPuzzleState\\s*=\\s*([^\\n,]+)\\s*,\\s*\\n\\s*history\\s*=\\s*([^\\n,]+)\\s*,\\s*\\n\\s*undoPartSize\\s*=\\s*(\\d+)\\s*\\}\\s*,?\\s*");
+            replaceAll("abcdefghi", ".", "n\n\\n\\\n\\\\n\\\\\n");
         }
         if (false)
         {
@@ -1414,6 +1419,12 @@ public class regex
             matches("b", "[A-]"); // XXX I considered this illegal... I guess it's not? weird
             matches("new foo(\"bar\")", "\\s*new\\s+([a-zA-Z0-9.]+)\\s*\\(\"(([^\\]|\\\\.)*)\"\\s*\\)\\s*"); // XXX they say that char range is unmatched...  oh guess it is, I forgot to make the \ inside the [] be \\\\... and mine accepts it, wrongly, because it doesn't properly parse escapes inside char ranges
             replaceAll("f\\oo", "\\\\(.)", "\\1"); // XXX I can't handle backrefs yet
+
+            matches("\n", "[^n,]");
+            matches("\n", "[^\n,]");
+            matches("\n", "[^\\n,]"); // XXX argh, looks like they are interpreting backslash n as newline inside the thing? need to do that
+            matches("\n", "[^\\\n,]");
+            matches("\n", "[^\\\\n,]");
         }
         if (false)
         {
@@ -1423,6 +1434,19 @@ public class regex
         }
         if (true)
         {
+            replaceAll("abc\r\n", ".", "!");
+            matches("{\n    genericPuzzleDescription\n",
+                    "\\s*\\{\\s*genericPuzzleDescription(.|\n|\r)*");
+            matches(",abc\r\ndef\n\r", ",(.|\r|\n)*");
+
+            matches(
+"{\n"+
+"    genericPuzzleDescription = new PolytopePuzzleDescription(\"{4,3,3} 3\"),\n"+
+"    genericPuzzleState = {3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7},\n"+
+"    history = [],\n"+
+"    undoPartSize = 0,\n"+
+"}",
+            "\\s*\\{\\s*genericPuzzleDescription\\s*=\\s*([^\n,]+),(.|\r|\n)*");
         }
 
         System.out.println("All good!");
