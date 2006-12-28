@@ -2,9 +2,7 @@
 * Applet viewer.
 */
 
-package com.donhatchsw.applet; // APP-SPECIFIC: remove or change this as desired
-
-
+package com.donhatchsw.applet;
 
 #include "macros.h"
 
@@ -29,6 +27,7 @@ public class AppletViewer
         // Oh ffs this only works in >=1.4 -- but it's better than nothing.
         // Need to get in there AGAIN and debug the hell out of it
         /*
+            jdb
             stop in sun.awt.motif.MComponentPeer.setBounds
         */
         //
@@ -40,6 +39,7 @@ public class AppletViewer
         //
         // XXX ARGH!!!!!!! This works on 1.5 but not on 1.4!!!!
         // XXX okay wtf?   I think maybe it's the applet itself?
+        // XXX more work needed...
         //
 
         java.awt.ScrollPane scrollpane = new java.awt.ScrollPane(java.awt.ScrollPane.SCROLLBARS_NEVER) {
@@ -207,10 +207,10 @@ public class AppletViewer
              public boolean isActive() { return true; }
         });
 
-        if (true)
+        if (false) // XXX maybe should be a command line thing?  not sure.  doesn't work well unless the applet knows to look to the parent for its size
         {
             frame.setLayout(new java.awt.GridBagLayout());
-            addViaScrollPaneHack(frame, applet); // with just this one (and fill disabled), it's good on 1.4
+            addViaScrollPaneHack(frame, applet); // with just this one (and fill disabled), it's good (doesn't flash) on 1.4.  it's good on 1.5 anyway
         }
         else
             frame.add(applet);
