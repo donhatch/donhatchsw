@@ -62,7 +62,9 @@ public class MC4DViewApplet
                 guts.paint(this, g);
 
                 g.setColor(Color.white);
-                g.drawString("ctrl-n for another ancient view", 10, h-10);
+                g.drawString("ctrl-n for another ancient view", 10, h-50);
+                g.drawString("ctrl-s to save to the cookie", 10, h-30);
+                g.drawString("ctrl-l to load from the cookie", 10, h-10);
 
                 if (doDoubleBuffer)
                     frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
@@ -78,18 +80,20 @@ public class MC4DViewApplet
                 char c = ke.getKeyChar();
                 switch (c)
                 {
-                    case 'N'-'A'+1: // ctrl-n
+                    case 'n'-'a'+1: // ctrl-n
                         if (ke.isShiftDown())
                             MC4DViewGuts.makeExampleModernViewer(guts,x+20-w,y+20,w,h); // ctrl-shift-N
                         else
                             MC4DViewGuts.makeExampleAncientViewer(guts,x+20,y+20,w,h,doDoubleBuffer);  // ctrl-n
                         break;
-                    case 'S'-'A'+1: // ctrl-s -- save to a cookie
+                    case 's'-'a'+1: // ctrl-s -- save to a cookie
                         com.donhatchsw.applet.CookieUtils.setCookie(MC4DViewApplet.this, "mc4dmodelstate", guts.model.toString());
                         break;
-                    case 'L'-'A'+1: // ctrl-l -- load from a cookie
+                    case 'l'-'a'+1: // ctrl-l -- load from a cookie
                         String stateString = com.donhatchsw.applet.CookieUtils.getCookie(MC4DViewApplet.this, "mc4dmodelstate");
                         // XXX do something with it! model needs a fromString!
+                        break;
+                    default:
                         break;
                 }
             }
