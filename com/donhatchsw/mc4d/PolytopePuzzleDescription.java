@@ -210,10 +210,13 @@
                 and that is the only one that should light up
 */
 
-package com.donhatchsw.MagicCube;
+package com.donhatchsw.mc4d;
 import com.donhatchsw.util.*; // XXX get rid... at least get more specific
 
 class PolytopePuzzleDescription implements GenericPuzzleDescription {
+
+    private String prescription; // what was originally passed to the constructor. we are an immutable object that is completely a function of this string, so an identical clone of ourself can be constructed using this string in any future lifetime.
+
     private com.donhatchsw.util.CSG.SPolytope originalPolytope;
     private com.donhatchsw.util.CSG.SPolytope slicedPolytope;
 
@@ -255,43 +258,64 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     
 
     /**
-     * The following schlafli product symbols are supported;
-     * note that they are all uniform, and every vertex has exactly
-     * nDims incident facets and edges (things would go crazy otherwise).
-     *
-     *   3-dimensional:
-     *     {3,3}
-     *     {4,3}
-     *     {5,3}
-     *     {3}x{} or {}x{3}  (triangular prism)
-     *     {4}x{} or {}x{4}  (cube, same as {4,3})
-     *     {5}x{} or {}x{5}  (pentagonal prism)
-     *     {6}x{} or {}x{6}  (hexagonal prism)
-     *     ...
-     *
-     *   4-dimensional:
-     *     {3,3,3}
-     *     {4,3,3}
-     *     {5,3,3}
-     *
-     *     {3}x{3}  {3}x{4}  {3}x{5}  {3}x{6}  ...
-     *     {4}x{3}  {4}x{4}  {4}x{5}  {4}x{6}  ...
-     *     {5}x{3}  {5}x{4}  {5}x{5}  {5}x{6}  ...
-     *     {6}x{3}  {6}x{4}  {6}x{5}  {6}x{6}  ...
-     *     ...
-     *
-     *     {3,3}x{} or {}x{3,3} (tetrahedral prism)
-     *     {4,3}x{} or {}x{4,3} (hypercube, same as {4,3,3})
-     *     {5,3}x{} or {}x{5,3} (dodecahedral prism)
-     *
-     * Note that {4} can also be expressed as {}x{} in any of the above.
-     *
-     */
+    * The constructor that is required by the factory.
+    * The following schlafli product symbols are supported;
+    * note that they are all uniform, and every vertex has exactly
+    * nDims incident facets and edges (things would go crazy otherwise).
+    *
+    *   3-dimensional:
+    *     {3,3}
+    *     {4,3}
+    *     {5,3}
+    *     {3}x{} or {}x{3}  (triangular prism)
+    *     {4}x{} or {}x{4}  (cube, same as {4,3})
+    *     {5}x{} or {}x{5}  (pentagonal prism)
+    *     {6}x{} or {}x{6}  (hexagonal prism)
+    *     ...
+    *
+    *   4-dimensional:
+    *     {3,3,3}
+    *     {4,3,3}
+    *     {5,3,3}
+    *
+    *     {3}x{3}  {3}x{4}  {3}x{5}  {3}x{6}  ...
+    *     {4}x{3}  {4}x{4}  {4}x{5}  {4}x{6}  ...
+    *     {5}x{3}  {5}x{4}  {5}x{5}  {5}x{6}  ...
+    *     {6}x{3}  {6}x{4}  {6}x{5}  {6}x{6}  ...
+    *     ...
+    *
+    *     {3,3}x{} or {}x{3,3} (tetrahedral prism)
+    *     {4,3}x{} or {}x{4,3} (hypercube, same as {4,3,3})
+    *     {5,3}x{} or {}x{5,3} (dodecahedral prism)
+    *
+    * Note that {4} can also be expressed as {}x{} in any of the above.
+    *
+    */
+    public PolytopePuzzleDescription(String prescription, java.io.PrintWriter progressWriter)
+    {
+        //com.donhatchsw.compat.regex.verboseLevel = 2;
+        com.donhatchsw.compat.regex.Matcher matcher =
+        com.donhatchsw.compat.regex.Pattern.compile(
+            "\\s*([^ ]+)\\s+(\\d+)(\\((.*)\\))?"
+        ).matcher(prescription);
+        if (!matcher.matches())
+            throw new IllegalArgumentException("PolytopePuzzleDescription didn't understand prescription string \""+com.donhatchsw.util.Arrays.toStringCompact(prescription)+"\"");
 
-    public PolytopePuzzleDescription(String schlafliProduct,
-                                     int intLength, // number of segments per edge
-                                     double doubleLength, // edge length / length of first edge segment
-                                     java.io.PrintWriter progressWriter)
+        String schlafliProductString = matcher.group(1);
+        String intLengthString = matcher.group(2);
+        String doubleLengthString = matcher.group(4);
+
+        int intLength = Integer.parseInt(intLengthString);
+        double doubleLength = doubleLengthString != null ? Double.valueOf(doubleLengthString).doubleValue() : (double)intLength; // XXX should catch parse error and throw illegal arg exception
+
+        init(schlafliProductString, intLength, doubleLength, progressWriter);
+        this.prescription = prescription;
+    } // ctor that takes just a string
+
+    private void init(String schlafliProduct,
+                      int intLength, // number of segments per edge
+                      double doubleLength, // edge length / length of first edge segment
+                      java.io.PrintWriter progressWriter)
     {
         if (intLength < 1)
             throw new IllegalArgumentException("PolytopePuzzleDescription called with intLength="+intLength+", min legal intLength is 1");
@@ -301,7 +325,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         if (progressWriter != null)
         {
             if (doubleLength == (double)intLength)
-                progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+intLength+")...");
+                progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+intLength+"...");
             else
                 progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+intLength+" ("+doubleLength+")...");
             progressWriter.print("    Constructing polytope...");
@@ -1205,6 +1229,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
     } // ctor from schlafli and length
 
+    // XXX figure out a good public interface for something that shows stats
     public String toString(boolean verbose)
     {
         String nl = System.getProperty("line.separator");
@@ -1233,11 +1258,12 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         return answer;
     } // toString
 
+    // XXX get clear on exactly what is required here...
+    // XXX another way of doing it would be to just let each of the subclasses of GenericPuzzleInterface try, with its fromString()... but I don't think that would work with delay loading
     public String toString()
     {
-        return toString(false); // non verbose
+        return "new PolytopePuzzleDescription("+com.donhatchsw.util.Arrays.toStringCompact(prescription)+")"; // escapifies
     }
-
 
 
     //
@@ -1578,10 +1604,13 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     //
     public static void main(String args[])
     {
-        if (args.length != 2)
+        if (args.length != 1)
         {
             System.err.println();
-            System.err.println("    Usage: PolytopePuzzleDescription \"<schlafliProduct>\" <puzzleLength>");
+            System.err.println("    Usage: PolytopePuzzleDescription \"<schlafliProduct> <length>[(<doubleLength>)]\"");
+            System.err.println("    Example: PolytopePuzzleDescription \"{4,3,3} 3\"");
+            System.err.println("    Example: PolytopePuzzleDescription \"{3,3,3} 3(5.0)\"");
+            System.err.println("    Example: PolytopePuzzleDescription \"{5}x{4} 3\"");
             System.err.println();
             System.exit(1);
         }
@@ -1594,11 +1623,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                              new java.io.OutputStreamWriter(
                                              System.err)));
 
-        String schlafliProduct = args[0];
-        double doubleLength = Double.parseDouble(args[1]);
-        GenericPuzzleDescription descr = new PolytopePuzzleDescription(schlafliProduct,
-                                                                       (int)Math.ceil(doubleLength),
-                                                                       doubleLength,
+        String puzzleDescriptionString = args[0];
+        GenericPuzzleDescription descr = new PolytopePuzzleDescription(puzzleDescriptionString,
                                                                        progressWriter);
         System.out.println("description = "+descr.toString());
 
