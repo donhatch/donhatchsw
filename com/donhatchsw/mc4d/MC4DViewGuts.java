@@ -228,6 +228,35 @@ public class MC4DViewGuts
         return null;
     }
 
+    /** Detaches this view guts from its old model, and attaches to the new one. */
+    public void setModel(MC4DModel newModel)
+    {
+        // Disconnect all our listners from the current model...
+        int nViews = views.size();
+        for (int i = 0; i < nViews; ++i)
+        {
+            Component view = (Component)views.get(i);
+            PerViewState perViewState = (PerViewState)perViewStates.get(view);
+            model.removeListener(perViewState.modelListener);
+        }
+        // Change the model...
+        model = newModel;
+        // Connect all our listeners to the new model...
+        for (int i = 0; i < nViews; ++i)
+        {
+            Component view = (Component)views.get(i);
+            PerViewState perViewState = (PerViewState)perViewStates.get(view);
+            model.addListener(perViewState.modelListener);
+        }
+        // Goose all the listeners so they repaint...
+        for (int i = 0; i < nViews; ++i)
+        {
+            Component view = (Component)views.get(i);
+            view.repaint();
+        }
+    } // setModel
+
+
     /** Detaches this view from these guts. */
     public void detachListeners(Component view)
     {
