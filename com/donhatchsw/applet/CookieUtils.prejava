@@ -1,0 +1,158 @@
+// From java tip #57, essentially:
+//    http://www.javaworld.com/javaworld/javatips/jw-javatip57.html
+// except
+//    1. I never care about the prefix thing,
+//    2. boolean true can be expressed as any nonzero integer, or
+//       any of the following (case insensitive): "true", "yes", "t", "y".
+
+package com.donhatchsw.applet; // APP-SPECIFIC: remove or change this as desired
+
+public class CookieUtils
+{
+    // Make this class uninstantiatable...
+    private CookieUtils() {}
+
+    //
+    // This only works in netscape
+    //     (XXX okay it works in mozilla too, haven't tried firefox)
+    // and requires "mayscript=true" in the applet specification in the html
+    // file, and requires javascript to be enabled in the browser.
+    // Taken from the example applet on:
+    //     http://www.cookiecentral.com/code/javacook2.htm
+    //
+    // On my machine right now, I can get JSObject
+    // by pointing my classpath here:
+    //      /usr/java/jdk1.3.1_18/jre/lib/javaplugin.jar
+    // XXX look for one that's compat with even older vms, although maybe it doesn't matter, it's only using the prototypes
+    //
+    public static boolean setCookie(java.applet.Applet applet, String name, String rawValue)
+    {
+        try {
+            System.out.println("rawValue='"+rawValue+"'");
+            String cookedValue = urlencode(rawValue);
+            String cookie = name+"="+cookedValue;
+            cookie += "; Expires=Fri, 01-Jan-2035 01:00:00 GMT"; // I think that's about as far as we can go with netscape
+            System.out.println("saving cookie ("+cookie.length()+" chars): '"+cookie+"'");
+            String stringToEval = "document.cookie ='"+cookie+"';";
+            String result = (String)jsEval(applet, stringToEval);
+            System.out.println("result = "+result);
+
+            return true;
+
+        } catch(java.lang.reflect.InvocationTargetException e) {
+            System.out.println("problem saving cookie \""+name+"\": "+e.getTargetException());
+            return false;
+        }
+    } // setCookie
+
+
+    public static String getCookie(java.applet.Applet applet, String name)
+    {
+        try {
+            String cookies = (String)jsEval(applet, "document.cookie");
+
+            System.out.println("got cookies: '"+cookies+"'");
+            java.util.StringTokenizer stringTokenizer = new java.util.StringTokenizer(cookies, ";");
+            while (stringTokenizer.hasMoreTokens())
+            {
+                String cookie = stringTokenizer.nextToken().trim();
+                if (cookie.startsWith(name+"="))
+                {
+                    System.out.println("loaded cookie ("+cookie.length()+" chars): '"+cookie+"'");
+                    String cookedValue = cookie.substring(name.length()+1);
+                    System.out.println("   cookie value: '"+cookedValue+"'");
+
+                    String rawValue = urldecode(cookedValue);
+                    System.out.println("rawValue='"+rawValue+"'");
+                    return rawValue;
+                }
+            }
+            System.out.println("Loaded cookies but couldn't find one named \""+name+"\"");
+            return null;
+        } catch(java.lang.reflect.InvocationTargetException e) {
+            System.out.println("problem loading cookie \""+name+"\": "+e.getTargetException());
+            return null;
+        }
+    } // getCookie
+
+    /** Does the following in a way that doesn't require the JSObject class to be available at compile time.
+    *<pre>
+    *    return netscape.javascript.JSObject.getWindow(applet).eval(stringToEval);
+    *</pre>
+    * Used by getCookie and setCookie.
+    */
+    public static Object jsEval(java.applet.Applet applet, String stringToEval)
+        throws java.lang.reflect.InvocationTargetException /** to print it, use e.getTargetException() */
+    {
+        try {
+            //return netscape.javascript.JSObject.getWindow(applet).eval(stringToEval);
+            Class JSObjectClass = Class.forName("netscape.javascript.JSObject");
+            return JSObjectClass.getMethod("eval",new Class[]{String.class}).invoke(JSObjectClass.getMethod("getWindow", new Class[]{Class.forName("java.applet.Applet")}).invoke(null, new Object[]{applet}), new Object[]{stringToEval}); // so there!
+        }
+        catch (ClassNotFoundException e) { throw new java.lang.reflect.InvocationTargetException(e); }
+        catch (NoSuchMethodException e) { throw new java.lang.reflect.InvocationTargetException(e); }
+        catch (IllegalAccessException e) { throw new java.lang.reflect.InvocationTargetException(e); }
+        // can also throw a InvocationTargetException, which just gets passed up
+    } // jsEval
+
+
+    /**
+    * since java.net.URLEncoder.encode()'s signature changed incompatibly
+    * from 1.1 to 1.4 or so...
+    * The algorithm is taken from the doc for java.net.URLEncoder.encode().
+    */
+    private static String urlencode(String in)
+    {
+        char[] inArray = in.toCharArray();
+        StringBuffer outBuf = new StringBuffer();
+        for (int i = 0; i < inArray.length; ++i)
+        {
+            char c = inArray[i];
+            if ((c >= 'a' && c <= 'z')
+             || (c >= 'A' && c <= 'Z')
+             || (c >= '0' && c <= '9')
+             || c == '.'
+             || c == '-'
+             //|| c == '*'    // XXX not sure about this, so be conservative
+             || c == '_')
+                outBuf.append(c);
+            else if (c == ' ')
+                outBuf.append('+');
+            else
+            {
+                outBuf.append('%');
+                outBuf.append("0123456789abcdef".charAt(((int)c>>4)&0xf));
+                outBuf.append("0123456789abcdef".charAt( (int)c    &0xf));
+                // XXX probably an easier way to do sprintf("%02x")
+            }
+        }
+        return outBuf.toString();
+    } // urlencode
+
+    /**
+    * since java.net.URLDecoder.decode() doesn't seem to work
+    * (throws a security exception!?)
+    */
+    private static String urldecode(String in)
+    {
+        char[] inArray = in.toCharArray();
+        StringBuffer outBuf = new StringBuffer();
+        for (int i = 0; i < inArray.length; ++i)
+        {
+            char c = inArray[i];
+            if (c == '%')
+            {
+                char a = Character.toLowerCase(inArray[++i]);
+                char b = Character.toLowerCase(inArray[++i]);
+                c = (char)("0123456789abcdef".indexOf(a) * 16
+                         + "0123456789abcdef".indexOf(b));
+                // XXX probably an easier way to parse a hexadecimal string...
+            }
+            else if (c == '+')
+                c = ' ';
+            outBuf.append(c);
+        }
+        return outBuf.toString();
+    } // urldecode
+
+} // CookieUtils
