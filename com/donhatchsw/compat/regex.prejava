@@ -4,6 +4,7 @@
 *  Not everything is implemented but it's getting me by.
 *  My god what a lot of CRAP in these classes.
 *  XXX TODO: split uses greedy matching, not longest matching... need to think about how to do it better
+*  XXX TODO: should throw a PatternSyntaxException (which is a kind of IllegalArgumentException) and emulate the cool pointing-to-the-error thing.  http://java.sun.com/j2se/1.4.2/docs/api/java/util/regex/PatternSyntaxException.html#getMessage()
 */
 
 package com.donhatchsw.compat;
@@ -19,6 +20,28 @@ public class regex
     public static boolean checkAgainstStandardVersion = true; // if available
     public static boolean useStandardVersion = false; // if available
     public static int verboseLevel = 0;
+        // 0: nothing
+        // 1: basic
+        // 2: more detail (to really debug, may need to manually uncomment some stuff)
+
+    /**
+    * An IllegalArgumentException
+    * whose message does the cool point-to-the-error-in-the-regex thing.
+    * XXX not implemented yet
+    */
+    public static class PatternSyntaxException extends IllegalArgumentException
+    {
+        public PatternSyntaxException(String description,
+                               String patString,
+                               int index)
+        {
+            // XXX implement me!
+        }
+        public String getMessage()
+        {
+            return super.getMessage(); // XXX should do the cool point-at-the-error thing!
+        }
+    }
 
     public static boolean matches(String input, String patString)
     {
@@ -140,13 +163,18 @@ public class regex
                     }
                 }
 
+                if (verboseLevel >= 2)
+                {
+                    PRINT(theirs);
+                    PRINT(mine);
+                    if (theirGroups != null) PRINT(theirGroups.length);
+                    PRINTARRAY(theirGroups);
+                    if (myGroups != null) PRINT(myGroups.length);
+                    PRINTARRAY(myGroups);
+                }
                 assert(theirs == mine);
                 if (theirs)
                 {
-                    //PRINT(theirGroups.length);
-                    //PRINTARRAY(theirGroups);
-                    //PRINT(myGroups.length);
-                    //PRINTARRAY(myGroups);
                     assert(theirGroups != null && myGroups != null);
                     assert(theirGroups.length == myGroups.length);
                     for (int iGroup = 0; iGroup < theirGroups.length; ++iGroup)
@@ -165,7 +193,7 @@ public class regex
         }
         public boolean find()
         {
-            return _find_or_matches(true, false, 1000);
+            return _find_or_matches(true, false, 12345);
         }
 
         // Attempts to match the internally stored string
@@ -174,7 +202,7 @@ public class regex
         // the group starts and ends of the matched substrings.
         public boolean matches()
         {
-            return _find_or_matches(false, false, 1000);
+            return _find_or_matches(false, false, 12345);
         }
         public int groupCount()
         {
@@ -265,6 +293,8 @@ public class regex
                 mine = myMatcher.replaceAll(replacement);
             if (checkAgainstStandardVersion)
             {
+                if (verboseLevel >= 1) System.out.println("    theirs = "+Arrays.toStringCompact(theirs));
+                if (verboseLevel >= 1) System.out.println("    mine = "+Arrays.toStringCompact(mine));
                 assert(theirs != null && mine != null);
                 assert(theirs.equals(mine));
             }
@@ -355,11 +385,7 @@ public class regex
                         }
 
                         if (nOpenParens == 0)
-                        {
-                            // XXX should be something other than Error
-                            // XXX should escapify
-                            throw new Error("Unmatched '"+c+"' at position "+i+" in \""+patString+"\"");
-                        }
+                            throw new PatternSyntaxException("Unmatched '"+c+"'", patString, i); // XXX escapify!
                         int j = openParensStack[--nOpenParens]; // pop matching open paren off stack
                         otherParen[i] = j;
                         otherParen[j] = i; // XXX unused other than this? if so, can get rid
@@ -391,7 +417,7 @@ public class regex
                         if (i > 0 && "?*+}".indexOf(patString.charAt(i-1)) != -1)
                             unimplemented(); // reluctant quantifier
                         if (thingStart == -1)
-                            throw new Error("Illegal '"+c+"' at position "+i+" in \""+patString+"\"");
+                            throw new PatternSyntaxException("Illegal '"+c+"'", patString, i);// XXX escapify!
                         // add free transition from thingStart to past the ?
                         states[thingStart].transitions = (Transition[])Arrays.append(states[thingStart].transitions, new Transition(null, false, i+1, -1));
                         transition = new Transition(null, false, i+1, -1);
@@ -400,7 +426,7 @@ public class regex
                     {
                         // the previous thing, zero or more times
                         if (thingStart == -1)
-                            throw new Error("Illegal '"+c+"' at position "+i+" in \""+patString+"\"");
+                            throw new PatternSyntaxException("Illegal '"+c+"'", patString, i);// XXX escapify!
                         // add free transition from the end of thing to beginning,
                         // and from beginning to past the * (making it optional)
                         states[i].transitions = (Transition[])Arrays.append(states[i].transitions, new Transition(null, false, thingStart, -1));
@@ -420,23 +446,37 @@ public class regex
                     else if (c == '[')
                     {
                         // Get the character class beginning here
+                        StringBuffer sb = new StringBuffer();
                         thingStart = i;
                         int j = i+1;
-                        while (j < patStringLength && patString.charAt(j) != ']')
-                            j++;
-                        if (j == patStringLength)
-                        {
-                            // XXX wrong error
-                            throw new Error("Unmatched '[' at position "+i+" in \""+patString+"\"");
-                        }
                         boolean complement = false;
-                        if (patString.charAt(i+1) == '^')
+                        while (j < patStringLength && patString.charAt(j) != ']')
                         {
-                            complement = true;
-                            i++;
+                            if (j == i+1 && patString.charAt(j) == '^')
+                            {
+                                complement = true;
+                                j++;
+                            }
+                            else if (j+2 < patStringLength
+                                 && patString.charAt(j+1) == '-')
+                            {
+                                char rangeStart = patString.charAt(j);
+                                char rangeEnd = patString.charAt(j+2);
+                                if (rangeStart > rangeEnd)
+                                    throw new PatternSyntaxException("Backwards character range", patString, j+2);
+                                for (char k = rangeStart; k <= rangeEnd; ++k)
+                                    sb.append(k);
+                                j += 3;
+                            }
+                            else
+                            {
+                                sb.append(patString.charAt(j));
+                                j++;
+                            }
                         }
-                        String chars = patString.substring(i+1, j);
-                        transition = new Transition(chars, complement, j+1, -1);
+                        if (j == patStringLength)
+                            throw new PatternSyntaxException("Unmatched '['", patString, i);
+                        transition = new Transition(sb.toString(), complement, j+1, -1);
                         i = j; // the ']'
                     }
                     else if (c == '.')
@@ -468,9 +508,8 @@ public class regex
                         thingStart = i;
                         if (i+1 == patStringLength)
                         {
-                            // XXX wrong exception
                             // XXX need better msg
-                            throw new Error("pattern ends in a backslash!");
+                            throw new PatternSyntaxException("pattern ends in a backslash!", patString, i);
                         }
                         char d = patString.charAt(++i); // advance and get next char from pat
                         if (d == '\\')
@@ -716,7 +755,6 @@ public class regex
                 return new Matcher(this, input);
             }
 
-            // XXX I think this should use find? not sure
             public String[] split(String input, int limit)
             {
                 if (verboseLevel >= 1)
@@ -752,12 +790,18 @@ public class regex
                 if (limit == 0)
                 {
                     // special case: trailing empty strings are discarded
-                    while (!resultVector.isEmpty()
+                    while (resultVector.size() >= 1
                         && ((String)resultVector.lastElement()).equals(""))
                         resultVector.removeElementAt(resultVector.size()-1); // not remove, for 1.1
                 }
                 String result[] = new String[resultVector.size()];
                 resultVector.copyInto(result);
+
+                // Fudge to make mine match theirs, even though
+                // I don't think I agree...
+                if (input.equals(""))
+                    result = new String[]{""};
+
                 return result;
             } // split
         } // class My.Pattern
@@ -872,7 +916,18 @@ public class regex
                     System.out.println("    replacement = "+replacement);
                 }
                 String[] splitted = pattern.split(input, -1); // don't discard trailing empties
+                if (verboseLevel >= 1)
+                {
+                    System.out.println("    splitted = "+Arrays.toStringCompact(splitted));
+                }
                 assert(splitted.length >= 1); // XXX I think this is right? need to check
+                // LAME special case... I think this broke
+                // because I put the special case in split which
+                // I disagreed with in the first place!!!
+                if (input.equals("")
+                 && regex.matches(input, pattern.patString))
+                    splitted = new String[]{"",""};
+
                 StringBuffer sb = new StringBuffer(splitted[0]);
                 for (int i = 0; i < splitted.length-1; ++i)
                 {
@@ -987,7 +1042,7 @@ public class regex
             {
                 if (patternCompileMethod == null)
                 {
-                    throw new Error("java_util_regex.Pattern.compile called without first verifying java_util_regex.exists()");
+                    throw new Error("java_util_regex.Pattern.compile called without first verifying java_util_regex.exists()"); // should neve happen
                 }
                 //java.util.regex.Pattern nativePattern = java.util.regex.Pattern.compile(patString);
                 try {
@@ -1187,6 +1242,18 @@ public class regex
     //
     //=========================================================================
 
+    private static void testSplit(String inputs[], String patStrings[], int limits[])
+    {
+        FORI (iInput, inputs.length)
+        FORI (iPatString, patStrings.length)
+        FORI (iLimit, limits.length)
+        {
+            split(inputs[iInput], patStrings[iPatString], limits[iLimit]);
+            replaceAll(inputs[iInput], patStrings[iPatString], "");
+            replaceAll(inputs[iInput], patStrings[iPatString], "howdy");
+        }
+    }
+
 
     // Some examples from the doc,
     // and others that exercise stuff.
@@ -1194,12 +1261,9 @@ public class regex
     {
         if (true)
         {
-            split("", "", -1);
-            split("a", "", -1);
-            split("", "a", -1);
-            split("", "a?", -1);
-            split("", "a*", -1);
-            split("", "a+", -1);
+            testSplit(new String[]{"","a"},
+                      new String[]{"","a","a?","a*","a+"},
+                      new int[]{-1,0,1,2});
 
             split("boo:and:foo", ":", 2);
             split("boo:and:foo", ":", 5);
@@ -1254,6 +1318,7 @@ public class regex
             matches("%.2g", "%\\.((\\d+)|(\\*))?g");
             matches("abc%d%x%%%.17g", "(%|[^%])*");
             matches("abc%d%f%%%.17g", "((%(-)?((\\d+)|(\\*))?(\\.((\\d+)|(\\*)))?([gdf]))|(%%)|([^%]))*");
+            matches("%%", "((%(-)?((\\d+)|(\\*))?(\\.((\\d+)|(\\*)))?([gdf]))|(%%)|([^%]))*");
         }
         if (false)
         {
@@ -1264,10 +1329,16 @@ public class regex
         {
             // Purposely try to throw exceptions to exercise that
             matches("%.2g", "%\\(.((\\d+)|(\\*)))?g"); // Unmatched closing ')' near index 15
+            matches("b", "[z-b0-9]"); // Backwards range near index 4
         }
         if (true)
         {
-            matches("%%", "((%(-)?((\\d+)|(\\*))?(\\.((\\d+)|(\\*)))?([gdf]))|(%%)|([^%]))*");
+            matches("b", "[a-z0-9]");
+            matches("b", "[A-Z]");
+            matches("b", "[A-Za-z]");
+            matches("b", "[A-Za-z]");
+            matches("B", "[A-Za-z]");
+            split("ab .abX 0cd dq.z hello(there)", "[._a-zA-Z][._a-zA-Z0-9]*");
         }
 
         System.out.println("All good!");
