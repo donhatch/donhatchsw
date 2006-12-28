@@ -145,6 +145,7 @@ public class MC4DViewGuts
         // Mouse and keyboard state...
         //
         private int slicemask = 0; // bitmask representing which number keys are down
+        private int nShiftsDown = 0; // keep track of whether both shift keys are being held down.  This isn't completely reliable (e.g. when mouse exits window while shift is down) but we always set it to 0 when a non-shifted mouse event occurs so it's not too dangerous.
         private int lastDrag[] = null; // non-null == dragging.  always tracks mouse drag regardless of ctrl
         private long lastDragTime = -1L; // timestamp of last drag event.  always tracks mouse drag regardless of ctrl
         private float spinDelta[][] = null; // rotation to add for each frame while spinning. null == stopped
@@ -275,31 +276,103 @@ public class MC4DViewGuts
         view.addKeyListener(perViewState.keyListener = new KeyListener() {
             public void keyPressed(KeyEvent ke)
             {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("keyPressed");
-                int numkey = ke.getKeyCode() - KeyEvent.VK_0;
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("keyPressed "+ke);
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
+                int keyCode = ke.getKeyCode();
+                int numkey = keyCode - KeyEvent.VK_0;
                 if(1 <= numkey && numkey <= 9)
                     perViewState.slicemask |= 1<<(numkey-1); // turn on the specified bit
+                if (keyCode == KeyEvent.VK_SHIFT)
+                {
+                    perViewState.nShiftsDown++;
+                    if (perViewState.eventVerboseLevel >= 1) System.out.println("    nShiftsDown = "+perViewState.nShiftsDown);
+                }
             }
             public void keyReleased(KeyEvent ke)
             {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("keyReleased");
-                int numkey = ke.getKeyCode() - KeyEvent.VK_0;
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("keyReleased "+ke);
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
+                int keyCode = ke.getKeyCode();
+                int numkey = keyCode - KeyEvent.VK_0;
                 if(1 <= numkey && numkey <= 9)
                     perViewState.slicemask &= ~(1<<(numkey-1)); // turn off the specified bit
+                if (keyCode == KeyEvent.VK_SHIFT)
+                {
+                    // If nShiftsDown becomes >= 2,
+                    // don't decrease it when we get the shift key release.
+                    // This lets the user hold down one shift key
+                    // and pump up the power with the other!
+                    // This is not too dangerous because it always
+                    // deflates to zero as any mouse event occurs
+                    // with no shift key down.
+                    if (perViewState.nShiftsDown == 1)
+                        perViewState.nShiftsDown = 0;
+                    if (perViewState.eventVerboseLevel >= 1) System.out.println("    nShiftsDown = "+perViewState.nShiftsDown);
+                }
             }
             public void keyTyped(KeyEvent ke)
             {
                 if (perViewState.eventVerboseLevel >= 1) System.out.println("keyTyped");
                 char c = ke.getKeyChar();
-                switch (c)
+                //System.out.println("generic key listener got key '"+c+"'("+(int)c+")"); // XXX escapify!
+
+                if (false) {}
+                else if (c == 's'-'a'+1) // ctrl-s -- save
                 {
-                    case  'S'-'A'+1: // ctrl-s -- save
-                        // For starters, just dump the model to stdout.
-                        System.out.println("The model is...");
-                        System.out.println(model);
-                        break;
-                    default:
-                        break;
+                    // For starters, just dump the model to stdout.
+                    System.out.println("The model is...");
+                    System.out.println(model);
+                }
+                else if (c == 't'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-t
+                {
+                    System.out.println("useTopsort "+perViewState.useTopsort+" -> "+!perViewState.useTopsort+"");
+                    perViewState.useTopsort = !perViewState.useTopsort;
+                    view.repaint();
+                }
+                else if (c == 'j'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-j
+                {
+                    perViewState.jitterRadius++;
+                    if (perViewState.jitterRadius == 10)
+                        perViewState.jitterRadius = 0;
+                    System.out.println("jitterRadius -> "+perViewState.jitterRadius+"");
+                    view.repaint();
+                }
+                else if (c == 'l'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-l
+                {
+                    System.out.println("drawLabels "+perViewState.drawLabels+" -> "+!perViewState.drawLabels+"");
+                    perViewState.drawLabels = !perViewState.drawLabels;
+                    view.repaint();
+                }
+                else if (c == 'p'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-p
+                {
+                    System.out.println("showPartialOrder "+perViewState.showPartialOrder+" -> "+!perViewState.showPartialOrder+"");
+                    perViewState.showPartialOrder = !perViewState.showPartialOrder;
+                    view.repaint();
+                }
+                else if (c == ' ' && ke.isControlDown()
+                 && ke.isAltDown()) // ctrl-alt-space
+                {
+                    System.out.println("frozenForDebugging "+perViewState.frozenForDebugging+" -> "+!perViewState.frozenForDebugging+"");
+                    perViewState.frozenForDebugging = !perViewState.frozenForDebugging;
+                    perViewState.frozenPartialOrderForDebugging = null;
+                    view.repaint();
+                }
+                else if (c == 'v'-'a'+1
+                 && ke.isAltDown()) // ctrl-alt-v -- cycle eventVerboseLevel
+                {
+                    System.out.print("eventVerboseLevel "+perViewState.eventVerboseLevel);
+                    perViewState.eventVerboseLevel = (perViewState.eventVerboseLevel+1) % 8;
+                    System.out.println(" -> "+perViewState.eventVerboseLevel);
+                    ke.consume(); // XXX does this make it so subsequent handlers don't see it? dammit, no it doesn't. damn damn damn fuck fuck fuck
+                }
+                else if (ke.isControlDown()
+                      && ke.isAltDown())
+                {
+                    System.out.println("Unrecognized key sequence ctrl-alt-"+(char)(c|64)+"");
                 }
             }
         });
@@ -307,7 +380,8 @@ public class MC4DViewGuts
             public void mouseClicked(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseClicked on a "+view.getClass().getSuperclass().getName());
-                PerViewState perViewState = (PerViewState)perViewStates.get(view);
+                if (!me.isShiftDown())
+                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 Assert(perViewState != null); // should be no way to make this happen
 
                 Component viewForViewChanges = view;
@@ -452,8 +526,12 @@ public class MC4DViewGuts
 
                         int dir = (isLeftMouseButton(me) || isMiddleMouseButton(me)) ? 1 : -1; // ccw is 1, cw is -1
 
-                        if(me.isShiftDown()) // double power-twist!
-                            dir *= 2;
+                        if(me.isShiftDown())
+                        {
+                            dir *= 2; // double power-twist!
+                            for (int i = 0; i < perViewState.nShiftsDown-1; ++i)
+                                dir *= 2; // quadruple mega-power-twist!
+                        }
                         model.initiateTwist(iGrip, dir, perViewState.slicemask);
 
                         /*
@@ -503,6 +581,8 @@ public class MC4DViewGuts
             public void mousePressed(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 1) System.out.println("mousePressed on a "+view.getClass().getSuperclass().getName());
+                if (!me.isShiftDown())
+                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 perViewState.lastDrag = new int[]{me.getX(), me.getY()};
                 perViewState.lastDragTime = me.getWhen();
                 if (perViewState.spinDragRequiresCtrl == me.isControlDown())
@@ -515,6 +595,8 @@ public class MC4DViewGuts
             {
                 long timedelta = me.getWhen() - perViewState.lastDragTime;
                 if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseReleased on a "+view.getClass().getSuperclass().getName()+", time = "+me.getWhen()+", timedelta = "+timedelta);
+                if (!me.isShiftDown())
+                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 perViewState.lastDrag = null;
                 perViewState.lastDragTime = -1L;
                 if (perViewState.spinDragRequiresCtrl == me.isControlDown())
@@ -543,10 +625,14 @@ public class MC4DViewGuts
             public void mouseEntered(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 4) System.out.println("mouseExited on a "+view.getClass().getSuperclass().getName());
+                if (!me.isShiftDown())
+                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
             }
             public void mouseExited(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 4) System.out.println("mouseExited on a "+view.getClass().getSuperclass().getName());
+                if (!me.isShiftDown())
+                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
             }
         });
         // watch for dragging gestures to rotate the 3D view
@@ -554,6 +640,8 @@ public class MC4DViewGuts
             public void mouseDragged(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseDragged on a "+view.getClass().getSuperclass().getName()+", time = "+me.getWhen());
+                if (!me.isShiftDown())
+                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 if (perViewState.lastDrag == null)
                     return;
                 int thisDrag[] = {me.getX(), me.getY()};
@@ -582,6 +670,8 @@ public class MC4DViewGuts
             public void mouseMoved(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 5) System.out.println("        mouseMoved on a "+view.getClass().getSuperclass().getName());
+                if (!me.isShiftDown())
+                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 glue.mouseMovedAction(me,
                                       view); // this view, not the one after!
             }
