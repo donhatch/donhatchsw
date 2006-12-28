@@ -358,15 +358,13 @@ public class MC4DModel
 
             StringBuffer sb = new StringBuffer();
             sb.append("{"+nl);
-            sb.append("    genericPuzzleDescription = {"+nl);
-            sb.append(genericPuzzleDescription);
-            sb.append("}"+nl);
-            sb.append("genericPuzzleState = ");
+            sb.append("    genericPuzzleDescription = "+genericPuzzleDescription+","+nl);
+            sb.append("    genericPuzzleState = ");
             // XXX need to sort by face and put each on a line by itself
             sb.append(com.donhatchsw.util.Arrays.toStringCompact(genericPuzzleState));
-            sb.append(nl);
-            sb.append("history = "+com.donhatchsw.util.Arrays.toStringCompact(history));
-            sb.append("undoPartSize = "+undoPartSize+nl);
+            sb.append(","+nl);
+            sb.append("    history = "+com.donhatchsw.util.Arrays.toStringCompact(history)+","+nl);
+            sb.append("    undoPartSize = "+undoPartSize+","+nl);
             sb.append("}");
             return sb.toString();
         } // toString
