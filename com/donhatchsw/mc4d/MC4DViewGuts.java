@@ -225,11 +225,6 @@ public class MC4DViewGuts
     private java.util.Vector/*<Component>*/ views = new java.util.Vector();
     private java.util.Hashtable perViewStates/*<Component, PerViewState>*/ = new java.util.Hashtable();
 
-    public int nViews()
-    {
-        return views.size();
-    }
-
     /** Detaches this view guts from its old model, and attaches to the new one. */
     public void setModel(MC4DModel newModel)
     {
@@ -421,6 +416,13 @@ public class MC4DViewGuts
                 if (!me.isShiftDown())
                     perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 Assert(perViewState != null); // should be no way to make this happen
+
+                if (perViewState.spinDragRequiresCtrl)
+                {
+                    if (me.isControlDown())
+                        return; // restricted mode, so ctrled mouse only affects the spin... which is implemented in the press,drag,release callbacks, not this one
+                    view.repaint(); // so it keeps spinning if it was spinning
+                }
 
                 boolean isRotate = isMiddleMouseButton(me);
                 if (false) // make this true to debug the pick
@@ -1120,7 +1122,7 @@ public class MC4DViewGuts
             {
                 System.out.println("Chow!");
                 guts.detachListeners(myPanel);
-                if (guts.nViews() == 0)
+                if (model.nListeners() == 0)
                     System.exit(0); // asinine way of doing things
             }
         });
@@ -1213,7 +1215,7 @@ public class MC4DViewGuts
                         // (XXX but doing exit is evil)
                         dispose(); // hide() doesn't delete the windows
                         guts.detachListeners(myCanvas);
-                        if (guts.nViews() == 0)
+                        if (model.nListeners() == 0)
                             System.exit(0); // asinine way of doing things
                         return true;
                 }
@@ -1229,7 +1231,7 @@ public class MC4DViewGuts
                     System.out.println("ciao!");
                     frame.dispose(); // hide() doesn't delete the windows
                     guts.detachListeners(myCanvas);
-                    if (guts.nViews() == 0)
+                    if (model.nListeners() == 0)
                         System.exit(0); // asinine way of doing things
                 }
             });
