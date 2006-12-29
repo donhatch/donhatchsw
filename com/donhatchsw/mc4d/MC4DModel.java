@@ -182,6 +182,10 @@ public class MC4DModel
             // XXX assert it was there
             listeners.removeElement(listener);
         }
+        public synchronized int nListeners()
+        {
+            return listeners.size();
+        }
 
         /** Initiates a twist. */
         public synchronized void initiateTwist(int grip,
