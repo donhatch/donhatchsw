@@ -58,11 +58,23 @@ public class MC4DViewGuts
     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
 
     //
+    // Classes...
+    //
+        public static interface InterpFunc { public float func(float f); }
+        public static InterpFunc sine_interp = new InterpFunc() {
+            public float func(float x) { return (float)(Math.sin((x - .5) * Math.PI) + 1) / 2; }
+        };
+        public static InterpFunc linear_interp = new InterpFunc() {
+            public float func(float x) { return x; }
+        };
+
+    //
     // Puzzle description and state...
-    // shared by all views.
+    // shared by all views.  We do NOT own this (and it's immutable
+    // anyway, so it can always be shared).
     // Note, the view needs to be careful to be robust in the case that the model
     // is swapped with a different model-- e.g. if it's storing the index
-    // of the current sticker, that index suddenly be out of bounds.
+    // of the current sticker, that index can suddenly be out of bounds.
     //
         public MC4DModel model = null;
 
@@ -121,7 +133,24 @@ public class MC4DViewGuts
         public java.awt.Color outlineColor = null;
         //public float nFrames90 = 15;
         public float nFrames90 = 15;
-        public boolean restrictRoll = true;
+        InterpFunc interp = sine_interp;
+        //InterpFunc interp = linear_interp;
+        private boolean restrictRoll = false; // this one is private with accessors
+            public boolean getRestrictRoll() { return restrictRoll; }
+            public void setRestrictRoll(MC4DModel model, Component view, boolean newRestrictRoll) // XXX shouldn't take model as a param I don't think, revisit this
+            {
+                // Do this even if it looks like we were already
+                // restricting roll, in case we are initializing
+                // a new model or something XXX revisit whether this is the cleanest way to do this
+                if (newRestrictRoll && model != null)
+                    initiateZeroRoll(this, // XXX lame-- revisit this
+                                     model.genericPuzzleDescription.getFaceCentersAtRest(),
+                                     viewMat4d,
+                                     viewMat3d,
+                                     nFrames90,
+                                     view);
+                restrictRoll = newRestrictRoll;
+            }
         public boolean spinDragRequiresCtrl = false;
 
         //
@@ -201,29 +230,6 @@ public class MC4DViewGuts
         return views.size();
     }
 
-    //
-    // XXX waitaminute, we shouldn't need this any more, right?
-    // XXX the model does this logic
-    // Several of the Glue functions
-    // want a Component they can call repaint() on.
-    // We trick it by always passing in the next
-    // view in the chain, so that all the views
-    // eventually get updated.
-    // XXX this was a quick hack that worked surprisingly well... but need to do it right.  probably they don't all make it to the end of the animation... and the rotate-to-center ends up all confused because it's only partway there at the end.
-    //
-    private Component viewAfter(Component prev)
-    {
-        int nViews = views.size();
-        for (int i = 0; i < nViews; ++i)
-            if (views.get(i) == prev)
-            {
-                //System.out.println(""+i+" -> "+((i+1)%nViews));
-                return (Component)views.get((i+1)%nViews);
-            }
-        Assert(false);
-        return null;
-    }
-
     /** Detaches this view guts from its old model, and attaches to the new one. */
     public void setModel(MC4DModel newModel)
     {
@@ -242,20 +248,13 @@ public class MC4DViewGuts
         model = newModel;
         if (model != null)
         {
-            // Connect all our listeners to the new model,
-            // and goose them so they repaint
+            // Connect all our listeners to the new model
             for (int i = 0; i < nViews; ++i)
             {
                 Component view = (Component)views.get(i);
                 PerViewState perViewState = (PerViewState)perViewStates.get(view);
                 model.addListener(perViewState.modelListener);
-                if (perViewState.restrictRoll)
-                    initiateZeroRoll(perViewState,
-                                     model.genericPuzzleDescription.getFaceCentersAtRest(),
-                                     perViewState.viewMat4d,
-                                     perViewState.viewMat3d,
-                                     perViewState.nFrames90,
-                                     view);
+                perViewState.setRestrictRoll(model, view, perViewState.getRestrictRoll()); // initiates the zero roll animation if appropriate
             }
         }
         // Goose the views to make sure they repaint
@@ -423,9 +422,6 @@ public class MC4DViewGuts
                     perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 Assert(perViewState != null); // should be no way to make this happen
 
-                Component viewForViewChanges = view;
-                Component viewForModelChanges = viewAfter(view);
-
                 boolean isRotate = isMiddleMouseButton(me);
                 if (false) // make this true to debug the pick
                 {
@@ -530,7 +526,7 @@ public class MC4DViewGuts
                         // XXX ARGH! we'd like the speed to vary as the user changes the slider,
                         // XXX but the above essentially locks in the speed for this rotation
                         perViewState.iRotation = 0; // we are iRotation frames into nRotation
-                        viewForViewChanges.repaint();
+                        view.repaint(); // start it going
 
                         if (perViewState.iRotation == perViewState.nRotation)
                         {
@@ -572,6 +568,9 @@ public class MC4DViewGuts
                                 dir *= 2; // quadruple mega-power-twist!
                         }
                         model.initiateTwist(iGrip, dir, perViewState.slicemask);
+                        // do NOT call repaint here!
+                        // the model will notify us when
+                        // we need to repaint, when it's our turn.
 
                         /*
                         double totalRotationAngle = 2*Math.PI/order*Math.abs(dir);
@@ -610,8 +609,6 @@ public class MC4DViewGuts
                                                             genericGlue.twistSliceMask));
                         genericGlue.undoPartSize++;
                         */
-
-                        viewForModelChanges.repaint();
                     }
                     else
                         System.out.println("missed");
@@ -728,13 +725,7 @@ public class MC4DViewGuts
             }
         });
 
-        if (perViewState.restrictRoll)
-            initiateZeroRoll(perViewState,
-                             model.genericPuzzleDescription.getFaceCentersAtRest(),
-                             perViewState.viewMat4d,
-                             perViewState.viewMat3d,
-                             perViewState.nFrames90,
-                             view);
+        perViewState.setRestrictRoll(model, view, perViewState.getRestrictRoll()); // initiates the zero roll animation if appropriate
 
     } // attachListeners
 
@@ -772,13 +763,45 @@ public class MC4DViewGuts
         // XXX if model is animating, something...?
         MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1);
         int puzzleState[] = new int[model.genericPuzzleDescription.nStickers()];
-        // XXX the following should probably be float, not double
-        double timeFractionOfWayThroughTwist = model.getAnimationState(perViewState.modelListener,
-                                                                       puzzleState, // fill this
-                                                                       twist);      // fill this
-        double spaceFractionOfWayThroughTwist = (Math.sin((timeFractionOfWayThroughTwist-.5)*Math.PI)+1)/2; // smooth with a sine curve  XXX make a function or functor or something out of this and put it somewhere, I guess
+        // XXX getAnimationState should reaturn a float
+        float timeFractionOfWayThroughTwist = (float)model.getAnimationState(perViewState.modelListener,
+                                                                       puzzleState, // fills this
+                                                                       twist);      // fills this
+        float spaceFractionOfWayThroughTwist = perViewState.interp.func(timeFractionOfWayThroughTwist);
 
-        // XXX apply the current 4d rot here!
+
+        if (perViewState.iRotation < perViewState.nRotation)
+        {
+            //
+            // 4d rotation in progress
+            //
+            float incFrac = perViewState.interp.func((perViewState.iRotation+1)/(float)perViewState.nRotation)
+                          - perViewState.interp.func(perViewState.iRotation/(float)perViewState.nRotation);
+            float incmat[][] = com.donhatchsw.util.VecMath.makeRowRotMatThatSlerps(perViewState.rotationFrom, perViewState.rotationTo, incFrac);
+            float newViewMat4d[][] = com.donhatchsw.util.VecMath.mxm(perViewState.viewMat4d, incmat);
+            com.donhatchsw.util.VecMath.gramschmidt(newViewMat4d, newViewMat4d);
+            com.donhatchsw.util.VecMath.copymat(perViewState.viewMat4d, newViewMat4d);
+            //System.out.println("    "+perViewState.iRotation+"/"+perViewState.nRotation+" -> "+(perViewState.iRotation+1)+"/"+perViewState.nRotation+"");
+            if (!perViewState.frozenForDebugging)
+            {
+                perViewState.iRotation++;
+                view.repaint(); // make sure we keep drawing while there's more to do
+
+                if (perViewState.iRotation == perViewState.nRotation
+                 && perViewState.getRestrictRoll())
+                {
+                    // If we are finishing a rotate-to-center
+                    // and we are in restricted roll mode,
+                    // what we were using as a twirl axis is probably not
+                    // very good any more.  Choose another.
+                    if (perViewState.rotationTo[3] < -.9999) // i.e. if it was a rot to center
+                    {
+                        perViewState.setRestrictRoll(model, view, perViewState.getRestrictRoll()); // even though it is already XXX make this cleaner & clearer if possible
+                    }
+                }
+            }
+        }
+
         if (perViewState.spinDelta != null) // note, the old applet had an additional test "and not dragging" but we don't need it because spinDelta is never set during dragging now, dragDelta is instead
         {
             if (perViewState.restrictRoll)
