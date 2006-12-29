@@ -32,7 +32,9 @@ public class MC4DViewApplet
 
         com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, 0);
 
-        final MC4DViewGuts guts = new MC4DViewGuts(puzzleDescription);
+        final MC4DModel model = new MC4DModel(puzzleDescription);
+        final MC4DViewGuts guts = new MC4DViewGuts();
+        guts.setModel(model);
 
         Canvas canvas = new Canvas() {
             public void update(Graphics g) { paint(g); } // don't flash
