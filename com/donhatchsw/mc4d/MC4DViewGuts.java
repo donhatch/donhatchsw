@@ -65,12 +65,6 @@ public class MC4DViewGuts
     // of the current sticker, that index suddenly be out of bounds.
     //
         public MC4DModel model = null;
-        //
-        // A lot of stuff ended up conveniently in here when I was trying
-        // to write the generic stuff with minimal impact...
-        // now need to extract it.
-        //
-        private GenericGlue glue = null;
 
     //
     // Viewing parameters...
@@ -127,7 +121,7 @@ public class MC4DViewGuts
         public java.awt.Color outlineColor = null;
         //public float nFrames90 = 15;
         public float nFrames90 = 15;
-        public boolean restrictRoll = false;
+        public boolean restrictRoll = true;
         public boolean spinDragRequiresCtrl = false;
 
         //
@@ -208,6 +202,8 @@ public class MC4DViewGuts
     }
 
     //
+    // XXX waitaminute, we shouldn't need this any more, right?
+    // XXX the model does this logic
     // Several of the Glue functions
     // want a Component they can call repaint() on.
     // We trick it by always passing in the next
@@ -231,24 +227,38 @@ public class MC4DViewGuts
     /** Detaches this view guts from its old model, and attaches to the new one. */
     public void setModel(MC4DModel newModel)
     {
-        // Disconnect all our listners from the current model...
         int nViews = views.size();
-        for (int i = 0; i < nViews; ++i)
+        if (model != null)
         {
-            Component view = (Component)views.get(i);
-            PerViewState perViewState = (PerViewState)perViewStates.get(view);
-            model.removeListener(perViewState.modelListener);
+            // Disconnect all our listeners from the current model...
+            for (int i = 0; i < nViews; ++i)
+            {
+                Component view = (Component)views.get(i);
+                PerViewState perViewState = (PerViewState)perViewStates.get(view);
+                model.removeListener(perViewState.modelListener);
+            }
         }
         // Change the model...
         model = newModel;
-        // Connect all our listeners to the new model...
-        for (int i = 0; i < nViews; ++i)
+        if (model != null)
         {
-            Component view = (Component)views.get(i);
-            PerViewState perViewState = (PerViewState)perViewStates.get(view);
-            model.addListener(perViewState.modelListener);
+            // Connect all our listeners to the new model,
+            // and goose them so they repaint
+            for (int i = 0; i < nViews; ++i)
+            {
+                Component view = (Component)views.get(i);
+                PerViewState perViewState = (PerViewState)perViewStates.get(view);
+                model.addListener(perViewState.modelListener);
+                if (perViewState.restrictRoll)
+                    initiateZeroRoll(perViewState,
+                                     model.genericPuzzleDescription.getFaceCentersAtRest(),
+                                     perViewState.viewMat4d,
+                                     perViewState.viewMat3d,
+                                     perViewState.nFrames90,
+                                     view);
+            }
         }
-        // Goose all the listeners so they repaint...
+        // Goose the views to make sure they repaint
         for (int i = 0; i < nViews; ++i)
         {
             Component view = (Component)views.get(i);
@@ -685,7 +695,7 @@ public class MC4DViewGuts
                         float radians = (float)Math.sqrt(pixelsMovedSqrd) / 300f;
                         perViewState.dragDelta = VecMath.makeRowRotMat(radians, new float[][]{axis});
                         if (perViewState.restrictRoll)
-                            perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, glue.zeroOutRollOnSpinDelta(perViewState.dragDelta));
+                            perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, zeroOutRollOnSpinDelta(perViewState, perViewState.dragDelta)); // XXX lame, fix the prototype so it can be static maybe
                         else
                             perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, perViewState.dragDelta);
                         if (pixelsMovedSqrd < 2*2)
@@ -701,18 +711,39 @@ public class MC4DViewGuts
                 if (perViewState.eventVerboseLevel >= 5) System.out.println("        mouseMoved on a "+view.getClass().getSuperclass().getName());
                 if (!me.isShiftDown())
                     perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
-                glue.mouseMovedAction(me,
-                                      view); // this view, not the one after!
+
+                int pickedStickerPoly[] = GenericPipelineUtils.pick(
+                                                me.getX(), me.getY(),
+                                                perViewState.untwistedFrame,
+                                                model.genericPuzzleDescription);
+                int newSticker = pickedStickerPoly!=null ? pickedStickerPoly[0] : -1;
+                int newPoly = pickedStickerPoly!=null ? pickedStickerPoly[1] : -1;
+                if (newSticker != perViewState.iStickerUnderMouse
+                 || newPoly != perViewState.iPolyUnderMouse)
+                {
+                    perViewState.iStickerUnderMouse = newSticker;
+                    perViewState.iPolyUnderMouse = newPoly;
+                    view.repaint();
+                }
             }
         });
+
+        if (perViewState.restrictRoll)
+            initiateZeroRoll(perViewState,
+                             model.genericPuzzleDescription.getFaceCentersAtRest(),
+                             perViewState.viewMat4d,
+                             perViewState.viewMat3d,
+                             perViewState.nFrames90,
+                             view);
 
     } // attachListeners
 
     /** Constructor. */
     public MC4DViewGuts(String puzzleDescriptionString)
     {
-        this.model = new MC4DModel(puzzleDescriptionString);
-        this.glue = new GenericGlue(model);
+        // The following does nothing more than set this.model,
+        // since there are no listeners of any kind yet.
+        setModel(new MC4DModel(puzzleDescriptionString));
     }
 
     // PAINT
@@ -751,7 +782,7 @@ public class MC4DViewGuts
         if (perViewState.spinDelta != null) // note, the old applet had an additional test "and not dragging" but we don't need it because spinDelta is never set during dragging now, dragDelta is instead
         {
             if (perViewState.restrictRoll)
-                perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, glue.zeroOutRollOnSpinDelta(perViewState.spinDelta));
+                perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, zeroOutRollOnSpinDelta(perViewState, perViewState.spinDelta));
             else
                 perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, perViewState.spinDelta);
             view.repaint();
@@ -888,11 +919,12 @@ public class MC4DViewGuts
             return bestIFace;
         } // findFaceCenterClosestToYZArc
 
-        public void initiateZeroRoll(PerViewState perViewState,
-                                     float viewMat4d[][],
-                                     float viewMat3d[][],
-                                     float nFrames90,
-                                     Component view)
+        public static void initiateZeroRoll(PerViewState perViewState,
+                                            float faceCenters[][],
+                                            float viewMat4d[][],
+                                            float viewMat3d[][],
+                                            float nFrames90,
+                                            Component view)
         {
             // XXX FUDGE! get rid of this when I get rid of corresponding fudge in display
             {
@@ -908,7 +940,6 @@ public class MC4DViewGuts
                 viewMat3d = paddedViewMat3d;
             }
 
-            float faceCenters[][] = model.genericPuzzleDescription.getFaceCentersAtRest();
             float pointOnYZArc[] = new float[4]; // zeros... and [3] is left zero
             int iFace = findFaceCenterClosestToYZArc(faceCenters,
                                                      viewMat4d,
@@ -944,7 +975,7 @@ public class MC4DViewGuts
 
         // Uses the zeroRollPole from the most recent call
         // to initiatezeroRoll. // XXX should not
-        public float[][] zeroOutRollAndMaybeTiltOnSpinDelta(PerViewState perViewState,
+        public static float[][] zeroOutRollAndMaybeTiltOnSpinDelta(PerViewState perViewState,
                                                             float spindelta[][],
                                                             boolean zeroOutTiltToo)
         {
@@ -990,15 +1021,15 @@ public class MC4DViewGuts
         } // zeroOutRollAndMaybeTiltOnSpinDelta
 
         // when dragging, we allow tilt changes
-        public float[][] zeroOutRollOnSpinDelta(PerViewState perViewState,
-                                                float spindelta[][])
+        public static float[][] zeroOutRollOnSpinDelta(PerViewState perViewState,
+                                                       float spindelta[][])
         {
             return zeroOutRollAndMaybeTiltOnSpinDelta(perViewState, spindelta, false);
         }
         // when autospinning, we don't allow tilt changes,
         // or it would just drift to the min or max tilt, which looks dumb
-        public float[][] zeroOutRollAndTiltOnSpinDelta(PerViewState perViewState,
-                                                       float spindelta[][])
+        public static float[][] zeroOutRollAndTiltOnSpinDelta(PerViewState perViewState,
+                                                              float spindelta[][])
         {
             return zeroOutRollAndMaybeTiltOnSpinDelta(perViewState, spindelta, true);
         }
