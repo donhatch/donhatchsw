@@ -176,6 +176,7 @@
                 that should cut stuff down by a factor of 100 maybe
 
         PIE IN THE SKY:
+            - be able to copy one or several viewing params from one view to another-- and/or tie certain ones together!  when params are tied together, hovering over the param control in one view control panel should make it light up everywhere! yeah!
             - figure out how to do "contiguous cubies" generically-- is it possible in terms of the others?  probably not... unless I modify the shrink behavior so it always likes up the outer ones?  Hmm, I think this would be a different "shrink mode" that shrinks stickers towards the face boundaries?  YES!  DO IT!
 
             - hmm... wireframe around the non-shrunk sliced geometry would be nice!
@@ -192,7 +193,8 @@
             - fade out to transparent instead of suddenly turning inside out?
                 This would nicely light up the center,
                 And would also help mask the sorting failures
-                on faces that are very close to flat
+                on faces that are very close to flat.  I think this would
+                look beautiful, especially on the big 120-cell-based puzzles
             - ha, for the {5}x{4}, it could be fudged so the cubical facets
                 behave like they have full symmetry-- it would allow stickers
                 to slide off of the pentprism face and onto a cube face.
