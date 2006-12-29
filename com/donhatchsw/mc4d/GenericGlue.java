@@ -1137,7 +1137,7 @@ public class GenericGlue
     {
         GenericGlue genericGlue = this;
 
-        // steal PolygonManager's stuff-- this should be an interface but that's not allowed here apparently
+        // steal PolygonManager's stuff-- this should be an interface but that's not allowed here for some reason
         abstract class InterpFunc { public abstract float func(float f); }
         InterpFunc sine_interp = new InterpFunc() {
             public float func(float x) { return (float)(Math.sin((x - .5) * Math.PI) + 1) / 2; }
