@@ -730,12 +730,19 @@ public class MC4DViewGuts
     } // attachListeners
 
     /** Constructor. */
-    public MC4DViewGuts(String puzzleDescriptionString)
+    public MC4DViewGuts()
     {
-        // The following does nothing more than set this.model,
-        // since there are no listeners of any kind yet.
-        setModel(new MC4DModel(puzzleDescriptionString));
+        //
+        // Nothing!
+        // We don't even take a model in the constructor;
+        // the caller has to call setModel(model) instead (or leave it null).
+        // This may seem like a pain but it makes it
+        // so they are always thinking in terms of attaching and detaching,
+        // and they won't have to go rooting through the API
+        // looking for setModel later.
+        //
     }
+
 
     // PAINT
     void paint(Component view, Graphics g)
@@ -1074,10 +1081,12 @@ public class MC4DViewGuts
     //
     // Make a modern viewer based on a JPanel.
     //
-    public static void makeExampleModernViewer(final MC4DViewGuts guts,
+    public static void makeExampleModernViewer(final MC4DModel model,
                                                final int x, final int y,
                                                final int w, final int h)
     {
+        final MC4DViewGuts guts = new MC4DViewGuts();
+        guts.setModel(model);
         final JPanel myPanel = new JPanel() {
             public void paintComponent(Graphics g)
             {
@@ -1130,9 +1139,9 @@ public class MC4DViewGuts
                 char c = ke.getKeyChar();
                 if (c == 'N'-'A'+1) // ctrl-N
                     if (ke.isShiftDown())
-                        makeExampleAncientViewer(guts,x+20+w,y+20,w,h,false); // ctrl-shift-N
+                        makeExampleAncientViewer(model,x+20+w,y+20,w,h,false); // ctrl-shift-N
                     else
-                        makeExampleModernViewer(guts,x+20,y+20,w,h);  // ctrl-n
+                        makeExampleModernViewer(model,x+20,y+20,w,h);  // ctrl-n
             }
         });
     } // makeExampleModernViewer
@@ -1141,11 +1150,13 @@ public class MC4DViewGuts
     //
     // Make an ancient viewer based on a canvas.
     //
-    public static void makeExampleAncientViewer(final MC4DViewGuts guts,
+    public static void makeExampleAncientViewer(final MC4DModel model,
                                                 final int x, final int y,
                                                 final int w, final int h,
                                                 final boolean doDoubleBuffer)
     {
+        final MC4DViewGuts guts = new MC4DViewGuts();
+        guts.setModel(model);
         final Canvas myCanvas = new Canvas() {
             private Image backBuffer = null;
             int bbw=0, bbh=0;
@@ -1238,9 +1249,9 @@ public class MC4DViewGuts
                 char c = ke.getKeyChar();
                 if (c == 'N'-'A'+1) // ctrl-N
                     if (ke.isShiftDown())
-                        makeExampleModernViewer(guts,x+20-w,y+20,w,h); // ctrl-shift-N
+                        makeExampleModernViewer(model,x+20-w,y+20,w,h); // ctrl-shift-N
                     else
-                        makeExampleAncientViewer(guts,x+20,y+20,w,h,doDoubleBuffer);  // ctrl-n
+                        makeExampleAncientViewer(model,x+20,y+20,w,h,doDoubleBuffer);  // ctrl-n
             }
         });
     } // makeExampleAncientViewer
@@ -1258,12 +1269,12 @@ public class MC4DViewGuts
 
         String puzzleDescription = args[0];
 
-        MC4DViewGuts guts = new MC4DViewGuts(puzzleDescription);
+        MC4DModel model = new MC4DModel(puzzleDescription);
 
-        makeExampleModernViewer(guts, 50,50, 300,300);
+        makeExampleModernViewer(model, 50,50, 300,300);
 
         boolean doDoubleBuffer = true; // make it even more sucky than necessary
-        makeExampleAncientViewer(guts, 350,50, 300,300, doDoubleBuffer);
+        makeExampleAncientViewer(model, 350,50, 300,300, doDoubleBuffer);
 
     } // main
 
