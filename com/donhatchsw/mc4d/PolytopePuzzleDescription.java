@@ -1,36 +1,91 @@
 /*
-    RELNOTES:
-    =========
+    VERSION 4.0 RELNOTES:
+    =====================
+        Changes:
+            - The Ctrl key no longer works to simulate the middle mouse;
+              use the Alt key instead.  This is more standard,
+              and the Ctrl key is now being used for other things
+              ("Require Ctrl Key to Spin Drag", and centering
+              arbitrary elements, both described below).
+             
         This version has the following enhancements:
-            - "Require Ctrl Key to Spin Drag" preference
+
+            - New "Require Ctrl Key to Spin Drag" preference
+                If this box is unchecked (the default),
+                then un-ctrled mouse actions (click, drag)
+                will affect the 3d orientation
+                (in addition to doing twists on the puzzle)
+                and ctrled mouse actions will not.
+                If the box is checked, then the opposite holds--
+                un-ctrled mouse actions will *not* affect the 3d orientation,
+                and ctrled mouse actions *will*,
+                and furthermore ctrled mouse actions will not do twists.
+                To summarize:
+                                   default    "Require Ctrl Key To Spin Drag"
+                             +----------------+------------------+
+                   un-ctrled |    twists yes  |    twists yes    |
+                             |    3drot yes   |    3drot no      |
+                             +----------------+------------------+
+                    ctrled   |    twists yes  |    twists no     |
+                             |    3drot no    |    3drot yes     |
+                             +----------------+------------------+
+                Note the following implications.
+                    - The default ("Don't require Ctrl Key to Spin Drag")
+                      is good for casual usage-- you can easily 3d rotate,
+                      and apply puzzle twists, all with the mouse
+                      without touching the keyboard.  However, it has
+                      the disadvantage that the mouse functions
+                      are overloaded-- for example if you click to do a twist,
+                      you might accidentally drag and change the puzzle's
+                      orientation; conversely, if you click to stop
+                      the spinning, and you happen to land on a sticker,
+                      you will also get a puzzle twist that you didn't intend.
+                    - "Require Ctrl Key To Spin Drag" mode allows more control
+                      since the mouse functions are not overloaded--
+                      you press Ctrl when you want to affect
+                      the 3d orientation (which means you won't accidentally
+                      twist) and you release it when you want to do twists
+                      (which means you won't accidentally knock
+                      the 3d orientation that you painstakingly created,
+                      or stop a nice spin if you have one going).
+                    - As just noted, in "Require Ctrl Key To Spin Drag"
+                      mode, you can solve the puzzle while it's spinning,
+                      since when you click to twist it won't stop the spin.
+                      However, even if you are in the default mode,
+                      you can still do a twist without stopping the spin
+                      if you want-- simply hold down the ctrl key
+                      when you click to twist.
+
             - "Restrict Roll" preference
-               (only works for generic puzzles currently)
+               (only works for generic puzzles currently) XXX might not be true by the time I'm through
             - Friendlier interface to the 2x2x2x2 puzzle
                that lets you use the same moves as for the other puzzles
             - You can now 4d-rotate any element
                (vertex, edge, 2d face, hyperface) of the puzzle
-               to the center, not just hyperface centers.
+               to the center of the view, not just the hyperface centers.
                To 4d-rotate an arbitrary element to the center,
-               ctrl-middle-click on it.  Middle-click without ctrl
-               rotates the face to the center, as it always did.
+               ctrl-middle-click on it.  Middle-click without holding down ctrl
+               rotates the entire hyperface face to the center,
+               as it always did.
                (only works for generic puzzles currently)
             - Speed of twists and rotations
-               have been adjusted to feel more uniform for different angles
-               (small angles are slower and large angles are faster
+               have been adjusted to feel more uniform for different
+               rotation amounts
+               (small rotations are slower and large rotations are faster
                than before, so that the acceleration feels the same
                for all types of moves).
+            - You can hold down the shift key while twisting
+              to get a smooth double twist.
+              (Or hold down both shift keys for a quadruple twist!)
             - Better depth sorting of polygons
                (still doesn't always work though)
                (only works for generic puzzles currently)
             - Lots of new puzzle types available from the Puzzle menu.
                These are called "generic puzzles" and they are a work
                in progress.
-        Generic puzzles have the following limitations currently:
+        Generic puzzles have the following limitations in this release:
             - no save/load (menus are probably misleading)
             - no macros (menus are probably misleading)
-            - can't twist (or undo or redo)
-               while a twist or cheat is in progress
-               (which means you can't double-click to do a move twice)
             - only 8 colors still, even when more than 8 faces
             - some of the even-length puzzles have spurious extra
               very thin stickers at the halfway planes
@@ -45,7 +100,6 @@
               This can cause short but noticeable pauses during
               twisting or rotating.  This will be fixed in a future release.
             - exceptions everywhere if you try to do unimplemented stuff
-        And the following enhancements:
 
     ISSUES:
     =======
@@ -210,6 +264,25 @@
                 Definitely in 3d, if there is a center tile,
                 that is the only one that should map to a grip
                 and that is the only one that should light up
+            - since puzzle descriptions are immutable
+                and functions of only the prescription,
+                it would be nice if it could be automatically
+                shared... store it in a hash table...
+                but we'd need to be able to release when no one
+                has a ref to it any more... how to detect this?
+                Hmm, maybe it's a reference queue:
+                    http://java.sun.com/developer/technicalArticles/ALT/RefObj/
+                describes an app that uses it for caching
+                    http://builder.com.com/5100-6386-1049546.html
+                Ah- I think it's just using a WeakHashMap!
+                Hmm, what if a key is in two WeakHashMaps
+                and nowhere else-- is the garbage collector
+                smart enough to reclaim it?
+                And, see:
+                    http://www.cs.wisc.edu/~cs368-1/JavaTutorial/jdk1.2/api/java/util/WeakHashMap.html
+                warns that the value should not strongly
+                refer to the key!  So when the key is a string,
+                it should do a new String(string).
 */
 
 package com.donhatchsw.mc4d;
