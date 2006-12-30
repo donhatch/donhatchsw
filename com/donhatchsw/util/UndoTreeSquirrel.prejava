@@ -39,8 +39,8 @@ public class UndoTree
 
 
     private com.donhatchsw.compat.ArrayList/*<Node>*/ nodes; // set in ctor
-    private com.donhatchsw.compat.ArrayList sharedNotifiers; // set in ctor
-    private com.donhatchsw.compat.ArrayList privateNotifiers = new com.donhatchsw.compat.ArrayList();
+    private com.donhatchsw.compat.ArrayList sharedListeners; // set in ctor
+    private com.donhatchsw.compat.ArrayList privateListeners = new com.donhatchsw.compat.ArrayList();
 
     //
     // An UndoTree is actually a view into the nodes (the model).
@@ -56,8 +56,8 @@ public class UndoTree
     private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this
     private int currentNodeIndex; // set in ctor
 
-    /** A notifier callback that you can create and install using either addSharedNotifier or addPrivateNotifier. */
-    public interface Notifier
+    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. */
+    public interface Listener
     {
         public void somethingChanged();
     }
@@ -68,19 +68,20 @@ public class UndoTree
     * but a position label created via setPrivateLabel() will only be seen
     * in the view in which it was created.
     */
+    // CTOR    (for quick find in editor)
     public UndoTree(UndoTree other)
     {
         if (other == null)
         {
             this.nodes = new com.donhatchsw.compat.ArrayList();
-            this.sharedNotifiers = new com.donhatchsw.compat.ArrayList();
             this.nodes.add(new Node(-1,null));
+            this.sharedListeners = new com.donhatchsw.compat.ArrayList();
             this.currentNodeIndex = 0;
         }
         else
         {
             this.nodes = other.nodes;
-            this.sharedNotifiers = other.sharedNotifiers;
+            this.sharedListeners = other.sharedListeners;
             this.currentNodeIndex = other.currentNodeIndex;
             // XXX should copy preferred child indices from the other too! and maybe private labels, but not sure about that. maybe that should be an argument to the constructor?
         }
@@ -126,7 +127,15 @@ public class UndoTree
 
         currentNodeIndex = newChildIndex;
 
-        checkSane(); // XXX don't do this here
+        //checkSane(); // don't do this here, it's expensive
+
+        // Note the sharedListeners list covers all the listeners
+        // on the privateListers
+        synchronized(sharedListeners)
+        {
+            for (int i = 0; i < sharedListeners.size(); ++i)
+                ((Listener)sharedListeners.get(i)).somethingChanged();
+        }
     }
     /** Performs an undo; that is, changes the current position to be one step closer to the root of the tree, returning the Object that was originally passed to Do() when the tree edge was created. */
     public Object undo()
@@ -136,6 +145,11 @@ public class UndoTree
             Node currentNode = (Node)nodes.get(currentNodeIndex);
             Object item = currentNode.itemOnEdgeFromParentToMe;
             currentNodeIndex += currentNode.parent; // relative
+            synchronized(privateListeners)
+            {
+                for (int i = 0; i < privateListeners.size(); ++i)
+                    ((Listener)privateListeners.get(i)).somethingChanged();
+            }
             return item;
         }
         else
@@ -154,6 +168,11 @@ public class UndoTree
             currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
         currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex]; // relative
         currentNode = (Node)nodes.get(currentNodeIndex);
+        synchronized(privateListeners)
+        {
+            for (int i = 0; i < privateListeners.size(); ++i)
+                ((Listener)privateListeners.get(i)).somethingChanged();
+        }
         return currentNode.itemOnEdgeFromParentToMe;
     }
     /**
@@ -171,6 +190,11 @@ public class UndoTree
             if (currentNodeInfo.preferredChildIndex+1 < currentNode.children.length)
                 currentNodeInfo.preferredChildIndex++;
         }
+        synchronized(privateListeners)
+        {
+            for (int i = 0; i < privateListeners.size(); ++i)
+                ((Listener)privateListeners.get(i)).somethingChanged();
+        }
     }
     /**
     * Changes the preferred child of the current position (i.e. the path that will be taken by a redo) to the next younger child than the current favorite, if there is one.
@@ -186,6 +210,11 @@ public class UndoTree
             if (currentNodeInfo.preferredChildIndex-1 >= 0)
                 currentNodeInfo.preferredChildIndex--;
         }
+        synchronized(privateListeners)
+        {
+            for (int i = 0; i < privateListeners.size(); ++i)
+                ((Listener)privateListeners.get(i)).somethingChanged();
+        }
     }
     /** Oh, and this one updates the model too. Sets a label at the current position that will be seen by other views of this undo tree. */
     public void setSharedLabel(Object sharedLabel)
@@ -195,6 +224,11 @@ public class UndoTree
         {
             currentNode.sharedLabel = sharedLabel;
         }
+        synchronized(sharedListeners)
+        {
+            for (int i = 0; i < sharedListeners.size(); ++i)
+                ((Listener)sharedListeners.get(i)).somethingChanged();
+        }
     }
     /** Sets a label at the current position that will not be seen by other views of this undo tree. */
     public void setPrivateLabel(Object privateLabel)
@@ -202,49 +236,45 @@ public class UndoTree
         Node currentNode = (Node)nodes.get(currentNodeIndex);
         PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         privateNodeInfo.privateLabel = privateLabel;
+        synchronized(privateListeners)
+        {
+            for (int i = 0; i < privateListeners.size(); ++i)
+                ((Listener)privateListeners.get(i)).somethingChanged();
+        }
     }
 
     /**
     * Installs a callback that will get called after
-    * any change is made to the shared model,
-    * that is, when Do or setSharedLabel is called.
+    * any change is made,
+    * that is, when Do or setSharedLabel is called (by any view of the tree)
+    * or when one of undo, redo, preferOlderChild, preferYoungerChild, setPrivateLabel
+    * is called by this view of the tree.
     */
-    public void addSharedNotifier(Notifier notifier)
+    public void addListener(Listener notifier)
     {
-        synchronized(sharedNotifiers)
+        synchronized(sharedListeners)
         {
-            sharedNotifiers.remove(notifier); // XXX should throw IllegalArgumentException instead
-            sharedNotifiers.add(notifier);
+            sharedListeners.remove(notifier); // XXX should throw IllegalArgumentException instead
+            sharedListeners.add(notifier);
         }
-    }
-    /** Removes a callback that was previously installed with addSharedNotifier(). */
-    public void removeSharedNotifier(Notifier notifier)
+        synchronized(privateListeners)
+        {
+            privateListeners.remove(notifier);
+            privateListeners.add(notifier); // XXX should throw IllegalArgumentException
+        }
+    } // addListener
+    /** Removes a callback that was previously installed with addListener(). */
+    public void removeListener(Listener notifier)
     {
-        synchronized(sharedNotifiers)
+        synchronized(sharedListeners)
         {
-            sharedNotifiers.remove(notifier);
+            sharedListeners.remove(notifier);
         }
-    }
-    /**
-    * Installs a callback that will get called after any change
-    * is made to the UndoTree (Do, undo, redo, preferOlderChild, preferYoungerChild, setSharedLabel, setPrivateLabel).
-    */
-    public void addPrivateNotifier(Notifier notifier)
-    {
-        synchronized(privateNotifiers)
+        synchronized(privateListeners)
         {
-            privateNotifiers.remove(notifier);
-            privateNotifiers.add(notifier);
+            privateListeners.remove(notifier);
         }
-    }
-    /** Removes a callback that was previously installed with addPrivateNotifier(). */
-    public void removePrivateNotifier(Notifier notifier)
-    {
-        synchronized(privateNotifiers)
-        {
-            privateNotifiers.remove(notifier);
-        }
-    }
+    } // removeListener
 
 
     /**
