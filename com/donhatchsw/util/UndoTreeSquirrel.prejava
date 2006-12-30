@@ -5,7 +5,7 @@ import com.donhatchsw.compat.regex;
 #include "macros.h"
 
 /**
-* Experimenting with the idea of an undo tree.
+* Experimenting with the idea of an undo/redo tree.
 * <a href="http://www.geocities.com/Hollywood/Set/4159/COULDWRK.WAV">It could work</a>!
 */
 
@@ -846,194 +846,90 @@ public class UndoTree
         }
 
 
-
-
-
-
-    // Graphical viewer for an undo tree, for the example main program
-    private static void makeUndoTreeViewer(final UndoTree undoTree,
-                                           final int x, final int y, final int w, final int h,
-                                           final int nThingsDoneEver[],
-                                           final int nViewsAlive[])
-    {
-        nViewsAlive[0]++;
-        final boolean stretchOutAlongTimeLine[] = {false};
-        final javax.swing.JPanel jpanel = new javax.swing.JPanel() {
-            // PAINT
-            public void paintComponent(java.awt.Graphics g)
-            {
-                System.out.println("    in paintComponent");
-                ItemToString itemToString = new ItemToString(){
-                    public String regex()
-                    {
-                        //return "-?\\d+"; // ints
-                        //return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
-                        return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
-                    }
-                    public String itemToString(Object obj)
-                    {
-                        // is this method necessary? could just take the regex
-                        //return obj.toString(); // ints
-                        return obj.toString(); // identifiers too
-                    }
-                };
-                ItemFromString itemFromString = new ItemFromString(){
-                    public String regex()
-                    {
-                        // return "-?\\d+"; // ints
-                        //return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
-                        return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
-                    }
-                    public Object itemFromString(String s)
-                    {
-                        //return Integer.valueOf(s); // ints
-                        return s; // identifiers
-                    }
-                };
-                //String indentSpaces = "    ";
-                //String separatorSpaces = System.getProperty("line.separator");
-                String indentSpaces = "";
-                String separatorSpaces = " ";
-
-                UndoTree t0 = undoTree;
-                String s1 = t0.toString(itemToString, indentSpaces, separatorSpaces);
-                System.out.println(s1);
-
-                if (true)
-                {
-                    UndoTree t2 = UndoTree.fromString(s1, itemFromString);
-                    String s3 = t2.toString(itemToString, indentSpaces, separatorSpaces);
-                    if (!s3.equals(s1))
-                    {
-                        System.out.println(s3);
-                        assert(false);
-                    }
-                }
-                System.out.println("===================================");
-                System.out.println(undoTree.toStringVisualCool(stretchOutAlongTimeLine[0]));
-                System.out.println("    out paintComponent");
-            }
-        };
-
-        final javax.swing.JFrame jframe = new javax.swing.JFrame("Undo Tree View");
-        jframe.setForeground(java.awt.Color.white);
-        jframe.setForeground(java.awt.Color.black);
-        jframe.setContentPane(jpanel);
-        jframe.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent event)
-            {
-                if (--nViewsAlive[0] == 0)
-                {
-                    System.out.println("Chow!");
-                    System.exit(0); // asinine way of doing things
-                }
-                else
-                {
-                    System.out.println("ciao!");
-                }
-            }
-        });
-
-        //jframe.pack();
-        jframe.setSize(w,h);
-        jframe.setLocation(x,y);
-        jframe.setVisible(true);
-        jpanel.requestFocus(); // seems to be needed initially, if running in <=1.2 on linux, anyway.  weird!
-
-        jpanel.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent ke)
-            {
-                boolean horizontal = false; // set to true when concentrating on the uncool ascii tree
-
-                //System.out.println("in keyPressed: "+ke);
-                int keyCode = ke.getKeyCode();
-                if (keyCode == java.awt.event.KeyEvent.VK_ENTER)
-                {
-                    //Integer doneItem = new Integer(nThingsDoneEver[0]++);
-                    int n = nThingsDoneEver[0]++;
-                    String doneItem = ""+(char)('A'+n%26);
-                    n /= 26;
-                    while (n != 0)
-                    {
-                        doneItem = ""+(char)('A'+n%27-1) + doneItem; // XXX haha lame, it messes up after AA... figure out the right way to to it, you doofus
-                        n /= 27;
-                    }
-
-                    undoTree.Do(doneItem);
-                    System.out.println("Did "+doneItem);
-                }
-                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_LEFT : java.awt.event.KeyEvent.VK_UP))
-                {
-                    //Integer undoneItem = (Integer)undoTree.undo();
-                    String undoneItem = (String)undoTree.undo();
-                    System.out.println("undid "+undoneItem);
-                }
-                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_RIGHT : java.awt.event.KeyEvent.VK_DOWN))
-                {
-                    //Integer redoneItem = (Integer)undoTree.redo();
-                    String redoneItem = (String)undoTree.redo();
-                    System.out.println("redid "+redoneItem);
-                }
-                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_UP : java.awt.event.KeyEvent.VK_LEFT))
-                {
-                    System.out.println("going younger, if you're lucky");
-                    // XXX clunky
-                    if (undoTree.undo() != null)
-                    {
-                        undoTree.preferYoungerChild();
-                        undoTree.redo();
-                    }
-                }
-                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_DOWN : java.awt.event.KeyEvent.VK_RIGHT))
-                {
-                    System.out.println("going older, if you're lucky");
-                    // XXX clunky
-                    if (undoTree.undo() != null)
-                    {
-                        undoTree.preferOlderChild();
-                        undoTree.redo();
-                    }
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_S)
-                {
-                    undoTree.setSharedLabel("this_is_a_shared_label"); // XXX get rid of the underscores when I make the parsing smarter
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_P)
-                {
-                    undoTree.setPrivateLabel("this_is_a_private_label"); // XXX get rid of the underscores when I make the parsing smarter
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_N)
-                {
-                    makeUndoTreeViewer(new UndoTree(undoTree), x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewsAlive);
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_T)
-                {
-                    stretchOutAlongTimeLine[0] ^= true;
-                    System.out.println("stretchOutAlongTimeLine "+!stretchOutAlongTimeLine[0]+" -> "+stretchOutAlongTimeLine[0]);
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
-                      && ke.isControlDown())
-                {
-                    System.exit(0);
-                }
-                jpanel.repaint();
-            }
-        });
-    } // makeUndoTreeViewer
-
-
     /** Test/example program. */
-    // XXX TODO: replace this with a smaller clearer one that just does the littler examples that I gave above.  The viewer stuff is good but is best left to a separate viewer program.
     public static void main(String args[])
     {
         System.out.println("in main");
-        UndoTree undoTree0 = new UndoTree(null);
-        UndoTree undoTree1 = new UndoTree(undoTree0);
-        int nThingsDoneEver[] = new int[]{0};
-        int nViewsAlive[] = new int[]{0};
-        // XXX argh, I guess I need to do the invokeLater thing?  bleah, why must everything be so difficult in swing :-(
-        makeUndoTreeViewer(undoTree0, 20, 20, 300, 40, nThingsDoneEver, nViewsAlive);
-        //makeUndoTreeViewer(undoTree1, 320, 20, 300, 40, nThingsDoneEver, nViewsAlive);
-        System.out.println("out main");
+        UndoTree tree = new UndoTree();
+        tree.Do("A");
+        tree.Do("B");
+        tree.setPrivateLabel("private_before_fork");
+        tree.undo();
+        tree.undo();
+        tree.Do("C");
+        tree.setPrivateLabel("shared_before_fork");
+        tree.undo();
+        tree.preferYoungerChild();
+        tree.redo();
+        tree.Do("D");
+        tree.Do("E");
+        UndoTree tree0 = tree;
+        UndoTree tree1 = new UndoTree(tree);
+        tree0.Do("F0");
+        tree1.Do("G1");
+        tree0.Do("H0");
+        tree0.setPrivateLabel("0_private_after_fork");
+        tree1.setPrivateLabel("1_private_after_fork");
+        tree0.setSharedLabel("0_shared_after_fork");
+        tree1.setSharedLabel("1_shared_after_fork");
+        System.out.println("Tree 0:");
+        System.out.println(tree0.toStringVisualCool(true));
+        System.out.println(tree0.toStringVisualCool(false));
+        System.out.println("Tree 1:");
+        System.out.println(tree1.toStringVisualCool(true));
+        System.out.println(tree1.toStringVisualCool(false));
+
+
+
+        UndoTree.ItemToString itemToString = new UndoTree.ItemToString(){
+            public String regex()
+            {
+                //return "-?\\d+"; // ints
+                if (false)
+                    return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
+                else
+                    return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
+            }
+            public String itemToString(Object obj)
+            {
+                // is this method necessary? could just take the regex
+                //return obj.toString(); // ints
+                return obj.toString(); // identifiers too
+            }
+        };
+        UndoTree.ItemFromString itemFromString = new UndoTree.ItemFromString(){
+            public String regex()
+            {
+                // return "-?\\d+"; // ints
+                if (false)
+                    return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
+                else
+                    return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
+            }
+            public Object itemFromString(String s)
+            {
+                //return Integer.valueOf(s); // ints
+                return s; // identifiers
+            }
+        };
+        //String indentSpaces = "    ";
+        //String separatorSpaces = System.getProperty("line.separator");
+        String indentSpaces = "";
+        String separatorSpaces = " ";
+
+        String s0 = tree0.toString(itemToString, indentSpaces, separatorSpaces);
+        String s1 = tree1.toString(itemToString, indentSpaces, separatorSpaces);
+
+        UndoTree t0 = UndoTree.fromString(s0, itemFromString);
+        UndoTree t1 = UndoTree.fromString(s1, itemFromString);
+
+        String u0 = t0.toString(itemToString, indentSpaces, separatorSpaces);
+        String u1 = t1.toString(itemToString, indentSpaces, separatorSpaces);
+        PRINT(s0);
+        PRINT(u0);
+        assert(u0.equals(s0));
+        assert(u1.equals(s1));
+
+        // XXX maybe should compare the visualcools too?
     } // main
 } // class UndoTree
