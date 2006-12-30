@@ -1,25 +1,31 @@
+#include "macros.h"
+
+package com.donhatchsw.util;
+
 /**
 * Class to perform a topological sort on the integers 0..n-1,
-* given a partial order (i.e. a list of pairs i,j such that result[i]<result[j]
+* given a partial order (i.e. a list of pairs i,j such that result[i]&lt;result[j]
 * is required to hold).
 * <p>
 * The simplest way to use this class is to simply say:
+* <pre>
 *     int result[] = new int[n];
 *     int nComponents = TopSorter.topsort(result, partialOrder);
+* </pre>
 * <p>
 * However, if you are going to be doing many topsorts,
 * it is more efficient to do the following instead, since all the memory
 * allocations are done up front:
+* <pre>
 *     int result[] = new int[maxN];
 *     int partialOrder[] = new int[maxPartialOrderSize][2];
 *     TopSorter topsorter = new TopSorter(maxN, maxPartialOrderSize);
 *     ... fill in the first partialOrderSize entries of partialOrder ...
 *     topsorter.topsort(n, result, partialOrderSize, partialOrder)
+* </pre>
+* The implementation uses Kosaraju's algorithm:
+*      <a href="http://en.wikipedia.org/wiki/Strongly_connected_component">http://en.wikipedia.org/wiki/Strongly_connected_component</a>
 */
-#include "macros.h"
-
-package com.donhatchsw.util;
-
 public class TopSorter
 {
     // always-compiled-in assertion
