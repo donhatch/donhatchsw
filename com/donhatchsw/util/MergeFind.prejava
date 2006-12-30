@@ -1,5 +1,9 @@
 package com.donhatchsw.util;
-// http://www.cs.cmu.edu/afs/cs.cmu.edu/academic/class/15451-f00/www/lectures/lect1024
+
+/**
+* Union-find using path compression and weighted decisions, i.e. the right way.
+* <a href="http://www.cs.cmu.edu/afs/cs.cmu.edu/academic/class/15451-f00/www/lectures/lect1024">http://www.cs.cmu.edu/afs/cs.cmu.edu/academic/class/15451-f00/www/lectures/lect1024</a>
+*/
 public class MergeFind
 {
     private int parent[];
