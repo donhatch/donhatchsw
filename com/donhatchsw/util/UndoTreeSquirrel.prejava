@@ -21,7 +21,8 @@ public class UndoTree
 {
     private static class Node
     {
-        public Node parent;
+        public int parentOffset; // 0 means parent is previous; -1 means it's the node before that, etc.
+        public Node parent; // XXX get rid
         public Object itemOnEdgeFromParentToMe;
         public Object sharedLabel = null; // views might want to share a label or have their own private one
         public Node children[] = new Node[0];
@@ -32,9 +33,10 @@ public class UndoTree
         }
     } // Node
 
+    private com.donhatchsw.compat.ArrayList/*<Node>*/ nodes = new com.donhatchsw.compat.ArrayList();
+
     //
-    // An UndoTree is actually a view into
-    // an implicit model formed by the nodes and their links.
+    // An UndoTree is actually a view into the nodes (the model).
     // So we don't store view-specific info on the nodes themselves;
     // that way multiple views can look at the same model.
     //
@@ -43,16 +45,17 @@ public class UndoTree
         public Object privateLabel = null;
         public int preferredChildIndex = -1;
     }
+    private com.donhatchsw.compat.ArrayList/*<PrivateNodeInfo>*/ privateNodeInfos;
+    private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this
     private Node currentNode; // set in ctor
-    private java.util.Hashtable/*<Node>*/ privateNodeInfos = new java.util.Hashtable();
 
-    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable privateNodeInfos, Node node)
+    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable privateNodeInfosHashtable, Node node)
     {
-        PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfos.get(node);
+        PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
         if (info == null)
         {
             info = new PrivateNodeInfo();
-            privateNodeInfos.put(node, info);
+            privateNodeInfosHashtable.put(node, info);
         }
         return info;
     }
@@ -83,9 +86,10 @@ public class UndoTree
             currentNode.children = (Node[])Arrays.append(currentNode.children, newChild);
         }
 
-        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfos, currentNode);
+        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         currentNodeInfo.preferredChildIndex = newChildIndex;
         currentNode = newChild;
+        nodes.add(newChild);
     }
     // Oh, and this one updates the model too.
     public void setSharedLabel(Object sharedLabel)
@@ -115,7 +119,7 @@ public class UndoTree
         {
             if (currentNode.children.length == 0)
                 return null;
-            PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfos, currentNode);
+            PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
             if (currentNodeInfo.preferredChildIndex == -1)
                 currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
             currentNode = currentNode.children[currentNodeInfo.preferredChildIndex];
@@ -124,7 +128,7 @@ public class UndoTree
     }
     public void preferOlderChild()
     {
-        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfos, currentNode);
+        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         synchronized(currentNode)
         {
             if (currentNodeInfo.preferredChildIndex == -1)
@@ -136,7 +140,7 @@ public class UndoTree
     }
     public void preferYoungerChild()
     {
-        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfos, currentNode);
+        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         synchronized(currentNode)
         {
             if (currentNodeInfo.preferredChildIndex == -1)
@@ -147,7 +151,7 @@ public class UndoTree
     }
     public void setPrivateLabel(Object privateLabel)
     {
-        PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfos, currentNode);
+        PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         privateNodeInfo.privateLabel = privateLabel;
     }
 
@@ -200,10 +204,10 @@ public class UndoTree
         public String regex();
         public String itemToString(Object item);
     }
-    interface StringToItem
+    interface ItemFromString
     {
         public String regex();
-        public Object stringToItem(String s);
+        public Object itemFromString(String s);
     }
     public String toString(ItemToString itemToString, String indentSpaces, String separatorSpaces) // hmm, I guess itemToString isn't needed, it could just use the item's toString... but then where do we get the regex from?
     {
@@ -211,6 +215,15 @@ public class UndoTree
             throw new IllegalArgumentException("UndoTree.toString given indent string "+Arrays.toStringCompact(indentSpaces)+", should be zero or more spaces");
         if (!regex.matches(separatorSpaces, "\\s+"))
             throw new IllegalArgumentException("UndoTree.toString given separator string "+Arrays.toStringCompact(separatorSpaces)+", should be one or more spaces");
+        String itemRegex = itemToString.regex();
+        regex.Matcher itemMatcher = regex.Pattern.compile(itemRegex).matcher("dummy");
+        // XXX dup code in the other place, should combine
+        if (itemMatcher.reset("").matches())
+            throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches the empty string, that's messed up!");
+        if (itemMatcher.reset("u").matches()
+         || itemMatcher.reset("u1").matches()
+         || itemMatcher.reset("u10").matches())
+            throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
 
 
         // Get the nodes into an array and figure out each one's index...
@@ -233,8 +246,6 @@ public class UndoTree
             }
         }
 
-        String itemRegex = itemToString.regex();
-        regex.Matcher itemMatcher = regex.Pattern.compile(itemRegex).matcher("");
 
         StringBuffer sb = new StringBuffer();
         sb.append("{");
@@ -254,7 +265,7 @@ public class UndoTree
                 sb.append(nodeToIndex.get(node.parent)).append(" ").append(itemString).append(" ");
             }
 
-            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfos, node);
+            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node);
             // If printing private label and there's no shared label,
             // print (null) for the shared label
             if (node.sharedLabel != null
@@ -276,13 +287,21 @@ public class UndoTree
     } // toString
 
     /** assumption: item's string representation has no spaces in it, unless inside double quotes */
-    public static UndoTree fromString(String s, StringToItem stringToItem)
+    public static UndoTree fromString(String s, ItemFromString itemFromString)
     {
-        String itemRegex = stringToItem.regex();
-        regex.Matcher itemMatcher = regex.Pattern.compile(itemRegex).matcher("");
+        String itemRegex = itemFromString.regex();
+        regex.Matcher itemMatcher = regex.Pattern.compile(itemRegex).matcher("dummy");
+        // XXX dup code in the other place, should combine
+        if (itemMatcher.reset("").matches())
+            throw new IllegalArgumentException("UndoTree.fromString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches the empty string, that's messed up!");
+        if (itemMatcher.reset("u").matches()
+         || itemMatcher.reset("u1").matches()
+         || itemMatcher.reset("u10").matches())
+            throw new IllegalArgumentException("UndoTree.fromString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
+
         regex.Matcher doubleQuotedStringMatcher = regex.Pattern.compile(
             "\"((\\\\|.)*)\""
-        ).matcher("");
+        ).matcher("dummy");
 
         // XXX maybe should retain original s for error messages
         s = s.trim();
@@ -312,13 +331,14 @@ public class UndoTree
         // We'll stick these in the created undoTree when we
         // create it at the end
         Node currentNode = null;
-        java.util.Hashtable/*<node, PrivateNodeInfo>*/ privateNodeInfos = new java.util.Hashtable();
+        java.util.Hashtable/*<node, PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable();
 
 
         Node nodes[] = new Node[Math.max(words.length,1)]; // at most this many
-        com.donhatchsw.compat.ArrayList/*Node*/ children[] = new com.donhatchsw.compat.ArrayList[nodes.length]; // XXX candidate for ListArray or ArrayList or whatever when I make one
+        com.donhatchsw.compat.ArrayList/*Node*/ children[] = new com.donhatchsw.compat.ArrayList[nodes.length];
         int nNodes = 0;
         nodes[nNodes++] = new Node(null, null);
+        children[nNodes-1] = new com.donhatchsw.compat.ArrayList();
 
         int iWord = 0;
         while (iWord < words.length)
@@ -337,7 +357,7 @@ public class UndoTree
             //
             if (doubleQuotedStringMatcher.reset(words[iWord]).matches())
             {
-                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfos, nodes[nNodes-1]);
+                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, nodes[nNodes-1]);
                 privateNodeInfo.privateLabel = words[iWord].substring(1,words[iWord].length()-1); // XXX need to unescapify!
                 iWord++;
             }
@@ -362,9 +382,9 @@ public class UndoTree
             //
             // optional parenthesized (<preferredChild>) for this node
             //
-            if (regex.matches(words[iWord], "(-?\\d+)"))
+            if (regex.matches(words[iWord], "\\(-?\\d+\\)"))
             {
-                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfos, nodes[nNodes-1]);
+                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, nodes[nNodes-1]);
                 privateNodeInfo.preferredChildIndex = Integer.parseInt(words[iWord].substring(1,words[iWord].length()-1));
                 // XXX should bounds check, but have to do that at the end!
                 iWord++;
@@ -400,7 +420,7 @@ public class UndoTree
             //
             if (itemMatcher.reset(words[iWord]).matches())
             {
-                Object item = stringToItem.stringToItem(words[iWord]);
+                Object item = itemFromString.itemFromString(words[iWord]);
                 nodes[nNodes-1].itemOnEdgeFromParentToMe = item;
                 iWord++;
             }
@@ -421,7 +441,7 @@ public class UndoTree
         {
             nodes[iNode].children = new Node[children[iNode].size()];
             children[iNode].toArray(nodes[iNode].children);
-            PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfos.get(nodes[iNode]);
+            PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashtable.get(nodes[iNode]);
             if (privateNodeInfo != null
              && (privateNodeInfo.preferredChildIndex < -1 // -1 is always okay
               || privateNodeInfo.preferredChildIndex >= nodes[iNode].children.length))
@@ -432,7 +452,7 @@ public class UndoTree
 
         UndoTree undoTree = new UndoTree(null);
         undoTree.currentNode = currentNode;
-        undoTree.privateNodeInfos = privateNodeInfos;
+        undoTree.privateNodeInfosHashtable = privateNodeInfosHashtable;
 
         return undoTree;
     } // fromString
@@ -458,19 +478,55 @@ public class UndoTree
                 System.out.println("===================================");
                 System.out.println(undoTree.toStringVisual());
                 System.out.println("===================================");
-                String indentSpaces = "    ";
-                String separatorSpaces = System.getProperty("line.separator");
-                System.out.println(undoTree.toString(new ItemToString(){
+                ItemToString itemToString = new ItemToString(){
                     public String regex()
                     {
-                        return "\\d+";
+                        //return "-?\\d+"; // ints
+                        //return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
+                        return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
                     }
                     public String itemToString(Object obj)
                     {
                         // is this method necessary? could just take the regex
-                        return obj.toString();
+                        //return obj.toString(); // ints
+                        return obj.toString(); // identifiers too
                     }
-                }, indentSpaces, separatorSpaces));
+                };
+                ItemFromString itemFromString = new ItemFromString(){
+                    public String regex()
+                    {
+                        // return "-?\\d+"; // ints
+                        //return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
+                        return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
+                    }
+                    public Object itemFromString(String s)
+                    {
+                        //return Integer.valueOf(s); // ints
+                        return s; // identifiers
+                    }
+                };
+                String indentSpaces = "    ";
+                String separatorSpaces = System.getProperty("line.separator");
+                //String indentSpaces = "";
+                //String separatorSpaces = " ";
+
+                UndoTree t0 = undoTree;
+                String s1 = t0.toString(itemToString, indentSpaces, separatorSpaces);
+                System.out.println(s1);
+
+                if (true)
+                {
+                    UndoTree t2 = UndoTree.fromString(s1, itemFromString);
+                    String s3 = t2.toString(itemToString, indentSpaces, separatorSpaces);
+                    System.out.println(s3);
+                    if (false)
+                    {
+                        UndoTree t4 = UndoTree.fromString(s3, itemFromString);
+                        String s5 = t4.toString(itemToString, indentSpaces, separatorSpaces);
+                        System.out.println(s5);
+                    }
+                }
+
                 System.out.println("===================================");
                 System.out.println("    out paintComponent");
             }
@@ -510,18 +566,21 @@ public class UndoTree
                 int keyCode = ke.getKeyCode();
                 if (keyCode == java.awt.event.KeyEvent.VK_ENTER)
                 {
-                    Integer doneItem = new Integer(nThingsDoneEver[0]++);
+                    //Integer doneItem = new Integer(nThingsDoneEver[0]++);
+                    String doneItem = ""+(char)('A'+nThingsDoneEver[0]++);
                     undoTree.Do(doneItem);
                     System.out.println("Did "+doneItem);
                 }
                 else if (keyCode == (ascii ? java.awt.event.KeyEvent.VK_LEFT : java.awt.event.KeyEvent.VK_UP))
                 {
-                    Integer undoneItem = (Integer)undoTree.undo();
+                    //Integer undoneItem = (Integer)undoTree.undo();
+                    String undoneItem = (String)undoTree.undo();
                     System.out.println("undid "+undoneItem);
                 }
                 else if (keyCode == (ascii ? java.awt.event.KeyEvent.VK_RIGHT : java.awt.event.KeyEvent.VK_DOWN))
                 {
-                    Integer redoneItem = (Integer)undoTree.redo();
+                    //Integer redoneItem = (Integer)undoTree.redo();
+                    String redoneItem = (String)undoTree.redo();
                     System.out.println("redid "+redoneItem);
                 }
                 else if (keyCode == (ascii ? java.awt.event.KeyEvent.VK_UP : java.awt.event.KeyEvent.VK_LEFT))
@@ -548,6 +607,11 @@ public class UndoTree
                 {
                     makeUndoTreeViewer(new UndoTree(undoTree), x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewsAlive);
                 }
+                else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
+                      && ke.isControlDown())
+                {
+                    System.exit(0);
+                }
                 jpanel.repaint();
             }
         });
@@ -564,7 +628,7 @@ public class UndoTree
         int nViewsAlive[] = new int[]{0};
         // XXX argh, I guess I need to do the invokeLater thing?  bleah, why must everything be so difficult in swing :-(
         makeUndoTreeViewer(undoTree0, 20, 20, 300, 40, nThingsDoneEver, nViewsAlive);
-        makeUndoTreeViewer(undoTree1, 320, 20, 300, 40, nThingsDoneEver, nViewsAlive);
+        //makeUndoTreeViewer(undoTree1, 320, 20, 300, 40, nThingsDoneEver, nViewsAlive);
         System.out.println("out main");
     } // main
 } // class UndoTree
