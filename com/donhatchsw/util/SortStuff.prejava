@@ -5,6 +5,12 @@ package com.donhatchsw.util;
 * for use in any version of java.
 * The reason for this is that Comparator and sorting stuff
 * didn't come until Java 1.2.
+* <p>
+* This interface is cleaner, anyway--
+* it never relies on the objects to *be* anything (which always comes
+* back to bite you in the end); it always uses comparators instead.
+* <p>
+* XXX should get moved to the compat package
 */
 public class SortStuff
 {
