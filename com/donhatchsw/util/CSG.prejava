@@ -743,7 +743,7 @@ public final class CSG
                                     }
                                 double coords[] = new double[fullDim];
                                 FORI (iCoord, fullDim)
-                                    coords[iCoord] = com.donhatchsw.compat.Double.parseDouble(tokens[iCoord]);
+                                    coords[iCoord] = Double.valueOf(tokens[iCoord]).doubleValue();
                                 cells[iCell] = new Polytope(iDim,
                                                             fullDim,
                                                             new SPolytope[0],
@@ -2152,7 +2152,7 @@ public final class CSG
                         String coeffString = foo.substring(open+1, close);
                         //PRINT(coeffString);
                         // XXX need to catch
-                        double coeff = com.donhatchsw.compat.Double.parseDouble(coeffString);
+                        double coeff = Double.valueOf(coeffString).doubleValue();
                         wythoff = (double[])Arrays.append(wythoff, coeff);
                         foo = foo.substring(close+1);
                     }
