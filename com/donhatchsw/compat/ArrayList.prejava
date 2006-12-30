@@ -2,9 +2,11 @@ package com.donhatchsw.compat;
 #include "macros.h"
 /**
 * ArrayList for 1.1, implemented from the doc.
-* Supposed to be like 40x faster than Vector (since not synchronized), I don't know.
-* Some methods are not implemented yet;
-* basically, I implemented what I needed so far.
+* Supposed to be like 40x faster than Vector (since it's not synchronized),
+* I don't know.
+* Lots of methods are not implemented yet;
+* basically, I implemented stuff as I needed it.
+* If something gets called that isn't implemented, it throws an Error.
 */
 public class ArrayList
 {
@@ -18,8 +20,7 @@ public class ArrayList
     }
     public ArrayList()
     {
-        this.array = new Object[1];
-        this.size = 0;
+        this(1);
     }
     public ArrayList(ArrayList from) // this is Collection in the real ArrayList
     {
@@ -63,13 +64,14 @@ public class ArrayList
     }
     public java.lang.Object[] toArray()
     {
-        unimplemented();
-        return null;
+        return toArray(new Object[size]);
     }
-    public java.lang.Object[] toArray(java.lang.Object[] a)
+    public java.lang.Object[] toArray(java.lang.Object[] to)
     {
-        unimplemented();
-        return null;
+        if (to.length < size)
+            return toArray();
+        System.arraycopy(array, 0, to, 0, size);
+        return to;
     }
     public java.lang.Object get(int index)
     {
@@ -96,7 +98,7 @@ public class ArrayList
             unimplemented();
         if (size == array.length)
         {
-            int newCapacity = array.length/2*3+1; // funny arithmetic to postpone overflow a little longer
+            int newCapacity = array.length/2*3+2; // funny arithmetic to postpone overflow a little longer
             assert(newCapacity > size);
             Object newArray[] = new Object[newCapacity];
             System.arraycopy(array, 0, newArray, 0, array.length);
@@ -106,7 +108,11 @@ public class ArrayList
     }
     public java.lang.Object remove(int index)
     {
-        unimplemented();
+        if (index < 0 || index >= size)
+            throw new IndexOutOfBoundsException("ArrayList.remove: "+index+" out of bounds 0.."+size+"-1");
+        if (index != size-1)
+            unimplemented();
+        size--;
         return null;
     }
     public boolean remove(java.lang.Object element)
@@ -132,5 +138,25 @@ public class ArrayList
     protected void removeRange(int fromIndex, int toIndex)
     {
         unimplemented();
+    }
+
+    /** test program */
+    public static void main(String args[])
+    {
+        ArrayList a = new ArrayList();
+        assert(a.size() == 0);
+        a.add("foo");
+        assert(a.size() == 1);
+        a.add("bar");
+        assert(a.size() == 2);
+        a.add(null);
+        assert(a.size() == 3);
+        a.remove(a.size()-1);
+        assert(a.size() == 2);
+        a.add("baz");
+        assert(a.size() == 3);
+        a.clear();
+        assert(a.size() == 0);
+        System.out.println("All good!");
     }
 } // class ArrayList
