@@ -1,24 +1,18 @@
-/**
-* Experimenting with the idea of an undo tree.
-* <pre>
-        *
-        |
-        *
-        |\
-        * *
-          |\
-          * *
-*
-*/
-
 package com.donhatchsw.util;
 
 import com.donhatchsw.compat.regex;
 
 #include "macros.h"
 
+/**
+* Experimenting with the idea of an undo tree.
+* <a href="http://www.geocities.com/Hollywood/Set/4159/COULDWRK.WAV">It could work</a>!
+*/
+
 public class UndoTree
 {
+    // A node represents a state of the application;
+    // Do's, undo's, redo's are edges that go from node to node.
     private static class Node
     {
         public int parent; // index relative to mine
@@ -32,7 +26,21 @@ public class UndoTree
         }
     } // Node
 
+    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable privateNodeInfosHashtable, Node node)
+    {
+        PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
+        if (info == null)
+        {
+            info = new PrivateNodeInfo();
+            privateNodeInfosHashtable.put(node, info);
+        }
+        return info;
+    } // PrivateNodeInfo
+
+
     private com.donhatchsw.compat.ArrayList/*<Node>*/ nodes; // set in ctor
+    private com.donhatchsw.compat.ArrayList sharedNotifiers; // set in ctor
+    private com.donhatchsw.compat.ArrayList privateNotifiers = new com.donhatchsw.compat.ArrayList();
 
     //
     // An UndoTree is actually a view into the nodes (the model).
@@ -48,36 +56,51 @@ public class UndoTree
     private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this
     private int currentNodeIndex; // set in ctor
 
-    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable privateNodeInfosHashtable, Node node)
+    /** A notifier callback that you can create and install using either addSharedNotifier or addPrivateNotifier. */
+    public interface Notifier
     {
-        PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
-        if (info == null)
-        {
-            info = new PrivateNodeInfo();
-            privateNodeInfosHashtable.put(node, info);
-        }
-        return info;
+        public void somethingChanged();
     }
 
-    /** Creates a new undo tree.  If other is null, creates one from scratch, otherwise creates a view into the same tree as the other one. */
+    /**
+    * Creates a new view onto an existing undo tree.
+    * Both views will see the labels created via setSharedLabel(),
+    * but a position label created via setPrivateLabel() will only be seen
+    * in the view in which it was created.
+    */
     public UndoTree(UndoTree other)
     {
         if (other == null)
         {
             this.nodes = new com.donhatchsw.compat.ArrayList();
+            this.sharedNotifiers = new com.donhatchsw.compat.ArrayList();
             this.nodes.add(new Node(-1,null));
             this.currentNodeIndex = 0;
         }
         else
         {
             this.nodes = other.nodes;
+            this.sharedNotifiers = other.sharedNotifiers;
             this.currentNodeIndex = other.currentNodeIndex;
-            // XXX should copy preferred child indices from the other too! and maybe private labels!
+            // XXX should copy preferred child indices from the other too! and maybe private labels, but not sure about that. maybe that should be an argument to the constructor?
         }
     }
 
-    /** This is the only method that actually updates the model. */
-    // XXX should provide a way to notify all views?
+    /** Creates a new undo tree from scratch; equivalent to UndoTree(null). */
+    public UndoTree()
+    {
+        this(null);
+    }
+
+    /** Changes the current position to be a newly created child
+    * of the current current position,
+    * associating the given Object with the newly created transition to the new child.
+    * The new child is made to be the preferred child
+    * of the former current position.
+    * This method actually affects the model, i.e. it modifies the tree
+    * (whereas other methods such as undo, and redo
+    * only affects the individual view of the model).
+    */
     public void Do(Object item)
     {
         if (item == null)
@@ -105,15 +128,7 @@ public class UndoTree
 
         checkSane(); // XXX don't do this here
     }
-    /** Oh, and this one updates the model too. */
-    public void setSharedLabel(Object sharedLabel)
-    {
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
-        synchronized(currentNode)
-        {
-            currentNode.sharedLabel = sharedLabel;
-        }
-    }
+    /** Performs an undo; that is, changes the current position to be one step closer to the root of the tree, returning the Object that was originally passed to Do() when the tree edge was created. */
     public Object undo()
     {
         if (currentNodeIndex != 0)
@@ -128,7 +143,7 @@ public class UndoTree
             return null;
         }
     }
-    /** Always goes down on the preferred child.  If you want to go to a different child, you need to explicitly make that the preferred child first. */
+    /** Performs a redo; that is, changes the current position to be the preferred child of the current current position, returning the Object that was originally passed to Do() when that tree edge was created.  If you want to go to a different child, you need to explicitly make that the preferred child first. */
     public Object redo()
     {
         Node currentNode = (Node)nodes.get(currentNodeIndex);
@@ -141,6 +156,9 @@ public class UndoTree
         currentNode = (Node)nodes.get(currentNodeIndex);
         return currentNode.itemOnEdgeFromParentToMe;
     }
+    /**
+    * Changes the preferred child of the current position (i.e. the path that will be taken by a redo) to the next older child than the current favorite, if there is one.
+    */
     public void preferOlderChild()
     {
         Node currentNode = (Node)nodes.get(currentNodeIndex);
@@ -154,6 +172,9 @@ public class UndoTree
                 currentNodeInfo.preferredChildIndex++;
         }
     }
+    /**
+    * Changes the preferred child of the current position (i.e. the path that will be taken by a redo) to the next younger child than the current favorite, if there is one.
+    */
     public void preferYoungerChild()
     {
         Node currentNode = (Node)nodes.get(currentNodeIndex);
@@ -166,6 +187,16 @@ public class UndoTree
                 currentNodeInfo.preferredChildIndex--;
         }
     }
+    /** Oh, and this one updates the model too. Sets a label at the current position that will be seen by other views of this undo tree. */
+    public void setSharedLabel(Object sharedLabel)
+    {
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        synchronized(currentNode)
+        {
+            currentNode.sharedLabel = sharedLabel;
+        }
+    }
+    /** Sets a label at the current position that will not be seen by other views of this undo tree. */
     public void setPrivateLabel(Object privateLabel)
     {
         Node currentNode = (Node)nodes.get(currentNodeIndex);
@@ -173,66 +204,97 @@ public class UndoTree
         privateNodeInfo.privateLabel = privateLabel;
     }
 
-    // Print the easy way, so it looks recursive
-    // but it's not really
-    // (and it's actually ambiguous and misleading
-    // because I can look like I'm under a node I'm not really under)
-    /*
-         *  sharedLabel=null
-             A
-             *  sharedLabel=null
-                 B
-                 *  sharedLabel=null
-                     C
-                     *  sharedLabel=null
-                         D
-                         *  sharedLabel=null
-                             E
-                            (*) sharedLabel=null
-                     F
-                     *  sharedLabel=null
-                         G
-                         *  sharedLabel=null
-                             H
-                             *  sharedLabel=null
-                             I
-                             *  sharedLabel=null
+    /**
+    * Installs a callback that will get called after
+    * any change is made to the shared model,
+    * that is, when Do or setSharedLabel is called.
     */
-    public String toStringVisual0()
+    public void addSharedNotifier(Notifier notifier)
     {
-        StringBuffer sb = new StringBuffer();
-        int nNodes = nodes.size();
-        int depths[] = new int[nNodes];
-        for (int i = 0; i < depths.length; ++i)
-            depths[i] = -1;
-        depths[0] = 0;
-        for (int iNode = 0; iNode < nNodes; ++iNode)
+        synchronized(sharedNotifiers)
         {
-            Node node = (Node)nodes.get(iNode);
-
-            assert(depths[iNode] >= 0);
-            if (iNode != 0)
-            {
-                for (int iDepth = 0; iDepth < depths[iNode]; ++iDepth)
-                    sb.append("    ");
-                sb.append(" "+node.itemOnEdgeFromParentToMe+"\n");
-            }
-            for (int iDepth = 0; iDepth < depths[iNode]; ++iDepth)
-                sb.append("    ");
-            sb.append((iNode==currentNodeIndex ? "(*)" : " * ")+" sharedLabel="+com.donhatchsw.util.Arrays.toStringCompact(node.sharedLabel)+"\n");
-            // XXX private label?
-
-            // Record each child's depth
-            for (int iChildInParent = 0; iChildInParent < node.children.length; ++iChildInParent)
-            {
-                int iChild = iNode + node.children[iChildInParent];
-                depths[iChild] = depths[iNode] + 1;
-            }
+            sharedNotifiers.remove(notifier); // XXX should throw IllegalArgumentException instead
+            sharedNotifiers.add(notifier);
         }
-        return sb.toString();
-    } // toStringVisual0
+    }
+    /** Removes a callback that was previously installed with addSharedNotifier(). */
+    public void removeSharedNotifier(Notifier notifier)
+    {
+        synchronized(sharedNotifiers)
+        {
+            sharedNotifiers.remove(notifier);
+        }
+    }
+    /**
+    * Installs a callback that will get called after any change
+    * is made to the UndoTree (Do, undo, redo, preferOlderChild, preferYoungerChild, setSharedLabel, setPrivateLabel).
+    */
+    public void addPrivateNotifier(Notifier notifier)
+    {
+        synchronized(privateNotifiers)
+        {
+            privateNotifiers.remove(notifier);
+            privateNotifiers.add(notifier);
+        }
+    }
+    /** Removes a callback that was previously installed with addPrivateNotifier(). */
+    public void removePrivateNotifier(Notifier notifier)
+    {
+        synchronized(privateNotifiers)
+        {
+            privateNotifiers.remove(notifier);
+        }
+    }
 
-    public String toStringVisualCool()
+
+    /**
+    * Returns a string something like this if stretchOutAlongTimeLine is true:
+    * <pre>
+    *   +---------+
+    *   |    0    |
+    *   |    +-+  | A
+    *   |    1 |  |
+    *   |  +-+ |  | B
+    *   |  2 | |  |
+    *   |    | |  | C
+    *   |    | 3  |
+    *   |    |    | D
+    *   |    4    |
+    *   |    |    | E
+    *   |   (5)   |
+    *   +---------+
+    * </pre>
+    * and something like this if stretchOutAlongTimeLine is false:
+    * <pre>
+    *   +---------+
+    *   |    0    |
+    *   |    +-+  | A C
+    *   |    1 3  |
+    *   |  +-+    | B D
+    *   |  2 4    |
+    *   |    |    | E
+    *   |   (5)   |
+    *   +---------+
+    * </pre>
+    * These were created by executing the following commands:
+    * <pre>
+    *   UndoTree tree = new UndoTree();
+    *   tree.Do("A");
+    *   tree.Do("B");
+    *   tree.undo();
+    *   tree.undo();
+    *   tree.Do("C");
+    *   tree.undo();
+    *   tree.preferYoungerChild();
+    *   tree.redo();
+    *   tree.Do("D");
+    *   tree.Do("E");
+    *   System.out.println(tree.toStringVisualCool(true));
+    *   System.out.println(tree.toStringVisualCool(false));
+    * </pre>
+    */
+    // TODO: compactify even more if it gets bushy then stringy then bushy, the lower bush can go under the upper bush
+    public String toStringVisualCool(boolean stretchOutAlongTimeLine)
     {
         int nNodes = nodes.size();
         //
@@ -258,34 +320,33 @@ public class UndoTree
         // Top down, figure out the left and right logical bounds allotted to
         // each node.  Parent decides for each child.
         //
-        int starts[] = new int[nNodes];
-        starts[0] = 0;
+        int xstarts[] = new int[nNodes];
+        xstarts[0] = 0;
         for (int iNode = 0; iNode < nNodes; iNode++)
         {
             Node node = (Node)nodes.get(iNode);
-            int childStart = starts[iNode];
+            int childStart = xstarts[iNode];
             for (int iChild = 0; iChild < node.children.length; ++iChild)
             {
                 int childIndex = iNode + node.children[iChild];
-                starts[childIndex] = childStart;
+                xstarts[childIndex] = childStart;
                 childStart += widths[childIndex];
             }
         }
         //
-        // Bottom up, decide the position within the node's bounds
+        // Bottom up, decide the x position within the node's bounds
         // that we will display the node.  We want to display it
         // directly over its preferred child.
         // These are physical, not logical any more.
         //
         int x[] = new int[nNodes];
-        int y[] = new int[nNodes];
         for (int iNode = nNodes-1; iNode >= 0; iNode--)
         {
             Node node = (Node)nodes.get(iNode);
             PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node); // XXX shouldn't make it if it doesn't exist, that's lame
             if (node.children.length == 0)
             {
-                x[iNode] = 2*starts[iNode]+1;
+                x[iNode] = 2*xstarts[iNode]+1;
             }
             else
             {
@@ -294,10 +355,49 @@ public class UndoTree
                     preferredChildIndex = node.children.length-1;
                 x[iNode] = x[iNode + node.children[preferredChildIndex]];
             }
-            y[iNode] = 2*iNode;
         }
 
-        char buf[][] = new char[2*nNodes-1][1 + 2*widths[0]];
+        int possibleEdgeLengths[] = {3,4,6};
+        int edgeLengths[] = new int[nNodes];
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+            edgeLengths[iNode] = possibleEdgeLengths[(int)(Math.random()*possibleEdgeLengths.length)];
+
+        int y[] = new int[nNodes];
+        //
+        // Decide the y position
+        // where we will display the node.
+        //
+        if (stretchOutAlongTimeLine)
+        {
+            // Easy!
+            for (int iNode = 0; iNode < nNodes; ++iNode)
+                y[iNode] = 2*iNode;
+        }
+        else
+        {
+            //
+            // Top down, put each child at a level
+            // just below its parent.
+            // (Well leave one line between them for the edge.)
+            //
+            y[0] = 0;
+            for (int iNode = 0; iNode < nNodes; iNode++)
+            {
+                Node node = (Node)nodes.get(iNode);
+                int childStart = xstarts[iNode];
+                for (int iChild = 0; iChild < node.children.length; ++iChild)
+                {
+                    int childIndex = iNode + node.children[iChild];
+                    y[childIndex] = y[iNode] + 2;
+                }
+            }
+        }
+
+        int maxy = 0;
+        for (int iNode = 0; iNode < nNodes; iNode++)
+            maxy = Math.max(maxy, y[iNode]);
+
+        char buf[][] = new char[maxy+1][1 + 2*widths[0]];
         for (int i = 0; i < buf.length; ++i)
         for (int j = 0; j < buf[i].length; ++j)
             buf[i][j] = ' ';
@@ -329,11 +429,32 @@ public class UndoTree
                 {
                     int childIndex = iNode + node.children[iChild];
                     buf[y[iNode]+1][x[childIndex]] = node.children.length==1 ? '|' : '+';
-                    for (int j = y[iNode]+2; j < 2*childIndex; ++j)
+                    for (int j = y[iNode]+2; j < y[childIndex]; ++j)
                         buf[j][x[childIndex]] = '|';
                 }
             }
         }
+
+        //
+        // Put annotations into the annotation buffer.
+        //
+        StringBuffer annotations[] = new StringBuffer[buf.length];
+        for (int i = 0; i < annotations.length; ++i)
+            annotations[i] = new StringBuffer();
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+        {
+            Node node = (Node)nodes.get(iNode);
+            if (iNode != 0)
+            {
+                annotations[y[iNode]-1].append(" "+node.itemOnEdgeFromParentToMe);
+            }
+            if (node.sharedLabel != null)
+                annotations[y[iNode]].append(" sharedLabel="+Arrays.toStringCompact(node.sharedLabel));
+            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node); // XXX shouldn't make it if it doesn't exist, that's lame
+            if (privateNodeInfo.privateLabel != null)
+                annotations[y[iNode]].append(" privateLabel="+Arrays.toStringCompact(privateNodeInfo.privateLabel));
+        }
+
 
         //
         // Put the rectangular buffer on the left,
@@ -350,66 +471,12 @@ public class UndoTree
             sb.append("| ");
             sb.append(buf[i]);
             sb.append(" |" );
-            if (i%2 == 0)
-            {
-                int iNode = i/2;
-                Node node = (Node)nodes.get(iNode);
-                if (node.sharedLabel != null)
-                    sb.append(" sharedLabel="+Arrays.toStringCompact(node.sharedLabel));
-                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node); // XXX shouldn't make it if it doesn't exist, that's lame
-                if (privateNodeInfo.privateLabel != null)
-                    sb.append(" privateLabel="+Arrays.toStringCompact(privateNodeInfo.privateLabel));
-            }
-            else
-            {
-                sb.append(" "+((Node)nodes.get((i+1)/2)).itemOnEdgeFromParentToMe);
-            }
+            sb.append(annotations[i]);
             sb.append(nl);
         }
         sb.append("+"+repeat("-", buf[0].length+2)+"+"); // no nl
         return sb.toString();
     } // toStringVisualCool
-
-    /*
-                0
-                +---+---+       A
-                1   |   |
-                    |   |       B
-                    2   |
-                  +-+-+ |       C
-                  | | | 3
-                  | | |         D
-                  4 | |
-                    | |         E
-                    5 |
-                      |         F
-                      6
-                      |         G
-                      7 
-            Starting with this:
-            +-------+
-            |  0    | sharedLabel=null
-            |  +-+  | A
-            | (1)|  | sharedLabel=null
-            |  | |  | B
-            |  2 |  | sharedLabel=null
-            |    |  | C
-            |    3  | sharedLabel=null
-            +-------+
-            And adding a node to 1, produces this:
-            +---------+
-            |    0    |
-            |    +-+  | A
-            |    1 |  |
-            |  +-+ |  | B
-            |  2 | |  |
-            |    | |  | C
-            |    | 3  |
-            |    |    | D
-            |   (4)   |
-            +---------+
-    */
-
 
 
 
@@ -437,7 +504,33 @@ public class UndoTree
         public String regex();
         public Object itemFromString(String s);
     }
-    public String toString(ItemToString itemToString, String indentSpaces, String separatorSpaces) // hmm, I guess itemToString isn't needed, it could just use the item's toString... but then where do we get the regex from?
+    /**
+    * Returns a string something like this:
+    * <pre>
+    *   { A B (0) u2 C (you are here) u2 D E }
+    * </pre>
+    * You tell it how to stringify the individual items
+    * by passing in an itemToString functor, and a regex that describes
+    * what an item string can look like.
+    * The result can be turned back into another UndoTree
+    * by calling fromString(), so this is suitable for a save/load
+    * mechanism.
+    * <p>
+    * Note that the tokens "u", "u2", "u3" etc. are used
+    * to signify branching.  Your individual item regex is not allowed
+    * to accept any of these strings (since if it did, it would be
+    * impossible to tell whether "u" denoted an item or a branch indicator).
+    * <p>
+    * Similarly, the tokens "(0)", "(1)", etc. are used to signify
+    * the preferred child of a given position (i.e. which edge
+    * will be followed by a redo from that position).
+    * Your individual item regex is not allowed to accept these either.
+    * <p>
+    * XXX More salient example coming soon.
+    */
+    public String toString(ItemToString itemToString,
+                           String indentSpaces,
+                           String separatorSpaces) // hmm, I guess itemToString isn't needed, it could just use the item's toString... but then where do we get the regex from?
     {
         if (!regex.matches(indentSpaces, "\\s*"))
             throw new IllegalArgumentException("UndoTree.toString given indent string "+Arrays.toStringCompact(indentSpaces)+", should be zero or more spaces");
@@ -452,6 +545,10 @@ public class UndoTree
          || itemMatcher.reset("u1").matches()
          || itemMatcher.reset("u10").matches())
             throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
+        if (itemMatcher.reset("(0)").matches()
+         || itemMatcher.reset("(1)").matches()
+         || itemMatcher.reset("(10)").matches())
+            throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches a parenthesized number something like (2), can't do that because it's special!");
 
         StringBuffer sb = new StringBuffer();
         sb.append("{");
@@ -498,7 +595,7 @@ public class UndoTree
         return sb.toString();
     } // toString
 
-    /** assumption: item's string representation has no spaces in it, unless inside double quotes */
+    /** Parses a string that was created by toString(). */
     public static UndoTree fromString(String s, ItemFromString itemFromString)
     {
         String itemRegex = itemFromString.regex();
@@ -510,6 +607,10 @@ public class UndoTree
          || itemMatcher.reset("u1").matches()
          || itemMatcher.reset("u10").matches())
             throw new IllegalArgumentException("UndoTree.fromString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
+        if (itemMatcher.reset("(0)").matches()
+         || itemMatcher.reset("(1)").matches()
+         || itemMatcher.reset("(10)").matches())
+            throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches a parenthesized number something like (2), can't do that because it's special!");
 
         regex.Matcher doubleQuotedStringMatcher = regex.Pattern.compile(
             "\"((\\\\|.)*)\""
@@ -726,6 +827,7 @@ public class UndoTree
                                            final int nViewsAlive[])
     {
         nViewsAlive[0]++;
+        final boolean stretchOutAlongTimeLine[] = {false};
         final javax.swing.JPanel jpanel = new javax.swing.JPanel() {
             // PAINT
             public void paintComponent(java.awt.Graphics g)
@@ -758,10 +860,10 @@ public class UndoTree
                         return s; // identifiers
                     }
                 };
-                String indentSpaces = "    ";
-                String separatorSpaces = System.getProperty("line.separator");
-                //String indentSpaces = "";
-                //String separatorSpaces = " ";
+                //String indentSpaces = "    ";
+                //String separatorSpaces = System.getProperty("line.separator");
+                String indentSpaces = "";
+                String separatorSpaces = " ";
 
                 UndoTree t0 = undoTree;
                 String s1 = t0.toString(itemToString, indentSpaces, separatorSpaces);
@@ -778,8 +880,7 @@ public class UndoTree
                     }
                 }
                 System.out.println("===================================");
-                //System.out.println(undoTree.toStringVisual0());
-                System.out.println(undoTree.toStringVisualCool());
+                System.out.println(undoTree.toStringVisualCool(stretchOutAlongTimeLine[0]));
                 System.out.println("    out paintComponent");
             }
         };
@@ -875,6 +976,11 @@ public class UndoTree
                 {
                     makeUndoTreeViewer(new UndoTree(undoTree), x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewsAlive);
                 }
+                else if (keyCode == java.awt.event.KeyEvent.VK_T)
+                {
+                    stretchOutAlongTimeLine[0] ^= true;
+                    System.out.println("stretchOutAlongTimeLine "+!stretchOutAlongTimeLine[0]+" -> "+stretchOutAlongTimeLine[0]);
+                }
                 else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
                       && ke.isControlDown())
                 {
@@ -887,6 +993,7 @@ public class UndoTree
 
 
     /** Test/example program. */
+    // XXX TODO: replace this with a smaller clearer one that just does the littler examples that I gave above.  The viewer stuff is good but is best left to a separate viewer program.
     public static void main(String args[])
     {
         System.out.println("in main");
