@@ -1,11 +1,3 @@
-/**
-*  Stopgap implementation of some regex utilities
-*  that don't exist in java pre-1.4.
-*  Not everything is implemented but it's getting me by.
-*  My god what a lot of CRAP in this interface.
-*  XXX TODO: split uses greedy matching, not longest matching... need to think about how to do it better
-*  XXX TODO: should throw a PatternSyntaxException (which is a kind of IllegalArgumentException) and emulate the cool pointing-to-the-error thing.  http://java.sun.com/j2se/1.4.2/docs/api/java/util/regex/PatternSyntaxException.html#getMessage()
-*/
 
 package com.donhatchsw.compat;
 
@@ -13,21 +5,34 @@ import com.donhatchsw.util.Arrays; // XXX get rid of this dependency... it's for
 
 #include "macros.h" // XXX should try to get rid of this
 
+/**
+*  Stopgap implementation of some regex utilities
+*  that don't exist in java pre-1.4.
+*  Not everything is implemented but it's getting me by.
+*  My god what a lot of CRAP in this interface.
+*  XXX TODO: my split uses greedy matching, not longest matching like it should... need to think about how to do it right without being horribly inefficient if possible
+*/
 public class regex
 {
     private regex() {} // uninstantiatable
 
+    /** If set (which it is by default) and the standard java.util.regex library exists (i.e. if you're running a 1.4 or later vm) then the result of every operation will be checked against the result from the standard library, and an Error will be thrown if the results differ.*/
     public static boolean checkAgainstStandardVersion = true; // if available
+    /** If set and the standard java.util.regex library exists (i.e. if you're running a 1.4 or later vm) then the standard library will be used instead of this one. */
     public static boolean useStandardVersion = false; // if available
+    /**
+    * <pre>
+    *    0: nothing
+    *    1: basic
+    *    2: more detail, print out the FSM and execution trace and everything
+    * </pre>
+    */
     public static int verboseLevel = 0;
-        // 0: nothing
-        // 1: basic
-        // 2: more detail, print out the FSM and execution trace and everything
 
     /**
     * An IllegalArgumentException
     * whose message does the cool point-to-the-error-in-the-regex thing.
-    * XXX not implemented yet
+    * XXX probably it doesn't work right if the regex has newlines and stuff in it
     */
     public static class PatternSyntaxException extends IllegalArgumentException
     {
@@ -142,6 +147,19 @@ public class regex
         {
             this.theirMatcher = theirMatcher;
             this.myMatcher = myMatcher;
+        }
+
+        public Matcher reset(String input)
+        {
+            if (useStandardVersion || checkAgainstStandardVersion)
+                theirMatcher.reset(input);
+            if (!useStandardVersion || checkAgainstStandardVersion)
+                myMatcher.reset(input);
+            if (checkAgainstStandardVersion)
+            {
+                // nothing to check really, I don't think... maybe
+            }
+            return this;
         }
 
         private boolean _find_or_matches(boolean isFind, boolean isFindWithStart, int inputStartIfIsFindWithStart)
@@ -649,19 +667,19 @@ public class regex
             public String toString()
             {
                 StringBuffer sb = new StringBuffer();
-                sb.append("    patString=\""+patString+"\"\n");
-                sb.append("    "+states.length+" states\n");
+                sb.append("    patString=\"").append(patString).append("\"\n");
+                sb.append("    ").append(states.length).append(" states\n");
                 for (int iState = 0; iState < states.length; ++iState)
                 {
-                    sb.append("        "+iState+":\n");
+                    sb.append("        ").append(iState).append(":\n");
                     Transition transitions[] = states[iState].transitions;
                     for (int iTransition = 0; iTransition < transitions.length; ++iTransition)
                     {
                         Transition t = transitions[iTransition];
                         if (t.chars == null)
-                            sb.append("            --> "+t.nextState+"\n");
+                            sb.append("            --> ").append(t.nextState).append("\n");
                         else
-                            sb.append("            -"+(t.complement?"^":"")+"\""+t.chars+"\"-> "+t.nextState+"\n");
+                            sb.append("            -").append((t.complement?"^":"")).append("\"").append(t.chars+"\"-> ").append(t.nextState).append("\n");
 
                     }
                 }
@@ -1037,6 +1055,8 @@ public class regex
         private static java.lang.reflect.Method patternCompileMethod;
         private static java.lang.reflect.Method patternMatcherMethod;
         private static java.lang.reflect.Method patternSplitMethod;
+        private static java.lang.reflect.Method matcherReset0Method;
+        private static java.lang.reflect.Method matcherReset1Method;
         private static java.lang.reflect.Method matcherFind0Method;
         private static java.lang.reflect.Method matcherFind1Method;
         private static java.lang.reflect.Method matcherMatchesMethod;
@@ -1071,6 +1091,8 @@ public class regex
                 patternCompileMethod = patternClass.getMethod("compile", new Class[]{String.class});
                 patternMatcherMethod = patternClass.getMethod("matcher", new Class[]{charSequenceClass});
                 patternSplitMethod = patternClass.getMethod("split", new Class[]{charSequenceClass, int.class});
+                matcherReset0Method = matcherClass.getMethod("reset", new Class[]{});
+                matcherReset1Method = matcherClass.getMethod("reset", new Class[]{charSequenceClass});
                 matcherFind0Method = matcherClass.getMethod("find", new Class[]{});
                 matcherFind1Method = matcherClass.getMethod("find", new Class[]{int.class});
                 matcherMatchesMethod = matcherClass.getMethod("matches", new Class[]{});
@@ -1162,11 +1184,29 @@ public class regex
                 this.nativeMatcher = nativeMatcher;
             }
 
+            public Matcher reset(String input)
+            {
+                //nativeMatcher.reset(input);
+                try {
+                    matcherReset1Method.invoke(nativeMatcher, new Object[]{input}); // XXX why can I look in Pattern's privates?  that's messed up
+                    // XXX should make sure return value is expected type, maybe
+                    return this;
+                } catch (IllegalAccessException e) {
+                    System.err.println("IllegalAccessException trying to invoke Matcher.reset!?");
+                    assert(false);
+                    return null;
+                } catch (java.lang.reflect.InvocationTargetException e) {
+                    System.err.println("InvocationTargetException trying to invoke Matcher.reset: "+e);
+                    assert(false);
+                    return null;
+                }
+            }
+
             public boolean find(int inputStart)
             {
                 //return nativeMatcher.find();
                 try {
-                    return ((java.lang.Boolean)matcherFind1Method.invoke(nativeMatcher, new Object[]{new Integer(inputStart)})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
+                    return ((Boolean)matcherFind1Method.invoke(nativeMatcher, new Object[]{new Integer(inputStart)})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.find!?");
                     assert(false);
@@ -1181,7 +1221,7 @@ public class regex
             {
                 //return nativeMatcher.find();
                 try {
-                    return ((java.lang.Boolean)matcherFind0Method.invoke(nativeMatcher, new Object[]{})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
+                    return ((Boolean)matcherFind0Method.invoke(nativeMatcher, new Object[]{})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.find!?");
                     assert(false);
@@ -1196,7 +1236,7 @@ public class regex
             {
                 //return nativeMatcher.matches();
                 try {
-                    return ((java.lang.Boolean)matcherMatchesMethod.invoke(nativeMatcher, new Object[]{})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
+                    return ((Boolean)matcherMatchesMethod.invoke(nativeMatcher, new Object[]{})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.matches!?");
                     assert(false);
