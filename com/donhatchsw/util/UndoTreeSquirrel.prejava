@@ -21,19 +21,18 @@ public class UndoTree
 {
     private static class Node
     {
-        public int parentOffset; // 0 means parent is previous; -1 means it's the node before that, etc.
-        public Node parent; // XXX get rid
+        public int parent; // index relative to mine
         public Object itemOnEdgeFromParentToMe;
         public Object sharedLabel = null; // views might want to share a label or have their own private one
-        public Node children[] = new Node[0];
-        public Node(Node parent, Object itemOnEdgeFromParentToMe)
+        public int children[] = new int[0]; // indices relative to mine
+        public Node(int parent, Object itemOnEdgeFromParentToMe)
         {
             this.parent = parent;
             this.itemOnEdgeFromParentToMe = itemOnEdgeFromParentToMe;
         }
     } // Node
 
-    private com.donhatchsw.compat.ArrayList/*<Node>*/ nodes = new com.donhatchsw.compat.ArrayList();
+    private com.donhatchsw.compat.ArrayList/*<Node>*/ nodes; // set in ctor
 
     //
     // An UndoTree is actually a view into the nodes (the model).
@@ -47,7 +46,7 @@ public class UndoTree
     }
     private com.donhatchsw.compat.ArrayList/*<PrivateNodeInfo>*/ privateNodeInfos;
     private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this
-    private Node currentNode; // set in ctor
+    private int currentNodeIndex; // set in ctor
 
     private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable privateNodeInfosHashtable, Node node)
     {
@@ -64,36 +63,52 @@ public class UndoTree
     public UndoTree(UndoTree other)
     {
         if (other == null)
-            this.currentNode = new Node(null,null);
+        {
+            this.nodes = new com.donhatchsw.compat.ArrayList();
+            this.nodes.add(new Node(-1,null));
+            this.currentNodeIndex = 0;
+        }
         else
         {
-            this.currentNode = other.currentNode;
-            // XXX should copy preferred child indices from the other!
+            this.nodes = other.nodes;
+            this.currentNodeIndex = other.currentNodeIndex;
+            // XXX should copy preferred child indices from the other too! and maybe private labels!
         }
     }
 
-    // This is the only method that actually updates the model.
+    /** This is the only method that actually updates the model. */
     // XXX should provide a way to notify all views?
     public void Do(Object item)
     {
         if (item == null)
             throw new IllegalArgumentException("UndoTree.Do called with null item");
-        Node newChild = new Node(currentNode, item);
         int newChildIndex;
+        synchronized(nodes)
+        {
+            newChildIndex = nodes.size();
+            Node newChild = new Node(currentNodeIndex-newChildIndex, item);
+            nodes.add(newChild);
+        }
+
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        int newChildIndexInCurrent;
         synchronized(currentNode)
         {
-            newChildIndex = currentNode.children.length;
-            currentNode.children = (Node[])Arrays.append(currentNode.children, newChild);
+            newChildIndexInCurrent = currentNode.children.length;
+            currentNode.children = (int[])Arrays.append(currentNode.children, newChildIndex-currentNodeIndex);
         }
 
         PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
-        currentNodeInfo.preferredChildIndex = newChildIndex;
-        currentNode = newChild;
-        nodes.add(newChild);
+        currentNodeInfo.preferredChildIndex = newChildIndexInCurrent;
+
+        currentNodeIndex = newChildIndex;
+
+        checkSane(); // XXX don't do this here
     }
-    // Oh, and this one updates the model too.
+    /** Oh, and this one updates the model too. */
     public void setSharedLabel(Object sharedLabel)
     {
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
         synchronized(currentNode)
         {
             currentNode.sharedLabel = sharedLabel;
@@ -101,10 +116,11 @@ public class UndoTree
     }
     public Object undo()
     {
-        if (currentNode.parent != null)
+        if (currentNodeIndex != 0)
         {
+            Node currentNode = (Node)nodes.get(currentNodeIndex);
             Object item = currentNode.itemOnEdgeFromParentToMe;
-            currentNode = currentNode.parent;
+            currentNodeIndex += currentNode.parent; // relative
             return item;
         }
         else
@@ -115,19 +131,19 @@ public class UndoTree
     /** Always goes down on the preferred child.  If you want to go to a different child, you need to explicitly make that the preferred child first. */
     public Object redo()
     {
-        synchronized(currentNode)
-        {
-            if (currentNode.children.length == 0)
-                return null;
-            PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
-            if (currentNodeInfo.preferredChildIndex == -1)
-                currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
-            currentNode = currentNode.children[currentNodeInfo.preferredChildIndex];
-            return currentNode.itemOnEdgeFromParentToMe;
-        }
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        if (currentNode.children.length == 0)
+            return null;
+        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
+        if (currentNodeInfo.preferredChildIndex == -1)
+            currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
+        currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex]; // relative
+        currentNode = (Node)nodes.get(currentNodeIndex);
+        return currentNode.itemOnEdgeFromParentToMe;
     }
     public void preferOlderChild()
     {
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
         PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         synchronized(currentNode)
         {
@@ -140,6 +156,7 @@ public class UndoTree
     }
     public void preferYoungerChild()
     {
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
         PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         synchronized(currentNode)
         {
@@ -151,52 +168,263 @@ public class UndoTree
     }
     public void setPrivateLabel(Object privateLabel)
     {
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
         PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         privateNodeInfo.privateLabel = privateLabel;
     }
 
+    // Print the easy way, so it looks recursive
+    // but it's not really
+    // (and it's actually ambiguous and misleading
+    // because I can look like I'm under a node I'm not really under)
+    /*
+         *  sharedLabel=null
+             A
+             *  sharedLabel=null
+                 B
+                 *  sharedLabel=null
+                     C
+                     *  sharedLabel=null
+                         D
+                         *  sharedLabel=null
+                             E
+                            (*) sharedLabel=null
+                     F
+                     *  sharedLabel=null
+                         G
+                         *  sharedLabel=null
+                             H
+                             *  sharedLabel=null
+                             I
+                             *  sharedLabel=null
+    */
+    public String toStringVisual0()
+    {
+        StringBuffer sb = new StringBuffer();
+        int nNodes = nodes.size();
+        int depths[] = new int[nNodes];
+        for (int i = 0; i < depths.length; ++i)
+            depths[i] = -1;
+        depths[0] = 0;
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+        {
+            Node node = (Node)nodes.get(iNode);
 
-    private void _toStringVisual(StringBuffer sb,
-                           Node node,
-                           String indent)
+            assert(depths[iNode] >= 0);
+            if (iNode != 0)
+            {
+                for (int iDepth = 0; iDepth < depths[iNode]; ++iDepth)
+                    sb.append("    ");
+                sb.append(" "+node.itemOnEdgeFromParentToMe+"\n");
+            }
+            for (int iDepth = 0; iDepth < depths[iNode]; ++iDepth)
+                sb.append("    ");
+            sb.append((iNode==currentNodeIndex ? "(*)" : " * ")+" sharedLabel="+com.donhatchsw.util.Arrays.toStringCompact(node.sharedLabel)+"\n");
+            // XXX private label?
+
+            // Record each child's depth
+            for (int iChildInParent = 0; iChildInParent < node.children.length; ++iChildInParent)
+            {
+                int iChild = iNode + node.children[iChildInParent];
+                depths[iChild] = depths[iNode] + 1;
+            }
+        }
+        return sb.toString();
+    } // toStringVisual0
+
+    public String toStringVisualCool()
     {
-        sb.append(indent+" "+node.itemOnEdgeFromParentToMe+"\n");
-        sb.append(indent+(node==currentNode ? "(*)" : " * ")+" sharedLabel="+node.sharedLabel+"\n");
-        for (int i = 0; i < node.children.length; ++i)
-            _toStringVisual(sb, node.children[i], indent+"    ");
-    } // _toStringVisual
-    public String toStringVisual()
-    {
-        StringBuffer sb = new StringBuffer();;
-        Node rootNode = currentNode;
-        while (rootNode.parent != null)
-            rootNode = rootNode.parent;
-        _toStringVisual(sb, rootNode, "    ");
-        String s = sb.toString();
-        return s.substring(0, s.length()-1); // XXX lame, just remove final newline from sb
-    } // toStringVisual
+        int nNodes = nodes.size();
+        //
+        // Bottom up, figure out the number of leaves
+        // under the node.  That will be the logical width
+        // allotted to this node.
+        // 
+        int widths[] = new int[nNodes]; // zeros
+        for (int iNode = nNodes-1; iNode >= 0; iNode--)
+        {
+            Node node = (Node)nodes.get(iNode);
+            for (int iChild = 0; iChild < node.children.length; ++iChild)
+            {
+                int childIndex = iNode + node.children[iChild];
+                widths[iNode] += widths[childIndex];
+            }
+            if (widths[iNode] == 0)
+                widths[iNode] = 1; // leaf
+        }
+
+
+        //
+        // Top down, figure out the left and right logical bounds allotted to
+        // each node.  Parent decides for each child.
+        //
+        int starts[] = new int[nNodes];
+        starts[0] = 0;
+        for (int iNode = 0; iNode < nNodes; iNode++)
+        {
+            Node node = (Node)nodes.get(iNode);
+            int childStart = starts[iNode];
+            for (int iChild = 0; iChild < node.children.length; ++iChild)
+            {
+                int childIndex = iNode + node.children[iChild];
+                starts[childIndex] = childStart;
+                childStart += widths[childIndex];
+            }
+        }
+        //
+        // Bottom up, decide the position within the node's bounds
+        // that we will display the node.  We want to display it
+        // directly over its preferred child.
+        // These are physical, not logical any more.
+        //
+        int x[] = new int[nNodes];
+        int y[] = new int[nNodes];
+        for (int iNode = nNodes-1; iNode >= 0; iNode--)
+        {
+            Node node = (Node)nodes.get(iNode);
+            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node); // XXX shouldn't make it if it doesn't exist, that's lame
+            if (node.children.length == 0)
+            {
+                x[iNode] = 2*starts[iNode]+1;
+            }
+            else
+            {
+                int preferredChildIndex = privateNodeInfo.preferredChildIndex;
+                if (preferredChildIndex == -1)
+                    preferredChildIndex = node.children.length-1;
+                x[iNode] = x[iNode + node.children[preferredChildIndex]];
+            }
+            y[iNode] = 2*iNode;
+        }
+
+        char buf[][] = new char[2*nNodes-1][1 + 2*widths[0]];
+        for (int i = 0; i < buf.length; ++i)
+        for (int j = 0; j < buf[i].length; ++j)
+            buf[i][j] = ' ';
+
+        //
+        // Top down or bottom up, it doesn't matter,
+        // draw the stuff into the rectangular buffer.
+        //
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+        {
+            Node node = (Node)nodes.get(iNode);
+            buf[y[iNode]][x[iNode]] = (char)('0'+(iNode%10)); // XXX just last digit for now
+            if (iNode == currentNodeIndex)
+            {
+                buf[y[iNode]][x[iNode]-1] = '('; // XXX argh, index out of bounds
+                buf[y[iNode]][x[iNode]+1] = ')';
+            }
+            if (node.children.length > 0)
+            {
+                if (node.children.length >= 1)
+                {
+                    int firstChildX = x[iNode+node.children[0]];
+                    int lastChildX = x[iNode+node.children[node.children.length-1]];
+                    for (int i = firstChildX; i <= lastChildX; ++i)
+                        buf[y[iNode]+1][i] = '-';
+                }
+
+                for (int iChild = 0; iChild < node.children.length; ++iChild)
+                {
+                    int childIndex = iNode + node.children[iChild];
+                    buf[y[iNode]+1][x[childIndex]] = node.children.length==1 ? '|' : '+';
+                    for (int j = y[iNode]+2; j < 2*childIndex; ++j)
+                        buf[j][x[childIndex]] = '|';
+                }
+            }
+        }
+
+        //
+        // Put the rectangular buffer on the left,
+        // with annotations on the right, into a StringBuffer
+        // in preparation for final output.
+        //
+        String nl = System.getProperty("line.separator");
+        StringBuffer sb = new StringBuffer();
+
+        sb.append("+"+repeat("-", buf[0].length+2)+"+"+nl);
+
+        for (int i = 0; i < buf.length; ++i)
+        {
+            sb.append("| ");
+            sb.append(buf[i]);
+            sb.append(" |" );
+            if (i%2 == 0)
+            {
+                int iNode = i/2;
+                Node node = (Node)nodes.get(iNode);
+                if (node.sharedLabel != null)
+                    sb.append(" sharedLabel="+Arrays.toStringCompact(node.sharedLabel));
+                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node); // XXX shouldn't make it if it doesn't exist, that's lame
+                if (privateNodeInfo.privateLabel != null)
+                    sb.append(" privateLabel="+Arrays.toStringCompact(privateNodeInfo.privateLabel));
+            }
+            else
+            {
+                sb.append(" "+((Node)nodes.get((i+1)/2)).itemOnEdgeFromParentToMe);
+            }
+            sb.append(nl);
+        }
+        sb.append("+"+repeat("-", buf[0].length+2)+"+"); // no nl
+        return sb.toString();
+    } // toStringVisualCool
+
+    /*
+                0
+                +---+---+       A
+                1   |   |
+                    |   |       B
+                    2   |
+                  +-+-+ |       C
+                  | | | 3
+                  | | |         D
+                  4 | |
+                    | |         E
+                    5 |
+                      |         F
+                      6
+                      |         G
+                      7 
+            Starting with this:
+            +-------+
+            |  0    | sharedLabel=null
+            |  +-+  | A
+            | (1)|  | sharedLabel=null
+            |  | |  | B
+            |  2 |  | sharedLabel=null
+            |    |  | C
+            |    3  | sharedLabel=null
+            +-------+
+            And adding a node to 1, produces this:
+            +---------+
+            |    0    |
+            |    +-+  | A
+            |    1 |  |
+            |  +-+ |  | B
+            |  2 | |  |
+            |    | |  | C
+            |    | 3  |
+            |    |    | D
+            |   (4)   |
+            +---------+
+    */
+
+
+
+
+
 
 
     /*
+        XXX no this isn't right, we use relative offsets now
         Example:
             {"oh boy a puzzle!" 0 A 1 B "just did B" 2 C
                                     1 D 4 E 5 F
                                                      2 G
                                         4 H "oh boy I solved it"}
         Compact would be:
-            {"oh boy a puzzle!" 0 A 1 B "just did B" 2 C 1 D 4 E 5 F 2 G 4 H "oh boy I solved it"}
-        Or:
-            {
-                "oh boy a puzzle!"
-                0 A
-                1 B "just did B"
-                2 C
-                1 D
-                4 E (you are here)
-                5 F
-                2 G
-                4 H "oh boy I solved it"
-            }
+            {"oh boy a puzzle!" A B "just did B" C u D E F u2 G u3 H I "oh boy I solved it"}
     */
 
     interface ItemToString
@@ -225,28 +453,6 @@ public class UndoTree
          || itemMatcher.reset("u10").matches())
             throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
 
-
-        // Get the nodes into an array and figure out each one's index...
-        com.donhatchsw.compat.ArrayList/*<Node>*/ nodes = new com.donhatchsw.compat.ArrayList();
-        java.util.Hashtable/*<Node,int>*/ nodeToIndex = new java.util.Hashtable();
-        {
-            Node rootNode = this.currentNode;
-            while (rootNode.parent != null)
-                rootNode = rootNode.parent;
-            nodeToIndex.put(rootNode, new Integer(nodes.size()));
-            nodes.add(rootNode);
-            for (int iNode = 0; iNode < nodes.size(); iNode++) // while growing
-            {
-                Node node = (Node)nodes.get(iNode);
-                for (int iChild = 0; iChild < node.children.length; ++iChild)
-                {
-                    nodeToIndex.put(node.children[iChild], new Integer(nodes.size()));
-                    nodes.add(node.children[iChild]);
-                }
-            }
-        }
-
-
         StringBuffer sb = new StringBuffer();
         sb.append("{");
         sb.append(separatorSpaces);
@@ -255,29 +461,35 @@ public class UndoTree
         {
             sb.append(indentSpaces);
             Node node = (Node)nodes.get(iNode);
-            if (node.parent != null)
+            if (iNode != 0)
             {
                 String itemString = itemToString.itemToString(node.itemOnEdgeFromParentToMe);
                 if (!itemMatcher.reset(itemString).matches())
                 {
                     throw new IllegalArgumentException("UndoTree.toString given itemToString functor that produced string "+Arrays.toStringCompact(itemString)+" which does not match its regex pattern "+itemRegex+"!");
                 }
-                sb.append(nodeToIndex.get(node.parent)).append(" ").append(itemString).append(" ");
+                if (node.parent == -1)
+                    ; // nothing, this is the default
+                else if (node.parent == -2)
+                    sb.append("u ");
+                else  // -3 -> 2, -4 -> 3, etc.
+                    sb.append("u").append(-node.parent-1).append(" ");
+                sb.append(itemString).append(" ");
             }
 
             PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node);
             // If printing private label and there's no shared label,
-            // print (null) for the shared label
+            // print "null" for the shared label
             if (node.sharedLabel != null
              || privateNodeInfo.privateLabel != null)
                 sb.append(Arrays.toStringCompact(node.sharedLabel)+" ");
             if (privateNodeInfo.privateLabel != null)
                 sb.append(Arrays.toStringCompact(privateNodeInfo.privateLabel)+" ");
+            if (iNode == currentNodeIndex)
+                sb.append("(you are here) ");
             if (privateNodeInfo.preferredChildIndex != -1
              && node.children.length > 1) // XXX a little odd... can go from having a preference of the single child, to having no preference which means can be overridden by someone else making a child... think about this.  it's only an issue if collabarative editing
                 sb.append("("+privateNodeInfo.preferredChildIndex+") ");
-            if (node == currentNode)
-                sb.append("(you are here) ");
             while (" \r\n".indexOf(sb.charAt(sb.length()-1)) != -1) // XXX lame test!
                 sb.deleteCharAt(sb.length()-1);
             sb.append(separatorSpaces);
@@ -330,23 +542,30 @@ public class UndoTree
 
         // We'll stick these in the created undoTree when we
         // create it at the end
-        Node currentNode = null;
+        int currentNodeIndex = -1;
         java.util.Hashtable/*<node, PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable();
 
-
         Node nodes[] = new Node[Math.max(words.length,1)]; // at most this many
-        com.donhatchsw.compat.ArrayList/*Node*/ children[] = new com.donhatchsw.compat.ArrayList[nodes.length];
+        com.donhatchsw.compat.ArrayList/*Node*/ childrens[] = new com.donhatchsw.compat.ArrayList[nodes.length];
+
         int nNodes = 0;
-        nodes[nNodes++] = new Node(null, null);
-        children[nNodes-1] = new com.donhatchsw.compat.ArrayList();
+        nodes[nNodes++] = new Node(-1, null);
+        childrens[nNodes-1] = new com.donhatchsw.compat.ArrayList();
 
         int iWord = 0;
         while (iWord < words.length)
         {
             //
-            // optional quoted shared label for this node
+            // optional quoted shared label for this node... or "null"
+            // (without the quotes)
             //
-            if (doubleQuotedStringMatcher.reset(words[iWord]).matches())
+            if (words[iWord].equals("null"))
+            {
+                // just leave it null... this is a placeholder
+                // because there's a private label coming
+                iWord++;
+            }
+            else if (doubleQuotedStringMatcher.reset(words[iWord]).matches())
             {
                 nodes[nNodes-1].sharedLabel = words[iWord].substring(1,words[iWord].length()-1); // XXX need to unescapify!
                 iWord++;
@@ -371,9 +590,9 @@ public class UndoTree
               && words[iWord+1].equals("are")
               && words[iWord+2].equals("here)")))
             {
-                if (currentNode != null)
+                if (currentNodeIndex != -1)
                     throw new IllegalArgumentException("UndoTree.fromString given an undo tree with more than one current node!");
-                currentNode = nodes[nNodes-1];
+                currentNodeIndex = nNodes-1;
                 if (words[iWord].equals("(you"))
                     iWord += 2;
                 iWord++;
@@ -394,24 +613,29 @@ public class UndoTree
             //
             // Not at the end of the input, so there's another node
             //
-            nodes[nNodes++] = new Node(null, null);
-            children[nNodes-1] = new com.donhatchsw.compat.ArrayList();
+            nodes[nNodes++] = new Node(-1, null);
+            childrens[nNodes-1] = new com.donhatchsw.compat.ArrayList();
 
             //
-            // required parent node index
+            // optional parent offset...
+            //      nothing means -1
+            //      "u" means -2
+            //      "u2" means -3
+            // etc.
             //
-            if (words[iWord].matches("-?\\d+")) // XXX precompile!
+            if (words[iWord].matches("u\\d*")) // XXX precompile!
             {
-                int parentIndex = Integer.parseInt(words[iWord]);
-                if (parentIndex < 0 || parentIndex >= nNodes-1)
-                    throw new IllegalArgumentException("UndoTree.fromString node "+(nNodes-1)+"'s parent is "+parentIndex+", out of bounds!");
-                nodes[nNodes-1].parent = nodes[parentIndex];
+                int parentOffset = -1 - 
+                    (words[iWord].equals("u") ? 1 :
+                                Integer.parseInt(words[iWord].substring(1)));
+                if (nNodes-1+parentOffset < 0) // e.g. node 3 can have offset at most 2, which makes its parent node 0
+                    throw new IllegalArgumentException("UndoTree.fromString node "+(nNodes-1)+"'s parent offset is "+parentOffset+", which would put the parent at "+(nNodes-1+parentOffset)+"");
+                nodes[nNodes-1].parent = parentOffset;
+                int parentIndex = nNodes-1+parentOffset;
                 iWord++;
             }
-            else
-            {
-                throw new IllegalArgumentException("UndoTree.fromString input string didn't find required parent node index, got "+Arrays.toStringCompact(words[iWord])+" instead at word "+iWord+"");
-            }
+            childrens[nNodes-1 + nodes[nNodes-1].parent].add(new Integer(-nodes[nNodes-1].parent));
+
             if (iWord == words.length)
                 throw new IllegalArgumentException("UndoTree.fromString premature end of input trying to read item at word "+iWord+"");
 
@@ -426,11 +650,12 @@ public class UndoTree
             }
             else
             {
+                PRINT(words[iWord]);
                 throw new IllegalArgumentException("UndoTree.fromString expected item at word "+iWord+" but got "+Arrays.toStringCompact(words[iWord])+" which does not match regex "+Arrays.toStringCompact(itemRegex)+"");
             }
         } // while (iWord < words.length)
 
-        if (currentNode == null)
+        if (currentNodeIndex == -1)
             throw new IllegalArgumentException("UndoTree.fromString given an undo tree with no current node!");
 
         //
@@ -439,8 +664,11 @@ public class UndoTree
         //
         for (int iNode = 0; iNode < nNodes; ++iNode)
         {
-            nodes[iNode].children = new Node[children[iNode].size()];
-            children[iNode].toArray(nodes[iNode].children);
+            nodes[iNode].children = new int[childrens[iNode].size()];
+            for (int iChild = 0; iChild < nodes[iNode].children.length; ++iChild)
+            {
+                nodes[iNode].children[iChild] = ((Integer)childrens[iNode].get(iChild)).intValue();
+            }
             PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashtable.get(nodes[iNode]);
             if (privateNodeInfo != null
              && (privateNodeInfo.preferredChildIndex < -1 // -1 is always okay
@@ -451,12 +679,40 @@ public class UndoTree
         }
 
         UndoTree undoTree = new UndoTree(null);
-        undoTree.currentNode = currentNode;
+        undoTree.currentNodeIndex = currentNodeIndex;
         undoTree.privateNodeInfosHashtable = privateNodeInfosHashtable;
+        undoTree.nodes = new com.donhatchsw.compat.ArrayList(nNodes);
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+            undoTree.nodes.add(nodes[iNode]);
+
+        undoTree.checkSane();
 
         return undoTree;
     } // fromString
 
+
+        private void checkSane()
+        {
+            for (int iNode = 0; iNode < nodes.size(); ++iNode)
+            {
+                Node node = (Node)nodes.get(iNode);
+                for (int iChild = 0; iChild < node.children.length; ++iChild)
+                {
+                    int childIndex = iNode + node.children[iChild];
+                    Node child = (Node)nodes.get(childIndex);
+                    //System.out.println(""+iNode+"->"+childIndex);
+                    assert(childIndex+child.parent == iNode);
+                }
+            }
+        }
+
+        private static String repeat(String s, int n)
+        {
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < n; ++i)
+                sb.append(s);
+            return sb.toString();
+        }
 
 
 
@@ -475,9 +731,6 @@ public class UndoTree
             public void paintComponent(java.awt.Graphics g)
             {
                 System.out.println("    in paintComponent");
-                System.out.println("===================================");
-                System.out.println(undoTree.toStringVisual());
-                System.out.println("===================================");
                 ItemToString itemToString = new ItemToString(){
                     public String regex()
                     {
@@ -518,16 +771,15 @@ public class UndoTree
                 {
                     UndoTree t2 = UndoTree.fromString(s1, itemFromString);
                     String s3 = t2.toString(itemToString, indentSpaces, separatorSpaces);
-                    System.out.println(s3);
-                    if (false)
+                    if (!s3.equals(s1))
                     {
-                        UndoTree t4 = UndoTree.fromString(s3, itemFromString);
-                        String s5 = t4.toString(itemToString, indentSpaces, separatorSpaces);
-                        System.out.println(s5);
+                        System.out.println(s3);
+                        assert(false);
                     }
                 }
-
                 System.out.println("===================================");
+                //System.out.println(undoTree.toStringVisual0());
+                System.out.println(undoTree.toStringVisualCool());
                 System.out.println("    out paintComponent");
             }
         };
@@ -560,30 +812,38 @@ public class UndoTree
         jpanel.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent ke)
             {
-                boolean ascii = true; // concentrating on ascii output for now
+                boolean horizontal = false; // set to true when concentrating on the uncool ascii tree
 
                 //System.out.println("in keyPressed: "+ke);
                 int keyCode = ke.getKeyCode();
                 if (keyCode == java.awt.event.KeyEvent.VK_ENTER)
                 {
                     //Integer doneItem = new Integer(nThingsDoneEver[0]++);
-                    String doneItem = ""+(char)('A'+nThingsDoneEver[0]++);
+                    int n = nThingsDoneEver[0]++;
+                    String doneItem = ""+(char)('A'+n%26);
+                    n /= 26;
+                    while (n != 0)
+                    {
+                        doneItem = ""+(char)('A'+n%27-1) + doneItem; // XXX haha lame, it messes up after AA... figure out the right way to to it, you doofus
+                        n /= 27;
+                    }
+
                     undoTree.Do(doneItem);
                     System.out.println("Did "+doneItem);
                 }
-                else if (keyCode == (ascii ? java.awt.event.KeyEvent.VK_LEFT : java.awt.event.KeyEvent.VK_UP))
+                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_LEFT : java.awt.event.KeyEvent.VK_UP))
                 {
                     //Integer undoneItem = (Integer)undoTree.undo();
                     String undoneItem = (String)undoTree.undo();
                     System.out.println("undid "+undoneItem);
                 }
-                else if (keyCode == (ascii ? java.awt.event.KeyEvent.VK_RIGHT : java.awt.event.KeyEvent.VK_DOWN))
+                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_RIGHT : java.awt.event.KeyEvent.VK_DOWN))
                 {
                     //Integer redoneItem = (Integer)undoTree.redo();
                     String redoneItem = (String)undoTree.redo();
                     System.out.println("redid "+redoneItem);
                 }
-                else if (keyCode == (ascii ? java.awt.event.KeyEvent.VK_UP : java.awt.event.KeyEvent.VK_LEFT))
+                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_UP : java.awt.event.KeyEvent.VK_LEFT))
                 {
                     System.out.println("going younger, if you're lucky");
                     // XXX clunky
@@ -593,7 +853,7 @@ public class UndoTree
                         undoTree.redo();
                     }
                 }
-                else if (keyCode == (ascii ? java.awt.event.KeyEvent.VK_DOWN : java.awt.event.KeyEvent.VK_RIGHT))
+                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_DOWN : java.awt.event.KeyEvent.VK_RIGHT))
                 {
                     System.out.println("going older, if you're lucky");
                     // XXX clunky
@@ -602,6 +862,14 @@ public class UndoTree
                         undoTree.preferOlderChild();
                         undoTree.redo();
                     }
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_S)
+                {
+                    undoTree.setSharedLabel("this_is_a_shared_label"); // XXX get rid of the underscores when I make the parsing smarter
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_P)
+                {
+                    undoTree.setPrivateLabel("this_is_a_private_label"); // XXX get rid of the underscores when I make the parsing smarter
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_N)
                 {
