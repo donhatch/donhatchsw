@@ -1,17 +1,15 @@
-/**
-* sprintf.
-* Very primitive and special-case so far,
-* but I needed %.17g.
-* And it's a good stress for the regex stuff too.
-*
-* XXX need to get rid of the Double etc. in this package,
-* XXX it's making me have to say java.lang.Double all the time which is stupid
-*/
-
 package com.donhatchsw.compat;
 
 #include "macros.h"
 
+/**
+* sprintf.
+* Very primitive and special-case so far,
+* but I need %.17g, and so do you.
+* And it's a good stress for the regex stuff too.
+* <p>
+* So far it supports (pretty much) the formats g, d, s, %.
+*/
 public class Format
 {
     private static void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
@@ -19,6 +17,7 @@ public class Format
     public static int verboseLevel = 0;
 
 
+    /** the real mccoy */
     public static String sprintf(String format, Object args[])
     {
         // XXX could make this pattern static, it's the only one we ever use
@@ -114,10 +113,10 @@ public class Format
                     if (iArg >= args.length)
                         throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type double, got end of argument list instead");
 
-                    if (!(args[iArg] instanceof java.lang.Double))
+                    if (!(args[iArg] instanceof Double))
                         throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type double, got type "+args[iArg].getClass()+" instead");
 
-                    double x = ((java.lang.Double)args[iArg++]).doubleValue();
+                    double x = ((Double)args[iArg++]).doubleValue();
 
                     double threshold = Math.round(Math.pow(10, precision));
                     double scale = 1.;
@@ -184,46 +183,55 @@ public class Format
         return sb.toString();
     } // sprintf
 
+    /** convenience wrapper */
     public static String sprintf(String format)
     {
         return sprintf(format, new Object[]{});
     }
+    /** convenience wrapper */
     public static String sprintf(String format, int arg0)
     {
         return sprintf(format, new Object[]{new Integer(arg0)});
     }
+    /** convenience wrapper */
     public static String sprintf(String format, double arg0)
     {
-        return sprintf(format, new Object[]{new java.lang.Double(arg0)});
+        return sprintf(format, new Object[]{new Double(arg0)});
     }
+    /** convenience wrapper */
     public static String sprintf(String format, int arg0, int arg1)
     {
         return sprintf(format, new Object[]{new Integer(arg0),
                                             new Integer(arg1)});
     }
+    /** convenience wrapper */
     public static String sprintf(String format, int arg0, double arg1)
     {
         return sprintf(format, new Object[]{new Integer(arg0),
-                                            new java.lang.Double(arg1)});
+                                            new Double(arg1)});
     }
+    /** convenience wrapper */
     public static String sprintf(String format, int arg0, String arg1)
     {
         return sprintf(format, new Object[]{new Integer(arg0),
                                             arg1});
     }
+    /** convenience wrapper */
     public static String sprintf(String format, int arg0, int arg1, int arg2)
     {
         return sprintf(format, new Object[]{new Integer(arg0),
                                             new Integer(arg1),
                                             new Integer(arg2)});
     }
+    /** convenience wrapper */
     public static String sprintf(String format, int arg0, int arg1, double arg2)
     {
         return sprintf(format, new Object[]{new Integer(arg0),
                                             new Integer(arg1),
-                                            new java.lang.Double(arg2)});
+                                            new Double(arg2)});
     }
 
+    /** test program, not a very good one at that */
     public static void main(String args[])
     {
         if (true)
