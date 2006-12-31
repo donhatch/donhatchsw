@@ -54,6 +54,26 @@ public class UndoTreeViewer
 
     private ItemColorizer colorizer; // set in ctor
 
+
+    private float stretch_p_and_v[] = {1.f,0.f}; // how much to stretch along time line. [0] is value, [1] is velocity, for smooth changes.
+    private float targetStretch = 0.f; // be cute and change at beginning
+    private int nFramesUntilTargetStretch = 1000; // in case they are different
+    // These can be called internally or externally.
+    public void setStretchAlongTimeLine(float newStretch)
+    {
+        targetStretch = newStretch;
+        nFramesUntilTargetStretch = 1000; // XXX not sure should hard code?
+        if (component != null)
+            component.repaint();
+    }
+    public float getStretchAlongTimeLine()
+    {
+        return targetStretch;
+    }
+
+
+
+
     //
     // Things I listen to...
     //
@@ -115,6 +135,11 @@ public class UndoTreeViewer
                     component.repaint();
             }
         });
+
+        // And just do it, since something did change...
+        if (component != null)
+            component.repaint();
+
     } // attachToUndoTree
     /** Detaches from the UndoTree that was previously attached using attachToUndoTree. */
     public void detachFromUndoTree()
@@ -124,19 +149,130 @@ public class UndoTreeViewer
         undoTree.removeListener(undoTreeListener);
         undoTreeListener = null;
         undoTree = null;
+
+        // And just do it, since something did change...
+        if (component != null)
+            component.repaint();
     } // detachFromUndoTree
     /** Installs event listeners on the given Component, which can be a Canvas or a JPanel or whatever. It is an error to try to attach to more than one Component at a given time. */
     public void attachToComponent(final java.awt.Component component)
     {
-        if (component != null)
+        if (this.component != null)
             throw new IllegalArgumentException("UndoTreeViewer.attachToComponent: already attached to someone"); // XXX should be illegal state or something instead?
         this.component = component;
         component.addKeyListener(componentKeyListener = new java.awt.event.KeyListener() {
+
             public void keyPressed(java.awt.event.KeyEvent ke)
             {
                 if (eventVerboseLevel >= 1) System.out.println("keyPressed "+ke);
                 if (eventVerboseLevel >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
                 int keyCode = ke.getKeyCode();
+                int keyChar = ke.getKeyChar();
+                String keyText = java.awt.event.KeyEvent.getKeyText(keyCode);
+
+                boolean horizontal = false; // only vertical is supported, I think, unless I want to do diagonal flips some day or something
+
+                if (false)
+                {
+                    // XXX bleah! get rid of this when I stop needing to look at it and be weirded out
+                    PRINT(keyCode);
+                    PRINT(keyChar);
+                    PRINT(keyText);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD0);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD1);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD2);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD3);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD4);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD5);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD6);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD7);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD8);
+                    PRINT(java.awt.event.KeyEvent.VK_NUMPAD9);
+                }
+
+                // holy shit!
+                int x = 0, y = 0;
+                if (false) {}
+                else if (keyCode == java.awt.event.KeyEvent.VK_NUMPAD1
+                      || keyText.equals("End"))
+                    { x = -1; y = 1; }
+                else if (keyCode == java.awt.event.KeyEvent.VK_DOWN
+                      || keyCode == java.awt.event.KeyEvent.VK_NUMPAD2
+                      || keyText.equals("Down"))
+                    { x = 0; y = 1; }
+                else if (keyCode == java.awt.event.KeyEvent.VK_NUMPAD3
+                      || keyText.equals("Page Down"))
+                    { x = 1; y = 1; }
+                else if (keyCode == java.awt.event.KeyEvent.VK_LEFT
+                      || keyCode == java.awt.event.KeyEvent.VK_NUMPAD4
+                      || keyText.equals("Left"))
+                    { x = -1; y = 0; }
+                else if (keyCode == java.awt.event.KeyEvent.VK_NUMPAD5
+                      || keyText.equals("Begin"))
+                    { x = 0; y = 0; }
+                else if (keyCode == java.awt.event.KeyEvent.VK_RIGHT
+                      || keyCode == java.awt.event.KeyEvent.VK_NUMPAD6
+                      || keyText.equals("Right"))
+                    { x = 1; y = 0; }
+                else if (keyCode == java.awt.event.KeyEvent.VK_NUMPAD7
+                      || keyText.equals("Home"))
+                    { x = -1; y = -1; }
+                else if (keyCode == java.awt.event.KeyEvent.VK_UP
+                      || keyCode == java.awt.event.KeyEvent.VK_NUMPAD8
+                      || keyText.equals("Up"))
+                    { x = 0; y = -1; }
+                else if (keyCode == java.awt.event.KeyEvent.VK_NUMPAD9
+                      || keyText.equals("Page Up"))
+                    { x = 1; y = -1; }
+                else
+                {
+                    // nothin
+                }
+
+                if (horizontal)
+                {
+                    int temp = x;
+                    x = y;
+                    y = temp;
+                }
+
+                if (false) {}
+                else if (y==-1 && x==-1)
+                    requestOlderBranch();
+                else if (y==-1 && x==0)
+                    requestUndo();
+                else if (y==-1 && x==1)
+                    requestYoungerBranch();
+                else if (y==0 && x==-1)
+                    requestOlder();
+                else if (y==0 && x==1)
+                    requestYounger();
+                else if (y==1 && x==-1)
+                    requestOlderLeaf();
+                else if (y==1 && x==0)
+                    requestRedo();
+                else if (y==1 && x==1)
+                    requestYoungerLeaf();
+
+                else if (keyCode == java.awt.event.KeyEvent.VK_A)
+                {
+                    asciiDump(undoTree, getStretchAlongTimeLine());
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_S)
+                {
+                    undoTree.setSharedLabel("this_is_a_shared_label"); // XXX get rid of the underscores when I make the parsing smarter
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_P)
+                {
+                    undoTree.setPrivateLabel("this_is_a_private_label"); // XXX get rid of the underscores when I make the parsing smarter
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_T)
+                {
+                    float newStretch = 1.f - getStretchAlongTimeLine();
+                    System.out.println("stretchOutAlongTimeLine "+getStretchAlongTimeLine()+" -> "+newStretch);
+                    setStretchAlongTimeLine(newStretch);
+                }
+                component.repaint();
             }
             public void keyReleased(java.awt.event.KeyEvent ke)
             {
@@ -174,9 +310,10 @@ public class UndoTreeViewer
             } // mouseExited
         }); // mouse listener
         component.addMouseMotionListener(componentMouseMotionListener = new java.awt.event.MouseMotionListener() {
+            private long time0 = System.currentTimeMillis();
             public void mouseDragged(java.awt.event.MouseEvent me)
             {
-                if (eventVerboseLevel >= 1) System.out.println("mouseDragged on a "+component.getClass().getSuperclass().getName()+", time = "+me.getWhen());
+                if (eventVerboseLevel >= 1) System.out.println("    mouseDragged on a "+component.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-time0)/1000.);
             } // mouseDragged
             public void mouseMoved(java.awt.event.MouseEvent me)
             {
@@ -185,10 +322,164 @@ public class UndoTreeViewer
         }); // mouse motion listener
     } // attachToComponent
 
+        //
+        // Private convenience stuff...
+        // XXX actually might be useful for public use, think about it
+        //
+
+            private void requestYoungerBranch() // 7 key on numeric keypad
+            {
+                if (eventVerboseLevel >= 1) System.out.println("request younger branch");
+                int nUndosDone = 0;
+                while (undoTree.undo() != null)
+                {
+                    nUndosDone++;
+                    if (undoTree.preferYoungerChild())
+                    {
+                        undoTree.redo();
+                        return;
+                    }
+                }
+                // oops, hit the top. unroll
+                while (nUndosDone-- > 0)
+                    undoTree.redo();
+            }
+            private void requestUndo()        // 8 key on numeric keypad
+            {
+                if (eventVerboseLevel >= 1) System.out.println("request undo");
+                String undoneItem = (String)undoTree.undo();
+                if (eventVerboseLevel >= 1) System.out.println("undid "+undoneItem);
+            }
+            private void requestOlderBranch()   // 9 key on numeric keypad
+            {
+                if (eventVerboseLevel >= 1) System.out.println("request older branch");
+                int nUndosDone = 0;
+                while (undoTree.undo() != null)
+                {
+                    nUndosDone++;
+                    if (undoTree.preferOlderChild())
+                    {
+                        undoTree.redo();
+                        return;
+                    }
+                }
+                // oops, hit the top. unroll
+                while (nUndosDone-- > 0)
+                    undoTree.redo();
+            }
+            private void requestOlder()       // 4 key on numeric keypad
+            {
+                if (eventVerboseLevel >= 1) System.out.println("request older at same depth");
+                int nUndosDone = 0;
+                while (undoTree.undo() != null)
+                {
+                    nUndosDone++;
+                    if (undoTree.preferOlderChild())
+                    {
+                        // Try to go back to same level as before,
+                        // sticking to the young side
+                        while (nUndosDone-- > 0)
+                        {
+                            undoTree.redo(); // okay if fails
+                            if (nUndosDone > 0)
+                            {
+                                while (undoTree.preferYoungerChild())
+                                    ;
+                            }
+                        }
+                        return;
+                    }
+                }
+                // oops, hit the top. unroll
+                while (nUndosDone-- > 0)
+                    undoTree.redo();
+            }
+            // App is expected to handle the 5 key and do a Do, maybe
+            private void requestYounger()     // 6 key on numeric keypad
+            {
+                if (eventVerboseLevel >= 1) System.out.println("request younger at same depth");
+                int nUndosDone = 0;
+                while (undoTree.undo() != null)
+                {
+                    nUndosDone++;
+                    if (undoTree.preferYoungerChild())
+                    {
+                        // Try to go back to same level as before,
+                        // sticking to the old side
+                        while (nUndosDone-- > 0)
+                        {
+                            undoTree.redo(); // okay if fails
+                            if (nUndosDone > 0)
+                            {
+                                while (undoTree.preferOlderChild())
+                                    ;
+                            }
+                        }
+                        return;
+                    }
+                }
+                // oops, hit the top. unroll
+                while (nUndosDone-- > 0)
+                    undoTree.redo();
+            }
+            private void requestOlderLeaf()   // 7 key on numeric keypad
+            {
+                if (eventVerboseLevel >= 1) System.out.println("request older leaf");
+                int nUndosDone = 0;
+                while (undoTree.undo() != null)
+                {
+                    nUndosDone++;
+                    if (undoTree.preferOlderChild())
+                    {
+                        // Go as deep as possible,
+                        // sticking to the young side
+                        while (undoTree.redo() != null)
+                        {
+                            while (undoTree.preferYoungerChild())
+                                ;
+                        }
+                        return;
+                    }
+                }
+                // oops, hit the top. unroll
+                while (nUndosDone-- > 0)
+                    undoTree.redo();
+            }
+            private void requestRedo()        // 8 key on numeric keypad
+            {
+                if (eventVerboseLevel >= 1) System.out.println("request redo");
+                String redoneItem = (String)undoTree.redo();
+                if (eventVerboseLevel >= 1) System.out.println("redid "+redoneItem);
+            }
+            private void requestYoungerLeaf() // 9 key on numeric keypad
+            {
+                if (eventVerboseLevel >= 1) System.out.println("request younger leaf");
+                int nUndosDone = 0;
+                while (undoTree.undo() != null)
+                {
+                    nUndosDone++;
+                    if (undoTree.preferYoungerChild())
+                    {
+                        // Go as deep as possible,
+                        // sticking to the old side
+                        while (undoTree.redo() != null)
+                        {
+                            while (undoTree.preferOlderChild())
+                                ;
+                        }
+                        return;
+                    }
+                }
+                // oops, hit the top. unroll
+                while (nUndosDone-- > 0)
+                    undoTree.redo();
+            }
+
+
     /** Detaches from the given component, which must have been previously attached by attachToComponent(). */
     public void detachFromComponent(java.awt.Component component)
     {
-        if (component == null)
+        if (this.component == null)
             throw new IllegalArgumentException("UndoTreeViewer.detachFromComponent: not attached to any component"); // XXX should be illegal state or something instead?
         component.removeKeyListener(componentKeyListener);
         component.removeMouseListener(componentMouseListener);
@@ -199,12 +490,113 @@ public class UndoTreeViewer
         component = null;
     } // detachFromComponent
 
+    private UndoTree.Snapshot snapshot = new UndoTree.Snapshot(); // scratch to reuse each time  // XXX put this up top somewhere, and should probably clear it if the tree is cleared
+
     /** Paint callback to be called from inside your Component's paint() or paintComponent() method. The caller is responsible for clearing the window and/or double-buffering. XXX although it might make sense to draw single-buffered sometimes, when only a couple of pixels are changing... need to think about this */
     // PAINT
-    public void paint(java.awt.Component component, java.awt.Graphics graphics)
+    public void paint(java.awt.Component component, java.awt.Graphics g)
     {
-        if (eventVerboseLevel >= 3) System.out.println("            painting on a "+component.getClass().getSuperclass().getName());
+        if (eventVerboseLevel >= 3) System.out.println("            UndoTreeViewer painting on a "+component.getClass().getSuperclass().getName());
 
+        // Evolve any params that are moving towards a target...
+        {
+            if (nFramesUntilTargetStretch > 0)
+            {
+                stretch_p_and_v[0] -= targetStretch;
+                update_p_and_v(stretch_p_and_v, -nFramesUntilTargetStretch);
+                stretch_p_and_v[0] += targetStretch;
+                if (--nFramesUntilTargetStretch > 0)
+                    component.repaint();
+            }
+        }
+
+        undoTree.takeSnapshot(snapshot);
+        int nNodes = snapshot.nNodes;
+        java.awt.Color edgeColors[] = new java.awt.Color[nNodes];
+        double edgeLengths[] = new double[nNodes];
+
+        // Determine the color and length the edge above each node.
+        // Start at node 1, since node 0 doesn't have an edge above it.
+        for (int iNode = 1; iNode < nNodes; ++iNode) // start at 1
+        {
+            edgeColors[iNode] = colorizer.color(snapshot.edgeItems[iNode]);
+            edgeLengths[iNode] = colorizer.length(snapshot.edgeItems[iNode]);
+        }
+        double x[] = new double[nNodes];
+        double y[] = new double[nNodes];
+        UndoTree.chooseNodePositions(snapshot.parents, snapshot.preferredChildIndices, edgeLengths, stretch_p_and_v[0], x, y);
+        double xmin = Double.POSITIVE_INFINITY;
+        double ymin = Double.POSITIVE_INFINITY;
+        double xmax = Double.NEGATIVE_INFINITY;
+        double ymax = Double.NEGATIVE_INFINITY;
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+        {
+            xmin = Math.min(xmin, x[iNode]);
+            ymin = Math.min(ymin, y[iNode]);
+            xmax = Math.max(xmax, x[iNode]);
+            ymax = Math.max(ymax, y[iNode]);
+        }
+        //System.out.println("                model bounds ["+xmin+".."+xmax+"]x["+ymin+"x"+ymax+"]");
+        //
+        // Fit to the window...
+        // We know the initial scale of the model is such that
+        // things occur at granularity around 1, so a border of .5 is good.
+        // So, map xmin-.5..xmax+.5 to 0..getWidth and same for y.
+        // XXX I'm sure this is not the final way I'll do this
+        //
+        int w = component.getWidth();
+        int h = component.getHeight();
+        xmin -= .5;
+        ymin -= .5;
+        xmax += .5;
+        ymax += .5;
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+        {
+            double xFrac = (x[iNode]-xmin)/(xmax-xmin); // XXX redundant division
+            double yFrac = (y[iNode]-ymin)/(ymax-ymin); // XXX redundant division
+            x[iNode] = LERP(0, w, xFrac);
+            y[iNode] = LERP(0, h, yFrac);
+        }
+
+        // Actual drawing starts here
+        {
+            //
+            // Draw the edges first, so the nodes can go on top if they collide
+            //
+            for (int iNode = 0; iNode < nNodes; ++iNode)
+            {
+                if (snapshot.parents[iNode] != -1)
+                {
+                    g.setColor(edgeColors[iNode]);
+                    g.drawLine((int)x[snapshot.parents[iNode]],
+                               (int)y[snapshot.parents[iNode]],
+                               (int)x[iNode],
+                               (int)y[iNode]);
+                }
+            }
+
+            //
+            // Now draw the nodes
+            //
+            for (int iNode = 0; iNode < nNodes; ++iNode)
+            {
+                if (snapshot.parents[iNode] != -1)
+                    g.setColor(edgeColors[iNode]);
+                else
+                    g.setColor(java.awt.Color.white);
+                g.drawRect((int)x[iNode]-1,(int)y[iNode]-1,3,3);
+            }
+
+            //
+            // Put a ring around the current node
+            //
+            g.setColor(java.awt.Color.white);
+            int radius = 4;
+            g.drawRect((int)x[snapshot.currentNode]-radius,
+                       (int)y[snapshot.currentNode]-radius,
+                       2*radius+1,2*radius+1);
+
+        }
     } // paint
 
     /** Creates an UndoTreeViewer.  Attach it to a Component using attachToComponent and to an UndoTree using attachToUndoTree. */
@@ -213,72 +605,169 @@ public class UndoTreeViewer
         this.colorizer = colorizer;
     } // UndoTreeViewer ctor
 
+    private static void asciiDump(UndoTree undoTree, float stretchOutAlongTimeLine)
+    {
+        //PRINT(__LINE__);
+        //PRINT(undoTree);
+        UndoTree.ItemToString itemToString = new UndoTree.ItemToString(){
+            public String regex()
+            {
+                //return "-?\\d+"; // ints
+                //return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
+                return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
+            }
+            public String itemToString(Object obj)
+            {
+                // is this method necessary? could just take the regex
+                //return obj.toString(); // ints
+                return obj.toString(); // identifiers too
+            }
+        };
+        UndoTree.ItemFromString itemFromString = new UndoTree.ItemFromString(){
+            public String regex()
+            {
+                // return "-?\\d+"; // ints
+                //return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
+                return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
+            }
+            public Object itemFromString(String s)
+            {
+                //return Integer.valueOf(s); // ints
+                return s; // identifiers
+            }
+        };
+        //String indentSpaces = "    ";
+        //String separatorSpaces = System.getProperty("line.separator");
+        String indentSpaces = "";
+        String separatorSpaces = " ";
+
+        if (undoTree != null)
+        {
+            UndoTree t0 = undoTree;
+            String s1 = t0.toString(itemToString, indentSpaces, separatorSpaces);
+            System.out.println(s1);
+
+            if (true)
+            {
+                UndoTree t2 = UndoTree.fromString(s1, itemFromString);
+                String s3 = t2.toString(itemToString, indentSpaces, separatorSpaces);
+                if (!s3.equals(s1))
+                {
+                    System.out.println(s1);
+                    System.out.println(s3);
+                    System.out.println("WARNING: they aren't equal!"); // XXX currently goes off because I had to comment out something in the other file, can put this back soon
+                    //assert(false);
+                }
+            }
+            System.out.println("===================================");
+            System.out.println(undoTree.toStringVisualCool(stretchOutAlongTimeLine >= .5f));
+        }
+        else
+        {
+            System.out.println("No undo tree attached.");
+        }
+    } // asciiDump
+
+        // Given position p and velocity v, at time t,
+        // find position and velocity
+        // at time t+1, assuming
+        // it's folling a cubic trajectory
+        // whose position and velocity at t=0 is 0.
+        //
+        private static void update_p_and_v(float p_and_v[/*2*/], float t)
+        {
+            float p = p_and_v[0];
+            float v = p_and_v[1];
+
+            float newP, newV;
+            if (true)
+            {
+                // Linear -- instantaneous start and stop
+                newP = lerp(p, 0, -1/t);
+                newV = p/t;
+            }
+            else
+            {
+                // Cubic! woohoo!
+                // Did this on paper.
+                float invT = 1.f/t;
+                float a = (-2*p*invT + v)*invT*invT;
+                float b = (3*p*invT - v)*invT;
+                // The cubic path we are following is:
+                // f(x) =    a x^3 +   b x^2
+                // f'(x) = 3 a x^2 + 2 b x
+                // newP = f(t+1)
+                // newV = f'(t+1)
+                float tPlus1 = t+1;
+                newP = (a*tPlus1 + b)*tPlus1*tPlus1;
+                newV = (3*a*tPlus1 + 2*b)*tPlus1;
+            }
+
+            p_and_v[0] = newP;
+            p_and_v[1] = newV;
+        } // update_p_and_v
+
+        private static float lerp(float a, float b, float t)
+        {
+            return a*(1-t) + b*t;
+        }
+
+
 
     // Graphical viewer for an undo tree, for the example main program
     // XXX shouldn't use swing for this... or maybe I should, I don't know
-    private static void makeUndoTreeViewer(final UndoTree undoTree,
+    private static void makeExampleUndoTreeViewer(final UndoTree undoTree,
                                            final int x, final int y, final int w, final int h,
                                            final int nThingsDoneEver[],
-                                           final int nViewsAlive[])
+                                           final int nViewersAlive[])
     {
-        nViewsAlive[0]++;
-        final boolean stretchOutAlongTimeLine[] = {false};
+        UndoTreeViewer.ItemColorizer colorizer = new UndoTreeViewer.ItemColorizer() {
+            private java.util.Random random = new java.util.Random();
+            public java.awt.Color color(Object item)
+            {
+                //
+                // Pick a random color that is a function
+                // of item's hash code.
+                //
+                int fudge = 1234; // I didn't like the colors initially
+                random.setSeed(item.hashCode()+fudge);
+                return new java.awt.Color(random.nextFloat(),
+                                          random.nextFloat(),
+                                          random.nextFloat());
+            }
+            public double length(Object item)
+            {
+                return 1.;
+            }
+        };
+        final UndoTreeViewer undoTreeViewer = new UndoTreeViewer(colorizer);
+
+
+        nViewersAlive[0]++;
         final javax.swing.JPanel jpanel = new javax.swing.JPanel() {
             // PAINT
             public void paintComponent(java.awt.Graphics g)
             {
-                System.out.println("    in paintComponent");
-                UndoTree.ItemToString itemToString = new UndoTree.ItemToString(){
-                    public String regex()
-                    {
-                        //return "-?\\d+"; // ints
-                        //return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
-                        return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
-                    }
-                    public String itemToString(Object obj)
-                    {
-                        // is this method necessary? could just take the regex
-                        //return obj.toString(); // ints
-                        return obj.toString(); // identifiers too
-                    }
-                };
-                UndoTree.ItemFromString itemFromString = new UndoTree.ItemFromString(){
-                    public String regex()
-                    {
-                        // return "-?\\d+"; // ints
-                        //return "[.0-9_a-zA-Z]+"; // make sure this gets rejected because it accepts 'u'
-                        return "[.0-9_a-tv-zA-Z]+"; // identifiers and numbers and stuff... but can't start with a 'u'!
-                    }
-                    public Object itemFromString(String s)
-                    {
-                        //return Integer.valueOf(s); // ints
-                        return s; // identifiers
-                    }
-                };
-                //String indentSpaces = "    ";
-                //String separatorSpaces = System.getProperty("line.separator");
-                String indentSpaces = "";
-                String separatorSpaces = " ";
+                int w = getWidth(), h = getHeight();
+                if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    in paintComponent");
+                g.setColor(java.awt.Color.black);
+                g.fillRect(0,0,w,h);
+                undoTreeViewer.paint(this, g);
 
-                UndoTree t0 = undoTree;
-                String s1 = t0.toString(itemToString, indentSpaces, separatorSpaces);
-                System.out.println(s1);
-
-                if (true)
-                {
-                    UndoTree t2 = UndoTree.fromString(s1, itemFromString);
-                    String s3 = t2.toString(itemToString, indentSpaces, separatorSpaces);
-                    if (!s3.equals(s1))
-                    {
-                        System.out.println(s3);
-                        assert(false);
-                    }
-                }
-                System.out.println("===================================");
-                System.out.println(undoTree.toStringVisualCool(stretchOutAlongTimeLine[0]));
-                System.out.println("    out paintComponent");
+                //      undo
+                // older do younger
+                //      redo
+                g.drawString("Enter to Do", 10, h-90);
+                g.drawString("Up to undo", 10, h-70);
+                g.drawString("Down to redo", 10, h-50);
+                g.drawString("Left for older", 10, h-30);
+                g.drawString("Right for younger", 10, h-10);
+                if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    out paintComponent");
             }
         };
+        // should work in either order...
+        undoTreeViewer.attachToComponent(jpanel);
+        undoTreeViewer.attachToUndoTree(undoTree);
 
         final javax.swing.JFrame jframe = new javax.swing.JFrame("Undo Tree View");
         jframe.setForeground(java.awt.Color.white);
@@ -287,7 +776,7 @@ public class UndoTreeViewer
         jframe.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent event)
             {
-                if (--nViewsAlive[0] == 0)
+                if (--nViewersAlive[0] == 0)
                 {
                     System.out.println("Chow!");
                     System.exit(0); // asinine way of doing things
@@ -298,23 +787,21 @@ public class UndoTreeViewer
                 }
             }
         });
-
-        //jframe.pack();
-        jframe.setSize(w,h);
-        jframe.setLocation(x,y);
-        jframe.setVisible(true);
-        jpanel.requestFocus(); // seems to be needed initially, if running in <=1.2 on linux, anyway.  weird!
-
         jpanel.addKeyListener(new java.awt.event.KeyAdapter() {
             public void keyPressed(java.awt.event.KeyEvent ke)
             {
-                boolean horizontal = false; // set to true when concentrating on the uncool ascii tree
-
-                //System.out.println("in keyPressed: "+ke);
+                //System.out.println("keyPressed "+ke);
+                //System.out.println("    isShiftDown = "+ke.isShiftDown());
                 int keyCode = ke.getKeyCode();
-                if (keyCode == java.awt.event.KeyEvent.VK_ENTER)
+                String keyText = java.awt.event.KeyEvent.getKeyText(keyCode);
+
+                if (keyCode == java.awt.event.KeyEvent.VK_ENTER
+                 || keyText.equals("Enter")
+                 // screw it, I don't like it! it mixes up changes with navigation
+                 //|| keyCode == java.awt.event.KeyEvent.VK_NUMPAD5
+                 //|| keyText.equals("Begin") // this is what's needed to detect the numeric keypad 5 on my linux machine
+                 )
                 {
-                    //Integer doneItem = new Integer(nThingsDoneEver[0]++);
                     int n = nThingsDoneEver[0]++;
                     String doneItem = ""+(char)('A'+n%26);
                     n /= 26;
@@ -325,56 +812,11 @@ public class UndoTreeViewer
                     }
 
                     undoTree.Do(doneItem);
-                    System.out.println("Did "+doneItem);
-                }
-                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_LEFT : java.awt.event.KeyEvent.VK_UP))
-                {
-                    //Integer undoneItem = (Integer)undoTree.undo();
-                    String undoneItem = (String)undoTree.undo();
-                    System.out.println("undid "+undoneItem);
-                }
-                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_RIGHT : java.awt.event.KeyEvent.VK_DOWN))
-                {
-                    //Integer redoneItem = (Integer)undoTree.redo();
-                    String redoneItem = (String)undoTree.redo();
-                    System.out.println("redid "+redoneItem);
-                }
-                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_UP : java.awt.event.KeyEvent.VK_LEFT))
-                {
-                    System.out.println("going younger, if you're lucky");
-                    // XXX clunky
-                    if (undoTree.undo() != null)
-                    {
-                        undoTree.preferYoungerChild();
-                        undoTree.redo();
-                    }
-                }
-                else if (keyCode == (horizontal ? java.awt.event.KeyEvent.VK_DOWN : java.awt.event.KeyEvent.VK_RIGHT))
-                {
-                    System.out.println("going older, if you're lucky");
-                    // XXX clunky
-                    if (undoTree.undo() != null)
-                    {
-                        undoTree.preferOlderChild();
-                        undoTree.redo();
-                    }
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_S)
-                {
-                    undoTree.setSharedLabel("this_is_a_shared_label"); // XXX get rid of the underscores when I make the parsing smarter
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_P)
-                {
-                    undoTree.setPrivateLabel("this_is_a_private_label"); // XXX get rid of the underscores when I make the parsing smarter
+                    if (undoTreeViewer.eventVerboseLevel >= 1) System.out.println("Did "+doneItem);
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_N)
                 {
-                    makeUndoTreeViewer(new UndoTree(undoTree), x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewsAlive);
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_T)
-                {
-                    stretchOutAlongTimeLine[0] ^= true;
-                    System.out.println("stretchOutAlongTimeLine "+!stretchOutAlongTimeLine[0]+" -> "+stretchOutAlongTimeLine[0]);
+                    makeExampleUndoTreeViewer(new UndoTree(undoTree), x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive);
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
                       && ke.isControlDown())
@@ -384,6 +826,21 @@ public class UndoTreeViewer
                 jpanel.repaint();
             }
         });
+
+        //jframe.pack();
+        jframe.setSize(w,h);
+        jframe.setLocation(x,y);
+        jframe.setVisible(true);
+        jpanel.requestFocus(); // seems to be needed initially, if running in <=1.2 on linux, anyway.  weird!
+
+        /*
+        TODO:
+            Should make the following buttons:
+                older branch  undo  younger branch
+                older          Do   younger
+                older leaf    redo  younger leaf
+        */
+
     } // makeUndoTreeViewer
 
 
@@ -392,12 +849,43 @@ public class UndoTreeViewer
     public static void main(String args[])
     {
         System.out.println("in main");
-        UndoTree undoTree0 = new UndoTree(null);
-        UndoTree undoTree1 = new UndoTree(undoTree0);
-        int nThingsDoneEver[] = new int[]{0};
-        int nViewsAlive[] = new int[]{0};
-        // XXX argh, I guess I need to do the invokeLater thing?  bleah, why must everything be so difficult in swing :-(
-        makeUndoTreeViewer(undoTree0, 500, 20, 300, 300, nThingsDoneEver, nViewsAlive);
+        UndoTree tree = new UndoTree();
+        if (false) // nah, cooler to start with nothing
+        {
+            // Seed it with something mildly interesting
+            tree.Do("A");
+            tree.Do("B");
+            tree.setPrivateLabel("private_before_fork");
+            tree.undo();
+            tree.undo();
+            tree.Do("C");
+            tree.setPrivateLabel("shared_before_fork");
+            tree.undo();
+            tree.preferYoungerChild();
+            tree.redo();
+            tree.Do("D");
+            tree.Do("E");
+        }
+
+        int nThingsDoneEver[] = {0};
+        int nViewersAlive[] = {0};
+        // XXX do it in a doLater I think... maybe that will fix the hangs
+        makeExampleUndoTreeViewer(tree, 500, 20, 300, 700, nThingsDoneEver, nViewersAlive);
+        // The following two lines are very different!
+        if (false)
+        {
+            // Doing it this way, both viewers will share
+            // undos and redos (as well as changes in the tree structure).
+            // Each can have its own display style though.
+            makeExampleUndoTreeViewer(tree, 800, 20, 300, 700, nThingsDoneEver, nViewersAlive);
+        }
+        if (true)
+        {
+            // Doing it this way, both viewers see tree changes
+            // but they can explore the tree independently;
+            // one viewer's undos and redos will not affect the other.
+            makeExampleUndoTreeViewer(new UndoTree(tree), 800, 20, 300, 700, nThingsDoneEver, nViewersAlive);
+        }
         System.out.println("out main");
     } // main
 } // class UndoTreeViewer
