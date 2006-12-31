@@ -2214,6 +2214,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return false;
         return true;
     } // equalsExactly(Object[],Object[])
+    /** exact double vector equality test */
+    public static boolean equalsExactly(float v0[], float v1[])
+    {
+        if (v0 == null)
+            return v1 == null ? true : false;
+        else if (v1 == null)
+            return false;
+        int n = v0.length;
+        if (n != v1.length)
+            return false;
+        FORI (i, n)
+            if (v0[i] != v1[i])
+                return false;
+        return true;
+    } // equalsExactly(Object[],Object[])
     /** Object vector equality test using == on each element Object */
     public static boolean equalsUsingEqualsSymbol(Object v0[], Object v1[])
     {
