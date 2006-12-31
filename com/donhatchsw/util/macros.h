@@ -36,6 +36,7 @@
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 #define HYPOTSQRD(a,b) (((a)*(a))+((b)*(b)))
 #define LERP(a,b,t) ((a) + (t)*((b)-(a)))
+#define SMOOTH(timeFrac) ((Math.sin(((timeFrac) - .5) * Math.PI) + 1) / 2)
 #define SWAP(a,b,temp) {temp=(a);a=(b);b=(temp);}
 #define MIN(a,b) ((a)<=(b)?(a):(b))
 #define MAX(a,b) ((a)>=(b)?(a):(b))
