@@ -1,0 +1,155 @@
+package com.donhatchsw.util;
+
+/**
+* Viewing parameters that always change SMOOTHLY
+* so I don't have an anxiety attack.
+*/
+public class SmoothlyVaryingViewingParameter
+{
+    private float[] position;
+    private float[] velocity;
+    private float targetPosition[];
+    private float nFramesUntilTarget = 0;
+    private boolean justUseLerp = false;
+
+    /** Convenience constructor for a scalar parameter; equivalent to SmoothlyVaryingViewingParameter(new float[]{initialPosition}). */
+    public SmoothlyVaryingViewingParameter(float initialPosition)
+    {
+        // XXX huh?  why can't I do the following? weird, maybe a typo
+        //SmoothlyVaryingViewingParameter(new float[]{initialPosition});
+
+        // so copy the code instead...
+        this.position = VecMath.copyvec(new float[]{initialPosition});
+        this.velocity = new float[this.position.length];
+        this.targetPosition = new float[this.position.length];
+        this.nFramesUntilTarget = 0;
+    }
+    /** Constructor. */
+    public SmoothlyVaryingViewingParameter(float initialPosition[])
+    {
+        this.position = VecMath.copyvec(initialPosition);
+        this.velocity = new float[this.position.length];
+        this.targetPosition = new float[this.position.length];
+        this.nFramesUntilTarget = 0;
+    }
+
+    /** Sets the value of this scalar variable at some time in the future, with optional justUseLerp if you want it to go at constant speed. */
+    public void set(float targetPosition, int nFramesUntilTarget, boolean justUseLerp)
+    {
+        set(new float[]{targetPosition}, nFramesUntilTarget, justUseLerp);
+    }
+    /** Sets the value of this variable at some time in the future, optionally using dumb old linear interpolation (i.e. constant velocity with abrubt start and stop) instead of the nice smooth cubic interpolation that it would like to use, and would use if you would let it. */
+    public void set(float[] targetPosition, int nFramesUntilTarget, boolean justUseLerp)
+    {
+        if (targetPosition.length != this.targetPosition.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: buffer size is "+targetPosition.length+", expected "+this.targetPosition.length+"");
+        VecMath.copyvec(this.targetPosition, targetPosition);
+        this.nFramesUntilTarget = nFramesUntilTarget;
+        if (nFramesUntilTarget <= 0)
+            VecMath.copyvec(this.position, targetPosition);
+        this.justUseLerp = justUseLerp;
+    }
+
+    /** Gets the target value of this scalar variable. */
+    public float getTarget()
+    {
+        if (position.length != 1)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getTarget: no-arg version only available for scalars, this one is a vector of dimension "+position.length);
+        return targetPosition[0];
+    }
+
+    /** Gets the value of this scalar variable now.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    public float get()
+    {
+        if (position.length != 1)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: no-arg version only available for scalars, this one is a vector of dimension "+position.length);
+        return position[0];
+    }
+    /** Gets the value of this vector variable now, into the given array. */
+    public void get(float position[])
+    {
+        if (position.length != this.position.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: buffer size is "+position.length+", expected "+this.position.length+"");
+        if (nFramesUntilTarget > 0)
+            VecMath.copyvec(position, this.position);
+        else
+            VecMath.copyvec(position, this.targetPosition); // cheat, if for some reason they ended up different... (this is like triple protection, it really shouldn't happen)
+    }
+    /** Evolves one frame towards the target. */
+    public void evolveOneFrame()
+    {
+        if (nFramesUntilTarget > 0)
+        {
+            float p_and_v[] = new float[2];
+            for (int i = 0; i < position.length; ++i)
+            {
+                p_and_v[0] = position[i] - targetPosition[i];
+                p_and_v[1] = velocity[i];
+                update_p_and_v(p_and_v, -nFramesUntilTarget, justUseLerp);
+                position[i] = p_and_v[0] + targetPosition[i];
+                velocity[i] = p_and_v[1];
+            }
+            if (--nFramesUntilTarget == 0)
+            {
+                VecMath.copyvec(this.position, this.targetPosition); // cheat
+            }
+        }
+    }
+    /** Returns true if we are at the target, false otherwise. */
+    public boolean isMoving()
+    {
+        return nFramesUntilTarget > 0;
+    }
+
+    //
+    // Private utility function that is the brain of all this.
+    // Given position p and velocity v, at time t,
+    // find position and velocity
+    // at time t+1, assuming
+    // it's folling a cubic trajectory
+    // whose position and velocity at t=0 is 0.
+    //
+    private static void update_p_and_v(float p_and_v[/*2*/], float t,
+                                       boolean justUseLerp)
+    {
+        float p = p_and_v[0];
+        float v = p_and_v[1];
+
+        float newP, newV;
+        if (justUseLerp)
+        {
+            // Linear -- instantaneous start and stop
+            newP = lerp(p, 0, -1/t);
+            newV = p/t;
+            if (newP == 0.f)
+            {
+                //System.out.println("bonk!");
+                newV = 0.f; // zero out the velocity at the end of the lerp so the next guy who might NOT be a justUseLerp doesn't get a bogus impulse at the beginning
+            }
+        }
+        else
+        {
+            // Cubic! woohoo!
+            // Did this on paper.
+            float invT = 1.f/t;
+            float a = (-2*p*invT + v)*invT*invT;
+            float b = (3*p*invT - v)*invT;
+            // The cubic path we are following is:
+            // f(x) =    a x^3 +   b x^2
+            // f'(x) = 3 a x^2 + 2 b x
+            // newP = f(t+1)
+            // newV = f'(t+1)
+            float tPlus1 = t+1;
+            newP = (a*tPlus1 + b)*tPlus1*tPlus1;
+            newV = (3*a*tPlus1 + 2*b)*tPlus1;
+        }
+
+        p_and_v[0] = newP;
+        p_and_v[1] = newV;
+    } // update_p_and_v
+
+    private static float lerp(float a, float b, float t)
+    {
+        return a*(1-t) + b*t;
+    }
+} // SmoothlyVaryingViewingParameter
