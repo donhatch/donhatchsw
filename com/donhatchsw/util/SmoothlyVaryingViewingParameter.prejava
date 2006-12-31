@@ -2,7 +2,9 @@ package com.donhatchsw.util;
 
 /**
 * Viewing parameters that always change SMOOTHLY
-* so I don't have an anxiety attack.
+* so I don't have an anxiety attack.  You can knock the target value
+* all over the place, and the actual value will smoothly move towards to it,
+* without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
 */
 public class SmoothlyVaryingViewingParameter
 {
@@ -38,7 +40,7 @@ public class SmoothlyVaryingViewingParameter
     {
         set(new float[]{targetPosition}, nFramesUntilTarget, justUseLerp);
     }
-    /** Sets the value of this variable at some time in the future, optionally using dumb old linear interpolation (i.e. constant velocity with abrubt start and stop) instead of the nice smooth cubic interpolation that it would like to use, and would use if you would let it. */
+    /** Sets the value of this variable at some time in the future, optionally using dumb old linear interpolation (i.e. constant velocity with abrupt start and stop) instead of the nice smooth cubic interpolation that it would like to use, and would use if you would let it. */
     public void set(float[] targetPosition, int nFramesUntilTarget, boolean justUseLerp)
     {
         if (targetPosition.length != this.targetPosition.length)
@@ -50,7 +52,7 @@ public class SmoothlyVaryingViewingParameter
         this.justUseLerp = justUseLerp;
     }
 
-    /** Gets the target value of this scalar variable. */
+    /** Gets the target value of this variable now, if it's a scalar, otherwise throws an IllegalArgumentException. */
     public float getTarget()
     {
         if (position.length != 1)
@@ -95,10 +97,12 @@ public class SmoothlyVaryingViewingParameter
             }
         }
     }
-    /** Returns true if we are at the target, false otherwise. */
+    /** Returns true if we are still moving towards the target (i.e. if a evolveOneFrame() would actually change anything), false otherwise. */
     public boolean isMoving()
     {
-        return nFramesUntilTarget > 0;
+        return nFramesUntilTarget > 0
+            || (VecMath.equalsExactly(position, targetPosition)
+             && VecMath.normsqrd(velocity) == 0.f);
     }
 
     //
