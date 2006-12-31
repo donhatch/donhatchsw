@@ -17,12 +17,14 @@ public class UndoTree
     {
         public int parent; // index relative to mine
         public Object itemOnEdgeFromParentToMe;
+        public long timeCreated;
         public Object sharedLabel = null; // views might want to share a label or have their own private one
         public int children[] = new int[0]; // indices relative to mine
-        public Node(int parent, Object itemOnEdgeFromParentToMe)
+        public Node(int parent, Object itemOnEdgeFromParentToMe, long timeCreated)
         {
             this.parent = parent;
             this.itemOnEdgeFromParentToMe = itemOnEdgeFromParentToMe;
+            this.timeCreated = timeCreated;
         }
     } // Node
 
@@ -55,6 +57,8 @@ public class UndoTree
     private com.donhatchsw.compat.ArrayList/*<PrivateNodeInfo>*/ privateNodeInfos;
     private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this
     private int currentNodeIndex; // set in ctor
+    private double currentNodeFraction = 1.; // current fraction of way from parent to current node
+    private double currentNodeVelocity = 0.; // don't ask
 
     /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. */
     public interface Listener
@@ -74,7 +78,7 @@ public class UndoTree
         if (other == null)
         {
             this.nodes = new com.donhatchsw.compat.ArrayList();
-            this.nodes.add(new Node(-1,null));
+            this.nodes.add(new Node(-1,null,System.currentTimeMillis()));
             this.sharedListeners = new com.donhatchsw.compat.ArrayList();
             this.currentNodeIndex = 0;
         }
@@ -93,6 +97,13 @@ public class UndoTree
         this(null);
     }
 
+    /** Equivalent to Do(item, System.currentTimeMillis()). */
+    public void Do(Object item)
+    {
+        Do(item, System.currentTimeMillis());
+    }
+
+
     /** Changes the current position to be a newly created child
     * of the current current position,
     * associating the given Object with the newly created transition to the new child.
@@ -101,8 +112,12 @@ public class UndoTree
     * This method actually affects the model, i.e. it modifies the tree
     * (whereas other methods such as undo, and redo
     * only affects the individual view of the model).
+    * <p>
+    * The time stamp is stored as the creation time of the new child.
+    * NOTE this is currently not saved or restored via fromString and toString!
+    * (but it should be!)
     */
-    public void Do(Object item)
+    public void Do(Object item, long timeStampMillis)
     {
         if (item == null)
             throw new IllegalArgumentException("UndoTree.Do called with null item");
@@ -110,7 +125,7 @@ public class UndoTree
         synchronized(nodes)
         {
             newChildIndex = nodes.size();
-            Node newChild = new Node(currentNodeIndex-newChildIndex, item);
+            Node newChild = new Node(currentNodeIndex-newChildIndex, item, timeStampMillis);
             nodes.add(newChild);
         }
 
@@ -130,13 +145,36 @@ public class UndoTree
         //checkSane(); // don't do this here, it's expensive
 
         // Note the sharedListeners list covers all the listeners
-        // on the privateListers
+        // on the privateListers, and maybe some more too (that
+        // were added by other views after a fork, or that existed
+        // in the sharedListeners list before we were born).
         synchronized(sharedListeners)
         {
             for (int i = 0; i < sharedListeners.size(); ++i)
                 ((Listener)sharedListeners.get(i)).somethingChanged();
         }
-    }
+    } // Do
+
+    /** Destroys the entire underlying tree.  XXX I suspect this is not very safe if multiple views are looking at it, I think there may be assumptions that indices will remain valid. */
+    public void Clear()
+    {
+        synchronized(nodes)
+        {
+            nodes.clear();
+            this.nodes.add(new Node(-1,null,System.currentTimeMillis()));
+            this.currentNodeIndex = 0; // XXX but woe to all the other views!!
+            this.currentNodeFraction = 1.;
+            this.currentNodeVelocity = 0.;
+            this.privateNodeInfosHashtable.clear(); // XXX argh! should have more stuff locked down!
+            // XXX and everyone should clear unused nodes in their hash table if they notice the size has decreased!
+        }
+        synchronized(sharedListeners)
+        {
+            for (int i = 0; i < sharedListeners.size(); ++i)
+                ((Listener)sharedListeners.get(i)).somethingChanged();
+        }
+    } // Clear
+
     /** Performs an undo; that is, changes the current position to be one step closer to the root of the tree, returning the Object that was originally passed to Do() when the tree edge was created. */
     public Object undo()
     {
@@ -178,7 +216,29 @@ public class UndoTree
     /**
     * Changes the preferred child of the current position (i.e. the path that will be taken by a redo) to the next older child than the current favorite, if there is one.
     */
-    public void preferOlderChild()
+    public boolean preferOlderChild()
+    {
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
+        synchronized(currentNode)
+        {
+            if (currentNodeInfo.preferredChildIndex == -1)
+                currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
+            if (currentNodeInfo.preferredChildIndex-1 < 0)
+                return false;
+            currentNodeInfo.preferredChildIndex--;
+        }
+        synchronized(privateListeners)
+        {
+            for (int i = 0; i < privateListeners.size(); ++i)
+                ((Listener)privateListeners.get(i)).somethingChanged();
+        }
+        return true;
+    } // preferOlderChild
+    /**
+    * Changes the preferred child of the current position (i.e. the path that will be taken by a redo) to the next younger child than the current favorite, if there is one.
+    */
+    public boolean preferYoungerChild()
     {
         Node currentNode = (Node)nodes.get(currentNodeIndex);
         PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
@@ -187,35 +247,17 @@ public class UndoTree
             if (currentNodeInfo.preferredChildIndex == -1)
                 currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
 
-            if (currentNodeInfo.preferredChildIndex+1 < currentNode.children.length)
-                currentNodeInfo.preferredChildIndex++;
+            if (currentNodeInfo.preferredChildIndex+1 >= currentNode.children.length)
+                return false;
+            currentNodeInfo.preferredChildIndex++;
         }
         synchronized(privateListeners)
         {
             for (int i = 0; i < privateListeners.size(); ++i)
                 ((Listener)privateListeners.get(i)).somethingChanged();
         }
-    }
-    /**
-    * Changes the preferred child of the current position (i.e. the path that will be taken by a redo) to the next younger child than the current favorite, if there is one.
-    */
-    public void preferYoungerChild()
-    {
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
-        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
-        synchronized(currentNode)
-        {
-            if (currentNodeInfo.preferredChildIndex == -1)
-                currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
-            if (currentNodeInfo.preferredChildIndex-1 >= 0)
-                currentNodeInfo.preferredChildIndex--;
-        }
-        synchronized(privateListeners)
-        {
-            for (int i = 0; i < privateListeners.size(); ++i)
-                ((Listener)privateListeners.get(i)).somethingChanged();
-        }
-    }
+        return true;
+    } // preferYoungerChild
     /** Oh, and this one updates the model too. Sets a label at the current position that will be seen by other views of this undo tree. */
     public void setSharedLabel(Object sharedLabel)
     {
@@ -242,6 +284,191 @@ public class UndoTree
                 ((Listener)privateListeners.get(i)).somethingChanged();
         }
     }
+
+    /** Moves my current position one step towards the corrent position of the other view. Returns true iff it actually did something. */
+    public boolean incrementViewTowardsOtherView(UndoTree otherView,
+                                                 double increment) // XXX need to make this smarter for smooth motion along edges of varying lengths
+    {
+        if (otherView.nodes != nodes)
+            throw new IllegalArgumentException("UndoTree.incrementViewTowardsOtherView called with a different underlying tree!");
+        // XXX need to lock something down while we do this... if someone else changes currentNodeIndex out from under us we are super screwed!!!
+        int targetNodeIndex = otherView.currentNodeIndex;
+        if (currentNodeIndex >= nodes.size())
+            currentNodeIndex = 0; // XXX ad-hoc... can happen after a clear
+        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        if (currentNodeIndex == targetNodeIndex)
+        {
+            if (currentNodeFraction >= 1.)
+            {
+                // We're there
+                return false;
+            }
+            //
+            // We're on the home stretch--
+            // just need to redo a little bit more.
+            //
+            currentNodeFraction += increment;
+            if (currentNodeFraction >= 1.)
+                currentNodeFraction = 1.; // just clamp and we're done
+
+            // XXX lame duplicate code... restructure this function so it bottoms out nicely
+            synchronized(privateListeners)
+            {
+                for (int i = 0; i < privateListeners.size(); ++i)
+                    ((Listener)privateListeners.get(i)).somethingChanged();
+            }
+            return true;
+        }
+        int parentIndex = currentNodeIndex + currentNode.parent;
+        if (parentIndex == targetNodeIndex)
+        {
+            //
+            // We're on the home stretch--
+            // just need to undo a little bit more.
+            //
+            currentNodeFraction -= increment;
+            if (currentNodeFraction <= 0.)
+            {
+                currentNodeIndex = parentIndex;
+                currentNodeFraction = 1.;
+            }
+            // XXX lame duplicate code... restructure this function so it bottoms out nicely
+            synchronized(privateListeners)
+            {
+                for (int i = 0; i < privateListeners.size(); ++i)
+                    ((Listener)privateListeners.get(i)).somethingChanged();
+            }
+            return true;
+        }
+        int ancestorIndex = findLowestCommonAncestorIndex(currentNodeIndex,
+                                                          targetNodeIndex,
+                                                          nodes);
+        if (ancestorIndex == currentNodeIndex)
+        {
+            // Go down in the redo direction
+            currentNodeFraction += increment;
+            if (currentNodeFraction >= 1.)
+            {
+                currentNodeFraction = 0.;
+                // currentNode = the child on the way towards target node.
+                // XXX The following is kind of bogus,
+                // XXX since we didn't lock anything down
+                // XXX so the other view might have changed its
+                // XXX preferred children.  But, we'll assume
+                // XXX that there is a clear redo path to the target
+                // XXX via other view's preferred children...
+                // XXX if we get it wrong,
+                // XXX the worst that can happen is we will have to backtrack
+                // XXX a little next time,
+                // XXX and it will never be noticed by the user.
+                PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
+                synchronized(otherView.privateNodeInfosHashtable) // XXX I'm positive this is the wrong thing
+                {
+                    PrivateNodeInfo currentNodeInfoInOtherView = (PrivateNodeInfo)otherView.privateNodeInfosHashtable.get(currentNode);
+                    if (currentNodeInfoInOtherView == null
+                     || currentNodeInfoInOtherView.preferredChildIndex == -1)
+                        currentNodeInfo.preferredChildIndex = currentNode.children.length-1;
+                    else
+                        currentNodeInfo.preferredChildIndex = currentNodeInfoInOtherView.preferredChildIndex;
+                }
+                currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex];
+            }
+        }
+        else
+        {
+            // Go up in the undo direction
+            currentNodeFraction -= increment;
+            if (currentNodeFraction <= 0.)
+            {
+                currentNodeFraction = 1.;
+                currentNodeIndex = parentIndex;
+            }
+
+            //
+            // Hack for beautiful smooth transition as we turn around.
+            // If we are about to switch to redos when we hit the parent,
+            // then set its preferred child *now* instead of when
+            // we get to the parent.
+            // (Usually the preferred child is always the branch we are in,
+            // so this is nonstandard but I don't think anything depends
+            // on that assumption.)
+            // Then when the drawing code (actually the chooseNodePositions
+            // utility function, down below in this file)
+            // sees that the preferred child
+            // isn't the one the current node is under,
+            // it knows that this is happening and can reposition
+            // the parent horizonally in proportion to how far
+            // the child has gone so far.
+            //
+            {
+                Node parentNode = (Node)nodes.get(parentIndex);
+                PrivateNodeInfo parentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, parentNode);
+                synchronized(otherView.privateNodeInfosHashtable) // XXX I'm positive this is the wrong thing
+                {
+                    PrivateNodeInfo parentNodeInfoInOtherView = (PrivateNodeInfo)otherView.privateNodeInfosHashtable.get(parentNode);
+                    if (parentNodeInfoInOtherView == null
+                     || parentNodeInfoInOtherView.preferredChildIndex == -1)
+                        parentNodeInfo.preferredChildIndex = parentNode.children.length-1;
+                    else
+                        parentNodeInfo.preferredChildIndex = parentNodeInfoInOtherView.preferredChildIndex;
+                }
+            }
+        }
+        // XXX lame duplicate code... restructure this function so it bottoms out nicely
+        synchronized(privateListeners)
+        {
+            for (int i = 0; i < privateListeners.size(); ++i)
+                ((Listener)privateListeners.get(i)).somethingChanged();
+        }
+        return true;
+    } // incrementViewTowardsOtherView
+
+        // XXX this will be made easier and faster in the future,
+        // XXX when I'll make each view mark its path
+        // XXX from its current node to the root;
+        // XXX then we won't have to walk up and down to the root
+        // XXX each time.  (actually just marking each node with its depth
+        // XXX would suffice-- that would be easy...
+        // XXX although it might prevent some local pruning operations
+        // XXX from being fast... hmm)
+    private static int findLowestCommonAncestorIndex(int i0, int i1, com.donhatchsw.compat.ArrayList nodes)
+    {
+        // Do the common cases fast...
+        if (i0 == i1)
+            return i0;
+        if (i0 != 0 && i0+((Node)nodes.get(i0)).parent == i1)
+            return i1;
+        if (i1 != 0 && i1+((Node)nodes.get(i1)).parent == i0)
+            return i0;
+
+        // No clue where they are with respect to each other.
+        // Figure out the depths...
+        int depth0 = 0;
+        for (int i = i0; i > 0; i += ((Node)nodes.get(i)).parent)
+            depth0++;
+        int depth1 = 0;
+        for (int i = i1; i > 0; i += ((Node)nodes.get(i)).parent)
+            depth1++;
+
+        // Walk up the deeper side til they are at common depth...
+        while (depth0 > depth1)
+        {
+            i0 += ((Node)nodes.get(i0)).parent;
+            depth0--;
+        }
+        while (depth1 > depth0)
+        {
+            i1 += ((Node)nodes.get(i1)).parent;
+            depth1--;
+        }
+        // Then keep walking up til they are equal.
+        while (i0 != i1)
+        {
+            i0 += ((Node)nodes.get(i0)).parent;
+            i1 += ((Node)nodes.get(i1)).parent;
+        }
+        return i0;
+    } // findLowestCommonAncestorIndex
 
     /**
     * Installs a callback that will get called after
@@ -275,6 +502,83 @@ public class UndoTree
             privateListeners.remove(notifier);
         }
     } // removeListener
+
+
+    public static class Snapshot
+    {
+        public int nNodes = -1;
+        public int currentNode;
+        public double currentNodeFraction;
+        public double currentNodeVelocity; // don't laugh, the viewer might want to draw speed lines
+        public int parents[] = null;
+        public Object edgeItems[] = null;
+        public Object sharedLabels[] = null;
+        public Object privateLabels[] = null;
+        public int preferredChildIndices[] = null;
+    } // Snapshot
+
+    /** Take a snapshot of the undo queue, locking down the shared data structures for as short a time as possible. */
+    public void takeSnapshot(Snapshot snapshot)
+    {
+        // Don't lock down while allocating,
+        // just re-do the allocations if something changed,
+        // which will almost never happen.
+        // Note also, we do need to lock down even the private stuff
+        // since other threads might be accessing it
+        // (private here doesn't mean thread-local, it means
+        // "view-local"-- it's all relative)
+        while (true)
+        {
+            int nNodes = nodes.size();
+            snapshot.nNodes = nNodes;
+            if (snapshot.parents == null
+             || snapshot.parents.length < nNodes)
+                snapshot.parents = new int[nNodes];
+            if (snapshot.edgeItems == null ||
+                snapshot.edgeItems.length < nNodes)
+                snapshot.edgeItems = new Object[nNodes];
+            if (snapshot.sharedLabels == null ||
+                snapshot.sharedLabels.length < nNodes)
+                snapshot.sharedLabels = new String[nNodes];
+            if (snapshot.privateLabels == null ||
+                snapshot.privateLabels.length < nNodes)
+                snapshot.privateLabels = new String[nNodes];
+            if (snapshot.preferredChildIndices == null ||
+                snapshot.preferredChildIndices.length < nNodes)
+                snapshot.preferredChildIndices = new int[nNodes];
+            synchronized(nodes) // XXX are wy synching on the right thing?
+            {
+                if (nodes.size() != nNodes)
+                    continue; // someone changed something! try allocations again
+                if (currentNodeIndex > nodes.size())
+                    currentNodeIndex = 0; // XXX stopgap-- need to check this more pervasively! really if we were doing this right we should get notified of model changes, rather than this half-assed joint ownership thing
+
+                for (int iNode = 0; iNode < nNodes; ++iNode)
+                {
+                    Node node = (Node)nodes.get(iNode);
+                    PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
+                    snapshot.parents[iNode] = iNode + node.parent; // change relative to absolute
+                    snapshot.edgeItems[iNode] = node.itemOnEdgeFromParentToMe;
+                    snapshot.sharedLabels[iNode] = node.sharedLabel;
+                    if (privateNodeInfo != null)
+                    {
+                        snapshot.privateLabels[iNode] = privateNodeInfo.privateLabel;
+                        snapshot.preferredChildIndices[iNode] = privateNodeInfo.preferredChildIndex;
+                    }
+                    else
+                    {
+                        snapshot.privateLabels[iNode] = null;
+                        snapshot.preferredChildIndices[iNode] = -1;
+                    }
+                }
+                snapshot.currentNode = currentNodeIndex;
+                snapshot.currentNodeFraction = currentNodeFraction;
+                snapshot.currentNodeVelocity = currentNodeVelocity;
+                break;
+            } // synchronized(nodes)
+        }
+        // we could nicify it here if we want... perhaps putting in the children pointers as well, we're in no hurry any more
+    } // takeSnapshot // takeSnapshot
 
 
     /**
@@ -509,6 +813,150 @@ public class UndoTree
     } // toStringVisualCool
 
 
+    /** Static utility function for choosing a nice graphical layout, given the treee relation and edge lengths. The root node will be at y=0, with other y positions depending on the given edge lengths.  The x positions will be integers from 0 to number of branches. */
+    // XXX see if I can leverage this in toStringVisualCool?
+    public static void chooseNodePositions(int nNodes,
+                                           int parents[],
+                                           int preferredChildLocal[],
+                                           double edgeLengths[],
+                                           int currentNodeIndex,
+                                           double currentNodeFrac,
+                                           float stretchOutAlongTimeLine,
+                                           double x[], // output
+                                           double y[]) // output
+    {
+        //
+        // Fill in firstChild,nextSibling array so we
+        // Fill in a nextSibling array so we can easily traverse top-down
+        // as well as bottom-up.
+        //
+        int firstChild[] = new int[nNodes];
+        int nextSibling[] = new int[nNodes];
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+            firstChild[iNode] = -1;
+        for (int iChild = nNodes-1; iChild >= 0; iChild--)
+        {
+            int iParent = parents[iChild];
+            if (iParent != -1)
+            {
+                nextSibling[iChild] = firstChild[iParent];
+                firstChild[iParent] = iChild;
+            }
+            else
+                nextSibling[iChild] = -1;
+        }
+
+        //
+        // And resolve the preferred child thing...
+        // don't-cares should turn into the youngest child.
+        //
+        int preferredChildGlobal[] = new int[nNodes];
+        for (int iParent = 0; iParent < nNodes; ++iParent)
+        {
+            preferredChildGlobal[iParent] = -1;
+            int iChildGlobal = firstChild[iParent];
+            for (int iChildLocal = 0; iChildGlobal != -1; iChildLocal++, iChildGlobal = nextSibling[iChildGlobal])
+            {
+                if (preferredChildLocal[iParent] == -1) // it's a don't-care
+                {
+                    if (nextSibling[iChildGlobal] == -1)
+                    {
+                        preferredChildGlobal[iParent] = iChildGlobal;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (iChildLocal == preferredChildLocal[iParent])
+                    {
+                        preferredChildGlobal[iParent] = iChildGlobal;
+                        break;
+                    }
+                }
+            }
+            assert((preferredChildGlobal[iParent] == -1)
+                == (firstChild[iParent] == -1));
+        }
+
+
+        //
+        // Bottom up, figure out the number of leaves
+        // under the node.  That will be the logical width
+        // allotted to this node.
+        // 
+        int widths[] = new int[nNodes]; // zeros
+        for (int iChild = nNodes-1; iChild >= 0; iChild--)
+        {
+            if (firstChild[iChild] == -1)
+                widths[iChild] = 1;
+            if (parents[iChild] != -1)
+                widths[parents[iChild]] += widths[iChild];
+        }
+
+
+        //
+        // Top down, figure out the left and right logical bounds allotted to
+        // each node.  Parent decides for each child.
+        //
+        int xstarts[] = new int[nNodes];
+        xstarts[0] = 0;
+        for (int iParent = 0; iParent < nNodes; iParent++)
+        {
+            int childStart = xstarts[iParent];
+            for (int iChild = firstChild[iParent]; iChild != -1; iChild = nextSibling[iChild])
+            {
+                xstarts[iChild] = childStart;
+                childStart += widths[iChild];
+            }
+        }
+
+        //
+        // Bottom up, decide the x position within the node's bounds
+        // that we will display the node.  We want to display it
+        // directly over its preferred child.
+        //
+        // SPECIAL CASE:
+        //     If we get to the parent of currentNode
+        //     and its preferred child is *not* currentNode,
+        //     we know we currentNode is moving towards
+        //     the new preferred child, in which case linearly
+        //     interpolate the parent's horizontal position
+        //     between the old and new preferred child.
+        //
+        for (int iChild = nNodes-1; iChild >= 0; iChild--)
+        {
+            if (firstChild[iChild] == -1)
+                x[iChild] = (double)xstarts[iChild];
+
+            if (iChild == parents[currentNodeIndex]
+             && preferredChildGlobal[iChild] != currentNodeIndex)
+            {
+                // the SPECIAL CASE described above
+                x[iChild] = LERP(x[currentNodeIndex], x[iChild], 1.-currentNodeFrac);
+            }
+
+            int iParent = parents[iChild];
+            if (iParent != -1)
+            {
+                if (preferredChildGlobal[iParent] == iChild)
+                    x[iParent] = x[iChild];
+            }
+        }
+
+        //
+        // Decide the y position
+        // where we will display the node.
+        //
+        for (int iNode = 0; iNode < nNodes; ++iNode)
+        {
+            if (parents[iNode] == -1)
+                y[iNode] = 0;
+            else
+                y[iNode] = LERP(y[parents[iNode]], y[iNode-1], stretchOutAlongTimeLine) + edgeLengths[iNode];
+        }
+    } // chooseNodePositions
+
+
 
 
 
@@ -562,6 +1010,7 @@ public class UndoTree
                            String indentSpaces,
                            String separatorSpaces) // hmm, I guess itemToString isn't needed, it could just use the item's toString... but then where do we get the regex from?
     {
+        System.out.println("in UndoTree.toString");
         if (!regex.matches(indentSpaces, "\\s*"))
             throw new IllegalArgumentException("UndoTree.toString given indent string "+Arrays.toStringCompact(indentSpaces)+", should be zero or more spaces");
         if (!regex.matches(separatorSpaces, "\\s+"))
@@ -607,11 +1056,12 @@ public class UndoTree
             PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node);
             // If printing private label and there's no shared label,
             // print "null" for the shared label
+
             if (node.sharedLabel != null
              || privateNodeInfo.privateLabel != null)
-                sb.append(Arrays.toStringCompact(node.sharedLabel)+" ");
+                sb.append(Arrays.toStringCompact(node.sharedLabel!=null ? node.sharedLabel.toString() : "null")+" ");
             if (privateNodeInfo.privateLabel != null)
-                sb.append(Arrays.toStringCompact(privateNodeInfo.privateLabel)+" ");
+                sb.append(Arrays.toStringCompact(privateNodeInfo.privateLabel).toString()+" ");
             if (iNode == currentNodeIndex)
                 sb.append("(you are here) ");
             if (privateNodeInfo.preferredChildIndex != -1
@@ -622,7 +1072,9 @@ public class UndoTree
             sb.append(separatorSpaces);
         }
         sb.append("}");
-        return sb.toString();
+        String s = sb.toString();
+        System.out.println("out UndoTree.toString");
+        return s;
     } // toString
 
     /** Parses a string that was created by toString(). */
@@ -671,6 +1123,9 @@ public class UndoTree
             }
         }
 
+        // XXX ARGH! should save and restore Do times! for now, when reading back in, just label everything with the read-back-in time
+        long currentTimeMillis = System.currentTimeMillis();
+
         // We'll stick these in the created undoTree when we
         // create it at the end
         int currentNodeIndex = -1;
@@ -680,7 +1135,7 @@ public class UndoTree
         com.donhatchsw.compat.ArrayList/*Node*/ childrens[] = new com.donhatchsw.compat.ArrayList[nodes.length];
 
         int nNodes = 0;
-        nodes[nNodes++] = new Node(-1, null);
+        nodes[nNodes++] = new Node(-1, null, currentTimeMillis);
         childrens[nNodes-1] = new com.donhatchsw.compat.ArrayList();
 
         int iWord = 0;
@@ -744,7 +1199,7 @@ public class UndoTree
             //
             // Not at the end of the input, so there's another node
             //
-            nodes[nNodes++] = new Node(-1, null);
+            nodes[nNodes++] = new Node(-1, null, currentTimeMillis);
             childrens[nNodes-1] = new com.donhatchsw.compat.ArrayList();
 
             //

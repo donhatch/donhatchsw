@@ -1,3 +1,24 @@
+/*
+    TODO:
+        - smoothing-- for now, would be fine to just do the post-time-to-space thing, thought it would be nicer to do it down in the velocity of the undo tree view so it can do smooth direction changes... that would be AWESOME
+        - speed slider
+        - ctrl-up, ctrl-down should put it on a fractional place
+        - clicking on a node should make it current
+            (and ctrl-clicking should let it land on a fractional place)
+
+        - button panel
+        - zoom, pan... mode to keep the current node in the center
+        - JTree to show model/view/viewer relationship
+        -               model/view/followingview/viewer relationship
+        - should have prune methods--
+                PruneCurrentAndBelow
+                PruneAboveCurrent
+          OOH!  and all parts of the tree should be ref counted and should
+                automatically go away when no one can ever see them again!!!
+        - make the model/view thing explicit instead of this half-assed implicit joint ownership thing!
+        - should remember current depth when moving more shallowly, like vim does
+        - optimize the tree rendering so bushy parts can stack up if possible
+*/
 package com.donhatchsw.util;
 
 import com.donhatchsw.compat.regex;
@@ -49,29 +70,17 @@ public class UndoTreeViewer
     *      5: and mouse motion (can be obnoxious)
     *</pre>
     */
-    public int eventVerboseLevel = 0;
+    public int eventVerboseLevel = 0; // XXX need a key to cycle this
 
 
     private ItemColorizer colorizer; // set in ctor
 
-
-    private float stretch_p_and_v[] = {1.f,0.f}; // how much to stretch along time line. [0] is value, [1] is velocity, for smooth changes.
-    private float targetStretch = 0.f; // be cute and change at beginning
-    private int nFramesUntilTargetStretch = 1000; // in case they are different
-    // These can be called internally or externally.
-    public void setStretchAlongTimeLine(float newStretch)
-    {
-        targetStretch = newStretch;
-        nFramesUntilTargetStretch = 1000; // XXX not sure should hard code?
-        if (component != null)
-            component.repaint();
-    }
-    public float getStretchAlongTimeLine()
-    {
-        return targetStretch;
-    }
-
-
+    //
+    // Viewing parameters that always change SMOOTHLY
+    // so I don't have an anxiety attack.
+    //
+        SmoothlyVaryingViewingParameter stretchOutAlongTimeLine = new SmoothlyVaryingViewingParameter(0.f);
+        SmoothlyVaryingViewingParameter centerCurrentNode = new SmoothlyVaryingViewingParameter(0.f);
 
 
     //
@@ -256,7 +265,7 @@ public class UndoTreeViewer
 
                 else if (keyCode == java.awt.event.KeyEvent.VK_A)
                 {
-                    asciiDump(undoTree, getStretchAlongTimeLine());
+                    asciiDump(undoTree, stretchOutAlongTimeLine.get());
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_S)
                 {
@@ -268,9 +277,21 @@ public class UndoTreeViewer
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_T)
                 {
-                    float newStretch = 1.f - getStretchAlongTimeLine();
-                    System.out.println("stretchOutAlongTimeLine "+getStretchAlongTimeLine()+" -> "+newStretch);
-                    setStretchAlongTimeLine(newStretch);
+                    float newStretch = 1.f - stretchOutAlongTimeLine.getTarget();
+                    if (eventVerboseLevel >= 1) System.out.println("stretchOutAlongTimeLine "+stretchOutAlongTimeLine.get()+" -> "+newStretch);
+                    boolean justUseLerp = (ke.isShiftDown()); // XXX lame, this should be in a keyTyped, not keyPressed
+                    stretchOutAlongTimeLine.set(newStretch, 1000, justUseLerp); // XXX not sure should hard code?
+                    if (component != null)
+                        component.repaint();
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_J)
+                {
+                    jitterRadius = (jitterRadius + 1) % 2; // just on or off for now
+                    // XXX um... and why am I not seeing it repaint immediately? OH FOR FUCKS SAKE I HAVE TO POINT TO CLICK AFTER I ENTER THE WINDOW! but only sometimes!! when will I get this monkey off my back?
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_C)
+                {
+                    undoTree.Clear();
                 }
                 component.repaint();
             }
@@ -492,22 +513,24 @@ public class UndoTreeViewer
 
     private UndoTree.Snapshot snapshot = new UndoTree.Snapshot(); // scratch to reuse each time  // XXX put this up top somewhere, and should probably clear it if the tree is cleared
 
+    // XXX figure out where to put this, if anywhere
+    private java.util.Random jitterGenerator = new java.util.Random();
+    private int jitterRadius = 0; // j key toggles
+
     /** Paint callback to be called from inside your Component's paint() or paintComponent() method. The caller is responsible for clearing the window and/or double-buffering. XXX although it might make sense to draw single-buffered sometimes, when only a couple of pixels are changing... need to think about this */
-    // PAINT
+    // PAINT (the UndoTreeViewer)
     public void paint(java.awt.Component component, java.awt.Graphics g)
     {
         if (eventVerboseLevel >= 3) System.out.println("            UndoTreeViewer painting on a "+component.getClass().getSuperclass().getName());
 
         // Evolve any params that are moving towards a target...
         {
-            if (nFramesUntilTargetStretch > 0)
-            {
-                stretch_p_and_v[0] -= targetStretch;
-                update_p_and_v(stretch_p_and_v, -nFramesUntilTargetStretch);
-                stretch_p_and_v[0] += targetStretch;
-                if (--nFramesUntilTargetStretch > 0)
-                    component.repaint();
-            }
+            stretchOutAlongTimeLine.evolveOneFrame();
+            if (stretchOutAlongTimeLine.isMoving())
+                component.repaint();
+            centerCurrentNode.evolveOneFrame();
+            if (centerCurrentNode.isMoving())
+                component.repaint();
         }
 
         undoTree.takeSnapshot(snapshot);
@@ -524,7 +547,7 @@ public class UndoTreeViewer
         }
         double x[] = new double[nNodes];
         double y[] = new double[nNodes];
-        UndoTree.chooseNodePositions(snapshot.parents, snapshot.preferredChildIndices, edgeLengths, stretch_p_and_v[0], x, y);
+        UndoTree.chooseNodePositions(snapshot.nNodes, snapshot.parents, snapshot.preferredChildIndices, edgeLengths, snapshot.currentNode, snapshot.currentNodeFraction, stretchOutAlongTimeLine.get(), x, y);
         double xmin = Double.POSITIVE_INFINITY;
         double ymin = Double.POSITIVE_INFINITY;
         double xmax = Double.NEGATIVE_INFINITY;
@@ -536,6 +559,8 @@ public class UndoTreeViewer
             xmax = Math.max(xmax, x[iNode]);
             ymax = Math.max(ymax, y[iNode]);
         }
+
+
         //System.out.println("                model bounds ["+xmin+".."+xmax+"]x["+ymin+"x"+ymax+"]");
         //
         // Fit to the window...
@@ -557,6 +582,16 @@ public class UndoTreeViewer
             x[iNode] = LERP(0, w, xFrac);
             y[iNode] = LERP(0, h, yFrac);
         }
+
+        if (jitterRadius > 0)
+        {
+            for (int iNode = 0; iNode < nNodes; ++iNode)
+            {
+                x[iNode] += (jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius);
+                y[iNode] += (jitterGenerator.nextInt(2*jitterRadius+1)-jitterRadius);
+            }
+        }
+
 
         // Actual drawing starts here
         {
@@ -584,17 +619,27 @@ public class UndoTreeViewer
                     g.setColor(edgeColors[iNode]);
                 else
                     g.setColor(java.awt.Color.white);
-                g.drawRect((int)x[iNode]-1,(int)y[iNode]-1,3,3);
+                int radius = 2;
+                g.drawRect((int)x[iNode]-radius,(int)y[iNode]-radius,
+                           2*radius,2*radius);
             }
 
             //
             // Put a ring around the current node
             //
-            g.setColor(java.awt.Color.white);
-            int radius = 4;
-            g.drawRect((int)x[snapshot.currentNode]-radius,
-                       (int)y[snapshot.currentNode]-radius,
-                       2*radius+1,2*radius+1);
+            {
+                int parentNode = snapshot.parents[snapshot.currentNode]==-1 ? snapshot.currentNode : snapshot.parents[snapshot.currentNode];
+                double currentNodeTimeFraction = snapshot.currentNodeFraction;
+                double currentNodeSpaceFraction = SMOOTH(currentNodeTimeFraction);
+
+                double currentNodeX = LERP(x[parentNode], x[snapshot.currentNode], currentNodeSpaceFraction);
+                double currentNodeY = LERP(y[parentNode], y[snapshot.currentNode], currentNodeSpaceFraction);
+                g.setColor(java.awt.Color.white);
+                int radius = 4;
+                g.drawRect((int)currentNodeX-radius,
+                           (int)currentNodeY-radius,
+                           2*radius,2*radius);
+            }
 
         }
     } // paint
@@ -668,58 +713,19 @@ public class UndoTreeViewer
         }
     } // asciiDump
 
-        // Given position p and velocity v, at time t,
-        // find position and velocity
-        // at time t+1, assuming
-        // it's folling a cubic trajectory
-        // whose position and velocity at t=0 is 0.
-        //
-        private static void update_p_and_v(float p_and_v[/*2*/], float t)
-        {
-            float p = p_and_v[0];
-            float v = p_and_v[1];
-
-            float newP, newV;
-            if (true)
-            {
-                // Linear -- instantaneous start and stop
-                newP = lerp(p, 0, -1/t);
-                newV = p/t;
-            }
-            else
-            {
-                // Cubic! woohoo!
-                // Did this on paper.
-                float invT = 1.f/t;
-                float a = (-2*p*invT + v)*invT*invT;
-                float b = (3*p*invT - v)*invT;
-                // The cubic path we are following is:
-                // f(x) =    a x^3 +   b x^2
-                // f'(x) = 3 a x^2 + 2 b x
-                // newP = f(t+1)
-                // newV = f'(t+1)
-                float tPlus1 = t+1;
-                newP = (a*tPlus1 + b)*tPlus1*tPlus1;
-                newV = (3*a*tPlus1 + 2*b)*tPlus1;
-            }
-
-            p_and_v[0] = newP;
-            p_and_v[1] = newV;
-        } // update_p_and_v
-
-        private static float lerp(float a, float b, float t)
-        {
-            return a*(1-t) + b*t;
-        }
 
 
 
     // Graphical viewer for an undo tree, for the example main program
     // XXX shouldn't use swing for this... or maybe I should, I don't know
     private static void makeExampleUndoTreeViewer(final UndoTree undoTree,
+                                           final UndoTree otherViewThatThisViewShouldFollowAround,
                                            final int x, final int y, final int w, final int h,
                                            final int nThingsDoneEver[],
-                                           final int nViewersAlive[])
+                                           final int nViewersAlive[],
+                                           final int nModelsEverMade[],
+                                           final int nViewsEverMade[],
+                                           final int nViewersEverMade[])
     {
         UndoTreeViewer.ItemColorizer colorizer = new UndoTreeViewer.ItemColorizer() {
             private java.util.Random random = new java.util.Random();
@@ -745,29 +751,76 @@ public class UndoTreeViewer
 
         nViewersAlive[0]++;
         final javax.swing.JPanel jpanel = new javax.swing.JPanel() {
-            // PAINT
+            // PAINT (the surrounding example)
             public void paintComponent(java.awt.Graphics g)
             {
                 int w = getWidth(), h = getHeight();
                 if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    in paintComponent");
+
+                if (otherViewThatThisViewShouldFollowAround != null)
+                {
+                    //System.out.println("        kibbles and bits!");
+                    double timeIncrement = 1./500; // XXX figure out a scheme that makes sense... currently it just does linear interpolation and we smooth it out in a post-process, which means we do NOT get smooth direction changes, which we'd get if we used the velocity model
+                    boolean actuallyDidSomething = undoTree.incrementViewTowardsOtherView(otherViewThatThisViewShouldFollowAround, timeIncrement);
+                    //PRINT(actuallyDidSomething);
+                }
+
                 g.setColor(java.awt.Color.black);
                 g.fillRect(0,0,w,h);
                 undoTreeViewer.paint(this, g);
 
-                //      undo
-                // older do younger
-                //      redo
-                g.drawString("Enter to Do", 10, h-90);
-                g.drawString("Up to undo", 10, h-70);
-                g.drawString("Down to redo", 10, h-50);
-                g.drawString("Left for older", 10, h-30);
-                g.drawString("Right for younger", 10, h-10);
+                // XXX should use the font height instead of hard coding 20
+                int y = h - 9*20 - 20;
+                g.drawString("Enter to Do", 10, y+=20);
+                g.drawString("Up to undo", 10, y+=20);
+                g.drawString("Down to redo", 10, y+=20);
+                g.drawString("Left for older", 10, y+=20);
+                g.drawString("Right for younger", 10, y+=20);
+                g.drawString("c to clear", 10, y+=20);
+                g.drawString("t to toggle stretch-along-time-line display mode", 10, y+=20);
+                g.drawString("n for new view window of same tree", 10, y+=20);
+                g.drawString("ctrl-n for new view that follows this view around like a dog", 10, y+=20);
+                assert(y+20 == h);
                 if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    out paintComponent");
             }
         };
         // should work in either order...
         undoTreeViewer.attachToComponent(jpanel);
         undoTreeViewer.attachToUndoTree(undoTree);
+
+
+        // XXX hmm, I think I have listener memory leaks everywhere...
+        // XXX this one in particular, no one is keeping track of it at all.
+        // XXX in fact I don't think anyone ever calls detachFromUndoTree or detachFromComponent yet!
+        {
+            UndoTree.Listener otherViewThatThisViewShouldFollowAroundListener = null;
+            final java.awt.Component component = jpanel;
+            if (otherViewThatThisViewShouldFollowAround != null)
+            {
+                otherViewThatThisViewShouldFollowAround.addListener(otherViewThatThisViewShouldFollowAroundListener = new UndoTree.Listener() {
+                    public void somethingChanged()
+                    {
+                        //System.out.println("    woof!");
+                        // just repaint-- we will progress (and call repaint again)
+                        // each time we paint
+                        if (component != null)
+                            component.repaint();
+                    }
+                });
+            }
+            // XXX the following is the corresponding detach code--- put it somewhere appropriate when I get those variables somewhere appropriate
+            if (false)
+            {
+                if (otherViewThatThisViewShouldFollowAround != null)
+                {
+                    otherViewThatThisViewShouldFollowAround.removeListener(otherViewThatThisViewShouldFollowAroundListener);
+                    otherViewThatThisViewShouldFollowAroundListener = null;
+                    //otherViewThatThisViewShouldFollowAround = null; // uncomment this when it's real; compiler doesn't like it now because it's final
+                }
+            }
+
+        }
+
 
         final javax.swing.JFrame jframe = new javax.swing.JFrame("Undo Tree View");
         jframe.setForeground(java.awt.Color.white);
@@ -816,7 +869,9 @@ public class UndoTreeViewer
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_N)
                 {
-                    makeExampleUndoTreeViewer(new UndoTree(undoTree), x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive);
+                    makeExampleUndoTreeViewer(new UndoTree(undoTree), // different view, same model
+                                              ke.isControlDown() ? undoTree : null, // ctrl-n means the new one should follow me around
+                                              x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
                       && ke.isControlDown())
@@ -830,8 +885,17 @@ public class UndoTreeViewer
         //jframe.pack();
         jframe.setSize(w,h);
         jframe.setLocation(x,y);
-        jframe.setVisible(true);
-        jpanel.requestFocus(); // seems to be needed initially, if running in <=1.2 on linux, anyway.  weird!
+        // I think just-created stuff is safe until the components are
+        // "realized"... so put the realization stuff in an invokeLater
+        // to be done in an event dispatch thread, where gui creation stuff
+        // is supposed to be done.
+        javax.swing.SwingUtilities.invokeLater(new Runnable() {
+            public void run()
+            {
+                jframe.setVisible(true);
+                jpanel.requestFocus(); // seems to be needed initially, if running in <=1.2 on linux, anyway.  weird!
+            }
+        });
 
         /*
         TODO:
@@ -869,23 +933,54 @@ public class UndoTreeViewer
 
         int nThingsDoneEver[] = {0};
         int nViewersAlive[] = {0};
-        // XXX do it in a doLater I think... maybe that will fix the hangs
-        makeExampleUndoTreeViewer(tree, 500, 20, 300, 700, nThingsDoneEver, nViewersAlive);
+        int nModelsEverMade[] = {0};
+        int nViewsEverMade[] = {0};
+        int nViewersEverMade[] = {0};
+        int x = 50;
+        int w = 400;
+        makeExampleUndoTreeViewer(tree, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
         // The following two lines are very different!
         if (false)
         {
             // Doing it this way, both viewers will share
             // undos and redos (as well as changes in the tree structure).
             // Each can have its own display style though.
-            makeExampleUndoTreeViewer(tree, 800, 20, 300, 700, nThingsDoneEver, nViewersAlive);
+            makeExampleUndoTreeViewer(tree, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
         }
         if (true)
         {
             // Doing it this way, both viewers see tree changes
             // but they can explore the tree independently;
             // one viewer's undos and redos will not affect the other.
-            makeExampleUndoTreeViewer(new UndoTree(tree), 800, 20, 300, 700, nThingsDoneEver, nViewersAlive);
+            makeExampleUndoTreeViewer(tree = new UndoTree(tree), null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
         }
+        if (true)
+        {
+            // Doing it this way, the new one will follow the previous one
+            // around!
+            makeExampleUndoTreeViewer(new UndoTree(tree), tree, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
+        }
+
+        //
+        // Okay I think a good way to manage the models, views, and viewers
+        // is with a JTree.
+        // A typical setup is:
+        //      model I
+        //          view A
+        //              viewer 0
+        //              viewer 1
+        //              viewer 2
+        //          view B
+        //              viewer 3
+        //          view C
+        //      model II
+        //          view D
+        //              viewer 4
+        // XXX Bleah, I know this is going to totally obscure the simplicity
+        // of this example program
+        //          
+
+
         System.out.println("out main");
     } // main
 } // class UndoTreeViewer
