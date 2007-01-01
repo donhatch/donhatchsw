@@ -14,6 +14,10 @@ public class Format
 {
     private static void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
 
+    /**
+    * 0: nothing
+    * 1: prints some stuff
+    */
     public static int verboseLevel = 0;
 
 
@@ -117,14 +121,21 @@ public class Format
                         throw new IllegalArgumentException("sprintf expected arg "+iArg+" of type double, got type "+args[iArg].getClass()+" instead");
 
                     double x = ((Double)args[iArg++]).doubleValue();
+                    String sign = "";
+                    if (x < 0)
+                    {
+                        x = -x;
+                        sign = "-";
+                    }
 
                     double threshold = Math.round(Math.pow(10, precision));
                     double scale = 1.;
-                    while (x < threshold)
-                    {
-                        x *= 10;
-                        scale *= 10;
-                    }
+                    if (x != 0.)
+                        while (x < threshold)
+                        {
+                            x *= 10;
+                            scale *= 10;
+                        }
                     while (x >= threshold)
                     {
                         x /= 10;
@@ -133,9 +144,9 @@ public class Format
                     x = Math.floor(x);
                     x /= scale;
                     if (Math.floor(x) == x)
-                        thisConversionResult = ""+(int)Math.floor(x);
+                        thisConversionResult = sign+(int)Math.floor(x);
                     else
-                        thisConversionResult = ""+x;
+                        thisConversionResult = sign+x;
                 }
                 else if (formatChar == 'd')
                 {
@@ -211,6 +222,12 @@ public class Format
                                             new Double(arg1)});
     }
     /** convenience wrapper */
+    public static String sprintf(String format, double arg0, double arg1)
+    {
+        return sprintf(format, new Object[]{new Double(arg0),
+                                            new Double(arg1)});
+    }
+    /** convenience wrapper */
     public static String sprintf(String format, int arg0, String arg1)
     {
         return sprintf(format, new Object[]{new Integer(arg0),
@@ -228,6 +245,13 @@ public class Format
     {
         return sprintf(format, new Object[]{new Integer(arg0),
                                             new Integer(arg1),
+                                            new Double(arg2)});
+    }
+    /** convenience wrapper */
+    public static String sprintf(String format, int arg0, double arg1, double arg2)
+    {
+        return sprintf(format, new Object[]{new Integer(arg0),
+                                            new Double(arg1),
                                             new Double(arg2)});
     }
 
