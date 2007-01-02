@@ -466,9 +466,10 @@ public class SmoothlyVaryingViewingParameter
     public static void main(String args[])
     {
         System.out.println("in main");
+        double eps = 1e-5;
         {
             SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
-            x.set(1., 10, false); // XXX get rid of these params!
+            x.set(1., -1, false); // XXX get rid of these params!
             // Try the canonical trip: 1 second to go 1 unit of distance,
             // with time steps of 1/10 second.
             // It should get there in exactly 10 steps and then stay there.
@@ -476,16 +477,64 @@ public class SmoothlyVaryingViewingParameter
             double t = 0.;
             for (int i = 0; i < 15; ++i)
             {
+                double p0 = x.get();
+                double v0 = x.getVelocity();
                 System.out.println("    Before evolve: "+
                     com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
-                                        t, x.get(), x.getVelocity()));
+                                        t, p0, v0));
                 x.experimentalEvolve(1,1, dt);
                 t += dt;
+                double p1 = x.get();
+                double v1 = x.getVelocity();
                 System.out.println("     After evolve: "+
                     com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
-                                        t, x.get(), x.getVelocity()));
+                                        t, p1, v1));
+                if (LT(t,1.,eps))
+                    assert(LT(x.get(), 1., eps));
+                else
+                    assert(x.get() == 1.);
                 System.out.println();
             }
+            assert(x.get() == 1.);
+        }
+        System.out.println("================================================");
+
+        {
+            //
+            // See if we can get it to overshoot,
+            // by starting out strong until the halfway point
+            // where we have maximum speed and then losing power
+            // during the landing.
+            //
+            SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
+            x.set(1., -1, false); // XXX get rid of these params!
+            double dt = .1;
+            double t = 0.;
+            for (int i = 0; i < 55; ++i)
+            {
+                double p0 = x.get();
+                double v0 = x.getVelocity();
+                System.out.println("    Before evolve: "+
+                    com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
+                                        t, p0, v0));
+                x.experimentalEvolve(1,
+                                     i>=5 ? 2 : 1,
+                                     dt);
+                t += dt;
+                double p1 = x.get();
+                double v1 = x.getVelocity();
+                System.out.println("     After evolve: "+
+                    com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
+                                        t, p1, v1));
+                if (LEQ(t,2.5,eps))
+                    assert(p1 > p0);
+                else if (LEQ(t, 5.,eps))
+                    assert(p1 < p0);
+                else
+                    assert(p0 == 1. && p1 == 1.);
+                System.out.println();
+            }
+            assert(x.get() == 1.);
         }
 
         {
@@ -523,7 +572,7 @@ public class SmoothlyVaryingViewingParameter
                 PRINT(nIncrs);
                 PRINT(dt);
 
-                x.set(start, 1234, false); // XXX get rid of these params!
+                x.set(start, -1, false); // XXX get rid of these params!
 
                 // Bonk it to the starting position
                 x.experimentalEvolve(1,0, 1); // infinite power
@@ -534,7 +583,6 @@ public class SmoothlyVaryingViewingParameter
                 assert(!x.isMoving());
 
 
-                double eps = 1e-5;
                 int overallDir = LT(start,target,eps) ? 1 : GT(start,target,eps) ? -1 : 0;
                 double t = 0.;
                 for (int i = 0; i < nIncrs + 5; ++i)
