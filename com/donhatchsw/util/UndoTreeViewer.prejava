@@ -425,15 +425,17 @@ public class UndoTreeViewer
             private void requestUndo(double amount)        // 8 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request undo");
-                /*
-                if (undoTree.getCurrentNodeFraction()-amount > 0.)
-                    undoTree.setCurrentNodeFraction(undoTree.getCurrentNodeFraction()-amount); // XXX this isn't working worth a damn yet
-                else
-                */
+
+                double targetFraction = undoTree.getCurrentNodeFraction()-amount;
+                if (targetFraction <= 0.)
                 {
-                    String undoneItem = (String)undoTree.undo();
-                    if (eventVerboseLevel >= 1) System.out.println("undid "+undoneItem);
+                    targetFraction += 1.;
+                    Object undoneItem = undoTree.undo();
+                    if (eventVerboseLevel >= 1) System.out.println("redid "+(String)undoneItem);
                 }
+                if (undoTree.getCurrentNodeIndex() == 0)
+                    targetFraction = 1.; // don't go past the root
+                undoTree.setCurrentNodeFraction(targetFraction);
             }
             private void requestOlderBranch()   // 9 key on numeric keypad
             {
@@ -533,15 +535,17 @@ public class UndoTreeViewer
             private void requestRedo(double amount)        // 8 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request redo");
-                /*
-                if (undoTree.getCurrentNodeFraction()+amount < 1.)
-                    undoTree.setCurrentNodeFraction(undoTree.getCurrentNodeFraction()+amount); // XXX this isn't working worth a damn yet
-                else
-                */
+
+                double targetFraction = undoTree.getCurrentNodeFraction()+amount;
+                if (targetFraction > 1.)
                 {
-                    String redoneItem = (String)undoTree.redo();
-                    if (eventVerboseLevel >= 1) System.out.println("redid "+redoneItem);
+                    targetFraction -= 1.;
+                    Object redoneItem = undoTree.redo();
+                    if (eventVerboseLevel >= 1) System.out.println("redid "+(String)redoneItem);
+                    if (redoneItem == null)
+                        targetFraction = 1.; // don't go past leaf
                 }
+                undoTree.setCurrentNodeFraction(targetFraction);
             }
             private void requestYoungerLeaf() // 9 key on numeric keypad
             {
