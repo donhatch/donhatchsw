@@ -93,11 +93,44 @@ public class UndoTreeViewer
         private SmoothlyVaryingViewingParameter stretchOutAlongTimeLine = new SmoothlyVaryingViewingParameter(0.);
         private SmoothlyVaryingViewingParameter centerCurrentNode = new SmoothlyVaryingViewingParameter(0.);
         private SmoothlyVaryingViewingParameter log2ViewScale = new SmoothlyVaryingViewingParameter(0.);
-        private int paramFadeFrames = 1000;
+        private double paramFadeFrames = 1000.;
+        private double paramCriticalDampingFraction = .75;
 
-        public double nFramesPerEdgeWhenFollowing = 300.;
+        public double nFramesPerEdgeWhenFollowing = 300.; // XXX this is a misnomer, it's per average edge
         //public double nFramesPerEdgeWhenFollowing = 10.;
+
+        // XXX WEIRD! the number of frames it takes to converge doesn't
+        // XXX increase monotonically as the damping decrease... it has a sweet spot!
+        // XXX this is with nFramesPerEdgeWhenFollowing=300, on a 360 edge.
+        // XXX might be a numerical artifact of the dt?
+        //private double followerCriticalDampingFraction = .05; // 5421
+        //private double followerCriticalDampingFraction = .06; // 5580
+        //private double followerCriticalDampingFraction = .062; // 5590
+        //private double followerCriticalDampingFraction = .063; // 5594
+        //private double followerCriticalDampingFraction = .065; // 5595
+        //private double followerCriticalDampingFraction = .066; // 5596 <<< !
+        //private double followerCriticalDampingFraction = .067; // 5595
+        //private double followerCriticalDampingFraction = .068; // 5594
+        //private double followerCriticalDampingFraction = .069; // 5591
+        //private double followerCriticalDampingFraction = .07; // 5586
+        //private double followerCriticalDampingFraction = .071; // 5583
+        //private double followerCriticalDampingFraction = .08; // 5504
+        //private double followerCriticalDampingFraction = .75; // 1024
+        private double followerCriticalDampingFraction = .9; // 799   (just detectable if you're paying attention)
+        //private double followerCriticalDampingFraction = .95; // 726
+        //private double followerCriticalDampingFraction = 1; // 604 yep, critical damping is the fastest converging!
+        //private double followerCriticalDampingFraction = 1.1; // 618
+        //private double followerCriticalDampingFraction = 1.5; // 675
+        //private double followerCriticalDampingFraction = 2; // 764
+        //private double followerCriticalDampingFraction = 3; // 1124
+        //private double followerCriticalDampingFraction = 4; // infinity whoa, never converges! hmm, probably hanging out near the floating point epsilon.  XXX can we detect stall?
+        //private double followerCriticalDampingFraction = 5; // 1039
+        //private double followerCriticalDampingFraction = 10; // infinity
+        //private double followerCriticalDampingFraction = 20; // infinity
+
+
         public boolean showLabels = false; // XXX need a toggle for this
+
 
 
     //
@@ -622,21 +655,21 @@ public class UndoTreeViewer
         boolean showLabelsThisTime = this.showLabels;
         // Evolve any params that are moving towards a target...
         {
-            stretchOutAlongTimeLine.evolve(1, paramFadeFrames, 1);
+            stretchOutAlongTimeLine.evolve(1, paramFadeFrames, 1, paramCriticalDampingFraction);
             if (stretchOutAlongTimeLine.isMoving())
             {
                 //System.out.println("repaint because stretchOutAlongTimeLine moving");
                 showLabelsThisTime = false; // slight hack
                 component.repaint();
             }
-            centerCurrentNode.evolve(1, paramFadeFrames, 1);
+            centerCurrentNode.evolve(1, paramFadeFrames, 1, paramCriticalDampingFraction);
             if (centerCurrentNode.isMoving())
             {
                 //System.out.println("repaint because centerCurrentNode moving");
                 showLabelsThisTime = false; // slight hack
                 component.repaint();
             }
-            log2ViewScale.evolve(1, paramFadeFrames, 1);
+            log2ViewScale.evolve(1, paramFadeFrames, 1, paramCriticalDampingFraction);
             if (log2ViewScale.isMoving())
             {
                 //System.out.println("repaint because view scale moving");
@@ -649,7 +682,10 @@ public class UndoTreeViewer
         int nNodes = snapshot.nNodes;
         int parentNode = snapshot.parents[snapshot.currentNode]==-1 ? snapshot.currentNode : snapshot.parents[snapshot.currentNode];
         double currentNodeTimeFraction = snapshot.currentNodeFraction;
-        double currentNodeSpaceFraction = SMOOTH(currentNodeTimeFraction); // XXX not a great place to do this, should be down in the velocity stuff in the undo tree itself, so that direction changes are smooth
+
+        //double currentNodeSpaceFraction = SMOOTH(currentNodeTimeFraction); // smooth in addition to what the follower logic already does
+        double currentNodeSpaceFraction = currentNodeTimeFraction; // don't smooth in addition to what the follower logic already does
+
         java.awt.Color edgeColors[] = new java.awt.Color[nNodes];
         double edgeLengths[] = new double[nNodes];
 
@@ -1015,6 +1051,7 @@ public class UndoTreeViewer
                         1., // ref trip dist = one unit of edge length
                         undoTreeViewer.nFramesPerEdgeWhenFollowing, // ref trip time = that many frames
                         1., // dt = one frame
+                        undoTreeViewer.followerCriticalDampingFraction,
                         lengthizer);
                     if (stateChange != null
                      && stateChange.integerPartDir != 0)

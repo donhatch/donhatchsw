@@ -49,7 +49,7 @@ public class SmoothlyVaryingViewingParameter
     public void snap(double[] targetPosition)
     {
         set(targetPosition);
-        evolve(1,0,1); // infinite power
+        evolve(1,0,1,1); // infinite power
     }
     /** Snaps to the specified position (scalar version).  Equivalent to snap(new double[]{targetPosition}). */
     public void snap(double targetPosition)
@@ -112,10 +112,13 @@ public class SmoothlyVaryingViewingParameter
     * This shows that if you can go 1 mile in 1 second,
     * then you will be able to go 100 miles in 10 seconds
     * (using the same constant acceleration/deceleration magnitude).
+    * <p>
+    * @param criticalDampingFraction  Set this to 1.  If you set it to &lt;, you'll get slower progress; if you set it to &gt;1 you will be underdamped and you'll overshoot and oscillate as you converge on the target.
     */
     public void evolve(double referenceTripDistance,
                        double referenceTripTime,
-                       double dt)
+                       double dt,
+                       double criticalDampingFraction)
     {
         if (isMoving())
         {
@@ -129,12 +132,42 @@ public class SmoothlyVaryingViewingParameter
                 return;
             }
 
+            //
+            // The internal function
+            // takes a potentially different accelerationMultiplier
+            // and decelerationMultiplier; however the implementation is such
+            // that it will not do the right thing if they are different,
+            // so the public API only exposes a single parameter.
+            // Also, if we lower the acc/decelerationMultipler,
+            // that would mean, of course, that the acceleration
+            // felt will be lower... we'd like that to not happen,
+            // so fudge referenceTripDistance here so that it doesn't
+            // (this works because the acceleration experienced
+            // is linearly proportional to referenceTripDistance,
+            // see above).
+            // XXX Actually maybe this is NOT the right thing to do...
+            // XXX it makes the acceleration the same,
+            // XXX but it makes it so the time it takes to do the trip
+            // XXX is no longer accurate!  But I'm thinking it's more
+            // XXX usable this way anyway, the user should think of
+            // XXX the referenceTripDistance and referenceTripTime
+            // XXX as being if damping were 1... maybe the params
+            // XXX should be renamed that?
+            // XXX Also if we DIDN'T do this correction,
+            // XXX the time estimate still wouldn't be right...
+            // XXX we'd have to correct it in a different way,
+            // XXX I'm not sure how.
+            //
+            double accelerationMultiplier = criticalDampingFraction;
+            double decelerationMultiplier = criticalDampingFraction;
+            referenceTripDistance /= criticalDampingFraction;
+
             double p_and_v[] = new double[2];
             for (int i = 0; i < position.length; ++i)
             {
                 p_and_v[0] = position[i] - targetPosition[i];
                 p_and_v[1] = velocity[i];
-                update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt);
+                update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, accelerationMultiplier, decelerationMultiplier);
                 position[i] = p_and_v[0] + targetPosition[i];
                 velocity[i] = p_and_v[1];
             }
@@ -181,7 +214,9 @@ public class SmoothlyVaryingViewingParameter
     private static void update_p_and_v(double p_and_v[/*2*/],
                                        double referenceTripDistance,
                                        double referenceTripTime,
-                                       double dt)
+                                       double dt,
+                                       double accelerationMultiplier,
+                                       double decelerationMultiplier)
     {
         //
         // We need to change units so that referenceTripDistance
@@ -196,17 +231,24 @@ public class SmoothlyVaryingViewingParameter
         p_and_v[0] /= referenceTripDistance;
         p_and_v[1] *= referenceTripTime/referenceTripDistance;
         update_p_and_v_for_canonical_accel(p_and_v,
-                                           dt / referenceTripTime);
+                                           dt / referenceTripTime,
+                                           accelerationMultiplier,
+                                           decelerationMultiplier);
         // Convert back to old units...
         p_and_v[0] *= referenceTripDistance;
         p_and_v[1] *= referenceTripDistance/referenceTripTime;
     } // private update_p_and_v
 
     // Do it assuming the canonical reference trip of 1 unit of distance
-    // starting and stopping softly, takes 1 unit of time...
+    // starting and stopping softly, takes 1 unit of time.
+    // The multipliers are applied at the very last instant,
+    // after we do all our smart planning... they represent
+    // how badly we erred in estimating our actual strength.
     private static void update_p_and_v_for_canonical_accel(
                                        double p_and_v[/*2*/],
-                                       double dt)
+                                       double dt,
+                                       double accelerationMultiplier,
+                                       double decelerationMultiplier)
     {
         if (verboseLevel >= 1) System.out.println("in update_p_and_v_for_canonical_accel");
         //
@@ -234,7 +276,8 @@ public class SmoothlyVaryingViewingParameter
         //        f0(t1) = f1(t1)     i.e. +-2 t1^2 + b1 t1 + c1 == -+2 t1^2
         //        f0'(t1) = f1'(t1)   i.e. +-4 t1   + b1         == -+4 t1
         // Feeding this into mathematica,
-        // first with the + (i.e. the first leg is concave upwards):
+        // first with the + (i.e. the first leg is concave upwards
+        // and the second leg is concave downwards):
         /*
                        Solve[{
                            2 t0^2 + b1 t0 + c1 == p0,
@@ -259,8 +302,6 @@ public class SmoothlyVaryingViewingParameter
                     t1 = -sqrt(p0+v0^2/8)/2
                     t0 = -v0/4 + 2*t1
         */
-        // I think only one of the four will satisfy t1 <= t0 <= 0
-        // but I'm not sure, need to get clearer on all this.
         double p0 = p_and_v[0];
         double v0 = p_and_v[1];
 
@@ -315,17 +356,26 @@ public class SmoothlyVaryingViewingParameter
         if (t >= 0)
         {
             // We are gonna get all the way there within this timestep.
+            // 
             if (verboseLevel >= 1) System.out.println("We are gonna get all the way there within this timestep");
             p_and_v[0] = 0.;
             p_and_v[1] = 0.;
             //assert(false); // uncomment for coverage test
+
+            // NOTE we fail to do the acceleration/deceleration
+            // multiplier thing in this case.  I'm thinking this
+            // is probably a good thing, since it will cut short
+            // a possibly long but visually undetectable
+            // tiny exponentially decaying oscillation.
+
             if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel (early)");
             return;
         }
 
         if (t >= t1)
         {
-            // it's the landing leg of the journey...
+            //
+            // It's the landing leg of the journey...
             // calculate from the target.
             // if we used concave upwards for the initial leg,
             // that means we use concave downward for the final leg.
@@ -344,6 +394,14 @@ public class SmoothlyVaryingViewingParameter
                 p_and_v[1] = 4*t; // <0 because t<0
                 //assert(false); // uncomment for coverage test
             }
+
+            //
+            // Fudge time!
+            // Take the effect we're going to have on the velocity,
+            // and multiply it by decelerationMultiplier.
+            //
+            //p_and_v[0] = lerp(p0, p_and_v[0], decelerationMultiplier);
+            p_and_v[1] = lerp(v0, p_and_v[1], decelerationMultiplier);
         }
         else
         {
@@ -373,6 +431,14 @@ public class SmoothlyVaryingViewingParameter
                 p_and_v[1] = v;
                 //assert(false); // uncomment for coverage test
             }
+
+            //
+            // Fudge time!
+            // Take the effect we're going to have on the velocity,
+            // and multiply it by accelerationMultiplier.
+            //
+            //p_and_v[0] = lerp(p0, p_and_v[0], accelerationMultiplier);
+            p_and_v[1] = lerp(v0, p_and_v[1], accelerationMultiplier);
         }
 
         // Sanity check...
@@ -380,20 +446,27 @@ public class SmoothlyVaryingViewingParameter
             double dp = Math.abs(p_and_v[0] - p0);
             double dv = Math.abs(p_and_v[1] - v0);
             //PRINT(p_and_v[1] - v0); // should always be <= 4*dt! (and usually exactly, unless we passed the thrust-reversal time)
-            assert(dv < 4.01*dt);
+            double maxFudge = Math.max(accelerationMultiplier, decelerationMultiplier);
+            assert(dv < 4.01*dt * maxFudge);
             double maxPossibleSpeedInInterval = Math.max(Math.abs(v0), Math.abs(p_and_v[1])) + 2*dt;
-            assert(dp < 2.01*dt*dt + 4.01*maxPossibleSpeedInInterval);
+            assert(dp < (2.01*dt*dt + 4.01*maxPossibleSpeedInInterval) * maxFudge);
         }
 
         if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel");
     } // private update_p_and_v_for_canonical_accel
 
 
+    private static double lerp(double a, double b, double t)
+    {
+        return a*(1-t) + b*t;
+    }
+
 
     /** Test program. */
     public static void main(String args[])
     {
         System.out.println("in main");
+        double criticalDampingFraction = 1.; // XXX should write some tests with this
         double eps = 1e-5;
         {
             SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
@@ -410,7 +483,7 @@ public class SmoothlyVaryingViewingParameter
                 System.out.println("    Before evolve: "+
                     com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
                                         t, p0, v0));
-                x.evolve(1,1, dt);
+                x.evolve(1,1, dt, criticalDampingFraction);
                 t += dt;
                 double p1 = x.get();
                 double v1 = x.getVelocity();
@@ -447,7 +520,8 @@ public class SmoothlyVaryingViewingParameter
                                         t, p0, v0));
                 x.evolve(1,
                          i>=5 ? 2 : 1,   // reduce to half power at i=5
-                         dt);
+                         dt,
+                         criticalDampingFraction);
                 t += dt;
                 double p1 = x.get();
                 double v1 = x.getVelocity();
@@ -500,10 +574,7 @@ public class SmoothlyVaryingViewingParameter
                 PRINT(nIncrs);
                 PRINT(dt);
 
-                x.set(start);
-
-                // Bonk it to the starting position
-                x.evolve(1,0, 1); // infinite power
+                x.snap(start);
                 PRINT(x.get());
                 PRINT(x.getVelocity());
                 assert(x.get() == start);
@@ -522,7 +593,7 @@ public class SmoothlyVaryingViewingParameter
                         System.out.println("    Before evolve: "+
                             com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
                                                 t, p0, v0));
-                    x.evolve(canonicalDistance,canonicalTime, dt);
+                    x.evolve(canonicalDistance,canonicalTime, dt, criticalDampingFraction);
                     t += dt;
                     double p1 = x.get();
                     double v1 = x.getVelocity();
