@@ -27,6 +27,7 @@
         - optimize the tree rendering so bushy parts can stack up if possible
         - don't continuously fit, should just have a fit button
         - clipping-- especially when label drawing
+        - option to not slow down at edge transitions
 */
 package com.donhatchsw.util;
 
@@ -94,7 +95,8 @@ public class UndoTreeViewer
         private SmoothlyVaryingViewingParameter log2ViewScale = new SmoothlyVaryingViewingParameter(0.);
         private int paramFadeFrames = 1000;
 
-        public float nFramesPerEdgeWhenFollowing = 300.f;
+        public double nFramesPerEdgeWhenFollowing = 300.;
+        //public double nFramesPerEdgeWhenFollowing = 10.;
         public boolean showLabels = false; // XXX need a toggle for this
 
 
@@ -315,7 +317,7 @@ public class UndoTreeViewer
                 }
                 else if (c == 'a') // ascii dump
                 {
-                    asciiDump(undoTree, (float)stretchOutAlongTimeLine.get());
+                    asciiDump(undoTree, stretchOutAlongTimeLine.get());
                 }
                 else if (c == 'S')
                 {
@@ -850,7 +852,7 @@ public class UndoTreeViewer
         this.lengthizer = lengthizer;
     } // UndoTreeViewer ctor
 
-    private static void asciiDump(UndoTree undoTree, float stretchOutAlongTimeLine)
+    private static void asciiDump(UndoTree undoTree, double stretchOutAlongTimeLine)
     {
         //PRINT(__LINE__);
         //PRINT(undoTree);
@@ -1004,7 +1006,12 @@ public class UndoTreeViewer
                 if (isAFollower)
                 {
                     //System.out.println("        kibbles and bits!");
-                    UndoTree.ReturnValueOfIncrementViewTowardsOtherView stateChange = undoTree.incrementViewTowardsOtherView(otherViewThatThisViewShouldFollowAround, 1./undoTreeViewer.nFramesPerEdgeWhenFollowing, lengthizer);
+                    UndoTree.ReturnValueOfIncrementViewTowardsOtherView stateChange = undoTree.incrementViewTowardsOtherView(
+                        otherViewThatThisViewShouldFollowAround,
+                        1., // ref trip dist = one unit of edge length
+                        undoTreeViewer.nFramesPerEdgeWhenFollowing, // ref trip time = that many frames
+                        1., // dt = one frame
+                        lengthizer);
                     if (stateChange != null
                      && stateChange.integerPartDir != 0)
                     {
