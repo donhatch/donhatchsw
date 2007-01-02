@@ -1,4 +1,5 @@
 package com.donhatchsw.util;
+#include "macros.h" 
 
 /**
 * Viewing parameters that always change SMOOTHLY
@@ -8,52 +9,52 @@ package com.donhatchsw.util;
 */
 public class SmoothlyVaryingViewingParameter
 {
-    private float[] position;
-    private float[] velocity;
-    private float targetPosition[];
-    private float nFramesUntilTarget = 0;
+    private double[] position;
+    private double[] velocity;
+    private double targetPosition[];
+    public double nFramesUntilTarget = 0; // XXX this is going away
     private boolean justUseLerp = false;
 
-    /** Convenience constructor for a scalar parameter; equivalent to SmoothlyVaryingViewingParameter(new float[]{initialPosition}). */
-    public SmoothlyVaryingViewingParameter(float initialPosition)
+    /** Convenience constructor for a scalar parameter; equivalent to SmoothlyVaryingViewingParameter(new double[]{initialPosition}). */
+    public SmoothlyVaryingViewingParameter(double initialPosition)
     {
         // XXX huh?  why can't I do the following? weird, maybe a typo
-        //SmoothlyVaryingViewingParameter(new float[]{initialPosition});
+        //SmoothlyVaryingViewingParameter(new double[]{initialPosition});
 
         // so copy the code instead...
-        this.position = VecMath.copyvec(new float[]{initialPosition});
-        this.velocity = new float[this.position.length];
-        this.targetPosition = new float[this.position.length];
+        this.position = VecMath.copyvec(new double[]{initialPosition});
+        this.velocity = new double[this.position.length];
+        this.targetPosition = new double[this.position.length];
         this.nFramesUntilTarget = 0;
     }
     /** Constructor. */
-    public SmoothlyVaryingViewingParameter(float initialPosition[])
+    public SmoothlyVaryingViewingParameter(double initialPosition[])
     {
         this.position = VecMath.copyvec(initialPosition);
-        this.velocity = new float[this.position.length];
-        this.targetPosition = new float[this.position.length];
+        this.velocity = new double[this.position.length];
+        this.targetPosition = new double[this.position.length];
         this.nFramesUntilTarget = 0;
     }
 
     /** Sets the value of this scalar variable at some time in the future, with optional justUseLerp if you want it to go at constant speed. */
-    public void set(float targetPosition, int nFramesUntilTarget, boolean justUseLerp)
+    public void set(double targetPosition, int nFramesUntilTarget, boolean justUseLerp)
     {
-        set(new float[]{targetPosition}, nFramesUntilTarget, justUseLerp);
+        set(new double[]{targetPosition}, nFramesUntilTarget, justUseLerp);
     }
     /** Sets the value of this variable at some time in the future, optionally using dumb old linear interpolation (i.e. constant velocity with abrupt start and stop) instead of the nice smooth cubic interpolation that it would like to use, and would use if you would let it. */
-    public void set(float[] targetPosition, int nFramesUntilTarget, boolean justUseLerp)
+    public void set(double[] targetPosition, int nFramesUntilTarget, boolean justUseLerp)
     {
         if (targetPosition.length != this.targetPosition.length)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: buffer size is "+targetPosition.length+", expected "+this.targetPosition.length+"");
         VecMath.copyvec(this.targetPosition, targetPosition);
         this.nFramesUntilTarget = nFramesUntilTarget;
-        if (nFramesUntilTarget <= 0)
+        if (nFramesUntilTarget == 0)
             VecMath.copyvec(this.position, targetPosition);
         this.justUseLerp = justUseLerp;
     }
 
     /** Gets the target value of this variable now, if it's a scalar, otherwise throws an IllegalArgumentException. */
-    public float getTarget()
+    public double getTarget()
     {
         if (position.length != 1)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getTarget: no-arg version only available for scalars, this one is a vector of dimension "+position.length);
@@ -61,14 +62,21 @@ public class SmoothlyVaryingViewingParameter
     }
 
     /** Gets the value of this scalar variable now.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
-    public float get()
+    public double get()
     {
         if (position.length != 1)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: no-arg version only available for scalars, this one is a vector of dimension "+position.length);
         return position[0];
     }
+    /** Gets the velocity of this scalar variable now, in case you're interested.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    public double getVelocity()
+    {
+        if (position.length != 1)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: no-arg version only available for scalars, this one is a vector of dimension "+position.length);
+        return velocity[0];
+    }
     /** Gets the value of this vector variable now, into the given array. */
-    public void get(float position[])
+    public void get(double position[])
     {
         if (position.length != this.position.length)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: buffer size is "+position.length+", expected "+this.position.length+"");
@@ -77,12 +85,51 @@ public class SmoothlyVaryingViewingParameter
         else
             VecMath.copyvec(position, this.targetPosition); // cheat, if for some reason they ended up different... (this is like triple protection, it really shouldn't happen)
     }
+
+    /**
+    * 0: nothing
+    * 1: some haphazard stuff
+    * 2: heavy duty haphazard stuff
+    */
+    public static int verboseLevel = 0;
+
+    /** Evolves dt seconds towards the target.  Doesn't use nFramesUntilTarget. */
+    public void experimentalEvolve(double canonicalTripDistance,
+                                   double canonicalTripTime,
+                                   double dt)
+    {
+        if (isMoving())
+        {
+            if (canonicalTripTime == 0.)
+            {
+                // Infinite power-- bonk it there
+                VecMath.copyvec(this.position, targetPosition);
+                VecMath.zerovec(this.velocity);
+                return;
+            }
+
+            double p_and_v[] = new double[2];
+            for (int i = 0; i < position.length; ++i)
+            {
+                p_and_v[0] = position[i] - targetPosition[i];
+                p_and_v[1] = velocity[i];
+                update_p_and_v(p_and_v, canonicalTripDistance, canonicalTripTime, dt);
+                position[i] = p_and_v[0] + targetPosition[i];
+                velocity[i] = p_and_v[1];
+            }
+            if (--nFramesUntilTarget == 0)
+            {
+                VecMath.copyvec(this.position, this.targetPosition); // cheat
+            }
+        }
+    } // experimentalEvolve
+
     /** Evolves one frame towards the target. */
     public void evolveOneFrame()
     {
         if (nFramesUntilTarget > 0)
         {
-            float p_and_v[] = new float[2];
+            double p_and_v[] = new double[2];
             for (int i = 0; i < position.length; ++i)
             {
                 p_and_v[0] = position[i] - targetPosition[i];
@@ -100,9 +147,8 @@ public class SmoothlyVaryingViewingParameter
     /** Returns true if we are still moving towards the target (i.e. if a evolveOneFrame() would actually change anything), false otherwise. */
     public boolean isMoving()
     {
-        return nFramesUntilTarget > 0
-            || (VecMath.equalsExactly(position, targetPosition)
-             && VecMath.normsqrd(velocity) == 0.f);
+        return !VecMath.equalsExactly(position, targetPosition)
+             || VecMath.normsqrd(velocity) != 0.;
     }
 
     //
@@ -113,37 +159,37 @@ public class SmoothlyVaryingViewingParameter
     // it's folling a cubic trajectory
     // whose position and velocity at t=0 is 0.
     //
-    private static void update_p_and_v(float p_and_v[/*2*/], float t,
+    private static void update_p_and_v(double p_and_v[/*2*/], double t,
                                        boolean justUseLerp)
     {
-        float p = p_and_v[0];
-        float v = p_and_v[1];
+        double p = p_and_v[0];
+        double v = p_and_v[1];
 
-        float newP, newV;
+        double newP, newV;
         if (justUseLerp)
         {
             // Linear -- instantaneous start and stop
             newP = lerp(p, 0, -1/t);
             newV = p/t;
-            if (newP == 0.f)
+            if (newP == 0.)
             {
                 //System.out.println("bonk!");
-                newV = 0.f; // zero out the velocity at the end of the lerp so the next guy who might NOT be a justUseLerp doesn't get a bogus impulse at the beginning
+                newV = 0.; // zero out the velocity at the end of the lerp so the next guy who might NOT be a justUseLerp doesn't get a bogus impulse at the beginning
             }
         }
         else
         {
             // Cubic! woohoo!
             // Did this on paper.
-            float invT = 1.f/t;
-            float a = (-2*p*invT + v)*invT*invT;
-            float b = (3*p*invT - v)*invT;
+            double invT = 1./t;
+            double a = (-2*p*invT + v)*invT*invT;
+            double b = (3*p*invT - v)*invT;
             // The cubic path we are following is:
             // f(x) =    a x^3 +   b x^2
             // f'(x) = 3 a x^2 + 2 b x
             // newP = f(t+1)
             // newV = f'(t+1)
-            float tPlus1 = t+1;
+            double tPlus1 = t+1;
             newP = (a*tPlus1 + b)*tPlus1*tPlus1;
             newV = (3*a*tPlus1 + 2*b)*tPlus1;
         }
@@ -152,8 +198,378 @@ public class SmoothlyVaryingViewingParameter
         p_and_v[1] = newV;
     } // update_p_and_v
 
-    private static float lerp(float a, float b, float t)
+    private static double lerp(double a, double b, double t)
     {
         return a*(1-t) + b*t;
     }
+
+
+    //
+    // EXPERIMENTAL...
+    // All right, let's try it a different way.
+    // Let's say we don't know the target time...
+    // But we know our maximum acceleration,
+    // and we want to get there as quickly as possible
+    // without exceeding that acceleration.
+    // The solution will be piecewise quadratic; two pieces,
+    // the first of which "falls" with constant acceleration towards the target
+    // and the second of which decelerates so as to land
+    // with zero velocity.
+    //
+    // So in this case we know:
+    //          current position p0
+    //          current velocity v0
+    //          target position = 0
+    //          target velocity = 0
+    //          the constant acceleration magnitude
+    //             (if it takes 1 second
+    //             to take the canonical trip of length 1
+    //             starting and ending at zero velocity,
+    //             then we are following the quadratic 2 t^2
+    //             for the first half of the trip (taking it to 1/2 at 1/2),
+    //             which means the velocity at any t during the first half
+    //             of the trip is 4 t, and the acceleration is 4.
+    //             therefore in general we like to do acceleration=4
+    //             and we will use it at all times in every trip anywhere.)
+    // And we have to figure out the time it should take
+    // to make a soft landing at the target position,
+    // using constant magnitude acceleration.
+    //          
+
+    private static void update_p_and_v(double p_and_v[/*2*/],
+                                       double canonicalTripDistance,
+                                       double canonicalTripTime,
+                                       double dt)
+    {
+        //
+        // We need to change units so that canonicalTripDistance
+        // and canonicalTripTime in old units
+        // are both 1 in new units.
+        // So to convert from old to new units:
+        //    - times should get divided by canonicalTripTime
+        //    - distances should get divided by canonicalTripDistance
+        //    - velocities (=distance/time) should get divided
+        //        by canonicalTripDistance/canonicalTripTime
+        //
+        p_and_v[0] /= canonicalTripDistance;
+        p_and_v[1] *= canonicalTripTime/canonicalTripDistance;
+        update_p_and_v_for_canonical_accel(p_and_v,
+                                           dt / canonicalTripTime);
+        // Convert back to old units...
+        p_and_v[0] *= canonicalTripDistance;
+        p_and_v[1] *= canonicalTripDistance/canonicalTripTime;
+    }
+
+    // First assume the canonical trip of 1 unit of length,
+    // starting and stopping softly, takes 1 unit of time...
+    private static void update_p_and_v_for_canonical_accel(
+                                       double p_and_v[/*2*/],
+                                       double dt)
+    {
+        if (verboseLevel >= 1) System.out.println("in update_p_and_v_for_canonical_accel");
+        //
+        // We need to figure out:
+        //      - the (negative) time t0 that we have to start at
+        //        so that we can reach the target softly at time 0
+        //      - the thrust-reversal time t1 such that:
+        //            t0 <= t1 <= 0
+        //      - constants b1,c1 such that the first leg of the journey
+        //        is the parabola:
+        //            f0(t) = +-2 t^2 + b1 t + c1
+        // We need the position and velocity of f0 at time t1
+        // to match that of the landing leg of the journey,
+        // which is either the upward or downward parabola:
+        //            f1(t) = -+2 t^2
+        // (with the sign being the opposite of the sign appearing in f0).
+        // So our unknowns are:
+        //        t0
+        //        t1
+        //        b1
+        //        c1
+        // And our constraints are:
+        //        f0(t0) = p0         i.e. +-2 t0^2 + b1 t0 + c1 == p0
+        //        f0'(t0) = v0        i.e. +-4 t0   + b1         == v0
+        //        f0(t1) = f1(t1)     i.e. +-2 t1^2 + b1 t1 + c1 == -+2 t1^2
+        //        f0'(t1) = f1'(t1)   i.e. +-4 t1   + b1         == -+4 t1
+        // Feeding this into mathematica,
+        // first with the + (i.e. the first leg is concave upwards):
+        /*
+                       Solve[{
+                           2 t0^2 + b1 t0 + c1 == p0,
+                           4 t0   + b1         == v0,
+                           2 t1^2 + b1 t1 + c1 == -2 t1^2,
+                           4 t1   + b1         == -4 t1
+                        }, {t0,t1,b1,c1}] // Simplify
+            After the usual hand simplifying because Mathematica
+            can never figure it out, there are two solutions,
+            but only one of them has t1<0 like we require:
+                First solution (concave upward initial leg):
+                    t1 = -sqrt(-p0+v0^2/8)/2
+                    t0 = v0/4 + 2*t1
+            Now with the - (i.e. the first leg is concave downwards):
+                        Solve[{
+                            -2 t0^2 + b1 t0 + c1 == p0,
+                            -4 t0   + b1         == v0,
+                            -2 t1^2 + b1 t1 + c1 == 2 t1^2,
+                            -4 t1   + b1         == 4 t1
+                        }, {t0,t1,b1,c1}] // Simplify
+                Second solution (concave downward initial leg):
+                    t1 = -sqrt(p0+v0^2/8)/2
+                    t0 = -v0/4 + 2*t1
+        */
+        // I think only one of the four will satisfy t1 <= t0 <= 0
+        // but I'm not sure, need to get clearer on all this.
+        double p0 = p_and_v[0];
+        double v0 = p_and_v[1];
+        if (verboseLevel >= 2) PRINT(p0);
+        if (verboseLevel >= 2) PRINT(v0);
+        if (verboseLevel >= 2) PRINT(p0+v0*v0/8);
+
+        boolean use_concave_upward_for_initial_leg;
+        if (v0 >= 0)
+        {
+            // if the concave downward one works at all,
+            // then it's the one, else it's the concave upward one.
+            if (p0+v0*v0/8 >= 0)
+            {
+                //assert(false); // XXX coverage -- remove when hit
+                use_concave_upward_for_initial_leg = false;
+            }
+            else
+            {
+                //assert(false); // XXX coverage -- remove when hit
+                use_concave_upward_for_initial_leg = true;
+            }
+        }
+        else
+        {
+            // the opposite.
+            if (-p0+v0*v0/8 >= 0)
+            {
+                //assert(false); // XXX coverage-- remove when hit
+                use_concave_upward_for_initial_leg = true;
+            }
+            else
+            {
+                //assert(false); // XXX coverage-- remove when hit
+                use_concave_upward_for_initial_leg = false;
+            }
+        }
+        if (verboseLevel >= 2) PRINT(use_concave_upward_for_initial_leg);
+        double t0, t1;
+        if (use_concave_upward_for_initial_leg)
+        {
+            t1 = -Math.sqrt(-p0+v0*v0/8)/2;
+            t0 = v0/4 + 2*t1;
+        }
+        else
+        {
+            t1 = -Math.sqrt(p0+v0*v0/8)/2;
+            t0 = -v0/4 + 2*t1;
+        }
+        if (verboseLevel >= 2) PRINT(t0);
+        if (verboseLevel >= 2) PRINT(t1);
+
+        //
+        // All right, now we know the initial time t0
+        // and the thrust-reversal time t1.
+        //
+        double t = t0+dt; // when we want to evaluate
+        if (t >= 0)
+        {
+            // We are gonna get all the way there within this timestep.
+            if (verboseLevel >= 1) System.out.println("We are gonna get all the way there within this timestep");
+            p_and_v[0] = 0.;
+            p_and_v[1] = 0.;
+            //assert(false); // XXX coverage-- remove when hit
+            if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel (early)");
+            return;
+        }
+        if (verboseLevel >= 2) PRINT(t);
+        if (verboseLevel >= 2) PRINT(t1);
+
+        if (t >= t1)
+        {
+            // it's the landing leg of the journey...
+            // calculate from the target.
+            // if we used concave upwards for the initial leg,
+            // that means we use concave downward for the final leg.
+            if (verboseLevel >= 1) System.out.println("It's the landing leg");
+            if (use_concave_upward_for_initial_leg)
+            {
+                // use the concave downward parabola for final leg
+                if (verboseLevel >= 2) PRINT(t);
+                p_and_v[0] = -2*t*t;
+                p_and_v[1] = -4*t; // >0 because t<0
+                if (verboseLevel >= 2) PRINTVEC(p_and_v);
+                //assert(false); // XXX coverage-- remove when hit
+            }
+            else
+            {
+                // use the concave upward parabola for final leg
+                if (verboseLevel >= 2) PRINT(t);
+                p_and_v[0] = 2*t*t;
+                p_and_v[1] = 4*t; // <0 because t<0
+                //assert(false); // XXX coverage-- remove when hit
+            }
+        }
+        else
+        {
+            // It's the first leg of the journey...
+            // Calculate from time 2*t1, which is where
+            // the first leg has velocity 0.  Call that the base.
+            // it might be before or after t0.
+            if (verboseLevel >= 1) System.out.println("It's the first leg");
+            double base_t = 2*t1;
+            if (use_concave_upward_for_initial_leg)
+            {
+                double p1 = -2*t1*t1; // concave downward on final leg
+                double base_p = 2*p1;
+                double p = base_p + 2*(t-base_t)*(t-base_t);
+                double v = 4*(t-base_t);
+                if (verboseLevel >= 2) PRINT(p1);
+                if (verboseLevel >= 2) PRINT(base_p);
+                if (verboseLevel >= 2) PRINT(p);
+                if (verboseLevel >= 2) PRINT(v);
+                p_and_v[0] = p;
+                p_and_v[1] = v;
+                //assert(false); // XXX coverage-- remove when hit
+            }
+            else // use concave downward for initial leg
+            {
+                double p1 = 2*t1*t1; // concave upward on final leg
+                double base_p = 2*p1;
+                double p = base_p - 2*(t-base_t)*(t-base_t);
+                double v = -4*(t-base_t);
+                p_and_v[0] = p;
+                p_and_v[1] = v;
+                //assert(false); // XXX coverage-- remove when hit
+            }
+        }
+
+        // Sanity check...
+        {
+            double dp = Math.abs(p_and_v[0] - p0);
+            double dv = Math.abs(p_and_v[1] - v0);
+            //PRINT(p_and_v[1] - v0); // should always be <= 4*dt! (and usually exactly, unless we passed the thrust-reversal time)
+            assert(dv < 4.01*dt);
+            double maxPossibleSpeedInInterval = Math.max(Math.abs(v0), Math.abs(p_and_v[1])) + 2*dt;
+            assert(dp < 2.01*dt*dt + 4.01*maxPossibleSpeedInInterval);
+        }
+
+        if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel");
+    } // update_p_and_v_for_canonical_accel
+
+
+
+    /** Test program. */
+    public static void main(String args[])
+    {
+        System.out.println("in main");
+        {
+            SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
+            x.set(1., 10, false); // XXX get rid of these params!
+            // Try the canonical trip: 1 second to go 1 unit of distance,
+            // with time steps of 1/10 second.
+            // It should get there in exactly 10 steps and then stay there.
+            double dt = .1;
+            double t = 0.;
+            for (int i = 0; i < 15; ++i)
+            {
+                System.out.println("    Before evolve: "+
+                    com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
+                                        t, x.get(), x.getVelocity()));
+                x.experimentalEvolve(1,1, dt);
+                t += dt;
+                System.out.println("     After evolve: "+
+                    com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
+                                        t, x.get(), x.getVelocity()));
+                System.out.println();
+            }
+        }
+
+        {
+            //
+            // Try lots of different trips
+            // without changing any strengths midstream.
+            // All the trips should end up being scaled
+            // versions of the canonical trip... no overshooting,
+            // the position should be monotonically increasing
+            // or decreasing towards the target.
+            //
+            SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
+            double canonicalDistances[] = {.1, 1, 10};
+            double canonicalTimes[] = {.1, 1, 10};
+            double starts[] = {-100, -1, -.1, 0, .1, 1, 100};
+            double targets[] = {-100, -1, -.1, 0, .1, 1, 100};
+            double nIncrss[] = {.5, 1, 1.5, 2, 2.5, 9.5, 10, 10.5};
+            FORI (iCanonicalDistance, canonicalDistances.length)
+            FORI (iCanonicalTime, canonicalTimes.length)
+            FORI (iStart, starts.length)
+            FORI (iTarget, targets.length)
+            FORI (iIncr, nIncrss.length)
+            {
+                System.out.println("================================================");
+                double canonicalDistance = canonicalDistances[iCanonicalDistance];
+                double canonicalTime = canonicalTimes[iCanonicalTime];
+                double start = starts[iStart];
+                double target = targets[iTarget];
+                double nIncrs = nIncrss[iIncr];
+                double dt = canonicalTime / nIncrs; // XXX this doesn't really give good coverage
+                PRINT(canonicalDistance);
+                PRINT(canonicalTime);
+                PRINT(start);
+                PRINT(target);
+                PRINT(nIncrs);
+                PRINT(dt);
+
+                x.set(start, 1234, false); // XXX get rid of these params!
+
+                // Bonk it to the starting position
+                x.experimentalEvolve(1,0, 1); // infinite power
+                PRINT(x.get());
+                PRINT(x.getVelocity());
+                assert(x.get() == start);
+                assert(x.getVelocity() == 0.);
+                assert(!x.isMoving());
+
+
+                double eps = 1e-5;
+                int overallDir = LT(start,target,eps) ? 1 : GT(start,target,eps) ? -1 : 0;
+                double t = 0.;
+                for (int i = 0; i < nIncrs + 5; ++i)
+                {
+                    double p0 = x.get();
+                    double v0 = x.getVelocity();
+                    // XXX argh, my printf is too slow for all this
+                    if (false)
+                        System.out.println("    Before evolve: "+
+                            com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
+                                                t, p0, v0));
+                    x.experimentalEvolve(canonicalDistance,canonicalTime, dt);
+                    t += dt;
+                    double p1 = x.get();
+                    double v1 = x.getVelocity();
+                    if (false)
+                        System.out.println("     After evolve: "+
+                            com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
+                                                t, p1, v1));
+                    PRINT(overallDir);
+                    PRINT(p0);
+                    PRINT(p1);
+                    if (overallDir > 0)
+                        assert(GEQ(p1,p0,eps));
+                    else if (overallDir < 0)
+                        assert(LEQ(p1,p0,eps));
+                    else
+                        assert(EQ(p1,p0,eps));
+
+                    System.out.println();
+                }
+            }
+        }
+
+        System.out.println("out main");
+    } // main
+
 } // SmoothlyVaryingViewingParameter
