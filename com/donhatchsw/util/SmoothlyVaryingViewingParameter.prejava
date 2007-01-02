@@ -37,12 +37,24 @@ public class SmoothlyVaryingViewingParameter
     {
         set(new double[]{targetPosition});
     }
+
     /** Sets the target value of this variable. */
     public void set(double[] targetPosition)
     {
         if (targetPosition.length != this.targetPosition.length)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: new target has dimension "+targetPosition.length+", expected "+this.targetPosition.length+"");
         VecMath.copyvec(this.targetPosition, targetPosition);
+    }
+    /** Snaps to the specified position. */
+    public void snap(double[] targetPosition)
+    {
+        set(targetPosition);
+        evolve(1,0,1); // infinite power
+    }
+    /** Snaps to the specified position (scalar version).*/
+    public void snap(double targetPosition)
+    {
+        snap(new double[]{targetPosition});
     }
 
     /** Gets the value of this scalar variable now.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
