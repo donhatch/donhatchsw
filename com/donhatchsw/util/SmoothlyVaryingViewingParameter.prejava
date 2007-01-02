@@ -81,7 +81,6 @@ public class SmoothlyVaryingViewingParameter
     /**
     * 0: nothing
     * 1: some haphazard stuff
-    * 2: heavy duty haphazard stuff
     */
     public static int verboseLevel = 0;
 
@@ -236,9 +235,6 @@ public class SmoothlyVaryingViewingParameter
         // but I'm not sure, need to get clearer on all this.
         double p0 = p_and_v[0];
         double v0 = p_and_v[1];
-        if (verboseLevel >= 2) PRINT(p0);
-        if (verboseLevel >= 2) PRINT(v0);
-        if (verboseLevel >= 2) PRINT(p0+v0*v0/8);
 
         boolean use_concave_upward_for_initial_leg;
         if (v0 >= 0)
@@ -270,7 +266,7 @@ public class SmoothlyVaryingViewingParameter
                 use_concave_upward_for_initial_leg = false;
             }
         }
-        if (verboseLevel >= 2) PRINT(use_concave_upward_for_initial_leg);
+        if (verboseLevel >= 1) System.out.println("    use_concave_upward_for_initial_leg = "+use_concave_upward_for_initial_leg);
         double t0, t1;
         if (use_concave_upward_for_initial_leg)
         {
@@ -282,8 +278,6 @@ public class SmoothlyVaryingViewingParameter
             t1 = -Math.sqrt(p0+v0*v0/8)/2;
             t0 = -v0/4 + 2*t1;
         }
-        if (verboseLevel >= 2) PRINT(t0);
-        if (verboseLevel >= 2) PRINT(t1);
 
         //
         // All right, now we know the initial time t0
@@ -300,8 +294,6 @@ public class SmoothlyVaryingViewingParameter
             if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel (early)");
             return;
         }
-        if (verboseLevel >= 2) PRINT(t);
-        if (verboseLevel >= 2) PRINT(t1);
 
         if (t >= t1)
         {
@@ -313,16 +305,13 @@ public class SmoothlyVaryingViewingParameter
             if (use_concave_upward_for_initial_leg)
             {
                 // use the concave downward parabola for final leg
-                if (verboseLevel >= 2) PRINT(t);
                 p_and_v[0] = -2*t*t;
                 p_and_v[1] = -4*t; // >0 because t<0
-                if (verboseLevel >= 2) PRINTVEC(p_and_v);
                 //assert(false); // uncomment for coverage test
             }
             else
             {
                 // use the concave upward parabola for final leg
-                if (verboseLevel >= 2) PRINT(t);
                 p_and_v[0] = 2*t*t;
                 p_and_v[1] = 4*t; // <0 because t<0
                 //assert(false); // uncomment for coverage test
@@ -342,10 +331,6 @@ public class SmoothlyVaryingViewingParameter
                 double base_p = 2*p1;
                 double p = base_p + 2*(t-base_t)*(t-base_t);
                 double v = 4*(t-base_t);
-                if (verboseLevel >= 2) PRINT(p1);
-                if (verboseLevel >= 2) PRINT(base_p);
-                if (verboseLevel >= 2) PRINT(p);
-                if (verboseLevel >= 2) PRINT(v);
                 p_and_v[0] = p;
                 p_and_v[1] = v;
                 //assert(false); // uncomment for coverage test
