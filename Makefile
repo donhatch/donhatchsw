@@ -7,6 +7,7 @@
 # Sticking points:
 #    - mc4d/GenericGlue.java - wants to use the version of showInputDialog with an initial string, doesn't exist in 1.3
 #    - Arrows uses javax.swing.Icon or something, doesn't exist in 1.2
+#    - something's going funny with jikes and renumbering, it's looking for .prejava.lines which is wrong
 
 # To use cookies, need netscape.javascript.JSObject
 # which is in /usr/java/jdk1.3.1_18/jre/lib/javaplugin.jar
@@ -22,12 +23,18 @@ JAVAROOT=/usr/java/j2sdk1.4.2
 #JAVAROOT=/usr/java/jdk1.5.0_01
 JAVAC=${JAVAROOT}/bin/javac -source 1.2 -target 1.1 -g
 
+#JAVAROOT=/usr/java/j2sdk1.4.2
 #JAVAROOT=/usr/java/jdk1.3.1_18
 #JAVAC=jikes +P -source 1.4 -classpath ${JAVAROOT}/jre/lib/rt.jar
 
 donhatchsw.jar:
 
-# XXX Poly is a prefix of PolyCSG, so the * thing is not robust
+# XXX Poly is a prefix of PolyCSG, so the * thing is not robust.
+# XXX also UndoTree and UndoTreeViewer
+
+com/donhatchsw/compat/ArrayList.class: com/donhatchsw/compat/ArrayList.prejava
+	javacpp ${JAVAC} com/donhatchsw/compat/ArrayList.prejava
+	javarenumber -v 0 com/donhatchsw/compat/ArrayList*.class
 
 com/donhatchsw/util/MyMath.class: com/donhatchsw/util/MyMath.prejava
 	javacpp ${JAVAC} com/donhatchsw/util/MyMath.prejava
@@ -41,15 +48,6 @@ com/donhatchsw/util/VecMath.class: com/donhatchsw/util/VecMath.prejava
 com/donhatchsw/util/LinearProgramming.class: com/donhatchsw/util/LinearProgramming.prejava
 	javacpp ${JAVAC} com/donhatchsw/util/LinearProgramming.prejava
 	javarenumber -v 0 com/donhatchsw/util/LinearProgramming*.class
-com/donhatchsw/compat/Double.class: com/donhatchsw/compat/Double.prejava
-	javacpp ${JAVAC} com/donhatchsw/compat/Double.prejava
-	javarenumber -v 0 com/donhatchsw/compat/Double*.class
-com/donhatchsw/compat/Float.class: com/donhatchsw/compat/Float.prejava
-	javacpp ${JAVAC} com/donhatchsw/compat/Float.prejava
-	javarenumber -v 0 com/donhatchsw/compat/Float*.class
-com/donhatchsw/compat/Boolean.class: com/donhatchsw/compat/Boolean.prejava
-	javacpp ${JAVAC} com/donhatchsw/compat/Boolean.prejava
-	javarenumber -v 0 com/donhatchsw/compat/Boolean*.class
 com/donhatchsw/compat/Misc.class: com/donhatchsw/compat/Misc.prejava
 	javacpp ${JAVAC} com/donhatchsw/compat/Misc.prejava
 	javarenumber -v 0 com/donhatchsw/compat/Misc*.class
@@ -59,6 +57,7 @@ com/donhatchsw/compat/regex.class: com/donhatchsw/compat/regex.prejava
 com/donhatchsw/compat/Format.class: com/donhatchsw/compat/Format.prejava
 	javacpp ${JAVAC} com/donhatchsw/compat/Format.prejava
 	javarenumber -v 0 com/donhatchsw/compat/Format*.class
+
 com/donhatchsw/util/SortStuff.class: com/donhatchsw/util/SortStuff.prejava
 	javacpp ${JAVAC} com/donhatchsw/util/SortStuff.prejava
 	javarenumber -v 0 com/donhatchsw/util/SortStuff*.class
@@ -77,6 +76,23 @@ com/donhatchsw/util/MergeFind.class: com/donhatchsw/util/MergeFind.prejava
 com/donhatchsw/util/TopSorter.class: com/donhatchsw/util/TopSorter.prejava
 	javacpp ${JAVAC} com/donhatchsw/util/TopSorter.prejava
 	javarenumber -v 0 com/donhatchsw/util/TopSorter*.class
+com/donhatchsw/util/SmoothlyVaryingViewingParameter.class: com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava
+	javacpp ${JAVAC} com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava
+	javarenumber -v 0 com/donhatchsw/util/SmoothlyVaryingViewingParameter*.class
+
+
+# XXX currently must come before UndoTreeViewer but I should get rid of this dependency, it's for the justified labels
+com/donhatchsw/util/Arrows.class: com/donhatchsw/util/Arrows.prejava
+	javacpp ${JAVAC} com/donhatchsw/util/Arrows.prejava
+	javarenumber -v 0 com/donhatchsw/util/Arrows*.class
+
+
+com/donhatchsw/util/UndoTree.class: com/donhatchsw/util/UndoTree.prejava
+	javacpp ${JAVAC} com/donhatchsw/util/UndoTree.prejava
+	javarenumber -v 0 com/donhatchsw/util/UndoTree*.class
+com/donhatchsw/util/UndoTreeViewer.class: com/donhatchsw/util/UndoTreeViewer.prejava
+	javacpp ${JAVAC} com/donhatchsw/util/UndoTreeViewer.prejava
+	javarenumber -v 0 com/donhatchsw/util/UndoTreeViewer*.class
 
 com/donhatchsw/util/TriangulationOptimizer.class: com/donhatchsw/util/TriangulationOptimizer.prejava
 	javacpp ${JAVAC} com/donhatchsw/util/TriangulationOptimizer.prejava
@@ -114,6 +130,8 @@ com/donhatchsw/applet/ExampleApplet.class: com/donhatchsw/applet/ExampleApplet.p
 
 com/donhatchsw/mc4d/GenericPuzzleDescription.class: com/donhatchsw/mc4d/GenericPuzzleDescription.java
 	${JAVAC} com/donhatchsw/mc4d/GenericPuzzleDescription.java
+com/donhatchsw/mc4d/GenericPuzzleFactory.class: com/donhatchsw/mc4d/GenericPuzzleFactory.java
+	${JAVAC} com/donhatchsw/mc4d/GenericPuzzleFactory.java
 com/donhatchsw/mc4d/PolytopePuzzleDescription.class: com/donhatchsw/mc4d/PolytopePuzzleDescription.java
 	${JAVAC} com/donhatchsw/mc4d/PolytopePuzzleDescription.java
 com/donhatchsw/mc4d/GenericPipelineUtils.class: com/donhatchsw/mc4d/GenericPipelineUtils.java
@@ -127,13 +145,9 @@ com/donhatchsw/mc4d/MC4DViewGuts.class: com/donhatchsw/mc4d/MC4DViewGuts.java
 com/donhatchsw/mc4d/MC4DViewApplet.class: com/donhatchsw/mc4d/MC4DViewApplet.java
 	${JAVAC} com/donhatchsw/mc4d/MC4DViewApplet.java
 
-com/donhatchsw/util/Arrows.class: com/donhatchsw/util/Arrows.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/Arrows.prejava
-	javarenumber -v 0 com/donhatchsw/util/Arrows*.class
 
 
-
-donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/Double.class com/donhatchsw/compat/Float.class com/donhatchsw/compat/Boolean.class com/donhatchsw/compat/Misc.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/MyPanel.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DViewApplet.class com/donhatchsw/util/Arrows.class
+donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/compat/ArrayList.class com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/Misc.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/MyPanel.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/SmoothlyVaryingViewingParameter.class com/donhatchsw/util/Arrows.class com/donhatchsw/util/UndoTree.class com/donhatchsw/util/UndoTreeViewer.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/GenericPuzzleFactory.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DViewApplet.class
 	/bin/rm -rf scratch
 	mkdir scratch
 	cp -a Makefile RCS com scratch
