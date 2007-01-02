@@ -45,13 +45,13 @@ public class SmoothlyVaryingViewingParameter
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: new target has dimension "+targetPosition.length+", expected "+this.targetPosition.length+"");
         VecMath.copyvec(this.targetPosition, targetPosition);
     }
-    /** Snaps to the specified position. */
+    /** Snaps to the specified position. Equivalent to set(targetPosition) followed by evolve(1.,0.,1.) (i.e. infinite power). */
     public void snap(double[] targetPosition)
     {
         set(targetPosition);
         evolve(1,0,1); // infinite power
     }
-    /** Snaps to the specified position (scalar version).*/
+    /** Snaps to the specified position (scalar version).  Equivalent to snap(new double[]{targetPosition}). */
     public void snap(double targetPosition)
     {
         snap(new double[]{targetPosition});
@@ -71,7 +71,7 @@ public class SmoothlyVaryingViewingParameter
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: return buffer size is "+position.length+", expected "+this.position.length+"");
         VecMath.copyvec(position, this.position);
     }
-    /** Gets the velocity of this scalar variable now, in case you're interested.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    /** Gets the velocity of this scalar variable now, in case you're interested.  You can't set the velocity directly (except to zero, by calling snap() or the equivalent).  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
     // XXX needs a vector version
     public double getVelocity()
     {
@@ -80,7 +80,7 @@ public class SmoothlyVaryingViewingParameter
         return velocity[0];
     }
 
-    /** Gets the target value of this scaler variable now, if it's a scalar, otherwise throws an IllegalArgumentException. */
+    /** Gets the target value of this scalar variable now, if it's a scalar, otherwise throws an IllegalArgumentException. */
     // XXX needs a vector version
     public double getTarget()
     {
@@ -100,16 +100,18 @@ public class SmoothlyVaryingViewingParameter
     * Evolves dt seconds towards the target,
     * always pushing with constant-magnitude force
     * (possibly with a mid-trip thrust reversal).
-    * The force is specified by how long it takes
+    * <p>
+    * You specify the force magnitude by how long it takes
     * to do some reference trip smoothly.
-    * For example if you know you can go 1 mile in 60 seconds,
+    * For example, if you know you can go 1 mile in 60 seconds,
     * starting and ending smoothly,
     * you would say canonicalTripDistance=1 and canonicalTripTime=60.
-    * The acceleration will be proportional
-    * to canonicalTripDistance/canonicalTripTime^2.
-    * For example, if you can go 1 mile in 1 second,
-    * then you will be able to go 100 miles in 10 seconds using
-    * the same acceleration force.
+    * <p>
+    * The acceleration will be equal to
+    * 2*canonicalTripDistance/canonicalTripTime<sup>2</sup>.
+    * This shows that if you can go 1 mile in 1 second,
+    * then you will be able to go 100 miles in 10 seconds
+    * (using the same constant acceleration/deceleration magnitude).
     */
     public void evolve(double referenceTripDistance,
                        double referenceTripTime,
