@@ -354,12 +354,12 @@ public class UndoTreeViewer
             {
                 if (eventVerboseLevel >= 1) System.out.println("mouseClicked on a "+component.getClass().getSuperclass().getName());
 
-                setCurrentToClosestToMouse(frameForPicking, me.getX(), me.getY(), undoTree);
-                // no repaint necessary from us... it notifies everyone who's drawing it
             } // mouseClicked
             public void mousePressed(java.awt.event.MouseEvent me)
             {
                 if (eventVerboseLevel >= 1) System.out.println("mousePressed on a "+component.getClass().getSuperclass().getName());
+                setCurrentToClosestToMouse(frameForPicking, me.getX(), me.getY(), undoTree);
+                // no repaint necessary from us... it notifies everyone who's drawing it
             } // mousePressed
             public void mouseReleased(java.awt.event.MouseEvent me)
             {
@@ -379,7 +379,16 @@ public class UndoTreeViewer
             public void mouseDragged(java.awt.event.MouseEvent me)
             {
                 if (eventVerboseLevel >= 1) System.out.println("    mouseDragged on a "+component.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-time0)/1000.);
-                setCurrentToClosestToMouse(frameForPicking, me.getX(), me.getY(), undoTree);
+                if (centerCurrentNode.get() != 0.)
+                {
+                    // Continuously moving the node under the mouse to center
+                    // has the effect of warping to the edge of the world,
+                    // which is not friendly, so we don't do anything on drag
+                    // when in that mode.
+                    // XXX there might be other things we could do... think about it
+                }
+                else
+                    setCurrentToClosestToMouse(frameForPicking, me.getX(), me.getY(), undoTree);
                 // no repaint necessary from us... it notifies everyone who's drawing it
             } // mouseDragged
             public void mouseMoved(java.awt.event.MouseEvent me)
@@ -689,7 +698,7 @@ public class UndoTreeViewer
                 double xFrac = (x[iNode]-xmin)/(xmax-xmin); // XXX redundant division
                 double yFrac = (y[iNode]-ymin)/(ymax-ymin); // XXX redundant division
                 x[iNode] = LERP(0, w, xFrac);
-                y[iNode] = LERP(0, h, yFrac);
+                y[iNode] = LERP(20, h, yFrac); // XXX hack- leave margin at top
             }
         }
 
@@ -792,7 +801,7 @@ public class UndoTreeViewer
                                 leftLabels[iNode],
                                 edgeCenterX,
                                 edgeCenterY,
-                                1.,
+                                1., // right justify
                                 0.);
                         }
                         if (rightLabels[iNode] != null
@@ -803,7 +812,7 @@ public class UndoTreeViewer
                                 rightLabels[iNode],
                                 edgeCenterX+2, // fudge
                                 edgeCenterY,
-                                -1.,
+                                -1., // left justify
                                 0.);
                         }
                     }
@@ -826,8 +835,12 @@ public class UndoTreeViewer
             }
 
             frameForPicking = new double[][]{x,y};
+
+            ++nPaintsDone;
+            com.donhatchsw.util.Arrows.drawString((java.awt.Graphics2D)g, "("+nPaintsDone+" paint"+(nPaintsDone==1?"":"s")+")", w-2, 2, 1, -1.);
         }
     } // paint
+    private int nPaintsDone = 0;
 
     /** Creates an UndoTreeViewer.  Attach it to a Component using attachToComponent and to an UndoTree using attachToUndoTree. */
     public UndoTreeViewer(ItemColorizer colorizer,
@@ -1004,7 +1017,7 @@ public class UndoTreeViewer
                 undoTreeViewer.paint(this, g);
 
                 // XXX should use the font height instead of hard coding 20
-                int y = h - (isAFollower ? 7 : 11)*20 - 20;
+                int y = h - (isAFollower ? 6 : 11)*20 - 20;
                 if (!isAFollower)
                 {
                     g.drawString("Enter to Do", 10, y+=20);
@@ -1012,14 +1025,14 @@ public class UndoTreeViewer
                     g.drawString("  Down to redo", 10, y+=20);
                     g.drawString("  Left for older", 10, y+=20);
                     g.drawString("  Right for younger", 10, y+=20);
+                    g.drawString("c to Clear", 10, y+=20);
                 }
                 else
                     g.drawString("S/s to follow Slower/faster", 10, y+=20);
                 //g.drawString("  (or just click and drag around and hit enter a lot)", 10, y+=20);
-                g.drawString("c to clear", 10, y+=20);
                 g.drawString("+/-/= to zoom in/out", 10, y+=20);
                 g.drawString("0 to toggle keep-current-node-in-center mode", 10, y+=20);
-                g.drawString("t to toggle stretch-along-time-line display mode", 10, y+=20);
+                g.drawString("t to toggle stretch-out-along-time-line display mode", 10, y+=20);
                 g.drawString("n for new view window of same tree", 10, y+=20);
                 g.drawString("ctrl-n for new view that follows this view around like a dog", 10, y+=20);
                 assert(y+20 == h);
