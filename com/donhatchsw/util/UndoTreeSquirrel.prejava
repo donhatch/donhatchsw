@@ -11,6 +11,22 @@ import com.donhatchsw.compat.regex;
 
 public class UndoTree
 {
+    public interface ItemLengthizer
+    {
+        /**
+        * The length the given edge should be; use 1 for an average edge.
+        * For example, in a Rubik's-cube-like puzzle program,
+        * where each graph edge represents a puzzle twist
+        * through an angle of 90, 120, or 180 degrees,
+        * you'd give the edges lengths 1, 4./3., 2 respectively.
+        * When using the undo tree for animation,
+        * the time it takes to traverse an edge in the tree
+        * (i.e. to animate a Do, undo, or redo)
+        * will be proportional to the square root of this edge length.
+        */
+        double length(Object item);
+    }
+
     // A node represents a state of the application;
     // Do's, undo's, redo's are edges that go from node to node.
     private static class Node
@@ -44,6 +60,7 @@ public class UndoTree
     private com.donhatchsw.compat.ArrayList sharedListeners; // set in ctor
     private com.donhatchsw.compat.ArrayList privateListeners = new com.donhatchsw.compat.ArrayList();
 
+
     //
     // An UndoTree is actually a view into the nodes (the model).
     // So we don't store view-specific info on the nodes themselves;
@@ -54,7 +71,6 @@ public class UndoTree
         public Object privateLabel = null;
         public int preferredChildIndex = -1;
     }
-    private com.donhatchsw.compat.ArrayList/*<PrivateNodeInfo>*/ privateNodeInfos;
     private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this
     private int currentNodeIndex; // set in ctor
     private double currentNodeFraction = 1.; // current fraction of way from parent to current node
@@ -64,6 +80,61 @@ public class UndoTree
     public interface Listener
     {
         public void somethingChanged();
+    }
+
+        private void notifyListenersSomethingChanged(com.donhatchsw.compat.ArrayList listeners)
+        {
+            synchronized(listeners)
+            {
+                for (int i = 0; i < listeners.size(); ++i)
+                    ((Listener)listeners.get(i)).somethingChanged();
+            }
+        }
+
+    // XXX these haven't been thought out well... probably should not be here, are not safe... bleah bleah bleah
+    public void setCurrentNodeIndex(int currentNodeIndex)
+    {
+        synchronized(privateNodeInfosHashtable)
+        {
+            this.currentNodeIndex = currentNodeIndex;
+            // Correct the preferred child path from the root
+            {
+                int iChild = this.currentNodeIndex;
+                Node child = (Node)nodes.get(iChild);
+
+                while (iChild != 0)
+                {
+                    int iParent = iChild + child.parent;
+                    Node parent = (Node)nodes.get(iParent);
+                    int childIndex = Arrays.indexOf(parent.children, -child.parent);
+                    PrivateNodeInfo parentInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, parent);
+                    parentInfo.preferredChildIndex = childIndex;
+                    iChild = iParent;
+                    child = parent;
+                }
+            }
+        }
+        notifyListenersSomethingChanged(privateListeners);
+    }
+    public int getCurrentNodeIndex()
+    {
+        return currentNodeIndex;
+    }
+    public double getCurrentNodeFraction()
+    {
+        return currentNodeFraction;
+    }
+    public Object getItemOnEdgeFromParentToCurrentNode()
+    {
+        synchronized(nodes)
+        {
+            return ((Node)nodes.get(currentNodeIndex)).itemOnEdgeFromParentToMe;
+        }
+    }
+    public void setCurrentNodeFraction(double currentNodeFraction)
+    {
+        this.currentNodeFraction = currentNodeFraction;
+        notifyListenersSomethingChanged(privateListeners);
     }
 
     /**
@@ -148,11 +219,7 @@ public class UndoTree
         // on the privateListers, and maybe some more too (that
         // were added by other views after a fork, or that existed
         // in the sharedListeners list before we were born).
-        synchronized(sharedListeners)
-        {
-            for (int i = 0; i < sharedListeners.size(); ++i)
-                ((Listener)sharedListeners.get(i)).somethingChanged();
-        }
+        notifyListenersSomethingChanged(sharedListeners);
     } // Do
 
     /** Destroys the entire underlying tree.  XXX I suspect this is not very safe if multiple views are looking at it, I think there may be assumptions that indices will remain valid. */
@@ -168,11 +235,7 @@ public class UndoTree
             this.privateNodeInfosHashtable.clear(); // XXX argh! should have more stuff locked down!
             // XXX and everyone should clear unused nodes in their hash table if they notice the size has decreased!
         }
-        synchronized(sharedListeners)
-        {
-            for (int i = 0; i < sharedListeners.size(); ++i)
-                ((Listener)sharedListeners.get(i)).somethingChanged();
-        }
+        notifyListenersSomethingChanged(sharedListeners);
     } // Clear
 
     /** Performs an undo; that is, changes the current position to be one step closer to the root of the tree, returning the Object that was originally passed to Do() when the tree edge was created. */
@@ -183,11 +246,8 @@ public class UndoTree
             Node currentNode = (Node)nodes.get(currentNodeIndex);
             Object item = currentNode.itemOnEdgeFromParentToMe;
             currentNodeIndex += currentNode.parent; // relative
-            synchronized(privateListeners)
-            {
-                for (int i = 0; i < privateListeners.size(); ++i)
-                    ((Listener)privateListeners.get(i)).somethingChanged();
-            }
+            currentNodeFraction = 1.;
+            notifyListenersSomethingChanged(privateListeners);
             return item;
         }
         else
@@ -206,11 +266,8 @@ public class UndoTree
             currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
         currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex]; // relative
         currentNode = (Node)nodes.get(currentNodeIndex);
-        synchronized(privateListeners)
-        {
-            for (int i = 0; i < privateListeners.size(); ++i)
-                ((Listener)privateListeners.get(i)).somethingChanged();
-        }
+        currentNodeFraction = 1.;
+        notifyListenersSomethingChanged(privateListeners);
         return currentNode.itemOnEdgeFromParentToMe;
     }
     /**
@@ -228,11 +285,7 @@ public class UndoTree
                 return false;
             currentNodeInfo.preferredChildIndex--;
         }
-        synchronized(privateListeners)
-        {
-            for (int i = 0; i < privateListeners.size(); ++i)
-                ((Listener)privateListeners.get(i)).somethingChanged();
-        }
+        notifyListenersSomethingChanged(privateListeners);
         return true;
     } // preferOlderChild
     /**
@@ -251,11 +304,7 @@ public class UndoTree
                 return false;
             currentNodeInfo.preferredChildIndex++;
         }
-        synchronized(privateListeners)
-        {
-            for (int i = 0; i < privateListeners.size(); ++i)
-                ((Listener)privateListeners.get(i)).somethingChanged();
-        }
+        notifyListenersSomethingChanged(privateListeners);
         return true;
     } // preferYoungerChild
     /** Oh, and this one updates the model too. Sets a label at the current position that will be seen by other views of this undo tree. */
@@ -266,11 +315,7 @@ public class UndoTree
         {
             currentNode.sharedLabel = sharedLabel;
         }
-        synchronized(sharedListeners)
-        {
-            for (int i = 0; i < sharedListeners.size(); ++i)
-                ((Listener)sharedListeners.get(i)).somethingChanged();
-        }
+        notifyListenersSomethingChanged(sharedListeners);
     }
     /** Sets a label at the current position that will not be seen by other views of this undo tree. */
     public void setPrivateLabel(Object privateLabel)
@@ -278,16 +323,53 @@ public class UndoTree
         Node currentNode = (Node)nodes.get(currentNodeIndex);
         PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         privateNodeInfo.privateLabel = privateLabel;
-        synchronized(privateListeners)
-        {
-            for (int i = 0; i < privateListeners.size(); ++i)
-                ((Listener)privateListeners.get(i)).somethingChanged();
-        }
+        notifyListenersSomethingChanged(privateListeners);
     }
 
-    /** Moves my current position one step towards the corrent position of the other view. Returns true iff it actually did something. */
-    public boolean incrementViewTowardsOtherView(UndoTree otherView,
-                                                 double increment) // XXX need to make this smarter for smooth motion along edges of varying lengths
+    /** XXX clean this up-- doesn't need all this stuff, only needs integerPartDir and interPartItem, the fractional part is state that can be queried afterwards */
+    public class ReturnValueOfIncrementViewTowardsOtherView
+    {
+        // Discrete state change, if any...
+        public int integerPartDir; // -1 for undo, 0 for no state change, 1 for redo
+        public Object integerPartItem; // the item to undo (if integerPartDir<0) or redo (if integerPartDir>0)
+        // XXX this isn't really necessary, I don't think... ? the caller doesn't use it there
+        // Fractional offset from the new state, to display
+        public double fractionalPartDir;
+        public Object fractionalPartItem; // the item to show partway through
+        private ReturnValueOfIncrementViewTowardsOtherView(int integerPartDir,
+                                                   Object integerPartItem,
+                                                   double fractionalPartDir,
+                                                   Object fractionalPartItem)
+        {
+            this.integerPartDir = integerPartDir;
+            this.integerPartItem = integerPartItem;
+            this.fractionalPartDir = fractionalPartDir;
+            this.fractionalPartItem = fractionalPartItem;
+        }
+    } // ReturnValueOfIncrementViewTowardsOtherView
+
+    /**
+    * Returns true if a call to incrementViewTowardsOtherView(target) would actually change anything.
+    */
+    public boolean isMoving(UndoTree target)
+    {
+        return currentNodeIndex == target.currentNodeIndex
+            && currentNodeFraction == target.currentNodeFraction
+            && currentNodeVelocity == 0.; // XXX not sure about this part
+    }
+
+    /**
+    * Moves my current position one step towards the corrent position of the other view.  Returns a structure describing the discrete state change involved (if any) and the fractional offset from the new integer state that should be used to display the new fractional state.
+    */
+    // XXX restructure this function to make it clearer
+    public ReturnValueOfIncrementViewTowardsOtherView incrementViewTowardsOtherView(UndoTree otherView,
+                                                 /*
+                                                 double referenceTripDistance,
+                                                 double referenceTripTime,
+                                                 double dt,
+                                                 */
+                                                 double increment,
+                                                 UndoTree.ItemLengthizer lengthizer)
     {
         if (otherView.nodes != nodes)
             throw new IllegalArgumentException("UndoTree.incrementViewTowardsOtherView called with a different underlying tree!");
@@ -300,8 +382,8 @@ public class UndoTree
         {
             if (currentNodeFraction >= 1.)
             {
-                // We're there
-                return false;
+                currentNodeFraction = 1.;
+                return null; // same as 0, null, 0.f, null
             }
             //
             // We're on the home stretch--
@@ -311,17 +393,16 @@ public class UndoTree
             if (currentNodeFraction >= 1.)
                 currentNodeFraction = 1.; // just clamp and we're done
 
-            // XXX lame duplicate code... restructure this function so it bottoms out nicely
-            synchronized(privateListeners)
-            {
-                for (int i = 0; i < privateListeners.size(); ++i)
-                    ((Listener)privateListeners.get(i)).somethingChanged();
-            }
-            return true;
+            notifyListenersSomethingChanged(privateListeners);
+            return new ReturnValueOfIncrementViewTowardsOtherView(
+                    0, null,
+                    currentNodeFraction-1., // negative
+                    currentNode.itemOnEdgeFromParentToMe);
         }
         int parentIndex = currentNodeIndex + currentNode.parent;
         if (parentIndex == targetNodeIndex)
         {
+            ReturnValueOfIncrementViewTowardsOtherView returnVal;
             //
             // We're on the home stretch--
             // just need to undo a little bit more.
@@ -329,16 +410,22 @@ public class UndoTree
             currentNodeFraction -= increment;
             if (currentNodeFraction <= 0.)
             {
+                returnVal = new ReturnValueOfIncrementViewTowardsOtherView(
+                    -1,
+                    currentNode.itemOnEdgeFromParentToMe,
+                    0.f, null);
                 currentNodeIndex = parentIndex;
                 currentNodeFraction = 1.;
             }
-            // XXX lame duplicate code... restructure this function so it bottoms out nicely
-            synchronized(privateListeners)
+            else
             {
-                for (int i = 0; i < privateListeners.size(); ++i)
-                    ((Listener)privateListeners.get(i)).somethingChanged();
+                returnVal = new ReturnValueOfIncrementViewTowardsOtherView(
+                    0, null,
+                    currentNodeFraction-1., // negative
+                    currentNode.itemOnEdgeFromParentToMe);
             }
-            return true;
+            notifyListenersSomethingChanged(privateListeners);
+            return returnVal;
         }
         int ancestorIndex = findLowestCommonAncestorIndex(currentNodeIndex,
                                                           targetNodeIndex,
@@ -414,13 +501,11 @@ public class UndoTree
                 }
             }
         }
-        // XXX lame duplicate code... restructure this function so it bottoms out nicely
-        synchronized(privateListeners)
-        {
-            for (int i = 0; i < privateListeners.size(); ++i)
-                ((Listener)privateListeners.get(i)).somethingChanged();
-        }
-        return true;
+        notifyListenersSomethingChanged(privateListeners);
+        return new ReturnValueOfIncrementViewTowardsOtherView(
+            0, null,
+            currentNodeFraction-1., // negative
+            currentNode.itemOnEdgeFromParentToMe);
     } // incrementViewTowardsOtherView
 
         // XXX this will be made easier and faster in the future,
@@ -821,7 +906,7 @@ public class UndoTree
                                            double edgeLengths[],
                                            int currentNodeIndex,
                                            double currentNodeFrac,
-                                           float stretchOutAlongTimeLine,
+                                           double stretchOutAlongTimeLine,
                                            double x[], // output
                                            double y[]) // output
     {
@@ -972,12 +1057,12 @@ public class UndoTree
             {"oh boy a puzzle!" A B "just did B" C u D E F u2 G u3 H I "oh boy I solved it"}
     */
 
-    interface ItemToString
+    public interface ItemToString
     {
         public String regex();
         public String itemToString(Object item);
     }
-    interface ItemFromString
+    public interface ItemFromString
     {
         public String regex();
         public Object itemFromString(String s);
