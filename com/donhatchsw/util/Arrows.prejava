@@ -738,6 +738,7 @@ public class Arrows
 
     //-----------------------------------------------------------------------
     // Little drawing utils...
+    // XXX should be in a different class
     //
         /**
          * Draws a string with arbitrary justification.
