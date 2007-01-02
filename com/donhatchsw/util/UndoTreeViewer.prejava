@@ -47,11 +47,11 @@ import com.donhatchsw.compat.regex;
 * |-  -  -  -| repaint() |               | somethingChanged() | +---------+  |
 * |          |<----------|<--------------|<---------------------|UndoTree |  |
 * |          |---------->|               |           +----------|         |  |
-* +----------+  paint()  +---------------+           |        | |         |  |
-*                                                    |        | +---------+  |
-*                                                    v        +--------------+
-*                                         +----------------+        ^
-*                                         |UndoTreeViewer2 |        |
+* |          |  paint()  |               |           |        | |         |  |
+* |          |           |               |           |        | +---------+  |
+* |          |<--------- +---------------+           v        +--------------+
+* +----------+   actual drawing           +----------------+        ^
+*                inside paint()           |UndoTreeViewer2 |        |
 *                                      ...|                |--------+
 * </pre>
 * All of the above connections are established via listener callbacks,
