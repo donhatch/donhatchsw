@@ -359,6 +359,7 @@ public class UndoTree
                                                  double referenceTripDistance,
                                                  double referenceTripTime,
                                                  double dt,
+                                                 double criticalDampingFraction,
                                                  UndoTree.ItemLengthizer lengthizer) // XXX unused currently, which means all edges take same time to traverse-- fix this!
     {
         boolean debug = false;
@@ -366,10 +367,17 @@ public class UndoTree
         if (otherView.nodes != nodes)
             throw new IllegalArgumentException("UndoTree.incrementViewTowardsOtherView called with a different underlying tree!");
         // XXX need to lock something down while we do this... if someone else changes currentNodeIndex out from under us we are super screwed!!!
+
         int targetNodeIndex = otherView.currentNodeIndex;
         double targetNodeFraction = otherView.currentNodeFraction.get();
         if (currentNodeIndex >= nodes.size())
-            currentNodeIndex = 0; // XXX ad-hoc... can happen after a clear
+        {
+            // XXX ad-hoc... can happen after a clear.  I think if we were getting notified properly this could be prevented
+            currentNodeIndex = 0;
+            currentNodeFraction.snap(1.);
+            notifyListenersSomethingChanged(privateListeners);
+            return null;
+        }
         Node currentNode = (Node)nodes.get(currentNodeIndex);
         if (currentNodeIndex == targetNodeIndex)
         {
@@ -386,9 +394,11 @@ public class UndoTree
             // Just need to redo a little more (or undo if we overshot).
             //
             if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
-            currentNodeFraction.evolve(referenceTripDistance,
+            double referenceTripFraction = referenceTripDistance/lengthizer.length(currentNode.itemOnEdgeFromParentToMe);
+            currentNodeFraction.evolve(referenceTripFraction,
                                        referenceTripTime,
-                                       dt);
+                                       dt,
+                                       criticalDampingFraction);
             notifyListenersSomethingChanged(privateListeners);
             return null; // no discrete state change
         }
@@ -439,9 +449,11 @@ public class UndoTree
             else
             {
                 if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
-                currentNodeFraction.evolve(referenceTripDistance,
+                double referenceTripFraction = referenceTripDistance/lengthizer.length(currentNode.itemOnEdgeFromParentToMe);
+                currentNodeFraction.evolve(referenceTripFraction,
                                            referenceTripTime,
-                                           dt);
+                                           dt,
+                                           criticalDampingFraction);
             }
         }
         else
@@ -465,9 +477,11 @@ public class UndoTree
             else
             {
                 if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
-                currentNodeFraction.evolve(referenceTripDistance,
+                double referenceTripFraction = referenceTripDistance/lengthizer.length(currentNode.itemOnEdgeFromParentToMe);
+                currentNodeFraction.evolve(referenceTripFraction,
                                            referenceTripTime,
-                                           dt);
+                                           dt,
+                                           criticalDampingFraction);
             }
 
             //
