@@ -84,7 +84,21 @@ public class SmoothlyVaryingViewingParameter
     */
     public static int verboseLevel = 0;
 
-    /** Evolves dt seconds towards the target, always pushing with constant-magnitude strength (possibly with a mid-trip thrust reversal).  The strength is specified by how long it takes to do some reference trip smoothly. For example if you know you can go 1 mile in 60 seconds, starting and ending smoothly, you would say canonicalTripDistance=1 and canonicalTripTime=60. */
+    /**
+    * Evolves dt seconds towards the target,
+    * always pushing with constant-magnitude force
+    * (possibly with a mid-trip thrust reversal).
+    * The force is specified by how long it takes
+    * to do some reference trip smoothly.
+    * For example if you know you can go 1 mile in 60 seconds,
+    * starting and ending smoothly,
+    * you would say canonicalTripDistance=1 and canonicalTripTime=60.
+    * The acceleration will be proportional
+    * to canonicalTripDistance/canonicalTripTime^2.
+    * For example, if you can go 1 mile in 1 second,
+    * then you will be able to go 100 miles in 10 seconds using
+    * the same acceleration force.
+    */
     public void evolve(double referenceTripDistance,
                        double referenceTripTime,
                        double dt)
