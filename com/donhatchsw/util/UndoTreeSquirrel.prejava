@@ -74,7 +74,6 @@ public class UndoTree
     private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this
     private int currentNodeIndex; // set in ctor
     private SmoothlyVaryingViewingParameter currentNodeFraction = new SmoothlyVaryingViewingParameter(1.); // current fraction of the way from parent to current node
-    private double currentNodeVelocity = 0.; // don't ask
 
     /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. */
     public interface Listener
@@ -216,10 +215,36 @@ public class UndoTree
 
         //checkSane(); // don't do this here, it's expensive
 
+        //
         // Note the sharedListeners list covers all the listeners
         // on the privateListeners, and maybe some more too (that
         // were added by other views after a fork, or that existed
         // in the sharedListeners list before we were born).
+        // XXX waitaminute, I don't think this is right:
+        //      view0 = new UndoTree()
+        //              view0.sharedListeners = new list
+        //              view1.sharedListeners = new list
+        //      view0.addListener(A)
+        //              listener A gets added to view0's private and shared listeners
+        //      view1 = new UndoTree(view0)
+        //              view1.sharedListeners = view0.sharedListeners (so it includes A)
+        //              view1.privateListeners = new list
+        //      view1.addListener(B)
+        //              listener B gets added to the shared listener list
+        //                      and to B's private listener list
+        // Okay I think maybe it *does* work...  I thought
+        // there was some asymmetry but maybe not.
+        // Maybe I need to try to think of better names that will make
+        // it stop confusing me?
+        // Really the semantics are... when the model changes,
+        // notify all view listeners, but when the view changes,
+        // notify only this view's listeners.
+        // So maybe it will come out cleaner when I separate it out
+        // into a real model and view...
+        // Each view would have a listener installed on the model,
+        // that, when called, would notify all the view's listeners as well.
+        // Yeah, I think that's right.
+        //
         notifyListenersSomethingChanged(sharedListeners); // includes private listeners
     } // Do
 
@@ -232,7 +257,6 @@ public class UndoTree
             this.nodes.add(new Node(-1,null,System.currentTimeMillis()));
             this.currentNodeIndex = 0; // XXX but woe to all the other views!!
             this.currentNodeFraction.snap(1.);
-            this.currentNodeVelocity = 0.;
             this.privateNodeInfosHashtable.clear(); // XXX argh! should have more stuff locked down!
             // XXX and everyone should clear unused nodes in their hash table if they notice the size has decreased!
         }
@@ -331,8 +355,8 @@ public class UndoTree
     public class ReturnValueOfIncrementViewTowardsOtherView
     {
         // Discrete state change, if any...
-        public int integerPartDir; // -1 for undo, 0 for no state change, 1 for redo
-        public Object integerPartItem; // the item to undo (if integerPartDir<0) or redo (if integerPartDir>0)
+        public int integerPartDir; // -1 for undo, 1 for redo
+        public Object integerPartItem; // the item to undo (if integerPartDir==-1) or redo (if integerPartDir==1)
         private ReturnValueOfIncrementViewTowardsOtherView(int integerPartDir,
                                                    Object integerPartItem)
         {
@@ -346,9 +370,8 @@ public class UndoTree
     */
     public boolean isMoving(UndoTree target)
     {
-        return currentNodeIndex == target.currentNodeIndex
-            && currentNodeFraction == target.currentNodeFraction
-            && currentNodeVelocity == 0.; // XXX not sure about this part
+        return currentNodeIndex != target.currentNodeIndex
+            || currentNodeFraction.get() != target.currentNodeFraction.get();
     }
 
     /**
@@ -439,7 +462,6 @@ public class UndoTree
                 currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex];
                 currentNodeFraction.snap(0.);
                 assert(currentNodeFraction.get() == 0.);
-                assert(currentNodeFraction.getVelocity() == 0.);
                 currentNode = (Node)nodes.get(currentNodeIndex);
                 returnVal = new ReturnValueOfIncrementViewTowardsOtherView(1, currentNode.itemOnEdgeFromParentToMe/*AFTER we change current node*/);
                 // In this case don't evolve... wait for next time around,
@@ -468,7 +490,6 @@ public class UndoTree
                 currentNodeIndex += currentNode.parent;
                 currentNodeFraction.snap(1.);
                 assert(currentNodeFraction.get() == 1.);
-                assert(currentNodeFraction.getVelocity() == 0.);
                 currentNode = (Node)nodes.get(currentNodeIndex);
                 // In this case don't evolve... wait for next time around,
                 // which will do something or other depending
@@ -605,7 +626,6 @@ public class UndoTree
         public int nNodes = -1;
         public int currentNode;
         public double currentNodeFraction;
-        public double currentNodeVelocity; // don't laugh, the viewer might want to draw speed lines
         public int parents[] = null;
         public Object edgeItems[] = null;
         public Object sharedLabels[] = null;
@@ -669,7 +689,6 @@ public class UndoTree
                 }
                 snapshot.currentNode = currentNodeIndex;
                 snapshot.currentNodeFraction = currentNodeFraction.get();
-                snapshot.currentNodeVelocity = currentNodeVelocity;
                 break;
             } // synchronized(nodes)
         }
