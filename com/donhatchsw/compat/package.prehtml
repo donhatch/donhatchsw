@@ -1,0 +1,28 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<title>java.text package</title>
+<!--
+
+  @(#)package.html      1.1 2007/01/01
+
+  Copyright 2006-2007 Don Hatch
+
+-->
+</head>
+<body bgcolor="white">
+
+Stuff that didn't exist in 1.1.
+Other stuff it would be useful to have in here:
+<pre>
+       - sorting
+       - assert?
+</pre>
+
+<!-- Last updated:
+Mon Jan  1 21:54:24 PST 2007
+-->
+
+</body>
+</html>
+
