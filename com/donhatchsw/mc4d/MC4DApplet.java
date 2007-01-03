@@ -84,9 +84,9 @@ public class MC4DViewApplet
                 {
                     case 'n'-'a'+1: // ctrl-n
                         if (ke.isShiftDown())
-                            MC4DViewGuts.makeExampleModernViewer(guts,x+20-w,y+20,w,h); // ctrl-shift-N
+                            MC4DViewGuts.makeExampleModernViewer(model,x+20-w,y+20,w,h); // ctrl-shift-N
                         else
-                            MC4DViewGuts.makeExampleAncientViewer(guts,x+20,y+20,w,h,doDoubleBuffer);  // ctrl-n
+                            MC4DViewGuts.makeExampleAncientViewer(model,x+20,y+20,w,h,doDoubleBuffer);  // ctrl-n
                         break;
                     case 's'-'a'+1: // ctrl-s -- save to a cookie
                         com.donhatchsw.applet.CookieUtils.setCookie(MC4DViewApplet.this, "mc4dmodelstate", guts.model.toString());
