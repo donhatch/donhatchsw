@@ -4,7 +4,7 @@ package com.donhatchsw.compat;
 
 /**
 * sprintf.
-* Very primitive and special-case so far,
+* Very primitive and special-case and excruciatingly slow so far,
 * but I need %.17g, and so do you.
 * And it's a good stress for the regex stuff too.
 * <p>
@@ -251,6 +251,13 @@ public class Format
     public static String sprintf(String format, int arg0, double arg1, double arg2)
     {
         return sprintf(format, new Object[]{new Integer(arg0),
+                                            new Double(arg1),
+                                            new Double(arg2)});
+    }
+    /** convenience wrapper */
+    public static String sprintf(String format, double arg0, double arg1, double arg2)
+    {
+        return sprintf(format, new Object[]{new Double(arg0),
                                             new Double(arg1),
                                             new Double(arg2)});
     }
