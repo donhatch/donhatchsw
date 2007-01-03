@@ -30,7 +30,7 @@ public class UndoTree
         double length(Object item);
     }
 
-    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. Hears changes to both the shared model (the actual tree) and your individual view (i.e. current position and private node labels). */
+    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. Hears changes to both the shared model (the actual tree, which other views (UndoTrees) might be listening to) and your individual view (i.e. current position and private node labels). */
     public interface Listener
     {
         public void somethingChanged();
@@ -172,7 +172,7 @@ public class UndoTree
         synchronized(privateNodeInfosHashtable)
         {
             this.currentNodeIndex = currentNodeIndex;
-            // Correct the preferred child path from the root
+            // Correct the preferred child path from the root // XXX this is more costly than it should be!  there should be an O(1) way to do this! maybe
             {
                 int iChild = this.currentNodeIndex;
                 Model.Node child = (Model.Node)model.nodes.get(iChild);
@@ -526,11 +526,85 @@ public class UndoTree
             else
             {
                 if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
+
+                //
+                // Okay, this will be the coolest thing ever
+                // if we can pull this off...
+                // look ahead to see if there are one or more
+                // other redos ahead of us that are identical to this one.
+                // If so, set our target to be the end of the stretch
+                // of identical redos, so that we don't slow down
+                // at the transition.
+                // (XXX need to do this for redos too)
+                // (XXX need a smarter transition mechanism... !isMoving won't cut it any more)
+                //
+                {
+                    int nodeIndex = currentNodeIndex;
+                    Model.Node node = currentNode;
+                    Object item = currentNode.itemOnEdgeFromParentToMe;
+                    //System.out.println("    Should I add power?");
+                    while (true)
+                    {
+                        if (node.children.length == 0)
+                        {
+                            //System.out.println("        no, because no children");
+                            break;
+                        }
+                        int preferredChildIndex;
+                        if (node.children.length == 1)
+                            preferredChildIndex = 0;
+                        else
+                        {
+                            // XXX for now, only do it if there's only one child. that will cover the Do-Do-Do case which is the most important one.  I'll implement the more general thing later.
+                            //System.out.println("        no, because more than one child although this will work some day)");
+                            break;
+                        }
+                        int childIndex = nodeIndex + node.children[preferredChildIndex];
+                        Model.Node childNode = (Model.Node)model.nodes.get(childIndex); // XXX synch!?
+                        Object childItem = childNode.itemOnEdgeFromParentToMe;
+                        if (!childItem.equals(item))
+                        {
+                            //System.out.println("        no, child item is different from this item");
+                            break;
+                        }
+                        currentNodeFraction.set(currentNodeFraction.getTarget()+1.);
+                        //System.out.println("            power -> "+currentNodeFraction.getTarget()+" baby!");
+                        //System.out.println("        should I add more?");
+                        nodeIndex = childIndex;
+                        node = childNode;
+                    }
+                    if (!currentNodeFraction.isMoving())
+                    {
+                        // this should NOT happen... it will happen
+                        // if we get all the way to the target
+                        // without doing the switcheroo.
+                        System.out.println("SOMEONE STOP THIS THING, I WANT TO GET OFF!");
+                    }
+                }
+
                 double referenceTripFraction = referenceTripDistance/lengthizer.length(currentNode.itemOnEdgeFromParentToMe);
                 currentNodeFraction.evolve(referenceTripFraction,
                                            referenceTripTime,
                                            dt,
                                            criticalDampingFraction);
+                //
+                // Switch rails here!
+                //
+                if (currentNodeFraction.getTarget() > 1.
+                 && currentNodeFraction.get() > 1.)
+                {
+                    // Just do one switch even though potentially get()
+                    // might be > 2, since we are only capable of returning
+                    // one discrete state change to the caller.
+                    // We'll get the next one next time around (hopefully).
+                    //System.out.println("SWITCHING HORSES, BABY!");
+                    currentNodeFraction.warp(currentNodeFraction.get()-1.); // i.e. change position without changing velocity
+                    assert(currentNode.children.length == 1); // XXX for now
+                    currentNodeIndex += currentNode.children[0]; // XXX should be preferred child index
+                    currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
+                    assert(returnVal == null); // there shouldn't be any other discrete change we're trying to return
+                    returnVal = new ReturnValueOfIncrementViewTowardsOtherView(1, currentNode.itemOnEdgeFromParentToMe/*AFTER we change current node*/);
+                }
             }
         }
         else
@@ -687,10 +761,10 @@ public class UndoTree
         public Object edgeItems[] = null;
         public Object sharedLabels[] = null;
         public Object privateLabels[] = null;
-        public int preferredChildIndices[] = null;
+        public int preferredChild[] = null;
     } // Snapshot
 
-    /** Take a snapshot of the undo queue, locking down the shared data structures for as short a time as possible. */
+    /** Take a snapshot of the undo tree, locking down the shared data structures for as short a time as possible. */
     public void takeSnapshot(Snapshot snapshot)
     {
         // Don't lock down while allocating,
@@ -716,9 +790,9 @@ public class UndoTree
             if (snapshot.privateLabels == null ||
                 snapshot.privateLabels.length < nNodes)
                 snapshot.privateLabels = new String[nNodes];
-            if (snapshot.preferredChildIndices == null ||
-                snapshot.preferredChildIndices.length < nNodes)
-                snapshot.preferredChildIndices = new int[nNodes];
+            if (snapshot.preferredChild == null ||
+                snapshot.preferredChild.length < nNodes)
+                snapshot.preferredChild = new int[nNodes];
             synchronized(model.nodes) // model.nodes.size can change while waiting for this lock... and our currentNodeIndex might change with it due to our listener being called
             {
                 if (model.nodes.size() != nNodes)
@@ -732,16 +806,24 @@ public class UndoTree
                     snapshot.parents[iNode] = iNode + node.parent; // change relative to absolute
                     snapshot.edgeItems[iNode] = node.itemOnEdgeFromParentToMe;
                     snapshot.sharedLabels[iNode] = node.sharedLabel;
+
+                    int preferredChildLocalIndex;
                     if (privateNodeInfo != null)
                     {
+                        //System.out.println("CARED, "+iNode+" prefers "+(iNode + privateNodeInfo.preferredChildIndex));
                         snapshot.privateLabels[iNode] = privateNodeInfo.privateLabel;
-                        snapshot.preferredChildIndices[iNode] = privateNodeInfo.preferredChildIndex;
+                        preferredChildLocalIndex = privateNodeInfo.preferredChildIndex;
+                        snapshot.preferredChild[iNode] = privateNodeInfo.preferredChildIndex==-1 ? -1 : iNode + privateNodeInfo.preferredChildIndex; // change relative to absolute
                     }
                     else
                     {
+                        //System.out.println("DIDN'T CARE, "+iNode+" doesn't really prefer "+(iNode-1));
                         snapshot.privateLabels[iNode] = null;
-                        snapshot.preferredChildIndices[iNode] = -1;
+                        preferredChildLocalIndex = -1;
                     }
+                    if (preferredChildLocalIndex == -1)
+                        preferredChildLocalIndex = node.children.length-1;
+                    snapshot.preferredChild[iNode] = node.children.length == 0 ? -1 : iNode+node.children[preferredChildLocalIndex]; // change relative to absolute
                 }
                 snapshot.currentNode = currentNodeIndex;
                 snapshot.currentNodeFraction = currentNodeFraction.get();
@@ -803,6 +885,9 @@ public class UndoTree
     // TODO: compactify even more if it gets bushy then stringy then bushy, the lower bush can go under the upper bush
     public String toStringVisualCool(boolean stretchOutAlongTimeLine)
     {
+        // XXX should use chooseNodePositions instead of this code
+        // FROM ABOUT HERE ==============================================
+
         int nNodes = model.nodes.size();
         //
         // Bottom up, figure out the number of leaves
@@ -863,6 +948,7 @@ public class UndoTree
                 x[iNode] = x[iNode + node.children[preferredChildIndex]];
             }
         }
+        // TO ABOUT HERE ==============================================
 
         int possibleEdgeLengths[] = {3,4,6};
         int edgeLengths[] = new int[nNodes];
@@ -987,10 +1073,10 @@ public class UndoTree
 
 
     /** Static utility function for choosing a nice graphical layout, given the treee relation and edge lengths. The root node will be at y=0, with other y positions depending on the given edge lengths (if stretchOutAlongTimeLine is true, the y position will be the sum of the edge lengths that preceded this node in time; otherwise it will be the sum of the edge lengths from the root to this node).  The x positions will be integers from 0 to number of leaf nodes minus 1: each node will have the same x position as the leaf that would be reached by following its preferred children. */
-    // XXX see if I can leverage this in toStringVisualCool?
+    // XXX see if I can leverage this in toStringVisualCool?  currently it duplicates this code I think
     public static void chooseNodePositions(int nNodes,
                                            int parents[],
-                                           int preferredChildLocal[],
+                                           int preferredChild[],
                                            double edgeLengths[],
                                            int currentNodeIndex,
                                            double currentNodeFrac,
@@ -1018,39 +1104,6 @@ public class UndoTree
             else
                 nextSibling[iChild] = -1;
         }
-
-        //
-        // And resolve the preferred child thing...
-        // don't-cares should turn into the youngest child.
-        //
-        int preferredChildGlobal[] = new int[nNodes];
-        for (int iParent = 0; iParent < nNodes; ++iParent)
-        {
-            preferredChildGlobal[iParent] = -1;
-            int iChildGlobal = firstChild[iParent];
-            for (int iChildLocal = 0; iChildGlobal != -1; iChildLocal++, iChildGlobal = nextSibling[iChildGlobal])
-            {
-                if (preferredChildLocal[iParent] == -1) // it's a don't-care
-                {
-                    if (nextSibling[iChildGlobal] == -1)
-                    {
-                        preferredChildGlobal[iParent] = iChildGlobal;
-                        break;
-                    }
-                }
-                else
-                {
-                    if (iChildLocal == preferredChildLocal[iParent])
-                    {
-                        preferredChildGlobal[iParent] = iChildGlobal;
-                        break;
-                    }
-                }
-            }
-            assert((preferredChildGlobal[iParent] == -1)
-                == (firstChild[iParent] == -1));
-        }
-
 
         //
         // Bottom up, figure out the number of leaves
@@ -1091,7 +1144,7 @@ public class UndoTree
         // SPECIAL CASE:
         //     If we get to the parent of currentNode
         //     and its preferred child is *not* currentNode,
-        //     we know we currentNode is moving towards
+        //     we know currentNode is moving towards
         //     the new preferred child, in which case linearly
         //     interpolate the parent's horizontal position
         //     between the old and new preferred child.
@@ -1102,19 +1155,23 @@ public class UndoTree
                 x[iChild] = (double)xstarts[iChild];
 
             if (iChild == parents[currentNodeIndex]
-             && preferredChildGlobal[iChild] != currentNodeIndex)
+             && preferredChild[iChild] != currentNodeIndex)
             {
                 // the SPECIAL CASE described above
-                PRINT(x.length);
-                PRINT(iChild);
-                PRINT(currentNodeIndex);
+                if (false)
+                {
+                    OUT("SPECIAL CASE");
+                    PRINT(x.length);
+                    PRINT(iChild);
+                    PRINT(currentNodeIndex);
+                }
                 x[iChild] = LERP(x[currentNodeIndex], x[iChild], 1.-currentNodeFrac);
             }
 
             int iParent = parents[iChild];
             if (iParent != -1)
             {
-                if (preferredChildGlobal[iParent] == iChild)
+                if (preferredChild[iParent] == iChild)
                     x[iParent] = x[iChild];
             }
         }
