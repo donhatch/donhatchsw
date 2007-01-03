@@ -74,18 +74,40 @@ public class MC4DModel
 
             return new Twist(grip, dir, slicemask);
         }
+        /** regex describing the possible strings returned by fromString() and parsed by toString(). This is used by UndoTree.fromString() and UndoTree.toString(). */
+        public static String regex()
+        {
+            return "(|-|-?\\d+\\*)(\\d+)(|:-?\\d+)";
+        }
+        /**
+        * equals.
+        * This is used by UndoTree to decide whether it can
+        * smoothly transition between two consecutive moves
+        * without having to decelerate to zero at the transition point.
+        * <p>
+        * XXX The undo tree decision could be more powerful if it took a comparison functor,
+        * then it could know that (grip,dir,slicemask)
+        * is the same as (opposite grip, -dir, slicemask)...
+        * I could accomplish that by making the Twist class
+        * be non-static so that it knows about the model,
+        * but I'd hate to make this simple well-contained class
+        * turn into something that's suddenly fuzzy and unbounded.
+        * hmm, but MC4DModel could use a non-static subclass of Twist
+        * that *does* know...  bleah I hate making the class heirarchy
+        * more baroque than it needs to be,
+        * I think passing an isCombinable functor to the evolve() method
+        * would be the cleanest way to do it.
+        * But, just doing it using equals for now.
+        */
+        public boolean equals(Object thatObject)
+        {
+            Twist that = (Twist)thatObject;
+            return this.grip == that.grip
+                && this.dir == that.dir
+                && this.slicemask == that.slicemask;
+        }
     } // Twist
 
-    private static class TwistForAnimationQueue
-    {
-        public Twist twist; // has-a, not is-a, whenever possible
-        public boolean isUndo; // if true, don't put on undo queue when done
-        public TwistForAnimationQueue(Twist twist, boolean isUndo)
-        {
-            this.twist = twist;
-            this.isUndo = isUndo;
-        }
-    }
 
     /**
     *  Sequential (pull) model...
@@ -110,13 +132,12 @@ public class MC4DModel
         public GenericPuzzleDescription genericPuzzleDescription;
         public int genericPuzzleState[]; // only accessible via listener notification     XXX make this private!  glue looks at it currently
 
-        public java.util.Vector/*<Twist>*/ history = new java.util.Vector();
-        public int undoPartSize = 0; // history has undo part followed by redo part
+        public com.donhatchsw.util.UndoTree controllerUndoTree = new com.donhatchsw.util.UndoTree();
+
     //
     // VOLATILE NON-SERIALIZABLE PART
     //
-        private java.util.LinkedList/*<Twist>*/ pendingTwists = new java.util.LinkedList();
-        private double timeFractionOfWayThroughFirstPendingTwist = 0.f;
+        public com.donhatchsw.util.UndoTree animationUndoTree = new com.donhatchsw.util.UndoTree(controllerUndoTree); // follows controllerUndoTree, but lags behind at the pace of the animation
         private java.util.Vector/*<Listener>*/ listeners = new java.util.Vector();
 
 
@@ -127,21 +148,16 @@ public class MC4DModel
         // (No, this one's private... called from fromString once
         // it's parsed everything.  Acquires ownership of the args,
         // which is not the usual way we do things.)
-        public MC4DModel(GenericPuzzleDescription genericPuzzleDescription,
+        private MC4DModel(GenericPuzzleDescription genericPuzzleDescription,
                          int genericPuzzleState[],
-                         java.util.Vector history,
-                         int undoPartSize)
+                         com.donhatchsw.util.UndoTree controllerUndoTree)
         {
             if (genericPuzzleState.length != genericPuzzleDescription.nStickers())
                 throw new IllegalArgumentException("MC4DModel.fromString: puzzle description has "+genericPuzzleDescription.nStickers()+" stickers, but state has size "+genericPuzzleState.length+"!?");
-            if (undoPartSize < 0
-             || undoPartSize > history.size())
-                throw new IllegalArgumentException("MC4DModel.fromString: undoPartSize = "+undoPartSize+" but history only has size "+history.size()+"");
 
             this.genericPuzzleDescription = genericPuzzleDescription;
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleState);
-            this.history = history;
-            this.undoPartSize = undoPartSize;
+            this.controllerUndoTree = controllerUndoTree;
         }
 
 
@@ -150,14 +166,10 @@ public class MC4DModel
         {
             this.genericPuzzleDescription = genericPuzzleDescription;
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+            commonInitCode();
         }
 
         public MC4DModel(String prescription)
-        {
-            init(prescription);
-        }
-
-        private void init(String prescription)
         {
             // XXX probably bogus to do this here-- caller should have the opportunity to redirect the progress messages!
             java.io.PrintWriter progressWriter = new java.io.PrintWriter(
@@ -168,6 +180,32 @@ public class MC4DModel
                                                     prescription,
                                                     progressWriter);
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+            commonInitCode();
+        }
+
+        private void commonInitCode()
+        {
+            // XXX need to store this listener and remove it when we break down, I think?
+            // Make it so the animation gets goosed when
+            // the controllerUndoTree changes (e.g. when
+            // an undo is initiated, either from the app
+            // or the undo tree viewer window or whatever...
+            // I haven't even written that part yet!)
+            // This will start things pumping.
+            controllerUndoTree.addListener(new com.donhatchsw.util.UndoTree.Listener() {
+                public void somethingChanged()
+                {
+                    // controllerUndoTree changed.
+                    // actually all we have to do is call repaint;
+                    // this will make our paint() eventually get called
+                    // which will advance the animation.
+                    if (!listeners.isEmpty())
+                    {
+                        // Just notify the first listener in the chain.
+                        ((Listener)listeners.elementAt(0)).movingNotify();
+                    }
+                }
+            });
         }
 
         /** Adds a listener that will be notified when the puzzle animation progresses. */
@@ -192,51 +230,46 @@ public class MC4DModel
                                                int dir,
                                                int slicemask)
         {
-            if (verboseLevel >= 1) System.out.println("MODEL: initiating a twist ("+pendingTwists.size()+" already pending)");
             Twist twist = new Twist(grip, dir, slicemask);
-            initiateTwistOrUndoOrRedo(twist, false);
-            history.setSize(undoPartSize); // clear redo part
-            history.addElement(twist);
-            undoPartSize++;
+            controllerUndoTree.Do(twist);
         }
         /** Initiates an undo.  Returns true if successful, false if there was nothing to undo. */
         public synchronized boolean initiateUndo()
         {
             if (verboseLevel >= 1) System.out.println("MODEL: initiating an undo");
-            if (undoPartSize == 0)
-            {
-                if (verboseLevel >= 1) System.out.println("    NOT!!");
-                return false; // failed
-            }
-            Twist twist = (Twist)history.elementAt(--undoPartSize);
-            initiateTwistOrUndoOrRedo(new Twist(twist.grip, -twist.dir, twist.slicemask), true);
-            return true; // succeeded
+            Twist twist = (Twist)controllerUndoTree.undo();
+            return twist != null; // whether there was actually something to undo
         }
         /** Initiates an redo.  Returns true if successful, false if there was nothing to redo. */
         public synchronized boolean initiateRedo()
         {
             if (verboseLevel >= 1) System.out.println("MODEL: initiating a redo");
-            if (undoPartSize == history.size())
+            Twist twist = (Twist)controllerUndoTree.undo();
+            if (twist != null)
             {
-                if (verboseLevel >= 1) System.out.println("    NOT!!");
-                return false; // failed
+                if (!listeners.isEmpty())
+                {
+                    // Just notify the first listener in the chain.
+                    ((Listener)listeners.elementAt(0)).movingNotify();
+                }
+                return true;
             }
-            Twist twist = (Twist)history.elementAt(undoPartSize++);
-            initiateTwistOrUndoOrRedo(twist, false);
-            return true; // succeeded
+            else
+                return false;
         }
 
-        // common code used by all of the above...
-        // caller must synchronize.
-        private void initiateTwistOrUndoOrRedo(Twist twist,
-                                               boolean isUndo)
+        public synchronized void initiateCheat()
         {
-            if (!listeners.isEmpty())
+            if (verboseLevel >= 1) System.out.println("MODEL: initiating a cheat");
+            if (controllerUndoTree.getCurrentNodeIndex() != 0)
             {
-                // Just notify the first listener in the chain.
-                ((Listener)listeners.elementAt(0)).movingNotify();
+                controllerUndoTree.setCurrentNodeIndex(0);
+                if (!listeners.isEmpty())
+                {
+                    // Just notify the first listener in the chain.
+                    ((Listener)listeners.elementAt(0)).movingNotify();
+                }
             }
-            pendingTwists.add(new TwistForAnimationQueue(twist, isUndo));
         }
 
         /**
@@ -285,45 +318,55 @@ public class MC4DModel
         *  so its advanceAnimation ends up calling its own movingNotify
         *  which calls its own repaint, so it's all good.
         */
-        public synchronized void advanceAnimation(Listener listener, float nFrames90)
+        public synchronized void advanceAnimation(Listener listener, double nFrames90, double criticalDampingFraction)
         {
             if (verboseLevel >= 1) System.out.println("MODEL: advancing animation");
-            if (pendingTwists.isEmpty())
-            {
-                if (verboseLevel >= 1) System.out.println("    NOT!!!!");
-                return; // XXX argh! if an animation just completed, need to make sure each listener gets a final notify-- don't just stop notifying when the animation queue is empty
-            }
 
-            // XXX hack-- trying to figure out the nice way to do it when there are like 90 windows each with different nFrames90... go at the speed of the slowest?  for now, since each listener is only getting 1/nListeners of the notifications, multiply by the number of listeners.
+            // XXX hack-- trying to figure out the nice way to do it when there are like 90 windows each with different nFrames90... go at the speed of the slowest?  for now, since each listener is only getting 1/nListeners of the notifications, multiply by the number of listeners, otherwise we'll get huge gaps and it sucks.  I tried it.
             nFrames90 *= listeners.size();
 
-            TwistForAnimationQueue item = (TwistForAnimationQueue)pendingTwists.getFirst();
-            Twist twist = item.twist;
-            int order = genericPuzzleDescription.getGripSymmetryOrders()[twist.grip];
-            double totalRotationAngle = 2*Math.PI/order*Math.abs(twist.dir);
-            double nFramesTotal = Math.sqrt(totalRotationAngle/(Math.PI/2.))*nFrames90;
+            boolean wasMoving = animationUndoTree.isMoving(controllerUndoTree);
 
-            if (nFramesTotal <= 1.)
-                nFramesTotal = 1.; // just make sure it gets there immediately, without risking zero-divide
-            timeFractionOfWayThroughFirstPendingTwist += 1./nFramesTotal;
-            if (timeFractionOfWayThroughFirstPendingTwist >= 1.)
+            com.donhatchsw.util.UndoTree.ReturnValueOfIncrementViewTowardsOtherView discreteStateChange = animationUndoTree.incrementViewTowardsOtherView(
+                controllerUndoTree,
+                1.,        // the canonical edge length
+                nFrames90, // takes this amount of time
+                1.,        // and we are incrementing by this amount of time
+                criticalDampingFraction,
+                // XXX don't need to make this every time!
+                new com.donhatchsw.util.UndoTree.ItemLengthizer() {
+                    public double length(Object item)
+                    {
+                        Twist twist = (Twist)item;
+                        Assert(twist != null);
+                        int order = genericPuzzleDescription.getGripSymmetryOrders()[twist.grip];
+                        if (order <= 0)
+                            return 1.; // XXX is this sensible?
+                        double nQuarterTurns = 4./order
+                                             * Math.abs(twist.dir); // power multiplier
+                        return nQuarterTurns;
+                    }
+            });
+
+            if (discreteStateChange != null)
             {
-                pendingTwists.removeFirst(); // it's item
+                Twist twist = (Twist)discreteStateChange.item;
+                // Apply the discrete state change
+                // to the permutation array.
+                // discreteStateChange.dir is 1 for Do/redo and -1 for undo,
+                // so we can express the resulting twist direction neatly
+                // as discreteStateChange.dir * twist.dir.
+                //
                 genericPuzzleDescription.applyTwistToState(
                     genericPuzzleState,
-                    item.twist.grip,
-                    item.twist.dir,
-                    item.twist.slicemask);
-                if (!item.isUndo)
-                {
-                    // XXX should we do this?  remind myself of why I did it in the glue implementation
-                    //clear the redo part of the history
-                    //history.addElement(item.twist);
-                }
-                timeFractionOfWayThroughFirstPendingTwist = 0.;
+                    twist.grip,
+                    discreteStateChange.dir * twist.dir,
+                    twist.slicemask);
             }
 
-            nextListener(listener).movingNotify(); // typically calls repaint
+            if (wasMoving)
+                nextListener(listener).movingNotify(); // typically calls repaint
+                // XXX oh wait... the last few guys won't update!?  bleah
         } // advanceAnimation
 
 
@@ -341,10 +384,9 @@ public class MC4DModel
         * then they DO need to call repaint if not moving.
         * So isMoving() can be used to test for that.
         */
-        public synchronized boolean isMoving(Listener listener)
+        public synchronized boolean isMoving()
         {
-            if (verboseLevel >= 1) System.out.println("MODEL: isMoving returning "+!pendingTwists.isEmpty());
-            return !pendingTwists.isEmpty();
+            return animationUndoTree.isMoving(controllerUndoTree);
         }
 
 
@@ -358,22 +400,27 @@ public class MC4DModel
         *  stuff, typically using some smoothing function f
         *  such that f(0)=0, f(1)=1, f'(0)=0, f'(1)=0.)
         */
-        public synchronized double getAnimationState(Listener listener,
+        public synchronized double getAnimationState(Listener listener, // XXX huh?  is listener used? I don't think so
                                                      int returnPuzzleState[],
                                                      Twist returnTwist)
         {
-            if (pendingTwists.isEmpty())
+            Twist twist = (Twist)animationUndoTree.getItemOnEdgeFromParentToCurrentNode();
+            double returnFrac = 1.-animationUndoTree.getCurrentNodeFraction();
+
+            if (twist == null) // this happens if it's the root
             {
-                if (verboseLevel >= 1) System.out.println("MODEL: giving someone animation state: NOT!");
-                return 0.; // so all the twist params will be irrelevant
+                returnTwist.grip = 0;
+                returnTwist.dir = 0;
+                returnTwist.slicemask = 0;
             }
-            Twist firstPendingTwist = ((TwistForAnimationQueue)pendingTwists.getFirst()).twist;
-            com.donhatchsw.util.VecMath.copyvec(returnPuzzleState, genericPuzzleState);
-            returnTwist.grip = firstPendingTwist.grip;
-            returnTwist.dir = firstPendingTwist.dir;
-            returnTwist.slicemask = firstPendingTwist.slicemask;
-            if (verboseLevel >= 1) System.out.println("MODEL: giving someone animation state: "+timeFractionOfWayThroughFirstPendingTwist+" of the way (in time) through a "+returnTwist+"");
-            return timeFractionOfWayThroughFirstPendingTwist;
+            else
+            {
+                returnTwist.grip = twist.grip;
+                returnTwist.dir = -twist.dir;
+                returnTwist.slicemask = twist.slicemask;
+            }
+            if (verboseLevel >= 1) System.out.println("MODEL: giving someone animation state: "+returnFrac+" of the way (in time) through a "+returnTwist+"");
+            return returnFrac;
         }
 
         /**
@@ -391,8 +438,7 @@ public class MC4DModel
             // XXX need to sort by face and put each on a line by itself
             sb.append(com.donhatchsw.util.Arrays.toStringCompact(genericPuzzleState));
             sb.append(","+nl);
-            sb.append("    history = "+com.donhatchsw.util.Arrays.toStringCompact(history)+","+nl);
-            sb.append("    undoPartSize = "+undoPartSize+","+nl);
+            sb.append("    history = "+com.donhatchsw.util.Arrays.toStringCompact(controllerUndoTree)+","+nl); // XXX not right yet!
             sb.append("}");
             return sb.toString();
         } // toString
@@ -428,11 +474,16 @@ public class MC4DModel
             }
 
             historyString.replaceAll("\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
-            String historyTwistStrings[] = com.donhatchsw.compat.regex.split(historyString, ",");
-            java.util.Vector history = new java.util.Vector();
-            for (int i = 0; i < historyTwistStrings.length; ++i)
-                history.addElement(Twist.fromString(historyTwistStrings[i]));
-            int undoPartSize = Integer.parseInt(undoPartSizeString);
+            com.donhatchsw.util.UndoTree controllerUndoTree = com.donhatchsw.util.UndoTree.fromString(historyString, new com.donhatchsw.util.UndoTree.ItemFromString() {
+                public String regex()
+                {
+                    return Twist.regex();
+                }
+                public Object itemFromString(String s)
+                {
+                    return Twist.fromString(s);
+                }
+            });
 
             int genericPuzzleState[] = null;
             try {
@@ -450,8 +501,7 @@ public class MC4DModel
 
             MC4DModel model = new MC4DModel(genericPuzzleDescription,
                                             genericPuzzleState,
-                                            history,
-                                            undoPartSize);
+                                            controllerUndoTree);
             return model;
         } // fromString
 
