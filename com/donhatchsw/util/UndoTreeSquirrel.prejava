@@ -11,6 +11,7 @@ import com.donhatchsw.compat.regex;
 
 public class UndoTree
 {
+    /** Actually this is a Model concept, so if I put Model in its own class that doesn't know about the View, this would get moved down into it.  I just put it up here so that the caller can refer to it as an UndoTree.ItemLengthizer instead of an UndoTree.Model.ItemLengthizer. */
     public interface ItemLengthizer
     {
         /**
@@ -27,24 +28,48 @@ public class UndoTree
         double length(Object item);
     }
 
-    // A node represents a state of the application;
-    // Do's, undo's, redo's are edges that go from node to node.
-    private static class Node
+    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. Hears changes to both the shared model and the individual view. */
+    public interface Listener
     {
-        public int parent; // index relative to mine
-        public Object itemOnEdgeFromParentToMe;
-        public long timeCreated;
-        public Object sharedLabel = null; // views might want to share a label or have their own private one
-        public int children[] = new int[0]; // indices relative to mine
-        public Node(int parent, Object itemOnEdgeFromParentToMe, long timeCreated)
-        {
-            this.parent = parent;
-            this.itemOnEdgeFromParentToMe = itemOnEdgeFromParentToMe;
-            this.timeCreated = timeCreated;
-        }
-    } // Node
+        public void somethingChanged();
+    }
 
-    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable privateNodeInfosHashtable, Node node)
+    /** It's a model/view setup, where UndoTree itself is the view and UndoTree.Model is the model. */
+    private static class Model
+    {
+        // A node represents a state of the application;
+        // the edges are editing operations that go from node to node.
+        // Do, undo, and redo means traversing an edge
+        // (although that is a View concept, since the model
+        // has no concept of current position).
+        private static class Node
+        {
+            public int parent; // index relative to mine
+            public Object itemOnEdgeFromParentToMe;
+            public long timeCreated;
+            public Object sharedLabel = null; // views might want to share a label or have their own private one
+            public int children[] = new int[0]; // indices relative to mine
+            public Node(int parent, Object itemOnEdgeFromParentToMe, long timeCreated)
+            {
+                this.parent = parent;
+                this.itemOnEdgeFromParentToMe = itemOnEdgeFromParentToMe;
+                this.timeCreated = timeCreated;
+            }
+        } // Node
+
+        public com.donhatchsw.compat.ArrayList/*<Node>*/ nodes = new com.donhatchsw.compat.ArrayList();
+        private com.donhatchsw.compat.ArrayList sharedListeners = new com.donhatchsw.compat.ArrayList();
+
+        public Model()
+        {
+            this.nodes.add(new Node(-1,null,System.currentTimeMillis()));
+        }
+
+    } // Model
+
+    private Model model; // set in ctor
+
+    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable privateNodeInfosHashtable, Model.Node node)
     {
         PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
         if (info == null)
@@ -55,11 +80,7 @@ public class UndoTree
         return info;
     } // PrivateNodeInfo
 
-
-    private com.donhatchsw.compat.ArrayList/*<Node>*/ nodes; // set in ctor
-    private com.donhatchsw.compat.ArrayList sharedListeners; // set in ctor
     private com.donhatchsw.compat.ArrayList privateListeners = new com.donhatchsw.compat.ArrayList();
-
 
     //
     // An UndoTree is actually a view into the nodes (the model).
@@ -71,24 +92,9 @@ public class UndoTree
         public Object privateLabel = null;
         public int preferredChildIndex = -1;
     }
-    private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this
+    private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this, make it an array instead?  not sure
     private int currentNodeIndex; // set in ctor
     private SmoothlyVaryingViewingParameter currentNodeFraction = new SmoothlyVaryingViewingParameter(1.); // current fraction of the way from parent to current node
-
-    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. */
-    public interface Listener
-    {
-        public void somethingChanged();
-    }
-
-        private void notifyListenersSomethingChanged(com.donhatchsw.compat.ArrayList listeners)
-        {
-            synchronized(listeners)
-            {
-                for (int i = 0; i < listeners.size(); ++i)
-                    ((Listener)listeners.get(i)).somethingChanged();
-            }
-        }
 
     // XXX these haven't been thought out well... probably should not be here, are not safe... bleah bleah bleah
     public void setCurrentNodeIndex(int currentNodeIndex)
@@ -99,12 +105,12 @@ public class UndoTree
             // Correct the preferred child path from the root
             {
                 int iChild = this.currentNodeIndex;
-                Node child = (Node)nodes.get(iChild);
+                Model.Node child = (Model.Node)model.nodes.get(iChild);
 
                 while (iChild != 0)
                 {
                     int iParent = iChild + child.parent;
-                    Node parent = (Node)nodes.get(iParent);
+                    Model.Node parent = (Model.Node)model.nodes.get(iParent);
                     int childIndex = Arrays.indexOf(parent.children, -child.parent);
                     PrivateNodeInfo parentInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, parent);
                     parentInfo.preferredChildIndex = childIndex;
@@ -126,9 +132,9 @@ public class UndoTree
     }
     public Object getItemOnEdgeFromParentToCurrentNode()
     {
-        synchronized(nodes)
+        synchronized(model.nodes) // XXX should model handle this instead?
         {
-            return ((Node)nodes.get(currentNodeIndex)).itemOnEdgeFromParentToMe;
+            return ((Model.Node)model.nodes.get(currentNodeIndex)).itemOnEdgeFromParentToMe;
         }
     }
     public void setCurrentNodeFraction(double currentNodeFraction)
@@ -139,30 +145,27 @@ public class UndoTree
 
     /**
     * Creates a new view onto an existing undo tree.
-    * Both views will see the labels created via setSharedLabel(),
-    * but a position label created via setPrivateLabel() will only be seen
-    * in the view in which it was created.
     */
     // CTOR    (for quick find in editor)
     public UndoTree(UndoTree other)
     {
         if (other == null)
         {
-            this.nodes = new com.donhatchsw.compat.ArrayList();
-            this.nodes.add(new Node(-1,null,System.currentTimeMillis()));
-            this.sharedListeners = new com.donhatchsw.compat.ArrayList();
+            this.model = new Model();
             this.currentNodeIndex = 0;
+            this.currentNodeFraction.set(1.);
         }
         else
         {
-            this.nodes = other.nodes;
-            this.sharedListeners = other.sharedListeners;
+            this.model = other.model;
             this.currentNodeIndex = other.currentNodeIndex;
+            this.currentNodeFraction.snap(other.currentNodeFraction.get());
+            this.currentNodeFraction.set(other.currentNodeFraction.getTarget());
             // XXX should copy preferred child indices from the other too! and maybe private labels, but not sure about that. maybe that should be an argument to the constructor?
         }
     }
 
-    /** Creates a new undo tree from scratch; equivalent to UndoTree(null). */
+    /** Creates a new undo tree (view) with a brand new empty tree; equivalent to UndoTree(null). */
     public UndoTree()
     {
         this(null);
@@ -193,14 +196,14 @@ public class UndoTree
         if (item == null)
             throw new IllegalArgumentException("UndoTree.Do called with null item");
         int newChildIndex;
-        synchronized(nodes)
+        synchronized(model.nodes)
         {
-            newChildIndex = nodes.size();
-            Node newChild = new Node(currentNodeIndex-newChildIndex, item, timeStampMillis);
-            nodes.add(newChild);
+            newChildIndex = model.nodes.size();
+            Model.Node newChild = new Model.Node(currentNodeIndex-newChildIndex, item, timeStampMillis);
+            model.nodes.add(newChild);
         }
 
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         int newChildIndexInCurrent;
         synchronized(currentNode)
         {
@@ -245,22 +248,22 @@ public class UndoTree
         // that, when called, would notify all the view's listeners as well.
         // Yeah, I think that's right.
         //
-        notifyListenersSomethingChanged(sharedListeners); // includes private listeners
+        notifyListenersSomethingChanged(model.sharedListeners); // includes private listeners
     } // Do
 
     /** Destroys the entire underlying tree.  XXX I suspect this is not very safe if multiple views are looking at it, I think there may be assumptions that indices will remain valid. */
     public void Clear()
     {
-        synchronized(nodes)
+        synchronized(model.nodes)
         {
-            nodes.clear();
-            this.nodes.add(new Node(-1,null,System.currentTimeMillis()));
+            model.nodes.clear();
+            this.model.nodes.add(new Model.Node(-1,null,System.currentTimeMillis()));
             this.currentNodeIndex = 0; // XXX but woe to all the other views!!
             this.currentNodeFraction.snap(1.);
             this.privateNodeInfosHashtable.clear(); // XXX argh! should have more stuff locked down!
             // XXX and everyone should clear unused nodes in their hash table if they notice the size has decreased!
         }
-        notifyListenersSomethingChanged(sharedListeners); // includes private listeners
+        notifyListenersSomethingChanged(model.sharedListeners); // includes private listeners
     } // Clear
 
     /** Performs an undo; that is, changes the current position to be one step closer to the root of the tree, returning the Object that was originally passed to Do() when the tree edge was created. */
@@ -268,7 +271,7 @@ public class UndoTree
     {
         if (currentNodeIndex != 0)
         {
-            Node currentNode = (Node)nodes.get(currentNodeIndex);
+            Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
             Object item = currentNode.itemOnEdgeFromParentToMe;
             currentNodeIndex += currentNode.parent; // relative
             currentNodeFraction.snap(1.);
@@ -283,14 +286,14 @@ public class UndoTree
     /** Performs a redo; that is, changes the current position to be the preferred child of the current current position, returning the Object that was originally passed to Do() when that tree edge was created.  If you want to go to a different child, you need to explicitly make that the preferred child first. */
     public Object redo()
     {
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         if (currentNode.children.length == 0)
             return null;
         PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         if (currentNodeInfo.preferredChildIndex == -1)
             currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
         currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex]; // relative
-        currentNode = (Node)nodes.get(currentNodeIndex);
+        currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         currentNodeFraction.snap(1.);
         notifyListenersSomethingChanged(privateListeners);
         return currentNode.itemOnEdgeFromParentToMe;
@@ -300,7 +303,7 @@ public class UndoTree
     */
     public boolean preferOlderChild()
     {
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         synchronized(currentNode)
         {
@@ -318,7 +321,7 @@ public class UndoTree
     */
     public boolean preferYoungerChild()
     {
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         synchronized(currentNode)
         {
@@ -335,17 +338,17 @@ public class UndoTree
     /** Oh, and this one updates the model too. Sets a label at the current position that will be seen by other views of this undo tree. */
     public void setSharedLabel(Object sharedLabel)
     {
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         synchronized(currentNode)
         {
             currentNode.sharedLabel = sharedLabel;
         }
-        notifyListenersSomethingChanged(sharedListeners); // includes private listeners
+        notifyListenersSomethingChanged(model.sharedListeners); // includes private listeners
     }
     /** Sets a label at the current position that will not be seen by other views of this undo tree. */
     public void setPrivateLabel(Object privateLabel)
     {
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
         privateNodeInfo.privateLabel = privateLabel;
         notifyListenersSomethingChanged(privateListeners);
@@ -387,13 +390,13 @@ public class UndoTree
     {
         boolean debug = false;
         if (debug) System.out.println("in incrementViewTowardsOtherView");
-        if (otherView.nodes != nodes)
+        if (otherView.model.nodes != model.nodes)
             throw new IllegalArgumentException("UndoTree.incrementViewTowardsOtherView called with a different underlying tree!");
         // XXX need to lock something down while we do this... if someone else changes currentNodeIndex out from under us we are super screwed!!!
 
         int targetNodeIndex = otherView.currentNodeIndex;
         double targetNodeFraction = otherView.currentNodeFraction.get();
-        if (currentNodeIndex >= nodes.size())
+        if (currentNodeIndex >= model.nodes.size())
         {
             // XXX ad-hoc... can happen after a clear.  I think if we were getting notified properly this could be prevented
             currentNodeIndex = 0;
@@ -401,7 +404,7 @@ public class UndoTree
             notifyListenersSomethingChanged(privateListeners);
             return null;
         }
-        Node currentNode = (Node)nodes.get(currentNodeIndex);
+        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         if (currentNodeIndex == targetNodeIndex)
         {
             if (debug) System.out.println("    home stretch");
@@ -427,7 +430,7 @@ public class UndoTree
         }
         int ancestorIndex = findLowestCommonAncestorIndex(currentNodeIndex,
                                                           targetNodeIndex,
-                                                          nodes);
+                                                          model.nodes);
         ReturnValueOfIncrementViewTowardsOtherView returnVal = null;
         if (ancestorIndex == currentNodeIndex)
         {
@@ -462,7 +465,7 @@ public class UndoTree
                 currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex];
                 currentNodeFraction.snap(0.);
                 assert(currentNodeFraction.get() == 0.);
-                currentNode = (Node)nodes.get(currentNodeIndex);
+                currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
                 returnVal = new ReturnValueOfIncrementViewTowardsOtherView(1, currentNode.itemOnEdgeFromParentToMe/*AFTER we change current node*/);
                 // In this case don't evolve... wait for next time around,
                 // which will do something or other depending
@@ -490,7 +493,7 @@ public class UndoTree
                 currentNodeIndex += currentNode.parent;
                 currentNodeFraction.snap(1.);
                 assert(currentNodeFraction.get() == 1.);
-                currentNode = (Node)nodes.get(currentNodeIndex);
+                currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
                 // In this case don't evolve... wait for next time around,
                 // which will do something or other depending
                 // on whether the new one is the target or not.
@@ -523,7 +526,7 @@ public class UndoTree
             //
             if (currentNodeIndex != 0)
             {
-                Node parentNode = (Node)nodes.get(currentNodeIndex+currentNode.parent);
+                Model.Node parentNode = (Model.Node)model.nodes.get(currentNodeIndex+currentNode.parent);
                 PrivateNodeInfo parentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, parentNode);
                 synchronized(otherView.privateNodeInfosHashtable) // XXX I'm positive this is the wrong thing
                 {
@@ -553,39 +556,50 @@ public class UndoTree
         // Do the common cases fast...
         if (i0 == i1)
             return i0;
-        if (i0 != 0 && i0+((Node)nodes.get(i0)).parent == i1)
+        if (i0 != 0 && i0+((Model.Node)nodes.get(i0)).parent == i1)
             return i1;
-        if (i1 != 0 && i1+((Node)nodes.get(i1)).parent == i0)
+        if (i1 != 0 && i1+((Model.Node)nodes.get(i1)).parent == i0)
             return i0;
 
         // No clue where they are with respect to each other.
         // Figure out the depths...
         int depth0 = 0;
-        for (int i = i0; i > 0; i += ((Node)nodes.get(i)).parent)
+        for (int i = i0; i > 0; i += ((Model.Node)nodes.get(i)).parent)
             depth0++;
         int depth1 = 0;
-        for (int i = i1; i > 0; i += ((Node)nodes.get(i)).parent)
+        for (int i = i1; i > 0; i += ((Model.Node)nodes.get(i)).parent)
             depth1++;
 
         // Walk up the deeper side til they are at common depth...
         while (depth0 > depth1)
         {
-            i0 += ((Node)nodes.get(i0)).parent;
+            i0 += ((Model.Node)nodes.get(i0)).parent;
             depth0--;
         }
         while (depth1 > depth0)
         {
-            i1 += ((Node)nodes.get(i1)).parent;
+            i1 += ((Model.Node)nodes.get(i1)).parent;
             depth1--;
         }
         // Then keep walking up til they are equal.
         while (i0 != i1)
         {
-            i0 += ((Node)nodes.get(i0)).parent;
-            i1 += ((Node)nodes.get(i1)).parent;
+            i0 += ((Model.Node)nodes.get(i0)).parent;
+            i1 += ((Model.Node)nodes.get(i1)).parent;
         }
         return i0;
     } // findLowestCommonAncestorIndex
+
+
+        // This would get moved into Model if it was to be made autonomous
+        private static void notifyListenersSomethingChanged(com.donhatchsw.compat.ArrayList listeners) // XXX I *think* this should be static, it wasn't before but I think that was an oversight
+        {
+            synchronized(listeners)
+            {
+                for (int i = 0; i < listeners.size(); ++i)
+                    ((Listener)listeners.get(i)).somethingChanged();
+            }
+        }
 
     /**
     * Installs a callback that will get called after
@@ -596,10 +610,10 @@ public class UndoTree
     */
     public void addListener(Listener notifier)
     {
-        synchronized(sharedListeners)
+        synchronized(model.sharedListeners)
         {
-            sharedListeners.remove(notifier); // XXX should throw IllegalArgumentException instead
-            sharedListeners.add(notifier);
+            model.sharedListeners.remove(notifier); // XXX should throw IllegalArgumentException instead
+            model.sharedListeners.add(notifier);
         }
         synchronized(privateListeners)
         {
@@ -610,9 +624,9 @@ public class UndoTree
     /** Removes a callback that was previously installed with addListener(). */
     public void removeListener(Listener notifier)
     {
-        synchronized(sharedListeners)
+        synchronized(model.sharedListeners)
         {
-            sharedListeners.remove(notifier);
+            model.sharedListeners.remove(notifier);
         }
         synchronized(privateListeners)
         {
@@ -645,7 +659,7 @@ public class UndoTree
         // "view-local"-- it's all relative)
         while (true)
         {
-            int nNodes = nodes.size();
+            int nNodes = model.nodes.size();
             snapshot.nNodes = nNodes;
             if (snapshot.parents == null
              || snapshot.parents.length < nNodes)
@@ -662,16 +676,16 @@ public class UndoTree
             if (snapshot.preferredChildIndices == null ||
                 snapshot.preferredChildIndices.length < nNodes)
                 snapshot.preferredChildIndices = new int[nNodes];
-            synchronized(nodes) // XXX are wy synching on the right thing?
+            synchronized(model.nodes) // XXX are wy synching on the right thing?
             {
-                if (nodes.size() != nNodes)
+                if (model.nodes.size() != nNodes)
                     continue; // someone changed something! try allocations again
-                if (currentNodeIndex > nodes.size())
+                if (currentNodeIndex > model.nodes.size())
                     currentNodeIndex = 0; // XXX stopgap-- need to check this more pervasively! really if we were doing this right we should get notified of model changes, rather than this half-assed joint ownership thing
 
                 for (int iNode = 0; iNode < nNodes; ++iNode)
                 {
-                    Node node = (Node)nodes.get(iNode);
+                    Model.Node node = (Model.Node)model.nodes.get(iNode);
                     PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
                     snapshot.parents[iNode] = iNode + node.parent; // change relative to absolute
                     snapshot.edgeItems[iNode] = node.itemOnEdgeFromParentToMe;
@@ -690,7 +704,7 @@ public class UndoTree
                 snapshot.currentNode = currentNodeIndex;
                 snapshot.currentNodeFraction = currentNodeFraction.get();
                 break;
-            } // synchronized(nodes)
+            } // synchronized(model.nodes)
         }
         // we could nicify it here if we want... perhaps putting in the children pointers as well, we're in no hurry any more
     } // takeSnapshot // takeSnapshot
@@ -745,7 +759,7 @@ public class UndoTree
     // TODO: compactify even more if it gets bushy then stringy then bushy, the lower bush can go under the upper bush
     public String toStringVisualCool(boolean stretchOutAlongTimeLine)
     {
-        int nNodes = nodes.size();
+        int nNodes = model.nodes.size();
         //
         // Bottom up, figure out the number of leaves
         // under the node.  That will be the logical width
@@ -754,7 +768,7 @@ public class UndoTree
         int widths[] = new int[nNodes]; // zeros
         for (int iNode = nNodes-1; iNode >= 0; iNode--)
         {
-            Node node = (Node)nodes.get(iNode);
+            Model.Node node = (Model.Node)model.nodes.get(iNode);
             for (int iChild = 0; iChild < node.children.length; ++iChild)
             {
                 int childIndex = iNode + node.children[iChild];
@@ -773,7 +787,7 @@ public class UndoTree
         xstarts[0] = 0;
         for (int iNode = 0; iNode < nNodes; iNode++)
         {
-            Node node = (Node)nodes.get(iNode);
+            Model.Node node = (Model.Node)model.nodes.get(iNode);
             int childStart = xstarts[iNode];
             for (int iChild = 0; iChild < node.children.length; ++iChild)
             {
@@ -791,7 +805,7 @@ public class UndoTree
         int x[] = new int[nNodes];
         for (int iNode = nNodes-1; iNode >= 0; iNode--)
         {
-            Node node = (Node)nodes.get(iNode);
+            Model.Node node = (Model.Node)model.nodes.get(iNode);
             PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node); // XXX shouldn't make it if it doesn't exist, that's lame
             if (node.children.length == 0)
             {
@@ -832,7 +846,7 @@ public class UndoTree
             y[0] = 0;
             for (int iNode = 0; iNode < nNodes; iNode++)
             {
-                Node node = (Node)nodes.get(iNode);
+                Model.Node node = (Model.Node)model.nodes.get(iNode);
                 int childStart = xstarts[iNode];
                 for (int iChild = 0; iChild < node.children.length; ++iChild)
                 {
@@ -857,7 +871,7 @@ public class UndoTree
         //
         for (int iNode = 0; iNode < nNodes; ++iNode)
         {
-            Node node = (Node)nodes.get(iNode);
+            Model.Node node = (Model.Node)model.nodes.get(iNode);
             buf[y[iNode]][x[iNode]] = (char)('0'+(iNode%10)); // XXX just last digit for now
             if (iNode == currentNodeIndex)
             {
@@ -892,7 +906,7 @@ public class UndoTree
             annotations[i] = new StringBuffer();
         for (int iNode = 0; iNode < nNodes; ++iNode)
         {
-            Node node = (Node)nodes.get(iNode);
+            Model.Node node = (Model.Node)model.nodes.get(iNode);
             if (iNode != 0)
             {
                 annotations[y[iNode]-1].append(" "+node.itemOnEdgeFromParentToMe);
@@ -1145,11 +1159,11 @@ public class UndoTree
         StringBuffer sb = new StringBuffer();
         sb.append("{");
         sb.append(separatorSpaces);
-        int nNodes = nodes.size();
+        int nNodes = model.nodes.size();
         for (int iNode = 0; iNode < nNodes; ++iNode)
         {
             sb.append(indentSpaces);
-            Node node = (Node)nodes.get(iNode);
+            Model.Node node = (Model.Node)model.nodes.get(iNode);
             if (iNode != 0)
             {
                 String itemString = itemToString.itemToString(node.itemOnEdgeFromParentToMe);
@@ -1244,11 +1258,11 @@ public class UndoTree
         int currentNodeIndex = -1;
         java.util.Hashtable/*<node, PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable();
 
-        Node nodes[] = new Node[Math.max(words.length,1)]; // at most this many
-        com.donhatchsw.compat.ArrayList/*Node*/ childrens[] = new com.donhatchsw.compat.ArrayList[nodes.length];
+        Model.Node nodes[] = new Model.Node[Math.max(words.length,1)]; // at most this many
+        com.donhatchsw.compat.ArrayList/*Model.Node*/ childrens[] = new com.donhatchsw.compat.ArrayList[nodes.length];
 
         int nNodes = 0;
-        nodes[nNodes++] = new Node(-1, null, currentTimeMillis);
+        nodes[nNodes++] = new Model.Node(-1, null, currentTimeMillis);
         childrens[nNodes-1] = new com.donhatchsw.compat.ArrayList();
 
         int iWord = 0;
@@ -1312,7 +1326,7 @@ public class UndoTree
             //
             // Not at the end of the input, so there's another node
             //
-            nodes[nNodes++] = new Node(-1, null, currentTimeMillis);
+            nodes[nNodes++] = new Model.Node(-1, null, currentTimeMillis);
             childrens[nNodes-1] = new com.donhatchsw.compat.ArrayList();
 
             //
@@ -1380,9 +1394,9 @@ public class UndoTree
         UndoTree undoTree = new UndoTree(null);
         undoTree.currentNodeIndex = currentNodeIndex;
         undoTree.privateNodeInfosHashtable = privateNodeInfosHashtable;
-        undoTree.nodes = new com.donhatchsw.compat.ArrayList(nNodes);
+        undoTree.model.nodes = new com.donhatchsw.compat.ArrayList(nNodes);
         for (int iNode = 0; iNode < nNodes; ++iNode)
-            undoTree.nodes.add(nodes[iNode]);
+            undoTree.model.nodes.add(nodes[iNode]);
 
         undoTree.checkSane();
 
@@ -1392,13 +1406,13 @@ public class UndoTree
 
         private void checkSane()
         {
-            for (int iNode = 0; iNode < nodes.size(); ++iNode)
+            for (int iNode = 0; iNode < model.nodes.size(); ++iNode)
             {
-                Node node = (Node)nodes.get(iNode);
+                Model.Node node = (Model.Node)model.nodes.get(iNode);
                 for (int iChild = 0; iChild < node.children.length; ++iChild)
                 {
                     int childIndex = iNode + node.children[iChild];
-                    Node child = (Node)nodes.get(childIndex);
+                    Model.Node child = (Model.Node)model.nodes.get(childIndex);
                     //System.out.println(""+iNode+"->"+childIndex);
                     assert(childIndex+child.parent == iNode);
                 }
