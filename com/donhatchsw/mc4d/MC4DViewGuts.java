@@ -9,14 +9,14 @@
 * Let's not derive it from anything.
 * The only reason for deriving from anything anyway
 * is so we can overload the paint() method--
-* so we just let the caller do that and let it call us.
+* so we just let the caller do that and let it call us from inside its paint().
 *
 * For example:
 * <pre>
 *       class ModernMC4DView
 *           extends JPanel
 *       {
-*           MC4DViewGuts guts; // has-a, not is-a
+*           public MC4DViewGuts guts; // has-a, not is-a
 *
 *           public ModernMC4DView()
 *           {
@@ -24,6 +24,7 @@
 *           }
 *           public void paintComponent(java.awt.Graphics g)
 *           {
+*               g.fillRect(0,0,getWidth(),getHeight());
 *               guts.paint(this, g);
 *           }
 *       }
@@ -31,7 +32,7 @@
 *       class AncientMC4DView
 *           extends java.awt.Canvas
 *       {
-*           MC4DViewGuts guts; // has-a, not is-a
+*           public MC4DViewGuts guts; // has-a, not is-a
 *
 *           public AncientMC4DView()
 *           {
@@ -39,6 +40,7 @@
 *           }
 *           public void paint(java.awt.Graphics g)
 *           {
+*               g.fillRect(0,0,getWidth(),getHeight());
 *               guts.paint(this, g);
 *           }
 *       }
@@ -128,11 +130,15 @@ public class MC4DViewGuts
             {0, 1, .5f},
         };
         public boolean highlightByCubie = false;
-        public boolean highlightByGrip = false; // XXX need to set this automatically maybe, based on the puzzle description
+        public boolean highlightByGrip = true; // if possible; it gets turned into highlight by sticker automatically if there is no grip info, which there isn't unless it's a 2x2x2x2 currently
         //public java.awt.Color outlineColor = java.awt.Color.black;
         public java.awt.Color outlineColor = null;
-        //public float nFrames90 = 15;
-        public float nFrames90 = 15;
+        //public double nFrames90 = 15;
+        public double nFrames90 = 30;
+
+        public double criticalDampingFraction = 1.; // 1 means critically damped, less than 1 gives it a bit of bounce, more than 1 just makes it slower
+        //public double criticalDampingFraction = .9; // 1 means critically damped, less than 1 gives it a bit of bounce, more than 1 just makes it slower
+
         InterpFunc interp = sine_interp;
         //InterpFunc interp = linear_interp;
         private boolean restrictRoll = false; // this one is private with accessors
@@ -170,6 +176,7 @@ public class MC4DViewGuts
         private int slicemask = 0; // bitmask representing which number keys are down
         private int nShiftsDown = 0; // keep track of whether both shift keys are being held down.  This isn't completely reliable (e.g. when mouse exits window while shift is down) but we always set it to 0 when a non-shifted mouse event occurs so it's not too dangerous.
         private int lastDrag[] = null; // non-null == dragging.  always tracks mouse drag regardless of ctrl
+        private long time0 = System.currentTimeMillis();
         private long lastDragTime = -1L; // timestamp of last drag event.  always tracks mouse drag regardless of ctrl
         private float spinDelta[][] = null; // rotation to add for each frame while spinning. null == stopped
         private float dragDelta[][] = null; // while dragging, we keep track of the most recent drag delta, this will grduate into spinDelta when we let go.  (Melinda's applet used spinDelta for both, but that made things complicated in paint when deciding whether to keep spinning or not when mouse was down, especially when combined with spinDragRequiresCtrl.)
@@ -320,7 +327,7 @@ public class MC4DViewGuts
                     perViewState.nShiftsDown++;
                     if (perViewState.eventVerboseLevel >= 1) System.out.println("    nShiftsDown = "+perViewState.nShiftsDown);
                 }
-            }
+            } // keyPressed
             public void keyReleased(KeyEvent ke)
             {
                 if (perViewState.eventVerboseLevel >= 1) System.out.println("keyReleased "+ke);
@@ -342,7 +349,7 @@ public class MC4DViewGuts
                         perViewState.nShiftsDown = 0;
                     if (perViewState.eventVerboseLevel >= 1) System.out.println("    nShiftsDown = "+perViewState.nShiftsDown);
                 }
-            }
+            } // keyReleased
             public void keyTyped(KeyEvent ke)
             {
                 if (perViewState.eventVerboseLevel >= 1) System.out.println("keyTyped");
@@ -407,8 +414,8 @@ public class MC4DViewGuts
                 {
                     System.out.println("Unrecognized key sequence ctrl-alt-"+(char)(c|64)+"");
                 }
-            }
-        });
+            } // keyTyped
+        }); // key listener
         view.addMouseListener(perViewState.mouseListener = new MouseListener() {
             public void mouseClicked(MouseEvent me)
             {
@@ -628,11 +635,11 @@ public class MC4DViewGuts
                     perViewState.spinDelta = null;
                     perViewState.dragDelta = null;
                 }
-            }
+            } // mousePressed
             public void mouseReleased(MouseEvent me)
             {
                 long timedelta = me.getWhen() - perViewState.lastDragTime;
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseReleased on a "+view.getClass().getSuperclass().getName()+", time = "+me.getWhen()+", timedelta = "+timedelta);
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseReleased on a "+view.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-perViewState.time0)/1000.+", timedelta = "+timedelta);
                 if (!me.isShiftDown())
                     perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 perViewState.lastDrag = null;
@@ -659,7 +666,7 @@ public class MC4DViewGuts
                     }
                     perViewState.dragDelta = null; // no longer dragging
                 }
-            }
+            } // mouseReleased
             public void mouseEntered(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 4) System.out.println("mouseExited on a "+view.getClass().getSuperclass().getName());
@@ -672,12 +679,12 @@ public class MC4DViewGuts
                 if (!me.isShiftDown())
                     perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
             }
-        });
+        }); // mouse listener
         // watch for dragging gestures to rotate the 3D view
         view.addMouseMotionListener(perViewState.mouseMotionListener = new MouseMotionListener() {
             public void mouseDragged(MouseEvent me)
             {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseDragged on a "+view.getClass().getSuperclass().getName()+", time = "+me.getWhen());
+                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseDragged on a "+view.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-perViewState.time0)/1000.);
                 if (!me.isShiftDown())
                     perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 if (perViewState.lastDrag == null)
@@ -704,7 +711,7 @@ public class MC4DViewGuts
                 perViewState.lastDrag = thisDrag;
                 perViewState.lastDragTime = me.getWhen();
                 view.repaint();
-            }
+            } // mouseDragged
             public void mouseMoved(MouseEvent me)
             {
                 if (perViewState.eventVerboseLevel >= 5) System.out.println("        mouseMoved on a "+view.getClass().getSuperclass().getName());
@@ -724,8 +731,8 @@ public class MC4DViewGuts
                     perViewState.iPolyUnderMouse = newPoly;
                     view.repaint();
                 }
-            }
-        });
+            } // mouseMoved
+        }); // mouse motion listener
 
         perViewState.setRestrictRoll(model, view, perViewState.getRestrictRoll()); // initiates the zero roll animation if appropriate
 
@@ -766,17 +773,39 @@ public class MC4DViewGuts
         int xOff = ((W>H) ? (W-H)/2 : 0) + min/2;
         int yOff = ((H>W) ? (H-W)/2 : 0) + min/2;
 
+        if (model.isMoving())
+        {
+            //System.out.println("model says it's moving beforehand");
+        }
+        else
+        {
+            //System.out.println("model says it's still beforehand");
+        }
         // XXX query whether animation is actually in progress
-        model.advanceAnimation(perViewState.modelListener, perViewState.nFrames90);
+        model.advanceAnimation(perViewState.modelListener, perViewState.nFrames90, perViewState.criticalDampingFraction);
+        if (model.isMoving())
+        {
+            //System.out.println("model says it's moving afterwards");
+            // do NOT call repaint... the animation advance automatically
+            // notified the next guy already.  (That's why we passed
+            // it our listener, so it could identify who the next guy is.)
+            // If we call repaint here and we are a JPanel,
+            // it will hog all the draw time
+            // from the next guy if it's a Canvas.  Hey, just call me
+            // Protector Of The Innocent.
+        }
+        else
+        {
+            //System.out.println("model says it's still afterwards");
+        }
 
-        // XXX if model is animating, something...?
         MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1);
         int puzzleState[] = new int[model.genericPuzzleDescription.nStickers()];
         // XXX getAnimationState should reaturn a float
-        float timeFractionOfWayThroughTwist = (float)model.getAnimationState(perViewState.modelListener,
-                                                                       puzzleState, // fills this
-                                                                       twist);      // fills this
-        float spaceFractionOfWayThroughTwist = perViewState.interp.func(timeFractionOfWayThroughTwist);
+        float fractionOfWayThroughTwist = (float)model.getAnimationState(perViewState.modelListener,
+                                                                puzzleState, // fills this
+                                                                twist);      // fills this
+        //System.out.println("fraction of way through twist = "+fractionOfWayThroughTwist);
 
 
         if (perViewState.iRotation < perViewState.nRotation)
@@ -849,7 +878,7 @@ public class MC4DViewGuts
             twist.grip,
             twist.dir,
             twist.slicemask,
-            (float)spaceFractionOfWayThroughTwist,
+            (float)fractionOfWayThroughTwist,
 
             VecMath.mxs(perViewState.viewMat4d, scaleFudge4d),
             perViewState.eyeW,
@@ -955,7 +984,7 @@ public class MC4DViewGuts
                                             float faceCenters[][],
                                             float viewMat4d[][],
                                             float viewMat3d[][],
-                                            float nFrames90,
+                                            double nFrames90,
                                             Component view)
         {
             // XXX FUDGE! get rid of this when I get rid of corresponding fudge in display
@@ -1111,7 +1140,7 @@ public class MC4DViewGuts
         //myPanel.setPreferredSize(new java.awt.Dimension(w,h)); // set size bottom up
 
 
-        JFrame jframe = new JFrame("Spiffy new world");
+        JFrame jframe = new JFrame("A spiffy new JPanel");
 
         jframe.setForeground(java.awt.Color.white);
         jframe.setBackground(java.awt.Color.black);
@@ -1127,7 +1156,7 @@ public class MC4DViewGuts
             }
         });
 
-        jframe.pack();
+        //jframe.pack();
         jframe.setSize(w,h); // set size top down
         jframe.setLocation(x,y);
         jframe.setVisible(true);
@@ -1201,7 +1230,7 @@ public class MC4DViewGuts
         //myCanvas.setSize(new java.awt.Dimension(w,h)); // set size bottom up
 
 
-        final Frame frame = new Frame("Sucky old world") { 
+        final Frame frame = new Frame("A sucky old Canvas") { 
             public boolean handleEvent(java.awt.Event event)
             {
                 switch(event.id)
@@ -1271,12 +1300,103 @@ public class MC4DViewGuts
 
         String puzzleDescription = args[0];
 
-        MC4DModel model = new MC4DModel(puzzleDescription);
+        final MC4DModel model = new MC4DModel(puzzleDescription);
 
         makeExampleModernViewer(model, 50,50, 300,300);
 
         boolean doDoubleBuffer = true; // make it even more sucky than necessary
         makeExampleAncientViewer(model, 350,50, 300,300, doDoubleBuffer);
+
+
+        {
+            // XXX dup code!!! figure out how to get it properly... and puzzle description might change!
+            float faceRGB[][] = { {0, 0, 1}, {0.5f, 0, 0}, {.4f, 1, 1}, {1, 0, .5f}, {.9f, .5f, 1}, {1, .5f, 0}, {1, 1, .5f}, {0, 1, .5f}, };
+            final java.awt.Color faceColor[] = new java.awt.Color[faceRGB.length];
+            for (int i = 0; i < faceRGB.length; ++i)
+                faceColor[i] = new java.awt.Color(faceRGB[i][0],faceRGB[i][1],faceRGB[i][2]);
+
+            com.donhatchsw.util.UndoTree.ItemLengthizer lengthizer = new com.donhatchsw.util.UndoTree.ItemLengthizer() {
+                public double length(Object item)
+                {
+                    MC4DModel.Twist twist = (MC4DModel.Twist)item;
+                    int grip = twist.grip;
+                    Assert(grip != -1);
+                    int face = model.genericPuzzleDescription.getGrip2Face()[grip];
+                    int order = model.genericPuzzleDescription.getGripSymmetryOrders()[face];
+                    if (order <= 0)
+                        return 1.; // XXX can this happen, and why?
+                    else
+                        return 4./order; // so 90 degrees -> length 1
+                }
+            };
+            com.donhatchsw.util.UndoTreeViewer.ItemColorizer colorizer = new com.donhatchsw.util.UndoTreeViewer.ItemColorizer() {
+                public java.awt.Color color(Object item)
+                {
+                    MC4DModel.Twist twist = (MC4DModel.Twist)item;
+                    int grip = twist.grip;
+                    Assert(grip != -1);
+                    int face = model.genericPuzzleDescription.getGrip2Face()[grip];
+                    return faceColor[face % faceColor.length];
+                }
+                public String leftLabel(Object item)
+                {
+                    MC4DModel.Twist twist = (MC4DModel.Twist)item;
+                    int grip = twist.grip;
+                    int order = model.genericPuzzleDescription.getGripSymmetryOrders()[grip];
+                    String degrees = "\u00B0"; // XXX not sure this magic works everywhere, got it from http://www.fileformat.info/info/unicode/char/00b0/index.htm
+
+                    if (order <= 0)
+                        return "WTF?"; // XXX can this happen, and why?
+                    else
+                        return ""+(360/order)+degrees; // XXX this does integer, is that okay?  don't want it to take forever
+                }
+                public String rightLabel(Object item)
+                {
+                    MC4DModel.Twist twist = (MC4DModel.Twist)item;
+                    return twist.toString();
+                }
+            };
+
+            //
+            // Make a viewer that shows the undo tree views--
+            // the controller view which updates immediately,
+            // and the animation view which lags behind.
+            //
+            com.donhatchsw.util.UndoTreeViewer controllerUndoTreeViewer =
+            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Controller's view of the undo tree", model.controllerUndoTree, null, null, 500, 20, 350, 600,
+                    // XXX oh gag
+                    new int[1],
+                    new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
+                    new int[1],
+                    new int[1],
+                    new int[1],
+                    false, // don't allow the example "Do" which would put dummy strings in the tree
+                    true, // but do allow undo/redo
+                    lengthizer,
+                    colorizer);
+
+            // XXX need accessors for these instead of making them public I think
+            controllerUndoTreeViewer.showLabels = false; // XXX need an accessofr for this
+            controllerUndoTreeViewer.centerCurrentNode.set(0.); // false
+
+
+            com.donhatchsw.util.UndoTreeViewer animationUndoTreeViewer = 
+            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Animation's view of the undo tree", model.animationUndoTree, null, null, 850, 20, 350, 600,
+                    // XXX oh gag
+                    new int[1],
+                    new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
+                    new int[1],
+                    new int[1],
+                    new int[1],
+                    false, // don't allow the example "Do" which would put dummy strings in the tree
+                    false, // and don't allow undo/redo from this view either, since instantaneous changes would make it get out of sync with the permutation array. undo/redo must be done from the controller window, this one is just for watching.
+                    lengthizer,
+                    colorizer);
+
+            // XXX need accessors for these instead of making them public I think
+            animationUndoTreeViewer.showLabels = false;
+            animationUndoTreeViewer.centerCurrentNode.set(0.); // false
+        }
 
     } // main
 
