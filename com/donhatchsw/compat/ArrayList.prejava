@@ -49,12 +49,16 @@ public class ArrayList
     }
     public int indexOf(java.lang.Object element)
     {
-        unimplemented();
+        for (int i = 0; i < size; ++i)
+            if (array[i].equals(element))
+                return i;
         return -1;
     }
     public int lastIndexOf(java.lang.Object element)
     {
-        unimplemented();
+        for (int i = size-1; i >= 0; --i)
+            if (array[i].equals(element))
+                return i;
         return -1;
     }
     public java.lang.Object clone()
@@ -115,10 +119,12 @@ public class ArrayList
         size--;
         return null;
     }
-    public boolean remove(java.lang.Object element)
+    // XXX javap says boolean, some doc says it returns an Object, some other doc doesn't mention it at all... fuck it, I'm returning void.
+    public void remove(java.lang.Object element)
     {
-        unimplemented();
-        return false; // ? javap has this, the doc doesn't
+        int index = indexOf(element);
+        if (index != -1)
+            remove(index);
     }
     public void clear()
     {
