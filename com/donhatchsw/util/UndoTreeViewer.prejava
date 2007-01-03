@@ -1,5 +1,9 @@
 /*
     TODO:
+        - example app could be a simple editor... each letter typed
+            or deleted is a Do.  Oh cool!
+            What sort of games could we do?
+                - multiplayer typing following?
         - show animation and controller both in same window, optionally
             (I think all that's really needed from the animation
             window is its current position)
@@ -83,8 +87,9 @@
               the two twists are combined smoothly into one,
               giving exactly the same animation
               as if you had asked for it with a single mouse or key event.
+              (Similarly if you triple-click!)
               The reason this works is that the motion paths
-              of a single twist and a smooth double-twist
+              of a single twist and a smooth double-twist (or triple-click)
               are identical up to the halfway point
               of the single twist (i.e. up to the point
               where the single twist would stop accelerating
@@ -93,14 +98,15 @@
               they can be combined and it will look exactly like
               one longer twist.
               Note that even if you wait until after that halfway point
-              to do the second twist, the change of plans will
+              to do the second click, the change of plans will
               be handled smoothly... it will simply accelerate
               again as necessary and head for the farther target
               at which it will land smoothly.
             - Likewise if you hit undo in the middle of the twist,
               it will smoothly switch direction in mid-flight.
-              All trajectory plans are recalculated from scratch each frame,
-              so any change in target is always handled smoothly.
+              All trajectory plans are recalculated from scratch each frame
+              based on the target and current velocity,
+              so when you change the target it always reacts smoothly.
 
 */
 package com.donhatchsw.util;
@@ -170,8 +176,8 @@ public class UndoTreeViewer
         private double paramFadeFrames = 1000.;
         private double paramCriticalDampingFraction = .9;
 
-        public double nFramesPerEdgeWhenFollowing = 300.; // XXX this is a misnomer, it's per average edge
-        //public double nFramesPerEdgeWhenFollowing = 10.;
+        //public double nFramesPerEdgeWhenFollowing = 300.; // XXX this is a misnomer, it's per average edge
+        public double nFramesPerEdgeWhenFollowing = 50.;
 
         // XXX WEIRD! the number of frames it takes to converge doesn't
         // XXX increase monotonically as the damping decrease... it has a sweet spot!
@@ -804,7 +810,14 @@ public class UndoTreeViewer
         }
         double x[] = new double[nNodes];
         double y[] = new double[nNodes];
-        UndoTree.chooseNodePositions(snapshot.nNodes, snapshot.parents, snapshot.preferredChildIndices, edgeLengths, snapshot.currentNode, snapshot.currentNodeFraction, stretchOutAlongTimeLine.get(), x, y);
+        UndoTree.chooseNodePositions(snapshot.nNodes,
+                                     snapshot.parents,
+                                     snapshot.preferredChild,
+                                     edgeLengths,
+                                     snapshot.currentNode,
+                                     snapshot.currentNodeFraction,
+                                     stretchOutAlongTimeLine.get(),
+                                     x, y);
         double xmin = Double.POSITIVE_INFINITY;
         double ymin = Double.POSITIVE_INFINITY;
         double xmax = Double.NEGATIVE_INFINITY;
@@ -1098,7 +1111,7 @@ public class UndoTreeViewer
                         undoTreeViewer.followerCriticalDampingFraction,
                         lengthizer);
                     if (stateChange != null
-                     && stateChange.integerPartDir != 0)
+                     && stateChange.dir != 0)
                     {
                         // apply the integer state change here... if there was any
                     }
