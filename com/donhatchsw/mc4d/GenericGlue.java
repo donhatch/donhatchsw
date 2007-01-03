@@ -1,63 +1,3 @@
-//
-//      Roadmap:
-//              model/view stuff uses glue now
-//              make model/view stuff do its own clean thing instead
-//              then make the glue use model/view stuff and get rid of the corresponding stuff from glue
-//              then make MC4DSwing call the model/view stuff instead of the glue stuff where possible
-//              yow!
-//
-
-// This file has stuff that should eventually be moved to
-// various more permanent homes.
-// It was an attempt to quickly glue the good new classes:
-//      GenericPuzzleDescription (interface)
-//      PolytopePuzzleDescription (implements GenericPuzzleDescription)
-//      GenericPipelineUtils
-// onto MC4DSwing/MC4DView with as minimal impact on Melinda's existing code
-// as possible, prior to Melinda getting a look at it
-// and figuring out where it should really go.
-//
-// Although, there is some stuff in here that Don
-// needs to move down into the generic utilities.
-//
-// Functions currently in here:
-//
-//    - GenericGlue() constructor
-//            MC4DSwing creates one of these on startup and stores it
-//            in its member genericGlue;
-//            it also points the MC4DView's genericGlue member
-//            to the same GenericGlue object.
-//    - addMoreItemsToPuzzleMenu()
-//            MC4DSwing should call this after it adds its
-//            standard items to the puzzle menu.
-//            This function installs callbacks that activate
-//            and deactivate the genericGlue object
-//            in response to the relevant PuzzleMenu items.
-//    - isActive()
-//            Whether this GenericGlue object is active
-//            (i.e. contains a valid puzzle).
-//            This will be true whenever the MC4DView's "current puzzle"
-//            is a generic puzzle (rather than a standard one).
-//
-//    - undoAction()
-//          use in place if the usual undo action when isActive() is true
-//    - redoAction()
-//          use in place if the usual redo action when isActive() is true
-//    - cheatAction()
-//          use in place if the usual cheat action when isActive() is true
-//    - scrambleAction()
-//          use in place if the usual cheat action when isActive() is true
-//
-//    - isAnimating()
-//          use in place of the usual isAnimating when isActive() is true
-//
-//    - compute
-//    - computeAndPaintFrame()
-//          MC4DView calls this from its repaint() method
-//          in place of its usual calls to paintFrame(),
-//          if isActive() is true
-//
-
 package com.donhatchsw.mc4d;
 import com.donhatchsw.compat.regex;
 
@@ -65,6 +5,72 @@ import java.awt.*;
 import java.awt.event.*;
 import javax.swing.*;
 
+/**
+* <pre>
+*       Roadmap:
+*           model/view stuff uses glue now (not any more!)
+*           make model/view stuff do its own clean thing instead (done mostly)
+*           then make the glue use model/view stuff and get rid of the corresponding stuff from glue
+*           then make MC4DSwing call the model/view stuff instead of the glue stuff where possible
+*           yow!
+* </pre>
+* 
+*  <p>
+* 
+*  This file has stuff that should eventually be moved to
+*  various more permanent homes.
+*  <p>
+*  It was an attempt to quickly glue the good new classes:
+* <pre>
+*       GenericPuzzleDescription (interface)
+*       PolytopePuzzleDescription (implements GenericPuzzleDescription)
+*       GenericPipelineUtils
+* </pre>
+*  onto MC4DSwing/MC4DView with as minimal impact on Melinda's existing code
+*  as possible, prior to Melinda getting a look at it
+*  and figuring out where it should really go.
+* <p>
+*  Although, there is some stuff in here that Don
+*  needs to move down into the generic utilities.
+* <p>
+*  Functions currently in here: XXX changing all the time, out of date
+* <pre>
+*     - GenericGlue() constructor
+*             MC4DSwing creates one of these on startup and stores it
+*             in its member genericGlue;
+*             it also points the MC4DView's genericGlue member
+*             to the same GenericGlue object.
+*     - addMoreItemsToPuzzleMenu()
+*             MC4DSwing should call this after it adds its
+*             standard items to the puzzle menu.
+*             This function installs callbacks that activate
+*             and deactivate the genericGlue object
+*             in response to the relevant PuzzleMenu items.
+*     - isActive()
+*             Whether this GenericGlue object is active
+*             (i.e. contains a valid puzzle).
+*             This will be true whenever the MC4DView's "current puzzle"
+*             is a generic puzzle (rather than a standard one).
+* 
+*     - undoAction()
+*           use in place if the usual undo action when isActive() is true
+*     - redoAction()
+*           use in place if the usual redo action when isActive() is true
+*     - cheatAction()
+*           use in place if the usual cheat action when isActive() is true
+*     - scrambleAction()
+*           use in place if the usual cheat action when isActive() is true
+* 
+*     - isAnimating()
+*           use in place of the usual isAnimating when isActive() is true
+* 
+*     - compute
+*     - computeAndPaintFrame()
+*           MC4DView calls this from its repaint() method
+*           in place of its usual calls to paintFrame(),
+*           if isActive() is true
+* </pre>
+*/
 public class GenericGlue
 {
     // XXX bogus variables that currently must be kept in sync with the corresponding ones in MagicCube.java
