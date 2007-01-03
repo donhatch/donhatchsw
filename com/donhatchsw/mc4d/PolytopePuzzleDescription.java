@@ -139,6 +139,9 @@
     BUGS / URGENT TODOS:
     ===================
 
+        - really need to pick from the rest frame, not the intermediate twist frame,
+          in case of double-clicks... ARGH but the rest frame will lag behind
+          if we are spin dragging!!! fuck fuck fuck... okay maybe the most recent non-twisting one, regardless of whether rotating or not? maybe
         - in the 2x2x2x2, rotate-arbitrary-element-to-center should rotate a grip to center, not a sticker
         - XXX why isn't this working, when clicking when spinDragRequiresCtrl is on
         - side of prefs menu cut off
@@ -230,6 +233,8 @@
                 that should cut stuff down by a factor of 100 maybe
 
         PIE IN THE SKY:
+            - mode in which they manipulate the puzzle face like a trackball?
+
             - be able to copy one or several viewing params from one view to another-- and/or tie certain ones together!  when params are tied together, hovering over the param control in one view control panel should make it light up everywhere! yeah!
             - figure out how to do "contiguous cubies" generically-- is it possible in terms of the others?  probably not... unless I modify the shrink behavior so it always likes up the outer ones?  Hmm, I think this would be a different "shrink mode" that shrinks stickers towards the face boundaries?  YES!  DO IT!
 
