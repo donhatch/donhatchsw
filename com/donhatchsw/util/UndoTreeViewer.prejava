@@ -1,5 +1,11 @@
 /*
     TODO:
+        - show animation and controller both in same window, optionally
+            (I think all that's really needed from the animation
+            window is its current position)
+
+        - need a way to disable undo/redo for the mc4d animation view
+            since otherwise they will mess it up bad!
         - hmm, never stops moving... who's calling repaint when they shouldn't?
         - smoothing-- for now, would be fine to just do the post-time-to-space thing, thought it would be nicer to do it down in the velocity of the undo tree view so it can do smooth direction changes... that would be AWESOME
         - speed slider
@@ -28,6 +34,74 @@
         - don't continuously fit, should just have a fit button
         - clipping-- especially when label drawing
         - option to not slow down at edge transitions
+        - all listeners should have names in case we want to turn debugging on
+        - don't-stop-at-stop-signs mode?
+          possible names:
+            stop at stop signs
+            stop at intersections
+            stop at crossroads
+            stop at railroad tracks
+            rolling stops
+        - ooh we can make the double-click go smooth now!!!
+        - mode in which they manipulate the puzzle face like a trackball?
+
+    List of pie-in-the-sky features that just got easy:
+        Ctrl key required for spin dragging
+            - the drinking game
+        Undo tree
+            - no need for separate animation queue or buffer--
+              twists, undos, redos take effect in the undo tree immediately.
+              The animation and controller just see two different
+              current positions in the tree (the controller's position
+              in the tree gets updated instantaneously in response
+              to Do/undo/redos, while the animation's position lags behind
+              at the selected speed).
+            - user can undo/redo while a twist is in progress
+                (this was problematic before since,
+                for example, a quick undo-undo-undo-redo
+                would destroy the history, making it impossible
+                for the animation to recover)
+            - can automatically vary the twist speed throughout a solve
+              so it's really fast in the middle (optionally)
+            - user can change from undo to redo and back
+              in the middle of a twist, it will smoothly change direction
+              in mid-twist-- there are never any velocity impulses,
+              it's effectively force based so it will always react smoothly
+              to anything you do.
+            - you can make it overshoot, by suddenly slowing it down
+              (which actually means weakening it, since it's all force based)
+              in the middle of a twist.
+              When this happens it will not have the necessary strength
+              to decelerate to a smooth landing at the planned time,
+              so it will overshoot and recover, smoothly, instead.
+            - optional overshoot/oscillation (bounce) when converging
+              on the end each twist
+            - you can drag back and forth along the undo/redo timeline,
+              stopping in the middle of a twist if you want
+              (it will smoothly complete the twist when you let go)
+            - When you double-click to do a double-twist,
+              the two twists are combined smoothly into one,
+              giving exactly the same animation
+              as if you had asked for it with a single mouse or key event.
+              The reason this works is that the motion paths
+              of a single twist and a smooth double-twist
+              are identical up to the halfway point
+              of the single twist (i.e. up to the point
+              where the single twist would stop accelerating
+              and start decelerating).  So as long as you get the second
+              click in before the halfway point of the single twist,
+              they can be combined and it will look exactly like
+              one longer twist.
+              Note that even if you wait until after that halfway point
+              to do the second twist, the change of plans will
+              be handled smoothly... it will simply accelerate
+              again as necessary and head for the farther target
+              at which it will land smoothly.
+            - Likewise if you hit undo in the middle of the twist,
+              it will smoothly switch direction in mid-flight.
+              All trajectory plans are recalculated from scratch each frame,
+              so any change in target is always handled smoothly.
+
 */
 package com.donhatchsw.util;
 
@@ -91,10 +165,10 @@ public class UndoTreeViewer
     // so I don't have an anxiety attack.
     //
         private SmoothlyVaryingViewingParameter stretchOutAlongTimeLine = new SmoothlyVaryingViewingParameter(0.);
-        private SmoothlyVaryingViewingParameter centerCurrentNode = new SmoothlyVaryingViewingParameter(0.);
+        public SmoothlyVaryingViewingParameter centerCurrentNode = new SmoothlyVaryingViewingParameter(0.);
         private SmoothlyVaryingViewingParameter log2ViewScale = new SmoothlyVaryingViewingParameter(0.);
         private double paramFadeFrames = 1000.;
-        private double paramCriticalDampingFraction = .75;
+        private double paramCriticalDampingFraction = .9;
 
         public double nFramesPerEdgeWhenFollowing = 300.; // XXX this is a misnomer, it's per average edge
         //public double nFramesPerEdgeWhenFollowing = 10.;
@@ -148,6 +222,7 @@ public class UndoTreeViewer
     private com.donhatchsw.compat.ArrayList/*<Applistener>*/ appListeners = new com.donhatchsw.compat.ArrayList();
 
     /** Install one of these if you want the UndoTree to be able to request app actions in response to the user manipulating the UndoTreeViewer window. */
+    // XXX I'm not sure this is functional?  revisit this
     public interface AppListener
     {
         public void requestUndo();
@@ -458,17 +533,25 @@ public class UndoTreeViewer
             private void requestUndo(double amount)        // 8 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request undo");
+                assert(amount >= 0);
 
-                double targetFraction = undoTree.getCurrentNodeFraction()-amount;
-                if (targetFraction <= 0.)
+                double originalFraction = undoTree.getCurrentNodeFraction();
+                double targetFraction = originalFraction-amount;
+                //
+                // If it would go from strictly after a node
+                // to strictly before it (or even at it), then clamp.
+                //
+                if (originalFraction > 0.
+                 && targetFraction <= 0.)
                 {
-                    targetFraction += 1.;
                     Object undoneItem = undoTree.undo();
-                    if (eventVerboseLevel >= 1) System.out.println("redid "+(String)undoneItem);
+                    if (eventVerboseLevel >= 1) System.out.println("undid "+(String)undoneItem);
+                    undoTree.setCurrentNodeFraction(1.);
                 }
-                if (undoTree.getCurrentNodeIndex() == 0)
-                    targetFraction = 1.; // don't go past the root
-                undoTree.setCurrentNodeFraction(targetFraction);
+                else
+                {
+                    undoTree.setCurrentNodeFraction(targetFraction);
+                }
             }
             private void requestOlderBranch()   // 9 key on numeric keypad
             {
@@ -568,15 +651,30 @@ public class UndoTreeViewer
             private void requestRedo(double amount)        // 8 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request redo");
+                assert(amount >= 0);
 
-                double targetFraction = undoTree.getCurrentNodeFraction()+amount;
-                if (targetFraction > 1.)
+                //
+                // If it would go from strictly before a node
+                // to strictly after it, then clamp.
+                //
+                double originalFraction = undoTree.getCurrentNodeFraction();
+                double targetFraction = originalFraction+amount;
+
+                double eps = 1e-3;
+                if (LT(originalFraction, 1., eps)
+                 && GT(targetFraction, 1., eps))
                 {
-                    targetFraction -= 1.;
+                    targetFraction = 1.;
+                }
+                else if (EQ(originalFraction, 1., eps)
+                      && GT(targetFraction, 1., eps))
+                {
                     Object redoneItem = undoTree.redo();
                     if (eventVerboseLevel >= 1) System.out.println("redid "+(String)redoneItem);
                     if (redoneItem == null)
-                        targetFraction = 1.; // don't go past leaf
+                        targetFraction = 1.; // the redo failed-- it's a leaf, don't go past it
+                    else
+                        targetFraction -= 1.;
                 }
                 undoTree.setCurrentNodeFraction(targetFraction);
             }
@@ -824,9 +922,9 @@ public class UndoTreeViewer
                         {
                             double slop = 50; // so there's no popping, assuming labels don't get longer than this
                             //double slop = 0.; // so I can see what it's doing
-                            if (edgeCenterX < slop
+                            if (edgeCenterX < -slop
                             || edgeCenterX > w+slop
-                            || edgeCenterY < 0
+                            || edgeCenterY < -slop
                             || edgeCenterY > h+slop)
                             {
                                 //System.out.println("Throwing label "+leftLabels[iNode]+","+rightLabels[iNode]+" in the trash");
@@ -960,7 +1058,7 @@ public class UndoTreeViewer
 
     // Graphical viewer for an undo tree, for the example main program
     // XXX shouldn't use swing for this... or maybe I should, I don't know
-    private static void makeExampleUndoTreeViewer(
+    public static UndoTreeViewer makeExampleUndoTreeViewer(
                                            final String name,
                                            final UndoTree undoTree,
                                            final String nameOfOtherViewThatThisViewShouldFollowAround,
@@ -970,8 +1068,238 @@ public class UndoTreeViewer
                                            final int nViewersAlive[],
                                            final int nModelsEverMade[],
                                            final int nViewsEverMade[],
-                                           final int nViewersEverMade[])
+                                           final int nViewersEverMade[],
+                                           final boolean allowDo,
+                                           final boolean allowUndoRedo,
+                                           final UndoTree.ItemLengthizer lengthizer,
+                                           final UndoTreeViewer.ItemColorizer colorizer)
     {
+        final UndoTreeViewer undoTreeViewer = new UndoTreeViewer(colorizer,
+                                                                 lengthizer);
+
+
+        nViewersAlive[0]++;
+        final javax.swing.JPanel jpanel = new javax.swing.JPanel() {
+            // PAINT (the surrounding example)
+            public void paintComponent(java.awt.Graphics g)
+            {
+                int w = getWidth(), h = getHeight();
+                if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    in paintComponent");
+
+                boolean isAFollower = otherViewThatThisViewShouldFollowAround != null;
+                if (isAFollower)
+                {
+                    //System.out.println("        kibbles and bits!");
+                    UndoTree.ReturnValueOfIncrementViewTowardsOtherView stateChange = undoTree.incrementViewTowardsOtherView(
+                        otherViewThatThisViewShouldFollowAround,
+                        1., // ref trip dist = one unit of edge length
+                        undoTreeViewer.nFramesPerEdgeWhenFollowing, // ref trip time = that many frames
+                        1., // dt = one frame
+                        undoTreeViewer.followerCriticalDampingFraction,
+                        lengthizer);
+                    if (stateChange != null
+                     && stateChange.integerPartDir != 0)
+                    {
+                        // apply the integer state change here... if there was any
+                    }
+                }
+
+                g.setColor(java.awt.Color.black);
+                g.fillRect(0,0,w,h);
+                undoTreeViewer.paint(this, g);
+
+                // XXX should use the font height instead of hard coding 20
+                int y = h - (isAFollower ? 7 : allowUndoRedo ? allowDo ? 12 : 11 : 6)*20 - 20; // XXX holy hell!
+                if (!isAFollower)
+                {
+                    if (allowUndoRedo)
+                    {
+                        if (allowDo)
+                            g.drawString("Enter to Do", 10, y+=20);
+                        g.drawString("  Up to undo", 10, y+=20);
+                        g.drawString("  Down to redo", 10, y+=20);
+                        g.drawString("  Left for older", 10, y+=20);
+                        g.drawString("  Right for younger", 10, y+=20);
+                        g.drawString("c to Clear", 10, y+=20);
+                    }
+                }
+                else
+                    g.drawString("S/s to follow Slower/faster", 10, y+=20);
+                //g.drawString("  (or just click and drag around and hit enter a lot)", 10, y+=20);
+                g.drawString("+/-/= to zoom in/out", 10, y+=20);
+                g.drawString("0 to toggle keep-current-node-in-center mode", 10, y+=20);
+                g.drawString("t to toggle stretch-out-along-time-line display mode", 10, y+=20);
+                g.drawString("l to toggle labels", 10, y+=20);
+                g.drawString("n for new view window of same tree", 10, y+=20);
+                g.drawString("ctrl-n for new view that follows this view around like a dog", 10, y+=20);
+                //PRINT((h - (y+20)) / 20);
+                assert(y+20 == h);
+                if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    out paintComponent");
+            }
+        };
+        // should work in either order...
+        undoTreeViewer.attachToComponent(jpanel);
+        undoTreeViewer.attachToUndoTree(undoTree);
+
+
+        // XXX hmm, I think I have listener memory leaks everywhere...
+        // XXX this one in particular, no one is keeping track of it at all.
+        // XXX in fact I don't think anyone ever calls detachFromUndoTree or detachFromComponent yet!
+        {
+            UndoTree.Listener otherViewThatThisViewShouldFollowAroundListener = null;
+            final java.awt.Component component = jpanel;
+            if (otherViewThatThisViewShouldFollowAround != null)
+            {
+                otherViewThatThisViewShouldFollowAround.addListener(otherViewThatThisViewShouldFollowAroundListener = new UndoTree.Listener() {
+                    public void somethingChanged()
+                    {
+                        //System.out.println("    woof!");
+                        // just repaint-- we will progress (and call repaint again)
+                        // each time we paint
+                        if (component != null)
+                            component.repaint();
+                    }
+                });
+            }
+            // XXX the following is the corresponding detach code--- put it somewhere appropriate when I get those variables somewhere appropriate
+            if (false)
+            {
+                if (otherViewThatThisViewShouldFollowAround != null)
+                {
+                    otherViewThatThisViewShouldFollowAround.removeListener(otherViewThatThisViewShouldFollowAroundListener);
+                    otherViewThatThisViewShouldFollowAroundListener = null;
+                    //otherViewThatThisViewShouldFollowAround = null; // uncomment this when it's real; compiler doesn't like it now because it's final
+                }
+            }
+
+        }
+
+        String title = name;
+        if (title.startsWith("View"))
+            title = "Undo Tree " + title; // XXX hack, to make it nice for this program and the other program that uses it that doesn't want this
+        if (nameOfOtherViewThatThisViewShouldFollowAround != null)
+            title += " (FOLLOWER of "+nameOfOtherViewThatThisViewShouldFollowAround+")";
+
+        final javax.swing.JFrame jframe = new javax.swing.JFrame(title);
+        jframe.setForeground(java.awt.Color.white);
+        jframe.setForeground(java.awt.Color.black);
+        jframe.setContentPane(jpanel);
+        jframe.addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent event)
+            {
+                if (--nViewersAlive[0] == 0)
+                {
+                    System.out.println("Chow!");
+                    System.exit(0); // asinine way of doing things
+                }
+                else
+                {
+                    System.out.println("ciao!");
+                }
+            }
+        });
+        jpanel.addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent ke)
+            {
+                //System.out.println("keyPressed "+ke);
+                //System.out.println("    isShiftDown = "+ke.isShiftDown());
+                int keyCode = ke.getKeyCode();
+                String keyText = java.awt.event.KeyEvent.getKeyText(keyCode);
+
+                if (allowDo && (keyCode == java.awt.event.KeyEvent.VK_ENTER
+                             || keyText.equals("Enter")))
+                {
+                    int n = nThingsDoneEver[0]++;
+                    String doneItem = ""+(char)('A'+n%26);
+                    n /= 26;
+                    while (n != 0)
+                    {
+                        doneItem = ""+(char)('A'+n%27-1) + doneItem; // XXX haha lame, it messes up after AA... figure out the right way to to it, you doofus
+                        n /= 27;
+                    }
+
+                    undoTree.Do(doneItem);
+                    if (undoTreeViewer.eventVerboseLevel >= 1) System.out.println("Did "+doneItem);
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_N)
+                {
+                    makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++),
+                                              new UndoTree(undoTree), // different view, same model
+                                              ke.isControlDown() ? name : null, // ctrl-n means the new one should follow me around
+                                              ke.isControlDown() ? undoTree : null, // ctrl-n means the new one should follow me around
+                                              x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, allowDo, allowUndoRedo, lengthizer, colorizer);
+                }
+                else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
+                      && ke.isControlDown())
+                {
+                    System.exit(0);
+                }
+                jpanel.repaint();
+            } // keyPressed
+            public void keyTyped(java.awt.event.KeyEvent ke)
+            {
+                char c = ke.getKeyChar();
+                //System.out.println("key listener got key '"+c+"'("+(int)c+")"); // XXX escapify!
+                if (false) {}
+                else if (c == 'c') // toggle center current node
+                {
+                    undoTree.Clear();
+                    nThingsDoneEver[0] = 0;
+                }
+            }
+        });
+
+        //jframe.pack();
+        jframe.setSize(w,h);
+        jframe.setLocation(x,y);
+        // I think just-created stuff is safe until the components are
+        // "realized"... so put the realization stuff in an invokeLater
+        // to be done in an event dispatch thread, where gui creation stuff
+        // is supposed to be done.
+        javax.swing.SwingUtilities.invokeLater(new Runnable() {
+            public void run()
+            {
+                jframe.setVisible(true);
+                jpanel.requestFocus(); // seems to be needed initially, if running in <=1.2 on linux, anyway.  weird!
+            }
+        });
+
+        /*
+        TODO:
+            Should make the following buttons:
+                older branch  undo  younger branch
+                older          Do   younger
+                older leaf    redo  younger leaf
+        */
+
+        return undoTreeViewer;
+    } // makeUndoTreeViewer
+
+
+    /** Test/example program. */
+    // XXX TODO: replace this with a smaller clearer one that just does the littler examples that I gave above.  The viewer stuff is good but is best left to a separate viewer program.
+    public static void main(String args[])
+    {
+        System.out.println("in main");
+        UndoTree tree = new UndoTree();
+        if (false) // nah, cooler to start with nothing
+        {
+            // Seed it with something mildly interesting
+            tree.Do("A");
+            tree.Do("B");
+            tree.setPrivateLabel("private_before_fork");
+            tree.undo();
+            tree.undo();
+            tree.Do("C");
+            tree.setPrivateLabel("shared_before_fork");
+            tree.undo();
+            tree.preferYoungerChild();
+            tree.redo();
+            tree.Do("D");
+            tree.Do("E");
+        }
+
+
         // Somewhat arbitrary frequencies for edge lengths...
         // Think of a puzzle where the moves are rotations,
         // 90 degree rotations being the most common...
@@ -987,6 +1315,12 @@ public class UndoTreeViewer
             com.donhatchsw.util.VecMath.fillvec(2, 4./8),
         });
 
+        //
+        // We have to tell it how choose edge lengths
+        // and colors.
+        // XXX the example really should do this since it's example stuff,
+        // XXX but I moved this here so it wouldn't be used in mc4d
+        // XXX which at the moment also uses makeExampleViewer.  should make a usable utility version that it can call instead.
         final java.util.Random hashRandomizer = new java.util.Random();
         final UndoTree.ItemLengthizer lengthizer = new UndoTree.ItemLengthizer() {
             public double length(Object item)
@@ -1030,252 +1364,10 @@ public class UndoTreeViewer
                 return (String)item;
             }
         };
-        final UndoTreeViewer undoTreeViewer = new UndoTreeViewer(colorizer,
-                                                                 lengthizer);
 
 
-        nViewersAlive[0]++;
-        final javax.swing.JPanel jpanel = new javax.swing.JPanel() {
-            // PAINT (the surrounding example)
-            public void paintComponent(java.awt.Graphics g)
-            {
-                int w = getWidth(), h = getHeight();
-                if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    in paintComponent");
-
-                boolean isAFollower = otherViewThatThisViewShouldFollowAround != null;
-                if (isAFollower)
-                {
-                    //System.out.println("        kibbles and bits!");
-                    UndoTree.ReturnValueOfIncrementViewTowardsOtherView stateChange = undoTree.incrementViewTowardsOtherView(
-                        otherViewThatThisViewShouldFollowAround,
-                        1., // ref trip dist = one unit of edge length
-                        undoTreeViewer.nFramesPerEdgeWhenFollowing, // ref trip time = that many frames
-                        1., // dt = one frame
-                        undoTreeViewer.followerCriticalDampingFraction,
-                        lengthizer);
-                    if (stateChange != null
-                     && stateChange.integerPartDir != 0)
-                    {
-                        // apply the integer state change here... if there was any
-                    }
-                }
-
-                g.setColor(java.awt.Color.black);
-                g.fillRect(0,0,w,h);
-                undoTreeViewer.paint(this, g);
-
-                // XXX should use the font height instead of hard coding 20
-                int y = h - (isAFollower ? 6 : 11)*20 - 20;
-                if (!isAFollower)
-                {
-                    g.drawString("Enter to Do", 10, y+=20);
-                    g.drawString("  Up to undo", 10, y+=20);
-                    g.drawString("  Down to redo", 10, y+=20);
-                    g.drawString("  Left for older", 10, y+=20);
-                    g.drawString("  Right for younger", 10, y+=20);
-                    g.drawString("c to Clear", 10, y+=20);
-                }
-                else
-                    g.drawString("S/s to follow Slower/faster", 10, y+=20);
-                //g.drawString("  (or just click and drag around and hit enter a lot)", 10, y+=20);
-                g.drawString("+/-/= to zoom in/out", 10, y+=20);
-                g.drawString("0 to toggle keep-current-node-in-center mode", 10, y+=20);
-                g.drawString("t to toggle stretch-out-along-time-line display mode", 10, y+=20);
-                g.drawString("n for new view window of same tree", 10, y+=20);
-                g.drawString("ctrl-n for new view that follows this view around like a dog", 10, y+=20);
-                assert(y+20 == h);
-                if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    out paintComponent");
-            }
-        };
-        // should work in either order...
-        undoTreeViewer.attachToComponent(jpanel);
-        undoTreeViewer.attachToUndoTree(undoTree);
 
 
-        // XXX hmm, I think I have listener memory leaks everywhere...
-        // XXX this one in particular, no one is keeping track of it at all.
-        // XXX in fact I don't think anyone ever calls detachFromUndoTree or detachFromComponent yet!
-        {
-            UndoTree.Listener otherViewThatThisViewShouldFollowAroundListener = null;
-            final java.awt.Component component = jpanel;
-            if (otherViewThatThisViewShouldFollowAround != null)
-            {
-                otherViewThatThisViewShouldFollowAround.addListener(otherViewThatThisViewShouldFollowAroundListener = new UndoTree.Listener() {
-                    public void somethingChanged()
-                    {
-                        //System.out.println("    woof!");
-                        // just repaint-- we will progress (and call repaint again)
-                        // each time we paint
-                        if (component != null)
-                            component.repaint();
-                    }
-                });
-            }
-            // XXX the following is the corresponding detach code--- put it somewhere appropriate when I get those variables somewhere appropriate
-            if (false)
-            {
-                if (otherViewThatThisViewShouldFollowAround != null)
-                {
-                    otherViewThatThisViewShouldFollowAround.removeListener(otherViewThatThisViewShouldFollowAroundListener);
-                    otherViewThatThisViewShouldFollowAroundListener = null;
-                    //otherViewThatThisViewShouldFollowAround = null; // uncomment this when it's real; compiler doesn't like it now because it's final
-                }
-            }
-
-        }
-
-        String title = "Undo Tree " + name;
-        if (nameOfOtherViewThatThisViewShouldFollowAround != null)
-            title += " (FOLLOWER of "+nameOfOtherViewThatThisViewShouldFollowAround+")";
-
-        final javax.swing.JFrame jframe = new javax.swing.JFrame(title);
-        jframe.setForeground(java.awt.Color.white);
-        jframe.setForeground(java.awt.Color.black);
-        jframe.setContentPane(jpanel);
-        jframe.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent event)
-            {
-                if (--nViewersAlive[0] == 0)
-                {
-                    System.out.println("Chow!");
-                    System.exit(0); // asinine way of doing things
-                }
-                else
-                {
-                    System.out.println("ciao!");
-                }
-            }
-        });
-        jpanel.addKeyListener(new java.awt.event.KeyAdapter() {
-            public void keyPressed(java.awt.event.KeyEvent ke)
-            {
-                //System.out.println("keyPressed "+ke);
-                //System.out.println("    isShiftDown = "+ke.isShiftDown());
-                int keyCode = ke.getKeyCode();
-                String keyText = java.awt.event.KeyEvent.getKeyText(keyCode);
-
-                if (keyCode == java.awt.event.KeyEvent.VK_ENTER
-                 || keyText.equals("Enter")
-                 // screw it, I don't like it! it mixes up changes with navigation
-                 //|| keyCode == java.awt.event.KeyEvent.VK_NUMPAD5
-                 //|| keyText.equals("Begin") // this is what's needed to detect the numeric keypad 5 on my linux machine
-                 )
-                {
-                    int n = nThingsDoneEver[0]++;
-                    String doneItem = ""+(char)('A'+n%26);
-                    n /= 26;
-                    while (n != 0)
-                    {
-                        doneItem = ""+(char)('A'+n%27-1) + doneItem; // XXX haha lame, it messes up after AA... figure out the right way to to it, you doofus
-                        n /= 27;
-                    }
-
-                    undoTree.Do(doneItem);
-                    if (undoTreeViewer.eventVerboseLevel >= 1) System.out.println("Did "+doneItem);
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_N)
-                {
-                    makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++),
-                                              new UndoTree(undoTree), // different view, same model
-                                              ke.isControlDown() ? name : null, // ctrl-n means the new one should follow me around
-                                              ke.isControlDown() ? undoTree : null, // ctrl-n means the new one should follow me around
-                                              x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
-                }
-                else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
-                      && ke.isControlDown())
-                {
-                    System.exit(0);
-                }
-                jpanel.repaint();
-            } // keyPressed
-            public void keyTyped(java.awt.event.KeyEvent ke)
-            {
-                char c = ke.getKeyChar();
-                //System.out.println("key listener got key '"+c+"'("+(int)c+")"); // XXX escapify!
-                if (false) {}
-                else if (c == 'c') // toggle center current node
-                {
-                    undoTree.Clear();
-                    nThingsDoneEver[0] = 0;
-                }
-            }
-        });
-        if (false) // XXX I don't think I like this... get rid of it when I'm sure.  just need a big Do button instead
-        {
-            jpanel.addMouseListener(new java.awt.event.MouseAdapter() {
-                // note, this better come AFTER the UndoTreeViewer did its
-                // thing of changing current to be the node closest to the click...
-                // that should be true, since we attached the jpanel
-                // to the component first
-                public void mouseClicked(java.awt.event.MouseEvent me)
-                {
-                    if (isMiddleMouseButton(me))
-                    {
-                        // XXX dup code from above, whatever
-                        int n = nThingsDoneEver[0]++;
-                        String doneItem = ""+(char)('A'+n%26);
-                        n /= 26;
-                        while (n != 0)
-                        {
-                            doneItem = ""+(char)('A'+n%27-1) + doneItem; // XXX haha lame, it messes up after AA... figure out the right way to to it, you doofus
-                            n /= 27;
-                        }
-
-                        undoTree.Do(doneItem);
-                        if (undoTreeViewer.eventVerboseLevel >= 1) System.out.println("Did "+doneItem);
-                    }
-                }
-            });
-        }
-
-        //jframe.pack();
-        jframe.setSize(w,h);
-        jframe.setLocation(x,y);
-        // I think just-created stuff is safe until the components are
-        // "realized"... so put the realization stuff in an invokeLater
-        // to be done in an event dispatch thread, where gui creation stuff
-        // is supposed to be done.
-        javax.swing.SwingUtilities.invokeLater(new Runnable() {
-            public void run()
-            {
-                jframe.setVisible(true);
-                jpanel.requestFocus(); // seems to be needed initially, if running in <=1.2 on linux, anyway.  weird!
-            }
-        });
-
-        /*
-        TODO:
-            Should make the following buttons:
-                older branch  undo  younger branch
-                older          Do   younger
-                older leaf    redo  younger leaf
-        */
-
-    } // makeUndoTreeViewer
-
-
-    /** Test/example program. */
-    // XXX TODO: replace this with a smaller clearer one that just does the littler examples that I gave above.  The viewer stuff is good but is best left to a separate viewer program.
-    public static void main(String args[])
-    {
-        System.out.println("in main");
-        UndoTree tree = new UndoTree();
-        if (false) // nah, cooler to start with nothing
-        {
-            // Seed it with something mildly interesting
-            tree.Do("A");
-            tree.Do("B");
-            tree.setPrivateLabel("private_before_fork");
-            tree.undo();
-            tree.undo();
-            tree.Do("C");
-            tree.setPrivateLabel("shared_before_fork");
-            tree.undo();
-            tree.preferYoungerChild();
-            tree.redo();
-            tree.Do("D");
-            tree.Do("E");
-        }
 
         int nThingsDoneEver[] = {0};
         int nViewersAlive[] = {0};
@@ -1284,27 +1376,27 @@ public class UndoTreeViewer
         int nViewersEverMade[] = {0};
         int x = 50;
         int w = 400;
-        makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree, null, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
+        makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree, null, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         // The following two lines are very different!
         if (false)
         {
             // Doing it this way, both viewers will share
             // undos and redos (as well as changes in the tree structure).
             // Each can have its own display style though.
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
         if (false)
         {
             // Doing it this way, both viewers see tree changes
             // but they can explore the tree independently;
             // one viewer's undos and redos will not affect the other.
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree = new UndoTree(tree), null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree = new UndoTree(tree), null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
         if (true)
         {
             // Doing it this way, the new one will follow the previous one
             // around!
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), new UndoTree(tree), "View "+(nViewsEverMade[0]-2/*omg this is outa control*/), tree, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), new UndoTree(tree), "View "+(nViewsEverMade[0]-2/*omg this is outa control*/), tree, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
 
         //
