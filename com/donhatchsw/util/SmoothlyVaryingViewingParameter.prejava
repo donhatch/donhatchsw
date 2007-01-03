@@ -56,6 +56,16 @@ public class SmoothlyVaryingViewingParameter
     {
         snap(new double[]{targetPosition});
     }
+    /** Warps to the specified position, without changing velocity or target. If you want to do this, you are weird. */
+    public void warp(double[] newPosition)
+    {
+        VecMath.copyvec(this.position, newPosition);
+    }
+    /** Warps to the specified position (scalar version).  Equivalent to warp(new double[]{targetPosition}). */
+    public void warp(double targetPosition)
+    {
+        warp(new double[]{targetPosition});
+    }
 
     /** Gets the value of this scalar variable now.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
     public double get()
