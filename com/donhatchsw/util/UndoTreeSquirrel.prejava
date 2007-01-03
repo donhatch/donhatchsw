@@ -11,7 +11,6 @@ import com.donhatchsw.compat.regex;
 
 public class UndoTree
 {
-    /** Actually this is a Model concept, so if I put Model in its own class that doesn't know about the View, this would get moved down into it.  I just put it up here so that the caller can refer to it as an UndoTree.ItemLengthizer instead of an UndoTree.Model.ItemLengthizer. */
     public interface ItemLengthizer
     {
         /**
@@ -19,22 +18,26 @@ public class UndoTree
         * For example, in a Rubik's-cube-like puzzle program,
         * where each graph edge represents a puzzle twist
         * through an angle of 90, 120, or 180 degrees,
+        * and 90 is the most common,
         * you'd give the edges lengths 1, 4./3., 2 respectively.
         * When using the undo tree for animation,
         * the time it takes to traverse an edge in the tree
         * (i.e. to animate a Do, undo, or redo)
         * will be proportional to the square root of this edge length.
+        * I.e. a 180 degree twist will take sqrt(2) times as long
+        * as a 90 degree twist.
         */
         double length(Object item);
     }
 
-    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. Hears changes to both the shared model and the individual view. */
+    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. Hears changes to both the shared model (the actual tree) and your individual view (i.e. current position and private node labels). */
     public interface Listener
     {
         public void somethingChanged();
     }
 
-    /** It's a model/view setup, where UndoTree itself is the view and UndoTree.Model is the model. */
+    // It's a model/view setup, where UndoTree itself is the view and UndoTree.Model is the model.
+    // XXX gah, I hate that privates of subclasses are accessible... I want to make them private so I don't cheat, I should be able to, dammit
     private static class Model
     {
         // A node represents a state of the application;
@@ -42,7 +45,7 @@ public class UndoTree
         // Do, undo, and redo means traversing an edge
         // (although that is a View concept, since the model
         // has no concept of current position).
-        private static class Node
+        public static class Node
         {
             public int parent; // index relative to mine
             public Object itemOnEdgeFromParentToMe;
@@ -58,11 +61,78 @@ public class UndoTree
         } // Node
 
         public com.donhatchsw.compat.ArrayList/*<Node>*/ nodes = new com.donhatchsw.compat.ArrayList();
-        private com.donhatchsw.compat.ArrayList sharedListeners = new com.donhatchsw.compat.ArrayList();
+        // The model has listeners (the views),
+        // and each view has listeners.
+        // Each view installs a listener on the model
+        // that simply propagates model change notifications
+        // into view change notifications (since every model change
+        // is also a view change, for the purposes of someone
+        // displaying the view in a viewer, for example).
+        // XXX this should be PRIVATE to the view (UndoTree)!
+        // XXX I don't have any way
+        // XXX of enforcing that because java's privacy semantics are screwed,
+        // XXX but there should be no cases where the UndoTree accesses
+        // XXX this list directly.
+        private com.donhatchsw.compat.ArrayList modelListeners = new com.donhatchsw.compat.ArrayList();
 
         public Model()
         {
             this.nodes.add(new Node(-1,null,System.currentTimeMillis()));
+        }
+
+        public void addListener(Listener listener)
+        {
+            synchronized(this)
+            {
+                modelListeners.remove(listener); // XXX should throw IllegalStateException instead
+                modelListeners.add(listener);
+            }
+        }
+        public void removeListener(Listener notifier)
+        {
+            synchronized(this)
+            {
+                modelListeners.remove(notifier);
+            }
+        } // removeListener
+
+        public void Clear()
+        {
+            synchronized(this)
+            {
+                nodes.clear();
+                nodes.add(new Model.Node(-1,null,System.currentTimeMillis()));
+            }
+            // XXX hmm, idea... should we pass down a callback that lets them ask the old-to-new of any node index they are interested in?  hmm
+            notifyListenersSomethingChanged(modelListeners);
+        } // Clear
+
+        // caller must be synchronized on this model since it's
+        // expecting parentNodeIndex to be valid.
+        // returns the index of the newly created child,
+        // and its index in the parent.
+        public int[] Do(int parentNodeIndex, Object item, long timeStampMillis)
+        {
+            if (item == null)
+                throw new IllegalArgumentException("UndoTree.Do called with null item");
+            int newChildIndex = nodes.size();
+            Node newChild = new Node(parentNodeIndex-newChildIndex, item, timeStampMillis);
+            nodes.add(newChild);
+
+            Node parentNode = (Node)nodes.get(parentNodeIndex);
+            int newChildIndexInCurrent = parentNode.children.length;
+            parentNode.children = (int[])Arrays.append(parentNode.children, newChildIndex-parentNodeIndex);
+            notifyListenersSomethingChanged(modelListeners);
+            return new int[]{newChildIndex, newChildIndexInCurrent};
+        } // Model.Do
+
+        // The fact that the caller has a node
+        // means they are required to be inside a synchronized(model)
+        // block, so we don't need to do additional synchronization here.
+        public void setNodeLabel(Node node, Object sharedLabel)
+        {
+            node.sharedLabel = sharedLabel;
+            notifyListenersSomethingChanged(modelListeners);
         }
 
     } // Model
@@ -80,7 +150,7 @@ public class UndoTree
         return info;
     } // PrivateNodeInfo
 
-    private com.donhatchsw.compat.ArrayList privateListeners = new com.donhatchsw.compat.ArrayList();
+    private com.donhatchsw.compat.ArrayList viewListeners = new com.donhatchsw.compat.ArrayList();
 
     //
     // An UndoTree is actually a view into the nodes (the model).
@@ -120,7 +190,7 @@ public class UndoTree
             }
         }
         this.currentNodeFraction.snap(1.);
-        notifyListenersSomethingChanged(privateListeners);
+        notifyListenersSomethingChanged(viewListeners);
     }
     public int getCurrentNodeIndex()
     {
@@ -130,7 +200,7 @@ public class UndoTree
     {
         return currentNodeFraction.get();
     }
-    public Object getItemOnEdgeFromParentToCurrentNode()
+    public Object getItemOnEdgeFromParentToCurrentNode() // XXX definitely shouldn't have to be public... root out the usages of it and see if we can handle it a different way
     {
         synchronized(model.nodes) // XXX should model handle this instead?
         {
@@ -140,11 +210,11 @@ public class UndoTree
     public void setCurrentNodeFraction(double currentNodeFraction)
     {
         this.currentNodeFraction.snap(currentNodeFraction);
-        notifyListenersSomethingChanged(privateListeners);
+        notifyListenersSomethingChanged(viewListeners);
     }
 
     /**
-    * Creates a new view onto an existing undo tree.
+    * Creates a new view onto an existing undo tree, or a new undo tree (if other is null).
     */
     // CTOR    (for quick find in editor)
     public UndoTree(UndoTree other)
@@ -163,7 +233,36 @@ public class UndoTree
             this.currentNodeFraction.set(other.currentNodeFraction.getTarget());
             // XXX should copy preferred child indices from the other too! and maybe private labels, but not sure about that. maybe that should be an argument to the constructor?
         }
-    }
+        // Propagate model change notifications
+        // to this view's view change listeners.
+        // Note, this could also be accomplished by simply
+        // making our addListener(newListener)
+        // call model.addListener(newListener)
+        // in addition to adding the new listener to our own listeners list,
+        // so that the listener would get notified directly...
+        // however that would be a mess if the model was ever changed, so
+        // I think it's cleaner this way.
+        this.model.addListener(new Listener() { // XXX this never gets removed!  should it be a weak reference or something?
+            public void somethingChanged()
+            {
+                if (model.nodes.size() == 1) // it's always at least 1
+                {
+                    // XXX lock something down?
+                    // XXX might deadlock, should we just set a flag
+                    // XXX and do this lazily when someone wants something?
+                    currentNodeIndex = 0; // XXX hmm, this is destructive, puzzle state needs to be reset if this happens
+                    currentNodeFraction.snap(1.);
+                    privateNodeInfosHashtable.clear();
+                }
+                assert(currentNodeIndex < model.nodes.size()); // XXX will need to do something more sophisticated if pruning is implemented; for now, the only destructive operation is Clear which we just handled
+
+                // Regardless of whether we changed our private stuff,
+                // every model change is regarded as noteworthy
+                // for view listeners, so notify them.
+                notifyListenersSomethingChanged(viewListeners);
+            }
+        });
+    } // UndoTree (view) ctor
 
     /** Creates a new undo tree (view) with a brand new empty tree; equivalent to UndoTree(null). */
     public UndoTree()
@@ -195,76 +294,33 @@ public class UndoTree
     {
         if (item == null)
             throw new IllegalArgumentException("UndoTree.Do called with null item");
-        int newChildIndex;
-        synchronized(model.nodes)
+        synchronized(this) // note currentNodeIndex can change while waiting for this lock!  that will make us hang it off the new currentNodeIndex instead.  that's the way the ball bounces.
         {
-            newChildIndex = model.nodes.size();
-            Model.Node newChild = new Model.Node(currentNodeIndex-newChildIndex, item, timeStampMillis);
-            model.nodes.add(newChild);
+            currentNodeFraction.snap(1.); // XXX seems safe, didn't think about this much
+            synchronized(model) // currentNodeIndex can also change while waiting for *this* lock, since if someone is clearing the model, that will notify us and *we* will set it to zero.  that's the way the ball bounces.
+            {
+                int newChildIndex_and_newChildIndexInCurrent[] = model.Do(currentNodeIndex, item, timeStampMillis);
+                int newChildIndex = newChildIndex_and_newChildIndexInCurrent[0];
+                int newChildIndexInCurrent = newChildIndex_and_newChildIndexInCurrent[1];
+                PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, (Model.Node)model.nodes.get(currentNodeIndex));
+                currentNodeInfo.preferredChildIndex = newChildIndexInCurrent;
+
+                currentNodeIndex = newChildIndex; // XXX could just do a redo?
+            }
+            notifyListenersSomethingChanged(viewListeners); // XXX hmm... we already notified them inside the model changed callback which got called from inside model.Do, so this is notifying them twice... bleah. wonder if there is a clean way to prevent that.  Ultimately it should just amount to a repaint(), I hope... not sure about that though.
         }
-
-        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
-        int newChildIndexInCurrent;
-        synchronized(currentNode)
-        {
-            newChildIndexInCurrent = currentNode.children.length;
-            currentNode.children = (int[])Arrays.append(currentNode.children, newChildIndex-currentNodeIndex);
-        }
-
-        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
-        currentNodeInfo.preferredChildIndex = newChildIndexInCurrent;
-
-        currentNodeIndex = newChildIndex;
-
-        //checkSane(); // don't do this here, it's expensive
-
-        //
-        // Note the sharedListeners list covers all the listeners
-        // on the privateListeners, and maybe some more too (that
-        // were added by other views after a fork, or that existed
-        // in the sharedListeners list before we were born).
-        // XXX waitaminute, I don't think this is right:
-        //      view0 = new UndoTree()
-        //              view0.sharedListeners = new list
-        //              view1.sharedListeners = new list
-        //      view0.addListener(A)
-        //              listener A gets added to view0's private and shared listeners
-        //      view1 = new UndoTree(view0)
-        //              view1.sharedListeners = view0.sharedListeners (so it includes A)
-        //              view1.privateListeners = new list
-        //      view1.addListener(B)
-        //              listener B gets added to the shared listener list
-        //                      and to B's private listener list
-        // Okay I think maybe it *does* work...  I thought
-        // there was some asymmetry but maybe not.
-        // Maybe I need to try to think of better names that will make
-        // it stop confusing me?
-        // Really the semantics are... when the model changes,
-        // notify all view listeners, but when the view changes,
-        // notify only this view's listeners.
-        // So maybe it will come out cleaner when I separate it out
-        // into a real model and view...
-        // Each view would have a listener installed on the model,
-        // that, when called, would notify all the view's listeners as well.
-        // Yeah, I think that's right.
-        //
-        notifyListenersSomethingChanged(model.sharedListeners); // includes private listeners
     } // Do
 
-    /** Destroys the entire underlying tree.  XXX I suspect this is not very safe if multiple views are looking at it, I think there may be assumptions that indices will remain valid. */
+    /** Destroys the entire underlying tree. */
     public void Clear()
     {
-        synchronized(model.nodes)
-        {
-            model.nodes.clear();
-            this.model.nodes.add(new Model.Node(-1,null,System.currentTimeMillis()));
-            this.currentNodeIndex = 0; // XXX but woe to all the other views!!
-            this.currentNodeFraction.snap(1.);
-            this.privateNodeInfosHashtable.clear(); // XXX argh! should have more stuff locked down!
-            // XXX and everyone should clear unused nodes in their hash table if they notice the size has decreased!
-        }
-        notifyListenersSomethingChanged(model.sharedListeners); // includes private listeners
-    } // Clear
+        model.Clear();
+        // That will notify us that the model changed,
+        // which will cause us to update
+        // our currentNodeIndex and hash table
+        // (and it will make all other views do that too)
+        // so we don't need to do that here.
+    }
 
     /** Performs an undo; that is, changes the current position to be one step closer to the root of the tree, returning the Object that was originally passed to Do() when the tree edge was created. */
     public Object undo()
@@ -275,7 +331,7 @@ public class UndoTree
             Object item = currentNode.itemOnEdgeFromParentToMe;
             currentNodeIndex += currentNode.parent; // relative
             currentNodeFraction.snap(1.);
-            notifyListenersSomethingChanged(privateListeners);
+            notifyListenersSomethingChanged(viewListeners);
             return item;
         }
         else
@@ -295,7 +351,7 @@ public class UndoTree
         currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex]; // relative
         currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         currentNodeFraction.snap(1.);
-        notifyListenersSomethingChanged(privateListeners);
+        notifyListenersSomethingChanged(viewListeners);
         return currentNode.itemOnEdgeFromParentToMe;
     }
     /**
@@ -313,7 +369,7 @@ public class UndoTree
                 return false;
             currentNodeInfo.preferredChildIndex--;
         }
-        notifyListenersSomethingChanged(privateListeners);
+        notifyListenersSomethingChanged(viewListeners);
         return true;
     } // preferOlderChild
     /**
@@ -332,39 +388,43 @@ public class UndoTree
                 return false;
             currentNodeInfo.preferredChildIndex++;
         }
-        notifyListenersSomethingChanged(privateListeners);
+        notifyListenersSomethingChanged(viewListeners);
         return true;
     } // preferYoungerChild
+
     /** Oh, and this one updates the model too. Sets a label at the current position that will be seen by other views of this undo tree. */
     public void setSharedLabel(Object sharedLabel)
     {
-        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
-        synchronized(currentNode)
+        synchronized(model) // required whenever getting a node
         {
-            currentNode.sharedLabel = sharedLabel;
+            // XXX what if some other view has done a clear?
+            Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
+            model.setNodeLabel(currentNode, sharedLabel);
         }
-        notifyListenersSomethingChanged(model.sharedListeners); // includes private listeners
     }
+
     /** Sets a label at the current position that will not be seen by other views of this undo tree. */
     public void setPrivateLabel(Object privateLabel)
     {
-        Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
-        PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
-        privateNodeInfo.privateLabel = privateLabel;
-        notifyListenersSomethingChanged(privateListeners);
+        synchronized(this)
+        {
+            Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
+            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
+            privateNodeInfo.privateLabel = privateLabel;
+        }
+        notifyListenersSomethingChanged(viewListeners);
     }
 
-    /** XXX clean this up-- doesn't need all this stuff, only needs integerPartDir and interPartItem */
+    /** awkward as hell, but incrementViewTowardsOtherView needs to return an int and an Object, so here it is. */
     public class ReturnValueOfIncrementViewTowardsOtherView
     {
-        // Discrete state change, if any...
-        public int integerPartDir; // -1 for undo, 1 for redo
-        public Object integerPartItem; // the item to undo (if integerPartDir==-1) or redo (if integerPartDir==1)
-        private ReturnValueOfIncrementViewTowardsOtherView(int integerPartDir,
-                                                   Object integerPartItem)
+        public int dir; /** -1 for undo, 1 for redo */
+        public Object item; /** the item to undo (if dir==-1) or redo (if dir==1) */
+        private ReturnValueOfIncrementViewTowardsOtherView(int dir,
+                                                           Object item)
         {
-            this.integerPartDir = integerPartDir;
-            this.integerPartItem = integerPartItem;
+            this.dir = dir;
+            this.item = item;
         }
     } // ReturnValueOfIncrementViewTowardsOtherView
 
@@ -378,7 +438,7 @@ public class UndoTree
     }
 
     /**
-    * Moves my current position one step towards the corrent position of the other view.  Returns a structure describing the discrete state change involved (if any) and the fractional offset from the new integer state that should be used to display the new fractional state.
+    * Moves my current position one step towards the current position of the other view.  Returns a structure describing the discrete state change involved (if any) and the fractional offset from the new integer state that should be used to display the new fractional state.
     */
     // XXX restructure this function to make it clearer
     public ReturnValueOfIncrementViewTowardsOtherView incrementViewTowardsOtherView(UndoTree otherView,
@@ -386,24 +446,16 @@ public class UndoTree
                                                  double referenceTripTime,
                                                  double dt,
                                                  double criticalDampingFraction,
-                                                 UndoTree.ItemLengthizer lengthizer) // XXX unused currently, which means all edges take same time to traverse-- fix this!
+                                                 UndoTree.ItemLengthizer lengthizer)
     {
         boolean debug = false;
         if (debug) System.out.println("in incrementViewTowardsOtherView");
         if (otherView.model.nodes != model.nodes)
-            throw new IllegalArgumentException("UndoTree.incrementViewTowardsOtherView called with a different underlying tree!");
+            throw new IllegalStateException("UndoTree.incrementViewTowardsOtherView called with a different underlying tree!");
         // XXX need to lock something down while we do this... if someone else changes currentNodeIndex out from under us we are super screwed!!!
 
         int targetNodeIndex = otherView.currentNodeIndex;
         double targetNodeFraction = otherView.currentNodeFraction.get();
-        if (currentNodeIndex >= model.nodes.size())
-        {
-            // XXX ad-hoc... can happen after a clear.  I think if we were getting notified properly this could be prevented
-            currentNodeIndex = 0;
-            currentNodeFraction.snap(1.);
-            notifyListenersSomethingChanged(privateListeners);
-            return null;
-        }
         Model.Node currentNode = (Model.Node)model.nodes.get(currentNodeIndex);
         if (currentNodeIndex == targetNodeIndex)
         {
@@ -425,7 +477,7 @@ public class UndoTree
                                        referenceTripTime,
                                        dt,
                                        criticalDampingFraction);
-            notifyListenersSomethingChanged(privateListeners);
+            notifyListenersSomethingChanged(viewListeners);
             return null; // no discrete state change
         }
         int ancestorIndex = findLowestCommonAncestorIndex(currentNodeIndex,
@@ -539,7 +591,7 @@ public class UndoTree
                 }
             }
         }
-        notifyListenersSomethingChanged(privateListeners);
+        notifyListenersSomethingChanged(viewListeners);
         return returnVal;
     } // incrementViewTowardsOtherView
 
@@ -591,8 +643,8 @@ public class UndoTree
     } // findLowestCommonAncestorIndex
 
 
-        // This would get moved into Model if it was to be made autonomous
-        private static void notifyListenersSomethingChanged(com.donhatchsw.compat.ArrayList listeners) // XXX I *think* this should be static, it wasn't before but I think that was an oversight
+        // This would get moved into Model if Model was to be made autonomous
+        private static void notifyListenersSomethingChanged(com.donhatchsw.compat.ArrayList listeners)
         {
             synchronized(listeners)
             {
@@ -610,27 +662,18 @@ public class UndoTree
     */
     public void addListener(Listener notifier)
     {
-        synchronized(model.sharedListeners)
+        synchronized(viewListeners)
         {
-            model.sharedListeners.remove(notifier); // XXX should throw IllegalArgumentException instead
-            model.sharedListeners.add(notifier);
-        }
-        synchronized(privateListeners)
-        {
-            privateListeners.remove(notifier);
-            privateListeners.add(notifier); // XXX should throw IllegalArgumentException
+            viewListeners.remove(notifier); // should throw IllegalStateException
+            viewListeners.add(notifier);
         }
     } // addListener
     /** Removes a callback that was previously installed with addListener(). */
     public void removeListener(Listener notifier)
     {
-        synchronized(model.sharedListeners)
+        synchronized(viewListeners)
         {
-            model.sharedListeners.remove(notifier);
-        }
-        synchronized(privateListeners)
-        {
-            privateListeners.remove(notifier);
+            viewListeners.remove(notifier);
         }
     } // removeListener
 
@@ -676,13 +719,12 @@ public class UndoTree
             if (snapshot.preferredChildIndices == null ||
                 snapshot.preferredChildIndices.length < nNodes)
                 snapshot.preferredChildIndices = new int[nNodes];
-            synchronized(model.nodes) // XXX are wy synching on the right thing?
+            synchronized(model.nodes) // model.nodes.size can change while waiting for this lock... and our currentNodeIndex might change with it due to our listener being called
             {
                 if (model.nodes.size() != nNodes)
+                {
                     continue; // someone changed something! try allocations again
-                if (currentNodeIndex > model.nodes.size())
-                    currentNodeIndex = 0; // XXX stopgap-- need to check this more pervasively! really if we were doing this right we should get notified of model changes, rather than this half-assed joint ownership thing
-
+                }
                 for (int iNode = 0; iNode < nNodes; ++iNode)
                 {
                     Model.Node node = (Model.Node)model.nodes.get(iNode);
@@ -707,6 +749,8 @@ public class UndoTree
             } // synchronized(model.nodes)
         }
         // we could nicify it here if we want... perhaps putting in the children pointers as well, we're in no hurry any more
+        assert(snapshot.currentNode >= 0);
+        assert(snapshot.currentNode < snapshot.nNodes);
     } // takeSnapshot // takeSnapshot
 
 
@@ -942,7 +986,7 @@ public class UndoTree
     } // toStringVisualCool
 
 
-    /** Static utility function for choosing a nice graphical layout, given the treee relation and edge lengths. The root node will be at y=0, with other y positions depending on the given edge lengths.  The x positions will be integers from 0 to number of branches. */
+    /** Static utility function for choosing a nice graphical layout, given the treee relation and edge lengths. The root node will be at y=0, with other y positions depending on the given edge lengths (if stretchOutAlongTimeLine is true, the y position will be the sum of the edge lengths that preceded this node in time; otherwise it will be the sum of the edge lengths from the root to this node).  The x positions will be integers from 0 to number of leaf nodes minus 1: each node will have the same x position as the leaf that would be reached by following its preferred children. */
     // XXX see if I can leverage this in toStringVisualCool?
     public static void chooseNodePositions(int nNodes,
                                            int parents[],
@@ -1061,6 +1105,9 @@ public class UndoTree
              && preferredChildGlobal[iChild] != currentNodeIndex)
             {
                 // the SPECIAL CASE described above
+                PRINT(x.length);
+                PRINT(iChild);
+                PRINT(currentNodeIndex);
                 x[iChild] = LERP(x[currentNodeIndex], x[iChild], 1.-currentNodeFrac);
             }
 
