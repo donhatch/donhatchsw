@@ -1,0 +1,168 @@
+package com.donhatchsw.compat;
+#include "macros.h"
+/**
+* ArrayList for 1.1, implemented from the doc.
+* Supposed to be like 40x faster than Vector (since it's not synchronized),
+* I don't know.
+* Lots of methods are not implemented yet;
+* basically, I implemented stuff as I needed it.
+* If something gets called that isn't implemented, it throws an Error.
+*/
+public class ArrayList
+{
+    private int size;
+    private Object array[];
+
+    public ArrayList(int initialCapacity)
+    {
+        this.array = new Object[initialCapacity];
+        this.size = 0;
+    }
+    public ArrayList()
+    {
+        this(1);
+    }
+    public ArrayList(ArrayList from) // this is Collection in the real ArrayList
+    {
+        unimplemented();
+    }
+    public void trimToSize()
+    {
+        unimplemented();
+    }
+    public void ensureCapacity(int minCapacity)
+    {
+        unimplemented();
+    }
+    public int size()
+    {
+        return size;
+    }
+    public boolean isEmpty()
+    {
+        return size == 0;
+    }
+    public boolean contains(java.lang.Object element)
+    {
+        unimplemented();
+        return false;
+    }
+    public int indexOf(java.lang.Object element)
+    {
+        for (int i = 0; i < size; ++i)
+            if (array[i].equals(element))
+                return i;
+        return -1;
+    }
+    public int lastIndexOf(java.lang.Object element)
+    {
+        for (int i = size-1; i >= 0; --i)
+            if (array[i].equals(element))
+                return i;
+        return -1;
+    }
+    public java.lang.Object clone()
+    {
+        unimplemented();
+        return null;
+    }
+    public java.lang.Object[] toArray()
+    {
+        return toArray(new Object[size]);
+    }
+    public java.lang.Object[] toArray(java.lang.Object[] to)
+    {
+        if (to.length < size)
+            return toArray();
+        System.arraycopy(array, 0, to, 0, size);
+        return to;
+    }
+    public java.lang.Object get(int index)
+    {
+        if (index < 0 || index >= size)
+            throw new IndexOutOfBoundsException("ArrayList.get: "+index+" out of bounds 0.."+size+"-1");
+        return array[index];
+    }
+    public java.lang.Object set(int index, java.lang.Object element)
+    {
+        if (index < 0 || index >= size)
+            throw new IndexOutOfBoundsException("ArrayList.set: "+index+" out of bounds 0.."+size+"-1");
+        Object oldElement = array[index];
+        array[index] = element;
+        return oldElement;
+    }
+    public boolean add(java.lang.Object element)
+    {
+        add(size, element);
+        return true; // that's what the doc says
+    }
+    public void add(int index, java.lang.Object element)
+    {
+        if (index != size)
+            unimplemented();
+        if (size == array.length)
+        {
+            int newCapacity = array.length/2*3+2; // funny arithmetic to postpone overflow a little longer
+            assert(newCapacity > size);
+            Object newArray[] = new Object[newCapacity];
+            System.arraycopy(array, 0, newArray, 0, array.length);
+            array = newArray;
+        }
+        array[size++] = element;
+    }
+    public java.lang.Object remove(int index)
+    {
+        if (index < 0 || index >= size)
+            throw new IndexOutOfBoundsException("ArrayList.remove: "+index+" out of bounds 0.."+size+"-1");
+        if (index != size-1)
+            unimplemented();
+        size--;
+        return null;
+    }
+    // XXX javap says boolean, some doc says it returns an Object, some other doc doesn't mention it at all... fuck it, I'm returning void.
+    public void remove(java.lang.Object element)
+    {
+        int index = indexOf(element);
+        if (index != -1)
+            remove(index);
+    }
+    public void clear()
+    {
+        // XXX does not resize array... is this right?
+        size = 0;
+    }
+    public boolean addAll(ArrayList from) // this is Collection in the real ArrayList
+    {
+        unimplemented();
+        return false;
+    }
+    public boolean addAll(int index, ArrayList from) // this is Collection in the real ArrayList
+    {
+        unimplemented();
+        return false;
+    }
+    protected void removeRange(int fromIndex, int toIndex)
+    {
+        unimplemented();
+    }
+
+    /** test program */
+    public static void main(String args[])
+    {
+        ArrayList a = new ArrayList();
+        assert(a.size() == 0);
+        a.add("foo");
+        assert(a.size() == 1);
+        a.add("bar");
+        assert(a.size() == 2);
+        a.add(null);
+        assert(a.size() == 3);
+        a.remove(a.size()-1);
+        assert(a.size() == 2);
+        a.add("baz");
+        assert(a.size() == 3);
+        a.clear();
+        assert(a.size() == 0);
+        System.out.println("All good!");
+    }
+} // class ArrayList
