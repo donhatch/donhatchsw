@@ -117,7 +117,7 @@ public class ArrayList
         if (index != size-1)
             unimplemented();
         size--;
-        return null;
+        return array[size];
     }
     // XXX javap says boolean, some doc says it returns an Object, some other doc doesn't mention it at all... fuck it, I'm returning void.
     public void remove(java.lang.Object element)
