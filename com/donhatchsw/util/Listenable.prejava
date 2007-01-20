@@ -1,0 +1,100 @@
+/**
+* Wrappers for boolean, int, float, double
+* that notify listeners when the value changes.
+* This is useful for keeping multiple user
+* interfaces that control the same variable
+* in sync.
+*/
+class Listenable
+{
+    public interface Listener
+    {
+        public void callback();
+    }
+
+    public void addListener(Listener listener)
+    {
+        // XXX assert it's not there
+        listeners.remove(listener);
+        listeners.add(listener);
+    }
+    public void removeListener(Listener listener)
+    {
+        // XXX assert it's there
+        listeners.remove(listener);
+    }
+
+    private ArrayList listeners = new ArrayList();
+
+    protected void notifyListeners()
+    {
+        int n = listeners.size();
+        for (int i = 0; i < n; ++i)
+            ((Listener)listeners.get(i)).callback();
+    }
+
+    public class Boolean extends Listenable
+    {
+        private boolean value;
+        public boolean getValue()
+        {
+            return value;
+        }
+        public void setValue(boolean newValue)
+        {
+            if (newValue != value)
+            {
+                value = newValue;
+                notifyListeners();
+            }
+        }
+    }
+    public class Int extends Listenable
+    {
+        private int value;
+        public int getValue()
+        {
+            return value;
+        }
+        public void setValue(int newValue)
+        {
+            if (newValue != value)
+            {
+                value = newValue;
+                notifyListeners();
+            }
+        }
+    }
+    public class Float extends Listenable
+    {
+        private float value;
+        public float getValue()
+        {
+            return value;
+        }
+        public void setValue(float newValue)
+        {
+            if (newValue != value)
+            {
+                value = newValue;
+                notifyListeners();
+            }
+        }
+    }
+    public class Double extends Listenable
+    {
+        private double value;
+        public double getValue()
+        {
+            return value;
+        }
+        public void setValue(double newValue)
+        {
+            if (newValue != value)
+            {
+                value = newValue;
+                notifyListeners();
+            }
+        }
+    }
+} // class Listenable
