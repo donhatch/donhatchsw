@@ -127,7 +127,7 @@ public class MC4DModel
 
 
     //
-    // SERIALIZABLE PART
+    // PERSISTENT SERIALIZABLE PART
     //
         public GenericPuzzleDescription genericPuzzleDescription;
         public int genericPuzzleState[]; // only accessible via listener notification     XXX make this private!  glue looks at it currently
@@ -162,6 +162,8 @@ public class MC4DModel
 
 
         // For a caller who already has a puzzle description...
+        // Note that GenericPuzzleDescriptions are immutable
+        // so they can be shared and there is no question of ownership.
         public MC4DModel(GenericPuzzleDescription genericPuzzleDescription)
         {
             this.genericPuzzleDescription = genericPuzzleDescription;
@@ -328,20 +330,22 @@ public class MC4DModel
             boolean wasMoving = animationUndoTree.isMoving(controllerUndoTree);
 
             com.donhatchsw.util.UndoTree.ReturnValueOfIncrementViewTowardsOtherView discreteStateChange = animationUndoTree.incrementViewTowardsOtherView(
-                controllerUndoTree,
+                controllerUndoTree, // increment towards this other view
                 1.,        // the canonical edge length
                 nFrames90, // takes this amount of time
                 1.,        // and we are incrementing by this amount of time
                 criticalDampingFraction,
                 // XXX don't need to make this every time!
+                // XXX and this is duplicated in MC4DViewGuts
                 new com.donhatchsw.util.UndoTree.ItemLengthizer() {
                     public double length(Object item)
                     {
                         Twist twist = (Twist)item;
                         Assert(twist != null);
+                        Assert(twist.grip != -1);
                         int order = genericPuzzleDescription.getGripSymmetryOrders()[twist.grip];
                         if (order <= 0)
-                            return 1.; // XXX is this sensible?
+                            return 1.; // XXX can this happen, and why?
                         double nQuarterTurns = 4./order
                                              * Math.abs(twist.dir); // power multiplier
                         return nQuarterTurns;

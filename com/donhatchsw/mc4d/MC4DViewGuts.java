@@ -1316,17 +1316,18 @@ public class MC4DViewGuts
                 faceColor[i] = new java.awt.Color(faceRGB[i][0],faceRGB[i][1],faceRGB[i][2]);
 
             com.donhatchsw.util.UndoTree.ItemLengthizer lengthizer = new com.donhatchsw.util.UndoTree.ItemLengthizer() {
+                // XXX this is duplicated in MC4DModel
                 public double length(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
-                    int grip = twist.grip;
-                    Assert(grip != -1);
-                    int face = model.genericPuzzleDescription.getGrip2Face()[grip];
-                    int order = model.genericPuzzleDescription.getGripSymmetryOrders()[face];
+                    Assert(twist != null);
+                    Assert(twist.grip != -1);
+                    int order = model.genericPuzzleDescription.getGripSymmetryOrders()[twist.grip];
                     if (order <= 0)
                         return 1.; // XXX can this happen, and why?
-                    else
-                        return 4./order; // so 90 degrees -> length 1
+                    double nQuarterTurns = 4./order
+                                         * Math.abs(twist.dir); // power multiplier
+                    return nQuarterTurns;
                 }
             };
             com.donhatchsw.util.UndoTreeViewer.ItemColorizer colorizer = new com.donhatchsw.util.UndoTreeViewer.ItemColorizer() {
