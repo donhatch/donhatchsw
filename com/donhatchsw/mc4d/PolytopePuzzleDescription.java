@@ -233,6 +233,7 @@
                 that should cut stuff down by a factor of 100 maybe
 
         PIE IN THE SKY:
+            - ooh, stereo
             - mode in which they manipulate the puzzle face like a trackball?
 
             - be able to copy one or several viewing params from one view to another-- and/or tie certain ones together!  when params are tied together, hovering over the param control in one view control panel should make it light up everywhere! yeah!
