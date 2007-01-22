@@ -138,7 +138,7 @@ public class MC4DModel
     // VOLATILE NON-SERIALIZABLE PART
     //
         public com.donhatchsw.util.UndoTree animationUndoTree = new com.donhatchsw.util.UndoTree(controllerUndoTree); // follows controllerUndoTree, but lags behind at the pace of the animation
-        private java.util.Vector/*<Listener>*/ listeners = new java.util.Vector();
+        private java.util.Vector/*<Listener>*/ listeners = new java.util.Vector(); // XXX use ArrayList
 
 
     //
