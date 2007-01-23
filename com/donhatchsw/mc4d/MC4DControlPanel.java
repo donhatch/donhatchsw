@@ -24,7 +24,8 @@ public class MC4DControlPanel
             float value = f.get();
             float defaultValue = f.getDefaultValue();
             textfield.setText(""+value);
-            slider.setValue((int)(slider.getMinimum() + ((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum())*value));
+            float frac = (value-f.getMinValue())/(f.getMaxValue()-f.getMinValue());
+            slider.setValue((int)(slider.getMinimum() + ((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum())*frac));
             resetButton.setEnabled(value != defaultValue);
         }
 
@@ -50,15 +51,16 @@ public class MC4DControlPanel
             this.f = initf;
 
             // 3 significant digits seems reasonable...
-            int max = 1000;
-            int min = 0;
-            int vis = (int)(.1*max);
+            // XXX Hmm but it would be nice to have individual unit and block increments
+            int min = (int)(f.getMinValue()*1000);
+            int max = (int)(f.getMaxValue()*1000);
+            int vis = (int)(.1*(max-min));
             slider.setValues(0,   // value (we'll set it right later)
                              vis,
                              min,
                              max+vis);
-            slider.setUnitIncrement((int)(.001 * max));
-            slider.setBlockIncrement((int)(.01 * max));
+            slider.setUnitIncrement(1); // .001 units
+            slider.setBlockIncrement(10); // .01 units
 
             f.addListener(new com.donhatchsw.util.Listenable.Listener() {
                 public void valueChanged()
@@ -85,7 +87,7 @@ public class MC4DControlPanel
             slider.addAdjustmentListener(new AdjustmentListener() {
                 public void adjustmentValueChanged(AdjustmentEvent e)
                 {
-                    if (true)
+                    if (false)
                     {
                         System.out.println("==================");
                         System.out.println("min = "+slider.getMinimum());
@@ -99,8 +101,11 @@ public class MC4DControlPanel
                         System.out.println("slider.getSize() = "+slider.getSize());
                         System.out.println("slider.getPreferredSize() = "+slider.getPreferredSize());
                     }
-                    f.set((float)(e.getValue()-slider.getMinimum())
-                        / (float)((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum()));
+                    // Doing the following in double precision makes a difference;
+                    // if we do it in float, we get ugly values in the textfield
+                    double frac = (double)(e.getValue()-slider.getMinimum())
+                                / (double)((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum());
+                    f.set((float)(f.getMinValue() + frac*(f.getMaxValue()-f.getMinValue())));
                     // will trigger valueChanged()
                     // which will call updateShownValues()
                 }
@@ -220,15 +225,22 @@ public class MC4DControlPanel
                 addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent e)
                     {
-                        javax.swing.JFrame helpWindow = new javax.swing.JFrame(helpWindowTitle);
-                        String htmlHelpMessage = "<html><pre>";
-                        for (int i = 0; i < helpMessage.length; ++i)
-                            htmlHelpMessage += helpMessage[i] + "  \n";
-                        htmlHelpMessage += "</pre></html>";
-                        helpWindow.getContentPane().add(new javax.swing.JLabel(htmlHelpMessage));
-                        helpWindow.setLocation(200,200); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place as main window.
-                        helpWindow.pack();
-                        helpWindow.setVisible(true);
+                        if (true)
+                        {
+                            // XXX not 1.1 compatible!!!
+                            Frame helpWindow = new Frame(helpWindowTitle);
+                            String htmlHelpMessage = "<html><pre>";
+                            for (int i = 0; i < helpMessage.length; ++i)
+                                htmlHelpMessage += helpMessage[i] + "  \n";
+                            htmlHelpMessage += "</pre></html>";
+                            helpWindow.add(new javax.swing.JLabel(htmlHelpMessage));
+                            helpWindow.setLocation(200,200); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place as main window.
+                            helpWindow.pack();
+                            helpWindow.setVisible(true);
+                        }
+                        else
+                        {
+                        }
                     }
                 });
             else
@@ -279,14 +291,14 @@ public class MC4DControlPanel
             {new Col("Behavior"," ", new Object[][]{
                 {new MyPanel(new Object[][][] {
                     {{"Twist Duration:"},
-                     {new TextAndSliderAndReset(view.twistSpeed),stretchx},
+                     {new TextAndSliderAndReset(view.twistDuration),stretchx},
                      {new HelpButton("Twist Duration", new String[]{
                         "Controls the speed of puzzle twists (left- or right-click)",
                         "and 4d rotates (middle-click or alt-click).",
                         "",
                         "The units are in animation frames per 90 degree twist;",
-                        "so if you set Twist Duration to 20,",
-                        "you will see the animation refresh 20 times during each 90 degree",
+                        "so if you set Twist Duration to 15,",
+                        "you will see the animation refresh 15 times during each 90 degree",
                         "twist.  Twists of angles other than 90 degrees will take",
                         "a correspondingly longer or shorter number of frames.",
                         "",
@@ -296,14 +308,17 @@ public class MC4DControlPanel
                     {{"Bounce:"},
                      {new TextAndSliderAndReset(view.bounce),stretchx},
                      {new HelpButton("Bounce", new String[]{
-                        "Normally twists and rotates are critically damped so that",
-                        "they complete smoothly in the required amount of time",
+                        "Normally the forces used for twists and rotates",
+                        "are those of a critically damped spring,",
+                        "so that the moves complete smoothly in the required amount of time",
                         "with the smallest possible acceleration.",
                         "",
                         "Setting this option to a nonzero value",
-                        "will cause the forces to be underdamped instead,",
+                        "will cause the spring forces to be underdamped instead,",
                         "so that the twists and rotates will overshoot their targets",
                         "before settling, resulting in a bouncy feeling.",
+                        "",
+                        "You can change this value in the middle of an animation if you want.",
                       })},
                     },
                 }),stretchx},
@@ -422,7 +437,7 @@ public class MC4DControlPanel
                         "Normally when you hover the mouse pointer",
                         "over a sticker, the sticker becomes highlighted.",
                         "When this option is checked, hovering over a sticker",
-                        "causes the entire cubie to be highlighted.",
+                        "causes the entire cubie the sticker is part of to be highlighted.",
                      })},
                 }),stretchx},
                 {new Row(new Object[][]{
@@ -430,7 +445,7 @@ public class MC4DControlPanel
                     {new HelpButton("Show shadows", new String[]{
                         "Shows shadows on the ground and/or in the air.",
                         "(It is a scientific fact that four dimensional",
-                        "objects can cast shadows in thin air.)",
+                        "objects can cast shadows in the air.)",
                      })},
                 }),stretchx},
                 {new Row(new Object[][]{
@@ -476,19 +491,19 @@ public class MC4DControlPanel
 
     public static class Stuff
     {
-        com.donhatchsw.util.Listenable.Float twistSpeed = new com.donhatchsw.util.Listenable.Float(.5f);
-        com.donhatchsw.util.Listenable.Float bounce = new com.donhatchsw.util.Listenable.Float(0.f);
-        com.donhatchsw.util.Listenable.Float faceShrink4d = new com.donhatchsw.util.Listenable.Float(.5f);
-        com.donhatchsw.util.Listenable.Float stickerShrink4d = new com.donhatchsw.util.Listenable.Float(.5f);
-        com.donhatchsw.util.Listenable.Float eyeW = new com.donhatchsw.util.Listenable.Float(.5f);
-        com.donhatchsw.util.Listenable.Float faceShrink3d = new com.donhatchsw.util.Listenable.Float(.5f);
-        com.donhatchsw.util.Listenable.Float stickerShrink3d = new com.donhatchsw.util.Listenable.Float(.5f);
-        com.donhatchsw.util.Listenable.Float eyeZ = new com.donhatchsw.util.Listenable.Float(.5f);
-        com.donhatchsw.util.Listenable.Float stickersShrinkTowardsFaceBoundaries = new com.donhatchsw.util.Listenable.Float(0.f);
+        com.donhatchsw.util.Listenable.Float twistDuration = new com.donhatchsw.util.Listenable.Float(0.f, 100.f, 30.f);
+        com.donhatchsw.util.Listenable.Float bounce = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, 0.f);
+        com.donhatchsw.util.Listenable.Float faceShrink4d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
+        com.donhatchsw.util.Listenable.Float stickerShrink4d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
+        com.donhatchsw.util.Listenable.Float eyeW = new com.donhatchsw.util.Listenable.Float(1.f, 10.f, 2.f);
+        com.donhatchsw.util.Listenable.Float faceShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
+        com.donhatchsw.util.Listenable.Float stickerShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
+        com.donhatchsw.util.Listenable.Float eyeZ = new com.donhatchsw.util.Listenable.Float(1.f, 10.f, 2.f);
+        com.donhatchsw.util.Listenable.Float stickersShrinkTowardsFaceBoundaries = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, 0.f);
         com.donhatchsw.util.Listenable.Boolean requireCtrlTo3dRotate = new com.donhatchsw.util.Listenable.Boolean(false);
         com.donhatchsw.util.Listenable.Boolean restrictRoll = new com.donhatchsw.util.Listenable.Boolean(false);
         com.donhatchsw.util.Listenable.Boolean stopBetweenMoves = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean highlightByCubie = new com.donhatchsw.util.Listenable.Boolean(true);
+        com.donhatchsw.util.Listenable.Boolean highlightByCubie = new com.donhatchsw.util.Listenable.Boolean(false);
         com.donhatchsw.util.Listenable.Boolean showShadows = new com.donhatchsw.util.Listenable.Boolean(true);
         com.donhatchsw.util.Listenable.Boolean antialiasWhenStill = new com.donhatchsw.util.Listenable.Boolean(true);
         com.donhatchsw.util.Listenable.Boolean drawNonShrunkFaceOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
