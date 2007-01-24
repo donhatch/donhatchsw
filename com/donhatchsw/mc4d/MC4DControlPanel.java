@@ -9,6 +9,8 @@ import com.donhatchsw.awt.Row;
 public class MC4DControlPanel
     extends Panel
 {
+    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+
     // gridbag constraint that allows the added component to stretch horizontally
     private static GridBagConstraints stretchx = new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}};
 
@@ -17,7 +19,6 @@ public class MC4DControlPanel
         private com.donhatchsw.util.Listenable.Float f;
         private TextField textfield;
         private Scrollbar slider;
-        private Button resetButton;
 
         private void updateShownValues()
         {
@@ -26,28 +27,40 @@ public class MC4DControlPanel
             textfield.setText(""+value);
             float frac = (value-f.getMinValue())/(f.getMaxValue()-f.getMinValue());
             slider.setValue((int)(slider.getMinimum() + ((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum())*frac));
-            resetButton.setEnabled(value != defaultValue);
         }
 
         public TextAndSliderAndReset(com.donhatchsw.util.Listenable.Float initf)
         {
             super(new Object[][]{
-                  {new TextField("XXXXXX")}, // give it some space
+                  {new TextField("99.99"){ // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
+                       public Dimension getPreferredSize()
+                       {
+                           // default seems taller than necessary
+                           // on my computer... fudge it a bit
+                           // XXX not sure this will look good on all systems... if it doesn't, we can just remove it
+                           Dimension preferredSize = super.getPreferredSize();
+                           //System.out.println("textfield.super.preferredSize() = "+preferredSize);
+                           preferredSize.height -= 2;
+                           return preferredSize;
+                       }
+                   }},
                   {new Scrollbar(Scrollbar.HORIZONTAL){
                       public Dimension getPreferredSize()
                       {
-                          // default seems to be 50x15 on my computer...
-                          // give it more space than that
-                          return new Dimension(200,20);
+                          // default seems to be 50x18 on my computer...
+                          // give it more horizontal space than that
+                          Dimension preferredSize = super.getPreferredSize();
+                          //System.out.println("scrollbar.super.preferredSize() = "+preferredSize);
+                          preferredSize.width = 200;
+                          return preferredSize;
                       }
                    }, stretchx},
-                  {new Button("Reset to default")},
+                  {new ResetButton("Reset to default", initf)},
             });
             // awkward, but we can't set members
             // until the super ctor is done
             this.textfield = (TextField)this.getComponent(0);
             this.slider = (Scrollbar)this.getComponent(1);
-            this.resetButton = (Button)this.getComponent(2);
             this.f = initf;
 
             // 3 significant digits seems reasonable...
@@ -110,15 +123,6 @@ public class MC4DControlPanel
                     // which will call updateShownValues()
                 }
             });
-            resetButton.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e)
-                {
-                    f.set(f.getDefaultValue());
-                    // will trigger valueChanged()
-                    // which will call updateShownValues()
-                }
-            });
-
             updateShownValues();
         }
     } // class LabelTextSlider
@@ -129,7 +133,6 @@ public class MC4DControlPanel
         private com.donhatchsw.util.Listenable.Boolean b;
         private Canvas swatch;
         private Checkbox checkbox;
-        private Button resetButton;
 
         private void updateShownValues()
         {
@@ -137,8 +140,6 @@ public class MC4DControlPanel
                 swatch.setBackground(color.get());
             if (b != null)
                 checkbox.setState(b.get());
-            resetButton.setEnabled(color!=null && !color.get().equals(color.getDefaultValue())
-                                || b!=null && b.get() != b.getDefaultValue());
         }
 
         public ColorSwatchMaybeAndCheckBoxMaybeAndReset(
@@ -150,7 +151,7 @@ public class MC4DControlPanel
                 initcolor==null ? null : new Object[]{new Canvas(){{setSize(10,10); setBackground(initcolor.get());}}},
                 {initb==null ? (Object)name : (Object)new Checkbox(name)},
                 {"",stretchx}, // just stretchable space
-                {new Button("Reset to default")},
+                {new ResetButton("Reset to default", new com.donhatchsw.util.Listenable[]{initcolor, initb})},
             });
             // awkward, but we can't set members
             // until the super ctor is done
@@ -159,10 +160,6 @@ public class MC4DControlPanel
                 this.swatch = (Canvas)this.getComponent(i++);
             if (initb != null)
                 this.checkbox = (Checkbox)this.getComponent(i++);
-            else
-                i++; // past the label
-            i++; // past the stretchy space
-            this.resetButton = (Button)this.getComponent(i++);
             this.color = initcolor;
             this.b = initb;
 
@@ -177,23 +174,13 @@ public class MC4DControlPanel
                 checkbox.addItemListener(new ItemListener() {
                     public void itemStateChanged(ItemEvent e)
                     {
-                        System.out.println("in checkbox callback");
+                        //System.out.println("in checkbox callback");
                         b.set(e.getStateChange() == ItemEvent.SELECTED);
                         // will trigger valueChanged()
                         // which will call updateShownValues()
                     }
                 });
             }
-            resetButton.addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e)
-                {
-                    if (b != null)
-                        b.set(b.getDefaultValue());
-                    // will trigger valueChanged()
-                    // which will call updateShownValues()
-                }
-            });
-
             updateShownValues();
         }
     } // ColorSwatch
@@ -215,6 +202,64 @@ public class MC4DControlPanel
         }
     }
 
+    // A button whose action resets one or more listenables,
+    // and is enabled iff one or more of those listenables is non-default.
+    private static class ResetButton extends Button
+    {
+        private boolean wasDefault[];
+        private int nNonDefault;
+        public ResetButton(final String buttonLabel,
+                           final com.donhatchsw.util.Listenable listenables[])
+        {
+            super(buttonLabel);
+            // XXX should really scrunch out null listeners here so that we don't suffer overhead for them every time the button is hit... not that anyone would ever notice though probably
+            addActionListener(new ActionListener() {
+                public void actionPerformed(ActionEvent e)
+                {
+                    for (int i = 0; i < listenables.length; ++i)
+                        if (listenables[i] != null)
+                            listenables[i].resetToDefault();
+                    Assert(nNonDefault == 0); // due to our valueChanged getting called
+                }
+            });
+            wasDefault = new boolean[listenables.length];
+            nNonDefault = 0;
+            for (int _i = 0; _i < listenables.length; ++_i)
+            {
+                final int i = _i;
+                if (listenables[i] == null)
+                    continue;
+                if (!(wasDefault[i] = listenables[i].isDefault()))
+                    nNonDefault++;
+                listenables[i].addListener(new com.donhatchsw.util.Listenable.Listener() {
+                    public void valueChanged()
+                    {
+                        boolean isDefault = listenables[i].isDefault();
+                        if (wasDefault[i] && !isDefault)
+                        {
+                            if (nNonDefault++ == 0)
+                                setEnabled(true);
+                        }
+                        else if (!wasDefault[i] && isDefault)
+                        {
+                            if (--nNonDefault == 0)
+                                setEnabled(false);
+                            Assert(nNonDefault >= 0);
+                        }
+                        wasDefault[i] = isDefault;
+                    }
+                });
+            }
+            setEnabled(nNonDefault > 0);
+        }
+        // Convenience constructor for when there's just one listenable
+        public ResetButton(final String buttonLabel,
+                           final com.donhatchsw.util.Listenable listenable)
+        {
+            this(buttonLabel, new com.donhatchsw.util.Listenable[]{listenable});
+        }
+    } // class ResetButton
+
     private static class HelpButton extends Button
     {
         public HelpButton(final String helpWindowTitle,
@@ -225,27 +270,41 @@ public class MC4DControlPanel
                 addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent e)
                     {
-                        if (true)
+                        // The preferred height of a label
+                        // whose font metrics says height=15
+                        // is 21.. kinda weird...
+                        // and it makes it so it's too spread out
+                        // vertically when we stack them up.
+                        // The external and internal padding
+                        // added by the gridbagconstraint is 0 by default,
+                        // so we adjust by setting the internal
+                        // vertical padding to -6
+                        // to get rid of that extra space.
+                        // XXX I don't know if this behavior is the same on other VMs, need to check
+                        GridBagConstraints c = new GridBagConstraints(){{anchor = WEST; ipady = -6;}};
+                        Object labelConstraintPairs[][] = new Object[helpMessage.length][2];
+                        for (int i = 0; i < helpMessage.length; ++i)
                         {
-                            // XXX not 1.1 compatible!!!
-                            Frame helpWindow = new Frame(helpWindowTitle);
-                            String htmlHelpMessage = "<html><pre>";
-                            for (int i = 0; i < helpMessage.length; ++i)
-                                htmlHelpMessage += helpMessage[i] + "  \n";
-                            htmlHelpMessage += "</pre></html>";
-                            helpWindow.add(new javax.swing.JLabel(htmlHelpMessage));
-                            helpWindow.setLocation(200,200); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place as main window.
-                            helpWindow.pack();
-                            helpWindow.setVisible(true);
+                            labelConstraintPairs[i][0] = helpMessage[i];
+                            labelConstraintPairs[i][1] = c;
                         }
-                        else
-                        {
-                        }
+                        Container panel = new Col(labelConstraintPairs);
+                        final Frame helpWindow = new Frame("MC4D Help: "+helpWindowTitle);
+                        helpWindow.add(panel);
+                        helpWindow.setLocation(200,200); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place as main window.
+                        helpWindow.pack();
+                        helpWindow.setVisible(true);
+
+                        helpWindow.addWindowListener(new java.awt.event.WindowAdapter() {
+                            public void windowClosing(java.awt.event.WindowEvent we) {
+                                helpWindow.dispose();
+                            }
+                        });
                     }
                 });
             else
             {
-                // XXX ARGH! just want to not draw it, but leave space. this sucks.
+                // XXX ARGH! just want to not draw it, but leave space. this sucks. really need to overhaul this whole thing and make use of actual grid coords
                 setEnabled(false); // don't tease the user
             }
         }
@@ -255,38 +314,72 @@ public class MC4DControlPanel
     /**
     * Creates a control panel for the given MC4DViewGuts.
     * <pre>
-        +---------------------------------------------+
-        |Behavior                                     |
-        | <-> Twist speed                             |
-        | <-> Bounce                                  |
-        | [ ] Require Ctrl to 3d Rotate               |
-        | [ ] Restrict roll                           |
-        | [ ] Stop between moves                      |
-        +---------------------------------------------+
-        |Appearance                                   |
-        | <-> 4d Face Shrink                          |
-        | <-> 4d Sticker Shrink                       |
-        | <-> 4d Eye Distance                         |
-        | <-> 3d Face Shrink                          |
-        | <-> 3d Sticker Shrink                       |
-        | <-> 3d Eye Distance                         |
-        | [ ] Stickers shrink towards face boundaries |
-        | [ ] Highlight by cubie                      |
-        | [ ] Show shadows                            |
-        | [ ] Antialias when still                    |
-        | [] [ ] Draw non-shrunk face outlines        |
-        | [] [ ] Draw shrunk face outlines            |
-        | [] [ ] Draw non-shrunk sticker outlines     |
-        | [] [ ] Draw shrunk sticker outlines         |
-        | [] [ ] Draw Ground                          |
-        | [] Background color                         |
-        | Sticker colors                              |
-        +---------------------------------------------+
+        +----------------------------------------------------------+
+        |Behavior                                                  |
+        | <-> Twist speed                             [Reset][Help]|
+        | <-> Bounce                                  [Reset][Help]|
+        | [ ] Require Ctrl to 3d Rotate               [Reset][Help]|
+        | [ ] Restrict roll                           [Reset][Help]|
+        | [ ] Stop between moves                      [Reset][Help]|
+        +----------------------------------------------------------+
+        |Appearance                                                |
+        | <-> 4d Face Shrink                          [Reset][Help]|
+        | <-> 4d Sticker Shrink                       [Reset][Help]|
+        | <-> 4d Eye Distance                         [Reset][Help]|
+        | <-> 3d Face Shrink                          [Reset][Help]|
+        | <-> 3d Sticker Shrink                       [Reset][Help]|
+        | <-> 3d Eye Distance                         [Reset][Help]|
+        | [ ] Stickers shrink towards face boundaries [Reset][Help]|
+        | [ ] Highlight by cubie                      [Reset][Help]|
+        | [ ] Show shadows                            [Reset][Help]|
+        | [ ] Antialias when still                    [Reset][Help]|
+        | [] [ ] Draw non-shrunk face outlines        [Reset][Help]|
+        | [] [ ] Draw shrunk face outlines            [Reset][Help]|
+        | [] [ ] Draw non-shrunk sticker outlines     [Reset][Help]|
+        | [] [ ] Draw shrunk sticker outlines         [Reset][Help]|
+        | [] [ ] Draw Ground                          [Reset][Help]|
+        | [] Background color                         [Reset][Help]|
+        | Sticker colors  (XXX not sure what this will look like)  |
+        +----------------------------------------------------------+
      </pre>
     */
     public MC4DControlPanel(Stuff view)
     {
         this.setLayout(new java.awt.GridBagLayout());
+
+        Button resetAllButton = new ResetButton(
+                "Reset All To Defaults",
+                new com.donhatchsw.util.Listenable[]{
+                    view.twistDuration,
+                    view.bounce,
+                    view.faceShrink4d,
+                    view.stickerShrink4d,
+                    view.eyeW,
+                    view.faceShrink3d,
+                    view.stickerShrink3d,
+                    view.eyeZ,
+                    view.viewScale2d,
+                    view.stickersShrinkTowardsFaceBoundaries,
+                    view.requireCtrlTo3dRotate,
+                    view.restrictRoll,
+                    view.stopBetweenMoves,
+                    view.highlightByCubie,
+                    view.showShadows,
+                    view.antialiasWhenStill,
+                    view.drawNonShrunkFaceOutlines,
+                    view.drawShrunkFaceOutlines,
+                    view.drawNonShrunkStickerOutlines,
+                    view.drawShrunkStickerOutlines,
+                    view.drawGround,
+                    view.shrunkFaceOutlineColor,
+                    view.nonShrunkFaceOutlineColor,
+                    view.shrunkStickerOutlineColor,
+                    view.nonShrunkStickerOutlineColor,
+                    view.groundColor,
+                    view.backgroundColor,
+                }
+        );
+
         this.add(new Col(new Object[][]{
             {new Col("Behavior"," ", new Object[][]{
                 {new MyPanel(new Object[][][] {
@@ -375,7 +468,7 @@ public class MC4DControlPanel
                         "Specifies how much each face should be shrunk towards its center in 4d",
                         "(before the 4d->3d projection).",
                         "Shrinking before the projection causes the apparent final 3d shape",
-                        "of the face to become less distorted (more cube-like)",
+                        "of the face to become less distorted (more cube-like),",
                         "but more poorly fitting with its 3d neighbors.",
                       })}},
                     {{"4d Sticker Shrink:"},
@@ -384,7 +477,7 @@ public class MC4DControlPanel
                         "Specifies how much each sticker should be shrunk towards its center in 4d",
                         "(before the 4d->3d projection).",
                         "Shrinking before the projection causes the apparent final 3d shape",
-                        "of the sticker to become less distorted (more cube-like)",
+                        "of the sticker to become less distorted (more cube-like),",
                         "but more poorly fitting with its 3d neighbors.",
                       })}},
                     {{"4d Eye Distance:"},
@@ -414,14 +507,14 @@ public class MC4DControlPanel
                         "(XXX coming soon: what the units mean exactly)",
                       })}},
                     {{"2d View Scale:"},
-                     {new TextAndSliderAndReset(view.eyeZ),stretchx},
+                     {new TextAndSliderAndReset(view.viewScale2d),stretchx},
                      {new HelpButton("2d View Scale", new String[]{
                         "Scales the final projected 2d image of the puzzle in the viewing window.",
                         "(XXX coming soon: what the units mean exactly)",
                       })}},
-                    {{"Stickers shrink towards face boundaries:"},
+                    {{"Stickers shrink to face boundaries:"},
                      {new TextAndSliderAndReset(view.stickersShrinkTowardsFaceBoundaries),stretchx},
-                     {new HelpButton("Stickers shrink towards face boundaries", new String[]{
+                     {new HelpButton("Stickers shrink to face boundaries", new String[]{
                         "Normally this option is set to 0 which causes stickers",
                         "to shrink towards their centers.",
                         "Setting it to 1 causes stickers to shrink towards",
@@ -453,11 +546,9 @@ public class MC4DControlPanel
                     {new HelpButton("Antialias when still",
                                     new String[]{
                                         "If this option is checked,",
-                                        "the display will be",
-                                        "antialiased (smooth edges)",
+                                        "the display will be antialiased (smooth edges)",
                                         "when the puzzle is at rest,",
-                                        "if your computer's",
-                                        "graphics hardware supports it."})},
+                                        "if your computer's graphics hardware supports it.        "})}, // XXX hack to make the full window title visible on my computer
                 }),stretchx},
                 {new Row(new Object[][]{
                     {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.nonShrunkFaceOutlineColor, view.drawNonShrunkFaceOutlines, "Draw non-shrunk face outlines"),stretchx},
@@ -485,7 +576,7 @@ public class MC4DControlPanel
                 }),stretchx},
             },stretchx),stretchx},
             {new Canvas() {{setBackground(java.awt.Color.black); setSize(1,1);}}, stretchx}, // totally lame separator
-            {new Row(new Object[][]{{"",stretchx},{new Button("Reset All To Defaults")},{"",stretchx}}),stretchx}, // XXX weird way of centering, see if there's something cleaner
+            {new Row(new Object[][]{{"",stretchx},{resetAllButton},{"",stretchx}}),stretchx}, // XXX weird way of centering, see if there's something cleaner
         }),stretchx);
     } // MC4DControlPanel ctor
 
@@ -499,6 +590,7 @@ public class MC4DControlPanel
         com.donhatchsw.util.Listenable.Float faceShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
         com.donhatchsw.util.Listenable.Float stickerShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
         com.donhatchsw.util.Listenable.Float eyeZ = new com.donhatchsw.util.Listenable.Float(1.f, 10.f, 2.f);
+        com.donhatchsw.util.Listenable.Float viewScale2d = new com.donhatchsw.util.Listenable.Float(1.f, 10.f, 2.f);
         com.donhatchsw.util.Listenable.Float stickersShrinkTowardsFaceBoundaries = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, 0.f);
         com.donhatchsw.util.Listenable.Boolean requireCtrlTo3dRotate = new com.donhatchsw.util.Listenable.Boolean(false);
         com.donhatchsw.util.Listenable.Boolean restrictRoll = new com.donhatchsw.util.Listenable.Boolean(false);
@@ -523,12 +615,36 @@ public class MC4DControlPanel
     public static void main(String args[])
     {
         Stuff stuff = new Stuff();
+        final int nAlive[] = {0};
         for (int i = 0; i < 2; ++i)
         {
-            Frame frame = new Frame("MC4DControlPanel Test");
+            final Frame frame = new Frame("MC4DControlPanel Test");
+
+            // In >=1.5, this seems to be the only way
+            // to get the window to close when the user hits the close
+            // window button.
+            // (overriding handleEvent doesn't work any more)
+            {
+                frame.addWindowListener(new java.awt.event.WindowAdapter() {
+                    public void windowClosing(java.awt.event.WindowEvent we) {
+                        frame.dispose();
+                        if (--nAlive[0] == 0)
+                        {
+                            System.out.println("Ciao!");
+                            System.exit(0); // asinine way of doing things
+                        }
+                        else
+                        {
+                            System.out.println("ciao!");
+                        }
+                    }
+                });
+            }
+
             frame.add(new MC4DControlPanel(stuff));
             frame.pack();
             frame.show();
+            nAlive[0]++;
         }
     }
 } // MC4DControlPanel
