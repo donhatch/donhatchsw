@@ -29,19 +29,36 @@ public class MC4DControlPanel
             slider.setValue((int)(slider.getMinimum() + ((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum())*frac));
         }
 
-        public TextAndSliderAndReset(com.donhatchsw.util.Listenable.Float initf)
+        public TextAndSliderAndReset(final com.donhatchsw.util.Listenable.Float initf)
         {
             super(new Object[][]{
                   {new TextField("99.99"){ // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
                        public Dimension getPreferredSize()
                        {
                            // default seems taller than necessary
-                           // on my computer... fudge it a bit
+                           // on my computer... and in recent VMs it's even worse
+                           // (changed from 29 to 31).
+                           // Fudge it a bit...
                            // XXX not sure this will look good on all systems... if it doesn't, we can just remove it
+                           // XXX hmm, actually makes things mess up when growing and shrinking, that's weird
                            Dimension preferredSize = super.getPreferredSize();
-                           //System.out.println("textfield.super.preferredSize() = "+preferredSize);
-                           preferredSize.height -= 2;
+                           if (initf.getDefaultValue() == 0.f) // there's only one of these
+                               System.out.println("textfield.super.preferredSize() = "+preferredSize);
+                           if (true)
+                               preferredSize.height -= 2;
                            return preferredSize;
+                       }
+                       // weird, the following is called during horizontal shrinking
+                       // but not during horizontal expanding... if we don't do this too
+                       // then it looks wrong when shrinking.  what a hack...
+                       public Dimension getMinimumSize()
+                       {
+                           Dimension minimumSize = super.getMinimumSize();
+                           if (initf.getDefaultValue() == 0.f) // there's only one of these
+                               System.out.println("textfield.super.minimumSize() = "+minimumSize);
+                           if (true)
+                               minimumSize.height -= 2;
+                           return minimumSize;
                        }
                    }},
                   {new Scrollbar(Scrollbar.HORIZONTAL){
@@ -343,49 +360,85 @@ public class MC4DControlPanel
         +----------------------------------------------------------+
      </pre>
     */
+
+    private int nRows = 0;
+    private void addRow(Label label)
+    {
+        // A label on a row by itself gets left justified
+        this.add(label, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
+                                                  anchor = WEST;}});
+        nRows++;
+    }
+    private void addRow(Button button)
+    {
+        // A button on a row by itself gets centered
+        this.add(button, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
+                                                   anchor = CENTER;}});
+        nRows++;
+    }
+    private void addRow(Component component)
+    {
+        // Any other component on a row by itself gets stretched
+        this.add(component, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
+                                                     fill = HORIZONTAL; weightx = 1.;}});
+        nRows++;
+    }
+    private void addRow(String labelString,
+                        com.donhatchsw.util.Listenable.Float f,
+                        String helpMessage[])
+    {
+        this.add(new Canvas(){{setSize(10,10);}}, // indent
+                 new GridBagConstraints(){{gridx = 0; gridy = nRows;}});
+        this.add(new Label(labelString+":"),
+                 new GridBagConstraints(){{anchor = WEST;
+                                           gridx = 1; gridy = nRows;}});
+        this.add(new TextAndSliderAndReset(f),
+                 new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
+                                           gridx = 2; gridy = nRows;}});
+        if (helpMessage != null)
+            this.add(new HelpButton(labelString, helpMessage),
+                     new GridBagConstraints(){{gridx = 3; gridy = nRows;}});
+        nRows++;
+    }
+    private void addRow(String labelString,
+                        com.donhatchsw.util.Listenable.Boolean b,
+                        String helpMessage[])
+    {
+        this.add(new Canvas(){{setSize(10,10);}}, // indent
+                 new GridBagConstraints(){{gridx = 0; gridy = nRows;}});
+        this.add(new CheckboxAndReset(b, labelString),
+                 new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
+                                           gridx = 1; gridwidth = 2; gridy = nRows;}});
+        if (helpMessage != null)
+            this.add(new HelpButton(labelString, helpMessage),
+                     new GridBagConstraints(){{gridx = 3; gridy = nRows;}});
+        nRows++;
+    }
+    private void addRow(String labelString,
+                        com.donhatchsw.util.Listenable.Color color,
+                        com.donhatchsw.util.Listenable.Boolean b,
+                        String helpMessage[])
+    {
+        this.add(new Canvas(){{setSize(10,10);}}, // indent
+                 new GridBagConstraints(){{gridx = 0; gridy = nRows;}});
+        this.add(new ColorSwatchMaybeAndCheckBoxMaybeAndReset(color, b, labelString),
+                 new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
+                                           anchor = WEST; gridx = 1; gridwidth = 2; gridy = nRows;}});
+        if (helpMessage != null)
+            this.add(new HelpButton(labelString, helpMessage),
+                     new GridBagConstraints(){{gridx = 3; gridy = nRows;}});
+        nRows++;
+    }
+
     public MC4DControlPanel(Stuff view)
     {
         this.setLayout(new java.awt.GridBagLayout());
-
-        Button resetAllButton = new ResetButton(
-                "Reset All To Defaults",
-                new com.donhatchsw.util.Listenable[]{
-                    view.twistDuration,
-                    view.bounce,
-                    view.faceShrink4d,
-                    view.stickerShrink4d,
-                    view.eyeW,
-                    view.faceShrink3d,
-                    view.stickerShrink3d,
-                    view.eyeZ,
-                    view.viewScale2d,
-                    view.stickersShrinkTowardsFaceBoundaries,
-                    view.requireCtrlTo3dRotate,
-                    view.restrictRoll,
-                    view.stopBetweenMoves,
-                    view.highlightByCubie,
-                    view.showShadows,
-                    view.antialiasWhenStill,
-                    view.drawNonShrunkFaceOutlines,
-                    view.drawShrunkFaceOutlines,
-                    view.drawNonShrunkStickerOutlines,
-                    view.drawShrunkStickerOutlines,
-                    view.drawGround,
-                    view.shrunkFaceOutlineColor,
-                    view.nonShrunkFaceOutlineColor,
-                    view.shrunkStickerOutlineColor,
-                    view.nonShrunkStickerOutlineColor,
-                    view.groundColor,
-                    view.backgroundColor,
-                }
-        );
-
-        this.add(new Col(new Object[][]{
-            {new Col("Behavior"," ", new Object[][]{
-                {new MyPanel(new Object[][][] {
-                    {{"Twist Duration:"},
-                     {new TextAndSliderAndReset(view.twistDuration),stretchx},
-                     {new HelpButton("Twist Duration", new String[]{
+        if (true)
+        {
+            addRow(new Label("Behavior"));
+            addRow("Twist duration",
+                   view.twistDuration,
+                   new String[] {
                         "Controls the speed of puzzle twists (left- or right-click)",
                         "and 4d rotates (middle-click or alt-click).",
                         "",
@@ -396,11 +449,10 @@ public class MC4DControlPanel
                         "a correspondingly longer or shorter number of frames.",
                         "",
                         "You can change this value in the middle of an animation if you want.",
-                      })},
-                    },
-                    {{"Bounce:"},
-                     {new TextAndSliderAndReset(view.bounce),stretchx},
-                     {new HelpButton("Bounce", new String[]{
+                   });
+            addRow("Bounce",
+                   view.bounce,
+                   new String[] {
                         "Normally the forces used for twists and rotates",
                         "are those of a critically damped spring,",
                         "so that the moves complete smoothly in the required amount of time",
@@ -412,12 +464,10 @@ public class MC4DControlPanel
                         "before settling, resulting in a bouncy feeling.",
                         "",
                         "You can change this value in the middle of an animation if you want.",
-                      })},
-                    },
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new CheckboxAndReset(view.stopBetweenMoves, "Stop Between Moves"),stretchx},
-                    {new HelpButton("Stop Between Moves", new String[]{
+                   });
+            addRow("Stop Between Moves",
+                   view.stopBetweenMoves,
+                   new String[] {
                         "Normally this option is checked, which means",
                         "that during a solve or long undo or redo animation sequence,",
                         "the animation slows to a stop after each twist.",
@@ -428,11 +478,10 @@ public class MC4DControlPanel
                         "",
                         "You can turn this option on or off in the middle of an animation",
                         "if you want.",
-                     })},
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new CheckboxAndReset(view.requireCtrlTo3dRotate, "Require Ctrl to 3d Rotate"),stretchx},
-                    {new HelpButton("Require Ctrl to 3d Rotate", new String[]{
+                   });
+            addRow("Require Ctrl to 3d Rotate",
+                   view.requireCtrlTo3dRotate,
+                   new String[] {
                          "When this option is checked,",
                          "ctrl-mouse actions affect only the 3d rotation",
                          "and un-ctrled mouse actions",
@@ -442,12 +491,11 @@ public class MC4DControlPanel
                          "and mouse actions can both",
                          "start/stop the 3d rotation and do twists",
                          "(or 4d-rotate-to-center using middle mouse)",
-                         "at the same time."})},
-
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new CheckboxAndReset(view.restrictRoll, "Restrict Roll"),stretchx},
-                    {new HelpButton("Restrict Roll", new String[]{
+                         "at the same time.",
+                   });
+            addRow("Restrict Roll",
+                   view.restrictRoll,
+                   new String[] {
                          "When this option is checked,",
                          "3d rotations are restricted so that some hyperface",
                          "of the puzzle always points in a direction somewhere on the arc",
@@ -456,65 +504,62 @@ public class MC4DControlPanel
                          "",
                          "You can turn this option on or off while the puzzle is spinning",
                          "if you want.",
-                     })},
-                }),stretchx},
-             },stretchx),stretchx},
-            {new Canvas() {{setBackground(java.awt.Color.black); setSize(1,1);}}, stretchx}, // Totally lame separator
-            {new Col("Appearance"," ", new Object[][]{
-                {new MyPanel(new Object[][][] {
-                    {{"4d Face Shrink:"},
-                     {new TextAndSliderAndReset(view.faceShrink4d),stretchx},
-                     {new HelpButton("4d Face Shrink", new String[]{
+                   });
+            addRow(new Canvas(){{setBackground(java.awt.Color.black); setSize(1,1);}}); // Totally lame separator
+            addRow(new Label("Appearance"));
+            addRow("4d Face Shrink",
+                   view.faceShrink4d,
+                   new String[] {
                         "Specifies how much each face should be shrunk towards its center in 4d",
                         "(before the 4d->3d projection).",
                         "Shrinking before the projection causes the apparent final 3d shape",
                         "of the face to become less distorted (more cube-like),",
                         "but more poorly fitting with its 3d neighbors.",
-                      })}},
-                    {{"4d Sticker Shrink:"},
-                     {new TextAndSliderAndReset(view.stickerShrink4d),stretchx},
-                     {new HelpButton("4d Sticker Shrink", new String[]{
+                   });
+            addRow("4d Sticker Shrink",
+                   view.stickerShrink4d,
+                   new String[] {
                         "Specifies how much each sticker should be shrunk towards its center in 4d",
                         "(before the 4d->3d projection).",
                         "Shrinking before the projection causes the apparent final 3d shape",
                         "of the sticker to become less distorted (more cube-like),",
                         "but more poorly fitting with its 3d neighbors.",
-                      })}},
-                    {{"4d Eye Distance:"},
-                     {new TextAndSliderAndReset(view.eyeW),stretchx},
-                     {new HelpButton("4d Eye Distance", new String[]{
+                   });
+            addRow("4d Eye Distance",
+                   view.eyeW,
+                   new String[] {
                         "Specifies the distance from the eye to the center of the puzzle in 4d.",
                         "(XXX coming soon: what the units mean exactly)",
-                      })}},
-                    {{"3d Face Shrink:"},
-                     {new TextAndSliderAndReset(view.faceShrink3d),stretchx},
-                     {new HelpButton("3d Face Shrink", new String[]{
+                   });
+            addRow("3d Face Strink",
+                   view.faceShrink3d,
+                   new String[] {
                         "Specifies how much each face should be shrunk towards its center in 3d",
                         "(after the 4d->3d projection).  Shrinking after the projection",
                         "causes the face to retain its 3d shape as it shrinks.",
-                      })}},
-                    {{"3d Sticker Shrink:"},
-                     {new TextAndSliderAndReset(view.stickerShrink3d),stretchx},
-                     {new HelpButton("3d Sticker Shrink", new String[]{
+                   });
+            addRow("3d Sticker Strink",
+                   view.stickerShrink3d,
+                   new String[] {
                         "Specifies how much each sticker should be shrunk towards its center in 3d",
                         "(after the 4d->3d projection).  Shrinking after the projection",
                         "causes the sticker to retain its 3d shape as it shrinks.",
-                      })}},
-                    {{"3d Eye Distance:"},
-                     {new TextAndSliderAndReset(view.eyeZ),stretchx},
-                     {new HelpButton("3d Eye Distance", new String[]{
+                   });
+            addRow("3d Eye Distance",
+                   view.eyeZ,
+                   new String[] {
                         "Specifies the distance from the eye to the center of the puzzle in 3d.",
                         "(XXX coming soon: what the units mean exactly)",
-                      })}},
-                    {{"2d View Scale:"},
-                     {new TextAndSliderAndReset(view.viewScale2d),stretchx},
-                     {new HelpButton("2d View Scale", new String[]{
+                   });
+            addRow("2d View Scale",
+                   view.viewScale2d,
+                   new String[] {
                         "Scales the final projected 2d image of the puzzle in the viewing window.",
                         "(XXX coming soon: what the units mean exactly)",
-                      })}},
-                    {{"Stickers shrink to face boundaries:"},
-                     {new TextAndSliderAndReset(view.stickersShrinkTowardsFaceBoundaries),stretchx},
-                     {new HelpButton("Stickers shrink to face boundaries", new String[]{
+                   });
+            addRow("Stickers shrink to face boundaries",
+                   view.stickersShrinkTowardsFaceBoundaries,
+                   new String[] {
                         "Normally this option is set to 0 which causes stickers",
                         "to shrink towards their centers.",
                         "Setting it to 1 causes stickers to shrink towards",
@@ -522,62 +567,322 @@ public class MC4DControlPanel
                         "this will cause all the stickers on a given cubie to be contiguous).",
                         "Setting it to a value between 0 and 1 will result",
                         "in shrinking towards some point in between.",
-                      })}},
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new CheckboxAndReset(view.highlightByCubie, "Highlight by cubie"),stretchx},
-                    {new HelpButton("Highlight by cubie", new String[]{
+                   });
+            addRow("Highlight by cubie",
+                   view.highlightByCubie,
+                   new String[] {
                         "Normally when you hover the mouse pointer",
                         "over a sticker, the sticker becomes highlighted.",
                         "When this option is checked, hovering over a sticker",
                         "causes the entire cubie the sticker is part of to be highlighted.",
-                     })},
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new CheckboxAndReset(view.showShadows, "Show shadows"),stretchx},
-                    {new HelpButton("Show shadows", new String[]{
+                   });
+            addRow("Show shadows",
+                   view.showShadows,
+                   new String[] {
                         "Shows shadows on the ground and/or in the air.",
                         "(It is a scientific fact that four dimensional",
                         "objects can cast shadows in the air.)",
-                     })},
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new CheckboxAndReset(view.antialiasWhenStill, "Antialias when still"),stretchx},
-                    {new HelpButton("Antialias when still",
-                                    new String[]{
-                                        "If this option is checked,",
-                                        "the display will be antialiased (smooth edges)",
-                                        "when the puzzle is at rest,",
-                                        "if your computer's graphics hardware supports it.        "})}, // XXX hack to make the full window title visible on my computer
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.nonShrunkFaceOutlineColor, view.drawNonShrunkFaceOutlines, "Draw non-shrunk face outlines"),stretchx},
-                    {new HelpButton("Draw non-shrunk face outlines", null)}, // XXX write me
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.shrunkFaceOutlineColor, view.drawShrunkFaceOutlines, "Draw shrunk face outlines"),stretchx},
-                    {new HelpButton("Draw shrunk face outlines", null)}, // XXX write me
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.nonShrunkStickerOutlineColor, view.drawNonShrunkStickerOutlines, "Draw non-shrunk sticker outlines"),stretchx},
-                    {new HelpButton("Draw non-shrunk sticker outlines", null)}, // XXX write me
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.shrunkStickerOutlineColor, view.drawShrunkStickerOutlines, "Draw shrunk sticker outlines"),stretchx},
-                    {new HelpButton("Draw shrunk sticker outlines", null)}, // XXX write me
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.groundColor, view.drawGround, "Draw ground"),stretchx},
-                    {new HelpButton("Draw ground", null)}, // XXX write me
-                }),stretchx},
-                {new Row(new Object[][]{
-                    {new ColorSwatchAndReset(view.backgroundColor, "Background color"),stretchx},
-                    {new HelpButton("Background color", null)}, // XXX write me
-                }),stretchx},
-            },stretchx),stretchx},
-            {new Canvas() {{setBackground(java.awt.Color.black); setSize(1,1);}}, stretchx}, // totally lame separator
-            {new Row(new Object[][]{{"",stretchx},{resetAllButton},{"",stretchx}}),stretchx}, // XXX weird way of centering, see if there's something cleaner
-        }),stretchx);
+                   });
+            addRow("Antialias when still",
+                   view.antialiasWhenStill,
+                   new String[] {
+                        "If this option is checked,",
+                        "the display will be antialiased (smooth edges)",
+                        "when the puzzle is at rest,",
+                        "if your computer's graphics hardware supports it.        ", // XXX hack to make the full window title visible on my computer
+                   });
+            addRow("Draw non-shrunk face outlines",
+                   view.nonShrunkFaceOutlineColor,
+                   view.drawNonShrunkFaceOutlines,
+                   null); // no help string
+            addRow("Draw shrunk face outlines",
+                   view.shrunkFaceOutlineColor,
+                   view.drawShrunkFaceOutlines,
+                   null); // no help string
+            addRow("Draw non-shrunk sticker outlines",
+                   view.nonShrunkStickerOutlineColor,
+                   view.drawNonShrunkStickerOutlines,
+                   null); // no help string
+            addRow("Draw shrunk sticker outlines",
+                   view.shrunkStickerOutlineColor,
+                   view.drawShrunkStickerOutlines,
+                   null); // no help string
+            addRow("Draw ground",
+                   view.groundColor,
+                   view.drawGround,
+                   null); // no help string
+            addRow("Background color",
+                   view.backgroundColor,
+                   null, // no checkbox
+                   null); // no help string
+            addRow(new Canvas(){{setBackground(java.awt.Color.black); setSize(1,1);}}); // Totally lame separator
+            addRow(new ResetButton(
+                   "Reset All To Defaults",
+                   new com.donhatchsw.util.Listenable[]{
+                       view.twistDuration,
+                       view.bounce,
+                       view.faceShrink4d,
+                       view.stickerShrink4d,
+                       view.eyeW,
+                       view.faceShrink3d,
+                       view.stickerShrink3d,
+                       view.eyeZ,
+                       view.viewScale2d,
+                       view.stickersShrinkTowardsFaceBoundaries,
+                       view.requireCtrlTo3dRotate,
+                       view.restrictRoll,
+                       view.stopBetweenMoves,
+                       view.highlightByCubie,
+                       view.showShadows,
+                       view.antialiasWhenStill,
+                       view.drawNonShrunkFaceOutlines,
+                       view.drawShrunkFaceOutlines,
+                       view.drawNonShrunkStickerOutlines,
+                       view.drawShrunkStickerOutlines,
+                       view.drawGround,
+                       view.shrunkFaceOutlineColor,
+                       view.nonShrunkFaceOutlineColor,
+                       view.shrunkStickerOutlineColor,
+                       view.nonShrunkStickerOutlineColor,
+                       view.groundColor,
+                       view.backgroundColor,
+                   }));
+        }
+        else
+        {
+            Button resetAllButton = new ResetButton(
+                    "Reset All To Defaults",
+                    new com.donhatchsw.util.Listenable[]{
+                        view.twistDuration,
+                        view.bounce,
+                        view.faceShrink4d,
+                        view.stickerShrink4d,
+                        view.eyeW,
+                        view.faceShrink3d,
+                        view.stickerShrink3d,
+                        view.eyeZ,
+                        view.viewScale2d,
+                        view.stickersShrinkTowardsFaceBoundaries,
+                        view.requireCtrlTo3dRotate,
+                        view.restrictRoll,
+                        view.stopBetweenMoves,
+                        view.highlightByCubie,
+                        view.showShadows,
+                        view.antialiasWhenStill,
+                        view.drawNonShrunkFaceOutlines,
+                        view.drawShrunkFaceOutlines,
+                        view.drawNonShrunkStickerOutlines,
+                        view.drawShrunkStickerOutlines,
+                        view.drawGround,
+                        view.shrunkFaceOutlineColor,
+                        view.nonShrunkFaceOutlineColor,
+                        view.shrunkStickerOutlineColor,
+                        view.nonShrunkStickerOutlineColor,
+                        view.groundColor,
+                        view.backgroundColor,
+                    }
+            );
+
+            this.add(new Col(new Object[][]{
+                {new Col("Behavior"," ", new Object[][]{
+                    {new MyPanel(new Object[][][] {
+                        {{"Twist Duration:"},
+                         {new TextAndSliderAndReset(view.twistDuration),stretchx},
+                         {new HelpButton("Twist Duration", new String[]{
+                            "Controls the speed of puzzle twists (left- or right-click)",
+                            "and 4d rotates (middle-click or alt-click).",
+                            "",
+                            "The units are in animation frames per 90 degree twist;",
+                            "so if you set Twist Duration to 15,",
+                            "you will see the animation refresh 15 times during each 90 degree",
+                            "twist.  Twists of angles other than 90 degrees will take",
+                            "a correspondingly longer or shorter number of frames.",
+                            "",
+                            "You can change this value in the middle of an animation if you want.",
+                          })},
+                        },
+                        {{"Bounce:"},
+                         {new TextAndSliderAndReset(view.bounce),stretchx},
+                         {new HelpButton("Bounce", new String[]{
+                            "Normally the forces used for twists and rotates",
+                            "are those of a critically damped spring,",
+                            "so that the moves complete smoothly in the required amount of time",
+                            "with the smallest possible acceleration.",
+                            "",
+                            "Setting this option to a nonzero value",
+                            "will cause the spring forces to be underdamped instead,",
+                            "so that the twists and rotates will overshoot their targets",
+                            "before settling, resulting in a bouncy feeling.",
+                            "",
+                            "You can change this value in the middle of an animation if you want.",
+                          })},
+                        },
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new CheckboxAndReset(view.stopBetweenMoves, "Stop Between Moves"),stretchx},
+                        {new HelpButton("Stop Between Moves", new String[]{
+                            "Normally this option is checked, which means",
+                            "that during a solve or long undo or redo animation sequence,",
+                            "the animation slows to a stop after each twist.",
+                            "",
+                            "Unchecking this option makes it so the animation does not stop",
+                            "or slow down between twists,",
+                            "which makes long sequences of moves complete more quickly.",
+                            "",
+                            "You can turn this option on or off in the middle of an animation",
+                            "if you want.",
+                         })},
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new CheckboxAndReset(view.requireCtrlTo3dRotate, "Require Ctrl to 3d Rotate"),stretchx},
+                        {new HelpButton("Require Ctrl to 3d Rotate", new String[]{
+                             "When this option is checked,",
+                             "ctrl-mouse actions affect only the 3d rotation",
+                             "and un-ctrled mouse actions",
+                             "never affect the 3d rotation.",
+                             "",
+                             "When it is unchecked (the default), the ctrl key is ignored",
+                             "and mouse actions can both",
+                             "start/stop the 3d rotation and do twists",
+                             "(or 4d-rotate-to-center using middle mouse)",
+                             "at the same time.",
+                         })},
+
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new CheckboxAndReset(view.restrictRoll, "Restrict Roll"),stretchx},
+                        {new HelpButton("Restrict Roll", new String[]{
+                             "When this option is checked,",
+                             "3d rotations are restricted so that some hyperface",
+                             "of the puzzle always points in a direction somewhere on the arc",
+                             "between the top of the observer's head",
+                             "and the back of the observer's head.",
+                             "",
+                             "You can turn this option on or off while the puzzle is spinning",
+                             "if you want.",
+                         })},
+                    }),stretchx},
+                 },stretchx),stretchx},
+                {new Canvas() {{setBackground(java.awt.Color.black); setSize(1,1);}}, stretchx}, // Totally lame separator
+                {new Col("Appearance"," ", new Object[][]{
+                    {new MyPanel(new Object[][][] {
+                        {{"4d Face Shrink:"},
+                         {new TextAndSliderAndReset(view.faceShrink4d),stretchx},
+                         {new HelpButton("4d Face Shrink", new String[]{
+                            "Specifies how much each face should be shrunk towards its center in 4d",
+                            "(before the 4d->3d projection).",
+                            "Shrinking before the projection causes the apparent final 3d shape",
+                            "of the face to become less distorted (more cube-like),",
+                            "but more poorly fitting with its 3d neighbors.",
+                          })}},
+                        {{"4d Sticker Shrink:"},
+                         {new TextAndSliderAndReset(view.stickerShrink4d),stretchx},
+                         {new HelpButton("4d Sticker Shrink", new String[]{
+                            "Specifies how much each sticker should be shrunk towards its center in 4d",
+                            "(before the 4d->3d projection).",
+                            "Shrinking before the projection causes the apparent final 3d shape",
+                            "of the sticker to become less distorted (more cube-like),",
+                            "but more poorly fitting with its 3d neighbors.",
+                          })}},
+                        {{"4d Eye Distance:"},
+                         {new TextAndSliderAndReset(view.eyeW),stretchx},
+                         {new HelpButton("4d Eye Distance", new String[]{
+                            "Specifies the distance from the eye to the center of the puzzle in 4d.",
+                            "(XXX coming soon: what the units mean exactly)",
+                          })}},
+                        {{"3d Face Shrink:"},
+                         {new TextAndSliderAndReset(view.faceShrink3d),stretchx},
+                         {new HelpButton("3d Face Shrink", new String[]{
+                            "Specifies how much each face should be shrunk towards its center in 3d",
+                            "(after the 4d->3d projection).  Shrinking after the projection",
+                            "causes the face to retain its 3d shape as it shrinks.",
+                          })}},
+                        {{"3d Sticker Shrink:"},
+                         {new TextAndSliderAndReset(view.stickerShrink3d),stretchx},
+                         {new HelpButton("3d Sticker Shrink", new String[]{
+                            "Specifies how much each sticker should be shrunk towards its center in 3d",
+                            "(after the 4d->3d projection).  Shrinking after the projection",
+                            "causes the sticker to retain its 3d shape as it shrinks.",
+                          })}},
+                        {{"3d Eye Distance:"},
+                         {new TextAndSliderAndReset(view.eyeZ),stretchx},
+                         {new HelpButton("3d Eye Distance", new String[]{
+                            "Specifies the distance from the eye to the center of the puzzle in 3d.",
+                            "(XXX coming soon: what the units mean exactly)",
+                          })}},
+                        {{"2d View Scale:"},
+                         {new TextAndSliderAndReset(view.viewScale2d),stretchx},
+                         {new HelpButton("2d View Scale", new String[]{
+                            "Scales the final projected 2d image of the puzzle in the viewing window.",
+                            "(XXX coming soon: what the units mean exactly)",
+                          })}},
+                        {{"Stickers shrink to face boundaries:"},
+                         {new TextAndSliderAndReset(view.stickersShrinkTowardsFaceBoundaries),stretchx},
+                         {new HelpButton("Stickers shrink to face boundaries", new String[]{
+                            "Normally this option is set to 0 which causes stickers",
+                            "to shrink towards their centers.",
+                            "Setting it to 1 causes stickers to shrink towards",
+                            "the face boundaries instead (so if the 4d and 3d face shrinks are 1,",
+                            "this will cause all the stickers on a given cubie to be contiguous).",
+                            "Setting it to a value between 0 and 1 will result",
+                            "in shrinking towards some point in between.",
+                          })}},
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new CheckboxAndReset(view.highlightByCubie, "Highlight by cubie"),stretchx},
+                        {new HelpButton("Highlight by cubie", new String[]{
+                            "Normally when you hover the mouse pointer",
+                            "over a sticker, the sticker becomes highlighted.",
+                            "When this option is checked, hovering over a sticker",
+                            "causes the entire cubie the sticker is part of to be highlighted.",
+                         })},
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new CheckboxAndReset(view.showShadows, "Show shadows"),stretchx},
+                        {new HelpButton("Show shadows", new String[]{
+                            "Shows shadows on the ground and/or in the air.",
+                            "(It is a scientific fact that four dimensional",
+                            "objects can cast shadows in the air.)",
+                         })},
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new CheckboxAndReset(view.antialiasWhenStill, "Antialias when still"),stretchx},
+                        {new HelpButton("Antialias when still",
+                                        new String[]{
+                                            "If this option is checked,",
+                                            "the display will be antialiased (smooth edges)",
+                                            "when the puzzle is at rest,",
+                                            "if your computer's graphics hardware supports it.        "})}, // XXX hack to make the full window title visible on my computer
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.nonShrunkFaceOutlineColor, view.drawNonShrunkFaceOutlines, "Draw non-shrunk face outlines"),stretchx},
+                        {new HelpButton("Draw non-shrunk face outlines", null)}, // XXX write me
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.shrunkFaceOutlineColor, view.drawShrunkFaceOutlines, "Draw shrunk face outlines"),stretchx},
+                        {new HelpButton("Draw shrunk face outlines", null)}, // XXX write me
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.nonShrunkStickerOutlineColor, view.drawNonShrunkStickerOutlines, "Draw non-shrunk sticker outlines"),stretchx},
+                        {new HelpButton("Draw non-shrunk sticker outlines", null)}, // XXX write me
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.shrunkStickerOutlineColor, view.drawShrunkStickerOutlines, "Draw shrunk sticker outlines"),stretchx},
+                        {new HelpButton("Draw shrunk sticker outlines", null)}, // XXX write me
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new ColorSwatchMaybeAndCheckBoxMaybeAndReset(view.groundColor, view.drawGround, "Draw ground"),stretchx},
+                        {new HelpButton("Draw ground", null)}, // XXX write me
+                    }),stretchx},
+                    {new Row(new Object[][]{
+                        {new ColorSwatchAndReset(view.backgroundColor, "Background color"),stretchx},
+                        {new HelpButton("Background color", null)}, // XXX write me
+                    }),stretchx},
+                },stretchx),stretchx},
+                {new Canvas() {{setBackground(java.awt.Color.black); setSize(1,1);}}, stretchx}, // totally lame separator
+                {new Row(new Object[][]{{"",stretchx},{resetAllButton},{"",stretchx}}),stretchx}, // XXX weird way of centering, see if there's something cleaner
+            }),stretchx);
+        }
     } // MC4DControlPanel ctor
 
     public static class Stuff
