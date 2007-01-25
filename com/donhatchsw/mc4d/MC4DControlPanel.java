@@ -218,16 +218,16 @@ public class MC4DControlPanel
     }
 
     // A button whose action resets one or more listenables,
-    // and is enabled iff one or more of those listenables is non-default.
+    // and is enabled iff any of those listenables is non-default.
     private static class ResetButton extends Button
     {
-        private boolean wasDefault[];
-        private int nNonDefault;
+        private boolean wasDefault[]; // one for each listenable
+        private int nNonDefault; // number of falses in wasDefault
         public ResetButton(final String buttonLabel,
                            final com.donhatchsw.util.Listenable listenables[])
         {
             super(buttonLabel);
-            // XXX should really scrunch out null listeners here so that we don't suffer overhead for them every time the button is hit... not that anyone would ever notice though probably
+            // XXX to be clean, should really scrunch out null listeners here so that we don't suffer overhead for them every time the button is hit... not that anyone would ever notice though probably
             addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e)
                 {
@@ -295,7 +295,7 @@ public class MC4DControlPanel
                         // so we adjust by setting the internal
                         // vertical padding to -6
                         // to get rid of that extra space.
-                        // XXX I don't know if this behavior is the same on other VMs, need to check
+                        // XXX I don't know if this behavior is the same on other VMs besides linux, need to check
                         GridBagConstraints c = new GridBagConstraints(){{anchor = WEST; ipady = -6;}};
                         Object labelConstraintPairs[][] = new Object[helpMessage.length][2];
                         for (int i = 0; i < helpMessage.length; ++i)
@@ -359,290 +359,315 @@ public class MC4DControlPanel
      </pre>
     */
 
+    // I think I need this to keep track...
+    // GridBagLayout, no matter how hard it tries,
+    // is just defective, I think
     private int nRows = 0;
-    private void addLabelRow(Label label)
+    private void addSingleLabelRow(Label label)
     {
         // A label on a row by itself gets left justified
         this.add(label, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
                                                   anchor = WEST;}});
         nRows++;
     }
-    private void addRow(Button button)
+    private void addSingleButtonRow(Button button)
     {
         // A button on a row by itself gets centered
         this.add(button, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
                                                    anchor = CENTER;}});
         nRows++;
     }
-    private void addRow(Component component)
+    private void addSingleComponentRow(Component component)
     {
         // Any other component on a row by itself gets stretched
         this.add(component, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
-                                                     fill = HORIZONTAL; weightx = 1.;}});
+                                                      fill = HORIZONTAL; weightx = 1.;}});
         nRows++;
     }
-    private void addRow(String labelString,
+    private void addFloatSliderRow(String labelString,
                         com.donhatchsw.util.Listenable.Float f,
                         String helpMessage[])
     {
         this.add(new Canvas(){{setSize(10,10);}}, // indent
-                 new GridBagConstraints(){{gridx = 0; gridy = nRows;}});
+                 new GridBagConstraints(){{gridy = nRows;}});
         this.add(new Label(labelString+":"),
                  new GridBagConstraints(){{anchor = WEST;
-                                           gridx = 1; gridy = nRows;}});
+                                           gridy = nRows;}});
         this.add(new TextAndSliderAndReset(f),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
-                                           gridx = 2; gridy = nRows;}});
+                                           gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
-                     new GridBagConstraints(){{gridx = 3; gridy = nRows;}});
+                     new GridBagConstraints(){{gridy = nRows;}});
         nRows++;
     }
-    private void addRow(String labelString,
+    private void addCheckboxRow(String labelString,
                         com.donhatchsw.util.Listenable.Boolean b,
                         String helpMessage[])
     {
         this.add(new Canvas(){{setSize(10,10);}}, // indent
-                 new GridBagConstraints(){{gridx = 0; gridy = nRows;}});
+                 new GridBagConstraints(){{gridy = nRows;}});
         this.add(new CheckboxAndReset(b, labelString),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
-                                           gridx = 1; gridwidth = 2; gridy = nRows;}});
+                                           gridwidth = 2; gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
-                     new GridBagConstraints(){{gridx = 3; gridy = nRows;}});
+                     new GridBagConstraints(){{gridy = nRows;}});
         nRows++;
     }
-    private void addRow(String labelString,
+    private void addColorSwatchAndCheckboxRow(String labelString,
                         com.donhatchsw.util.Listenable.Color color,
                         com.donhatchsw.util.Listenable.Boolean b,
                         String helpMessage[])
     {
         this.add(new Canvas(){{setSize(10,10);}}, // indent
-                 new GridBagConstraints(){{gridx = 0; gridy = nRows;}});
+                 new GridBagConstraints(){{gridy = nRows;}});
         this.add(new ColorSwatchMaybeAndCheckBoxMaybeAndReset(color, b, labelString),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
-                                           anchor = WEST; gridx = 1; gridwidth = 2; gridy = nRows;}});
+                                           gridwidth = 2; gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
-                     new GridBagConstraints(){{gridx = 3; gridy = nRows;}});
+                     new GridBagConstraints(){{gridy = nRows;}});
         nRows++;
     }
 
     public MC4DControlPanel(Stuff view)
     {
         this.setLayout(new java.awt.GridBagLayout());
-        addRow(new Label("Behavior"));
-        addRow("Twist duration",
-               view.twistDuration,
-               new String[] {
-                    "Controls the speed of puzzle twists (left- or right-click)",
-                    "and 4d rotates (middle-click or alt-click).",
-                    "",
-                    "The units are in animation frames per 90 degree twist;",
-                    "so if you set Twist Duration to 15,",
-                    "you will see the animation refresh 15 times during each 90 degree",
-                    "twist.  Twists of angles other than 90 degrees will take",
-                    "a correspondingly longer or shorter number of frames.",
-                    "",
-                    "You can change this value in the middle of an animation if you want.",
-               });
-        addRow("Bounce",
-               view.bounce,
-               new String[] {
-                    "Normally the forces used for twists and rotates",
-                    "are those of a critically damped spring,",
-                    "so that the moves complete smoothly in the required amount of time",
-                    "with the smallest possible acceleration.",
-                    "",
-                    "Setting this option to a nonzero value",
-                    "will cause the spring forces to be underdamped instead,",
-                    "so that the twists and rotates will overshoot their targets",
-                    "before settling, resulting in a bouncy feeling.",
-                    "",
-                    "You can change this value in the middle of an animation if you want.",
-               });
-        addRow("Stop Between Moves",
-               view.stopBetweenMoves,
-               new String[] {
-                    "Normally this option is checked, which means",
-                    "that during a solve or long undo or redo animation sequence,",
-                    "the animation slows to a stop after each twist.",
-                    "",
-                    "Unchecking this option makes it so the animation does not stop",
-                    "or slow down between twists,",
-                    "which makes long sequences of moves complete more quickly.",
-                    "",
-                    "You can turn this option on or off in the middle of an animation",
-                    "if you want.",
-               });
-        addRow("Require Ctrl to 3d Rotate",
-               view.requireCtrlTo3dRotate,
-               new String[] {
-                     "When this option is checked,",
-                     "ctrl-mouse actions affect only the 3d rotation",
-                     "and un-ctrled mouse actions",
-                     "never affect the 3d rotation.",
-                     "",
-                     "When it is unchecked (the default), the ctrl key is ignored",
-                     "and mouse actions can both",
-                     "start/stop the 3d rotation and do twists",
-                     "(or 4d-rotate-to-center using middle mouse)",
-                     "at the same time.",
-               });
-        addRow("Restrict Roll",
-               view.restrictRoll,
-               new String[] {
-                     "When this option is checked,",
-                     "3d rotations are restricted so that some hyperface",
-                     "of the puzzle always points in a direction somewhere on the arc",
-                     "between the top of the observer's head",
-                     "and the back of the observer's head.",
-                     "",
-                     "You can turn this option on or off while the puzzle is spinning",
-                     "if you want.",
-               });
-        addRow(new Canvas(){{setBackground(java.awt.Color.black); setSize(1,1);}}); // Totally lame separator
-        addRow(new Label("Appearance"));
-        addRow("4d Face Shrink",
-               view.faceShrink4d,
-               new String[] {
-                    "Specifies how much each face should be shrunk towards its center in 4d",
-                    "(before the 4d->3d projection).",
-                    "Shrinking before the projection causes the apparent final 3d shape",
-                    "of the face to become less distorted (more cube-like),",
-                    "but more poorly fitting with its 3d neighbors.",
-               });
-        addRow("4d Sticker Shrink",
-               view.stickerShrink4d,
-               new String[] {
-                    "Specifies how much each sticker should be shrunk towards its center in 4d",
-                    "(before the 4d->3d projection).",
-                    "Shrinking before the projection causes the apparent final 3d shape",
-                    "of the sticker to become less distorted (more cube-like),",
-                    "but more poorly fitting with its 3d neighbors.",
-               });
-        addRow("4d Eye Distance",
-               view.eyeW,
-               new String[] {
-                    "Specifies the distance from the eye to the center of the puzzle in 4d.",
-                    "(XXX coming soon: what the units mean exactly)",
-               });
-        addRow("3d Face Strink",
-               view.faceShrink3d,
-               new String[] {
-                    "Specifies how much each face should be shrunk towards its center in 3d",
-                    "(after the 4d->3d projection).  Shrinking after the projection",
-                    "causes the face to retain its 3d shape as it shrinks.",
-               });
-        addRow("3d Sticker Strink",
-               view.stickerShrink3d,
-               new String[] {
-                    "Specifies how much each sticker should be shrunk towards its center in 3d",
-                    "(after the 4d->3d projection).  Shrinking after the projection",
-                    "causes the sticker to retain its 3d shape as it shrinks.",
-               });
-        addRow("3d Eye Distance",
-               view.eyeZ,
-               new String[] {
-                    "Specifies the distance from the eye to the center of the puzzle in 3d.",
-                    "(XXX coming soon: what the units mean exactly)",
-               });
-        addRow("2d View Scale",
-               view.viewScale2d,
-               new String[] {
-                    "Scales the final projected 2d image of the puzzle in the viewing window.",
-                    "(XXX coming soon: what the units mean exactly)",
-               });
-        addRow("Stickers shrink to face boundaries",
-               view.stickersShrinkTowardsFaceBoundaries,
-               new String[] {
-                    "Normally this option is set to 0 which causes stickers",
-                    "to shrink towards their centers.",
-                    "Setting it to 1 causes stickers to shrink towards",
-                    "the face boundaries instead (so if the 4d and 3d face shrinks are 1,",
-                    "this will cause all the stickers on a given cubie to be contiguous).",
-                    "Setting it to a value between 0 and 1 will result",
-                    "in shrinking towards some point in between.",
-               });
-        addRow("Highlight by cubie",
-               view.highlightByCubie,
-               new String[] {
-                    "Normally when you hover the mouse pointer",
-                    "over a sticker, the sticker becomes highlighted.",
-                    "When this option is checked, hovering over a sticker",
-                    "causes the entire cubie the sticker is part of to be highlighted.",
-               });
-        addRow("Show shadows",
-               view.showShadows,
-               new String[] {
-                    "Shows shadows on the ground and/or in the air.",
-                    "(It is a scientific fact that four dimensional",
-                    "objects can cast shadows in the air.)",
-               });
-        addRow("Antialias when still",
-               view.antialiasWhenStill,
-               new String[] {
-                    "If this option is checked,",
-                    "the display will be antialiased (smooth edges)",
-                    "when the puzzle is at rest,",
-                    "if your computer's graphics hardware supports it.        ", // XXX hack to make the full window title visible on my computer
-               });
-        addRow("Draw non-shrunk face outlines",
-               view.nonShrunkFaceOutlineColor,
-               view.drawNonShrunkFaceOutlines,
-               null); // no help string
-        addRow("Draw shrunk face outlines",
-               view.shrunkFaceOutlineColor,
-               view.drawShrunkFaceOutlines,
-               null); // no help string
-        addRow("Draw non-shrunk sticker outlines",
-               view.nonShrunkStickerOutlineColor,
-               view.drawNonShrunkStickerOutlines,
-               null); // no help string
-        addRow("Draw shrunk sticker outlines",
-               view.shrunkStickerOutlineColor,
-               view.drawShrunkStickerOutlines,
-               null); // no help string
-        addRow("Draw ground",
-               view.groundColor,
-               view.drawGround,
-               null); // no help string
-        addRow("Background color",
-               view.backgroundColor,
-               null, // no checkbox
-               null); // no help string
-        addRow(new Canvas(){{setBackground(java.awt.Color.black); setSize(1,1);}}); // Totally lame separator
-        addRow(new ResetButton(
-               "Reset All To Defaults",
-               new com.donhatchsw.util.Listenable[]{
-                   view.twistDuration,
-                   view.bounce,
-                   view.faceShrink4d,
-                   view.stickerShrink4d,
-                   view.eyeW,
-                   view.faceShrink3d,
-                   view.stickerShrink3d,
-                   view.eyeZ,
-                   view.viewScale2d,
-                   view.stickersShrinkTowardsFaceBoundaries,
-                   view.requireCtrlTo3dRotate,
-                   view.restrictRoll,
-                   view.stopBetweenMoves,
-                   view.highlightByCubie,
-                   view.showShadows,
-                   view.antialiasWhenStill,
-                   view.drawNonShrunkFaceOutlines,
-                   view.drawShrunkFaceOutlines,
-                   view.drawNonShrunkStickerOutlines,
-                   view.drawShrunkStickerOutlines,
-                   view.drawGround,
-                   view.shrunkFaceOutlineColor,
-                   view.nonShrunkFaceOutlineColor,
-                   view.shrunkStickerOutlineColor,
-                   view.nonShrunkStickerOutlineColor,
-                   view.groundColor,
-                   view.backgroundColor,
-               }));
+        addSingleLabelRow(new Label("Behavior"));
+        addFloatSliderRow(
+            "Twist duration",
+            view.twistDuration,
+            new String[] {
+                "Controls the speed of puzzle twists (left- or right-click)",
+                "and 4d rotates (middle-click or alt-click).",
+                "",
+                "The units are in animation frames per 90 degree twist;",
+                "so if you set Twist Duration to 15,",
+                "you will see the animation refresh 15 times during each 90 degree",
+                "twist.  Twists of angles other than 90 degrees will take",
+                "a correspondingly longer or shorter number of frames.",
+                "",
+                "You can change this value in the middle of an animation if you want.",
+            });
+        addFloatSliderRow(
+            "Bounce",
+            view.bounce,
+            new String[] {
+                "Normally the forces used for twists and rotates",
+                "are those of a critically damped spring,",
+                "so that the moves complete smoothly in the required amount of time",
+                "with the smallest possible acceleration.",
+                "",
+                "Setting this option to a nonzero value",
+                "will cause the spring forces to be underdamped instead,",
+                "so that the twists and rotates will overshoot their targets",
+                "before settling, resulting in a bouncy feeling.",
+                "",
+                "You can change this value in the middle of an animation if you want.",
+            });
+        addCheckboxRow(
+            "Stop Between Moves",
+            view.stopBetweenMoves,
+            new String[] {
+                "Normally this option is checked, which means",
+                "that during a solve or long undo or redo animation sequence,",
+                "the animation slows to a stop after each twist.",
+                "",
+                "Unchecking this option makes it so the animation does not stop",
+                "or slow down between twists,",
+                "which makes long sequences of moves complete more quickly.",
+                "",
+                "You can turn this option on or off in the middle of an animation",
+                "if you want.",
+            });
+        addCheckboxRow(
+            "Require Ctrl to 3d Rotate",
+            view.requireCtrlTo3dRotate,
+            new String[] {
+                 "When this option is checked,",
+                 "ctrl-mouse actions affect only the 3d rotation",
+                 "and un-ctrled mouse actions",
+                 "never affect the 3d rotation.",
+                 "",
+                 "When it is unchecked (the default), the ctrl key is ignored",
+                 "and mouse actions can both",
+                 "start/stop the 3d rotation and do twists",
+                 "(or 4d-rotate-to-center using middle mouse)",
+                 "at the same time.",
+            });
+        addCheckboxRow(
+            "Restrict Roll",
+            view.restrictRoll,
+            new String[] {
+                 "When this option is checked,",
+                 "3d rotations are restricted so that some hyperface",
+                 "of the puzzle always points in a direction somewhere on the arc",
+                 "between the top of the observer's head",
+                 "and the back of the observer's head.",
+                 "",
+                 "You can turn this option on or off while the puzzle is spinning",
+                 "if you want.",
+            });
+        addSingleComponentRow(new Canvas(){{setBackground(java.awt.Color.black); setSize(1,1);}}); // Totally lame separator
+        addSingleLabelRow(new Label("Appearance"));
+        addFloatSliderRow(
+            "4d Face Shrink",
+            view.faceShrink4d,
+            new String[] {
+                "Specifies how much each face should be shrunk towards its center in 4d",
+                "(before the 4d->3d projection).",
+                "Shrinking before the projection causes the apparent final 3d shape",
+                "of the face to become less distorted (more cube-like),",
+                "but more poorly fitting with its 3d neighbors.",
+            });
+        addFloatSliderRow(
+            "4d Sticker Shrink",
+            view.stickerShrink4d,
+            new String[] {
+                "Specifies how much each sticker should be shrunk towards its center in 4d",
+                "(before the 4d->3d projection).",
+                "Shrinking before the projection causes the apparent final 3d shape",
+                "of the sticker to become less distorted (more cube-like),",
+                "but more poorly fitting with its 3d neighbors.",
+            });
+        addFloatSliderRow(
+            "4d Eye Distance",
+            view.eyeW,
+            new String[] {
+                "Specifies the distance from the eye to the center of the puzzle in 4d.",
+                "(XXX coming soon: what the units mean exactly)",
+            });
+        addFloatSliderRow(
+            "3d Face Strink",
+            view.faceShrink3d,
+            new String[] {
+                "Specifies how much each face should be shrunk towards its center in 3d",
+                "(after the 4d->3d projection).  Shrinking after the projection",
+                "causes the face to retain its 3d shape as it shrinks.",
+            });
+        addFloatSliderRow(
+            "3d Sticker Strink",
+            view.stickerShrink3d,
+            new String[] {
+                "Specifies how much each sticker should be shrunk towards its center in 3d",
+                "(after the 4d->3d projection).  Shrinking after the projection",
+                "causes the sticker to retain its 3d shape as it shrinks.",
+            });
+        addFloatSliderRow(
+            "3d Eye Distance",
+            view.eyeZ,
+            new String[] {
+                "Specifies the distance from the eye to the center of the puzzle in 3d.",
+                "(XXX coming soon: what the units mean exactly)",
+            });
+        addFloatSliderRow(
+            "2d View Scale",
+            view.viewScale2d,
+            new String[] {
+                "Scales the final projected 2d image of the puzzle in the viewing window.",
+                "(XXX coming soon: what the units mean exactly)",
+            });
+        addFloatSliderRow(
+            "Stickers shrink to face boundaries",
+            view.stickersShrinkTowardsFaceBoundaries,
+            new String[] {
+                "Normally this option is set to 0 which causes stickers",
+                "to shrink towards their centers.",
+                "Setting it to 1 causes stickers to shrink towards",
+                "the face boundaries instead (so if the 4d and 3d face shrinks are 1,",
+                "this will cause all the stickers on a given cubie to be contiguous).",
+                "Setting it to a value between 0 and 1 will result",
+                "in shrinking towards some point in between.",
+            });
+        addCheckboxRow(
+            "Highlight by cubie",
+            view.highlightByCubie,
+            new String[] {
+                "Normally when you hover the mouse pointer",
+                "over a sticker, the sticker becomes highlighted.",
+                "When this option is checked, hovering over a sticker",
+                "causes the entire cubie the sticker is part of to be highlighted.",
+            });
+        addCheckboxRow(
+            "Show shadows",
+            view.showShadows,
+            new String[] {
+                "Shows shadows on the ground and/or in the air.",
+                "(It is a scientific fact that four dimensional",
+                "objects can cast shadows in the air.)",
+            });
+        addCheckboxRow(
+            "Antialias when still",
+            view.antialiasWhenStill,
+            new String[] {
+                "If this option is checked,",
+                "the display will be antialiased (smooth edges)",
+                "when the puzzle is at rest,",
+                "if your computer's graphics hardware supports it.        ", // XXX hack to make the full window title visible on my computer
+            });
+        addColorSwatchAndCheckboxRow(
+            "Draw non-shrunk face outlines",
+            view.nonShrunkFaceOutlineColor,
+            view.drawNonShrunkFaceOutlines,
+            null); // no help string
+        addColorSwatchAndCheckboxRow(
+            "Draw shrunk face outlines",
+            view.shrunkFaceOutlineColor,
+            view.drawShrunkFaceOutlines,
+            null); // no help string
+        addColorSwatchAndCheckboxRow(
+            "Draw non-shrunk sticker outlines",
+            view.nonShrunkStickerOutlineColor,
+            view.drawNonShrunkStickerOutlines,
+            null); // no help string
+        addColorSwatchAndCheckboxRow(
+            "Draw shrunk sticker outlines",
+            view.shrunkStickerOutlineColor,
+            view.drawShrunkStickerOutlines,
+            null); // no help string
+        addColorSwatchAndCheckboxRow(
+            "Draw ground",
+            view.groundColor,
+            view.drawGround,
+            null); // no help string
+        addColorSwatchAndCheckboxRow(
+            "Background color",
+            view.backgroundColor,
+            null, // no checkbox
+            null); // no help string
+        addSingleComponentRow(new Canvas(){{setBackground(java.awt.Color.black); setSize(1,1);}}); // Totally lame separator
+        addSingleButtonRow(new ResetButton(
+            "Reset All To Defaults",
+            new com.donhatchsw.util.Listenable[]{
+                view.twistDuration,
+                view.bounce,
+                view.faceShrink4d,
+                view.stickerShrink4d,
+                view.eyeW,
+                view.faceShrink3d,
+                view.stickerShrink3d,
+                view.eyeZ,
+                view.viewScale2d,
+                view.stickersShrinkTowardsFaceBoundaries,
+                view.requireCtrlTo3dRotate,
+                view.restrictRoll,
+                view.stopBetweenMoves,
+                view.highlightByCubie,
+                view.showShadows,
+                view.antialiasWhenStill,
+                view.drawNonShrunkFaceOutlines,
+                view.drawShrunkFaceOutlines,
+                view.drawNonShrunkStickerOutlines,
+                view.drawShrunkStickerOutlines,
+                view.drawGround,
+                view.shrunkFaceOutlineColor,
+                view.nonShrunkFaceOutlineColor,
+                view.shrunkStickerOutlineColor,
+                view.nonShrunkStickerOutlineColor,
+                view.groundColor,
+                view.backgroundColor,
+           }));
     } // MC4DControlPanel ctor
 
     public static class Stuff
