@@ -14,7 +14,7 @@ public class MC4DControlPanel
     // gridbag constraint that allows the added component to stretch horizontally
     private static GridBagConstraints stretchx = new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}};
 
-    private static class TextAndSliderAndReset extends Row
+    private static class TextAndSlider extends Row
     {
         private com.donhatchsw.util.Listenable.Float f;
         private TextField textfield;
@@ -29,7 +29,7 @@ public class MC4DControlPanel
             slider.setValue((int)(slider.getMinimum() + ((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum())*frac));
         }
 
-        public TextAndSliderAndReset(final com.donhatchsw.util.Listenable.Float initf)
+        public TextAndSlider(final com.donhatchsw.util.Listenable.Float initf)
         {
             super(new Object[][]{
                   {new TextField("99.99"){ // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
@@ -70,7 +70,6 @@ public class MC4DControlPanel
                           return preferredSize;
                       }
                    }, stretchx},
-                  {new ResetButton("Reset to default", initf)},
             });
             // awkward, but we can't set members
             // until the super ctor is done
@@ -142,7 +141,7 @@ public class MC4DControlPanel
         }
     } // class LabelTextSlider
 
-    private static class ColorSwatchMaybeAndCheckBoxMaybeAndReset extends Row
+    private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
     {
         private com.donhatchsw.util.Listenable.Color color;
         private com.donhatchsw.util.Listenable.Boolean b;
@@ -157,7 +156,7 @@ public class MC4DControlPanel
                 checkbox.setState(b.get());
         }
 
-        public ColorSwatchMaybeAndCheckBoxMaybeAndReset(
+        public ColorSwatchMaybeAndCheckBoxMaybe(
             final com.donhatchsw.util.Listenable.Color initcolor,
             final com.donhatchsw.util.Listenable.Boolean initb,
             String name)
@@ -166,7 +165,6 @@ public class MC4DControlPanel
                 initcolor==null ? null : new Object[]{new Canvas(){{setSize(10,10); setBackground(initcolor.get());}}},
                 {initb==null ? (Object)name : (Object)new Checkbox(name)},
                 {"",stretchx}, // just stretchable space
-                {new ResetButton("Reset to default", new com.donhatchsw.util.Listenable[]{initcolor, initb})},
             });
             // awkward, but we can't set members
             // until the super ctor is done
@@ -200,20 +198,13 @@ public class MC4DControlPanel
         }
     } // ColorSwatch
 
-    private static class CheckboxAndReset extends ColorSwatchMaybeAndCheckBoxMaybeAndReset
+    // XXX think of a name
+    private static class CheckboxThing extends ColorSwatchMaybeAndCheckBoxMaybe
     {
-        public CheckboxAndReset(com.donhatchsw.util.Listenable.Boolean b,
+        public CheckboxThing(com.donhatchsw.util.Listenable.Boolean b,
                                 String name)
         {
             super(null, b, name);
-        }
-    }
-    private static class ColorSwatchAndReset extends ColorSwatchMaybeAndCheckBoxMaybeAndReset
-    {
-        public ColorSwatchAndReset(com.donhatchsw.util.Listenable.Color color,
-                                   String name)
-        {
-            super(color, null, name);
         }
     }
 
@@ -393,9 +384,11 @@ public class MC4DControlPanel
         this.add(new Label(labelString+":"),
                  new GridBagConstraints(){{anchor = WEST;
                                            gridy = nRows;}});
-        this.add(new TextAndSliderAndReset(f),
+        this.add(new TextAndSlider(f),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
                                            gridy = nRows;}});
+        this.add(new ResetButton("Reset to default", f),
+                 new GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
                      new GridBagConstraints(){{gridy = nRows;}});
@@ -407,9 +400,11 @@ public class MC4DControlPanel
     {
         this.add(new Canvas(){{setSize(10,10);}}, // indent
                  new GridBagConstraints(){{gridy = nRows;}});
-        this.add(new CheckboxAndReset(b, labelString),
+        this.add(new CheckboxThing(b, labelString),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
                                            gridwidth = 2; gridy = nRows;}});
+        this.add(new ResetButton("Reset to default", b),
+                 new GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
                      new GridBagConstraints(){{gridy = nRows;}});
@@ -422,9 +417,11 @@ public class MC4DControlPanel
     {
         this.add(new Canvas(){{setSize(10,10);}}, // indent
                  new GridBagConstraints(){{gridy = nRows;}});
-        this.add(new ColorSwatchMaybeAndCheckBoxMaybeAndReset(color, b, labelString),
+        this.add(new ColorSwatchMaybeAndCheckBoxMaybe(color, b, labelString),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
                                            gridwidth = 2; gridy = nRows;}});
+        this.add(new ResetButton("Reset to default", new com.donhatchsw.util.Listenable[]{color, b}),
+                 new GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
                      new GridBagConstraints(){{gridy = nRows;}});
