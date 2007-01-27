@@ -1,17 +1,20 @@
+package com.donhatchsw.util;
+
 /**
-* Wrappers for boolean, int, float, double
-* that notify listeners when the value changes.
+* Wrappers for boolean, int, float, double, java.awt.Color
+* that notify interested listeners when the value changes.
 * This is useful for keeping multiple user
 * interfaces that control the same variable
 * in sync.
 */
-class Listenable
+public abstract class Listenable
 {
     public interface Listener
     {
-        public void callback();
+        public void valueChanged();
     }
 
+    // XXX need to use weak refs
     public void addListener(Listener listener)
     {
         // XXX assert it's not there
@@ -23,78 +26,132 @@ class Listenable
         // XXX assert it's there
         listeners.remove(listener);
     }
+    public abstract void resetToDefault();
+    public abstract boolean isDefault();
 
-    private ArrayList listeners = new ArrayList();
+    private com.donhatchsw.compat.ArrayList listeners =
+        new com.donhatchsw.compat.ArrayList();
 
-    protected void notifyListeners()
+    protected void notifyListenersThatValueChanged()
     {
         int n = listeners.size();
         for (int i = 0; i < n; ++i)
-            ((Listener)listeners.get(i)).callback();
+            ((Listener)listeners.get(i)).valueChanged();
     }
 
-    public class Boolean extends Listenable
+    public static class Boolean extends Listenable
     {
-        private boolean value;
-        public boolean getValue()
+        private boolean value, defaultValue;
+        public Boolean(boolean defaultValue)
         {
-            return value;
+            this.defaultValue = defaultValue;
+            this.value = defaultValue;
         }
-        public void setValue(boolean newValue)
+        public boolean getDefaultValue() { return defaultValue; }
+        public boolean get() { return value; }
+        public void set(boolean newValue)
         {
             if (newValue != value)
             {
                 value = newValue;
-                notifyListeners();
+                notifyListenersThatValueChanged();
             }
         }
+        public void resetToDefault() { set(getDefaultValue()); }
+        public boolean isDefault() { return get() == getDefaultValue(); }
     }
-    public class Int extends Listenable
+    public static class Int extends Listenable
     {
-        private int value;
-        public int getValue()
+        private int value, minValue, maxValue, defaultValue;
+        public Int(int minValue, int maxValue, int defaultValue)
         {
-            return value;
+            this.minValue = minValue;
+            this.maxValue = maxValue;
+            this.defaultValue = defaultValue;
+            this.value = defaultValue;
         }
-        public void setValue(int newValue)
+        public int getDefaultValue() { return defaultValue; }
+        public int get() { return value; }
+        public void set(int newValue)
         {
             if (newValue != value)
             {
                 value = newValue;
-                notifyListeners();
+                notifyListenersThatValueChanged();
             }
         }
+        public void resetToDefault() { set(getDefaultValue()); }
+        public boolean isDefault() { return get() == getDefaultValue(); }
     }
-    public class Float extends Listenable
+    public static class Float extends Listenable
     {
-        private float value;
-        public float getValue()
+        private float value, minValue, maxValue, defaultValue;
+        public Float(float minValue, float maxValue, float defaultValue)
         {
-            return value;
+            this.minValue = minValue;
+            this.maxValue = maxValue;
+            this.defaultValue = defaultValue;
+            this.value = defaultValue;
         }
-        public void setValue(float newValue)
+        public float getMinValue() { return minValue; }
+        public float getMaxValue() { return maxValue; }
+        public float getDefaultValue() { return defaultValue; }
+        public float get() { return value; }
+        public void set(float newValue)
         {
             if (newValue != value)
             {
                 value = newValue;
-                notifyListeners();
+                notifyListenersThatValueChanged();
             }
         }
+        public void resetToDefault() { set(getDefaultValue()); }
+        public boolean isDefault() { return get() == getDefaultValue(); }
     }
-    public class Double extends Listenable
+    public static class Double extends Listenable
     {
-        private double value;
-        public double getValue()
+        private double value, minValue, maxValue, defaultValue;
+        public Double(double minValue, double maxValue, double defaultValue)
         {
-            return value;
+            this.minValue = minValue;
+            this.maxValue = maxValue;
+            this.defaultValue = defaultValue;
+            this.value = defaultValue;
         }
-        public void setValue(double newValue)
+        public double getMinValue() { return minValue; }
+        public double getMaxValue() { return maxValue; }
+        public double getDefaultValue() { return defaultValue; }
+        public double get() { return value; }
+        public void set(double newValue)
         {
             if (newValue != value)
             {
                 value = newValue;
-                notifyListeners();
+                notifyListenersThatValueChanged();
             }
         }
+        public void resetToDefault() { set(getDefaultValue()); }
+        public boolean isDefault() { return get() == getDefaultValue(); }
+    }
+    public static class Color extends Listenable
+    {
+        private java.awt.Color value, defaultValue;
+        public Color(java.awt.Color defaultValue)
+        {
+            this.defaultValue = defaultValue;
+            this.value = defaultValue;
+        }
+        public java.awt.Color getDefaultValue() { return defaultValue; }
+        public java.awt.Color get() { return value; }
+        public void set(java.awt.Color newValue)
+        {
+            if (!newValue.equals(value))
+            {
+                value = newValue;
+                notifyListenersThatValueChanged();
+            }
+        }
+        public void resetToDefault() { set(getDefaultValue()); }
+        public boolean isDefault() { return get().equals(getDefaultValue()); }
     }
 } // class Listenable
