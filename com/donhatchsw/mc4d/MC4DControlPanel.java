@@ -11,135 +11,299 @@ public class MC4DControlPanel
 {
     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
 
-    // gridbag constraint that allows the added component to stretch horizontally
-    private static GridBagConstraints stretchx = new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}};
+    // XXX this needs to go elsewhere
 
-    private static class TextAndSlider extends Row
-    {
-        private com.donhatchsw.util.Listenable.Float f;
-        private TextField textfield;
-        private Scrollbar slider;
-
-        private void updateShownValues()
+        // First observation:
+        //  If you look at the standard hue wheel,
+        //  perceptually it changes very slowly
+        //  near the primary colors r,g,b
+        //  and very quickly near the secondary colors c,m,y.
+        //  So if we want to evenly spread out colors around the wheel
+        //  in terms of perception, we should crowd lots of samples
+        //  around the secondary colors and not so many
+        //  around the primary colors.
+        //  Eyeballing it, it looks like the perceptual
+        //  halfway point between a primary color
+        //  and an adjacent secondary color
+        //  is about 3/4 of the way towards the secondary color,
+        //  so I'll use that as the basis for everything.
+        // Second observation:
+        //  This may be completely subjective,
+        //  but it seems to me that there are 8 perceptually
+        //  distinct hues:  the 6 usual primary&secondary hues,
+        //  plus orange and violet.
+        private static double linearizeHue(double perceptualHue)
         {
-            float value = f.get();
-            float defaultValue = f.getDefaultValue();
-            textfield.setText(""+value);
-            float frac = (value-f.getMinValue())/(f.getMaxValue()-f.getMinValue());
-            slider.setValue((int)(slider.getMinimum() + ((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum())*frac));
+            double hue = perceptualHue - Math.floor(perceptualHue);
+            if (true)
+            {
+                // The original perceptual hue is 1/8-oriented,
+                // i.e. it thinks in terms of r,o,y.g,c,b,v,m.
+                // Convert this into something that's 1/6-oriented,
+                // via the piecewise linear mapping:
+                //      0/8 -> 0/6  red
+                //      1/8 ->  1/12  orange
+                //      2/8 -> 1/6  yellow
+                //      3/8 -> 2/6  green
+                //      4/8 -> 3/6  cyan
+                //      5/8 -> 4/6  blue
+                //      6/8 ->  3/4   violet
+                //      7/8 -> 5/6  magenta
+                //      8/8 -> 6/6  red again
+                final double perceptualHues[] = {
+                    0/6.,   // red
+                    1/12.,  //   orange
+                    1/6.,   // yellow
+                    2/6.,   // green
+                    3/6.,   // cyan
+                    4/6.,   // blue
+                    3/4.,   //   violet
+                    5/6.,   // magenta
+                    6/6.,   // red again
+                };
+                int i = (int)(hue*8);
+                double frac = hue*8 - i;
+                hue = perceptualHues[i]*(1-frac)
+                    + perceptualHues[i+1]*frac;
+            }
+            // Now, consider the fraction of the way
+            // we are from the nearest secondary color
+            // to the nearest primary color,
+            // and square that fraction.
+            // E.g. halfway from cyan to blue
+            // turns into 1/4 of the way from cyan to blue.
+            // That keeps us closer to the secondary color
+            // longer, which is what we want,
+            // because that's where the hue is varying fastest
+            // perceptually.
+            if (true)
+            {
+                int i = (int)(hue*6);
+                double frac = hue*6 - i;
+                if (i % 2 == 1)
+                {
+                    // y->g or c->b or m->r
+                    frac = frac*frac;
+                }
+                else
+                {
+                    // y->r or c->g or m->b
+                    frac = 1-(1-frac)*(1-frac);
+                }
+                hue = (i+frac)/6;
+            }
+            return hue;
+        } // linearizeHue
+
+        //
+        // Saturations vary fastest perceptually
+        // near zero.  So just square the saturation
+        // so it doesn't vary as fast in linear space near zero.
+        private static double linearizeSat(double perceptualSat)
+        {
+            return perceptualSat*perceptualSat;
         }
 
-        public TextAndSlider(final com.donhatchsw.util.Listenable.Float initf)
+
+        //
+        // Attempt to autogenerate some nice colors.
+        // The sequence will be:
+        //     1. Fully saturated 8 colors:
+        //             red
+        //             orange
+        //             yellow
+        //             green
+        //             cyan
+        //             blue
+        //             violet
+        //             magenta
+        //             red
+        //    2. Same 8 colors with saturation = .6
+        //    3. Same 8 colors with saturation = .8
+        //    4. Same 8 colors with saturation = .4
+        //    Then repeat all of the above with in-between hues
+        //    Then repeat all of the above with in-between saturations
+        //        .9,.5,.7,.3
+        // 
+        private static void autoGenerateHueAndSat(int iFace,
+                                                  double hueAndSat[/*2*/])
         {
-            super(new Object[][]{
-                  {new TextField("99.99"){ // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
-                       public Dimension getPreferredSize()
-                       {
-                           // default seems taller than necessary
-                           // on my computer... and in recent VMs it's even worse
-                           // (changed from 29 to 31).
-                           // Fudge it a bit...
-                           // XXX not sure this will look good on all systems... if it doesn't, we can just remove it
-                           // XXX hmm, actually makes things mess up when growing and shrinking, that's weird
-                           Dimension preferredSize = super.getPreferredSize();
-                           //System.out.println("textfield.super.preferredSize() = "+preferredSize);
-                           if (true)
-                               preferredSize.height -= 2;
-                           return preferredSize;
-                       }
-                       // weird, the following is called during horizontal shrinking
-                       // but not during horizontal expanding... if we don't do this too
-                       // then it looks wrong when shrinking.  what a hack...
-                       public Dimension getMinimumSize()
-                       {
-                           Dimension minimumSize = super.getMinimumSize();
-                           //System.out.println("textfield.super.minimumSize() = "+minimumSize);
-                           if (true)
-                               minimumSize.height -= 2;
-                           return minimumSize;
-                       }
-                   }},
-                  {new Scrollbar(Scrollbar.HORIZONTAL){
-                      public Dimension getPreferredSize()
-                      {
-                          // default seems to be 50x18 on my computer...
-                          // give it more horizontal space than that
-                          Dimension preferredSize = super.getPreferredSize();
-                          //System.out.println("scrollbar.super.preferredSize() = "+preferredSize);
-                          preferredSize.width = 200;
-                          return preferredSize;
-                      }
-                   }, stretchx},
-            });
-            // awkward, but we can't set members
-            // until the super ctor is done
-            this.textfield = (TextField)this.getComponent(0);
-            this.slider = (Scrollbar)this.getComponent(1);
-            this.f = initf;
+            Assert(iFace >= 0);
 
-            // 3 significant digits seems reasonable...
-            // XXX Hmm but it would be nice to have individual unit and block increments
-            int min = (int)(f.getMinValue()*1000);
-            int max = (int)(f.getMaxValue()*1000);
-            int vis = (int)(.1*(max-min));
-            slider.setValues(0,   // value (we'll set it right later)
-                             vis,
-                             min,
-                             max+vis);
-            slider.setUnitIncrement(1); // .001 units
-            slider.setBlockIncrement(10); // .01 units
+            double hue = iFace/8.;
+            double sat = 1.;
+            iFace /= 8;
 
+            double satDecrement = .4;
+            double hueIncrement = 1/16.;
+
+            if (iFace > 0)
+            {
+                if (iFace % 2 == 1)
+                    sat -= satDecrement;
+                satDecrement /= 2;
+                iFace /= 2;
+            }
+            while (true)
+            {
+                if (iFace > 0)
+                {
+                    if (iFace % 2 == 1)
+                        sat -= satDecrement;
+                    satDecrement /= 2;
+                    iFace /= 2;
+                }
+                else
+                    break;
+                if (iFace > 0)
+                {
+                    if (iFace % 2 == 1)
+                        hue += hueIncrement;
+                    hueIncrement /= 2;
+                    iFace /= 2;
+                }
+                else
+                    break;
+            }
+            hueAndSat[0] = hue;
+            hueAndSat[1] = sat;
+        } // autoGenerateHueAndSat
+
+        private static Color autoGenerateColor(int iFace)
+        {
+            double hueAndSat[] = new double[2];
+            autoGenerateHueAndSat(iFace, hueAndSat);
+            double hue = hueAndSat[0];
+            double sat = hueAndSat[1];
+            hue = linearizeHue(hue);
+            sat = linearizeSat(sat);
+            return Color.getHSBColor((float)hue, (float)sat, 1.f);
+        } // autoGenerateColor
+
+
+    public static class TextFieldForFloat extends TextField
+    {
+        public TextFieldForFloat(final com.donhatchsw.util.Listenable.Float f)
+        {
+            super("99.99"); // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
+            setText(""+f.get());
             f.addListener(new com.donhatchsw.util.Listenable.Listener() {
                 public void valueChanged()
                 {
-                    updateShownValues();
+                    setText(""+f.get());
                 }
             });
-            textfield.addActionListener(new ActionListener() {
+            addActionListener(new ActionListener() {
                 public void actionPerformed(ActionEvent e)
                 {
                     try
                     {
-                        f.set(Float.valueOf(textfield.getText()).floatValue());
-                        // will trigger valueChanged()
-                        // which will call updateShownValues()
+                        f.set(Float.valueOf(getText()).floatValue());
                     }
                     catch (java.lang.NumberFormatException nfe)
                     {
                         // maybe should print an error message or something
-                        updateShownValues();
+                        setText(""+f.get());
                     }
                 }
             });
-            slider.addAdjustmentListener(new AdjustmentListener() {
+        }
+        public Dimension getPreferredSize()
+        {
+            // default seems taller than necessary
+            // on my computer... and in recent VMs it's even worse
+            // (changed from 29 to 31).
+            // Fudge it a bit...
+            // XXX not sure this will look good on all systems... if it doesn't, we can just remove it
+            // XXX hmm, actually makes things mess up when growing and shrinking, that's weird
+            Dimension preferredSize = super.getPreferredSize();
+            //System.out.println("textfield.super.preferredSize() = "+preferredSize);
+            if (true)
+                preferredSize.height -= 2;
+            return preferredSize;
+        }
+        // weird, the following is called during horizontal shrinking
+        // but not during horizontal expanding... if we don't do this too
+        // then it looks wrong when shrinking.  what a hack...
+        public Dimension getMinimumSize()
+        {
+            Dimension minimumSize = super.getMinimumSize();
+            //System.out.println("textfield.super.minimumSize() = "+minimumSize);
+            if (true)
+                minimumSize.height -= 2;
+            return minimumSize;
+        }
+    } // TextFieldForFloat
+
+    public static class SliderForFloat extends Scrollbar
+    {
+        private void updateThumb(com.donhatchsw.util.Listenable.Float f)
+        {
+            float value = f.get();
+            float defaultValue = f.getDefaultValue();
+            float frac = (value-f.getMinValue())/(f.getMaxValue()-f.getMinValue());
+            setValue((int)(getMinimum() + ((getMaximum()-getVisibleAmount())-getMinimum())*frac));
+        }
+
+        public SliderForFloat(final com.donhatchsw.util.Listenable.Float f)
+        {
+            super(Scrollbar.HORIZONTAL);
+
+            // 3 significant digits seems reasonable...
+            int min = (int)(f.getMinValue()*1000);
+            int max = (int)(f.getMaxValue()*1000);
+            int vis = (int)(.1*(max-min));
+            setValues(0,   // value (we'll set it right later)
+                      vis,
+                      min,
+                      max+vis);
+            setUnitIncrement(1);   // .001 units
+            setBlockIncrement(10); // .01 units
+
+            f.addListener(new com.donhatchsw.util.Listenable.Listener() {
+                public void valueChanged()
+                {
+                    updateThumb(f);
+                }
+            });
+            addAdjustmentListener(new AdjustmentListener() {
                 public void adjustmentValueChanged(AdjustmentEvent e)
                 {
                     if (false)
                     {
                         System.out.println("==================");
-                        System.out.println("min = "+slider.getMinimum());
-                        System.out.println("max = "+slider.getMaximum());
-                        System.out.println("visible = "+slider.getVisibleAmount());
-                        System.out.println("max-vis-min = "+(slider.getMaximum()-slider.getVisibleAmount()-slider.getMinimum()));
+                        System.out.println("min = "+getMinimum());
+                        System.out.println("max = "+getMaximum());
+                        System.out.println("visible = "+getVisibleAmount());
+                        System.out.println("max-vis-min = "+(getMaximum()-getVisibleAmount()-getMinimum()));
                         System.out.println("e.getValue() = "+e.getValue());
-                        System.out.println("slider.getValue() = "+slider.getValue());
-                        System.out.println("slider.getUnitIncrement() = "+slider.getUnitIncrement());
-                        System.out.println("slider.getBlockIncrement() = "+slider.getBlockIncrement());
-                        System.out.println("slider.getSize() = "+slider.getSize());
-                        System.out.println("slider.getPreferredSize() = "+slider.getPreferredSize());
+                        System.out.println("getValue() = "+getValue());
+                        System.out.println("getUnitIncrement() = "+getUnitIncrement());
+                        System.out.println("getBlockIncrement() = "+getBlockIncrement());
+                        System.out.println("getSize() = "+getSize());
+                        System.out.println("getPreferredSize() = "+getPreferredSize());
                     }
                     // Doing the following in double precision makes a difference;
                     // if we do it in float, we get ugly values in the textfield
-                    double frac = (double)(e.getValue()-slider.getMinimum())
-                                / (double)((slider.getMaximum()-slider.getVisibleAmount())-slider.getMinimum());
+                    double frac = (double)(e.getValue()-getMinimum())
+                                / (double)((getMaximum()-getVisibleAmount())-getMinimum());
                     f.set((float)(f.getMinValue() + frac*(f.getMaxValue()-f.getMinValue())));
                     // will trigger valueChanged()
-                    // which will call updateShownValues()
+                    // which will call updateThumb()
                 }
             });
-            updateShownValues();
+            updateThumb(f);
         }
-    } // class LabelTextSlider
+        public Dimension getPreferredSize()
+        {
+            // default seems to be 50x18 on my computer...
+            // give it more horizontal space than that
+            Dimension preferredSize = super.getPreferredSize();
+            //System.out.println("scrollbar.super.preferredSize() = "+preferredSize);
+            preferredSize.width = 200;
+            return preferredSize;
+        }
+    } // SliderForFloat
 
     private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
     {
@@ -162,9 +326,9 @@ public class MC4DControlPanel
             String name)
         {
             super(new Object[][]{
-                initcolor==null ? null : new Object[]{new Canvas(){{setSize(10,10); setBackground(initcolor.get());}}},
+                (initcolor==null ? null : new Object[]{new Canvas(){{setSize(16,16); setBackground(initcolor.get());}}}),   // XXX this is messed up... if it gets compressed, it doesn't spring back
                 {initb==null ? (Object)name : (Object)new Checkbox(name)},
-                {"",stretchx}, // just stretchable space
+                {"",new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}}}, // just stretchable space
             });
             // awkward, but we can't set members
             // until the super ctor is done
@@ -301,8 +465,8 @@ public class MC4DControlPanel
                         helpWindow.pack();
                         helpWindow.setVisible(true);
 
-                        helpWindow.addWindowListener(new java.awt.event.WindowAdapter() {
-                            public void windowClosing(java.awt.event.WindowEvent we) {
+                        helpWindow.addWindowListener(new WindowAdapter() {
+                            public void windowClosing(WindowEvent we) {
                                 helpWindow.dispose();
                             }
                         });
@@ -379,14 +543,16 @@ public class MC4DControlPanel
                         com.donhatchsw.util.Listenable.Float f,
                         String helpMessage[])
     {
-        this.add(new Canvas(){{setSize(10,10);}}, // indent
+        this.add(new Canvas(){{setSize(20,10);}}, // indent   XXX this is messed up... if it gets compressed, it doesn't spring back
                  new GridBagConstraints(){{gridy = nRows;}});
         this.add(new Label(labelString+":"),
                  new GridBagConstraints(){{anchor = WEST;
                                            gridy = nRows;}});
-        this.add(new TextAndSlider(f),
-                 new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
-                                           gridy = nRows;}});
+        this.add(new TextFieldForFloat(f),
+                 new GridBagConstraints(){{gridy = nRows;}});
+        this.add(new SliderForFloat(f),
+                 new GridBagConstraints(){{gridy = nRows;
+                                           fill = HORIZONTAL; weightx = 1.;}});
         this.add(new ResetButton("Reset to default", f),
                  new GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
@@ -398,11 +564,11 @@ public class MC4DControlPanel
                         com.donhatchsw.util.Listenable.Boolean b,
                         String helpMessage[])
     {
-        this.add(new Canvas(){{setSize(10,10);}}, // indent
+        this.add(new Canvas(){{setSize(20,10);}}, // indent   XXX this is messed up... if it gets compressed, it doesn't spring back
                  new GridBagConstraints(){{gridy = nRows;}});
         this.add(new CheckboxThing(b, labelString),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
-                                           gridwidth = 2; gridy = nRows;}});
+                                           gridwidth = 3; gridy = nRows;}});
         this.add(new ResetButton("Reset to default", b),
                  new GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
@@ -415,11 +581,11 @@ public class MC4DControlPanel
                         com.donhatchsw.util.Listenable.Boolean b,
                         String helpMessage[])
     {
-        this.add(new Canvas(){{setSize(10,10);}}, // indent
+        this.add(new Canvas(){{setSize(20,10);}}, // indent   XXX this is messed up... if it gets compressed, it doesn't spring back
                  new GridBagConstraints(){{gridy = nRows;}});
         this.add(new ColorSwatchMaybeAndCheckBoxMaybe(color, b, labelString),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
-                                           gridwidth = 2; gridy = nRows;}});
+                                           gridwidth = 3; gridy = nRows;}});
         this.add(new ResetButton("Reset to default", new com.donhatchsw.util.Listenable[]{color, b}),
                  new GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
@@ -430,7 +596,7 @@ public class MC4DControlPanel
 
     public MC4DControlPanel(Stuff view)
     {
-        this.setLayout(new java.awt.GridBagLayout());
+        this.setLayout(new GridBagLayout());
         addSingleLabelRow(new Label("Behavior"));
         addFloatSliderRow(
             "Twist duration",
@@ -469,7 +635,7 @@ public class MC4DControlPanel
             new String[] {
                 "Normally this option is checked, which means",
                 "that during a solve or long undo or redo animation sequence,",
-                "the animation slows to a stop after each twist.",
+                "the animation slows to a stop after each different twist.",
                 "",
                 "Unchecking this option makes it so the animation does not stop",
                 "or slow down between twists,",
@@ -487,8 +653,8 @@ public class MC4DControlPanel
                  "and un-ctrled mouse actions",
                  "never affect the 3d rotation.",
                  "",
-                 "When it is unchecked (the default), the ctrl key is ignored",
-                 "and mouse actions can both",
+                 "When it is unchecked (the default),",
+                 "mouse actions can both",
                  "start/stop the 3d rotation and do twists",
                  "(or 4d-rotate-to-center using middle mouse)",
                  "at the same time.",
@@ -506,7 +672,7 @@ public class MC4DControlPanel
                  "You can turn this option on or off while the puzzle is spinning",
                  "if you want.",
             });
-        addSingleComponentRow(new Canvas(){{setBackground(java.awt.Color.black); setSize(1,1);}}); // Totally lame separator
+        addSingleComponentRow(new Canvas(){{setBackground(Color.black); setSize(1,1);}}); // Totally lame separator
         addSingleLabelRow(new Label("Appearance"));
         addFloatSliderRow(
             "4d Face Shrink",
@@ -633,7 +799,36 @@ public class MC4DControlPanel
             view.backgroundColor,
             null, // no checkbox
             null); // no help string
-        addSingleComponentRow(new Canvas(){{setBackground(java.awt.Color.black); setSize(1,1);}}); // Totally lame separator
+        addSingleLabelRow(new Label("Face Colors:"));
+        {
+            int nFaces = 120;
+            int nFacesPerRow = 32;
+            int iFace = 0;
+            int indents[] = {0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15}; // assumes swatch width = 16
+            final int swatchSize = 16;
+            for (int iRow = 0; iRow * nFacesPerRow < nFaces; ++iRow)
+            {
+                int nFacesThisRow = nFaces - iRow*nFacesPerRow;
+                if (nFacesThisRow > nFacesPerRow)
+                    nFacesThisRow = nFacesPerRow;
+                Canvas canvases[][] = new Canvas[nFacesThisRow][1];
+                for (int i = 0; i < nFacesThisRow; ++i)
+                {
+                    final Color color = autoGenerateColor(iFace);
+                    canvases[i][0] = new Canvas(){{setSize(swatchSize,swatchSize); setBackground(color);}};
+                    iFace++;
+                }
+                final int indent = indents[iRow%indents.length]*swatchSize/16;
+                canvases = (Canvas[][])com.donhatchsw.util.Arrays.concat(new Canvas[][]{{new Canvas(){{setSize(indent,swatchSize);}}}}, canvases);
+                this.add(new Canvas(){{setSize(20,swatchSize);}}, // indent   XXX this is messed up... if it gets compressed, it doesn't spring back
+                         new GridBagConstraints(){{gridy = nRows;}});
+                add(new Row(canvases),
+                    new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER; anchor = WEST;}});
+                nRows++;
+            }
+        }
+
+        addSingleComponentRow(new Canvas(){{setBackground(Color.black); setSize(1,1);}}); // Totally lame separator
         addSingleButtonRow(new ResetButton(
             "Reset All To Defaults",
             new com.donhatchsw.util.Listenable[]{
@@ -691,10 +886,10 @@ public class MC4DControlPanel
         com.donhatchsw.util.Listenable.Boolean drawShrunkStickerOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
         com.donhatchsw.util.Listenable.Boolean drawGround = new com.donhatchsw.util.Listenable.Boolean(true);
 
-        com.donhatchsw.util.Listenable.Color shrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(java.awt.Color.black);
-        com.donhatchsw.util.Listenable.Color nonShrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(java.awt.Color.black);
-        com.donhatchsw.util.Listenable.Color shrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(java.awt.Color.black);
-        com.donhatchsw.util.Listenable.Color nonShrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(java.awt.Color.black);
+        com.donhatchsw.util.Listenable.Color shrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
+        com.donhatchsw.util.Listenable.Color nonShrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
+        com.donhatchsw.util.Listenable.Color shrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
+        com.donhatchsw.util.Listenable.Color nonShrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
         com.donhatchsw.util.Listenable.Color groundColor = new com.donhatchsw.util.Listenable.Color(new Color(20, 130, 20));
         com.donhatchsw.util.Listenable.Color backgroundColor = new com.donhatchsw.util.Listenable.Color(new Color(20, 170, 235));
     }
@@ -712,8 +907,8 @@ public class MC4DControlPanel
             // window button.
             // (overriding handleEvent doesn't work any more)
             {
-                frame.addWindowListener(new java.awt.event.WindowAdapter() {
-                    public void windowClosing(java.awt.event.WindowEvent we) {
+                frame.addWindowListener(new WindowAdapter() {
+                    public void windowClosing(WindowEvent we) {
                         frame.dispose();
                         if (--nAlive[0] == 0)
                         {
