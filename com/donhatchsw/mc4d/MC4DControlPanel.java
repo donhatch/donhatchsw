@@ -124,6 +124,10 @@ public class MC4DControlPanel
         //    Then repeat all of the above with in-between hues
         //    Then repeat all of the above with in-between saturations
         //        .9,.5,.7,.3
+        // Eh, on second thought, use only those 4 saturations,
+        // then keep doing in-between hues only;
+        // that makes something that's easier to comprehend
+        // when laying it out in rows of 32.
         // 
         private static void autoGenerateHueAndSat(int iFace,
                                                   double hueAndSat[/*2*/])
@@ -137,14 +141,7 @@ public class MC4DControlPanel
             double satDecrement = .4;
             double hueIncrement = 1/16.;
 
-            if (iFace > 0)
-            {
-                if (iFace % 2 == 1)
-                    sat -= satDecrement;
-                satDecrement /= 2;
-                iFace /= 2;
-            }
-            while (true)
+            for (int i = 0; i < 2; ++i)
             {
                 if (iFace > 0)
                 {
@@ -153,17 +150,22 @@ public class MC4DControlPanel
                     satDecrement /= 2;
                     iFace /= 2;
                 }
-                else
-                    break;
+            }
+            while (iFace > 0)
+            {
+                if (iFace % 2 == 1)
+                    hue += hueIncrement;
+                hueIncrement /= 2;
+                iFace /= 2;
+                /*
                 if (iFace > 0)
                 {
                     if (iFace % 2 == 1)
-                        hue += hueIncrement;
-                    hueIncrement /= 2;
+                        sat -= satDecrement;
+                    satDecrement /= 2;
                     iFace /= 2;
                 }
-                else
-                    break;
+                */
             }
             hueAndSat[0] = hue;
             hueAndSat[1] = sat;
@@ -801,7 +803,7 @@ public class MC4DControlPanel
             null); // no help string
         addSingleLabelRow(new Label("Face Colors:"));
         {
-            int nFaces = 120;
+            int nFaces = 500;
             int nFacesPerRow = 32;
             int iFace = 0;
             int indents[] = {0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15}; // assumes swatch width = 16
