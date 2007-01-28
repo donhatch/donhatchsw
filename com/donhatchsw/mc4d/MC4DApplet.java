@@ -17,7 +17,7 @@ public class MC4DViewApplet
     public String puzzleDescription = "{4,3,3} 3";
     public int x = 50, y = 50; // for spawned viewers
     public int w = 300, h = 300; // for spawned viewers
-    public boolean doDoubleBuffer = false; // crappier than we need to
+    public boolean doDoubleBuffer = true; // XXX get this from viewing params?
 
     Image backBuffer = null;
     private Dimension backBufferSize = null;
@@ -35,6 +35,19 @@ public class MC4DViewApplet
         final MC4DModel model = new MC4DModel(puzzleDescription);
         final MC4DViewGuts guts = new MC4DViewGuts();
         guts.setModel(model);
+
+        {
+            final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4DControlPanel Test");
+            // XXX the following is probably not what I want
+            controlPanelFrame.addWindowListener(new WindowAdapter() {
+                public void windowClosing(WindowEvent we) {
+                    controlPanelFrame.dispose();
+                }
+            });
+            controlPanelFrame.add(new MC4DControlPanel(guts.viewParams));
+            controlPanelFrame.pack();
+            controlPanelFrame.show();
+        }
 
         Canvas canvas = new Canvas() {
             public void update(Graphics g) { paint(g); } // don't flash
@@ -57,10 +70,6 @@ public class MC4DViewApplet
                     backBuffer = null;
                 Graphics g = doDoubleBuffer ? backBuffer.getGraphics() : frontBufferGraphics;
 
-                g.setColor(new Color(20,170,235)); // sky
-                g.fillRect(0, 0, w, h);
-                g.setColor(new Color(20, 130, 20)); // ground
-                g.fillRect(0, h*6/9, w, h);
                 guts.paint(this, g);
 
                 g.setColor(Color.white);
@@ -72,7 +81,8 @@ public class MC4DViewApplet
                     frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
             }
         };
-        guts.attachListeners(canvas, true);
+        guts.setControllerComponent(canvas, true);
+        guts.setViewComponent(canvas);
 
         // Make it so ctrl-n spawns another view of the same model,
         // and ctrl-shift-N spawns the opposite kind of view of the same model.

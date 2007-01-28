@@ -54,6 +54,7 @@ import java.awt.event.*;
 import javax.swing.*; // XXX this needs to go in a different file
 
 import com.donhatchsw.util.VecMath;
+import com.donhatchsw.util.Listenable;
 
 public class MC4DViewGuts
 {
@@ -98,37 +99,37 @@ public class MC4DViewGuts
         *      5: and mouse motion (can be obnoxious)
         *</pre>
         */
-        public com.donhatchsw.util.Listenable.Int eventVerboseLevel = new com.donhatchsw.util.Listenable.Int(0, 5, 0);
+        public Listenable.Int eventVerboseLevel = new Listenable.Int(0, 5, 0);
 
 
         //
         // Geometric / transform appearance params
         //
-        public com.donhatchsw.util.Listenable.Float faceShrink4d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .4f);
-        public com.donhatchsw.util.Listenable.Float stickerShrink4d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
-        public com.donhatchsw.util.Listenable.FloatMatrix viewMat4d = new com.donhatchsw.util.Listenable.FloatMatrix(new float[][]{
+        public Listenable.Float faceShrink4d = new Listenable.Float(0.f, 1.f, .4f);
+        public Listenable.Float stickerShrink4d = new Listenable.Float(0.f, 1.f, .5f);
+        public Listenable.FloatMatrix viewMat4d = new Listenable.FloatMatrix(new float[][]{
             {1,0,0,0},
             {0,1,0,0},
             {0,0,1,0},
             {0,0,0,1},
         });
-        public com.donhatchsw.util.Listenable.Float eyeW = new com.donhatchsw.util.Listenable.Float(0.f, 20.f, 5.2f);
-        public com.donhatchsw.util.Listenable.FloatMatrix viewMat3d = new com.donhatchsw.util.Listenable.FloatMatrix(
+        public Listenable.Float eyeW = new Listenable.Float(0.f, 20.f, 5.2f);
+        public Listenable.FloatMatrix viewMat3d = new Listenable.FloatMatrix(
             VecMath.mxm(VecMath.makeRowRotMat(3, 2,0, -42*(float)Math.PI/180), // twirl
                         VecMath.makeRowRotMat(3, 1,2,  30*(float)Math.PI/180))); // tilt
-        public com.donhatchsw.util.Listenable.Float faceShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
-        public com.donhatchsw.util.Listenable.Float stickerShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
-        public com.donhatchsw.util.Listenable.Float eyeZ = new com.donhatchsw.util.Listenable.Float(0.f, 20.f, 10.f);
-        public com.donhatchsw.util.Listenable.Float viewScale2d = new com.donhatchsw.util.Listenable.Float(0.f, 100.f, 1.f);
-        public com.donhatchsw.util.Listenable.Float stickersShrinkTowardsFaceBoundaries = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, 0.f);
-        public com.donhatchsw.util.Listenable.FloatVector towardsSunVec = new com.donhatchsw.util.Listenable.FloatVector(new float[]{.82f, 1.55f, 3.3f});
+        public Listenable.Float faceShrink3d = new Listenable.Float(0.f, 1.f, .5f);
+        public Listenable.Float stickerShrink3d = new Listenable.Float(0.f, 1.f, .5f);
+        public Listenable.Float eyeZ = new Listenable.Float(0.f, 20.f, 10.f);
+        public Listenable.Float viewScale2d = new Listenable.Float(0.f, 10.f, 1.f);
+        public Listenable.Float stickersShrinkTowardsFaceBoundaries = new Listenable.Float(0.f, 1.f, 0.f);
+        public Listenable.FloatVector towardsSunVec = new Listenable.FloatVector(new float[]{.82f, 1.55f, 3.3f});
 
-        public com.donhatchsw.util.Listenable.Color faceColors[] = new com.donhatchsw.util.Listenable.Color[2640]; // num faces in omnitruncated 120-cell
+        public Listenable.Color faceColors[] = new Listenable.Color[2640]; // num faces in omnitruncated 120-cell
         {
             System.out.println("Generating default colors...");
             for (int iFace = 0; iFace < faceColors.length; ++iFace)
             {
-                faceColors[iFace] = new com.donhatchsw.util.Listenable.Color(autoGenerateColor(iFace));
+                faceColors[iFace] = new Listenable.Color(autoGenerateColor(iFace));
             }
             System.out.println("done.");
         }
@@ -146,16 +147,16 @@ public class MC4DViewGuts
 
 
 
-        //public com.donhatchsw.util.Listenable.Double nFrames90(15);
-        public com.donhatchsw.util.Listenable.Double nFrames90 = new com.donhatchsw.util.Listenable.Double(0., 100., 30.);
+        //public Listenable.Double nFrames90(15);
+        public Listenable.Double nFrames90 = new Listenable.Double(0., 100., 30.);
 
-        //public com.donhatchsw.util.Listenable.Double criticalDampingFraction = new com.donhatchsw.util.Listenable.Double(0., 1., 1.); // 1 means critically damped, less than 1 gives it a bit of bounce, more than 1 just makes it slower
-        public com.donhatchsw.util.Listenable.Double bounce = new com.donhatchsw.util.Listenable.Double(0., 1., 1.); // 1 minus critical damping frac-- probably more comprehensible to the user
+        //public Listenable.Double criticalDampingFraction = new Listenable.Double(0., 1., 1.); // 1 means critically damped, less than 1 gives it a bit of bounce, more than 1 just makes it slower
+        public Listenable.Double bounce = new Listenable.Double(0., 1., 1.); // 1 minus critical damping frac-- probably more comprehensible to the user
 
         public InterpFunc interp = sine_interp;
         //InterpFunc interp = linear_interp;
-        public com.donhatchsw.util.Listenable.Boolean requireCtrlTo3dRotate = new com.donhatchsw.util.Listenable.Boolean(false);
-        public com.donhatchsw.util.Listenable.Boolean restrictRoll = new com.donhatchsw.util.Listenable.Boolean(false);
+        public Listenable.Boolean requireCtrlTo3dRotate = new Listenable.Boolean(false);
+        public Listenable.Boolean restrictRoll = new Listenable.Boolean(false);
             public boolean getRestrictRoll() { return restrictRoll.get(); }
             public void setRestrictRoll(MC4DModel model, Component viewComponent, ViewState viewState, boolean newRestrictRoll) // XXX shouldn't take model as a param I don't think, revisit this
             {
@@ -171,38 +172,38 @@ public class MC4DViewGuts
                                      viewComponent);
                 restrictRoll.set(newRestrictRoll);
             }
-        com.donhatchsw.util.Listenable.Boolean stopBetweenMoves = new com.donhatchsw.util.Listenable.Boolean(true);
+        public Listenable.Boolean stopBetweenMoves = new Listenable.Boolean(true);
 
         //
         // Ornamentational appearance params
         //
-        com.donhatchsw.util.Listenable.Boolean highlightByCubie = new com.donhatchsw.util.Listenable.Boolean(false);
-        public com.donhatchsw.util.Listenable.Boolean highlightByGrip = new com.donhatchsw.util.Listenable.Boolean(true); // if possible; it gets turned into highlight by sticker automatically if there is no grip info, which there isn't unless it's a 2x2x2x2 currently.  XXX get rid of this?
-        com.donhatchsw.util.Listenable.Boolean showShadows = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean antialiasWhenStill = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawNonShrunkFaceOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawShrunkFaceOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawNonShrunkStickerOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawShrunkStickerOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawGround = new com.donhatchsw.util.Listenable.Boolean(true);
+        public Listenable.Boolean highlightByCubie = new Listenable.Boolean(false);
+        public Listenable.Boolean highlightByGrip = new Listenable.Boolean(true); // if possible; it gets turned into highlight by sticker automatically if there is no grip info, which there isn't unless it's a 2x2x2x2 currently.  XXX get rid of this?
+        public Listenable.Boolean showShadows = new Listenable.Boolean(true);
+        public Listenable.Boolean antialiasWhenStill = new Listenable.Boolean(true);
+        public Listenable.Boolean drawNonShrunkFaceOutlines = new Listenable.Boolean(false);
+        public Listenable.Boolean drawShrunkFaceOutlines = new Listenable.Boolean(false);
+        public Listenable.Boolean drawNonShrunkStickerOutlines = new Listenable.Boolean(false);
+        public Listenable.Boolean drawShrunkStickerOutlines = new Listenable.Boolean(false);
+        public Listenable.Boolean drawGround = new Listenable.Boolean(true);
 
-        com.donhatchsw.util.Listenable.Color shrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
-        com.donhatchsw.util.Listenable.Color nonShrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
-        com.donhatchsw.util.Listenable.Color shrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
-        com.donhatchsw.util.Listenable.Color nonShrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
-        com.donhatchsw.util.Listenable.Color groundColor = new com.donhatchsw.util.Listenable.Color(new Color(20, 130, 20));
-        com.donhatchsw.util.Listenable.Color backgroundColor = new com.donhatchsw.util.Listenable.Color(new Color(20, 170, 235));
+        public Listenable.Color shrunkFaceOutlineColor = new Listenable.Color(Color.black);
+        public Listenable.Color nonShrunkFaceOutlineColor = new Listenable.Color(Color.black);
+        public Listenable.Color shrunkStickerOutlineColor = new Listenable.Color(Color.black);
+        public Listenable.Color nonShrunkStickerOutlineColor = new Listenable.Color(Color.black);
+        public Listenable.Color groundColor = new Listenable.Color(new Color(20, 130, 20));
+        public Listenable.Color backgroundColor = new Listenable.Color(new Color(20, 170, 235));
 
 
         //
         // Debugging params.
         // Most of these are settable using secret ctrl-alt key combinations.
         //
-        public com.donhatchsw.util.Listenable.Boolean useTopsort = new com.donhatchsw.util.Listenable.Boolean(true);
-        public com.donhatchsw.util.Listenable.Int jitterRadius = new com.donhatchsw.util.Listenable.Int(0,9,0);
-        public com.donhatchsw.util.Listenable.Boolean drawLabels = new com.donhatchsw.util.Listenable.Boolean(false);
-        public com.donhatchsw.util.Listenable.Boolean showPartialOrder = new com.donhatchsw.util.Listenable.Boolean(false);
-        public com.donhatchsw.util.Listenable.Boolean frozenForDebugging = new com.donhatchsw.util.Listenable.Boolean(false); // XXX is this state rather than params?  never want to save it out, do we? but we do set it using the ctrl-alt keys... hmm
+        public Listenable.Boolean useTopsort = new Listenable.Boolean(true);
+        public Listenable.Int jitterRadius = new Listenable.Int(0,9,0);
+        public Listenable.Boolean drawLabels = new Listenable.Boolean(false);
+        public Listenable.Boolean showPartialOrder = new Listenable.Boolean(false);
+        public Listenable.Boolean frozenForDebugging = new Listenable.Boolean(false); // XXX is this state rather than params?  never want to save it out, do we? but we do set it using the ctrl-alt keys... hmm
             public int frozenPartialOrderForDebugging[][] = null; // XXX this is state you dingbat
     } // class ViewParams
 
@@ -260,8 +261,19 @@ public class MC4DViewGuts
     //
     private Component controllerComponent = null;
     private Component viewComponent = null;
-    private ViewParams viewParams = new ViewParams();
+    public ViewParams viewParams = new ViewParams(); // XXX not sure if it should be public or what
     private ViewState viewState = new ViewState();
+        {
+            Listenable listenables[] = Listenable.allListenablesInObject(viewParams);
+            for (int i = 0; i < listenables.length; ++i)
+                listenables[i].addListener(new Listenable.Listener() {
+                    public void valueChanged()
+                    {
+                        if (viewComponent != null)
+                            viewComponent.repaint();
+                    }
+                });
+        }
 
     //
     // The listener I use to listen to the model
@@ -769,6 +781,15 @@ public class MC4DViewGuts
             min = W>H ? H : W;
         if(W*H == 0)
             return;
+
+        g.setColor(viewParams.backgroundColor.get());
+        g.fillRect(0, 0, W, H);
+        if (viewParams.drawGround.get())
+        {
+            g.setColor(viewParams.groundColor.get());
+            g.fillRect(0, H*6/9, W, W);
+        }
+
         float pixels2polySF = 1f / Math.min(W, H) / viewParams.viewScale2d.get();
         int xOff = ((W>H) ? (W-H)/2 : 0) + min/2;
         int yOff = ((H>W) ? (H-W)/2 : 0) + min/2;
@@ -910,18 +931,28 @@ public class MC4DViewGuts
                 frozenPartialOrderForDebugging = glueFrameToDrawInto.partialOrder;
         }
         */
+
+        // XXX figure out cleaner way to manage this
+        float faceRGB[][] = new float[model.genericPuzzleDescription.nFaces()][3];
+        for (int i = 0; i < faceRGB.length; ++i)
+        {
+            Color color = viewParams.faceColors[i%viewParams.faceColors.length].get();
+            color.getColorComponents(faceRGB[i]);
+        }
+
         GenericPipelineUtils.paintFrame(
                 frameToDrawInto,
                 model.genericPuzzleDescription,
                 model.genericPuzzleState,
                 viewParams.showShadows.get(),
-                viewParams.groundColor.get(),
-                viewParams.faceRGB,
+                viewParams.drawGround.get() ? viewParams.groundColor.get() : null,
+                //viewParams.faceRGB,
+                faceRGB,
                 viewState.iStickerUnderMouse,
                 viewState.iPolyUnderMouse,
                 viewParams.highlightByCubie.get(),
                 !viewParams.highlightByCubie.get() && viewParams.highlightByGrip.get(), // XXX mess, see if I can make this cleaner
-                viewParams.shrunkStickerOutlineColor.get(),
+                viewParams.drawShrunkStickerOutlines.get() ? viewParams.shrunkStickerOutlineColor.get() : null,
                 g,
 
                 viewParams.jitterRadius.get(),
