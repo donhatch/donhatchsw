@@ -120,7 +120,7 @@ public class MC4DViewGuts
         public Listenable.Float faceShrink3d = new Listenable.Float(0.f, 1.f, .5f);
         public Listenable.Float stickerShrink3d = new Listenable.Float(0.f, 1.f, .5f);
         public Listenable.Float eyeZ = new Listenable.Float(0.f, 20.f, 10.f);
-        public Listenable.Float viewScale2d = new Listenable.Float(0.f, 10.f, 1.f);
+        public Listenable.Float viewScale2d = new Listenable.Float(0.f, 4.f, 1.f);
         public Listenable.Float stickersShrinkTowardsFaceBoundaries = new Listenable.Float(0.f, 1.f, 0.f);
         public Listenable.FloatVector towardsSunVec = new Listenable.FloatVector(new float[]{.82f, 1.55f, 3.3f});
 
