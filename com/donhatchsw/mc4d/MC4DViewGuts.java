@@ -72,20 +72,19 @@ public class MC4DViewGuts
 
     //
     // Puzzle description and state...
-    // shared by all views.  We do NOT own this (and it's immutable
-    // anyway, so it can always be shared).
-    // Note, the view needs to be careful to be robust in the case that the model
-    // is swapped with a different model-- e.g. if it's storing the index
-    // of the current sticker, that index can suddenly be out of bounds.
+    // shared by all views.  We do NOT own this.
+    // Note, we need to be careful to be robust
+    // in the case that the model is swapped with a different model--
+    // e.g. if we're storing the index
+    // of the current sticker, that index can suddenly become out of bounds.
     //
         public MC4DModel model = null;
 
     //
-    // Viewing parameters...
-    // each view has its own set of these
-    // XXX LAME!  should just be one view per guts!  this works but has no value!
+    // Viewing parameters, specific to this particular view.
+    // These could be persistent (saved to a prefs file, etc.).
     //
-    public static class PerViewState
+    public static class ViewParams
     {
         /**
         * Anyone can set this at any time to debug the view's activity;
@@ -99,26 +98,41 @@ public class MC4DViewGuts
         *      5: and mouse motion (can be obnoxious)
         *</pre>
         */
-        public int eventVerboseLevel = 0;
+        public com.donhatchsw.util.Listenable.Int eventVerboseLevel = new com.donhatchsw.util.Listenable.Int(0, 5, 0);
 
-        public float faceShrink = .4f;
-        public float stickerShrink = .5f;
-        public float viewMat4d[][] = {
+
+        //
+        // Geometric / transform appearance params
+        //
+        public com.donhatchsw.util.Listenable.Float faceShrink4d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .4f);
+        public com.donhatchsw.util.Listenable.Float stickerShrink4d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
+        public com.donhatchsw.util.Listenable.FloatMatrix viewMat4d = new com.donhatchsw.util.Listenable.FloatMatrix(new float[][]{
             {1,0,0,0},
             {0,1,0,0},
             {0,0,1,0},
             {0,0,0,1},
-        };
-        public float eyeW = 5.2f;
-        public float viewMat3d[][] =
+        });
+        public com.donhatchsw.util.Listenable.Float eyeW = new com.donhatchsw.util.Listenable.Float(0.f, 20.f, 5.2f);
+        public com.donhatchsw.util.Listenable.FloatMatrix viewMat3d = new com.donhatchsw.util.Listenable.FloatMatrix(
             VecMath.mxm(VecMath.makeRowRotMat(3, 2,0, -42*(float)Math.PI/180), // twirl
-                        VecMath.makeRowRotMat(3, 1,2,  30*(float)Math.PI/180)); // tilt
-        public float eyeZ = 10.f;
-        public float scale = 1.f;
-        public float towardsSunVec[] = {.82f, 1.55f, 3.3f};
+                        VecMath.makeRowRotMat(3, 1,2,  30*(float)Math.PI/180))); // tilt
+        public com.donhatchsw.util.Listenable.Float faceShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
+        public com.donhatchsw.util.Listenable.Float stickerShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
+        public com.donhatchsw.util.Listenable.Float eyeZ = new com.donhatchsw.util.Listenable.Float(0.f, 20.f, 10.f);
+        public com.donhatchsw.util.Listenable.Float viewScale2d = new com.donhatchsw.util.Listenable.Float(0.f, 100.f, 1.f);
+        public com.donhatchsw.util.Listenable.Float stickersShrinkTowardsFaceBoundaries = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, 0.f);
+        public com.donhatchsw.util.Listenable.FloatVector towardsSunVec = new com.donhatchsw.util.Listenable.FloatVector(new float[]{.82f, 1.55f, 3.3f});
 
-        public boolean showShadows = true;
-        public java.awt.Color ground = new Color(20, 130, 20);
+        public com.donhatchsw.util.Listenable.Color faceColors[] = new com.donhatchsw.util.Listenable.Color[2640]; // num faces in omnitruncated 120-cell
+        {
+            System.out.println("Generating default colors...");
+            for (int iFace = 0; iFace < faceColors.length; ++iFace)
+            {
+                faceColors[iFace] = new com.donhatchsw.util.Listenable.Color(autoGenerateColor(iFace));
+            }
+            System.out.println("done.");
+        }
+        // XXX need to put in a general color scheme
         public float faceRGB[][] = {
             {0, 0, 1},
             {0.5f, 0, 0},
@@ -129,47 +143,75 @@ public class MC4DViewGuts
             {1, 1, .5f},
             {0, 1, .5f},
         };
-        public boolean highlightByCubie = false;
-        public boolean highlightByGrip = true; // if possible; it gets turned into highlight by sticker automatically if there is no grip info, which there isn't unless it's a 2x2x2x2 currently
-        //public java.awt.Color outlineColor = java.awt.Color.black;
-        public java.awt.Color outlineColor = null;
-        //public double nFrames90 = 15;
-        public double nFrames90 = 30;
 
-        public double criticalDampingFraction = 1.; // 1 means critically damped, less than 1 gives it a bit of bounce, more than 1 just makes it slower
-        //public double criticalDampingFraction = .9; // 1 means critically damped, less than 1 gives it a bit of bounce, more than 1 just makes it slower
 
-        InterpFunc interp = sine_interp;
+
+        //public com.donhatchsw.util.Listenable.Double nFrames90(15);
+        public com.donhatchsw.util.Listenable.Double nFrames90 = new com.donhatchsw.util.Listenable.Double(0., 100., 30.);
+
+        //public com.donhatchsw.util.Listenable.Double criticalDampingFraction = new com.donhatchsw.util.Listenable.Double(0., 1., 1.); // 1 means critically damped, less than 1 gives it a bit of bounce, more than 1 just makes it slower
+        public com.donhatchsw.util.Listenable.Double bounce = new com.donhatchsw.util.Listenable.Double(0., 1., 1.); // 1 minus critical damping frac-- probably more comprehensible to the user
+
+        public InterpFunc interp = sine_interp;
         //InterpFunc interp = linear_interp;
-        private boolean restrictRoll = false; // this one is private with accessors
-            public boolean getRestrictRoll() { return restrictRoll; }
-            public void setRestrictRoll(MC4DModel model, Component view, boolean newRestrictRoll) // XXX shouldn't take model as a param I don't think, revisit this
+        public com.donhatchsw.util.Listenable.Boolean requireCtrlTo3dRotate = new com.donhatchsw.util.Listenable.Boolean(false);
+        public com.donhatchsw.util.Listenable.Boolean restrictRoll = new com.donhatchsw.util.Listenable.Boolean(false);
+            public boolean getRestrictRoll() { return restrictRoll.get(); }
+            public void setRestrictRoll(MC4DModel model, Component viewComponent, ViewState viewState, boolean newRestrictRoll) // XXX shouldn't take model as a param I don't think, revisit this
             {
                 // Do this even if it looks like we were already
                 // restricting roll, in case we are initializing
                 // a new model or something XXX revisit whether this is the cleanest way to do this
                 if (newRestrictRoll && model != null)
-                    initiateZeroRoll(this, // XXX lame-- revisit this
+                    initiateZeroRoll(viewState,
                                      model.genericPuzzleDescription.getFaceCentersAtRest(),
-                                     viewMat4d,
-                                     viewMat3d,
-                                     nFrames90,
-                                     view);
-                restrictRoll = newRestrictRoll;
+                                     viewMat4d.get(),
+                                     viewMat3d.get(),
+                                     nFrames90.get(),
+                                     viewComponent);
+                restrictRoll.set(newRestrictRoll);
             }
-        public boolean spinDragRequiresCtrl = false;
+        com.donhatchsw.util.Listenable.Boolean stopBetweenMoves = new com.donhatchsw.util.Listenable.Boolean(true);
 
         //
-        // Debugging state variables.
+        // Ornamentational appearance params
+        //
+        com.donhatchsw.util.Listenable.Boolean highlightByCubie = new com.donhatchsw.util.Listenable.Boolean(false);
+        public com.donhatchsw.util.Listenable.Boolean highlightByGrip = new com.donhatchsw.util.Listenable.Boolean(true); // if possible; it gets turned into highlight by sticker automatically if there is no grip info, which there isn't unless it's a 2x2x2x2 currently.  XXX get rid of this?
+        com.donhatchsw.util.Listenable.Boolean showShadows = new com.donhatchsw.util.Listenable.Boolean(true);
+        com.donhatchsw.util.Listenable.Boolean antialiasWhenStill = new com.donhatchsw.util.Listenable.Boolean(true);
+        com.donhatchsw.util.Listenable.Boolean drawNonShrunkFaceOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
+        com.donhatchsw.util.Listenable.Boolean drawShrunkFaceOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
+        com.donhatchsw.util.Listenable.Boolean drawNonShrunkStickerOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
+        com.donhatchsw.util.Listenable.Boolean drawShrunkStickerOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
+        com.donhatchsw.util.Listenable.Boolean drawGround = new com.donhatchsw.util.Listenable.Boolean(true);
+
+        com.donhatchsw.util.Listenable.Color shrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
+        com.donhatchsw.util.Listenable.Color nonShrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
+        com.donhatchsw.util.Listenable.Color shrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
+        com.donhatchsw.util.Listenable.Color nonShrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
+        com.donhatchsw.util.Listenable.Color groundColor = new com.donhatchsw.util.Listenable.Color(new Color(20, 130, 20));
+        com.donhatchsw.util.Listenable.Color backgroundColor = new com.donhatchsw.util.Listenable.Color(new Color(20, 170, 235));
+
+
+        //
+        // Debugging params.
         // Most of these are settable using secret ctrl-alt key combinations.
         //
-        public boolean useTopsort = true;
-        public int jitterRadius = 0;
-        public boolean drawLabels = false;
-        public boolean showPartialOrder = false;
-        public boolean frozenForDebugging = false;
-            public int frozenPartialOrderForDebugging[][] = null;
+        public com.donhatchsw.util.Listenable.Boolean useTopsort = new com.donhatchsw.util.Listenable.Boolean(true);
+        public com.donhatchsw.util.Listenable.Int jitterRadius = new com.donhatchsw.util.Listenable.Int(0,9,0);
+        public com.donhatchsw.util.Listenable.Boolean drawLabels = new com.donhatchsw.util.Listenable.Boolean(false);
+        public com.donhatchsw.util.Listenable.Boolean showPartialOrder = new com.donhatchsw.util.Listenable.Boolean(false);
+        public com.donhatchsw.util.Listenable.Boolean frozenForDebugging = new com.donhatchsw.util.Listenable.Boolean(false); // XXX is this state rather than params?  never want to save it out, do we? but we do set it using the ctrl-alt keys... hmm
+            public int frozenPartialOrderForDebugging[][] = null; // XXX this is state you dingbat
+    } // class ViewParams
 
+    //
+    // Volatile view state.
+    // It probably makes no sense to save any of these to a prefs file.
+    //
+    public static class ViewState
+    {
         //
         // Mouse and keyboard state...
         //
@@ -203,540 +245,502 @@ public class MC4DViewGuts
         //
         public GenericPipelineUtils.Frame untwistedFrame = new GenericPipelineUtils.Frame();
         public GenericPipelineUtils.Frame twistingFrame = new GenericPipelineUtils.Frame();
-            { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
+            { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something.  really need to stop doing this though, since it messes up double-clicking if something obscures the sticker during the click
 
+    } // class ViewState
 
-        //
-        // The listener I use to listen to the model
-        // for changes (initiated by other views or by myself)
-        //
-        MC4DModel.Listener modelListener;
-
-        //
-        // The listeners I use
-        // to listen to the Component I draw on
-        //
-        private KeyListener keyListener;
-        private MouseListener mouseListener;
-        private MouseMotionListener mouseMotionListener;
-
-        // To restore when I detach from this Component
-        private java.util.Vector savedKeyListeners;
-        private java.util.Vector savedMouseListeners;
-        private java.util.Vector savedMouseMotionListeners;
-    } // class PerViewState
 
     //
-    // Views
+    // The controller and view components are usually the same,
+    // but they don't logically have to be.
+    // The controller component is what we listen to for key and mouse events.
+    // The view component is what we call repaint() on when anything changes
+    // (and what will probably call our paint() method, although we don't
+    // require it).
     //
-    private java.util.Vector/*<Component>*/ views = new java.util.Vector();
-    private java.util.Hashtable perViewStates/*<Component, PerViewState>*/ = new java.util.Hashtable();
+    private Component controllerComponent = null;
+    private Component viewComponent = null;
+    private ViewParams viewParams = new ViewParams();
+    private ViewState viewState = new ViewState();
 
-    /** Detaches this view guts from its old model, and attaches to the new one. */
+    //
+    // The listener I use to listen to the model
+    // for changes (increments in animation which are
+    // initiated by other views or by myself).
+    // My response to a change is simply to call repaint on the view Component;
+    // then when paint() is called it will query the animation progress
+    // from the model (which pumps the animation).
+    //
+    MC4DModel.Listener modelListener = new MC4DModel.Listener() {
+        public void movingNotify()
+        {
+            if (viewComponent != null)
+                viewComponent.repaint();
+        }
+    };
+
+    //
+    // The listeners I use
+    // to listen to the controller Component
+    //
+    private KeyListener keyListener;
+    private MouseListener mouseListener;
+    private MouseMotionListener mouseMotionListener;
+
+    // To restore when I detach from this controller Component
+    private com.donhatchsw.compat.ArrayList savedKeyListeners;
+    private com.donhatchsw.compat.ArrayList savedMouseListeners;
+    private com.donhatchsw.compat.ArrayList savedMouseMotionListeners;
+
+
+    /** Detaches this view guts from its old model (if any), and attaches to the new one (if any). */
     public void setModel(MC4DModel newModel)
     {
-        int nViews = views.size();
         if (model != null)
         {
-            // Disconnect all our listeners from the current model...
-            for (int i = 0; i < nViews; ++i)
-            {
-                Component view = (Component)views.get(i);
-                PerViewState perViewState = (PerViewState)perViewStates.get(view);
-                model.removeListener(perViewState.modelListener);
-            }
+            // Disconnect our listener from the current model...
+            model.removeListener(modelListener);
         }
         // Change the model...
         model = newModel;
         if (model != null)
         {
             // Connect all our listeners to the new model
-            for (int i = 0; i < nViews; ++i)
-            {
-                Component view = (Component)views.get(i);
-                PerViewState perViewState = (PerViewState)perViewStates.get(view);
-                model.addListener(perViewState.modelListener);
-                perViewState.setRestrictRoll(model, view, perViewState.getRestrictRoll()); // initiates the zero roll animation if appropriate
-            }
+            model.addListener(modelListener);
+            viewParams.setRestrictRoll(model, viewComponent, viewState, viewParams.getRestrictRoll()); // initiates the zero roll animation if appropriate
         }
-        // Goose the views to make sure they repaint
-        for (int i = 0; i < nViews; ++i)
-        {
-            Component view = (Component)views.get(i);
-            view.repaint();
-        }
+        // Goose the view component to make sure it repaints
+        if (viewComponent != null)
+            viewComponent.repaint();
     } // setModel
 
 
-    /** Detaches this view from these guts. */
-    public void detachListeners(Component view)
+    /** Detaches this view guts from the old controller component (if any) and attaches to the new controller component (if any). */
+    public void setControllerComponent(final Component newControllerComponent,
+                                       boolean suppressExistingListeners) // XXX implement this!
     {
-        PerViewState perViewState = (PerViewState)perViewStates.get(view);
-        if (perViewState == null)
-            return; // XXX maybe should throw an error
-
-        model.removeListener(perViewState.modelListener);
-
-        view.removeKeyListener(perViewState.keyListener);
-        view.removeMouseListener(perViewState.mouseListener);
-        view.removeMouseMotionListener(perViewState.mouseMotionListener);
-
-        perViewStates.remove(view);
-        views.removeElement(view);
-    } // detachListeners
-
-    /** Attaches the view to these guts, optionally suppressing existing listeners until detached.  More than one view can be attached to a guts. */
-    public void attachListeners(final Component view,
-                                boolean suppressExistingListeners) // XXX implement this!
-    {
-        if (perViewStates.get(view) != null)
-            return; // XXX maybe should throw an error
-
-        views.addElement(view);
-        final PerViewState perViewState = new PerViewState();
-        perViewStates.put(view, perViewState);
-
-        // Listen to the model for changes (increment in animation).
-        // Our response to a change is simply to call repaint on the view Component;
-        // then when paint() is called it will query the animation progress
-        // from the model (which pumps the animation).
-        model.addListener(perViewState.modelListener = new MC4DModel.Listener() {
-            public void movingNotify()
-            {
-                view.repaint();
-            }
-        });
-
-        if (suppressExistingListeners)
+        if (controllerComponent != null)
         {
-            // XXX get the listeners into the saved listener lists
-            // XXX and remove them from the component
+            controllerComponent.removeKeyListener(keyListener);
+            controllerComponent.removeMouseListener(mouseListener);
+            controllerComponent.removeMouseMotionListener(mouseMotionListener);
+            // XXX restore suppressed listeners if any
         }
-
-        view.addKeyListener(perViewState.keyListener = new KeyListener() {
-            public void keyPressed(KeyEvent ke)
+        controllerComponent = newControllerComponent;
+        if (controllerComponent != null)
+        {
+            if (suppressExistingListeners)
             {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("keyPressed "+ke);
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
-                int keyCode = ke.getKeyCode();
-                int numkey = keyCode - KeyEvent.VK_0;
-                if(1 <= numkey && numkey <= 9)
-                    perViewState.slicemask |= 1<<(numkey-1); // turn on the specified bit
-                if (keyCode == KeyEvent.VK_SHIFT)
-                {
-                    perViewState.nShiftsDown++;
-                    if (perViewState.eventVerboseLevel >= 1) System.out.println("    nShiftsDown = "+perViewState.nShiftsDown);
-                }
-            } // keyPressed
-            public void keyReleased(KeyEvent ke)
-            {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("keyReleased "+ke);
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
-                int keyCode = ke.getKeyCode();
-                int numkey = keyCode - KeyEvent.VK_0;
-                if(1 <= numkey && numkey <= 9)
-                    perViewState.slicemask &= ~(1<<(numkey-1)); // turn off the specified bit
-                if (keyCode == KeyEvent.VK_SHIFT)
-                {
-                    // If nShiftsDown becomes >= 2,
-                    // don't decrease it when we get the shift key release.
-                    // This lets the user hold down one shift key
-                    // and pump up the power with the other!
-                    // This is not too dangerous because it always
-                    // deflates to zero as any mouse event occurs
-                    // with no shift key down.
-                    if (perViewState.nShiftsDown == 1)
-                        perViewState.nShiftsDown = 0;
-                    if (perViewState.eventVerboseLevel >= 1) System.out.println("    nShiftsDown = "+perViewState.nShiftsDown);
-                }
-            } // keyReleased
-            public void keyTyped(KeyEvent ke)
-            {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("keyTyped");
-                char c = ke.getKeyChar();
-                //System.out.println("generic key listener got key '"+c+"'("+(int)c+")"); // XXX escapify!
+                // XXX get the listeners into the saved listener lists
+                // XXX and remove them from the component
+            }
 
-                if (false) {}
-                else if (c == 's'-'a'+1) // ctrl-s -- save
+            controllerComponent.addKeyListener(this.keyListener = new KeyListener() {
+                public void keyPressed(KeyEvent ke)
                 {
-                    // For starters, just dump the model to stdout.
-                    System.out.println("The model is...");
-                    System.out.println(model);
-                }
-                else if (c == 't'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-t
-                {
-                    System.out.println("useTopsort "+perViewState.useTopsort+" -> "+!perViewState.useTopsort+"");
-                    perViewState.useTopsort = !perViewState.useTopsort;
-                    view.repaint();
-                }
-                else if (c == 'j'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-j
-                {
-                    perViewState.jitterRadius++;
-                    if (perViewState.jitterRadius == 10)
-                        perViewState.jitterRadius = 0;
-                    System.out.println("jitterRadius -> "+perViewState.jitterRadius+"");
-                    view.repaint();
-                }
-                else if (c == 'l'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-l
-                {
-                    System.out.println("drawLabels "+perViewState.drawLabels+" -> "+!perViewState.drawLabels+"");
-                    perViewState.drawLabels = !perViewState.drawLabels;
-                    view.repaint();
-                }
-                else if (c == 'p'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-p
-                {
-                    System.out.println("showPartialOrder "+perViewState.showPartialOrder+" -> "+!perViewState.showPartialOrder+"");
-                    perViewState.showPartialOrder = !perViewState.showPartialOrder;
-                    view.repaint();
-                }
-                else if (c == ' ' && ke.isControlDown()
-                 && ke.isAltDown()) // ctrl-alt-space
-                {
-                    System.out.println("frozenForDebugging "+perViewState.frozenForDebugging+" -> "+!perViewState.frozenForDebugging+"");
-                    perViewState.frozenForDebugging = !perViewState.frozenForDebugging;
-                    perViewState.frozenPartialOrderForDebugging = null;
-                    view.repaint();
-                }
-                else if (c == 'v'-'a'+1
-                 && ke.isAltDown()) // ctrl-alt-v -- cycle eventVerboseLevel
-                {
-                    System.out.print("eventVerboseLevel "+perViewState.eventVerboseLevel);
-                    perViewState.eventVerboseLevel = (perViewState.eventVerboseLevel+1) % 8;
-                    System.out.println(" -> "+perViewState.eventVerboseLevel);
-                    ke.consume(); // XXX does this make it so subsequent handlers don't see it? dammit, no it doesn't. damn damn damn fuck fuck fuck
-                }
-                else if (ke.isControlDown()
-                      && ke.isAltDown())
-                {
-                    System.out.println("Unrecognized key sequence ctrl-alt-"+(char)(c|64)+"");
-                }
-            } // keyTyped
-        }); // key listener
-        view.addMouseListener(perViewState.mouseListener = new MouseListener() {
-            public void mouseClicked(MouseEvent me)
-            {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseClicked on a "+view.getClass().getSuperclass().getName());
-                if (!me.isShiftDown())
-                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
-                Assert(perViewState != null); // should be no way to make this happen
-
-                if (perViewState.spinDragRequiresCtrl)
-                {
-                    if (me.isControlDown())
-                        return; // restricted mode, so ctrled mouse only affects the spin... which is implemented in the press,drag,release callbacks, not this one
-                    view.repaint(); // so it keeps spinning if it was spinning
-                }
-
-                boolean isRotate = isMiddleMouseButton(me);
-                if (false) // make this true to debug the pick
-                {
-                    int hit[] = GenericPipelineUtils.pick(me.getX(), me.getY(),
-                                                          perViewState.untwistedFrame,
-                                                          model.genericPuzzleDescription);
-                    if (hit != null)
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("keyPressed "+ke);
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
+                    int keyCode = ke.getKeyCode();
+                    int numkey = keyCode - KeyEvent.VK_0;
+                    if(1 <= numkey && numkey <= 9)
+                        viewState.slicemask |= 1<<(numkey-1); // turn on the specified bit
+                    if (keyCode == KeyEvent.VK_SHIFT)
                     {
-                        int iSticker = hit[0];
-                        int iFace = model.genericPuzzleDescription.getSticker2Face()[iSticker];
-                        int iCubie = model.genericPuzzleDescription.getSticker2Cubie()[iSticker];
-                        System.err.println("    Hit sticker "+iSticker+"(polygon "+hit[1]+")");
-                        System.err.println("        face "+iFace);
-                        System.err.println("        cubie "+iCubie);
+                        viewState.nShiftsDown++;
+                        if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("    nShiftsDown = "+viewState.nShiftsDown);
                     }
-                    else
-                    {
-                        System.err.println("    Hit nothin'.");
-                    }
-                }
-
-                if (isRotate)
+                } // keyPressed
+                public void keyReleased(KeyEvent ke)
                 {
-                    boolean allowArbitraryElements = me.isControlDown();
-                    float nicePoint[] = GenericPipelineUtils.pickNicePointToRotateToCenter(
-                                     me.getX(), me.getY(),
-                                     allowArbitraryElements,
-                                     perViewState.untwistedFrame, // XXX move that into here, it's view specific!
-                                     model.genericPuzzleDescription);
-
-                    if (nicePoint != null)
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("keyReleased "+ke);
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
+                    int keyCode = ke.getKeyCode();
+                    int numkey = keyCode - KeyEvent.VK_0;
+                    if(1 <= numkey && numkey <= 9)
+                        viewState.slicemask &= ~(1<<(numkey-1)); // turn off the specified bit
+                    if (keyCode == KeyEvent.VK_SHIFT)
                     {
-                        //
-                        // Initiate a rotation
-                        // that takes the nice point to the center
-                        // (i.e. to the -W axis)
-                        // 
-                        // XXX do all this in float since there are now float methods in VecMath
+                        // If nShiftsDown becomes >= 2,
+                        // don't decrease it when we get the shift key release.
+                        // This lets the user hold down one shift key
+                        // and pump up the power with the other!
+                        // This is not too dangerous because it always
+                        // deflates to zero as any mouse event occurs
+                        // with no shift key down.
+                        if (viewState.nShiftsDown == 1)
+                            viewState.nShiftsDown = 0;
+                        if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("    nShiftsDown = "+viewState.nShiftsDown);
+                    }
+                } // keyReleased
+                public void keyTyped(KeyEvent ke)
+                {
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("keyTyped");
+                    char c = ke.getKeyChar();
+                    //System.out.println("generic key listener got key '"+c+"'("+(int)c+")"); // XXX escapify!
 
-                        double viewMat4dD[][] = new double[4][4];
-                        double nicePointD[] = new double[4];
-                        for (int i = 0; i < 4; ++i)
-                        for (int j = 0; j < 4; ++j)
-                            viewMat4dD[i][j] = (double)perViewState.viewMat4d[i][j];
-                        for (int i = 0; i < 4; ++i)
-                            nicePointD[i] = (double)nicePoint[i];
+                    if (false) {}
+                    else if (c == 's'-'a'+1) // ctrl-s -- save
+                    {
+                        // For starters, just dump the model to stdout.
+                        System.out.println("The model is...");
+                        System.out.println(model);
+                    }
+                    else if (c == 't'-'a'+1
+                     && ke.isAltDown()) // ctrl-alt-t
+                    {
+                        System.out.println("useTopsort "+viewParams.useTopsort.get()+" -> "+!viewParams.useTopsort.get()+"");
+                        viewParams.useTopsort.set(!viewParams.useTopsort.get());
+                        if (viewComponent != null)
+                            viewComponent.repaint();
+                    }
+                    else if (c == 'j'-'a'+1
+                     && ke.isAltDown()) // ctrl-alt-j
+                    {
+                        int jitterRadius = viewParams.jitterRadius.get();
+                        jitterRadius++;
+                        if (jitterRadius > viewParams.jitterRadius.max())
+                            jitterRadius = viewParams.jitterRadius.min();
+                        System.out.println("jitterRadius "+viewParams.jitterRadius.get()+" -> "+jitterRadius+"");
+                        viewParams.jitterRadius.set(jitterRadius);
+                        if (viewComponent != null)
+                            viewComponent.repaint();
+                    }
+                    else if (c == 'l'-'a'+1
+                     && ke.isAltDown()) // ctrl-alt-l
+                    {
+                        System.out.println("drawLabels "+viewParams.drawLabels.get()+" -> "+!viewParams.drawLabels.get()+"");
+                        viewParams.drawLabels.set(!viewParams.drawLabels.get());
+                        if (viewComponent != null)
+                            viewComponent.repaint();
+                    }
+                    else if (c == 'p'-'a'+1
+                     && ke.isAltDown()) // ctrl-alt-p
+                    {
+                        System.out.println("showPartialOrder "+viewParams.showPartialOrder.get()+" -> "+!viewParams.showPartialOrder.get()+"");
+                        viewParams.showPartialOrder.set(!viewParams.showPartialOrder.get());
+                        if (viewComponent != null)
+                            viewComponent.repaint();
+                    }
+                    else if (c == ' ' && ke.isControlDown()
+                     && ke.isAltDown()) // ctrl-alt-space
+                    {
+                        System.out.println("frozenForDebugging "+viewParams.frozenForDebugging.get()+" -> "+!viewParams.frozenForDebugging.get()+"");
+                        viewParams.frozenForDebugging.set(!viewParams.frozenForDebugging.get());
+                        viewParams.frozenPartialOrderForDebugging = null;
+                        if (viewComponent != null)
+                            viewComponent.repaint();
+                    }
+                    else if (c == 'v'-'a'+1
+                     && ke.isAltDown()) // ctrl-alt-v -- cycle eventVerboseLevel
+                    {
+                        System.out.print("eventVerboseLevel "+viewParams.eventVerboseLevel.get());
+                        viewParams.eventVerboseLevel.set((viewParams.eventVerboseLevel.get()+1) % (viewParams.eventVerboseLevel.max()-viewParams.eventVerboseLevel.min()) + viewParams.eventVerboseLevel.min());
+                        System.out.println(" -> "+viewParams.eventVerboseLevel.get());
+                        ke.consume(); // XXX does this make it so subsequent handlers don't see it? dammit, no it doesn't. damn damn damn fuck fuck fuck. what does it mean?
+                    }
+                    else if (ke.isControlDown()
+                          && ke.isAltDown())
+                    {
+                        System.out.println("Unrecognized key sequence ctrl-alt-"+(char)(c|64)+"");
+                    }
+                } // keyTyped
+            }); // key listener
+            controllerComponent.addMouseListener(this.mouseListener = new MouseListener() {
+                public void mouseClicked(MouseEvent me)
+                {
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseClicked on a "+controllerComponent.getClass().getSuperclass().getName());
+                    if (!me.isShiftDown())
+                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
 
-                        double nicePointOnScreen[] = VecMath.vxm(nicePointD, viewMat4dD);
-                        VecMath.normalize(nicePointOnScreen, nicePointOnScreen); // if it's not already
-                        float minusWAxis[] = {0,0,0,-1};
-                        perViewState.rotationFrom = VecMath.doubleToFloat(nicePointOnScreen);
-                        perViewState.rotationTo = minusWAxis;
+                    if (viewParams.requireCtrlTo3dRotate.get())
+                    {
+                        if (me.isControlDown())
+                            return; // restricted mode, so ctrled mouse only affects the spin... which is implemented in the press,drag,release callbacks, not this one
+                        if (viewComponent != null)
+                            viewComponent.repaint(); // so it keeps spinning if it was spinning
+                    }
 
-                        if (model.genericPuzzleDescription.nDims() < 4)
+                    boolean isRotate = isMiddleMouseButton(me);
+                    if (false) // make this true to debug the pick
+                    {
+                        int hit[] = GenericPipelineUtils.pick(me.getX(), me.getY(),
+                                                              viewState.untwistedFrame,
+                                                              model.genericPuzzleDescription);
+                        if (hit != null)
+                        {
+                            int iSticker = hit[0];
+                            int iFace = model.genericPuzzleDescription.getSticker2Face()[iSticker];
+                            int iCubie = model.genericPuzzleDescription.getSticker2Cubie()[iSticker];
+                            System.err.println("    Hit sticker "+iSticker+"(polygon "+hit[1]+")");
+                            System.err.println("        face "+iFace);
+                            System.err.println("        cubie "+iCubie);
+                        }
+                        else
+                        {
+                            System.err.println("    Hit nothin'.");
+                        }
+                    }
+
+                    if (isRotate)
+                    {
+                        boolean allowArbitraryElements = me.isControlDown();
+                        float nicePoint[] = GenericPipelineUtils.pickNicePointToRotateToCenter(
+                                         me.getX(), me.getY(),
+                                         allowArbitraryElements,
+                                         viewState.untwistedFrame, // XXX move that into here, it's view specific!
+                                         model.genericPuzzleDescription);
+
+                        if (nicePoint != null)
                         {
                             //
-                            // In less-than-4d puzzles,
-                            // if the projection is flattened
-                            // and they clicked on the center sticker,
-                            // un-flatten it in such a direction
-                            // that it appears that the user is pushing
-                            // on the polygon they clicked on.
-                            //
-                            if (VecMath.distsqrd(perViewState.rotationFrom, perViewState.rotationTo) <= 1e-4*1e-4)
-                            {
-                                float polyAndStickerAndFaceCenter[][] = GenericPipelineUtils.pickPolyAndStickerAndFaceCenter(
-                                     me.getX(), me.getY(),
-                                     perViewState.untwistedFrame,
-                                     model.genericPuzzleDescription);
-                                Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
-                                float polyCenter[] = polyAndStickerAndFaceCenter[0];
+                            // Initiate a rotation
+                            // that takes the nice point to the center
+                            // (i.e. to the -W axis)
+                            // 
+                            // XXX do all this in float since there are now float methods in VecMath
 
-                                // Only interested in the w component
-                                // (and the z component if the puzzle is 2d).
-                                // So zero out the first nDims dimensions...
-                                polyCenter = VecMath.copyvec(polyCenter);
-                                VecMath.zerovec(model.genericPuzzleDescription.nDims(),
-                                                polyCenter);
-                                if (VecMath.normsqrd(polyCenter) < 1e-4*1e-4)
+                            float viewMat4dF[][] = viewParams.viewMat4d.get();
+                            double viewMat4dD[][] = new double[4][4];
+                            double nicePointD[] = new double[4];
+                            for (int i = 0; i < 4; ++i)
+                            for (int j = 0; j < 4; ++j)
+                                viewMat4dD[i][j] = (double)viewMat4dF[i][j];
+                            for (int i = 0; i < 4; ++i)
+                                nicePointD[i] = (double)nicePoint[i];
+
+                            double nicePointOnScreen[] = VecMath.vxm(nicePointD, viewMat4dD);
+                            VecMath.normalize(nicePointOnScreen, nicePointOnScreen); // if it's not already
+                            float minusWAxis[] = {0,0,0,-1};
+                            viewState.rotationFrom = VecMath.doubleToFloat(nicePointOnScreen);
+                            viewState.rotationTo = minusWAxis;
+
+                            if (model.genericPuzzleDescription.nDims() < 4)
+                            {
+                                //
+                                // In less-than-4d puzzles,
+                                // if the projection is flattened
+                                // and they clicked on the center sticker,
+                                // un-flatten it in such a direction
+                                // that it appears that the user is pushing
+                                // on the polygon they clicked on.
+                                //
+                                if (VecMath.distsqrd(viewState.rotationFrom, viewState.rotationTo) <= 1e-4*1e-4)
                                 {
-                                    // They clicked on an *edge* of a sticker
-                                    // that's already in the center of the screen--
-                                    // we don't know which way to push.
-                                    // nothing sensible we can do here, just ignore it.
-                                    // (Actually, treat it the same as we treat clicking on a sticker
-                                    // that's already in the center in a 4d puzzle, i.e. nothing).
-                                    //System.out.println("NICE TRY!");
-                                    return;
+                                    float polyAndStickerAndFaceCenter[][] = GenericPipelineUtils.pickPolyAndStickerAndFaceCenter(
+                                         me.getX(), me.getY(),
+                                         viewState.untwistedFrame,
+                                         model.genericPuzzleDescription);
+                                    Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
+                                    float polyCenter[] = polyAndStickerAndFaceCenter[0];
+
+                                    // Only interested in the w component
+                                    // (and the z component if the puzzle is 2d).
+                                    // So zero out the first nDims dimensions...
+                                    polyCenter = VecMath.copyvec(polyCenter);
+                                    VecMath.zerovec(model.genericPuzzleDescription.nDims(),
+                                                    polyCenter);
+                                    if (VecMath.normsqrd(polyCenter) < 1e-4*1e-4)
+                                    {
+                                        // They clicked on an *edge* of a sticker
+                                        // that's already in the center of the screen--
+                                        // we don't know which way to push.
+                                        // nothing sensible we can do here, just ignore it.
+                                        // (Actually, treat it the same as we treat clicking on a sticker
+                                        // that's already in the center in a 4d puzzle, i.e. nothing).
+                                        //System.out.println("NICE TRY!");
+                                        return;
+                                    }
+                                    float polyCenterOnScreen[] = VecMath.vxm(polyCenter, viewParams.viewMat4d.get());
+                                    viewState.rotationFrom = polyCenterOnScreen;
+                                    VecMath.normalize(viewState.rotationFrom, viewState.rotationFrom);
                                 }
-                                float polyCenterOnScreen[] = VecMath.vxm(polyCenter, perViewState.viewMat4d);
-                                perViewState.rotationFrom = polyCenterOnScreen;
-                                VecMath.normalize(perViewState.rotationFrom, perViewState.rotationFrom);
+                            }
+
+                            double totalRotationAngle = VecMath.angleBetweenUnitVectors(
+                                                viewState.rotationFrom,
+                                                viewState.rotationTo);
+
+                            viewState.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * viewParams.nFrames90.get());
+                            if (viewState.nRotation == 0) viewState.nRotation = 1;
+                            // XXX ARGH! we'd like the speed to vary as the user changes the slider,
+                            // XXX but the above essentially locks in the speed for this rotation
+                            viewState.iRotation = 0; // we are iRotation frames into nRotation
+                            if (viewComponent != null)
+                                viewComponent.repaint(); // start it going
+
+                            if (viewState.iRotation == viewState.nRotation)
+                            {
+                                // Already in the center
+                                System.err.println("Can't rotate that.\n");
                             }
                         }
-
-                        double totalRotationAngle = VecMath.angleBetweenUnitVectors(
-                                            perViewState.rotationFrom,
-                                            perViewState.rotationTo);
-
-                        perViewState.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * perViewState.nFrames90);
-                        if (perViewState.nRotation == 0) perViewState.nRotation = 1;
-                        // XXX ARGH! we'd like the speed to vary as the user changes the slider,
-                        // XXX but the above essentially locks in the speed for this rotation
-                        perViewState.iRotation = 0; // we are iRotation frames into nRotation
-                        view.repaint(); // start it going
-
-                        if (perViewState.iRotation == perViewState.nRotation)
-                        {
-                            // Already in the center
-                            System.err.println("Can't rotate that.\n");
-                        }
-                    }
-                    else
-                        System.out.println("missed");
-                } // isRotate
-                else // !isRotate, it's a twist
-                {
-                    int iGrip = GenericPipelineUtils.pickGrip(
-                                    me.getX(), me.getY(),
-                                    perViewState.untwistedFrame,
-                                    model.genericPuzzleDescription);
-                    if (iGrip != -1)
-                    {
-                        int order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
-
-                        if (false)
-                        {
-                            System.err.println("    Grip "+iGrip+"");
-                            System.err.println("        order "+order);
-                        }
-
-                        if (order <= 0)
-                        {
-                            System.err.println("Can't twist that.\n");
-                            return;
-                        }
-
-                        int dir = (isLeftMouseButton(me) || isMiddleMouseButton(me)) ? 1 : -1; // ccw is 1, cw is -1
-
-                        if(me.isShiftDown())
-                        {
-                            dir *= 2; // double power-twist!
-                            for (int i = 0; i < perViewState.nShiftsDown-1; ++i)
-                                dir *= 2; // quadruple mega-power-twist!
-                        }
-                        model.initiateTwist(iGrip, dir, perViewState.slicemask);
-                        // do NOT call repaint here!
-                        // the model will notify us when
-                        // we need to repaint, when it's our turn.
-
-                        /*
-                        double totalRotationAngle = 2*Math.PI/order*Math.abs(dir);
-                        genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * perViewState.nFrames90); // XXX unscientific rounding
-                        if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
-                        genericGlue.iTwist = 0;
-                        genericGlue.iTwistGrip = iGrip;
-                        genericGlue.twistDir = dir;
-                        genericGlue.twistSliceMask = slicemask;
-
-                        //
-                        // Stick it in the undo queue now, instead
-                        // of at the end of the animation.
-                        // It's easier for us to do it
-                        // here than for the guy at the end to do it,
-                        // because he would have to decide to do it or not
-                        // depending on whether it was an undo
-                        // (and there's currently no mechanism for him
-                        // to know that).
-                        //
-                        // XXX seems like it would be better policy
-                        // XXX to add to the undo queue at the same time
-                        // XXX as the move is applied to the state...
-                        // XXX so we should probably apply the move
-                        // XXX to the state here too, which means
-                        // XXX we have to modify what gets passed
-                        // XXX to the getFrame functions (i.e.
-                        // XXX tell it the twist is going towards
-                        // XXX the current state array instead of
-                        // XXX away from it)
-                        // 
-                        genericGlue.undoq.setSize(genericGlue.undoPartSize); // clear redo part
-                        genericGlue.undoq.addElement(new GenericGlue.HistoryNode(
-                                                            genericGlue.iTwistGrip,
-                                                            genericGlue.twistDir,
-                                                            genericGlue.twistSliceMask));
-                        genericGlue.undoPartSize++;
-                        */
-                    }
-                    else
-                        System.out.println("missed");
-                }
-            } // mouseClicked
-            public void mousePressed(MouseEvent me)
-            {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("mousePressed on a "+view.getClass().getSuperclass().getName());
-                if (!me.isShiftDown())
-                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
-                perViewState.lastDrag = new int[]{me.getX(), me.getY()};
-                perViewState.lastDragTime = me.getWhen();
-                if (perViewState.spinDragRequiresCtrl == me.isControlDown())
-                {
-                    perViewState.spinDelta = null;
-                    perViewState.dragDelta = null;
-                }
-            } // mousePressed
-            public void mouseReleased(MouseEvent me)
-            {
-                long timedelta = me.getWhen() - perViewState.lastDragTime;
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseReleased on a "+view.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-perViewState.time0)/1000.+", timedelta = "+timedelta);
-                if (!me.isShiftDown())
-                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
-                perViewState.lastDrag = null;
-                perViewState.lastDragTime = -1L;
-                if (perViewState.spinDragRequiresCtrl == me.isControlDown())
-                {
-                    if (timedelta == 0)
-                    {
-                        // Released at same time as previous drag-- lift off!
-                        // What was the drag delta now becomes the spin delta.
-                        perViewState.spinDelta = perViewState.dragDelta;
-                        // We don't really need a repaint here
-                        // since we just saw a drag at the same time
-                        // and it did a repaint...
-                        // however we do know we want to repaint
-                        // and it doesn't hurt.
-                        view.repaint();
-                    }
-                    else
-                    {
-                        // Failure to lift off.
-                        perViewState.spinDelta = null;
-                        view.repaint(); // so it can use higher quality paint
-                    }
-                    perViewState.dragDelta = null; // no longer dragging
-                }
-            } // mouseReleased
-            public void mouseEntered(MouseEvent me)
-            {
-                if (perViewState.eventVerboseLevel >= 4) System.out.println("mouseExited on a "+view.getClass().getSuperclass().getName());
-                if (!me.isShiftDown())
-                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
-            }
-            public void mouseExited(MouseEvent me)
-            {
-                if (perViewState.eventVerboseLevel >= 4) System.out.println("mouseExited on a "+view.getClass().getSuperclass().getName());
-                if (!me.isShiftDown())
-                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
-            }
-        }); // mouse listener
-        // watch for dragging gestures to rotate the 3D view
-        view.addMouseMotionListener(perViewState.mouseMotionListener = new MouseMotionListener() {
-            public void mouseDragged(MouseEvent me)
-            {
-                if (perViewState.eventVerboseLevel >= 1) System.out.println("mouseDragged on a "+view.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-perViewState.time0)/1000.);
-                if (!me.isShiftDown())
-                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
-                if (perViewState.lastDrag == null)
-                    return;
-                int thisDrag[] = {me.getX(), me.getY()};
-                if (perViewState.spinDragRequiresCtrl == me.isControlDown())
-                {
-                    int pixelsMovedSqrd = VecMath.distsqrd(perViewState.lastDrag, thisDrag);
-                    if (pixelsMovedSqrd > 0) // do nothing if ended where we started
-                    {
-                        int dragDir[] = VecMath.vmv(thisDrag, perViewState.lastDrag);
-                        dragDir[1] *= -1; // in java, y is down, so invert it
-                        float axis[] = {-dragDir[1],dragDir[0],0.f};
-                        float radians = (float)Math.sqrt(pixelsMovedSqrd) / 300f;
-                        perViewState.dragDelta = VecMath.makeRowRotMat(radians, new float[][]{axis});
-                        if (perViewState.restrictRoll)
-                            perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, zeroOutRollOnSpinDelta(perViewState, perViewState.dragDelta)); // XXX lame, fix the prototype so it can be static maybe
                         else
-                            perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, perViewState.dragDelta);
-                        if (pixelsMovedSqrd < 2*2)
-                            perViewState.dragDelta = null;
+                            System.out.println("missed");
+                    } // isRotate
+                    else // !isRotate, it's a twist
+                    {
+                        int iGrip = GenericPipelineUtils.pickGrip(
+                                        me.getX(), me.getY(),
+                                        viewState.untwistedFrame,
+                                        model.genericPuzzleDescription);
+                        if (iGrip != -1)
+                        {
+                            int order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
+
+                            if (false)
+                            {
+                                System.err.println("    Grip "+iGrip+"");
+                                System.err.println("        order "+order);
+                            }
+
+                            if (order <= 0)
+                            {
+                                System.err.println("Can't twist that.\n");
+                                return;
+                            }
+
+                            int dir = (isLeftMouseButton(me) || isMiddleMouseButton(me)) ? 1 : -1; // ccw is 1, cw is -1
+
+                            if(me.isShiftDown())
+                            {
+                                dir *= 2; // double power-twist!
+                                for (int i = 0; i < viewState.nShiftsDown-1; ++i)
+                                    dir *= 2; // quadruple mega-power-twist!
+                            }
+                            model.initiateTwist(iGrip, dir, viewState.slicemask);
+                            // do NOT call repaint here!
+                            // the model will notify us when
+                            // we need to repaint, when it's our turn.
+                        }
+                        else
+                            System.out.println("missed");
                     }
-                }
-                perViewState.lastDrag = thisDrag;
-                perViewState.lastDragTime = me.getWhen();
-                view.repaint();
-            } // mouseDragged
-            public void mouseMoved(MouseEvent me)
-            {
-                if (perViewState.eventVerboseLevel >= 5) System.out.println("        mouseMoved on a "+view.getClass().getSuperclass().getName());
-                if (!me.isShiftDown())
-                    perViewState.nShiftsDown = 0; // kill drift if we know no shifts down
-
-                int pickedStickerPoly[] = GenericPipelineUtils.pick(
-                                                me.getX(), me.getY(),
-                                                perViewState.untwistedFrame,
-                                                model.genericPuzzleDescription);
-                int newSticker = pickedStickerPoly!=null ? pickedStickerPoly[0] : -1;
-                int newPoly = pickedStickerPoly!=null ? pickedStickerPoly[1] : -1;
-                if (newSticker != perViewState.iStickerUnderMouse
-                 || newPoly != perViewState.iPolyUnderMouse)
+                } // mouseClicked
+                public void mousePressed(MouseEvent me)
                 {
-                    perViewState.iStickerUnderMouse = newSticker;
-                    perViewState.iPolyUnderMouse = newPoly;
-                    view.repaint();
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mousePressed on a "+controllerComponent.getClass().getSuperclass().getName());
+                    if (!me.isShiftDown())
+                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
+                    viewState.lastDrag = new int[]{me.getX(), me.getY()};
+                    viewState.lastDragTime = me.getWhen();
+                    if (viewParams.requireCtrlTo3dRotate.get() == me.isControlDown())
+                    {
+                        viewState.spinDelta = null;
+                        viewState.dragDelta = null;
+                    }
+                } // mousePressed
+                public void mouseReleased(MouseEvent me)
+                {
+                    long timedelta = me.getWhen() - viewState.lastDragTime;
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseReleased on a "+controllerComponent.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-viewState.time0)/1000.+", timedelta = "+timedelta);
+                    if (!me.isShiftDown())
+                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
+                    viewState.lastDrag = null;
+                    viewState.lastDragTime = -1L;
+                    if (viewParams.requireCtrlTo3dRotate.get() == me.isControlDown())
+                    {
+                        if (timedelta == 0)
+                        {
+                            // Released at same time as previous drag-- lift off!
+                            // What was the drag delta now becomes the spin delta.
+                            viewState.spinDelta = viewState.dragDelta;
+                            // We don't really need a repaint here
+                            // since we just saw a drag at the same time
+                            // and it did a repaint...
+                            // however we do know we want to repaint
+                            // and it doesn't hurt.
+                            if (viewComponent != null)
+                                viewComponent.repaint();
+                        }
+                        else
+                        {
+                            // Failure to lift off.
+                            viewState.spinDelta = null;
+                            if (viewComponent != null)
+                                viewComponent.repaint(); // so it can use higher quality paint
+                        }
+                        viewState.dragDelta = null; // no longer dragging
+                    }
+                } // mouseReleased
+                public void mouseEntered(MouseEvent me)
+                {
+                    if (viewParams.eventVerboseLevel.get() >= 4) System.out.println("mouseExited on a "+controllerComponent.getClass().getSuperclass().getName());
+                    if (!me.isShiftDown())
+                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 }
-            } // mouseMoved
-        }); // mouse motion listener
+                public void mouseExited(MouseEvent me)
+                {
+                    if (viewParams.eventVerboseLevel.get() >= 4) System.out.println("mouseExited on a "+controllerComponent.getClass().getSuperclass().getName());
+                    if (!me.isShiftDown())
+                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
+                }
+            }); // mouse listener
+            // watch for dragging gestures to rotate the 3D view
+            controllerComponent.addMouseMotionListener(this.mouseMotionListener = new MouseMotionListener() {
+                public void mouseDragged(MouseEvent me)
+                {
+                    if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseDragged on a "+controllerComponent.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-viewState.time0)/1000.);
+                    if (!me.isShiftDown())
+                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
+                    if (viewState.lastDrag == null)
+                        return;
+                    int thisDrag[] = {me.getX(), me.getY()};
+                    if (viewParams.requireCtrlTo3dRotate.get() == me.isControlDown())
+                    {
+                        int pixelsMovedSqrd = VecMath.distsqrd(viewState.lastDrag, thisDrag);
+                        if (pixelsMovedSqrd > 0) // do nothing if ended where we started
+                        {
+                            int dragDir[] = VecMath.vmv(thisDrag, viewState.lastDrag);
+                            dragDir[1] *= -1; // in java, y is down, so invert it
+                            float axis[] = {-dragDir[1],dragDir[0],0.f};
+                            float radians = (float)Math.sqrt(pixelsMovedSqrd) / 300f;
+                            viewState.dragDelta = VecMath.makeRowRotMat(radians, new float[][]{axis});
+                            if (viewParams.restrictRoll.get())
+                                viewParams.viewMat3d.set(VecMath.mxm(viewParams.viewMat3d.get(), zeroOutRollOnSpinDelta(viewState, viewState.dragDelta))); // XXX lame, fix the prototype so it can be static maybe
+                            else
+                                viewParams.viewMat3d.set(VecMath.mxm(viewParams.viewMat3d.get(), viewState.dragDelta));
+                            if (pixelsMovedSqrd < 2*2)
+                                viewState.dragDelta = null;
+                        }
+                    }
+                    viewState.lastDrag = thisDrag;
+                    viewState.lastDragTime = me.getWhen();
+                    if (viewComponent != null)
+                        viewComponent.repaint();
+                } // mouseDragged
+                public void mouseMoved(MouseEvent me)
+                {
+                    if (viewParams.eventVerboseLevel.get() >= 5) System.out.println("        mouseMoved on a "+controllerComponent.getClass().getSuperclass().getName());
+                    if (!me.isShiftDown())
+                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
 
-        perViewState.setRestrictRoll(model, view, perViewState.getRestrictRoll()); // initiates the zero roll animation if appropriate
+                    int pickedStickerPoly[] = GenericPipelineUtils.pick(
+                                                    me.getX(), me.getY(),
+                                                    viewState.untwistedFrame,
+                                                    model.genericPuzzleDescription);
+                    int newSticker = pickedStickerPoly!=null ? pickedStickerPoly[0] : -1;
+                    int newPoly = pickedStickerPoly!=null ? pickedStickerPoly[1] : -1;
+                    if (newSticker != viewState.iStickerUnderMouse
+                     || newPoly != viewState.iPolyUnderMouse)
+                    {
+                        viewState.iStickerUnderMouse = newSticker;
+                        viewState.iPolyUnderMouse = newPoly;
+                        if (viewComponent != null)
+                            viewComponent.repaint();
+                    }
+                } // mouseMoved
+            }); // mouse motion listener
 
-    } // attachListeners
+        } // if newControllerComponent != null
+    } // setControllerComponent
+
+    /** Detaches this view guts from the old view component (if any) and attaches to the new view component (if any). */
+    public void setViewComponent(Component viewComponent)
+    {
+        this.viewComponent = viewComponent;
+        viewParams.setRestrictRoll(model, viewComponent, viewState, viewParams.getRestrictRoll()); // initiates the zero roll animation if appropriate
+    }
+
 
     /** Constructor. */
     public MC4DViewGuts()
@@ -756,11 +760,7 @@ public class MC4DViewGuts
     // PAINT
     void paint(Component view, Graphics g)
     {
-        PerViewState perViewState = (PerViewState)perViewStates.get(view);
-        if (perViewState == null)
-            throw new IllegalArgumentException("MC4DViewGuts.paint called on a "+view.getClass().getSuperclass().getName()+" that it's not attached to!?");
-
-        if (perViewState.eventVerboseLevel >= 3) System.out.println("            painting on a "+view.getClass().getSuperclass().getName());
+        if (viewParams.eventVerboseLevel.get() >= 3) System.out.println("            painting on a "+view.getClass().getSuperclass().getName());
 
         // stole from MC4DView.updateViewFactors
         int
@@ -769,7 +769,7 @@ public class MC4DViewGuts
             min = W>H ? H : W;
         if(W*H == 0)
             return;
-        float pixels2polySF = 1f / Math.min(W, H) / perViewState.scale;
+        float pixels2polySF = 1f / Math.min(W, H) / viewParams.viewScale2d.get();
         int xOff = ((W>H) ? (W-H)/2 : 0) + min/2;
         int yOff = ((H>W) ? (H-W)/2 : 0) + min/2;
 
@@ -782,7 +782,11 @@ public class MC4DViewGuts
             //System.out.println("model says it's still beforehand");
         }
         // XXX query whether animation is actually in progress
-        model.advanceAnimation(perViewState.modelListener, perViewState.nFrames90, perViewState.criticalDampingFraction);
+        model.advanceAnimation(modelListener,
+                               viewParams.nFrames90.get(),
+                               //viewParams.criticalDampingFraction.get()
+                               1-viewParams.bounce.get()
+                               );
         if (model.isMoving())
         {
             //System.out.println("model says it's moving afterwards");
@@ -802,56 +806,56 @@ public class MC4DViewGuts
         MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1);
         int puzzleState[] = new int[model.genericPuzzleDescription.nStickers()];
         // XXX getAnimationState should reaturn a float
-        float fractionOfWayThroughTwist = (float)model.getAnimationState(perViewState.modelListener,
+        float fractionOfWayThroughTwist = (float)model.getAnimationState(modelListener,
                                                                 puzzleState, // fills this
                                                                 twist);      // fills this
         //System.out.println("fraction of way through twist = "+fractionOfWayThroughTwist);
 
 
-        if (perViewState.iRotation < perViewState.nRotation)
+        if (viewState.iRotation < viewState.nRotation)
         {
             //
             // 4d rotation in progress
             //
-            float incFrac = perViewState.interp.func((perViewState.iRotation+1)/(float)perViewState.nRotation)
-                          - perViewState.interp.func(perViewState.iRotation/(float)perViewState.nRotation);
-            float incmat[][] = com.donhatchsw.util.VecMath.makeRowRotMatThatSlerps(perViewState.rotationFrom, perViewState.rotationTo, incFrac);
-            float newViewMat4d[][] = com.donhatchsw.util.VecMath.mxm(perViewState.viewMat4d, incmat);
+            float incFrac = viewParams.interp.func((viewState.iRotation+1)/(float)viewState.nRotation)
+                          - viewParams.interp.func(viewState.iRotation/(float)viewState.nRotation);
+            float incmat[][] = com.donhatchsw.util.VecMath.makeRowRotMatThatSlerps(viewState.rotationFrom, viewState.rotationTo, incFrac);
+            float newViewMat4d[][] = com.donhatchsw.util.VecMath.mxm(viewParams.viewMat4d.get(), incmat);
             com.donhatchsw.util.VecMath.gramschmidt(newViewMat4d, newViewMat4d);
-            com.donhatchsw.util.VecMath.copymat(perViewState.viewMat4d, newViewMat4d);
-            //System.out.println("    "+perViewState.iRotation+"/"+perViewState.nRotation+" -> "+(perViewState.iRotation+1)+"/"+perViewState.nRotation+"");
-            if (!perViewState.frozenForDebugging)
+            viewParams.viewMat4d.set(newViewMat4d);
+            //System.out.println("    "+viewState.iRotation+"/"+viewState.nRotation+" -> "+(viewState.iRotation+1)+"/"+viewState.nRotation+"");
+            if (!viewParams.frozenForDebugging.get())
             {
-                perViewState.iRotation++;
+                viewState.iRotation++;
                 view.repaint(); // make sure we keep drawing while there's more to do
 
-                if (perViewState.iRotation == perViewState.nRotation
-                 && perViewState.getRestrictRoll())
+                if (viewState.iRotation == viewState.nRotation
+                 && viewParams.getRestrictRoll())
                 {
                     // If we are finishing a rotate-to-center
                     // and we are in restricted roll mode,
                     // what we were using as a twirl axis is probably not
                     // very good any more.  Choose another.
-                    if (perViewState.rotationTo[3] < -.9999) // i.e. if it was a rot to center
+                    if (viewState.rotationTo[3] < -.9999) // i.e. if it was a rot to center
                     {
-                        perViewState.setRestrictRoll(model, view, perViewState.getRestrictRoll()); // even though it is already XXX make this cleaner & clearer if possible
+                        viewParams.setRestrictRoll(model, view, viewState, viewParams.getRestrictRoll()); // even though it is already XXX make this cleaner & clearer if possible
                     }
                 }
             }
         }
 
-        if (perViewState.spinDelta != null) // note, the old applet had an additional test "and not dragging" but we don't need it because spinDelta is never set during dragging now, dragDelta is instead
+        if (viewState.spinDelta != null) // note, the old applet had an additional test "and not dragging" but we don't need it because spinDelta is never set during dragging now, dragDelta is instead
         {
-            if (perViewState.restrictRoll)
-                perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, zeroOutRollOnSpinDelta(perViewState, perViewState.spinDelta));
+            if (viewParams.restrictRoll.get())
+                viewParams.viewMat3d.set(VecMath.mxm(viewParams.viewMat3d.get(), zeroOutRollOnSpinDelta(viewState, viewState.spinDelta)));
             else
-                perViewState.viewMat3d = VecMath.mxm(perViewState.viewMat3d, perViewState.spinDelta);
+                viewParams.viewMat3d.set(VecMath.mxm(viewParams.viewMat3d.get(), viewState.spinDelta));
             view.repaint();
         }
 
-        GenericPipelineUtils.Frame frameToDrawInto = perViewState.untwistedFrame;
+        GenericPipelineUtils.Frame frameToDrawInto = viewState.untwistedFrame;
 
-        // XXX these numbers need to go up into the perViewState structure
+        // XXX these numbers need to go up into the viewParams structure
         // XXX and FIX the FUDGE dag nab it
 
         // old params... but I don't think it was doing it right
@@ -859,7 +863,7 @@ public class MC4DViewGuts
         //float groundOffset = -1.f;
 
         // XXX why is this a bit diff from old?  well I don't think it was being done right for one thing
-        float[] groundNormal = perViewState.showShadows ? new float[] {0,1,.05f} : null;
+        float[] groundNormal = viewParams.showShadows.get() ? new float[] {0,1,.05f} : null;
         float groundOffset = -1.f;
 
         // XXX I don't seem to be quite the same as the original... unless I correct it here
@@ -872,30 +876,30 @@ public class MC4DViewGuts
             frameToDrawInto,
 
             model.genericPuzzleDescription,
-            perViewState.faceShrink,
-            perViewState.stickerShrink,
+            viewParams.faceShrink4d.get(),
+            viewParams.stickerShrink4d.get(),
 
             twist.grip,
             twist.dir,
             twist.slicemask,
             (float)fractionOfWayThroughTwist,
 
-            VecMath.mxs(perViewState.viewMat4d, scaleFudge4d),
-            perViewState.eyeW,
+            VecMath.mxs(viewParams.viewMat4d.get(), scaleFudge4d),
+            viewParams.eyeW.get(),
             VecMath.mxm(
                 VecMath.makeRowRotMat(3, 2, 1, (float)Math.PI/2), // XXX FUDGE that makes it nicer for the pentagonal prismprism... what do we need, a preferred viewing orientation for each puzzle as part of the model description?
-                VecMath.mxs(perViewState.viewMat3d, scaleFudge3d)),
-            perViewState.eyeZ,
-            new float[][]{{scaleFudge2d*perViewState.scale/pixels2polySF, 0},
-                          {0, -scaleFudge2d*perViewState.scale/pixels2polySF},
+                VecMath.mxs(viewParams.viewMat3d.get(), scaleFudge3d)),
+            viewParams.eyeZ.get(),
+            new float[][]{{scaleFudge2d*viewParams.viewScale2d.get()/pixels2polySF, 0},
+                          {0, -scaleFudge2d*viewParams.viewScale2d.get()/pixels2polySF},
                           {(float)xOff, (float)yOff}},
 
-            VecMath.normalize(perViewState.towardsSunVec),
+            VecMath.normalize(viewParams.towardsSunVec.get()),
             groundNormal,
             groundOffset,
             
-            perViewState.useTopsort,
-            perViewState.showPartialOrder);
+            viewParams.useTopsort.get(),
+            viewParams.showPartialOrder.get());
 
         /*
         if (frozenForDebugging)
@@ -910,19 +914,19 @@ public class MC4DViewGuts
                 frameToDrawInto,
                 model.genericPuzzleDescription,
                 model.genericPuzzleState,
-                perViewState.showShadows,
-                perViewState.ground,
-                perViewState.faceRGB,
-                perViewState.iStickerUnderMouse,
-                perViewState.iPolyUnderMouse,
-                perViewState.highlightByCubie,
-                !perViewState.highlightByCubie && perViewState.highlightByGrip, // XXX mess, see if I can make this cleaner
-                perViewState.outlineColor,
+                viewParams.showShadows.get(),
+                viewParams.groundColor.get(),
+                viewParams.faceRGB,
+                viewState.iStickerUnderMouse,
+                viewState.iPolyUnderMouse,
+                viewParams.highlightByCubie.get(),
+                !viewParams.highlightByCubie.get() && viewParams.highlightByGrip.get(), // XXX mess, see if I can make this cleaner
+                viewParams.shrunkStickerOutlineColor.get(),
                 g,
 
-                perViewState.jitterRadius,
-                perViewState.drawLabels,
-                perViewState.showPartialOrder);
+                viewParams.jitterRadius.get(),
+                viewParams.drawLabels.get(),
+                viewParams.showPartialOrder.get());
     } // paint
 
 
@@ -980,12 +984,12 @@ public class MC4DViewGuts
             return bestIFace;
         } // findFaceCenterClosestToYZArc
 
-        public static void initiateZeroRoll(PerViewState perViewState,
+        public static void initiateZeroRoll(ViewState viewState,
                                             float faceCenters[][],
                                             float viewMat4d[][],
                                             float viewMat3d[][],
                                             double nFrames90,
-                                            Component view)
+                                            Component viewComponent)
         {
             // XXX FUDGE! get rid of this when I get rid of corresponding fudge in display
             {
@@ -1006,39 +1010,39 @@ public class MC4DViewGuts
                                                      viewMat4d,
                                                      viewMat3d,
                                                      pointOnYZArc);
-            perViewState.rotationFrom = com.donhatchsw.util.VecMath.vxm(faceCenters[iFace], viewMat4d);
-            perViewState.rotationFrom[3] = 0.f;
-            com.donhatchsw.util.VecMath.normalize(perViewState.rotationFrom,
-                                                  perViewState.rotationFrom);
+            viewState.rotationFrom = com.donhatchsw.util.VecMath.vxm(faceCenters[iFace], viewMat4d);
+            viewState.rotationFrom[3] = 0.f;
+            com.donhatchsw.util.VecMath.normalize(viewState.rotationFrom,
+                                                  viewState.rotationFrom);
             // pointOnYZArc is now in screen space...
             // to get the point we want to rotate to,
             // we undo the viewMat3d on it,
             // i.e. apply viewMat3d's transpose, i.e. its inverse,
             // i.e. multiply by it on the opposite side as usual
-            perViewState.rotationTo = com.donhatchsw.util.VecMath.mxv(viewMat3d, pointOnYZArc);
+            viewState.rotationTo = com.donhatchsw.util.VecMath.mxv(viewMat3d, pointOnYZArc);
 
             double totalRotationAngle = com.donhatchsw.util.VecMath.angleBetweenUnitVectors(
-                                perViewState.rotationFrom,
-                                perViewState.rotationTo);
-            perViewState.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
-            if (perViewState.nRotation == 0) perViewState.nRotation = 1;
-            perViewState.iRotation = 0;
+                                viewState.rotationFrom,
+                                viewState.rotationTo);
+            viewState.nRotation = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
+            if (viewState.nRotation == 0) viewState.nRotation = 1;
+            viewState.iRotation = 0;
 
             // Remember the zero roll pole
             // for subsequent calls to zeroOutRollOnSpinDelta
-            perViewState.zeroRollPoleAfterRot3d = pointOnYZArc;
+            viewState.zeroRollPoleAfterRot3d = pointOnYZArc;
 
             //System.out.println("this.rotationFrom = "+com.donhatchsw.util.VecMath.toString(this.rotationFrom));
             //System.out.println("this.rotationTo = "+com.donhatchsw.util.VecMath.toString(this.rotationTo));
 
-            view.repaint();
+            viewComponent.repaint();
         } // initiateZeroRoll
 
         // Uses the zeroRollPole from the most recent call
         // to initiatezeroRoll. // XXX should not
-        public static float[][] zeroOutRollAndMaybeTiltOnSpinDelta(PerViewState perViewState,
-                                                            float spindelta[][],
-                                                            boolean zeroOutTiltToo)
+        public static float[][] zeroOutRollAndMaybeTiltOnSpinDelta(ViewState viewState,
+                                                                   float spindelta[][],
+                                                                   boolean zeroOutTiltToo)
         {
             double tiltDeltaAngle, twirlDeltaAngle;
             {
@@ -1054,11 +1058,11 @@ public class MC4DViewGuts
             if (zeroOutTiltToo)
                 tiltDeltaAngle = 0.f; // before clamping-- we do let the clamp do a tilt if it wants
 
-            Assert(perViewState.zeroRollPoleAfterRot3d != null); // initiateZeroRoll must have been called previously
-            perViewState.zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.copyvec(3, perViewState.zeroRollPoleAfterRot3d); // XXX sigh... because vxm and other stuff freaks if I don't
+            Assert(viewState.zeroRollPoleAfterRot3d != null); // initiateZeroRoll must have been called previously
+            viewState.zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.copyvec(3, viewState.zeroRollPoleAfterRot3d); // XXX sigh... because vxm and other stuff freaks if I don't
             // Clamp tilt to [0..pi/2]...
-            double currentTilt = Math.atan2(perViewState.zeroRollPoleAfterRot3d[2],
-                                            perViewState.zeroRollPoleAfterRot3d[1]);
+            double currentTilt = Math.atan2(viewState.zeroRollPoleAfterRot3d[2],
+                                            viewState.zeroRollPoleAfterRot3d[1]);
             //System.out.println("tiltDeltaAngle before = "+tiltDeltaAngle*180/Math.PI);
             if (tiltDeltaAngle > Math.PI/2 - currentTilt)
                 tiltDeltaAngle = Math.PI/2 - currentTilt;
@@ -1066,7 +1070,7 @@ public class MC4DViewGuts
                 tiltDeltaAngle = 0 - currentTilt;
             //System.out.println("tiltDeltaAngle after = "+tiltDeltaAngle*180/Math.PI);
 
-            double twirlDelta[][] = com.donhatchsw.util.VecMath.makeRowRotMat(twirlDeltaAngle, new double[][]{com.donhatchsw.util.VecMath.floatToDouble(perViewState.zeroRollPoleAfterRot3d)});
+            double twirlDelta[][] = com.donhatchsw.util.VecMath.makeRowRotMat(twirlDeltaAngle, new double[][]{com.donhatchsw.util.VecMath.floatToDouble(viewState.zeroRollPoleAfterRot3d)});
             double tiltDelta[][] = com.donhatchsw.util.VecMath.makeRowRotMat(tiltDeltaAngle, new double[][]{{1,0,0}});
             float adjustedSpinDelta[][] = com.donhatchsw.util.VecMath.doubleToFloat(com.donhatchsw.util.VecMath.mxm(twirlDelta, tiltDelta));
 
@@ -1076,23 +1080,23 @@ public class MC4DViewGuts
                                                     adjustedSpinDelta);
 
             // need to apply it to the pole...
-            perViewState.zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.vxm(perViewState.zeroRollPoleAfterRot3d,
+            viewState.zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.vxm(viewState.zeroRollPoleAfterRot3d,
                                                                      adjustedSpinDelta);
             return adjustedSpinDelta;
         } // zeroOutRollAndMaybeTiltOnSpinDelta
 
         // when dragging, we allow tilt changes
-        public static float[][] zeroOutRollOnSpinDelta(PerViewState perViewState,
+        public static float[][] zeroOutRollOnSpinDelta(ViewState viewState,
                                                        float spindelta[][])
         {
-            return zeroOutRollAndMaybeTiltOnSpinDelta(perViewState, spindelta, false);
+            return zeroOutRollAndMaybeTiltOnSpinDelta(viewState, spindelta, false);
         }
         // when autospinning, we don't allow tilt changes,
         // or it would just drift to the min or max tilt, which looks dumb
-        public static float[][] zeroOutRollAndTiltOnSpinDelta(PerViewState perViewState,
+        public static float[][] zeroOutRollAndTiltOnSpinDelta(ViewState viewState,
                                                               float spindelta[][])
         {
-            return zeroOutRollAndMaybeTiltOnSpinDelta(perViewState, spindelta, true);
+            return zeroOutRollAndMaybeTiltOnSpinDelta(viewState, spindelta, true);
         }
 
 
@@ -1106,6 +1110,182 @@ public class MC4DViewGuts
          return ((anEvent.getModifiers() & InputEvent.BUTTON1_MASK) != 0);
     }
 
+
+
+    //
+    // Default color scheme utilities.
+    // Still needs lots of work.
+    //
+        // First observation:
+        //  If you look at the standard hue wheel,
+        //  perceptually it changes very slowly
+        //  near the primary colors r,g,b
+        //  and very quickly near the secondary colors c,m,y.
+        //  So if we want to evenly spread out colors around the wheel
+        //  in terms of perception, we should crowd lots of samples
+        //  around the secondary colors and not so many
+        //  around the primary colors.
+        //  Eyeballing it, it looks like the perceptual
+        //  halfway point between a primary color
+        //  and an adjacent secondary color
+        //  is about 3/4 of the way towards the secondary color,
+        //  so I'll use that as the basis for everything.
+        // Second observation:
+        //  This may be completely subjective,
+        //  but it seems to me that there are 8 perceptually
+        //  distinct hues:  the 6 usual primary&secondary hues,
+        //  plus orange and violet.
+        private static double linearizeHue(double perceptualHue)
+        {
+            double hue = perceptualHue - Math.floor(perceptualHue);
+            if (true)
+            {
+                // The original perceptual hue is 1/8-oriented,
+                // i.e. it thinks in terms of r,o,y.g,c,b,v,m.
+                // Convert this into something that's 1/6-oriented,
+                // via the piecewise linear mapping:
+                //      0/8 -> 0/6  red
+                //      1/8 ->  1/12  orange
+                //      2/8 -> 1/6  yellow
+                //      3/8 -> 2/6  green
+                //      4/8 -> 3/6  cyan
+                //      5/8 -> 4/6  blue
+                //      6/8 ->  3/4   violet
+                //      7/8 -> 5/6  magenta
+                //      8/8 -> 6/6  red again
+                final double perceptualHues[] = {
+                    0/6.,   // red
+                    1/12.,  //   orange
+                    1/6.,   // yellow
+                    2/6.,   // green
+                    3/6.,   // cyan
+                    4/6.,   // blue
+                    3/4.,   //   violet
+                    5/6.,   // magenta
+                    6/6.,   // red again
+                };
+                int i = (int)(hue*8);
+                double frac = hue*8 - i;
+                hue = perceptualHues[i]*(1-frac)
+                    + perceptualHues[i+1]*frac;
+            }
+            // Now, consider the fraction of the way
+            // we are from the nearest secondary color
+            // to the nearest primary color,
+            // and square that fraction.
+            // E.g. halfway from cyan to blue
+            // turns into 1/4 of the way from cyan to blue.
+            // That keeps us closer to the secondary color
+            // longer, which is what we want,
+            // because that's where the hue is varying fastest
+            // perceptually.
+            if (true)
+            {
+                int i = (int)(hue*6);
+                double frac = hue*6 - i;
+                if (i % 2 == 1)
+                {
+                    // y->g or c->b or m->r
+                    frac = frac*frac;
+                }
+                else
+                {
+                    // y->r or c->g or m->b
+                    frac = 1-(1-frac)*(1-frac);
+                }
+                hue = (i+frac)/6;
+            }
+            return hue;
+        } // linearizeHue
+
+        //
+        // Saturations vary fastest perceptually
+        // near zero.  So just square the saturation
+        // so it doesn't vary as fast in linear space near zero.
+        private static double linearizeSat(double perceptualSat)
+        {
+            return perceptualSat*perceptualSat;
+        }
+
+
+        //
+        // Attempt to autogenerate some nice colors.
+        // The sequence will be:
+        //     1. Fully saturated 8 colors:
+        //             red
+        //             orange
+        //             yellow
+        //             green
+        //             cyan
+        //             blue
+        //             violet
+        //             magenta
+        //             red
+        //    2. Same 8 colors with saturation = .6
+        //    3. Same 8 colors with saturation = .8
+        //    4. Same 8 colors with saturation = .4
+        //    Then repeat all of the above with in-between hues
+        //    Then repeat all of the above with in-between saturations
+        //        .9,.5,.7,.3
+        // Eh, on second thought, use only those 4 saturations,
+        // then keep doing in-between hues only;
+        // that makes something that's easier to comprehend
+        // when laying it out in rows of 32.
+        // 
+        private static void autoGenerateHueAndSat(int iFace,
+                                                  double hueAndSat[/*2*/])
+        {
+            Assert(iFace >= 0);
+
+            double hue = iFace/8.;
+            double sat = 1.;
+            iFace /= 8;
+
+            double satDecrement = .4;
+            double hueIncrement = 1/16.;
+
+            for (int i = 0; i < 2; ++i)
+            {
+                if (iFace > 0)
+                {
+                    if (iFace % 2 == 1)
+                        sat -= satDecrement;
+                    satDecrement /= 2;
+                    iFace /= 2;
+                }
+            }
+            while (iFace > 0)
+            {
+                if (iFace % 2 == 1)
+                    hue += hueIncrement;
+                hueIncrement /= 2;
+                iFace /= 2;
+                /*
+                if (iFace > 0)
+                {
+                    if (iFace % 2 == 1)
+                        sat -= satDecrement;
+                    satDecrement /= 2;
+                    iFace /= 2;
+                }
+                */
+            }
+            hueAndSat[0] = hue;
+            hueAndSat[1] = sat;
+        } // autoGenerateHueAndSat
+
+        private static Color autoGenerateColor(int iFace)
+        {
+            double hueAndSat[] = new double[2];
+            autoGenerateHueAndSat(iFace, hueAndSat);
+            double hue = hueAndSat[0];
+            double sat = hueAndSat[1];
+            hue = linearizeHue(hue);
+            sat = linearizeSat(sat);
+            if (false)
+                return new Color((float)Math.random(), (float)Math.random(), (float)Math.random());
+            return Color.getHSBColor((float)hue, (float)sat, 1.f);
+        } // autoGenerateColor
 
 
 
@@ -1136,7 +1316,8 @@ public class MC4DViewGuts
                 return true;
             }
         };
-        guts.attachListeners(myPanel, false);
+        guts.setControllerComponent(myPanel, false);
+        guts.setViewComponent(myPanel);
         //myPanel.setPreferredSize(new java.awt.Dimension(w,h)); // set size bottom up
 
 
@@ -1150,7 +1331,8 @@ public class MC4DViewGuts
             public void windowClosing(java.awt.event.WindowEvent event)
             {
                 System.out.println("Chow!");
-                guts.detachListeners(myPanel);
+                guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
+                guts.setViewComponent(null); // XXX make this not necessary, with weak ref I think
                 if (model.nListeners() == 0)
                     System.exit(0); // asinine way of doing things
             }
@@ -1226,7 +1408,8 @@ public class MC4DViewGuts
                 return true;
             }
         };
-        guts.attachListeners(myCanvas, true);
+        guts.setControllerComponent(myCanvas, false);
+        guts.setViewComponent(myCanvas);
         //myCanvas.setSize(new java.awt.Dimension(w,h)); // set size bottom up
 
 
@@ -1243,7 +1426,8 @@ public class MC4DViewGuts
                         //  messes up the debugger)
                         // (XXX but doing exit is evil)
                         dispose(); // hide() doesn't delete the windows
-                        guts.detachListeners(myCanvas);
+                        guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
+                        guts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
                         if (model.nListeners() == 0)
                             System.exit(0); // asinine way of doing things
                         return true;
@@ -1259,7 +1443,8 @@ public class MC4DViewGuts
                 public void windowClosing(java.awt.event.WindowEvent we) {
                     System.out.println("ciao!");
                     frame.dispose(); // hide() doesn't delete the windows
-                    guts.detachListeners(myCanvas);
+                    guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
+                    guts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
                     if (model.nListeners() == 0)
                         System.exit(0); // asinine way of doing things
                 }

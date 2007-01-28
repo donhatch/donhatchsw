@@ -5,194 +5,46 @@ import java.awt.event.*;
 import com.donhatchsw.awt.MyPanel;
 import com.donhatchsw.awt.Col;
 import com.donhatchsw.awt.Row;
+import com.donhatchsw.util.Listenable;
 
 public class MC4DControlPanel
     extends Panel
 {
     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
 
-    // XXX this needs to go elsewhere
 
-        // First observation:
-        //  If you look at the standard hue wheel,
-        //  perceptually it changes very slowly
-        //  near the primary colors r,g,b
-        //  and very quickly near the secondary colors c,m,y.
-        //  So if we want to evenly spread out colors around the wheel
-        //  in terms of perception, we should crowd lots of samples
-        //  around the secondary colors and not so many
-        //  around the primary colors.
-        //  Eyeballing it, it looks like the perceptual
-        //  halfway point between a primary color
-        //  and an adjacent secondary color
-        //  is about 3/4 of the way towards the secondary color,
-        //  so I'll use that as the basis for everything.
-        // Second observation:
-        //  This may be completely subjective,
-        //  but it seems to me that there are 8 perceptually
-        //  distinct hues:  the 6 usual primary&secondary hues,
-        //  plus orange and violet.
-        private static double linearizeHue(double perceptualHue)
+    private static class CanvasOfSize extends Canvas
+    {
+        private Dimension preferredSize;
+        CanvasOfSize(int width, int height)
         {
-            double hue = perceptualHue - Math.floor(perceptualHue);
-            if (true)
-            {
-                // The original perceptual hue is 1/8-oriented,
-                // i.e. it thinks in terms of r,o,y.g,c,b,v,m.
-                // Convert this into something that's 1/6-oriented,
-                // via the piecewise linear mapping:
-                //      0/8 -> 0/6  red
-                //      1/8 ->  1/12  orange
-                //      2/8 -> 1/6  yellow
-                //      3/8 -> 2/6  green
-                //      4/8 -> 3/6  cyan
-                //      5/8 -> 4/6  blue
-                //      6/8 ->  3/4   violet
-                //      7/8 -> 5/6  magenta
-                //      8/8 -> 6/6  red again
-                final double perceptualHues[] = {
-                    0/6.,   // red
-                    1/12.,  //   orange
-                    1/6.,   // yellow
-                    2/6.,   // green
-                    3/6.,   // cyan
-                    4/6.,   // blue
-                    3/4.,   //   violet
-                    5/6.,   // magenta
-                    6/6.,   // red again
-                };
-                int i = (int)(hue*8);
-                double frac = hue*8 - i;
-                hue = perceptualHues[i]*(1-frac)
-                    + perceptualHues[i+1]*frac;
-            }
-            // Now, consider the fraction of the way
-            // we are from the nearest secondary color
-            // to the nearest primary color,
-            // and square that fraction.
-            // E.g. halfway from cyan to blue
-            // turns into 1/4 of the way from cyan to blue.
-            // That keeps us closer to the secondary color
-            // longer, which is what we want,
-            // because that's where the hue is varying fastest
-            // perceptually.
-            if (true)
-            {
-                int i = (int)(hue*6);
-                double frac = hue*6 - i;
-                if (i % 2 == 1)
-                {
-                    // y->g or c->b or m->r
-                    frac = frac*frac;
-                }
-                else
-                {
-                    // y->r or c->g or m->b
-                    frac = 1-(1-frac)*(1-frac);
-                }
-                hue = (i+frac)/6;
-            }
-            return hue;
-        } // linearizeHue
-
-        //
-        // Saturations vary fastest perceptually
-        // near zero.  So just square the saturation
-        // so it doesn't vary as fast in linear space near zero.
-        private static double linearizeSat(double perceptualSat)
-        {
-            return perceptualSat*perceptualSat;
+            super();
+            preferredSize = new Dimension(width, height);
         }
-
-
-        //
-        // Attempt to autogenerate some nice colors.
-        // The sequence will be:
-        //     1. Fully saturated 8 colors:
-        //             red
-        //             orange
-        //             yellow
-        //             green
-        //             cyan
-        //             blue
-        //             violet
-        //             magenta
-        //             red
-        //    2. Same 8 colors with saturation = .6
-        //    3. Same 8 colors with saturation = .8
-        //    4. Same 8 colors with saturation = .4
-        //    Then repeat all of the above with in-between hues
-        //    Then repeat all of the above with in-between saturations
-        //        .9,.5,.7,.3
-        // Eh, on second thought, use only those 4 saturations,
-        // then keep doing in-between hues only;
-        // that makes something that's easier to comprehend
-        // when laying it out in rows of 32.
-        // 
-        private static void autoGenerateHueAndSat(int iFace,
-                                                  double hueAndSat[/*2*/])
+        public Dimension getPreferredSize()
         {
-            Assert(iFace >= 0);
-
-            double hue = iFace/8.;
-            double sat = 1.;
-            iFace /= 8;
-
-            double satDecrement = .4;
-            double hueIncrement = 1/16.;
-
-            for (int i = 0; i < 2; ++i)
-            {
-                if (iFace > 0)
-                {
-                    if (iFace % 2 == 1)
-                        sat -= satDecrement;
-                    satDecrement /= 2;
-                    iFace /= 2;
-                }
-            }
-            while (iFace > 0)
-            {
-                if (iFace % 2 == 1)
-                    hue += hueIncrement;
-                hueIncrement /= 2;
-                iFace /= 2;
-                /*
-                if (iFace > 0)
-                {
-                    if (iFace % 2 == 1)
-                        sat -= satDecrement;
-                    satDecrement /= 2;
-                    iFace /= 2;
-                }
-                */
-            }
-            hueAndSat[0] = hue;
-            hueAndSat[1] = sat;
-        } // autoGenerateHueAndSat
-
-        private static Color autoGenerateColor(int iFace)
-        {
-            double hueAndSat[] = new double[2];
-            autoGenerateHueAndSat(iFace, hueAndSat);
-            double hue = hueAndSat[0];
-            double sat = hueAndSat[1];
-            hue = linearizeHue(hue);
-            sat = linearizeSat(sat);
-            return Color.getHSBColor((float)hue, (float)sat, 1.f);
-        } // autoGenerateColor
-
+            return preferredSize;
+        }
+    }
 
     public static class TextFieldForFloat extends TextField
     {
-        public TextFieldForFloat(final com.donhatchsw.util.Listenable.Float f)
+        private void updateText(Listenable.Number f)
+        {
+            if (f instanceof Listenable.Float)
+                setText(""+((Listenable.Float)f).get());
+            else
+                setText(""+(float)((Listenable.Double)f).get()); // XXX ARGH! we lose precision with this (float) cast, but if we don't do it, we can get, for example, 37.092999999999996 which looks lame.  should figure out another way to prevent that.
+        }
+
+        public TextFieldForFloat(final Listenable.Number f)
         {
             super("99.99"); // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
-            setText(""+f.get());
-            f.addListener(new com.donhatchsw.util.Listenable.Listener() {
+            updateText(f);
+            f.addListener(new Listenable.Listener() {
                 public void valueChanged()
                 {
-                    setText(""+f.get());
+                    updateText(f);
                 }
             });
             addActionListener(new ActionListener() {
@@ -200,12 +52,12 @@ public class MC4DControlPanel
                 {
                     try
                     {
-                        f.set(Float.valueOf(getText()).floatValue());
+                        f.setDouble(Double.valueOf(getText()).doubleValue());
                     }
                     catch (java.lang.NumberFormatException nfe)
                     {
                         // maybe should print an error message or something
-                        setText(""+f.get());
+                        updateText(f);
                     }
                 }
             });
@@ -239,21 +91,21 @@ public class MC4DControlPanel
 
     public static class SliderForFloat extends Scrollbar
     {
-        private void updateThumb(com.donhatchsw.util.Listenable.Float f)
+        private void updateThumb(Listenable.Number f)
         {
-            float value = f.get();
-            float defaultValue = f.getDefaultValue();
-            float frac = (value-f.getMinValue())/(f.getMaxValue()-f.getMinValue());
+            double value = f.getDouble();
+            double defaultValue = f.defaultDouble();
+            double frac = (value-f.minDouble())/(f.maxDouble()-f.minDouble());
             setValue((int)(getMinimum() + ((getMaximum()-getVisibleAmount())-getMinimum())*frac));
         }
 
-        public SliderForFloat(final com.donhatchsw.util.Listenable.Float f)
+        public SliderForFloat(final Listenable.Number f)
         {
             super(Scrollbar.HORIZONTAL);
 
             // 3 significant digits seems reasonable...
-            int min = (int)(f.getMinValue()*1000);
-            int max = (int)(f.getMaxValue()*1000);
+            int min = (int)(f.minDouble()*1000);
+            int max = (int)(f.maxDouble()*1000);
             int vis = (int)(.1*(max-min));
             setValues(0,   // value (we'll set it right later)
                       vis,
@@ -262,7 +114,7 @@ public class MC4DControlPanel
             setUnitIncrement(1);   // .001 units
             setBlockIncrement(10); // .01 units
 
-            f.addListener(new com.donhatchsw.util.Listenable.Listener() {
+            f.addListener(new Listenable.Listener() {
                 public void valueChanged()
                 {
                     updateThumb(f);
@@ -289,7 +141,7 @@ public class MC4DControlPanel
                     // if we do it in float, we get ugly values in the textfield
                     double frac = (double)(e.getValue()-getMinimum())
                                 / (double)((getMaximum()-getVisibleAmount())-getMinimum());
-                    f.set((float)(f.getMinValue() + frac*(f.getMaxValue()-f.getMinValue())));
+                    f.setDouble(f.minDouble() + frac*(f.maxDouble()-f.minDouble()));
                     // will trigger valueChanged()
                     // which will call updateThumb()
                 }
@@ -307,10 +159,48 @@ public class MC4DControlPanel
         }
     } // SliderForFloat
 
+    private static class ColorSwatch extends CanvasOfSize
+    {
+        ColorSwatch(final Listenable.Color color, int width, int height)
+        {
+            super(width, height);
+            setBackground(color.get());
+            addMouseListener(new MouseListener() {
+                public void mouseClicked(MouseEvent me)
+                {
+                    //System.out.println("mouseClicked");
+                } // mouseClicked
+                public void mousePressed(MouseEvent me)
+                {
+                    //System.out.println("mousePressed");
+                    color.set(new Color((float)Math.random(), (float)Math.random(), (float)Math.random())); // poor man's color chooser
+                } // mousePressed
+                public void mouseReleased(MouseEvent me)
+                {
+                    //System.out.println("mouseReleased");
+                } // mouseReleased
+                public void mouseEntered(MouseEvent me)
+                {
+                    //System.out.println("mouseEntered");
+                } // mouseEntered
+                public void mouseExited(MouseEvent me)
+                {
+                    //System.out.println("mouseExited");
+                } // mouseExited
+            }); // mouse listener
+            color.addListener(new Listenable.Listener() {
+                public void valueChanged()
+                {
+                    ColorSwatch.this.setBackground(color.get());
+                }
+            });
+        }
+    } // ColorSwatch
+
     private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
     {
-        private com.donhatchsw.util.Listenable.Color color;
-        private com.donhatchsw.util.Listenable.Boolean b;
+        private Listenable.Color color;
+        private Listenable.Boolean b;
         private Canvas swatch;
         private Checkbox checkbox;
 
@@ -323,12 +213,12 @@ public class MC4DControlPanel
         }
 
         public ColorSwatchMaybeAndCheckBoxMaybe(
-            final com.donhatchsw.util.Listenable.Color initcolor,
-            final com.donhatchsw.util.Listenable.Boolean initb,
+            final Listenable.Color initcolor,
+            final Listenable.Boolean initb,
             String name)
         {
             super(new Object[][]{
-                (initcolor==null ? null : new Object[]{new Canvas(){{setSize(16,16); setBackground(initcolor.get());}}}),   // XXX this is messed up... if it gets compressed, it doesn't spring back
+                (initcolor==null ? null : new Object[]{new ColorSwatch(initcolor,16,16)}),
                 {initb==null ? (Object)name : (Object)new Checkbox(name)},
                 {"",new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}}}, // just stretchable space
             });
@@ -344,7 +234,7 @@ public class MC4DControlPanel
 
             if (b != null)
             {
-                b.addListener(new com.donhatchsw.util.Listenable.Listener() {
+                b.addListener(new Listenable.Listener() {
                     public void valueChanged()
                     {
                         updateShownValues();
@@ -367,7 +257,7 @@ public class MC4DControlPanel
     // XXX think of a name
     private static class CheckboxThing extends ColorSwatchMaybeAndCheckBoxMaybe
     {
-        public CheckboxThing(com.donhatchsw.util.Listenable.Boolean b,
+        public CheckboxThing(Listenable.Boolean b,
                                 String name)
         {
             super(null, b, name);
@@ -381,7 +271,7 @@ public class MC4DControlPanel
         private boolean wasDefault[]; // one for each listenable
         private int nNonDefault; // number of falses in wasDefault
         public ResetButton(final String buttonLabel,
-                           final com.donhatchsw.util.Listenable listenables[])
+                           final Listenable listenables[])
         {
             super(buttonLabel);
             // XXX to be clean, should really scrunch out null listeners here so that we don't suffer overhead for them every time the button is hit... not that anyone would ever notice though probably
@@ -403,7 +293,7 @@ public class MC4DControlPanel
                     continue;
                 if (!(wasDefault[i] = listenables[i].isDefault()))
                     nNonDefault++;
-                listenables[i].addListener(new com.donhatchsw.util.Listenable.Listener() {
+                listenables[i].addListener(new Listenable.Listener() {
                     public void valueChanged()
                     {
                         boolean isDefault = listenables[i].isDefault();
@@ -426,9 +316,9 @@ public class MC4DControlPanel
         }
         // Convenience constructor for when there's just one listenable
         public ResetButton(final String buttonLabel,
-                           final com.donhatchsw.util.Listenable listenable)
+                           final Listenable listenable)
         {
-            this(buttonLabel, new com.donhatchsw.util.Listenable[]{listenable});
+            this(buttonLabel, new Listenable[]{listenable});
         }
     } // class ResetButton
 
@@ -542,10 +432,10 @@ public class MC4DControlPanel
         nRows++;
     }
     private void addFloatSliderRow(String labelString,
-                        com.donhatchsw.util.Listenable.Float f,
+                        Listenable.Number f, // Float or Double
                         String helpMessage[])
     {
-        this.add(new Canvas(){{setSize(20,10);}}, // indent   XXX this is messed up... if it gets compressed, it doesn't spring back
+        this.add(new CanvasOfSize(20,10), // indent
                  new GridBagConstraints(){{gridy = nRows;}});
         this.add(new Label(labelString+":"),
                  new GridBagConstraints(){{anchor = WEST;
@@ -563,10 +453,10 @@ public class MC4DControlPanel
         nRows++;
     }
     private void addCheckboxRow(String labelString,
-                        com.donhatchsw.util.Listenable.Boolean b,
+                        Listenable.Boolean b,
                         String helpMessage[])
     {
-        this.add(new Canvas(){{setSize(20,10);}}, // indent   XXX this is messed up... if it gets compressed, it doesn't spring back
+        this.add(new CanvasOfSize(20,10), // indent
                  new GridBagConstraints(){{gridy = nRows;}});
         this.add(new CheckboxThing(b, labelString),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
@@ -579,16 +469,16 @@ public class MC4DControlPanel
         nRows++;
     }
     private void addColorSwatchAndCheckboxRow(String labelString,
-                        com.donhatchsw.util.Listenable.Color color,
-                        com.donhatchsw.util.Listenable.Boolean b,
+                        Listenable.Color color,
+                        Listenable.Boolean b,
                         String helpMessage[])
     {
-        this.add(new Canvas(){{setSize(20,10);}}, // indent   XXX this is messed up... if it gets compressed, it doesn't spring back
+        this.add(new CanvasOfSize(20,10), // indent
                  new GridBagConstraints(){{gridy = nRows;}});
         this.add(new ColorSwatchMaybeAndCheckBoxMaybe(color, b, labelString),
                  new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
                                            gridwidth = 3; gridy = nRows;}});
-        this.add(new ResetButton("Reset to default", new com.donhatchsw.util.Listenable[]{color, b}),
+        this.add(new ResetButton("Reset to default", new Listenable[]{color, b}),
                  new GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
@@ -596,13 +486,13 @@ public class MC4DControlPanel
         nRows++;
     }
 
-    public MC4DControlPanel(Stuff view)
+    public MC4DControlPanel(MC4DViewGuts.ViewParams viewParams)
     {
         this.setLayout(new GridBagLayout());
         addSingleLabelRow(new Label("Behavior"));
         addFloatSliderRow(
             "Twist duration",
-            view.twistDuration,
+            viewParams.nFrames90,
             new String[] {
                 "Controls the speed of puzzle twists (left- or right-click)",
                 "and 4d rotates (middle-click or alt-click).",
@@ -617,7 +507,7 @@ public class MC4DControlPanel
             });
         addFloatSliderRow(
             "Bounce",
-            view.bounce,
+            viewParams.bounce,
             new String[] {
                 "Normally the forces used for twists and rotates",
                 "are those of a critically damped spring,",
@@ -633,14 +523,14 @@ public class MC4DControlPanel
             });
         addCheckboxRow(
             "Stop Between Moves",
-            view.stopBetweenMoves,
+            viewParams.stopBetweenMoves,
             new String[] {
                 "Normally this option is checked, which means",
                 "that during a solve or long undo or redo animation sequence,",
                 "the animation slows to a stop after each different twist.",
                 "",
                 "Unchecking this option makes it so the animation does not stop",
-                "or slow down between twists,",
+                "or slow down between different twists,",
                 "which makes long sequences of moves complete more quickly.",
                 "",
                 "You can turn this option on or off in the middle of an animation",
@@ -648,7 +538,7 @@ public class MC4DControlPanel
             });
         addCheckboxRow(
             "Require Ctrl to 3d Rotate",
-            view.requireCtrlTo3dRotate,
+            viewParams.requireCtrlTo3dRotate,
             new String[] {
                  "When this option is checked,",
                  "ctrl-mouse actions affect only the 3d rotation",
@@ -663,7 +553,7 @@ public class MC4DControlPanel
             });
         addCheckboxRow(
             "Restrict Roll",
-            view.restrictRoll,
+            viewParams.restrictRoll,
             new String[] {
                  "When this option is checked,",
                  "3d rotations are restricted so that some hyperface",
@@ -674,11 +564,11 @@ public class MC4DControlPanel
                  "You can turn this option on or off while the puzzle is spinning",
                  "if you want.",
             });
-        addSingleComponentRow(new Canvas(){{setBackground(Color.black); setSize(1,1);}}); // Totally lame separator
+        addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
         addSingleLabelRow(new Label("Appearance"));
         addFloatSliderRow(
             "4d Face Shrink",
-            view.faceShrink4d,
+            viewParams.faceShrink4d,
             new String[] {
                 "Specifies how much each face should be shrunk towards its center in 4d",
                 "(before the 4d->3d projection).",
@@ -688,7 +578,7 @@ public class MC4DControlPanel
             });
         addFloatSliderRow(
             "4d Sticker Shrink",
-            view.stickerShrink4d,
+            viewParams.stickerShrink4d,
             new String[] {
                 "Specifies how much each sticker should be shrunk towards its center in 4d",
                 "(before the 4d->3d projection).",
@@ -698,14 +588,14 @@ public class MC4DControlPanel
             });
         addFloatSliderRow(
             "4d Eye Distance",
-            view.eyeW,
+            viewParams.eyeW,
             new String[] {
                 "Specifies the distance from the eye to the center of the puzzle in 4d.",
                 "(XXX coming soon: what the units mean exactly)",
             });
         addFloatSliderRow(
             "3d Face Strink",
-            view.faceShrink3d,
+            viewParams.faceShrink3d,
             new String[] {
                 "Specifies how much each face should be shrunk towards its center in 3d",
                 "(after the 4d->3d projection).  Shrinking after the projection",
@@ -713,7 +603,7 @@ public class MC4DControlPanel
             });
         addFloatSliderRow(
             "3d Sticker Strink",
-            view.stickerShrink3d,
+            viewParams.stickerShrink3d,
             new String[] {
                 "Specifies how much each sticker should be shrunk towards its center in 3d",
                 "(after the 4d->3d projection).  Shrinking after the projection",
@@ -721,21 +611,21 @@ public class MC4DControlPanel
             });
         addFloatSliderRow(
             "3d Eye Distance",
-            view.eyeZ,
+            viewParams.eyeZ,
             new String[] {
                 "Specifies the distance from the eye to the center of the puzzle in 3d.",
                 "(XXX coming soon: what the units mean exactly)",
             });
         addFloatSliderRow(
             "2d View Scale",
-            view.viewScale2d,
+            viewParams.viewScale2d,
             new String[] {
                 "Scales the final projected 2d image of the puzzle in the viewing window.",
                 "(XXX coming soon: what the units mean exactly)",
             });
         addFloatSliderRow(
             "Stickers shrink to face boundaries",
-            view.stickersShrinkTowardsFaceBoundaries,
+            viewParams.stickersShrinkTowardsFaceBoundaries,
             new String[] {
                 "Normally this option is set to 0 which causes stickers",
                 "to shrink towards their centers.",
@@ -747,7 +637,7 @@ public class MC4DControlPanel
             });
         addCheckboxRow(
             "Highlight by cubie",
-            view.highlightByCubie,
+            viewParams.highlightByCubie,
             new String[] {
                 "Normally when you hover the mouse pointer",
                 "over a sticker, the sticker becomes highlighted.",
@@ -756,7 +646,7 @@ public class MC4DControlPanel
             });
         addCheckboxRow(
             "Show shadows",
-            view.showShadows,
+            viewParams.showShadows,
             new String[] {
                 "Shows shadows on the ground and/or in the air.",
                 "(It is a scientific fact that four dimensional",
@@ -764,7 +654,7 @@ public class MC4DControlPanel
             });
         addCheckboxRow(
             "Antialias when still",
-            view.antialiasWhenStill,
+            viewParams.antialiasWhenStill,
             new String[] {
                 "If this option is checked,",
                 "the display will be antialiased (smooth edges)",
@@ -773,41 +663,48 @@ public class MC4DControlPanel
             });
         addColorSwatchAndCheckboxRow(
             "Draw non-shrunk face outlines",
-            view.nonShrunkFaceOutlineColor,
-            view.drawNonShrunkFaceOutlines,
+            viewParams.nonShrunkFaceOutlineColor,
+            viewParams.drawNonShrunkFaceOutlines,
             null); // no help string
         addColorSwatchAndCheckboxRow(
             "Draw shrunk face outlines",
-            view.shrunkFaceOutlineColor,
-            view.drawShrunkFaceOutlines,
+            viewParams.shrunkFaceOutlineColor,
+            viewParams.drawShrunkFaceOutlines,
             null); // no help string
         addColorSwatchAndCheckboxRow(
             "Draw non-shrunk sticker outlines",
-            view.nonShrunkStickerOutlineColor,
-            view.drawNonShrunkStickerOutlines,
+            viewParams.nonShrunkStickerOutlineColor,
+            viewParams.drawNonShrunkStickerOutlines,
             null); // no help string
         addColorSwatchAndCheckboxRow(
             "Draw shrunk sticker outlines",
-            view.shrunkStickerOutlineColor,
-            view.drawShrunkStickerOutlines,
+            viewParams.shrunkStickerOutlineColor,
+            viewParams.drawShrunkStickerOutlines,
             null); // no help string
         addColorSwatchAndCheckboxRow(
             "Draw ground",
-            view.groundColor,
-            view.drawGround,
+            viewParams.groundColor,
+            viewParams.drawGround,
             null); // no help string
         addColorSwatchAndCheckboxRow(
             "Background color",
-            view.backgroundColor,
+            viewParams.backgroundColor,
             null, // no checkbox
             null); // no help string
-        addSingleLabelRow(new Label("Face Colors:"));
         {
-            int nFaces = 500;
+            add(new Label("Face Colors:"),
+                new GridBagConstraints(){{gridy = nRows; anchor = WEST; gridwidth = 4;}});
+            add(new ResetButton("Reset to default", viewParams.faceColors),
+                new GridBagConstraints(){{gridy = nRows;}});
+            nRows++;
+        }
+        {
+            int nFaces = 120;
             int nFacesPerRow = 32;
             int iFace = 0;
-            int indents[] = {0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15}; // assumes swatch width = 16
-            final int swatchSize = 16;
+            int indents[] = {0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15};
+            final int swatchWidth = 16;
+            final int swatchHeight = 16;
             for (int iRow = 0; iRow * nFacesPerRow < nFaces; ++iRow)
             {
                 int nFacesThisRow = nFaces - iRow*nFacesPerRow;
@@ -816,13 +713,13 @@ public class MC4DControlPanel
                 Canvas canvases[][] = new Canvas[nFacesThisRow][1];
                 for (int i = 0; i < nFacesThisRow; ++i)
                 {
-                    final Color color = autoGenerateColor(iFace);
-                    canvases[i][0] = new Canvas(){{setSize(swatchSize,swatchSize); setBackground(color);}};
+                    Listenable.Color colorListenable = viewParams.faceColors[iFace];
+                    canvases[i][0] = new ColorSwatch(colorListenable, swatchWidth,swatchHeight);
                     iFace++;
                 }
-                final int indent = indents[iRow%indents.length]*swatchSize/16;
-                canvases = (Canvas[][])com.donhatchsw.util.Arrays.concat(new Canvas[][]{{new Canvas(){{setSize(indent,swatchSize);}}}}, canvases);
-                this.add(new Canvas(){{setSize(20,swatchSize);}}, // indent   XXX this is messed up... if it gets compressed, it doesn't spring back
+                final int indent = indents[iRow%indents.length]*swatchWidth/indents.length;
+                canvases = (Canvas[][])com.donhatchsw.util.Arrays.concat(new Canvas[][]{{new CanvasOfSize(indent,swatchHeight)}}, canvases);
+                this.add(new CanvasOfSize(20,swatchHeight), // overall additional indent
                          new GridBagConstraints(){{gridy = nRows;}});
                 add(new Row(canvases),
                     new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER; anchor = WEST;}});
@@ -830,75 +727,47 @@ public class MC4DControlPanel
             }
         }
 
-        addSingleComponentRow(new Canvas(){{setBackground(Color.black); setSize(1,1);}}); // Totally lame separator
+        addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
         addSingleButtonRow(new ResetButton(
             "Reset All To Defaults",
-            new com.donhatchsw.util.Listenable[]{
-                view.twistDuration,
-                view.bounce,
-                view.faceShrink4d,
-                view.stickerShrink4d,
-                view.eyeW,
-                view.faceShrink3d,
-                view.stickerShrink3d,
-                view.eyeZ,
-                view.viewScale2d,
-                view.stickersShrinkTowardsFaceBoundaries,
-                view.requireCtrlTo3dRotate,
-                view.restrictRoll,
-                view.stopBetweenMoves,
-                view.highlightByCubie,
-                view.showShadows,
-                view.antialiasWhenStill,
-                view.drawNonShrunkFaceOutlines,
-                view.drawShrunkFaceOutlines,
-                view.drawNonShrunkStickerOutlines,
-                view.drawShrunkStickerOutlines,
-                view.drawGround,
-                view.shrunkFaceOutlineColor,
-                view.nonShrunkFaceOutlineColor,
-                view.shrunkStickerOutlineColor,
-                view.nonShrunkStickerOutlineColor,
-                view.groundColor,
-                view.backgroundColor,
-           }));
+            allListenablesInObject(viewParams)));
     } // MC4DControlPanel ctor
 
-    public static class Stuff
-    {
-        com.donhatchsw.util.Listenable.Float twistDuration = new com.donhatchsw.util.Listenable.Float(0.f, 100.f, 30.f);
-        com.donhatchsw.util.Listenable.Float bounce = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, 0.f);
-        com.donhatchsw.util.Listenable.Float faceShrink4d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
-        com.donhatchsw.util.Listenable.Float stickerShrink4d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
-        com.donhatchsw.util.Listenable.Float eyeW = new com.donhatchsw.util.Listenable.Float(1.f, 10.f, 2.f);
-        com.donhatchsw.util.Listenable.Float faceShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
-        com.donhatchsw.util.Listenable.Float stickerShrink3d = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, .5f);
-        com.donhatchsw.util.Listenable.Float eyeZ = new com.donhatchsw.util.Listenable.Float(1.f, 10.f, 2.f);
-        com.donhatchsw.util.Listenable.Float viewScale2d = new com.donhatchsw.util.Listenable.Float(1.f, 10.f, 2.f);
-        com.donhatchsw.util.Listenable.Float stickersShrinkTowardsFaceBoundaries = new com.donhatchsw.util.Listenable.Float(0.f, 1.f, 0.f);
-        com.donhatchsw.util.Listenable.Boolean requireCtrlTo3dRotate = new com.donhatchsw.util.Listenable.Boolean(false);
-        com.donhatchsw.util.Listenable.Boolean restrictRoll = new com.donhatchsw.util.Listenable.Boolean(false);
-        com.donhatchsw.util.Listenable.Boolean stopBetweenMoves = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean highlightByCubie = new com.donhatchsw.util.Listenable.Boolean(false);
-        com.donhatchsw.util.Listenable.Boolean showShadows = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean antialiasWhenStill = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawNonShrunkFaceOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawShrunkFaceOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawNonShrunkStickerOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawShrunkStickerOutlines = new com.donhatchsw.util.Listenable.Boolean(true);
-        com.donhatchsw.util.Listenable.Boolean drawGround = new com.donhatchsw.util.Listenable.Boolean(true);
 
-        com.donhatchsw.util.Listenable.Color shrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
-        com.donhatchsw.util.Listenable.Color nonShrunkFaceOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
-        com.donhatchsw.util.Listenable.Color shrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
-        com.donhatchsw.util.Listenable.Color nonShrunkStickerOutlineColor = new com.donhatchsw.util.Listenable.Color(Color.black);
-        com.donhatchsw.util.Listenable.Color groundColor = new com.donhatchsw.util.Listenable.Color(new Color(20, 130, 20));
-        com.donhatchsw.util.Listenable.Color backgroundColor = new com.donhatchsw.util.Listenable.Color(new Color(20, 170, 235));
-    }
+    // Return an array consisting of all Listenables
+    // in all public Listenable and Listenable[] members
+    // in the given object.
+    private static Listenable[] allListenablesInObject(Object obj)
+    {
+        com.donhatchsw.compat.ArrayList list = new com.donhatchsw.compat.ArrayList();
+
+        Class objClass = obj.getClass();
+        java.lang.reflect.Field[] fields = objClass.getFields();
+        for (int iField = 0; iField < fields.length; iField++)
+        {
+            java.lang.reflect.Field field = fields[iField];
+            Class fieldType = field.getType();
+            try {
+                if (Listenable.class.isAssignableFrom(fieldType)) // if Listenable is a superclass of fieldType
+                {
+                    list.add(field.get(obj));
+                }
+                else if (Listenable[].class.isAssignableFrom(fieldType)) // if Listenable[] is a superclass of fieldType
+                {
+                    Listenable array[] = (Listenable[])field.get(obj);
+                    for (int i = 0; i < array.length; ++i)
+                        list.add(array[i]);
+                }
+            } catch (IllegalAccessException e) {}
+        }
+        Listenable array[] = new Listenable[list.size()];
+        list.toArray(array);
+        return array;
+    } // allListenablesInObject
 
     public static void main(String args[])
     {
-        Stuff stuff = new Stuff();
+        MC4DViewGuts.ViewParams stuff = new MC4DViewGuts.ViewParams();
         final int nAlive[] = {0};
         for (int i = 0; i < 2; ++i)
         {
