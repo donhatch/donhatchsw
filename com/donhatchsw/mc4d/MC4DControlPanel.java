@@ -13,10 +13,26 @@ public class MC4DControlPanel
     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
 
 
+    // a label in the default font, except bold and one point size larger.
+    private static class BigBoldLabel extends Label
+    {
+        public BigBoldLabel(String labelString)
+        {
+            super(labelString);
+        }
+        public Font getFont()
+        {
+            Font superfont = super.getFont();
+            //System.out.println("label superfont = "+superfont);
+            Font font = new Font(superfont.getName(), Font.BOLD, superfont.getSize()+1);
+            return font;
+        }
+    }
+
     private static class CanvasOfSize extends Canvas
     {
         private Dimension preferredSize;
-        CanvasOfSize(int width, int height)
+        public CanvasOfSize(int width, int height)
         {
             super();
             preferredSize = new Dimension(width, height);
@@ -347,7 +363,7 @@ public class MC4DControlPanel
                         Object labelConstraintPairs[][] = new Object[helpMessage.length][2];
                         for (int i = 0; i < helpMessage.length; ++i)
                         {
-                            labelConstraintPairs[i][0] = helpMessage[i];
+                            labelConstraintPairs[i][0] = new Label(helpMessage[i]);
                             labelConstraintPairs[i][1] = c;
                         }
                         Container panel = new Col(labelConstraintPairs);
@@ -489,7 +505,7 @@ public class MC4DControlPanel
     public MC4DControlPanel(MC4DViewGuts.ViewParams viewParams)
     {
         this.setLayout(new GridBagLayout());
-        addSingleLabelRow(new Label("Behavior"));
+        addSingleLabelRow(new BigBoldLabel("Behavior"));
         addFloatSliderRow(
             "Twist duration",
             viewParams.nFrames90,
@@ -565,7 +581,7 @@ public class MC4DControlPanel
                  "if you want.",
             });
         addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
-        addSingleLabelRow(new Label("Appearance"));
+        addSingleLabelRow(new BigBoldLabel("Appearance"));
         addFloatSliderRow(
             "4d Face Shrink",
             viewParams.faceShrink4d,
@@ -730,44 +746,12 @@ public class MC4DControlPanel
         addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
         addSingleButtonRow(new ResetButton(
             "Reset All To Defaults",
-            allListenablesInObject(viewParams)));
+            Listenable.allListenablesInObject(viewParams)));
     } // MC4DControlPanel ctor
 
 
-    // Return an array consisting of all Listenables
-    // in all public Listenable and Listenable[] members
-    // in the given object.
-    private static Listenable[] allListenablesInObject(Object obj)
-    {
-        com.donhatchsw.compat.ArrayList list = new com.donhatchsw.compat.ArrayList();
-
-        Class objClass = obj.getClass();
-        java.lang.reflect.Field[] fields = objClass.getFields();
-        for (int iField = 0; iField < fields.length; iField++)
-        {
-            java.lang.reflect.Field field = fields[iField];
-            Class fieldType = field.getType();
-            try {
-                if (Listenable.class.isAssignableFrom(fieldType)) // if Listenable is a superclass of fieldType
-                {
-                    list.add(field.get(obj));
-                }
-                else if (Listenable[].class.isAssignableFrom(fieldType)) // if Listenable[] is a superclass of fieldType
-                {
-                    Listenable array[] = (Listenable[])field.get(obj);
-                    for (int i = 0; i < array.length; ++i)
-                        list.add(array[i]);
-                }
-            } catch (IllegalAccessException e) {}
-        }
-        Listenable array[] = new Listenable[list.size()];
-        list.toArray(array);
-        return array;
-    } // allListenablesInObject
-
     public static void main(String args[])
     {
-        MC4DViewGuts.ViewParams stuff = new MC4DViewGuts.ViewParams();
         final int nAlive[] = {0};
         for (int i = 0; i < 2; ++i)
         {
@@ -794,7 +778,7 @@ public class MC4DControlPanel
                 });
             }
 
-            frame.add(new MC4DControlPanel(stuff));
+            frame.add(new MC4DControlPanel(new MC4DViewGuts.ViewParams()));
             frame.pack();
             frame.show();
             nAlive[0]++;
