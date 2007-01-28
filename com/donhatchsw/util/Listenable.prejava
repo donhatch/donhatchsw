@@ -45,7 +45,7 @@ public abstract class Listenable
         public Boolean(boolean defaultValue)
         {
             this.defaultValue = defaultValue;
-            this.value = defaultValue;
+            this.value = this.defaultValue;
         }
         public boolean getDefaultValue() { return defaultValue; }
         public boolean get() { return value; }
@@ -60,7 +60,17 @@ public abstract class Listenable
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get() == getDefaultValue(); }
     }
-    public static class Int extends Listenable
+
+    public static abstract class Number extends Listenable
+    {
+        public abstract double getDouble();
+        public abstract void setDouble(double newValue);
+        public abstract double minDouble();
+        public abstract double maxDouble();
+        public abstract double defaultDouble();
+    }
+
+    public static class Int extends Number
     {
         private int value, minValue, maxValue, defaultValue;
         public Int(int minValue, int maxValue, int defaultValue)
@@ -70,6 +80,8 @@ public abstract class Listenable
             this.defaultValue = defaultValue;
             this.value = defaultValue;
         }
+        public int min() { return minValue; }
+        public int max() { return maxValue; }
         public int getDefaultValue() { return defaultValue; }
         public int get() { return value; }
         public void set(int newValue)
@@ -82,8 +94,15 @@ public abstract class Listenable
         }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get() == getDefaultValue(); }
+
+        // Number overrides
+        public double getDouble() { return (double)value; }
+        public void setDouble(double newValue) { set((int)newValue); }
+        public double minDouble() { return (double)minValue; }
+        public double maxDouble() { return (double)maxValue; }
+        public double defaultDouble() { return (double)defaultValue; }
     }
-    public static class Float extends Listenable
+    public static class Float extends Number
     {
         private float value, minValue, maxValue, defaultValue;
         public Float(float minValue, float maxValue, float defaultValue)
@@ -91,10 +110,10 @@ public abstract class Listenable
             this.minValue = minValue;
             this.maxValue = maxValue;
             this.defaultValue = defaultValue;
-            this.value = defaultValue;
+            this.value = this.defaultValue;
         }
-        public float getMinValue() { return minValue; }
-        public float getMaxValue() { return maxValue; }
+        public float min() { return minValue; }
+        public float max() { return maxValue; }
         public float getDefaultValue() { return defaultValue; }
         public float get() { return value; }
         public void set(float newValue)
@@ -107,8 +126,15 @@ public abstract class Listenable
         }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get() == getDefaultValue(); }
+
+        // Number overrides
+        public double getDouble() { return (double)value; }
+        public void setDouble(double newValue) { set((float)newValue); }
+        public double minDouble() { return (double)minValue; }
+        public double maxDouble() { return (double)maxValue; }
+        public double defaultDouble() { return (double)defaultValue; }
     }
-    public static class Double extends Listenable
+    public static class Double extends Number
     {
         private double value, minValue, maxValue, defaultValue;
         public Double(double minValue, double maxValue, double defaultValue)
@@ -116,10 +142,10 @@ public abstract class Listenable
             this.minValue = minValue;
             this.maxValue = maxValue;
             this.defaultValue = defaultValue;
-            this.value = defaultValue;
+            this.value = this.defaultValue;
         }
-        public double getMinValue() { return minValue; }
-        public double getMaxValue() { return maxValue; }
+        public double min() { return minValue; }
+        public double max() { return maxValue; }
         public double getDefaultValue() { return defaultValue; }
         public double get() { return value; }
         public void set(double newValue)
@@ -132,6 +158,13 @@ public abstract class Listenable
         }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get() == getDefaultValue(); }
+
+        // Number overrides
+        public double getDouble() { return (double)value; }
+        public void setDouble(double newValue) { set((double)newValue); }
+        public double minDouble() { return (double)minValue; }
+        public double maxDouble() { return (double)maxValue; }
+        public double defaultDouble() { return (double)defaultValue; }
     }
     public static class Color extends Listenable
     {
@@ -139,7 +172,7 @@ public abstract class Listenable
         public Color(java.awt.Color defaultValue)
         {
             this.defaultValue = defaultValue;
-            this.value = defaultValue;
+            this.value = this.defaultValue;
         }
         public java.awt.Color getDefaultValue() { return defaultValue; }
         public java.awt.Color get() { return value; }
@@ -153,5 +186,47 @@ public abstract class Listenable
         }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get().equals(getDefaultValue()); }
+    }
+    public static class FloatVector extends Listenable
+    {
+        private float value[], defaultValue[];
+        public FloatVector(float defaultValue[])
+        {
+            this.defaultValue = VecMath.copyvec(defaultValue);
+            this.value = this.defaultValue;
+        }
+        public float[] getDefaultValue() { return defaultValue; }
+        public float[] get() { return value; }
+        public void set(float newValue[])
+        {
+            if (!VecMath.equalsExactly(newValue, value))
+            {
+                value = VecMath.copyvec(newValue);
+                notifyListenersThatValueChanged();
+            }
+        }
+        public void resetToDefault() { set(getDefaultValue()); }
+        public boolean isDefault() { return VecMath.equalsExactly(get(),getDefaultValue()); }
+    }
+    public static class FloatMatrix extends Listenable
+    {
+        private float value[][], defaultValue[][];
+        public FloatMatrix(float defaultValue[][])
+        {
+            this.defaultValue = VecMath.copymat(defaultValue);
+            this.value = this.defaultValue;
+        }
+        public float[][] getDefaultValue() { return defaultValue; }
+        public float[][] get() { return value; }
+        public void set(float newValue[][])
+        {
+            if (!VecMath.equalsExactly(newValue, value))
+            {
+                value = VecMath.copymat(newValue);
+                notifyListenersThatValueChanged();
+            }
+        }
+        public void resetToDefault() { set(getDefaultValue()); }
+        public boolean isDefault() { return VecMath.equalsExactly(get(),getDefaultValue()); }
     }
 } // class Listenable
