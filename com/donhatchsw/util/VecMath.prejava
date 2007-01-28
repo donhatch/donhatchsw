@@ -306,6 +306,15 @@ public final class VecMath
             result[i] = s0*v0[i] + s1*v1[i];
     }
 
+    /** (scalar times vector) plus (scalar times vector) plus (scalar times vector) */
+    public static void sxvpsxvpsxv(double result[], double s0, double v0[],
+                                                    double s1, double v1[],
+                                                    double s2, double v2[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = s0*v0[i] + s1*v1[i] + s2*v2[i];
+    }
+
     /** matrix plus matrix */
     public static void mpm(Object result, Object M0, Object M1)
     {
@@ -955,7 +964,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** vector distance squared */
-    public static double distsqrd(double v0[], double v1[], int n)
+    public static double distsqrd(int n, double v0[], double v1[])
     {
         double result = (float)0;
         FORI (i, n)
@@ -966,7 +975,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return result;
     }
     /** vector distance squared */
-    public static float distsqrd(float v0[], float v1[], int n)
+    public static float distsqrd(int n, float v0[], float v1[])
     {
         float result = (float)0;
         FORI (i, n)
@@ -977,7 +986,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return result;
     }
     /** vector distance squared */
-    public static int distsqrd(int v0[], int v1[], int n)
+    public static int distsqrd(int n, int v0[], int v1[])
     {
         int result = (int)0;
         FORI (i, n)
@@ -991,19 +1000,19 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static double distsqrd(double v0[], double v1[])
     {
         int n = v0.length; // == v1.length
-        return distsqrd(v0, v1, n);
+        return distsqrd(n, v0, v1);
     }
     /** vector distance squared */
     public static float distsqrd(float v0[], float v1[])
     {
         int n = v0.length; // == v1.length
-        return distsqrd(v0, v1, n);
+        return distsqrd(n, v0, v1);
     }
     /** vector distance squared */
     public static int distsqrd(int v0[], int v1[])
     {
         int n = v0.length; // == v1.length
-        return distsqrd(v0, v1, n);
+        return distsqrd(n, v0, v1);
     }
     /** vector distance */
     public static double dist(double v0[], double v1[])
@@ -2213,8 +2222,23 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             if (v0[i] != v1[i])
                 return false;
         return true;
-    } // equalsExactly(Object[],Object[])
-    /** exact double vector equality test */
+    } // equalsExactly(double[],double[])
+    /** exact double matrix equality test */
+    public static boolean equalsExactly(double m0[][], double m1[][])
+    {
+        if (m0 == null)
+            return m1 == null ? true : false;
+        else if (m1 == null)
+            return false;
+        int n = m0.length;
+        if (n != m1.length)
+            return false;
+        FORI (i, n)
+            if (!equalsExactly(m0[i], m1[i]))
+                return false;
+        return true;
+    } // equalsExactly(double[][],double[][])
+    /** exact float vector equality test */
     public static boolean equalsExactly(float v0[], float v1[])
     {
         if (v0 == null)
@@ -2228,7 +2252,23 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             if (v0[i] != v1[i])
                 return false;
         return true;
-    } // equalsExactly(Object[],Object[])
+    } // equalsExactly(float[],float[])
+    /** exact float matrix equality test */
+    public static boolean equalsExactly(float m0[][], float m1[][])
+    {
+        if (m0 == null)
+            return m1 == null ? true : false;
+        else if (m1 == null)
+            return false;
+        int n = m0.length;
+        if (n != m1.length)
+            return false;
+        FORI (i, n)
+            if (!equalsExactly(m0[i], m1[i]))
+                return false;
+        return true;
+    } // equalsExactly(float[][],float[][])
+
     /** Object vector equality test using == on each element Object */
     public static boolean equalsUsingEqualsSymbol(Object v0[], Object v1[])
     {
@@ -2254,13 +2294,22 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return false;
         int i, n = M0.length;
         FOR (i, n)
-        {
-            if (M0[i].length != M1[i].length)
+            if (!equals(M0[i], M1[i], eps))
                 return false;
-            int j, m = M0[i].length;
-            FOR (j, m)
-                if (M0[i][j] != M1[i][j] // avoid function call in common case
-                 && Math.abs(M0[i][j]-M1[i][j]) > eps)
+        return true;
+    } // equals
+    /** Fuzzy matrix equality test; works even if eps==0. */
+    public static boolean equals(double v0[], double v1[], double eps)
+    {
+        if (v0 == null && v1 == null)
+            return true;
+        if (v0 == null || v1 == null || v0.length != v1.length)
+            return false;
+        int i, n = v0.length;
+        FOR (i, n)
+        {
+            if (v0[i] != v1[i] // avoid function call in common case
+             && Math.abs(v0[i]-v1[i]) > eps)
                     return false;
         }
         return true;
@@ -3110,6 +3159,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             copymat(result, M);
             return result;
         }
+        /** matrix copy, returning newly allocated result */
+        public static float[][] copymat(float M[][])
+        {
+            float result[][] = new float[M.length][M.length==0 ? 0 : M[0].length];
+            copymat(result, M);
+            return result;
+        }
         /** vector copy, returning newly allocated result */
         public static boolean[] copyvec(boolean v[])
         {
@@ -3256,6 +3312,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             double[] result = new double[v0.length];
             sxvpsxv(result, s0, v0, s1, v1);
+            return result;
+        }
+        /** (scalar times vector) plus (scalar times vector), returning newly allocated result */
+        public static double[] sxvpsxvpsxv(double s0, double v0[],
+                                           double s1, double v1[],
+                                           double s2, double v2[])
+        {
+            double[] result = new double[v0.length];
+            sxvpsxvpsxv(result, s0, v0, s1, v1, s2, v2);
             return result;
         }
         /** matrix times scalar, returning newly allocated result */
