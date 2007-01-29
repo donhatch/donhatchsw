@@ -147,11 +147,9 @@ public class MC4DViewGuts
 
 
 
-        //public Listenable.Double nFrames90(15);
+        //public Listenable.Double nFrames90(0., 100., 15.);
         public Listenable.Double nFrames90 = new Listenable.Double(0., 100., 30.);
-
-        //public Listenable.Double criticalDampingFraction = new Listenable.Double(0., 1., 1.); // 1 means critically damped, less than 1 gives it a bit of bounce, more than 1 just makes it slower
-        public Listenable.Double bounce = new Listenable.Double(0., 1., 1.); // 1 minus critical damping frac-- probably more comprehensible to the user
+        public Listenable.Double bounce = new Listenable.Double(0., 1., .5);
 
         public InterpFunc interp = sine_interp;
         //InterpFunc interp = linear_interp;
@@ -200,6 +198,7 @@ public class MC4DViewGuts
         // Most of these are settable using secret ctrl-alt key combinations.
         //
         public Listenable.Boolean useTopsort = new Listenable.Boolean(true);
+        public Listenable.Boolean showNumPaintsDone = new Listenable.Boolean(true);
         public Listenable.Int jitterRadius = new Listenable.Int(0,9,0);
         public Listenable.Boolean drawLabels = new Listenable.Boolean(false);
         public Listenable.Boolean showPartialOrder = new Listenable.Boolean(false);
@@ -248,6 +247,7 @@ public class MC4DViewGuts
         public GenericPipelineUtils.Frame twistingFrame = new GenericPipelineUtils.Frame();
             { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something.  really need to stop doing this though, since it messes up double-clicking if something obscures the sticker during the click
 
+        public int nPaintsDone = 0;
     } // class ViewState
 
 
@@ -805,8 +805,7 @@ public class MC4DViewGuts
         // XXX query whether animation is actually in progress
         model.advanceAnimation(modelListener,
                                viewParams.nFrames90.get(),
-                               //viewParams.criticalDampingFraction.get()
-                               1-viewParams.bounce.get()
+                               viewParams.bounce.get()
                                );
         if (model.isMoving())
         {
@@ -958,6 +957,13 @@ public class MC4DViewGuts
                 viewParams.jitterRadius.get(),
                 viewParams.drawLabels.get(),
                 viewParams.showPartialOrder.get());
+
+        ++viewState.nPaintsDone;
+        if (viewParams.showNumPaintsDone.get())
+        {
+            g.setColor(java.awt.Color.black);
+            com.donhatchsw.util.Arrows.drawString((java.awt.Graphics2D)g, "("+viewState.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.); // XXX need to get that moved out somewhere else
+        }
     } // paint
 
 
@@ -1181,7 +1187,7 @@ public class MC4DViewGuts
                 //      3/8 -> 2/6  green
                 //      4/8 -> 3/6  cyan
                 //      5/8 -> 4/6  blue
-                //      6/8 ->  3/4   violet
+                //      6/8 ->  9/12   violet
                 //      7/8 -> 5/6  magenta
                 //      8/8 -> 6/6  red again
                 final double perceptualHues[] = {
@@ -1191,7 +1197,13 @@ public class MC4DViewGuts
                     2/6.,   // green
                     3/6.,   // cyan
                     4/6.,   // blue
-                    3/4.,   //   violet
+
+                    //9/12.,   //   violet  (too magenta)
+                    //17/24.,  //   violet  (too blue)
+                    //35/48.,  //   violet  (still a bit too blue)
+                    //71/96.,  //   violet (too magenta again)
+                    141/192.,  //   violet (just right on my computer, probably sucks on everyone else's)
+
                     5/6.,   // magenta
                     6/6.,   // red again
                 };
