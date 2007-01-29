@@ -138,7 +138,7 @@ public class SmoothlyVaryingViewingParameter
     * then you will be able to go 100 miles in 10 seconds
     * (using the same constant acceleration/deceleration magnitude).
     * <p>
-    * @param criticalDampingFraction  Set this to 1.  If you set it to &lt;, you'll get slower progress; if you set it to &gt;1 you will be underdamped and you'll overshoot and oscillate as you converge on the target.
+    * @param bounce  Set this to a number from 0 to 1.  Setting it to a positive number causes the spring to be underdamped and so it will overshoot and osciallate as it converges on the target.
     */
     public void evolve(double referenceTripDistance,
                        double referenceTripTime,
@@ -146,9 +146,6 @@ public class SmoothlyVaryingViewingParameter
                        double criticalDampingFraction,
                        double bounce)
     {
-OUT("in evolve");
-PRINT(criticalDampingFraction);
-PRINT(bounce);
         if (isMoving())
         {
             if (referenceTripTime == 0.)
@@ -161,46 +158,12 @@ PRINT(bounce);
                 return;
             }
 
-            //
-            // The internal function
-            // takes a potentially different accelerationMultiplier
-            // and decelerationMultiplier; however the implementation is such
-            // that it will not do the right thing if they are different,
-            // so the public API only exposes a single parameter.
-            // Also, if we lower the acc/decelerationMultipler,
-            // that would mean, of course, that the acceleration
-            // felt will be lower... we'd like that to not happen,
-            // so fudge referenceTripDistance here so that it doesn't
-            // (this works because the acceleration experienced
-            // is linearly proportional to referenceTripDistance,
-            // see above).
-            // XXX Actually maybe this is NOT the right thing to do...
-            // XXX it makes the acceleration the same,
-            // XXX but it makes it so the time it takes to do the trip
-            // XXX is no longer accurate!  But I'm thinking it's more
-            // XXX usable this way anyway, the user should think of
-            // XXX the referenceTripDistance and referenceTripTime
-            // XXX as being if damping were 1... maybe the params
-            // XXX should be renamed that?
-            // XXX Also if we DIDN'T do this correction,
-            // XXX the time estimate still wouldn't be right...
-            // XXX we'd have to correct it in a different way,
-            // XXX I'm not sure how.
-            //
-            criticalDampingFraction = MAX(criticalDampingFraction, 1e-6); // lame
-            double accelerationMultiplier = criticalDampingFraction;
-            double decelerationMultiplier = criticalDampingFraction;
-            referenceTripDistance /= criticalDampingFraction;
-
             double p_and_v[] = new double[2];
             for (int i = 0; i < position.length; ++i)
             {
                 p_and_v[0] = position[i] - targetPosition[i];
                 p_and_v[1] = velocity[i];
-                if (true)
-                    new_update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, bounce);
-                else
-                    update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, accelerationMultiplier, decelerationMultiplier);
+                update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, bounce);
                 position[i] = p_and_v[0] + targetPosition[i];
                 velocity[i] = p_and_v[1];
             }
@@ -214,81 +177,13 @@ PRINT(bounce);
              || VecMath.normsqrd(velocity) != 0.;
     }
 
-    //
-    // Let's say we don't know the target time...
-    // But we know our maximum acceleration,
-    // and we want to get there as quickly as possible
-    // without exceeding that acceleration.
-    // The solution will be piecewise quadratic; two pieces,
-    // the first of which "falls" with constant acceleration towards the target
-    // and the second of which decelerates so as to land softly
-    // (with zero velocity).
-    //
-    // So in this case we know:
-    //          current position p0
-    //          current velocity v0
-    //          target position = 0
-    //          target velocity = 0
-    //          the constant acceleration magnitude
-    //             (if it takes 1 second
-    //             to take the canonical reference trip of length 1
-    //             starting and ending at zero velocity,
-    //             then we are following the quadratic 2 t^2
-    //             for the first half of the trip (taking it to 1/2 at 1/2),
-    //             which means the velocity at any t during the first half
-    //             of the trip is 4 t, and the acceleration is 4.
-    //             therefore in general we like to do acceleration=4
-    //             and we will use it at all times in every trip anywhere.)
-    // And we have to figure out the time it should take
-    // to make a soft landing at the target position,
-    // using this constant acceleration magnitude.
-    //          
-
     private static void update_p_and_v(double p_and_v[/*2*/],
                                        double referenceTripDistance,
                                        double referenceTripTime,
                                        double dt,
-                                       double accelerationMultiplier,
-                                       double decelerationMultiplier)
+                                       double bounce)
     {
-        //
-        // We need to change units so that referenceTripDistance
-        // and referenceTripTime in old units
-        // are both 1 in new units.
-        // So to convert from old to new units:
-        //    - times should get divided by referenceTripTime
-        //    - distances should get divided by eferenceTripDistance
-        //    - velocities (=distance/time) should get divided
-        //        by eferenceTripDistance/referenceTripTime
-        //
-        p_and_v[0] /= referenceTripDistance;
-        p_and_v[1] *= referenceTripTime/referenceTripDistance;
-        update_p_and_v_for_canonical_accel(p_and_v,
-                                           dt / referenceTripTime,
-                                           accelerationMultiplier,
-                                           decelerationMultiplier);
-        // Convert back to old units...
-        p_and_v[0] *= referenceTripDistance;
-        p_and_v[1] *= referenceTripDistance/referenceTripTime;
-    } // private update_p_and_v
-
-    private static void new_update_p_and_v(double p_and_v[/*2*/],
-                                           double referenceTripDistance,
-                                           double referenceTripTime,
-                                           double dt,
-                                           double bounce)
-    {
-OUT("in new_update_p_and_v");
-PRINT(bounce);
-OUT("");
         assert(bounce >= 0); // XXX make this a bad param exception or something
-
-        {
-            // XXX FUDGE! I guess I messed up somehow and high bounces are making the acceleration sharper than it should be, so fudge to adjust for now until I figure out what I did wrong
-            referenceTripDistance *= 1-bounce;
-        }
-
-
 
         // acceleration magnitude...
         double aMag = 4 * referenceTripDistance
@@ -311,19 +206,6 @@ OUT("");
         double still_t_before = -vMag/aMag;
         double still_p_before = p - vSign*.5*v*v/aMag;
         double still_a_before = vSign*aMag;
-        if (false)
-        {
-            PRINT(p);
-            PRINT(v);
-            PRINT(vSign);
-            PRINT(vMag);
-            PRINT(still_t_before);
-            PRINT(still_p_before);
-            PRINT(still_a_before);
-            PRINT(still_t_after);
-            PRINT(still_p_after);
-            PRINT(still_a_after);
-        }
 
         double t0, p0, a0;
         if (p*v <= 0 &&
@@ -401,25 +283,12 @@ OUT("");
                     return;
                 }
             }
-            if (false)
-            {
-                PRINT(p_iminus1);
-                PRINT(p_i);
-                PRINT(t_iminus1);
-                PRINT(t_i);
-                PRINT(i);
-            }
             double frac = i==0 ? 1. : (dt-t_iminus1)/(t_i-t_iminus1);
             //frac = 0; // XXX get rid
             if (frac < .5)
             {
                 // Follow the parabola forwards
                 // from the previous still point t_iminus1,p_iminus1
-                if (false)
-                {
-                    OUT("----------------------------");
-                    PRINT(a_iminus1);
-                }
                 v = (dt-t_iminus1) * a_iminus1;
                 p = p_iminus1 + .5*a_iminus1*SQR(dt-t_iminus1);
             }
@@ -427,245 +296,14 @@ OUT("");
             {
                 // Follow the parabola backwards
                 // from the next still point t_i,p_i
-                if (false)
-                {
-                    OUT("++++++++++++++++++++++++++++");
-                    PRINT(a_i);
-                }
                 v = (t_i-dt) * -a_i;
                 p = p_i - .5* -a_i *SQR(t_i-dt);
-            }
-            if (false)
-            {
-                PRINT(p);
-                PRINT(v);
-                OUT("");
             }
         }
         p_and_v[0] = p;
         p_and_v[1] = v;
-    } // private new_update_p_and_v
+    } // private update_p_and_v
 
-    // Do it assuming the canonical reference trip of 1 unit of distance
-    // starting and stopping softly, takes 1 unit of time.
-    // The multipliers are applied at the very last instant,
-    // after we do all our smart planning... they represent
-    // how badly we erred in estimating our actual strength.
-    private static void update_p_and_v_for_canonical_accel(
-                                       double p_and_v[/*2*/],
-                                       double dt,
-                                       double accelerationMultiplier,
-                                       double decelerationMultiplier)
-    {
-        if (verboseLevel >= 1) System.out.println("in update_p_and_v_for_canonical_accel");
-        if (verboseLevel >= 2) PRINTVEC(p_and_v);
-        if (verboseLevel >= 2) PRINT3(dt, accelerationMultiplier, decelerationMultiplier);
-        //
-        // We need to figure out:
-        //      - the (negative) time t0 that we have to start at
-        //        so that we can reach the target softly at time 0
-        //      - the thrust-reversal time t1 such that:
-        //            t0 <= t1 <= 0
-        //      - constants b1,c1 such that the first leg of the journey
-        //        is the parabola:
-        //            f0(t) = +-2 t^2 + b1 t + c1
-        // We need the position and velocity of f0 at time t1
-        // to match that of the landing leg of the journey,
-        // which is either the upward or downward parabola:
-        //            f1(t) = -+2 t^2
-        // (with the sign being the opposite of the sign appearing in f0).
-        // So our unknowns are:
-        //        t0
-        //        t1
-        //        b1
-        //        c1
-        // And our constraints are:
-        //        f0(t0) = p0         i.e. +-2 t0^2 + b1 t0 + c1 == p0
-        //        f0'(t0) = v0        i.e. +-4 t0   + b1         == v0
-        //        f0(t1) = f1(t1)     i.e. +-2 t1^2 + b1 t1 + c1 == -+2 t1^2
-        //        f0'(t1) = f1'(t1)   i.e. +-4 t1   + b1         == -+4 t1
-        // Feeding this into mathematica,
-        // first with the + (i.e. the first leg is concave upwards
-        // and the second leg is concave downwards):
-        /*
-                       Solve[{
-                           2 t0^2 + b1 t0 + c1 == p0,
-                           4 t0   + b1         == v0,
-                           2 t1^2 + b1 t1 + c1 == -2 t1^2,
-                           4 t1   + b1         == -4 t1
-                        }, {t0,t1,b1,c1}] // Simplify
-            After the usual hand simplifying because Mathematica
-            can never figure it out, there are two solutions,
-            but only one of them has t1<0 like we require:
-                First solution (concave upward initial leg):
-                    t1 = -sqrt(-p0+v0^2/8)/2
-                    t0 = v0/4 + 2*t1
-            Now with the - (i.e. the first leg is concave downwards):
-                        Solve[{
-                            -2 t0^2 + b1 t0 + c1 == p0,
-                            -4 t0   + b1         == v0,
-                            -2 t1^2 + b1 t1 + c1 == 2 t1^2,
-                            -4 t1   + b1         == 4 t1
-                        }, {t0,t1,b1,c1}] // Simplify
-                Second solution (concave downward initial leg):
-                    t1 = -sqrt(p0+v0^2/8)/2
-                    t0 = -v0/4 + 2*t1
-        */
-        double p0 = p_and_v[0];
-        double v0 = p_and_v[1];
-
-        boolean use_concave_upward_for_initial_leg;
-        if (v0 >= 0)
-        {
-            // if the concave downward one works at all,
-            // then it's the one, else it's the concave upward one.
-            if (p0+v0*v0/8 >= 0)
-            {
-                //assert(false); // uncomment for coverage test
-                use_concave_upward_for_initial_leg = false;
-            }
-            else
-            {
-                //assert(false); // uncomment for coverage test
-                use_concave_upward_for_initial_leg = true;
-            }
-        }
-        else
-        {
-            // the opposite.
-            if (-p0+v0*v0/8 >= 0)
-            {
-                //assert(false); // uncomment for coverage test
-                use_concave_upward_for_initial_leg = true;
-            }
-            else
-            {
-                //assert(false); // uncomment for coverage test
-                use_concave_upward_for_initial_leg = false;
-            }
-        }
-        if (verboseLevel >= 1) System.out.println("    use_concave_upward_for_initial_leg = "+use_concave_upward_for_initial_leg);
-        double t0, t1;
-        if (use_concave_upward_for_initial_leg)
-        {
-            t1 = -Math.sqrt(-p0+v0*v0/8)/2;
-            t0 = v0/4 + 2*t1;
-        }
-        else
-        {
-            t1 = -Math.sqrt(p0+v0*v0/8)/2;
-            t0 = -v0/4 + 2*t1;
-        }
-
-        //
-        // All right, now we know the initial time t0
-        // and the thrust-reversal time t1.
-        //
-        double t = t0+dt; // when we want to evaluate
-        if (t >= 0)
-        {
-            // We are gonna get all the way there within this timestep.
-            // 
-            if (verboseLevel >= 1) System.out.println("We are gonna get all the way there within this timestep");
-            p_and_v[0] = 0.;
-            p_and_v[1] = 0.;
-            //assert(false); // uncomment for coverage test
-
-            // NOTE we fail to do the acceleration/deceleration
-            // multiplier thing in this case.  I'm thinking this
-            // is probably a good thing, since it will cut short
-            // a possibly long but visually undetectable
-            // tiny exponentially decaying oscillation.
-
-            if (verboseLevel >= 2) PRINTVEC(p_and_v);
-            if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel (early)");
-            return;
-        }
-
-        if (t >= t1)
-        {
-            //
-            // It's the landing leg of the journey...
-            // calculate from the target.
-            // if we used concave upwards for the initial leg,
-            // that means we use concave downward for the final leg.
-            if (verboseLevel >= 1) System.out.println("It's the landing leg");
-            if (use_concave_upward_for_initial_leg)
-            {
-                // use the concave downward parabola for final leg
-                p_and_v[0] = -2*t*t;
-                p_and_v[1] = -4*t; // >0 because t<0
-                //assert(false); // uncomment for coverage test
-            }
-            else
-            {
-                // use the concave upward parabola for final leg
-                p_and_v[0] = 2*t*t;
-                p_and_v[1] = 4*t; // <0 because t<0
-                //assert(false); // uncomment for coverage test
-            }
-
-            //
-            // Fudge time!
-            // Take the effect we're going to have on the velocity,
-            // and multiply it by decelerationMultiplier.
-            //
-            //p_and_v[0] = lerp(p0, p_and_v[0], decelerationMultiplier);
-            p_and_v[1] = lerp(v0, p_and_v[1], decelerationMultiplier);
-        }
-        else
-        {
-            // It's the first leg of the journey...
-            // Calculate from time 2*t1, which is where
-            // the first leg has velocity 0.  Call that the base.
-            // it might be before or after t0.
-            if (verboseLevel >= 1) System.out.println("It's the first leg");
-            double base_t = 2*t1;
-            if (use_concave_upward_for_initial_leg)
-            {
-                double p1 = -2*t1*t1; // concave downward on final leg
-                double base_p = 2*p1;
-                double p = base_p + 2*(t-base_t)*(t-base_t);
-                double v = 4*(t-base_t);
-                p_and_v[0] = p;
-                p_and_v[1] = v;
-                //assert(false); // uncomment for coverage test
-            }
-            else // use concave downward for initial leg
-            {
-                double p1 = 2*t1*t1; // concave upward on final leg
-                double base_p = 2*p1;
-                double p = base_p - 2*(t-base_t)*(t-base_t);
-                double v = -4*(t-base_t);
-                p_and_v[0] = p;
-                p_and_v[1] = v;
-                //assert(false); // uncomment for coverage test
-            }
-
-            //
-            // Fudge time!
-            // Take the effect we're going to have on the velocity,
-            // and multiply it by accelerationMultiplier.
-            //
-            //p_and_v[0] = lerp(p0, p_and_v[0], accelerationMultiplier);
-            p_and_v[1] = lerp(v0, p_and_v[1], accelerationMultiplier);
-        }
-
-        // Sanity check...
-        {
-            double dp = Math.abs(p_and_v[0] - p0);
-            double dv = Math.abs(p_and_v[1] - v0);
-            //PRINT(p_and_v[1] - v0); // should always be <= 4*dt! (and usually exactly, unless we passed the thrust-reversal time)
-            double maxFudge = Math.max(accelerationMultiplier, decelerationMultiplier);
-            assert(dv < 4.01*dt * maxFudge);
-            double maxPossibleSpeedInInterval = Math.max(Math.abs(v0), Math.abs(p_and_v[1])) + 2*dt;
-            assert(dp < (2.01*dt*dt + 4.01*maxPossibleSpeedInInterval) * maxFudge);
-        }
-
-        PRINTVEC(p_and_v);
-        if (verboseLevel >= 2) PRINTVEC(p_and_v);
-        if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel");
-    } // private update_p_and_v_for_canonical_accel
 
 
     private static double lerp(double a, double b, double t)
