@@ -445,7 +445,7 @@ public class UndoTree
                                                  double referenceTripDistance,
                                                  double referenceTripTime,
                                                  double dt,
-                                                 double criticalDampingFraction,
+                                                 double bounce,
                                                  UndoTree.ItemLengthizer lengthizer)
     {
         boolean debug = false;
@@ -476,7 +476,7 @@ public class UndoTree
             currentNodeFraction.evolve(referenceTripFraction,
                                        referenceTripTime,
                                        dt,
-                                       criticalDampingFraction);
+                                       bounce);
             notifyListenersSomethingChanged(viewListeners);
             return null; // no discrete state change
         }
@@ -586,7 +586,7 @@ public class UndoTree
                 currentNodeFraction.evolve(referenceTripFraction,
                                            referenceTripTime,
                                            dt,
-                                           criticalDampingFraction);
+                                           bounce);
                 //
                 // Switch rails here!
                 //
@@ -631,7 +631,7 @@ public class UndoTree
                 currentNodeFraction.evolve(referenceTripFraction,
                                            referenceTripTime,
                                            dt,
-                                           criticalDampingFraction);
+                                           bounce);
             }
 
             //
