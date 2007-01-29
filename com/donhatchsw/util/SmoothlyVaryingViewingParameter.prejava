@@ -49,7 +49,7 @@ public class SmoothlyVaryingViewingParameter
     public void snap(double[] targetPosition)
     {
         set(targetPosition);
-        evolve(1,0,1,1); // infinite power
+        evolve(1,0,1,1,0); // infinite power
     }
     /** Snaps to the specified position (scalar version).  Equivalent to snap(new double[]{targetPosition}). */
     public void snap(double targetPosition)
@@ -90,6 +90,20 @@ public class SmoothlyVaryingViewingParameter
         return velocity[0];
     }
 
+    // this is PRIVATE. XXX well maybe I shouldn't be so hard-line, if I make it public, change the above comment
+    private void setVelocity(double velocity[])
+    {
+        if (velocity.length != this.velocity.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setVelocity: new velocity has dimension "+velocity.length+", expected "+this.velocity.length+"");
+        VecMath.copyvec(this.velocity, velocity);
+    }
+    private void setVelocity(double velocity)
+    {
+        if (this.velocity.length != 1)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setVelocity: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
+        setVelocity(new double[]{velocity});
+    }
+
     /** Gets the target value of this scalar variable now, if it's a scalar, otherwise throws an IllegalArgumentException. */
     // XXX needs a vector version
     public double getTarget()
@@ -103,6 +117,7 @@ public class SmoothlyVaryingViewingParameter
     /**
     * 0: nothing
     * 1: some haphazard stuff
+    * 2: more detailed haphazard stuff
     */
     public static int verboseLevel = 0;
 
@@ -128,8 +143,12 @@ public class SmoothlyVaryingViewingParameter
     public void evolve(double referenceTripDistance,
                        double referenceTripTime,
                        double dt,
-                       double criticalDampingFraction)
+                       double criticalDampingFraction,
+                       double bounce)
     {
+OUT("in evolve");
+PRINT(criticalDampingFraction);
+PRINT(bounce);
         if (isMoving())
         {
             if (referenceTripTime == 0.)
@@ -168,6 +187,7 @@ public class SmoothlyVaryingViewingParameter
             // XXX we'd have to correct it in a different way,
             // XXX I'm not sure how.
             //
+            criticalDampingFraction = MAX(criticalDampingFraction, 1e-6); // lame
             double accelerationMultiplier = criticalDampingFraction;
             double decelerationMultiplier = criticalDampingFraction;
             referenceTripDistance /= criticalDampingFraction;
@@ -177,7 +197,10 @@ public class SmoothlyVaryingViewingParameter
             {
                 p_and_v[0] = position[i] - targetPosition[i];
                 p_and_v[1] = velocity[i];
-                update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, accelerationMultiplier, decelerationMultiplier);
+                if (true)
+                    new_update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, bounce);
+                else
+                    update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, accelerationMultiplier, decelerationMultiplier);
                 position[i] = p_and_v[0] + targetPosition[i];
                 velocity[i] = p_and_v[1];
             }
@@ -249,6 +272,180 @@ public class SmoothlyVaryingViewingParameter
         p_and_v[1] *= referenceTripDistance/referenceTripTime;
     } // private update_p_and_v
 
+    private static void new_update_p_and_v(double p_and_v[/*2*/],
+                                           double referenceTripDistance,
+                                           double referenceTripTime,
+                                           double dt,
+                                           double bounce)
+    {
+OUT("in new_update_p_and_v");
+PRINT(bounce);
+OUT("");
+        assert(bounce >= 0); // XXX make this a bad param exception or something
+
+        {
+            // XXX FUDGE! I guess I messed up somehow and high bounces are making the acceleration sharper than it should be, so fudge to adjust for now until I figure out what I did wrong
+            referenceTripDistance *= 1-bounce;
+        }
+
+
+
+        // acceleration magnitude...
+        double aMag = 4 * referenceTripDistance
+                        / SQR(referenceTripTime);
+        double p = p_and_v[0];
+        double v = p_and_v[1];
+        double vSign = (v<0 ? -1. : 1.);
+        double vMag = vSign*v;
+
+        //
+        // Call the current time 0.
+        // What is the nearest time before and after now
+        // that v could be 0,
+        // given acceleration magnitude aMag?
+        //
+        double still_t_after = vMag/aMag;
+        double still_p_after = p + vSign*.5*v*v/aMag;
+        double still_a_after = -vSign*aMag;
+
+        double still_t_before = -vMag/aMag;
+        double still_p_before = p - vSign*.5*v*v/aMag;
+        double still_a_before = vSign*aMag;
+        if (false)
+        {
+            PRINT(p);
+            PRINT(v);
+            PRINT(vSign);
+            PRINT(vMag);
+            PRINT(still_t_before);
+            PRINT(still_p_before);
+            PRINT(still_a_before);
+            PRINT(still_t_after);
+            PRINT(still_p_after);
+            PRINT(still_a_after);
+        }
+
+        double t0, p0, a0;
+        if (p*v <= 0 &&
+            still_p_after/still_p_before > -bounce)
+        {
+            // Need to push forward harder... still_before is the relevant one.
+            t0 = still_t_before;
+            p0 = still_p_before;
+            a0 = still_a_before;
+        }
+        else
+        {
+            // Need to be decelerating so we don't over-overshoot.
+            t0 = still_t_after;
+            p0 = still_p_after;
+            a0 = still_a_after;
+        }
+
+        // Figure out the position,time,acceleration of the following
+        // still point (after the next bounce).
+        // From one still point to the next looks just like
+        // a scaled reference trip.
+        double p1 = -bounce*p0;
+        double a1 = -a0;
+        double t1 = t0 + Math.sqrt((Math.abs(p1-p0)/referenceTripDistance))
+                       * referenceTripTime;
+
+        // Each piece takes sqrt(bounce) as much time as the previous one.
+        // So the time at which we will settle is:
+        //     t0 + (t1-t0)*(1 + bounce^(1/2) + bounce + bounce^(3/2) + ...)
+        //   = t0 + (t1-t0)/(1-sqrt(bounce))
+        // Check whether we are being asked to evolve to or beyond
+        // the settling time, i.e. whether
+        //     dt >= t0 + (t1-t0)/(1-sqrt(bounce))
+        // Don't do that division explicitly (in case bounce is very close
+        // to 1); instead, check whether:
+        //     (dt-t0)*(1-sqrt(bounce)) >= t1-t0
+        if ((dt-t0)*(1-Math.sqrt(bounce)) >= t1-t0)
+        {
+            // Settled
+            p = 0;
+            v = 0;
+        }
+        else
+        {
+            // Not settled.
+            // Which time segment t_(i-1) .. t_i
+            // is dt in?
+            int i = 0;
+            double p_iminus1 = Double.NaN;
+            double t_iminus1 = Double.NaN;
+            double a_iminus1 = Double.NaN;
+            double t_i = t0;
+            double p_i = p0;
+            double a_i = a0;
+            while (dt > t_i)
+            {
+                p_iminus1 = p_i;
+                t_iminus1 = t_i;
+                a_iminus1 = a_i;
+                i++;
+                p_i = -bounce * p_iminus1;
+                a_i = -a_iminus1;
+                // XXX note first one is redundant with calculation of t1 above, should try to consolidate
+                t_i += Math.sqrt((Math.abs(p_i-p_iminus1)/referenceTripDistance))
+                     * referenceTripTime;
+                if (i > 1000)
+                {
+                    // Ridiculous number of iterations.
+                    // We are probably very close to the settling point,
+                    // and stuck due to floating point roundoff error.
+                    assert(false); // coverage
+                    p_and_v[0] = 0;
+                    p_and_v[1] = 0;
+                    return;
+                }
+            }
+            if (false)
+            {
+                PRINT(p_iminus1);
+                PRINT(p_i);
+                PRINT(t_iminus1);
+                PRINT(t_i);
+                PRINT(i);
+            }
+            double frac = i==0 ? 1. : (dt-t_iminus1)/(t_i-t_iminus1);
+            //frac = 0; // XXX get rid
+            if (frac < .5)
+            {
+                // Follow the parabola forwards
+                // from the previous still point t_iminus1,p_iminus1
+                if (false)
+                {
+                    OUT("----------------------------");
+                    PRINT(a_iminus1);
+                }
+                v = (dt-t_iminus1) * a_iminus1;
+                p = p_iminus1 + .5*a_iminus1*SQR(dt-t_iminus1);
+            }
+            else
+            {
+                // Follow the parabola backwards
+                // from the next still point t_i,p_i
+                if (false)
+                {
+                    OUT("++++++++++++++++++++++++++++");
+                    PRINT(a_i);
+                }
+                v = (t_i-dt) * -a_i;
+                p = p_i - .5* -a_i *SQR(t_i-dt);
+            }
+            if (false)
+            {
+                PRINT(p);
+                PRINT(v);
+                OUT("");
+            }
+        }
+        p_and_v[0] = p;
+        p_and_v[1] = v;
+    } // private new_update_p_and_v
+
     // Do it assuming the canonical reference trip of 1 unit of distance
     // starting and stopping softly, takes 1 unit of time.
     // The multipliers are applied at the very last instant,
@@ -261,6 +458,8 @@ public class SmoothlyVaryingViewingParameter
                                        double decelerationMultiplier)
     {
         if (verboseLevel >= 1) System.out.println("in update_p_and_v_for_canonical_accel");
+        if (verboseLevel >= 2) PRINTVEC(p_and_v);
+        if (verboseLevel >= 2) PRINT3(dt, accelerationMultiplier, decelerationMultiplier);
         //
         // We need to figure out:
         //      - the (negative) time t0 that we have to start at
@@ -378,6 +577,7 @@ public class SmoothlyVaryingViewingParameter
             // a possibly long but visually undetectable
             // tiny exponentially decaying oscillation.
 
+            if (verboseLevel >= 2) PRINTVEC(p_and_v);
             if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel (early)");
             return;
         }
@@ -462,6 +662,8 @@ public class SmoothlyVaryingViewingParameter
             assert(dp < (2.01*dt*dt + 4.01*maxPossibleSpeedInInterval) * maxFudge);
         }
 
+        PRINTVEC(p_and_v);
+        if (verboseLevel >= 2) PRINTVEC(p_and_v);
         if (verboseLevel >= 1) System.out.println("out update_p_and_v_for_canonical_accel");
     } // private update_p_and_v_for_canonical_accel
 
@@ -472,11 +674,12 @@ public class SmoothlyVaryingViewingParameter
     }
 
 
-    /** Test program. */
-    public static void main(String args[])
+
+
+    private static void confidenceTests()
     {
-        System.out.println("in main");
         double criticalDampingFraction = 1.; // XXX should write some tests with this
+        double bounce = 0.; // XXX should write some tests with this
         double eps = 1e-5;
         {
             SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
@@ -493,7 +696,7 @@ public class SmoothlyVaryingViewingParameter
                 System.out.println("    Before evolve: "+
                     com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
                                         t, p0, v0));
-                x.evolve(1,1, dt, criticalDampingFraction);
+                x.evolve(1,1, dt, criticalDampingFraction, bounce);
                 t += dt;
                 double p1 = x.get();
                 double v1 = x.getVelocity();
@@ -531,7 +734,8 @@ public class SmoothlyVaryingViewingParameter
                 x.evolve(1,
                          i>=5 ? 2 : 1,   // reduce to half power at i=5
                          dt,
-                         criticalDampingFraction);
+                         criticalDampingFraction,
+                         bounce);
                 t += dt;
                 double p1 = x.get();
                 double v1 = x.getVelocity();
@@ -603,7 +807,7 @@ public class SmoothlyVaryingViewingParameter
                         System.out.println("    Before evolve: "+
                             com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
                                                 t, p0, v0));
-                    x.evolve(canonicalDistance,canonicalTime, dt, criticalDampingFraction);
+                    x.evolve(canonicalDistance,canonicalTime, dt, criticalDampingFraction, bounce);
                     t += dt;
                     double p1 = x.get();
                     double v1 = x.getVelocity();
@@ -625,6 +829,306 @@ public class SmoothlyVaryingViewingParameter
                 }
             }
         }
+
+    } // confidenceTests
+
+    private static int eventVerbose = 2;
+
+    private static void interactiveDemo()
+    {
+        java.awt.Canvas canvas = new java.awt.Canvas() {
+
+            class Model
+            {
+                double referenceTripDistance = .5;
+                double referenceTripTime = .5;
+                //double unclampedBounce = .5;
+                double unclampedBounce = 0.;
+                double segmentEndPoints[][] = {{-.6,.4},{-.5,.5}};
+
+                // 0: segment endpoint 0
+                // 1: segment endpoint 1
+                // 2: ref trip end
+                // 3: bounce point
+                int pickClosestThing(double x, double y)
+                {
+                    double points[][] = {
+                        segmentEndPoints[0],
+                        segmentEndPoints[1],
+                        {-1+referenceTripTime,
+                         -1+referenceTripDistance},
+                        {-1+referenceTripTime*(1+Math.sqrt(Math.max(unclampedBounce,0))),
+                         -1+referenceTripDistance*(1-Math.max(unclampedBounce,0))},
+                    };
+                    int bestI = -1;
+                    double bestDistSqrd = Double.POSITIVE_INFINITY;
+                    for (int i = 0; i < points.length; ++i)
+                    {
+                        double thisDistSqrd = (x-points[i][0])*(x-points[i][0])
+                                            + (y-points[i][1])*(y-points[i][1]);
+                        if (thisDistSqrd < bestDistSqrd)
+                        {
+                            bestI = i;
+                            bestDistSqrd = thisDistSqrd;
+                        }
+                        // Special case-- if bounce is 0,
+                        // then ref trip end and bounce point are the same...
+                        // in this case prefer the bounce point
+                        // iff pick point is to the right.
+                        if (thisDistSqrd == bestDistSqrd
+                         && bestI == 2
+                         && i == 3
+                         && x > points[i][0])
+                        {
+                            bestI = i;
+                            bestDistSqrd = thisDistSqrd;
+                        }
+                    }
+                    return bestI;
+                }
+            }
+            Model model = new Model();
+            com.donhatchsw.awt.MyGraphics mostRecentGraphics = null;
+            double prevPoint[] = null;
+            int indexOfThingBeingDragged = -1;
+
+            public java.awt.Dimension getPreferredSize()
+            {
+                //return new java.awt.Dimension(800,800);
+                return new java.awt.Dimension(200,200);
+            }
+            // PAINT
+            public void paint(java.awt.Graphics g)
+            {
+                if (eventVerbose >= 2) System.out.println("    in paint");
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, getSize(),
+                                               -1.,1.,-1.,1.);
+
+                // Draw the reference trip endpoints
+                mg.setColor(java.awt.Color.red);
+                mg.drawString("Ref trip", -1+model.referenceTripTime,
+                                          -1+model.referenceTripDistance,
+                                          -1.1, 1.1); // bleah, give it a tiny bit of space
+                mg.drawPoint(-1+model.referenceTripTime,
+                             -1+model.referenceTripDistance,
+                             3);
+                double bounce = Math.max(model.unclampedBounce, 0);
+                // And where we think the first bounce will be
+                mg.drawPoint(-1+model.referenceTripTime*(1+Math.sqrt(bounce)),
+                             -1+model.referenceTripDistance*(1-bounce),
+                             3);
+                // And the second one
+                if (false) // nah, can't drag it so it's confusing
+                    mg.drawPoint(-1+model.referenceTripTime*(1+Math.sqrt(bounce+bounce)),
+                                 -1+model.referenceTripDistance*(1-bounce+bounce*bounce),
+                                 3);
+
+                // Draw the reference trip
+                {
+                    SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(-1.);
+                    // Concoct a target so that the first upward piece
+                    // goes to exactly referenceTripDistance.
+                    // So it should be -1 + refTripDistance * 
+                    //                  (1 - b + b^2 - ...)
+                    param.set(-1. + model.referenceTripDistance / (1.+bounce));
+
+                    double dt = 1/1000.;
+                    double t = -1.;
+                    FORI (i, 2000+1)
+                    {
+                        param.evolve(model.referenceTripDistance,
+                                     model.referenceTripTime,
+                                     dt,
+                                     1-bounce,
+                                     bounce);
+                        t += dt;
+                        mg.drawPoint(t, param.get(), 1);
+                    }
+                }
+
+                if (true)
+                {
+                    double x0 = model.segmentEndPoints[0][0];
+                    double y0 = model.segmentEndPoints[0][1];
+                    double x1 = model.segmentEndPoints[1][0];
+                    double y1 = model.segmentEndPoints[1][1];
+
+                    if (x0 > x1)
+                    {
+                        double temp;
+                        SWAP(x0,x1,temp);
+                        SWAP(y0,y1,temp);
+                    }
+
+                    // Draw the segment endpoints
+                    mg.setColor(java.awt.Color.getHSBColor(.75f, 1.f, 1.f));
+                    mg.drawPoint(x0,y0, 5);
+                    mg.drawPoint(x1,y1, 5);
+                    // Draw the segment
+                    FORI (i, 1000+1)
+                    {
+                        double t = i/1000.;
+                        mg.drawPoint(lerp(x0,x1,t),
+                                     lerp(y0,y1,t),
+                                     1);
+                    }
+                    // Draw the forward trip
+                    if (x1 != x0)
+                    {
+                        assert(x1 > x0);
+                        double v = (y1-y0)/(x1-x0);
+                        SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(y1);
+                        param.set(0.); // target
+                        param.setVelocity(v);
+                        double t = x1;
+                        double dt = 1/1000.;
+                        FORI (i, 2000+1)
+                        {
+                            param.evolve(model.referenceTripDistance,
+                                         model.referenceTripTime,
+                                         dt,
+                                         1-bounce,
+                                         bounce);
+                            t += dt;
+                            mg.drawPoint(t, param.get(), 1);
+                        }
+                    }
+                    // Draw the backward trip
+                    if (x1 != x0)
+                    {
+                        assert(x1 > x0);
+                        double v = -(y1-y0)/(x1-x0);
+                        SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(y0);
+                        param.set(0.); // target
+                        param.setVelocity(v);
+                        double t = x0;
+                        double dt = 1/1000.;
+                        FORI (i, 2000+1)
+                        {
+                            param.evolve(model.referenceTripDistance,
+                                         model.referenceTripTime,
+                                         dt,
+                                         1-bounce,
+                                         bounce);
+                            t -= dt;
+                            mg.drawPoint(t, param.get(), 1);
+                        }
+                    }
+                }
+
+                mostRecentGraphics = mg;
+
+                if (eventVerbose >= 2) System.out.println("    out paint");
+            }
+            {
+                addMouseListener(new java.awt.event.MouseListener() {
+                    public void mouseClicked(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseClicked at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseClicked");
+                    }
+                    public void mousePressed(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mousePressed at "+e.getX()+","+e.getY()+"");
+
+                        double thisPoint[] = new double[2];
+                        mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+                        indexOfThingBeingDragged = model.pickClosestThing(thisPoint[0], thisPoint[1]);
+                        PRINT(indexOfThingBeingDragged);
+
+                        prevPoint = thisPoint;
+                        if (eventVerbose >= 1) System.out.println("    out mousePressed");
+                    }
+                    public void mouseReleased(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
+
+                        // no longer dragging-- make it be where it looks like it is
+                        model.unclampedBounce = Math.max(model.unclampedBounce, 0);
+
+                        if (eventVerbose >= 1) System.out.println("    out mouseReleased");
+                    }
+                    public void mouseEntered(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseEntered");
+                    }
+                    public void mouseExited(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseExited at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseExited");
+                    }
+                });
+                addMouseMotionListener(new java.awt.event.MouseMotionListener() {
+                    public void mouseMoved(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 3) System.out.println("    in mouseMoved to "+e.getX()+","+e.getY()+"");
+                        double thisPoint[] = new double[2];
+                        mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+                        prevPoint = thisPoint;
+                        if (eventVerbose >= 3) System.out.println("    out mouseMoved");
+                    }
+                    public void mouseDragged(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseDragged to "+e.getX()+","+e.getY()+"");
+                        double thisPoint[] = new double[2];
+                        mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+
+                        double delta[] = VecMath.vmv(thisPoint, prevPoint);
+                        if (indexOfThingBeingDragged == 0)
+                            VecMath.vpv(model.segmentEndPoints[0], model.segmentEndPoints[0], delta);
+                        else if (indexOfThingBeingDragged == 1)
+                            VecMath.vpv(model.segmentEndPoints[1], model.segmentEndPoints[1], delta);
+                        else if (indexOfThingBeingDragged == 2)
+                        {
+                            model.referenceTripTime += delta[0];
+                            model.referenceTripDistance += delta[1];
+                        }
+                        else if (indexOfThingBeingDragged == 3)
+                        {
+                            double bouncePoint = -1+model.referenceTripDistance*(1-model.unclampedBounce);
+                            bouncePoint += delta[1];
+                            model.unclampedBounce = 1 - (bouncePoint - -1)/model.referenceTripDistance;
+                        }
+                        repaint();
+
+                        prevPoint = thisPoint;
+                        if (eventVerbose >= 1) System.out.println("    out mouseDragged");
+                    }
+                });
+            }
+        }; // new Canvas
+
+            canvas.requestFocus(); // seems to be needed initially XXX see whether this is true
+
+            final java.awt.Frame frame = new java.awt.Frame("Smoothly Varying Viewing Parameters");
+            frame.addWindowListener(new java.awt.event.WindowAdapter() {
+                public void windowClosing(java.awt.event.WindowEvent we)
+                {
+                    frame.dispose();
+                    System.out.println("ciao!");
+                    System.exit(0); // asinine way of doing things
+                }
+            });
+            frame.setForeground(java.awt.Color.white);
+            frame.setBackground(java.awt.Color.black);
+            frame.add(canvas);
+            frame.pack();
+            frame.show();
+        } // interactiveDemo
+
+
+
+    /** Test program. */
+    public static void main(String args[])
+    {
+        System.out.println("in main");
+
+        boolean justDoConfidenceTests = (args.length>0);
+        if (justDoConfidenceTests)
+            confidenceTests();
+        else
+            interactiveDemo();
 
         System.out.println("out main");
     } // main
