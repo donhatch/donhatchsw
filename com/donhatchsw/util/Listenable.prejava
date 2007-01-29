@@ -229,4 +229,41 @@ public abstract class Listenable
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return VecMath.equalsExactly(get(),getDefaultValue()); }
     }
+
+
+    /**
+    * Return an array consisting of all Listenables
+    * in all public Listenable and Listenable[] members
+    * in the given object.
+    */
+    public static Listenable[] allListenablesInObject(Object obj)
+    {
+        com.donhatchsw.compat.ArrayList list = new com.donhatchsw.compat.ArrayList();
+
+        Class objClass = obj.getClass();
+        java.lang.reflect.Field[] fields = objClass.getFields();
+        for (int iField = 0; iField < fields.length; iField++)
+        {
+            java.lang.reflect.Field field = fields[iField];
+            Class fieldType = field.getType();
+            try {
+                if (Listenable.class.isAssignableFrom(fieldType)) // if Listenable is a superclass of fieldType
+                {
+                    //System.out.println("    found Listenable field "+field);
+                    list.add(field.get(obj));
+                }
+                else if (Listenable[].class.isAssignableFrom(fieldType)) // if Listenable[] is a superclass of fieldType
+                {
+                    //System.out.println("    found Listenable[] field "+field);
+                    Listenable array[] = (Listenable[])field.get(obj);
+                    for (int i = 0; i < array.length; ++i)
+                        list.add(array[i]);
+                }
+            } catch (IllegalAccessException e) {}
+        }
+        Listenable array[] = new Listenable[list.size()];
+        list.toArray(array);
+        return array;
+    } // allListenablesInObject
+
 } // class Listenable
