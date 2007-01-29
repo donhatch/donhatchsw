@@ -320,7 +320,7 @@ public class MC4DModel
         *  so its advanceAnimation ends up calling its own movingNotify
         *  which calls its own repaint, so it's all good.
         */
-        public synchronized void advanceAnimation(Listener listener, double nFrames90, double criticalDampingFraction)
+        public synchronized void advanceAnimation(Listener listener, double nFrames90, double bounce)
         {
             if (verboseLevel >= 1) System.out.println("MODEL: advancing animation");
 
@@ -334,7 +334,7 @@ public class MC4DModel
                 1.,        // the canonical edge length
                 nFrames90, // takes this amount of time
                 1.,        // and we are incrementing by this amount of time
-                criticalDampingFraction,
+                bounce,
                 // XXX don't need to make this every time!
                 // XXX and this is duplicated in MC4DViewGuts
                 new com.donhatchsw.util.UndoTree.ItemLengthizer() {
