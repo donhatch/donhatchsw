@@ -7,24 +7,41 @@ package com.donhatchsw.util;
 * This is useful for keeping multiple user
 * interfaces that control the same variable
 * in sync.
+*  See Java Tip 79:
+*      http://www.javaworld.com/javaworld/javatips/jw-javatip79.html
+* XXX ARGH! weak refs are not implemented in 1.1.  in that case we don't use them, but we'll have memory leaks instead.
 */
 public abstract class Listenable
 {
+    // XXX need to use reflection so that this will compile under 1.1
+    private static boolean weakRefsExist()
+    {
+        try {
+            Object dummy = (java.lang.ref.WeakReference)null;
+            return true;
+        } catch (NoClassDefFoundError e) {
+            //System.out.println("BONK! weak refs do not exist");
+            return false;
+        }
+    }
+    private static boolean useWeakRefs = weakRefsExist(); // true in >= 1.2
+
     public interface Listener
     {
         public void valueChanged();
     }
 
-    // XXX need to use weak refs.
-    // See Java Tip 79:
-    //     http://www.javaworld.com/javaworld/javatips/jw-javatip79.html
     public void addListener(Listener listener)
     {
         synchronized(listeners)
         {
-            // XXX should make sure it's not already there? maybe
-            java.lang.ref.WeakReference wr = new java.lang.ref.WeakReference(listener);
-            listeners.add(wr);
+            if (useWeakRefs)
+            {
+                java.lang.ref.WeakReference wr = new java.lang.ref.WeakReference(listener);
+                listeners.add(wr);
+            }
+            else
+                listeners.add(listener);
         }
     }
     public void removeListener(Listener listener)
@@ -34,11 +51,22 @@ public abstract class Listenable
             int n = listeners.size();
             for (int i = 0; i < n; ++i)
             {
-                java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
-                if (wr.get() == listener)
+                if (useWeakRefs)
                 {
-                    listeners.remove(i);
-                    return;
+                    java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
+                    if (wr.get() == listener)
+                    {
+                        listeners.remove(i);
+                        return;
+                    }
+                }
+                else
+                {
+                    if (listeners.get(i) == listener)
+                    {
+                        listeners.remove(i);
+                        return;
+                    }
                 }
             }
         }
@@ -58,12 +86,17 @@ public abstract class Listenable
             int nLapsedListeners = 0;
             for (int i = 0; i < n; ++i)
             {
-                java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
-                Listener listener = (Listener)wr.get();
-                if (listener != null)
-                    listener.valueChanged();
+                if (useWeakRefs)
+                {
+                    java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
+                    Listener listener = (Listener)wr.get();
+                    if (listener != null)
+                        listener.valueChanged();
+                    else
+                        nLapsedListeners++;
+                }
                 else
-                    nLapsedListeners++;
+                    ((Listener)listeners.get(i)).valueChanged();
             }
             if (nLapsedListeners > 0)
             {
