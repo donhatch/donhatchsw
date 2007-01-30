@@ -149,7 +149,7 @@ public class MC4DViewGuts
 
         //public Listenable.Double nFrames90(0., 100., 15.);
         public Listenable.Double nFrames90 = new Listenable.Double(0., 100., 30.);
-        public Listenable.Double bounce = new Listenable.Double(0., 1., .5);
+        public Listenable.Double bounce = new Listenable.Double(0., 1., 0.);
 
         public InterpFunc interp = sine_interp;
         //InterpFunc interp = linear_interp;
@@ -178,7 +178,8 @@ public class MC4DViewGuts
         public Listenable.Boolean highlightByCubie = new Listenable.Boolean(false);
         public Listenable.Boolean highlightByGrip = new Listenable.Boolean(true); // if possible; it gets turned into highlight by sticker automatically if there is no grip info, which there isn't unless it's a 2x2x2x2 currently.  XXX get rid of this?
         public Listenable.Boolean showShadows = new Listenable.Boolean(true);
-        public Listenable.Boolean antialiasWhenStill = new Listenable.Boolean(true);
+        //public Listenable.Boolean antialiasWhenStill = new Listenable.Boolean(true);
+        public Listenable.Boolean antialiasWhenStill = new Listenable.Boolean(false); // XXX not ready for prime time-- not checking whether still properly
         public Listenable.Boolean drawNonShrunkFaceOutlines = new Listenable.Boolean(false);
         public Listenable.Boolean drawShrunkFaceOutlines = new Listenable.Boolean(false);
         public Listenable.Boolean drawNonShrunkStickerOutlines = new Listenable.Boolean(false);
@@ -263,16 +264,21 @@ public class MC4DViewGuts
     private Component viewComponent = null;
     public ViewParams viewParams = new ViewParams(); // XXX not sure if it should be public or what
     private ViewState viewState = new ViewState();
+    private com.donhatchsw.compat.ArrayList keepalive = new com.donhatchsw.compat.ArrayList(); // keeps my listeners alive with strong refs for as long as I'm alive
         {
             Listenable listenables[] = Listenable.allListenablesInObject(viewParams);
             for (int i = 0; i < listenables.length; ++i)
-                listenables[i].addListener(new Listenable.Listener() {
+            {
+                Listenable.Listener listener = new Listenable.Listener() {
                     public void valueChanged()
                     {
                         if (viewComponent != null)
                             viewComponent.repaint();
                     }
-                });
+                };
+                listenables[i].addListener(listener);
+                keepalive.add(listener);
+            }
         }
 
     //
@@ -282,6 +288,7 @@ public class MC4DViewGuts
     // My response to a change is simply to call repaint on the view Component;
     // then when paint() is called it will query the animation progress
     // from the model (which pumps the animation).
+    // XXX think about doing this automatically, maybe having a Listenable that's just a version number or something
     //
     MC4DModel.Listener modelListener = new MC4DModel.Listener() {
         public void movingNotify()
@@ -775,9 +782,10 @@ public class MC4DViewGuts
         if (viewParams.eventVerboseLevel.get() >= 3) System.out.println("            painting on a "+view.getClass().getSuperclass().getName());
 
         // stole from MC4DView.updateViewFactors
+        Dimension viewSize = view.getSize(); // getWidth,getHeight don't exist in 1.1
         int
-            W = view.getWidth(),
-            H = view.getHeight(),
+            W = viewSize.width,
+            H = viewSize.height,
             min = W>H ? H : W;
         if(W*H == 0)
             return;
@@ -794,7 +802,8 @@ public class MC4DViewGuts
         int xOff = ((W>H) ? (W-H)/2 : 0) + min/2;
         int yOff = ((H>W) ? (H-W)/2 : 0) + min/2;
 
-        if (model.isMoving())
+        boolean wasMoving = model.isMoving();
+        if (wasMoving)
         {
             //System.out.println("model says it's moving beforehand");
         }
@@ -802,12 +811,12 @@ public class MC4DViewGuts
         {
             //System.out.println("model says it's still beforehand");
         }
-        // XXX query whether animation is actually in progress
         model.advanceAnimation(modelListener,
                                viewParams.nFrames90.get(),
                                viewParams.bounce.get()
                                );
-        if (model.isMoving())
+        boolean isMoving = model.isMoving();
+        if (isMoving)
         {
             //System.out.println("model says it's moving afterwards");
             // do NOT call repaint... the animation advance automatically
@@ -821,6 +830,18 @@ public class MC4DViewGuts
         else
         {
             //System.out.println("model says it's still afterwards");
+        }
+
+        if (true) // XXX not ready for prime time-- need to figure out whether moving in any way, not just twisting
+        {
+            if(g instanceof Graphics2D) {
+                boolean okToAntialias = true
+                                      // && allowAntiAliasing && lastDrag==null && spindelta==null // XXX need to do this!
+                                      && viewParams.antialiasWhenStill.get()
+                                      && !wasMoving;
+                ((Graphics2D)g).setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                    okToAntialias ? RenderingHints.VALUE_ANTIALIAS_ON : RenderingHints.VALUE_ANTIALIAS_OFF);
+            }
         }
 
         MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1);
@@ -936,7 +957,17 @@ public class MC4DViewGuts
         for (int i = 0; i < faceRGB.length; ++i)
         {
             Color color = viewParams.faceColors[i%viewParams.faceColors.length].get();
-            color.getColorComponents(faceRGB[i]);
+            // color.getColorComponents(faceRGB[i]); // doesn't exist in 1.1
+            {
+                int rgb = color.getRGB();
+                float red = ((rgb>>16)&255)/255.f;
+                float green = ((rgb>>8)&255)/255.f;
+                float blue = (rgb&255)/255.f;
+                //System.out.println("r="+red+" g="+green+" b="+blue);
+                faceRGB[i][0] = red;
+                faceRGB[i][1] = green;
+                faceRGB[i][2] = blue;
+            }
         }
 
         GenericPipelineUtils.paintFrame(
@@ -945,7 +976,6 @@ public class MC4DViewGuts
                 model.genericPuzzleState,
                 viewParams.showShadows.get(),
                 viewParams.drawGround.get() ? viewParams.groundColor.get() : null,
-                //viewParams.faceRGB,
                 faceRGB,
                 viewState.iStickerUnderMouse,
                 viewState.iPolyUnderMouse,
@@ -962,7 +992,8 @@ public class MC4DViewGuts
         if (viewParams.showNumPaintsDone.get())
         {
             g.setColor(java.awt.Color.black);
-            com.donhatchsw.util.Arrows.drawString((java.awt.Graphics2D)g, "("+viewState.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.); // XXX need to get that moved out somewhere else
+            com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
+            mg.drawString("("+viewState.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.);
         }
     } // paint
 
