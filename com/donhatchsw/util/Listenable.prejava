@@ -10,8 +10,6 @@ package com.donhatchsw.util;
 */
 public abstract class Listenable
 {
-    private boolean useWeakRefs = true; // XXX when I get something I like, get rid of all the other options
-
     public interface Listener
     {
         public void valueChanged();
@@ -24,33 +22,27 @@ public abstract class Listenable
     {
         synchronized(listeners)
         {
-            if (useWeakRefs)
-            {
-                java.lang.ref.WeakReference wr = new java.lang.ref.WeakReference(listener);
-                listeners.add(wr);
-            }
-            else
-            {
-                // XXX assert it's not there already!
-                listeners.remove(listener);
-                listeners.add(listener);
-            }
+            // XXX should make sure it's not already there? maybe
+            java.lang.ref.WeakReference wr = new java.lang.ref.WeakReference(listener);
+            listeners.add(wr);
         }
     }
     public void removeListener(Listener listener)
     {
         synchronized(listeners)
         {
-            if (useWeakRefs)
+            int n = listeners.size();
+            for (int i = 0; i < n; ++i)
             {
-                assert(false); // XXX
-            }
-            else
-            {
-                // XXX assert it's there
-                listeners.remove(listener);
+                java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
+                if (wr.get() == listener)
+                {
+                    listeners.remove(i);
+                    return;
+                }
             }
         }
+        throw new IllegalArgumentException("Listener.removeListener tried to remove a listener that wasn't attached");
     }
     public abstract void resetToDefault();
     public abstract boolean isDefault();
@@ -66,19 +58,14 @@ public abstract class Listenable
             int nLapsedListeners = 0;
             for (int i = 0; i < n; ++i)
             {
-                if (useWeakRefs)
-                {
-                    java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
-                    Listener listener = (Listener)wr.get();
-                    if (listener != null)
-                        listener.valueChanged();
-                    else
-                        nLapsedListeners++;
-                }
+                java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
+                Listener listener = (Listener)wr.get();
+                if (listener != null)
+                    listener.valueChanged();
                 else
-                    ((Listener)listeners.get(i)).valueChanged();
+                    nLapsedListeners++;
             }
-            if (useWeakRefs && nLapsedListeners > 0)
+            if (nLapsedListeners > 0)
             {
                 //System.out.println("CLEARING "+nLapsedListeners+" LAPSED LISTENER"+(nLapsedListeners==1?"":"S")+"!");
                 synchronized(listeners) // XXX this is the part that needs a real synchronize
@@ -92,10 +79,7 @@ public abstract class Listenable
                     }
                     // listeners.removeRange(nOut, n); // ARGH! removeRange is protected, see http://forum.java.sun.com/thread.jspa?threadID=5121683&messageID=9425625 for a laugh
                     while (n > nOut)
-                    {
-                        PRINT2(n, nOut);
                         listeners.remove(--n);
-                    }
                 }
             }
         }
