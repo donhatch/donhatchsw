@@ -139,6 +139,8 @@
     BUGS / URGENT TODOS:
     ===================
 
+        - get antialiasing's notion of "still" right, then turn it on by default
+        - resetting 4d rotation or rotation should do it smoothly, otherwise it's jarring
         - really need to pick from the rest frame, not the intermediate twist frame,
           in case of double-clicks... ARGH but the rest frame will lag behind
           if we are spin dragging!!! fuck fuck fuck... okay maybe the most recent non-twisting one, regardless of whether rotating or not? maybe
