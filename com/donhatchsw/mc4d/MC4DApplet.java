@@ -36,6 +36,8 @@ public class MC4DViewApplet
         final MC4DViewGuts guts = new MC4DViewGuts();
         guts.setModel(model);
 
+        int nControlPanels = 2; // XXX just need 1, but can experiment to make sure they stay in sync
+        for (int iControlPanel = 0; iControlPanel < nControlPanels; ++iControlPanel)
         {
             final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4DControlPanel Test");
             // XXX the following is probably not what I want
