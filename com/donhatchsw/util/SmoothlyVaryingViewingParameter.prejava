@@ -271,7 +271,7 @@ public class SmoothlyVaryingViewingParameter
                 // XXX note first one is redundant with calculation of t1 above, should try to consolidate
                 t_i += Math.sqrt((Math.abs(p_i-p_iminus1)/referenceTripDistance))
                      * referenceTripTime;
-                if (i > 1000)
+                if (i > 1000*1000)
                 {
                     // Ridiculous number of iterations.
                     // We are probably very close to the settling point,
