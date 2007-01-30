@@ -45,6 +45,8 @@ public class MC4DControlPanel
 
     public static class TextFieldForFloat extends TextField
     {
+        private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
+
         private void updateText(Listenable.Number f)
         {
             if (f instanceof Listenable.Float)
@@ -57,7 +59,7 @@ public class MC4DControlPanel
         {
             super("99.99"); // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
             updateText(f);
-            f.addListener(new Listenable.Listener() {
+            f.addListener(listener = new Listenable.Listener() {
                 public void valueChanged()
                 {
                     updateText(f);
@@ -107,6 +109,8 @@ public class MC4DControlPanel
 
     public static class SliderForFloat extends Scrollbar
     {
+        private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
+
         private void updateThumb(Listenable.Number f)
         {
             double value = f.getDouble();
@@ -130,7 +134,7 @@ public class MC4DControlPanel
             setUnitIncrement(1);   // .001 units
             setBlockIncrement(10); // .01 units
 
-            f.addListener(new Listenable.Listener() {
+            f.addListener(listener = new Listenable.Listener() {
                 public void valueChanged()
                 {
                     updateThumb(f);
@@ -177,6 +181,8 @@ public class MC4DControlPanel
 
     private static class ColorSwatch extends CanvasOfSize
     {
+        private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
+
         ColorSwatch(final Listenable.Color color, int width, int height)
         {
             super(width, height);
@@ -204,7 +210,7 @@ public class MC4DControlPanel
                     //System.out.println("mouseExited");
                 } // mouseExited
             }); // mouse listener
-            color.addListener(new Listenable.Listener() {
+            color.addListener(listener = new Listenable.Listener() {
                 public void valueChanged()
                 {
                     ColorSwatch.this.setBackground(color.get());
@@ -215,6 +221,8 @@ public class MC4DControlPanel
 
     private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
     {
+        private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
+
         private Listenable.Color color;
         private Listenable.Boolean b;
         private Canvas swatch;
@@ -250,7 +258,7 @@ public class MC4DControlPanel
 
             if (b != null)
             {
-                b.addListener(new Listenable.Listener() {
+                b.addListener(listener = new Listenable.Listener() {
                     public void valueChanged()
                     {
                         updateShownValues();
@@ -284,6 +292,7 @@ public class MC4DControlPanel
     // and is enabled iff any of those listenables is non-default.
     private static class ResetButton extends Button
     {
+        private Listenable.Listener keepalive[]; // need to keep strong refs to them for as long as I'm alive
         private boolean wasDefault[]; // one for each listenable
         private int nNonDefault; // number of falses in wasDefault
         public ResetButton(final String buttonLabel,
@@ -300,6 +309,7 @@ public class MC4DControlPanel
                     Assert(nNonDefault == 0); // due to our valueChanged getting called
                 }
             });
+            keepalive = new Listenable.Listener[listenables.length];
             wasDefault = new boolean[listenables.length];
             nNonDefault = 0;
             for (int _i = 0; _i < listenables.length; ++_i)
@@ -309,7 +319,7 @@ public class MC4DControlPanel
                     continue;
                 if (!(wasDefault[i] = listenables[i].isDefault()))
                     nNonDefault++;
-                listenables[i].addListener(new Listenable.Listener() {
+                Listenable.Listener listener = new Listenable.Listener() {
                     public void valueChanged()
                     {
                         boolean isDefault = listenables[i].isDefault();
@@ -326,7 +336,9 @@ public class MC4DControlPanel
                         }
                         wasDefault[i] = isDefault;
                     }
-                });
+                };
+                listenables[i].addListener(listener);
+                keepalive[i] = listener;
             }
             setEnabled(nNonDefault > 0);
         }
@@ -447,6 +459,23 @@ public class MC4DControlPanel
                                                       fill = HORIZONTAL; weightx = 1.;}});
         nRows++;
     }
+    private void addLabelAndResetButtonRow(String labelString,
+                                           Listenable listenable,
+                                           String helpMessage[])
+    {
+        this.add(new CanvasOfSize(20,10), // indent
+                 new GridBagConstraints(){{gridy = nRows;}});
+        this.add(new Label(labelString),
+                 new GridBagConstraints(){{anchor = WEST;
+                                           gridwidth = 3;
+                                           gridy = nRows;}});
+        this.add(new ResetButton("Reset to default", listenable),
+                 new GridBagConstraints(){{gridy = nRows;}});
+        if (helpMessage != null)
+            this.add(new HelpButton(labelString, helpMessage),
+                     new GridBagConstraints(){{gridy = nRows;}});
+        nRows++;
+    }
     private void addFloatSliderRow(String labelString,
                         Listenable.Number f, // Float or Double
                         String helpMessage[])
@@ -562,10 +591,12 @@ public class MC4DControlPanel
                  "never affect the 3d rotation.",
                  "",
                  "When it is unchecked (the default),",
-                 "mouse actions can both",
+                 "un-ctrled mouse actions can both",
                  "start/stop the 3d rotation and do twists",
                  "(or 4d-rotate-to-center using middle mouse)",
-                 "at the same time.",
+                 "at the same time,",
+                 "and ctrl-mouse actions will do twists without affecting",
+                 "the 3d rotation.",
             });
         addCheckboxRow(
             "Restrict Roll",
@@ -588,6 +619,7 @@ public class MC4DControlPanel
             new String[] {
                 "Specifies how much each face should be shrunk towards its center in 4d",
                 "(before the 4d->3d projection).",
+                "",
                 "Shrinking before the projection causes the apparent final 3d shape",
                 "of the face to become less distorted (more cube-like),",
                 "but more poorly fitting with its 3d neighbors.",
@@ -598,9 +630,19 @@ public class MC4DControlPanel
             new String[] {
                 "Specifies how much each sticker should be shrunk towards its center in 4d",
                 "(before the 4d->3d projection).",
+                "",
                 "Shrinking before the projection causes the apparent final 3d shape",
                 "of the sticker to become less distorted (more cube-like),",
                 "but more poorly fitting with its 3d neighbors.",
+            });
+        addLabelAndResetButtonRow(
+            "4d Rotation",
+            viewParams.viewMat4d,
+            new String[] {
+                "Middle-click (or Alt-click) on a hyperface to rotate that hyperface to the center.",
+                "",
+                "You can rotate an arbitrary element (hyperface, 2d face, edge, or vertex)",
+                "to the center, by holding down the Ctrl key while middle-clicking (or Alt-clicking).",
             });
         addFloatSliderRow(
             "4d Eye Distance",
@@ -614,7 +656,9 @@ public class MC4DControlPanel
             viewParams.faceShrink3d,
             new String[] {
                 "Specifies how much each face should be shrunk towards its center in 3d",
-                "(after the 4d->3d projection).  Shrinking after the projection",
+                "(after the 4d->3d projection).",
+                "",
+                "Shrinking after the projection",
                 "causes the face to retain its 3d shape as it shrinks.",
             });
         addFloatSliderRow(
@@ -622,8 +666,20 @@ public class MC4DControlPanel
             viewParams.stickerShrink3d,
             new String[] {
                 "Specifies how much each sticker should be shrunk towards its center in 3d",
-                "(after the 4d->3d projection).  Shrinking after the projection",
+                "(after the 4d->3d projection).",
+                "",
+                "Shrinking after the projection",
                 "causes the sticker to retain its 3d shape as it shrinks.",
+            });
+        addLabelAndResetButtonRow(
+            "3d Rotation",
+            viewParams.viewMat3d,
+            new String[] {
+                "Rotate the puzzle in 3d by dragging with the mouse.",
+                "Let go while dragging to set the puzzle spinning.",
+                "",
+                "See also the \"Require Ctrl to 3d Rotate\" and \"Restrict Roll\" options,",
+                "which modify the dragging behavior.",
             });
         addFloatSliderRow(
             "3d Eye Distance",
@@ -742,7 +798,6 @@ public class MC4DControlPanel
                 nRows++;
             }
         }
-
         addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
         addSingleButtonRow(new ResetButton(
             "Reset All To Defaults",
@@ -752,6 +807,8 @@ public class MC4DControlPanel
 
     public static void main(String args[])
     {
+        // Only one set of params, share it among all the panels
+        MC4DViewGuts.ViewParams viewParams = new MC4DViewGuts.ViewParams();
         final int nAlive[] = {0};
         for (int i = 0; i < 2; ++i)
         {
@@ -778,7 +835,7 @@ public class MC4DControlPanel
                 });
             }
 
-            frame.add(new MC4DControlPanel(new MC4DViewGuts.ViewParams()));
+            frame.add(new MC4DControlPanel(viewParams));
             frame.pack();
             frame.show();
             nAlive[0]++;
