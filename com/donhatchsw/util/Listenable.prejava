@@ -1,4 +1,5 @@
 package com.donhatchsw.util;
+#include "macros.h"
 
 /**
 * Wrappers for boolean, int, float, double, java.awt.Color
@@ -9,22 +10,47 @@ package com.donhatchsw.util;
 */
 public abstract class Listenable
 {
+    private boolean useWeakRefs = true; // XXX when I get something I like, get rid of all the other options
+
     public interface Listener
     {
         public void valueChanged();
     }
 
-    // XXX need to use weak refs
+    // XXX need to use weak refs.
+    // See Java Tip 79:
+    //     http://www.javaworld.com/javaworld/javatips/jw-javatip79.html
     public void addListener(Listener listener)
     {
-        // XXX assert it's not there
-        listeners.remove(listener);
-        listeners.add(listener);
+        synchronized(listeners)
+        {
+            if (useWeakRefs)
+            {
+                java.lang.ref.WeakReference wr = new java.lang.ref.WeakReference(listener);
+                listeners.add(wr);
+            }
+            else
+            {
+                // XXX assert it's not there already!
+                listeners.remove(listener);
+                listeners.add(listener);
+            }
+        }
     }
     public void removeListener(Listener listener)
     {
-        // XXX assert it's there
-        listeners.remove(listener);
+        synchronized(listeners)
+        {
+            if (useWeakRefs)
+            {
+                assert(false); // XXX
+            }
+            else
+            {
+                // XXX assert it's there
+                listeners.remove(listener);
+            }
+        }
     }
     public abstract void resetToDefault();
     public abstract boolean isDefault();
@@ -34,9 +60,45 @@ public abstract class Listenable
 
     protected void notifyListenersThatValueChanged()
     {
-        int n = listeners.size();
-        for (int i = 0; i < n; ++i)
-            ((Listener)listeners.get(i)).valueChanged();
+        synchronized(listeners) // XXX this should be a read-only synchronization that allows multiple readers to run simultaneously, if I can figure out how to do that
+        {
+            int n = listeners.size();
+            int nLapsedListeners = 0;
+            for (int i = 0; i < n; ++i)
+            {
+                if (useWeakRefs)
+                {
+                    java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
+                    Listener listener = (Listener)wr.get();
+                    if (listener != null)
+                        listener.valueChanged();
+                    else
+                        nLapsedListeners++;
+                }
+                else
+                    ((Listener)listeners.get(i)).valueChanged();
+            }
+            if (useWeakRefs && nLapsedListeners > 0)
+            {
+                //System.out.println("CLEARING "+nLapsedListeners+" LAPSED LISTENER"+(nLapsedListeners==1?"":"S")+"!");
+                synchronized(listeners) // XXX this is the part that needs a real synchronize
+                {
+                    int nOut = 0;
+                    for (int i = 0; i < n; ++i)
+                    {
+                        java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
+                        if (wr.get() != null)
+                            listeners.set(nOut++, wr);
+                    }
+                    // listeners.removeRange(nOut, n); // ARGH! removeRange is protected, see http://forum.java.sun.com/thread.jspa?threadID=5121683&messageID=9425625 for a laugh
+                    while (n > nOut)
+                    {
+                        PRINT2(n, nOut);
+                        listeners.remove(--n);
+                    }
+                }
+            }
+        }
     }
 
     public static class Boolean extends Listenable
@@ -172,7 +234,7 @@ public abstract class Listenable
         public Color(java.awt.Color defaultValue)
         {
             this.defaultValue = defaultValue;
-            this.value = this.defaultValue;
+            this.value = this.defaultValue; // immutable so can share
         }
         public java.awt.Color getDefaultValue() { return defaultValue; }
         public java.awt.Color get() { return value; }
@@ -193,7 +255,7 @@ public abstract class Listenable
         public FloatVector(float defaultValue[])
         {
             this.defaultValue = VecMath.copyvec(defaultValue);
-            this.value = this.defaultValue;
+            this.value = VecMath.copyvec(this.defaultValue); // don't share
         }
         public float[] getDefaultValue() { return defaultValue; }
         public float[] get() { return value; }
@@ -201,7 +263,8 @@ public abstract class Listenable
         {
             if (!VecMath.equalsExactly(newValue, value))
             {
-                value = VecMath.copyvec(newValue);
+                // assumes all vectors will have the same dimension, and never null
+                VecMath.copyvec(value, newValue);
                 notifyListenersThatValueChanged();
             }
         }
@@ -214,7 +277,7 @@ public abstract class Listenable
         public FloatMatrix(float defaultValue[][])
         {
             this.defaultValue = VecMath.copymat(defaultValue);
-            this.value = this.defaultValue;
+            this.value = VecMath.copymat(this.defaultValue); // don't share
         }
         public float[][] getDefaultValue() { return defaultValue; }
         public float[][] get() { return value; }
@@ -222,7 +285,8 @@ public abstract class Listenable
         {
             if (!VecMath.equalsExactly(newValue, value))
             {
-                value = VecMath.copymat(newValue);
+                // assumes all matrices will have the same dimensions, and never null
+                VecMath.copymat(value, newValue);
                 notifyListenersThatValueChanged();
             }
         }
