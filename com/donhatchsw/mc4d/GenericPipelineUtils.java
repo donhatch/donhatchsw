@@ -16,7 +16,7 @@
 *    computeFrame - computes an animation (or rest) Frame
 *                   from the puzzle description and viewing parameters
 *    paintFrame - draws the Frame
-*    pick       - picks what is at a given point in the Frame
+*    pick       - picks what is at a given 2d point in the Frame
 */
 
 package com.donhatchsw.mc4d;
@@ -59,17 +59,24 @@ public class GenericPipelineUtils
         // verts[i] refers to the same vertex as vertex i in
         // the puzzle description (although unused indices may end up
         // with arbitrary values).
-        // Each element of drawList is a pair i,j,
-        // referring to the polygon stickerInds[i][j]
-        // in the original puzzle description.
 
         public float verts[][/*4*/]; // x,y,z,w, not just x,y! see above
         public float shadowVerts[][/*3*/];
 
+        // Each element of drawList is a pair i,j,
+        // referring to the polygon stickerInds[i][j]
+        // in the original puzzle description.
+        // We store these rather than just straight indices into the vertices,
+        // for a number of reasons: (1) so we can look up the face easily,
+        // for color (2) so we can look up sticker and/or cubie easily,
+        // for highlighting (3) we need these indices later for picking,
+        // when the user clicks on something.
         public int drawListSize;
         public int shadowDrawListSize;
         public int drawList[][/*2*/];
         public float brightnesses[/*nStickers*/][/*nPolysThisSticker*/];
+
+        // XXX need the various non-shrunk and shrunk edges in here somehow!  and need them to be associated with the faces!  Bleah!
 
         // Memory used by drawList (before culling and sorting).
         // We keep this around so that a Frame can be reused
@@ -867,7 +874,10 @@ public class GenericPipelineUtils
                                   int iPolyUnderMouse,
                                   boolean highlightByCubie,
                                   boolean highlightByGrip,
-                                  Color outlineColor,
+                                  Color nonShrunkFaceOutlineColor,
+                                  Color shrunkFaceOutlineColor,
+                                  Color nonShrunkStickerOutlineColor,
+                                  Color shrunkStickerOutlineColor,
                                   Graphics g,
                                   
                                   int jitterRadius,
@@ -1086,8 +1096,8 @@ public class GenericPipelineUtils
 
                 g.setColor(isShadows ? shadowcolor : stickercolor);
                 g.fillPolygon(xs, ys, poly.length);
-                if(!isShadows && outlineColor != null) {
-                    g.setColor(outlineColor);
+                if(!isShadows && shrunkStickerOutlineColor != null) {
+                    g.setColor(shrunkStickerOutlineColor);
                     // uncomment the following line for an alternate outlining idea -MG
                     // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
                     g.drawPolygon(xs, ys, poly.length);
