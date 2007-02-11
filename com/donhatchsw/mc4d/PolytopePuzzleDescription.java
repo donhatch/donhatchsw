@@ -103,6 +103,7 @@
 
     ISSUES:
     =======
+        XXX this is done in my version... update these relnotes
         - Contiguous cubies.  I would like to do the following:
             1. Get rid of the "Contiguous Cubies" checkbox;
                there will be no magical half-broken
