@@ -1440,7 +1440,7 @@ public class UndoTree
             //      "u2" means -3
             // etc.
             //
-            if (words[iWord].matches("u\\d*")) // XXX precompile!
+            if (regex.matches(words[iWord], "u\\d*")) // XXX precompile!
             {
                 int parentOffset = -1 - 
                     (words[iWord].equals("u") ? 1 :
