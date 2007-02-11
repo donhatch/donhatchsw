@@ -917,8 +917,11 @@ public class MC4DViewGuts
             frameToDrawInto,
 
             model.genericPuzzleDescription,
+
             viewParams.faceShrink4d.get(),
             viewParams.stickerShrink4d.get(),
+            viewParams.faceShrink3d.get(),
+            viewParams.stickerShrink3d.get(),
 
             twist.grip,
             twist.dir,
@@ -981,6 +984,9 @@ public class MC4DViewGuts
                 viewState.iPolyUnderMouse,
                 viewParams.highlightByCubie.get(),
                 !viewParams.highlightByCubie.get() && viewParams.highlightByGrip.get(), // XXX mess, see if I can make this cleaner
+                viewParams.drawNonShrunkFaceOutlines.get() ? viewParams.nonShrunkFaceOutlineColor.get() : null,
+                viewParams.drawShrunkFaceOutlines.get() ? viewParams.shrunkFaceOutlineColor.get() : null,
+                viewParams.drawNonShrunkStickerOutlines.get() ? viewParams.nonShrunkStickerOutlineColor.get() : null,
                 viewParams.drawShrunkStickerOutlines.get() ? viewParams.shrunkStickerOutlineColor.get() : null,
                 g,
 

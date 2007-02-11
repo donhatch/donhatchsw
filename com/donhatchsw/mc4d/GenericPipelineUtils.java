@@ -101,8 +101,10 @@ public class GenericPipelineUtils
 
                                     GenericPuzzleDescription puzzleDescription,
 
-                                    float faceShrink,
-                                    float stickerShrink,
+                                    float faceShrink4d,
+                                    float stickerShrink4d,
+                                    float faceShrink3d,
+                                    float stickerShrink3d,
 
                                     int iGripOfTwist,    // -1 if not twisting
                                     int twistDir,               
@@ -187,15 +189,15 @@ public class GenericPipelineUtils
         if (iGripOfTwist == -1)
         {
             puzzleDescription.computeStickerVertsAtRest(verts,
-                                                        faceShrink,
-                                                        stickerShrink);
+                                                        faceShrink4d,
+                                                        stickerShrink4d);
         }
         else
         {
             puzzleDescription.computeStickerVertsPartiallyTwisted(
                                                         verts,
-                                                        faceShrink,
-                                                        stickerShrink,
+                                                        faceShrink4d,
+                                                        stickerShrink4d,
                                                         iGripOfTwist,
                                                         twistDir,
                                                         twistSliceMask,
@@ -589,8 +591,8 @@ public class GenericPipelineUtils
             {
                 float stickerVertsAtRest[][] = new float[nVerts][4];
                 puzzleDescription.computeStickerVertsAtRest(stickerVertsAtRest,
-                                                            1.f, // faceShrink=1 is important-- otherwise everything gets shrunk into the middle slice!!!
-                                                            0.f); // stickerShrink=0 since we want the sticker centers-- this is an easy dumb way to get them
+                                                            1.f, // faceShrink4d=1 is important-- otherwise everything gets shrunk into the middle slice!!!
+                                                            0.f); // stickerShrink4d=0 since we want the sticker centers-- this is an easy dumb way to get them
                 for (int iSticker = 0; iSticker < nStickersToSort; ++iSticker)
                 {
                     float stickerCenter[] = stickerVertsAtRest[stickerInds[iSticker][0][0]];
@@ -769,8 +771,8 @@ public class GenericPipelineUtils
         // XXX argh, this is sure overkill here...
         float verts[][] = new float[puzzleDescription.nVerts()][puzzleDescription.nDisplayDims()];
         puzzleDescription.computeStickerVertsAtRest(verts,
-                                                    1.f,  // faceShrink
-                                                    1.f); // stickerShrink
+                                                    1.f,  // faceShrink4d
+                                                    1.f); // stickerShrink4d
         int stickerInds[][][] = puzzleDescription.getStickerInds();
         // XXX not sure which of the following are better if either-- maybe poly for 2x, sticker otherwise? it's definitely disconcerting when different parts of the sticker do diff things...
         int sticker[][] = stickerInds[hit[0]];

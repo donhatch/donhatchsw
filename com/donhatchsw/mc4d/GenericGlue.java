@@ -472,8 +472,16 @@ public class GenericGlue
 
                                     while (true)
                                     {
-                                        String reply = JOptionPane.showInputDialog(prompt, initialInput); // XXX doesn't exist in 1.3-- find a substitute if possible!
-                                        //String reply = JOptionPane.showInputDialog(prompt);
+                                        // The version that just takes the message and initial text doesn't exist before 1.4
+                                        //String reply = JOptionPane.showInputDialog(prompt, initialInput);
+                                        String reply = (String)JOptionPane.showInputDialog(
+                                                null,
+                                                prompt,
+                                                null, // title
+                                                JOptionPane.QUESTION_MESSAGE,
+                                                null, // icon
+                                                null, // selectionValues
+                                                initialInput);
                                         if (reply == null)
                                         {
                                             initPuzzleCallback.call(); // XXX really just want a repaint I think
@@ -646,8 +654,16 @@ public class GenericGlue
 
                                 while (true)
                                 {
-                                    String reply = JOptionPane.showInputDialog(prompt, initialInput); // XXX doesn't exist in 1.3-- find a substitute if possible!
-                                    //String reply = JOptionPane.showInputDialog(prompt);
+                                    // The version that just takes the message and initial text doesn't exist before 1.4
+                                    //String reply = JOptionPane.showInputDialog(prompt, initialInput);
+                                    String reply = (String)JOptionPane.showInputDialog(
+                                            null,
+                                            prompt,
+                                            null, // title
+                                            JOptionPane.QUESTION_MESSAGE,
+                                            null, // icon
+                                            null, // selectionValues
+                                            initialInput);
                                     if (reply == null)
                                     {
                                         initPuzzleCallback.call(); // XXX really just want a repaint I think
@@ -1116,8 +1132,10 @@ public class GenericGlue
     // XXX things with almost entirely disjoint subsets of the parameters
     public void computeAndPaintFrame(
         // These are used by the compute part only
-        float faceShrink,
-        float stickerShrink,
+        float faceShrink4d,
+        float stickerShrink4d,
+        float faceShrink3d,
+        float stickerShrink3d,
         float viewMat4d[/*4*/][/*4*/], // contents of this get incremented if animating!
         float eyeW,
         float viewMat3d[/*3*/][/*3*/],
@@ -1135,7 +1153,10 @@ public class GenericGlue
         float faceRGB[][],
         boolean highlightByCubie,
         boolean highlightByGrip,
-        Color outlineColor,
+        Color nonShrunkFaceOutlineColor,
+        Color shrunkFaceOutlineColor,
+        Color nonShrunkStickerOutlineColor,
+        Color shrunkStickerOutlineColor,
         Graphics g,
         float nFrames90,
         boolean restrictRoll,
@@ -1231,8 +1252,11 @@ public class GenericGlue
             glueFrameToDrawInto,
 
             model.genericPuzzleDescription,
-            faceShrink,
-            stickerShrink,
+
+            faceShrink4d,
+            stickerShrink4d,
+            faceShrink3d,
+            stickerShrink3d,
 
             iGripOfTwist,
               twistDir,
@@ -1278,7 +1302,10 @@ public class GenericGlue
                 genericGlue.iPolyUnderMouse,
                 highlightByCubie,
                 highlightByGrip,
-                outlineColor,
+                nonShrunkFaceOutlineColor,
+                shrunkFaceOutlineColor,
+                nonShrunkStickerOutlineColor,
+                shrunkStickerOutlineColor,
                 g,
 
                 jitterRadius,
