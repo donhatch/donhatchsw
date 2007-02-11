@@ -117,8 +117,8 @@ public class MC4DViewGuts
         public Listenable.FloatMatrix viewMat3d = new Listenable.FloatMatrix(
             VecMath.mxm(VecMath.makeRowRotMat(3, 2,0, -42*(float)Math.PI/180), // twirl
                         VecMath.makeRowRotMat(3, 1,2,  30*(float)Math.PI/180))); // tilt
-        public Listenable.Float faceShrink3d = new Listenable.Float(0.f, 1.f, .5f);
-        public Listenable.Float stickerShrink3d = new Listenable.Float(0.f, 1.f, .5f);
+        public Listenable.Float faceShrink3d = new Listenable.Float(0.f, 1.f, 1.f);
+        public Listenable.Float stickerShrink3d = new Listenable.Float(0.f, 1.f, 1.f);
         public Listenable.Float eyeZ = new Listenable.Float(0.f, 20.f, 10.f);
         public Listenable.Float viewScale2d = new Listenable.Float(0.f, 4.f, 1.f);
         public Listenable.Float stickersShrinkTowardsFaceBoundaries = new Listenable.Float(0.f, 1.f, 0.f);
