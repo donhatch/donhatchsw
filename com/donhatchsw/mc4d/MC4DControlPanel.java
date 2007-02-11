@@ -652,7 +652,7 @@ public class MC4DControlPanel
                 "(XXX coming soon: what the units mean exactly)",
             });
         addFloatSliderRow(
-            "3d Face Strink",
+            "3d Face Shrink",
             viewParams.faceShrink3d,
             new String[] {
                 "Specifies how much each face should be shrunk towards its center in 3d",
@@ -662,7 +662,7 @@ public class MC4DControlPanel
                 "causes the face to retain its 3d shape as it shrinks.",
             });
         addFloatSliderRow(
-            "3d Sticker Strink",
+            "3d Sticker Shrink",
             viewParams.stickerShrink3d,
             new String[] {
                 "Specifies how much each sticker should be shrunk towards its center in 3d",
