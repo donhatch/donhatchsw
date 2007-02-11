@@ -477,7 +477,7 @@ public class MC4DModel
                 System.out.println("undoPartSizeString = "+undoPartSizeString);
             }
 
-            historyString.replaceAll("\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
+            com.donhatchsw.compat.regex.replaceAll(historyString, "\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
             com.donhatchsw.util.UndoTree controllerUndoTree = com.donhatchsw.util.UndoTree.fromString(historyString, new com.donhatchsw.util.UndoTree.ItemFromString() {
                 public String regex()
                 {
