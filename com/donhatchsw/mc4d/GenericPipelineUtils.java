@@ -184,7 +184,8 @@ public class GenericPipelineUtils
         //
 
         //
-        // Get the 4d verts from the puzzle description
+        // Get the 4d verts from the puzzle description,
+        // with faceShrink4d and stickerShrink4d baked in
         //
         if (iGripOfTwist == -1)
         {
@@ -284,6 +285,59 @@ public class GenericPipelineUtils
             shadowDrawListSize = groundNormal != null ? nBackfacing : 0;
         }
         if (verboseLevel >= 3) System.out.println("        after front-cell cull: drawList = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(drawList,0,drawListSize)));
+
+        //
+        // 3d face shrink and sticker shrink
+        // XXX could try to only do this on vertices that passed the culls
+        //
+        if (faceShrink3d != 1.f
+         || stickerShrink3d != 1.f)
+        {
+            int vert2sticker[] = new int[verts.length]; // XXX MEM ALLOCATION
+            int sticker2face[] = puzzleDescription.getSticker2Face();
+            int nFaces = puzzleDescription.nFaces();
+
+            for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
+            {
+                int thisStickerInds[][] = stickerInds[iSticker];
+                for (int i = 0; i < thisStickerInds.length; ++i)
+                for (int j = 0; j < thisStickerInds[i].length; ++j)
+                    vert2sticker[thisStickerInds[i][j]] = iSticker;
+            }
+
+            if (stickerShrink3d != 1.f)
+            {
+                float stickerCenters[][] = new float[stickerInds.length][3]; // XXX MEM ALLOCATION
+                int nStickerCenterContributors[] = new int[stickerInds.length]; // XXX MEM ALLOCATION
+                for (int iVert = 0; iVert < verts.length; ++iVert)
+                {
+                    int iSticker = vert2sticker[iVert];
+                    VecMath.vpv(stickerCenters[iSticker], stickerCenters[iSticker], verts[iVert]);
+                    nStickerCenterContributors[iSticker]++;
+                }
+                for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
+                    VecMath.vxs(stickerCenters[iSticker], stickerCenters[iSticker], 1.f/nStickerCenterContributors[iSticker]);
+                for (int iVert = 0; iVert < verts.length; ++iVert)
+                    VecMath.lerp(verts[iVert], stickerCenters[vert2sticker[iVert]], verts[iVert], stickerShrink3d);
+            }
+            if (faceShrink3d != 1.f)
+            {
+                float faceCenters[][] = new float[nFaces][3]; // XXX MEM ALLOCATION
+                int nFaceCenterContributors[] = new int[nFaces]; // XXX MEM ALLOCATION
+
+                for (int iVert = 0; iVert < verts.length; ++iVert)
+                {
+                    int iFace = sticker2face[vert2sticker[iVert]];
+                    VecMath.vpv(faceCenters[iFace], faceCenters[iFace], verts[iVert]);
+                    nFaceCenterContributors[iFace]++;
+                }
+                for (int iFace = 0; iFace < nFaces; ++iFace)
+                    VecMath.vxs(faceCenters[iFace], faceCenters[iFace], 1.f/nFaceCenterContributors[iFace]);
+
+                for (int iVert = 0; iVert < verts.length; ++iVert)
+                    VecMath.lerp(verts[iVert], faceCenters[sticker2face[vert2sticker[iVert]]], verts[iVert], faceShrink3d);
+            }
+        }
 
         //
         // Rotate/scale in 3d
@@ -1049,7 +1103,7 @@ public class GenericPipelineUtils
                         int nSegs = colors[iPass].length;
                         float points[][] = new float[nSegs+1][];
                         for (int iPoint = 0; iPoint < points.length; ++iPoint)
-                            points[iPoint] = VecMath.lerp(otherStickerCenter, myStickerCenter, (float)iPoint/(float)nSegs);
+                            points[iPoint] = VecMath.lerp(otherStickerCenter, myStickerCenter, (float)iPoint/(float)nSegs); // XXX move this division up
                         for (int iSeg = 0; iSeg < nSegs; ++iSeg)
                         {
                             g.setColor(colors[iPass][iSeg]);
