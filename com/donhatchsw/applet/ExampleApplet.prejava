@@ -338,10 +338,22 @@ public class ExampleApplet
                 getComponent(0).repaint(); // it wouldn't know to otherwise, since it's not being resized
             }
         };
+#if 0
         try
         {
+            // This was introduced in 1.4
             scrollpane.setWheelScrollingEnabled(false); // ha!
         } catch (NoSuchMethodError e) {}
+#else
+        try
+        {
+            java.lang.reflect.Method setWheelScrollingEnabledMethod = scrollpane.getClass().getMethod("setWheelScrollingEnabled", new Class[]{boolean.class});
+            setWheelScrollingEnabledMethod.invoke(scrollpane, new Object[]{new Boolean(false)});
+        }
+        catch (NoSuchMethodException e) {}
+        catch (IllegalAccessException e) {}
+        catch (java.lang.reflect.InvocationTargetException e) {}
+#endif
         assert(parent.getLayout() instanceof java.awt.GridBagLayout);
         parent.add(scrollpane, new java.awt.GridBagConstraints() {
             {
