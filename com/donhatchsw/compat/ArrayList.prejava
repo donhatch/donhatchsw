@@ -114,10 +114,11 @@ public class ArrayList
     {
         if (index < 0 || index >= size)
             throw new IndexOutOfBoundsException("ArrayList.remove: "+index+" out of bounds 0.."+size+"-1");
-        if (index != size-1)
-            unimplemented();
-        size--;
-        return array[size];
+        Object ret = array[index];
+        for (int i = index+1; i < size; ++i)
+            array[i-1] = array[i];
+        array[--size] = null;
+        return ret;
     }
     // XXX javap says boolean, some doc says it returns an Object, some other doc doesn't mention it at all... fuck it, I'm returning void.
     public void remove(java.lang.Object element)
@@ -143,7 +144,11 @@ public class ArrayList
     }
     protected void removeRange(int fromIndex, int toIndex)
     {
-        unimplemented();
+        if (toIndex != size)
+            unimplemented();
+        for (int i = fromIndex; i < toIndex; ++i)
+            array[i] = null;
+        size = fromIndex;
     }
 
     /** test program */
