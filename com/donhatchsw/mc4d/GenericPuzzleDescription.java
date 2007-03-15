@@ -10,13 +10,13 @@
  *
  * In addition to the interface methods,
  * all derived classes must also define a constructor
- * that takes arguments (String puzzleDescription, java.io.PrintWriter progressWriter);
+ * that takes arguments (String puzzlePrescription, java.io.PrintWriter progressWriter);
  * this is used by GenericPuzzleFactory to deserialize a puzzle description.
  *
  * (Interfaces don't seem to be able to enforce that...
  * nor can they enforce static methods, which would have worked too...
  * nor can I make this an actual class method with a dummy "this" param that accepts null,
- * since java will throw a NullPointerException on such a thing (I think... XXX maybe try it!)
+ * since java will throw a NullPointerException on such a thing,
  * so subclasses that mess this up just won't be able to be created
  * at the factory, which kinda sucks.)
  * XXX hmm, if I make this be not actually a constructor, I can enforce it through here.
@@ -27,8 +27,8 @@ package com.donhatchsw.mc4d;
 
 interface GenericPuzzleDescription {
 
-    public int nDims();
-    public int nDisplayDims();
+    public int nDims(); /** number of dimensions of the abstract puzzle */
+    public int nDisplayDims(); /** number of dimensions of the physical representation (for PolytopePuzzleDescription this is always 4; we make prisms out of smaller dimensional puzzles) */
     public int nVerts();
     public int nFaces();
     public int nCubies();
@@ -38,16 +38,8 @@ interface GenericPuzzleDescription {
     public float inRadius();     // distance of closest face hyperplane to origin
 
     /**
-    * Get the vertices of the geometry that gets drawn
-    * (or picked when selecting a sticker rather than a grip) at rest.
-    */
-    public void computeStickerVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
-                                          float faceShrink,
-                                          float stickerShrink);
-
-    /**
-    * Get the indices (into the vertices returned by getDrawVertsAtRest()
-    * or getDrawVertsPartiallyTwisted())
+    * Get the indices (into the vertices returned by computeVertsAndShrinkToPointsAtRest()
+    * or computeVertsAndShrinkToPointsPartiallyTwisted())
     * of the polygons which make up the stickers.
     * If 4-dimensional,
     * it is guaranteed that the following form a non-degenerate
@@ -79,7 +71,7 @@ interface GenericPuzzleDescription {
     * XXX geometry for picking.  If it needs to be subdivided for picking,
     * XXX then that's the way it will be drawn.
     * XXX and then have a stickerPolygon2Grip array.
-    * XXX Bleah, that will show cracks :-(
+    * XXX Bleah, that will show cracks... especially when drawing outlines :-(
     */
     public int[/*nGrips*/][/*nPolygonsThisGrip*/][/*nVertsThisPolygon*/]
         getGripInds();
@@ -99,20 +91,42 @@ interface GenericPuzzleDescription {
     public int getClosestGrip(float polyCenter[/*4*/],
                               float stickerCenter[/*4*/]);
 
+
     /**
-    * Get the vertices of the geometry that gets drawn
-    * partway through a twist.
-    * Frac is the fraction of the total angle (which is not the same
-    * as the fraction of the total time, if a smoothing function is used).
+    * Get the unshrunk vertices and various per-sticker shrink-to points
+    * of the geometry that gets drawn partway through a twist.
+    * @param inGripIndex  grip of the twist
+    * @param inDir        direction of the twist (1 is CCW, -1 is CW)
+    * @param inSlicemask  slice mask of the twist
+    * @param inFrac       fraction of the total angle (which is not the same as the fraction of the total time, if a smoothing function is used).
+    * @param outVerts     output vertices before shrinking.
+    * @param outStickerCenters  output sticker centers before shrinking.
+    * @param outStickerShrinkToPointsOnFaceBoundaries  output alternate sticker centers; these are used instead of the real sticker centers for sticker shrinking when shrinkTowardsFaceBoundaries is true.
+    * @param outPerStickerFaceCenters  output face centers.  These are per sticker rather than per face, since a face can get carved up during a twist.
     */
     public void
-        computeStickerVertsPartiallyTwisted(float verts[/*nVerts*/][/*nDims*/],
-                                            float faceShrink,
-                                            float stickerShrink,
-                                            int gripIndex,
-                                            int dir,
-                                            int slicemask,
-                                            float frac);
+        computeVertsAndShrinkToPointsPartiallyTwisted(
+            float outVerts[/*nVerts*/][/*nDims*/],
+            float outStickerCenters[/*nStickers*/][/*nDims*/],
+            float outStickerShrinkToPointsOnFaceBoundaries[/*nStickers*/][/*nDims*/],
+            float outPerStickerFaceCenters[/*nStickers*/][/*nDims*/],
+            int inGripIndex,
+            int inDir,
+            int inSlicemask,
+            float inFrac);
+
+    /**
+    * Compute the vertices and shrink-to points of the geometry that gets drawn
+    * (or picked when selecting a sticker rather than a grip) at rest.
+    */
+    public void
+        computeVertsAndShrinkToPointsAtRest(
+            float outVerts[/*nVerts*/][/*nDisplayDims*/],
+            float outStickerCenters[/*nStickers*/][/*nDisplayDims*/],
+            float outStickerShrinkToPointsOnFaceBoundaries[/*nStickers*/][/*nDisplayDims*/],
+            float outPerStickerFaceCenters[/*nStickers*/][/*nDisplayDims*/]);
+
+                                            
 
     /* XXX doc me */
     public double[/*nFaces*/][/*nDims*/]
@@ -129,7 +143,8 @@ interface GenericPuzzleDescription {
 
     /**
     * Get a table mapping sticker index to face index.
-    * !!!A COPY OF!!! resulting array can also be used as the initial puzzle state,
+    * The returned array should be considered immutable.
+    * !!!A COPY OF!!! the returned array can also be used as the initial puzzle state,
     */
     public int[/*nStickers*/] getSticker2Face();
     /**
@@ -158,7 +173,7 @@ interface GenericPuzzleDescription {
     /**
     * Returns a list of pairs-of-pairs {{i,j},{k,l}}
     * such that the polygons stickerInds[i][j] and stickerInds[k][l]
-    * where the two stickers meet (when non-shrunk).
+    * are where the two stickers meet (when non-shrunk).
     */
     public int[][/*2*/][/*2*/] getAdjacentStickerPairs();
 

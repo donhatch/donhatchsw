@@ -183,30 +183,78 @@ public class GenericPipelineUtils
         // XXX but there are... but they can be fixed.
         //
 
+        int vert2sticker[] = new int[verts.length]; // XXX MEM ALLOCATION
+        for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
+        {
+            int thisStickerInds[][] = stickerInds[iSticker];
+            for (int i = 0; i < thisStickerInds.length; ++i)
+            for (int j = 0; j < thisStickerInds[i].length; ++j)
+                vert2sticker[thisStickerInds[i][j]] = iSticker;
+        }
+
+
+        float stickerCenters[][] = new float[nStickers][nDisplayDims]; // XXX MEM ALLOCATION
+        float stickerAltCenters[][] = new float[nStickers][nDisplayDims]; // XXX MEM ALLOCATION
+        float perStickerFaceCenters[][] = new float[nStickers][nDisplayDims]; // XXX MEM ALLOCATION
+
         //
-        // Get the 4d verts from the puzzle description,
-        // with faceShrink4d and stickerShrink4d baked in
+        // Get the non-shrunk 4d verts and shrink-to points
+        // from the puzzle description.
         //
         if (iGripOfTwist == -1)
         {
-            puzzleDescription.computeStickerVertsAtRest(verts,
-                                                        faceShrink4d,
-                                                        stickerShrink4d);
+            puzzleDescription.computeVertsAndShrinkToPointsAtRest(
+                verts,
+                stickerCenters,
+                stickerAltCenters,
+                perStickerFaceCenters);
         }
         else
         {
-            puzzleDescription.computeStickerVertsPartiallyTwisted(
-                                                        verts,
-                                                        faceShrink4d,
-                                                        stickerShrink4d,
-                                                        iGripOfTwist,
-                                                        twistDir,
-                                                        twistSliceMask,
-                                                        fracIntoTwist);
+            puzzleDescription.computeVertsAndShrinkToPointsPartiallyTwisted(
+                verts,
+                stickerCenters,
+                stickerAltCenters,
+                perStickerFaceCenters,
+                iGripOfTwist,
+                twistDir,
+                twistSliceMask,
+                fracIntoTwist);
         }
 
         //
-        // Rotate/scale in 4d
+        // Shrink the vertices towards the shrink-to points in 4d.
+        // And, shrink the sticker centers towards the face centers,
+        // so they will be appropriate for subsequent shrink passes.
+        //
+        {
+            float stickersShrinkTowardsFaceBoundaries = .5f; // XXX make this a param
+            float stickerShrinkPoints[][] = new float[nStickers][nDisplayDims]; // XXX mem allocation
+            int sticker2face[] = puzzleDescription.getSticker2Face();
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            {
+                VecMath.lerp(stickerShrinkPoints[iSticker],
+                             stickerCenters[iSticker], stickerAltCenters[iSticker], stickersShrinkTowardsFaceBoundaries); // BEFORE shrinking towards face center
+                VecMath.lerp(stickerCenters[iSticker],
+                             perStickerFaceCenters[iSticker], stickerCenters[iSticker], faceShrink4d);
+                VecMath.lerp(stickerAltCenters[iSticker],
+                             perStickerFaceCenters[iSticker], stickerAltCenters[iSticker], faceShrink4d);
+            }
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+            {
+                int iSticker = vert2sticker[iVert];
+                VecMath.lerp(verts[iVert],
+                             stickerShrinkPoints[iSticker], verts[iVert], stickerShrink4d);
+                VecMath.lerp(verts[iVert],
+                             perStickerFaceCenters[iSticker], verts[iVert], faceShrink4d);
+            }
+        }
+        
+        //
+        // Rotate/scale in 4d.
+        // Not just the verts, but also the shrink-to points,
+        // since we'll need to shrink towards them again
+        // for the 3d part of the shrink.
         //
         {
             // Make it so circumradius is 6.
@@ -293,32 +341,23 @@ public class GenericPipelineUtils
         if (faceShrink3d != 1.f
          || stickerShrink3d != 1.f)
         {
-            int vert2sticker[] = new int[verts.length]; // XXX MEM ALLOCATION
             int sticker2face[] = puzzleDescription.getSticker2Face();
             int nFaces = puzzleDescription.nFaces();
 
-            for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
-            {
-                int thisStickerInds[][] = stickerInds[iSticker];
-                for (int i = 0; i < thisStickerInds.length; ++i)
-                for (int j = 0; j < thisStickerInds[i].length; ++j)
-                    vert2sticker[thisStickerInds[i][j]] = iSticker;
-            }
-
             if (stickerShrink3d != 1.f)
             {
-                float stickerCenters[][] = new float[stickerInds.length][3]; // XXX MEM ALLOCATION
+                float stickerCenters3d[][] = new float[stickerInds.length][3]; // XXX MEM ALLOCATION -- XXX get rid of this, use the projected centers instead
                 int nStickerCenterContributors[] = new int[stickerInds.length]; // XXX MEM ALLOCATION
                 for (int iVert = 0; iVert < verts.length; ++iVert)
                 {
                     int iSticker = vert2sticker[iVert];
-                    VecMath.vpv(stickerCenters[iSticker], stickerCenters[iSticker], verts[iVert]);
+                    VecMath.vpv(stickerCenters3d[iSticker], stickerCenters3d[iSticker], verts[iVert]);
                     nStickerCenterContributors[iSticker]++;
                 }
                 for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
-                    VecMath.vxs(stickerCenters[iSticker], stickerCenters[iSticker], 1.f/nStickerCenterContributors[iSticker]);
+                    VecMath.vxs(stickerCenters3d[iSticker], stickerCenters3d[iSticker], 1.f/nStickerCenterContributors[iSticker]);
                 for (int iVert = 0; iVert < verts.length; ++iVert)
-                    VecMath.lerp(verts[iVert], stickerCenters[vert2sticker[iVert]], verts[iVert], stickerShrink3d);
+                    VecMath.lerp(verts[iVert], stickerCenters3d[vert2sticker[iVert]], verts[iVert], stickerShrink3d);
             }
             if (faceShrink3d != 1.f)
             {
@@ -643,13 +682,15 @@ public class GenericPipelineUtils
             // XXX And really need to remove those offsets in cutOffsets whose two slices are moving together!
             int sticker2Slice[] = new int[nStickersToSort];
             {
-                float stickerVertsAtRest[][] = new float[nVerts][4];
-                puzzleDescription.computeStickerVertsAtRest(stickerVertsAtRest,
-                                                            1.f, // faceShrink4d=1 is important-- otherwise everything gets shrunk into the middle slice!!!
-                                                            0.f); // stickerShrink4d=0 since we want the sticker centers-- this is an easy dumb way to get them
+                float stickerCentersAtRest[][] = new float[nStickers][4];
+                puzzleDescription.computeVertsAndShrinkToPointsAtRest(
+                    null, // verts
+                    stickerCentersAtRest,
+                    null, // alt sticker centers
+                    null); // per sticker face centers;
                 for (int iSticker = 0; iSticker < nStickersToSort; ++iSticker)
                 {
-                    float stickerCenter[] = stickerVertsAtRest[stickerInds[iSticker][0][0]];
+                    float stickerCenter[] = stickerCentersAtRest[iSticker];
                     float stickerCenterOffset = VecMath.dot(stickerCenter, cutNormal);
                     int stickerSlice = 0;
                     while (stickerSlice < cutOffsets.length
@@ -824,9 +865,12 @@ public class GenericPipelineUtils
 
         // XXX argh, this is sure overkill here...
         float verts[][] = new float[puzzleDescription.nVerts()][puzzleDescription.nDisplayDims()];
-        puzzleDescription.computeStickerVertsAtRest(verts,
-                                                    1.f,  // faceShrink4d
-                                                    1.f); // stickerShrink4d
+        puzzleDescription.computeVertsAndShrinkToPointsAtRest(
+                verts,
+                null, // sticker centers
+                null, // alt sticker centers,
+                null); // per sticker face centers
+
         int stickerInds[][][] = puzzleDescription.getStickerInds();
         // XXX not sure which of the following are better if either-- maybe poly for 2x, sticker otherwise? it's definitely disconcerting when different parts of the sticker do diff things...
         int sticker[][] = stickerInds[hit[0]];
