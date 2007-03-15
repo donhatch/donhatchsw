@@ -1211,7 +1211,7 @@ public class GenericGlue
         }
 
         int iGripOfTwist = -1;
-        int twistDir = 0;
+        int twistDir = 0; // yes, it shadows a field... this will all go away soon anyway I think
         int slicemask = 0;
         float fracIntoTwist = 0.f;
         GenericPipelineUtils.Frame glueFrameToDrawInto = genericGlue.untwistedFrame;
