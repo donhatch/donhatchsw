@@ -9,6 +9,8 @@ import java.awt.event.*;
 public class MC4DViewApplet
     extends Applet
 {
+    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+
     //
     // Note, all public fields are settable as params
     // from the web page (e.g. <PARAM NAME='puzzleDescription' VALUE='{4,3,3} 3'>)
@@ -36,6 +38,9 @@ public class MC4DViewApplet
         final MC4DViewGuts guts = new MC4DViewGuts();
         guts.setModel(model);
 
+        //
+        // Control panel window(s)
+        //
         int nControlPanels = 2; // XXX just need 1, but can experiment to make sure they stay in sync
         for (int iControlPanel = 0; iControlPanel < nControlPanels; ++iControlPanel)
         {
@@ -51,6 +56,9 @@ public class MC4DViewApplet
             controlPanelFrame.show();
         }
 
+        //
+        // View window
+        //
         Canvas canvas = new Canvas() {
             public void update(Graphics g) { paint(g); } // don't flash
             public void paint(Graphics frontBufferGraphics)
@@ -116,6 +124,100 @@ public class MC4DViewApplet
 
         setLayout(new BorderLayout());
         add("Center", canvas);
+
+        //
+        // Undo tree windows
+        //
+        {
+            // XXX dup code!!! figure out how to get it properly... and puzzle description might change!
+            float faceRGB[][] = { {0, 0, 1}, {0.5f, 0, 0}, {.4f, 1, 1}, {1, 0, .5f}, {.9f, .5f, 1}, {1, .5f, 0}, {1, 1, .5f}, {0, 1, .5f}, };
+            final java.awt.Color faceColor[] = new java.awt.Color[faceRGB.length];
+            for (int i = 0; i < faceRGB.length; ++i)
+                faceColor[i] = new java.awt.Color(faceRGB[i][0],faceRGB[i][1],faceRGB[i][2]);
+
+            com.donhatchsw.util.UndoTree.ItemLengthizer lengthizer = new com.donhatchsw.util.UndoTree.ItemLengthizer() {
+                // XXX this is duplicated in MC4DModel
+                public double length(Object item)
+                {
+                    MC4DModel.Twist twist = (MC4DModel.Twist)item;
+                    Assert(twist != null);
+                    Assert(twist.grip != -1);
+                    int order = model.genericPuzzleDescription.getGripSymmetryOrders()[twist.grip];
+                    if (order <= 0)
+                        return 1.; // XXX can this happen, and why?
+                    double nQuarterTurns = 4./order
+                                         * Math.abs(twist.dir); // power multiplier
+                    return nQuarterTurns;
+                }
+            };
+            com.donhatchsw.util.UndoTreeViewer.ItemColorizer colorizer = new com.donhatchsw.util.UndoTreeViewer.ItemColorizer() {
+                public java.awt.Color color(Object item)
+                {
+                    MC4DModel.Twist twist = (MC4DModel.Twist)item;
+                    int grip = twist.grip;
+                    Assert(grip != -1);
+                    int face = model.genericPuzzleDescription.getGrip2Face()[grip];
+                    return faceColor[face % faceColor.length];
+                }
+                public String leftLabel(Object item)
+                {
+                    MC4DModel.Twist twist = (MC4DModel.Twist)item;
+                    int grip = twist.grip;
+                    int order = model.genericPuzzleDescription.getGripSymmetryOrders()[grip];
+                    String degrees = "\u00B0"; // XXX not sure this magic works everywhere, got it from http://www.fileformat.info/info/unicode/char/00b0/index.htm
+
+                    if (order <= 0)
+                        return "WTF?"; // XXX can this happen, and why?
+                    else
+                        return ""+(360/order)+degrees; // XXX this does integer, is that okay?  don't want it to take forever
+                }
+                public String rightLabel(Object item)
+                {
+                    MC4DModel.Twist twist = (MC4DModel.Twist)item;
+                    return twist.toString();
+                }
+            };
+
+            //
+            // Make a viewer that shows the undo tree views--
+            // the controller view which updates immediately,
+            // and the animation view which lags behind.
+            //
+            com.donhatchsw.util.UndoTreeViewer controllerUndoTreeViewer =
+            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Controller's view of the undo tree", model.controllerUndoTree, null, null, 500, 20, 350, 600,
+                    // XXX oh gag
+                    new int[1],
+                    new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
+                    new int[1],
+                    new int[1],
+                    new int[1],
+                    false, // don't allow the example "Do" which would put dummy strings in the tree
+                    true, // but do allow undo/redo
+                    lengthizer,
+                    colorizer);
+
+            // XXX need accessors for these instead of making them public I think
+            controllerUndoTreeViewer.showLabels = false; // XXX need an accessofr for this
+            controllerUndoTreeViewer.centerCurrentNode.set(0.); // false
+
+
+            com.donhatchsw.util.UndoTreeViewer animationUndoTreeViewer = 
+            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Animation's view of the undo tree", model.animationUndoTree, null, null, 850, 20, 350, 600,
+                    // XXX oh gag
+                    new int[1],
+                    new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
+                    new int[1],
+                    new int[1],
+                    new int[1],
+                    false, // don't allow the example "Do" which would put dummy strings in the tree
+                    false, // and don't allow undo/redo from this view either, since instantaneous changes would make it get out of sync with the permutation array. undo/redo must be done from the controller window, this one is just for watching.
+                    lengthizer,
+                    colorizer);
+
+            // XXX need accessors for these instead of making them public I think
+            animationUndoTreeViewer.showLabels = false;
+            animationUndoTreeViewer.centerCurrentNode.set(0.); // false
+        }
 
         //System.out.println("out MC4DViewApplet init");
     } // init
