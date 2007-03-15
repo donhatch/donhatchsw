@@ -140,6 +140,7 @@
     BUGS / URGENT TODOS:
     ===================
 
+        - undo tree's colors are wrong!
         - get antialiasing's notion of "still" right, then turn it on by default
         - resetting 4d rotation or rotation should do it smoothly, otherwise it's jarring
         - really need to pick from the rest frame, not the intermediate twist frame,
@@ -312,12 +313,13 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private float _inRadius;
     private int _nCubies;
 
-    private float vertsMinusStickerCenters[][];
-    private float vertStickerCentersMinusFaceCenters[][];
+    private float vertsF[/*nVerts*/][/*nDisplayDims*/];
+    private float vertsMinusStickerCenters[][]; // XXX defunct?
+    private float vertStickerCentersMinusFaceCenters[][]; // XXX defunct?
     private float vertFaceCenters[][]; // XXX maybe silly since we hace faceCentersF
     private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
 
-    private float faceCentersF[/*nFaces*/][/*nDims*/];
+    private float faceCentersF[/*nFaces*/][/*nDisplayDims*/];
 
     private int adjacentStickerPairs[][/*2*/][/*2*/];
     private int face2OppositeFace[/*nFaces*/];
@@ -337,7 +339,9 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private float nicePointsToRotateToCenter[][];
 
-    private double stickerCentersD[][];
+    private double stickerCentersD[][]; // for very accurate which-slice determination
+    private float stickerCentersF[][]; // for just shoving through display pipeline
+    private float stickerAltCentersF[][]; // alternate sticker shrink-to points, on face boundary
     private FuzzyPointHashTable stickerCentersHashTable;
 
     private static void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
@@ -813,12 +817,16 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
             }
         }
-        this.faceCentersF = com.donhatchsw.util.VecMath.doubleToFloat(faceCentersD);
+        this.faceCentersF = VecMath.doubleToFloat(faceCentersD);
+        this.stickerCentersF = VecMath.doubleToFloat(stickerCentersD);
+
+        System.out.println("XXX WARNING: sticker shrink points on face boundaries not implemented");
+        this.stickerAltCentersF = stickerCentersF;
 
         float stickerCentersMinusFaceCentersF[][] = new float[nStickers][];
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                stickerCentersMinusFaceCentersF[iSticker] = com.donhatchsw.util.VecMath.doubleToFloat(com.donhatchsw.util.VecMath.vmv(stickerCentersD[iSticker], faceCentersD[sticker2face[iSticker]]));
+                stickerCentersMinusFaceCentersF[iSticker] = VecMath.doubleToFloat(VecMath.vmv(stickerCentersD[iSticker], faceCentersD[sticker2face[iSticker]]));
         }
 
 
@@ -1085,6 +1093,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // Note that vertFaceCenters and vertStickerCentersMinusFaceCenters
         // contain lots of duplicates; these dups all point
         // to the same float[] however, so it's not as horrid as it seems.
+        // XXX I think this is all defunct
         //
         {
             int nVerts = restVerts.length;
@@ -1100,13 +1109,15 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     int iVert = stickerInds[iSticker][j][k];
                     if (vertsMinusStickerCenters[iVert] == null)
                     {
-                        vertsMinusStickerCenters[iVert] = com.donhatchsw.util.VecMath.doubleToFloat(com.donhatchsw.util.VecMath.vmv(restVerts[iVert], stickerCentersD[iSticker]));
+                        vertsMinusStickerCenters[iVert] = VecMath.doubleToFloat(VecMath.vmv(restVerts[iVert], stickerCentersD[iSticker]));
                         vertStickerCentersMinusFaceCenters[iVert] = stickerCentersMinusFaceCentersF[iSticker];
                         vertFaceCenters[iVert] = faceCentersF[iFace];
                     }
                 }
             }
         }
+
+        this.vertsF = VecMath.doubleToFloat(restVerts);
 
 
         //
@@ -1303,7 +1314,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 com.donhatchsw.util.CSG.cgOfVerts(eltCenter, originalElements[iDim][iElt]);
                 VecMath.copyvec(nicePointsToRotateToCenter[iNicePoint++],
-                                com.donhatchsw.util.VecMath.doubleToFloat(eltCenter)); // XXX lame way to do this
+                                VecMath.doubleToFloat(eltCenter)); // XXX lame way to do this
             }
             Assert(iNicePoint == nNicePoints);
         }
@@ -1414,24 +1425,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return _inRadius;
         }
 
-        public void computeStickerVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
-                                              float faceShrink,
-                                              float stickerShrink)
-        {
-            Assert(verts.length == vertsMinusStickerCenters.length);
-            for (int iVert = 0; iVert < verts.length; ++iVert)
-            {
-                float faceCenter[] = vertFaceCenters[iVert];
-                float stickerCenterMinusFaceCenter[] = vertStickerCentersMinusFaceCenters[iVert];
-                float vertMinusStickerCenter[] = vertsMinusStickerCenters[iVert];
-                float vert[] = verts[iVert];
-                Assert(vert.length == vertMinusStickerCenter.length);
-                for (int j = 0; j < vert.length; ++j)
-                    vert[j] = (vertMinusStickerCenter[j] * stickerShrink
-                             + stickerCenterMinusFaceCenter[j]) * faceShrink
-                             + faceCenter[j];
-            }
-        }
         public int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/]
             getStickerInds()
         {
@@ -1540,32 +1533,78 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             return nicePointsToRotateToCenter[bestIndex];
         }
+
         public void
-            computeStickerVertsPartiallyTwisted(
-                                            float verts[/*nVerts*/][/*nDims*/],
-                                            float faceShrink,
-                                            float stickerShrink,
-                                            int gripIndex,
-                                            int dir,
-                                            int slicemask,
-                                            float frac)
+            computeVertsAndShrinkToPointsAtRest(
+                float outVerts[/*nVerts*/][/*nDisplayDims*/],
+                float outStickerCenters[/*nStickers*/][/*nDisplayDims*/],
+                float outStickerShrinkToPointsOnFaceBoundaries[/*nStickers*/][/*nDisplayDims*/],
+                float outPerStickerFaceCenters[/*nStickers*/][/*nDisplayDims*/])
+        {
+            if (outVerts != null)
+            {
+                Assert(outVerts.length == vertsF.length);
+                for (int iVert = 0; iVert < vertsF.length; ++iVert)
+                    VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
+            }
+            if (outStickerCenters != null)
+            {
+                Assert(outStickerCenters.length == stickerCentersF.length);
+                for (int iSticker = 0; iSticker < stickerCentersF.length; ++iSticker)
+                    VecMath.copyvec(outStickerCenters[iSticker],
+                                    stickerCentersF[iSticker]);
+            }
+            if (outStickerShrinkToPointsOnFaceBoundaries != null)
+            {
+                Assert(outStickerShrinkToPointsOnFaceBoundaries.length == stickerCentersF.length);
+                for (int iSticker = 0; iSticker < stickerCentersF.length; ++iSticker)
+                    VecMath.copyvec(outStickerShrinkToPointsOnFaceBoundaries[iSticker],
+                                    stickerAltCentersF[iSticker]);
+            }
+            if (outPerStickerFaceCenters != null)
+            {
+                Assert(outPerStickerFaceCenters.length == stickerCentersF.length);
+                for (int iSticker = 0; iSticker < stickerCentersF.length; ++iSticker)
+                    VecMath.copyvec(outPerStickerFaceCenters[iSticker],
+                                    faceCentersF[sticker2face[iSticker]]);
+            }
+        } // computeVertsAndShrinkToPointsAtRest
+
+        public void
+            computeVertsAndShrinkToPointsPartiallyTwisted(
+                float outVerts[/*nVerts*/][/*nDisplayDims*/],
+                float outStickerCenters[/*nStickers*/][/*nDisplayDims*/],
+                float outStickerShrinkToPointsOnFaceBoundaries[/*nStickers*/][/*nDisplayDims*/],
+                float outPerStickerFaceCenters[/*nStickers*/][/*nDisplayDims*/],
+                int gripIndex,
+                int dir,
+                int slicemask,
+                float frac)
         {
             // Note, we purposely go through all the calculation
             // even if dir*frac is 0; we get more consistent timing that way.
+
             if (gripIndex < 0 || gripIndex >= nGrips())
-                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
+                throw new IllegalArgumentException("computeVertsAndShrinkToPointsPartiallyTwisted called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
             if (gripSymmetryOrders[gripIndex] == 0)
-                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
+                throw new IllegalArgumentException("computeVertsAndShrinkToPointsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
+            if (outVerts.length != vertsF.length)
+                throw new IllegalArgumentException("outVerts length "+outVerts.length+" does not match number of verts "+vertsF.length+"!");
+            if (outStickerCenters.length != stickerCentersF.length)
+                throw new IllegalArgumentException("outStickerCenters length "+outStickerCenters.length+" does not match number of stickers "+stickerCentersF.length+"!");
+            if (outStickerShrinkToPointsOnFaceBoundaries.length != stickerCentersF.length)
+                throw new IllegalArgumentException("outStickerShrinkToPointsOnFaceBoundaries length "+outStickerShrinkToPointsOnFaceBoundaries.length+" does not match number of stickers "+stickerCentersF.length+"!");
+            if (outPerStickerFaceCenters.length != stickerCentersF.length)
+                throw new IllegalArgumentException("outPerStickerFaceCenters length "+outPerStickerFaceCenters.length+" does not match number of stickers "+stickerCentersF.length+"!");
+
 
             if (slicemask == 0)
                 slicemask = 1; // XXX is this the right place for this? lower and it might be time consuming, higher and too many callers will have to remember to do it
 
             double matD[][] = getTwistMat(gripIndex, dir, frac);
-            float matF[][] = com.donhatchsw.util.VecMath.doubleToFloat(matD);
+            float matF[][] = VecMath.doubleToFloat(matD);
 
-            float restVerts[][] = new float[nVerts()][nDisplayDims()];
-            computeStickerVertsAtRest(restVerts, faceShrink, stickerShrink);
-            boolean whichVertsGetMoved[] = new boolean[restVerts.length]; // false initially
+            boolean whichVertsGetMoved[] = new boolean[vertsF.length]; // false initially
             int iFace = grip2face[gripIndex];
             double thisFaceInwardNormal[] = faceInwardNormals[iFace];
             double thisFaceCutOffsets[] = faceCutOffsets[iFace];
@@ -1579,17 +1618,40 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     for (int i = 0; i < stickerInds[iSticker].length; ++i)
                     for (int j = 0; j < stickerInds[iSticker][i].length; ++j)
                         whichVertsGetMoved[stickerInds[iSticker][i][j]] = true;
+
+                    VecMath.vxm(outStickerCenters[iSticker], stickerCentersF[iSticker], matF);
+                    VecMath.vxm(outStickerShrinkToPointsOnFaceBoundaries[iSticker], stickerAltCentersF[iSticker], matF);
+                    VecMath.vxm(outPerStickerFaceCenters[iSticker], faceCentersF[sticker2face[iSticker]], matF);
+                }
+                else
+                {
+                    VecMath.copyvec(outStickerCenters[iSticker],
+                                    stickerCentersF[iSticker]);
+                    VecMath.copyvec(outStickerShrinkToPointsOnFaceBoundaries[iSticker],
+                                    stickerAltCentersF[iSticker]);
+                    VecMath.copyvec(outPerStickerFaceCenters[iSticker],
+                                    faceCentersF[sticker2face[iSticker]]);
                 }
             }
 
-            for (int iVert = 0; iVert < verts.length; ++iVert)
+            // We do the following in a separate single pass over the verts,
+            // to avoid redundant computation since verts
+            // are referenced multiple times per sticker in the
+            // stickerInds list.  Another possible way of doing this
+            // would be to make lists of sticker-to-verts-on-that-sticker
+            // without redundancies, and iterate through those in this function.
+            // That would probably actually be better.
+            for (int iVert = 0; iVert < vertsF.length; ++iVert)
             {
                 if (whichVertsGetMoved[iVert])
-                    verts[iVert] = VecMath.vxm(restVerts[iVert], matF);
+                    VecMath.vxm(outVerts[iVert], vertsF[iVert], matF);
                 else
-                    verts[iVert] = restVerts[iVert];
+                    VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
             }
-        } // getStickerVertsPartiallyTwisted
+        } // computeVertsAndShrinkToPointsPartiallyTwisted
+
+
+
         public int[/*nStickers*/] getSticker2Face()
         {
             // Make sure caller didn't mess it up from last time!!
@@ -1629,11 +1691,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                     int slicemask)
         {
             if (gripIndex < 0 || gripIndex >= nGrips())
-                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
+                throw new IllegalArgumentException("applyTwistToState called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
             if (gripSymmetryOrders[gripIndex] == 0)
-                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
+                throw new IllegalArgumentException("applyTwistToState called on gripIndex "+gripIndex+" which does not rotate!");
             if (state.length != stickerCentersD.length)
-                throw new IllegalArgumentException("getStickerVertsPartiallyTwisted called with wrong size state "+state.length+", expected "+stickerCentersD.length+"!");
+                throw new IllegalArgumentException("applyTwistToState called with wrong size state "+state.length+", expected "+stickerCentersD.length+"!");
 
             if (slicemask == 0)
                 slicemask = 1; // XXX is this the right place for this? lower and it might be time consuming, higher and too many callers will have to remember to do it
