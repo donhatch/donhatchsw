@@ -160,7 +160,7 @@ public class MC4DViewGuts
             {
                 // Do this even if it looks like we were already
                 // restricting roll, in case we are initializing
-                // a new model or something XXX revisit whether this is the cleanest way to do this
+                // a new model or something XXX revisit whether this is the cleanest way to do this... note we also have the listener, so this is redundant in the case it actually did change
                 if (newRestrictRoll && model != null)
                     initiateZeroRoll(viewState,
                                      model.genericPuzzleDescription.getFaceCentersAtRest(),
@@ -277,6 +277,17 @@ public class MC4DViewGuts
                     }
                 };
                 listenables[i].addListener(listener);
+                keepalive.add(listener);
+            }
+
+            {
+                Listenable.Listener listener = new Listenable.Listener() {
+                    public void valueChanged()
+                    {
+                        viewParams.setRestrictRoll(model, viewComponent, viewState, viewParams.restrictRoll.get());
+                    }
+                };
+                viewParams.restrictRoll.addListener(listener);
                 keepalive.add(listener);
             }
         }
@@ -922,6 +933,7 @@ public class MC4DViewGuts
             viewParams.stickerShrink4d.get(),
             viewParams.faceShrink3d.get(),
             viewParams.stickerShrink3d.get(),
+            viewParams.stickersShrinkTowardsFaceBoundaries.get(),
 
             twist.grip,
             twist.dir,
