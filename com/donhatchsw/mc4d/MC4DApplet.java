@@ -114,7 +114,8 @@ public class MC4DViewApplet
                     case 'l'-'a'+1: // ctrl-l -- load from a cookie
                         String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(MC4DViewApplet.this, "mc4dmodelstate");
                         MC4DModel model = MC4DModel.fromString(modelStateString);
-                        guts.setModel(model);
+                        if (model != null)
+                            guts.setModel(model);
                         break;
                     default:
                         break;
