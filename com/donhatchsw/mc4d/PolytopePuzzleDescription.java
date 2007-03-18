@@ -141,8 +141,11 @@
     ===================
 
         - undo tree's colors are wrong!
+        - "{12}x{} 3" problems:
+            - click in middle of square face, the wrong thing gets twisted.
+            - and, stuff is misaligned
         - get antialiasing's notion of "still" right, then turn it on by default
-        - resetting 4d rotation or rotation should do it smoothly, otherwise it's jarring
+        - resetting 4d rotation or rotation should do it smoothly, otherwise it's jarring and disorienting
         - really need to pick from the rest frame, not the intermediate twist frame,
           in case of double-clicks... ARGH but the rest frame will lag behind
           if we are spin dragging!!! fuck fuck fuck... okay maybe the most recent non-twisting one, regardless of whether rotating or not? maybe
@@ -176,6 +179,11 @@
         - length 1: polygons should be grips, I think
         - 3d: really shouldn't do rotates except on face center sticker, it's confusing...
           actually edge clicks that perfectly line up with the face center sticker are okay
+        - float slider with range 0..1 is mostly right but shows 0.0060, should be 0.006
+        - args to MC4DViewApplet need to have clear error and usage message
+            including form of the puzzle description,
+            and probably <puzzleDescription> should get changed
+            into puzzleDescription=<puzzleDescription>
 
     NOT HAVING TO DO WITH THIS GENERIC STUFF:
     =====================================================
