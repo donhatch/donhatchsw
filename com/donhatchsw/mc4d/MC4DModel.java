@@ -449,6 +449,8 @@ public class MC4DModel
         // XXX get clear on who does what... this could be a constructor, but would need to be smart and differentiate it from just a prescription
         public static MC4DModel fromString(String s)
         {
+            if (s == null)
+                return null; // XXX not sure I want this, maybe should throw an illegal argument exception
             // First replace anything that looks like it could be
             // a line separator with a single newline, for consistency...
             s = com.donhatchsw.compat.regex.replaceAll(s, "\n|\r\n|\r", "\n"); // XXX hasn't been tested yet
