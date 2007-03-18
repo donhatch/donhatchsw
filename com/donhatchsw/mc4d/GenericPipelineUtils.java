@@ -231,15 +231,19 @@ public class GenericPipelineUtils
         {
             float stickerShrinkPoints[][] = new float[nStickers][nDisplayDims]; // XXX mem allocation
             int sticker2face[] = puzzleDescription.getSticker2Face();
+
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
                 VecMath.lerp(stickerShrinkPoints[iSticker],
                              stickerCenters[iSticker], stickerAltCenters[iSticker], stickersShrinkTowardsFaceBoundaries); // BEFORE shrinking towards face center
+                // shrink the sticker shrink-to points towards the face center,
+                // for the 3d shrink pass later
                 VecMath.lerp(stickerCenters[iSticker],
                              perStickerFaceCenters[iSticker], stickerCenters[iSticker], faceShrink4d);
                 VecMath.lerp(stickerAltCenters[iSticker],
                              perStickerFaceCenters[iSticker], stickerAltCenters[iSticker], faceShrink4d);
             }
+
             for (int iVert = 0; iVert < verts.length; ++iVert)
             {
                 int iSticker = vert2sticker[iVert];
