@@ -734,17 +734,17 @@ public class MC4DControlPanel
                 "if your computer's graphics hardware supports it.        ", // XXX hack to make the full window title visible on my computer
             });
         addColorSwatchAndCheckboxRow(
-            "Draw non-shrunk face outlines",
+            "Draw non-shrunk face outlines (not yet implemented)",
             viewParams.nonShrunkFaceOutlineColor,
             viewParams.drawNonShrunkFaceOutlines,
             null); // no help string
         addColorSwatchAndCheckboxRow(
-            "Draw shrunk face outlines",
+            "Draw shrunk face outlines (not yet implemented)",
             viewParams.shrunkFaceOutlineColor,
             viewParams.drawShrunkFaceOutlines,
             null); // no help string
         addColorSwatchAndCheckboxRow(
-            "Draw non-shrunk sticker outlines",
+            "Draw non-shrunk sticker outlines (not yet implemented)",
             viewParams.nonShrunkStickerOutlineColor,
             viewParams.drawNonShrunkStickerOutlines,
             null); // no help string
