@@ -105,6 +105,7 @@ public class GenericPipelineUtils
                                     float stickerShrink4d,
                                     float faceShrink3d,
                                     float stickerShrink3d,
+                                    float stickersShrinkTowardsFaceBoundaries,
 
                                     int iGripOfTwist,    // -1 if not twisting
                                     int twistDir,               
@@ -228,7 +229,6 @@ public class GenericPipelineUtils
         // so they will be appropriate for subsequent shrink passes.
         //
         {
-            float stickersShrinkTowardsFaceBoundaries = .5f; // XXX make this a param
             float stickerShrinkPoints[][] = new float[nStickers][nDisplayDims]; // XXX mem allocation
             int sticker2face[] = puzzleDescription.getSticker2Face();
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
@@ -337,6 +337,9 @@ public class GenericPipelineUtils
         //
         // 3d face shrink and sticker shrink
         // XXX could try to only do this on vertices that passed the culls
+        // XXX need to do this with the xformed and projected shrink-to point,
+        // XXX not calculate screwy centers on the fly here.
+        // XXX Q: should the sticker shrink-to point always be shrunk towards the face shrink-to point in 4d?  Or does 3d make sense?  Well, 4d would be more robust, since that shrinking could prevent having to do with projected original points that could end up behind the eye.
         //
         if (faceShrink3d != 1.f
          || stickerShrink3d != 1.f)
