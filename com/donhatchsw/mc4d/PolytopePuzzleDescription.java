@@ -141,9 +141,8 @@
     ===================
 
         - undo tree's colors are wrong!
-        - "{12}x{} 3" problems:
+        - "{8}x{} 3" problems:   (or bigger)
             - click in middle of square face, the wrong thing gets twisted.
-            - and, stuff is misaligned
         - get antialiasing's notion of "still" right, then turn it on by default
         - resetting 4d rotation or rotation should do it smoothly, otherwise it's jarring and disorienting
         - really need to pick from the rest frame, not the intermediate twist frame,
@@ -829,7 +828,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         this.stickerCentersF = VecMath.doubleToFloat(stickerCentersD);
 
         System.out.println("XXX WARNING: sticker shrink points on face boundaries not implemented");
-        this.stickerAltCentersF = stickerCentersF;
+        this.stickerAltCentersF = VecMath.copymat(stickerCentersF);
 
         float stickerCentersMinusFaceCentersF[][] = new float[nStickers][];
         {
@@ -1084,6 +1083,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
                 stickerCentersD[iSticker] = (double[])com.donhatchsw.util.Arrays.append(stickerCentersD[iSticker], 0.);
+                stickerCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerCentersF[iSticker], 0.f);
+                stickerAltCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerAltCentersF[iSticker], 0.f);
                 stickerCentersMinusFaceCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerCentersMinusFaceCentersF[iSticker], 0.f);
             }
             for (int iFace = 0; iFace < nFaces; ++iFace)
@@ -1598,8 +1599,12 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 throw new IllegalArgumentException("computeVertsAndShrinkToPointsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
             if (outVerts.length != vertsF.length)
                 throw new IllegalArgumentException("outVerts length "+outVerts.length+" does not match number of verts "+vertsF.length+"!");
+            if (outVerts.length > 0 && outVerts[0].length != vertsF[0].length)
+                throw new IllegalArgumentException("outVerts[0] length "+outVerts[0].length+" does not match verts dimension "+vertsF[0].length+"!");
             if (outStickerCenters.length != stickerCentersF.length)
                 throw new IllegalArgumentException("outStickerCenters length "+outStickerCenters.length+" does not match number of stickers "+stickerCentersF.length+"!");
+            if (outStickerCenters.length > 0 && outStickerCenters[0].length != stickerCentersF[0].length)
+                throw new IllegalArgumentException("outStickerCenters[0] length "+outStickerCenters[0].length+" does not match stickers dimension "+stickerCentersF[0].length+"!");
             if (outStickerShrinkToPointsOnFaceBoundaries.length != stickerCentersF.length)
                 throw new IllegalArgumentException("outStickerShrinkToPointsOnFaceBoundaries length "+outStickerShrinkToPointsOnFaceBoundaries.length+" does not match number of stickers "+stickerCentersF.length+"!");
             if (outPerStickerFaceCenters.length != stickerCentersF.length)
