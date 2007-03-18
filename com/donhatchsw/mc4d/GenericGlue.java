@@ -1136,6 +1136,7 @@ public class GenericGlue
         float stickerShrink4d,
         float faceShrink3d,
         float stickerShrink3d,
+        float stickersShrinkTowardFaceBoundaries,
         float viewMat4d[/*4*/][/*4*/], // contents of this get incremented if animating!
         float eyeW,
         float viewMat3d[/*3*/][/*3*/],
@@ -1257,6 +1258,7 @@ public class GenericGlue
             stickerShrink4d,
             faceShrink3d,
             stickerShrink3d,
+            stickersShrinkTowardFaceBoundaries,
 
             iGripOfTwist,
               twistDir,
