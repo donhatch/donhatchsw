@@ -321,9 +321,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int _nCubies;
 
     private float vertsF[/*nVerts*/][/*nDisplayDims*/];
-    private float vertsMinusStickerCenters[][]; // XXX defunct?
-    private float vertStickerCentersMinusFaceCenters[][]; // XXX defunct?
-    private float vertFaceCenters[][]; // XXX maybe silly since we hace faceCentersF
     private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
 
     private float faceCentersF[/*nFaces*/][/*nDisplayDims*/];
@@ -830,13 +827,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         System.out.println("XXX WARNING: sticker shrink points on face boundaries not implemented");
         this.stickerAltCentersF = VecMath.copymat(stickerCentersF);
 
-        float stickerCentersMinusFaceCentersF[][] = new float[nStickers][];
-        {
-            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                stickerCentersMinusFaceCentersF[iSticker] = VecMath.doubleToFloat(VecMath.vmv(stickerCentersD[iSticker], faceCentersD[sticker2face[iSticker]]));
-        }
-
-
         //
         // PolyFromPolytope doesn't seem to like the fact that
         // some elements have an aux and some don't... so clear all the vertex
@@ -1085,44 +1075,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 stickerCentersD[iSticker] = (double[])com.donhatchsw.util.Arrays.append(stickerCentersD[iSticker], 0.);
                 stickerCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerCentersF[iSticker], 0.f);
                 stickerAltCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerAltCentersF[iSticker], 0.f);
-                stickerCentersMinusFaceCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerCentersMinusFaceCentersF[iSticker], 0.f);
             }
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
                 faceCentersF[iFace] = (float[])com.donhatchsw.util.Arrays.append(faceCentersF[iFace], 0.f);
                 faceInwardNormals[iFace] = (double[])com.donhatchsw.util.Arrays.append(faceInwardNormals[iFace], 0.f);
-            }
-        }
-
-
-        //
-        // Calculate the three arrays 
-        // that will let us quickly calculate the sticker verts
-        // at rest for any faceShrink and stickerShrink.
-        // Note that vertFaceCenters and vertStickerCentersMinusFaceCenters
-        // contain lots of duplicates; these dups all point
-        // to the same float[] however, so it's not as horrid as it seems.
-        // XXX I think this is all defunct
-        //
-        {
-            int nVerts = restVerts.length;
-            this.vertsMinusStickerCenters = new float[nVerts][];
-            this.vertStickerCentersMinusFaceCenters = new float[nVerts][];
-            this.vertFaceCenters = new float[nVerts][];
-            {
-                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                for (int j = 0; j < stickerInds[iSticker].length; ++j)
-                for (int k = 0; k < stickerInds[iSticker][j].length; ++k)
-                {
-                    int iFace = sticker2face[iSticker];
-                    int iVert = stickerInds[iSticker][j][k];
-                    if (vertsMinusStickerCenters[iVert] == null)
-                    {
-                        vertsMinusStickerCenters[iVert] = VecMath.doubleToFloat(VecMath.vmv(restVerts[iVert], stickerCentersD[iSticker]));
-                        vertStickerCentersMinusFaceCenters[iVert] = stickerCentersMinusFaceCentersF[iSticker];
-                        vertFaceCenters[iVert] = faceCentersF[iFace];
-                    }
-                }
             }
         }
 
@@ -1355,9 +1312,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             answer +=
                       ", "+nl+"  slicedPolytope = "+slicedPolytope.toString(true)
 
-                      +", "+nl+"  vertsMinusStickerCenters = "+com.donhatchsw.util.Arrays.toStringNonCompact(vertsMinusStickerCenters, "    ", "    ")
-                      +", "+nl+"  vertStickerCentersMinusFaceCenters = "+com.donhatchsw.util.Arrays.toStringNonCompact(vertStickerCentersMinusFaceCenters, "    ", "    ")
-                      +", "+nl+"  vertFaceCenters = "+com.donhatchsw.util.Arrays.toStringNonCompact(vertFaceCenters, "    ", "    ")
                       +", "+nl+"  stickerInds = "+com.donhatchsw.util.Arrays.toStringNonCompact(stickerInds, "    ", "    ")
                       +", "+nl+"  sticker2face = "+com.donhatchsw.util.Arrays.toStringNonCompact(sticker2face, "    ", "    ");
         }
@@ -1407,7 +1361,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         public int nVerts()
         {
-            return vertsMinusStickerCenters.length;
+            return vertsF.length;
         }
         public int nFaces()
         {
