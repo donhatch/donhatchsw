@@ -161,6 +161,7 @@ public class MC4DViewGuts
                 // Do this even if it looks like we were already
                 // restricting roll, in case we are initializing
                 // a new model or something XXX revisit whether this is the cleanest way to do this... note we also have the listener, so this is redundant in the case it actually did change
+                // XXX This shouldn't go in here, the listener should handle it completely
                 if (newRestrictRoll && model != null)
                     initiateZeroRoll(viewState,
                                      model.genericPuzzleDescription.getFaceCentersAtRest(),
