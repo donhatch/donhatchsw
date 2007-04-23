@@ -413,7 +413,7 @@ public class MC4DModel
 
             if (twist == null) // this happens if it's the root
             {
-                returnTwist.grip = 0;
+                returnTwist.grip = -1;
                 returnTwist.dir = 0;
                 returnTwist.slicemask = 0;
             }
