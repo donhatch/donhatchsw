@@ -2,9 +2,8 @@ package com.donhatchsw.mc4d;
 
 import java.awt.*;
 import java.awt.event.*;
-import com.donhatchsw.awt.MyPanel;
-import com.donhatchsw.awt.Col;
-import com.donhatchsw.awt.Row;
+import com.donhatchsw.awt.NewRow;
+import com.donhatchsw.awt.NewCol;
 import com.donhatchsw.util.Listenable;
 
 public class MC4DControlPanel
@@ -24,8 +23,8 @@ public class MC4DControlPanel
         {
             Font superfont = super.getFont();
             //System.out.println("label superfont = "+superfont);
-            Font font = new Font(superfont.getName(), Font.BOLD, superfont.getSize()+1);
-            return font;
+            Font superduperfont = new Font(superfont.getName(), Font.BOLD, superfont.getSize()+1);
+            return superduperfont;
         }
     }
 
@@ -219,7 +218,7 @@ public class MC4DControlPanel
         }
     } // ColorSwatch
 
-    private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
+    private static class ColorSwatchMaybeAndCheckBoxMaybe extends NewRow
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
 
@@ -241,11 +240,11 @@ public class MC4DControlPanel
             final Listenable.Boolean initb,
             String name)
         {
-            super(new Object[][]{
-                (initcolor==null ? null : new Object[]{new ColorSwatch(initcolor,16,16)}),
-                {initb==null ? (Object)name : (Object)new Checkbox(name)},
-                {"",new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}}}, // just stretchable space
-            });
+            if (initcolor != null)
+                super.add(new ColorSwatch(initcolor,16,16));
+            super.add(initb==null ? (Component)new Label(name) : (Component)new Checkbox(name));
+            super.add(new Label(""), new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+
             // awkward, but we can't set members
             // until the super ctor is done
             int i = 0;
@@ -371,14 +370,13 @@ public class MC4DControlPanel
                         // vertical padding to -6
                         // to get rid of that extra space.
                         // XXX I don't know if this behavior is the same on other VMs besides linux, need to check
-                        GridBagConstraints c = new GridBagConstraints(){{anchor = WEST; ipady = -6;}};
-                        Object labelConstraintPairs[][] = new Object[helpMessage.length][2];
-                        for (int i = 0; i < helpMessage.length; ++i)
-                        {
-                            labelConstraintPairs[i][0] = new Label(helpMessage[i]);
-                            labelConstraintPairs[i][1] = c;
-                        }
-                        Container panel = new Col(labelConstraintPairs);
+                        final GridBagConstraints c = new GridBagConstraints(){{anchor = WEST; ipady = -6;}};
+
+                        Container panel = new NewCol() {{
+                            for (int i = 0; i < helpMessage.length; ++i)
+                                add(new Label(helpMessage[i]), c);
+                        }};
+
                         final Frame helpWindow = new Frame("MC4D Help: "+helpWindowTitle);
                         helpWindow.add(panel);
                         helpWindow.setLocation(200,200); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place as main window.
@@ -531,7 +529,7 @@ public class MC4DControlPanel
         nRows++;
     }
 
-    public MC4DControlPanel(MC4DViewGuts.ViewParams viewParams)
+    public MC4DControlPanel(final MC4DViewGuts.ViewParams viewParams)
     {
         this.setLayout(new GridBagLayout());
         addSingleLabelRow(new BigBoldLabel("Behavior"));
@@ -771,29 +769,31 @@ public class MC4DControlPanel
             nRows++;
         }
         {
-            int nFaces = 120;
-            int nFacesPerRow = 32;
-            int iFace = 0;
-            int indents[] = {0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15};
+            final int nFaces = 120; // XXX !?
+            final int nFacesPerRow = 32;
+            final int iFace[] = {0}; // really just an int, but need to be able to modify it in inner class
+            final int indents[] = {0,8,4,12,2,10,6,14,1,9,5,13,3,11,7,15};
             final int swatchWidth = 16;
             final int swatchHeight = 16;
             for (int iRow = 0; iRow * nFacesPerRow < nFaces; ++iRow)
             {
-                int nFacesThisRow = nFaces - iRow*nFacesPerRow;
-                if (nFacesThisRow > nFacesPerRow)
-                    nFacesThisRow = nFacesPerRow;
-                Canvas canvases[][] = new Canvas[nFacesThisRow][1];
-                for (int i = 0; i < nFacesThisRow; ++i)
-                {
-                    Listenable.Color colorListenable = viewParams.faceColors[iFace];
-                    canvases[i][0] = new ColorSwatch(colorListenable, swatchWidth,swatchHeight);
-                    iFace++;
-                }
                 final int indent = indents[iRow%indents.length]*swatchWidth/indents.length;
-                canvases = (Canvas[][])com.donhatchsw.util.Arrays.concat(new Canvas[][]{{new CanvasOfSize(indent,swatchHeight)}}, canvases);
+                final int nFacesThisRow = Math.min(nFaces - iRow*nFacesPerRow, nFacesPerRow);
+
                 this.add(new CanvasOfSize(20,swatchHeight), // overall additional indent
                          new GridBagConstraints(){{gridy = nRows;}});
-                add(new Row(canvases),
+                NewRow row = new NewRow() {{
+
+                    add(new CanvasOfSize(indent,swatchHeight));
+
+                    for (int i = 0; i < nFacesThisRow; ++i)
+                    {
+                        Listenable.Color colorListenable = viewParams.faceColors[iFace[0]];
+                        add(new ColorSwatch(colorListenable, swatchWidth,swatchHeight));
+                        iFace[0]++;
+                    }
+                }};
+                add(row,
                     new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER; anchor = WEST;}});
                 nRows++;
             }
