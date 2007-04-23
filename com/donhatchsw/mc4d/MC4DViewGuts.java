@@ -858,7 +858,6 @@ public class MC4DViewGuts
 
         MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1);
         int puzzleState[] = new int[model.genericPuzzleDescription.nStickers()];
-        // XXX getAnimationState should reaturn a float
         float fractionOfWayThroughTwist = (float)model.getAnimationState(modelListener,
                                                                 puzzleState, // fills this
                                                                 twist);      // fills this
