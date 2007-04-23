@@ -1152,7 +1152,7 @@ public class regex
                     assert(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Pattern.matcher!?");
+                    System.err.println("InvocationTargetException trying to invoke Pattern.matcher: "+e.getTargetException());
                     assert(false);
                     return null;
                 }
@@ -1167,7 +1167,7 @@ public class regex
                     assert(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Pattern.split!?");
+                    System.err.println("InvocationTargetException trying to invoke Pattern.split: "+e.getTargetException());
                     assert(false);
                     return null;
                 }
@@ -1196,7 +1196,7 @@ public class regex
                     assert(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.reset: "+e);
+                    System.err.println("InvocationTargetException trying to invoke Matcher.reset: "+e.getTargetException());
                     assert(false);
                     return null;
                 }
@@ -1212,7 +1212,7 @@ public class regex
                     assert(false);
                     return false;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.find!?");
+                    System.err.println("InvocationTargetException trying to invoke Matcher.find: "+e.getTargetException());
                     assert(false);
                     return false;
                 }
@@ -1227,7 +1227,7 @@ public class regex
                     assert(false);
                     return false;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.find!?");
+                    System.err.println("InvocationTargetException trying to invoke Matcher.find: "+e.getTargetException());
                     assert(false);
                     return false;
                 }
@@ -1242,7 +1242,7 @@ public class regex
                     assert(false);
                     return false;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.matches!?");
+                    System.err.println("InvocationTargetException trying to invoke Matcher.matches: "+e.getTargetException());
                     assert(false);
                     return false;
                 }
@@ -1257,7 +1257,7 @@ public class regex
                     assert(false);
                     return -1;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.groupCount!?");
+                    System.err.println("InvocationTargetException trying to invoke Matcher.groupCount: "+e.getTargetException());
                     assert(false);
                     return -1;
                 }
@@ -1272,7 +1272,7 @@ public class regex
                     assert(false);
                     return -1;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.start!?");
+                    System.err.println("InvocationTargetException trying to invoke Matcher.start: "+e.getTargetException());
                     assert(false);
                     return -1;
                 }
@@ -1287,7 +1287,7 @@ public class regex
                     assert(false);
                     return -1;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.end!?");
+                    System.err.println("InvocationTargetException trying to invoke Matcher.end: "+e.getTargetException());
                     assert(false);
                     return -1;
                 }
@@ -1332,7 +1332,7 @@ public class regex
                     assert(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
-                    System.err.println("InvocationTargetException trying to invoke Matcher.replaceAll!?");
+                    System.err.println("InvocationTargetException trying to invoke Matcher.replaceAll: "+e.getTargetException());
                     assert(false);
                     return null;
                 }
