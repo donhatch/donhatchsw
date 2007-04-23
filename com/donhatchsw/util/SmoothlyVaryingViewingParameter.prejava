@@ -21,15 +21,15 @@ public class SmoothlyVaryingViewingParameter
 
         // so copy the code instead...
         this.position = VecMath.copyvec(new double[]{initialPosition});
-        this.velocity = new double[this.position.length];
-        this.targetPosition = new double[this.position.length];
+        this.velocity = new double[this.position.length]; // zero
+        this.targetPosition = VecMath.copyvec(new double[]{initialPosition});
     }
     /** Constructor. */
     public SmoothlyVaryingViewingParameter(double initialPosition[])
     {
         this.position = VecMath.copyvec(initialPosition);
-        this.velocity = new double[this.position.length];
-        this.targetPosition = new double[this.position.length];
+        this.velocity = new double[this.position.length]; // zero
+        this.targetPosition = VecMath.copyvec(initialPosition);
     }
 
     /** Sets the target value of this scalar variable. Equivalent to set(new double[]{targetPosition}); */
@@ -182,6 +182,8 @@ public class SmoothlyVaryingViewingParameter
                                        double dt,
                                        double bounce)
     {
+        boolean debug = false;
+        if (debug) System.out.println("in update_p_and_v");
         assert(bounce >= 0); // XXX make this a bad param exception or something
 
         // acceleration magnitude...
@@ -191,6 +193,8 @@ public class SmoothlyVaryingViewingParameter
         double v = p_and_v[1];
         double vSign = (v<0 ? -1. : 1.);
         double vMag = vSign*v;
+        if (debug) System.out.println("    p = "+p);
+        if (debug) System.out.println("    v = "+v);
 
         //
         // Call the current time 0.
@@ -208,20 +212,35 @@ public class SmoothlyVaryingViewingParameter
 
         double t0, p0, a0;
         if (p*v <= 0 &&
-            still_p_after/still_p_before > -bounce)
+            still_p_after/still_p_before > -bounce) // XXX FIX THIS-- I think there is danger of a zero-divide here?
         {
             // Need to push forward harder... still_before is the relevant one.
+            if (debug) System.out.println("    Need to push forward harder... still_before is the relevant one.");
             t0 = still_t_before;
             p0 = still_p_before;
             a0 = still_a_before;
+
+            if (v == 0. && p > 0.)
+            {
+                // XXX HACK!
+                // It was wrong in this case.
+                // The following seems to make it work, but
+                // need to organize things better so that it's
+                // possible to understand what is going on here.
+                t0 = still_t_after;
+                p0 = still_p_after;
+                a0 = still_a_after;
+            }
         }
         else
         {
             // Need to be decelerating so we don't over-overshoot.
+            if (debug) System.out.println("    Need to be decelerating so we don't over-overshoot.");
             t0 = still_t_after;
             p0 = still_p_after;
             a0 = still_a_after;
         }
+        if (debug) System.out.println("    a0 = "+a0);
 
         // Figure out the position,time,acceleration of the following
         // still point (after the next bounce).
@@ -245,12 +264,14 @@ public class SmoothlyVaryingViewingParameter
         if ((dt-t0)*(1-Math.sqrt(bounce)) >= t1-t0)
         {
             // Settled
+            if (debug) System.out.println("    Settled");
             p = 0;
             v = 0;
         }
         else
         {
             // Not settled.
+            if (debug) System.out.println("    Not settled.");
             // Which time segment t_(i-1) .. t_i
             // is dt in?
             int i = 0;
@@ -282,7 +303,9 @@ public class SmoothlyVaryingViewingParameter
                     return;
                 }
             }
+            if (debug) System.out.println("    i = "+i);
             double frac = i==0 ? 1. : (dt-t_iminus1)/(t_i-t_iminus1);
+            if (debug) System.out.println("    frac = "+frac);
             //frac = 0; // XXX get rid
             if (frac < .5)
             {
@@ -290,6 +313,9 @@ public class SmoothlyVaryingViewingParameter
                 // from the previous still point t_iminus1,p_iminus1
                 v = (dt-t_iminus1) * a_iminus1;
                 p = p_iminus1 + .5*a_iminus1*SQR(dt-t_iminus1);
+                if (debug) System.out.println("    a_iminus1 = "+a_iminus1);
+                if (debug) System.out.println("    p = "+p);
+                if (debug) System.out.println("    v = "+v);
             }
             else
             {
@@ -301,6 +327,7 @@ public class SmoothlyVaryingViewingParameter
         }
         p_and_v[0] = p;
         p_and_v[1] = v;
+        if (debug) System.out.println("out update_p_and_v");
     } // private update_p_and_v
 
 
@@ -315,6 +342,27 @@ public class SmoothlyVaryingViewingParameter
 
     private static void confidenceTests()
     {
+        {
+            SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
+            x.set(1.);
+            PRINT(x.get());
+            PRINT(x.getTarget());
+            PRINT(x.getVelocity());
+            x.evolve(1, 1, .1, 0);
+            PRINT(x.get());
+            //System.exit(0);
+        }
+        {
+            SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(1.);
+            x.set(0.);
+            PRINT(x.get());
+            PRINT(x.getTarget());
+            PRINT(x.getVelocity());
+            x.evolve(1, 1, .1, 0);
+            PRINT(x.get());
+            //System.exit(0);
+        }
+
         double bounce = 0.; // XXX should write some tests with this
         double eps = 1e-5;
         {
@@ -430,6 +478,7 @@ public class SmoothlyVaryingViewingParameter
                 assert(x.getVelocity() == 0.);
                 assert(!x.isMoving());
 
+                x.set(target);
 
                 int overallDir = LT(start,target,eps) ? 1 : GT(start,target,eps) ? -1 : 0;
                 double t = 0.;
@@ -479,7 +528,9 @@ public class SmoothlyVaryingViewingParameter
                 double referenceTripTime = .5;
                 //double unclampedBounce = .5;
                 double unclampedBounce = 0.;
-                double segmentEndPoints[][] = {{-.6,.4},{-.5,.5}};
+                //double segmentEndPoints[][] = {{-.6,.4},{-.5,.5}};
+                //double segmentEndPoints[][] = {{-.6,.5},{-.5,.5}};
+                double segmentEndPoints[][] = {{-.6,.0},{-.5,.0}};
 
                 // 0: segment endpoint 0
                 // 1: segment endpoint 1
@@ -766,3 +817,148 @@ public class SmoothlyVaryingViewingParameter
     } // main
 
 } // SmoothlyVaryingViewingParameter
+
+
+
+/*
+Trying to figure it out for multiple dimensions... it's not separable.
+I'm not sure whether the answer is still two quadratics or not,
+but let's assume it is, and try solving.
+For starters, so it's easy to think about, we will let
+the start (not the end) have position and velocity 0.
+Given:
+        0,0 = position at time t=0
+        0,0 = velocity at time t=0
+        p1 = px1,py1 = position at time t=t1
+        v1 = vx1,vy1 = velocity at time t=t1
+Find t0,t1,ax0,ay0,ax1,ay1 such that:
+        0 <= t0 <= t1
+        a0 = ax0,ay0 = acceleration during first leg [0..t0]
+        a1 = ax1,ay1 = acceleration during second leg [t0..t1]
+        and a0,a1 are unit length.
+i.e. such that:
+        v1 == a0*t0 + a1*(t1-t0)
+        p1 == .5*a0*t0^2 + a0*t0*(t1-t0) + .5*a1*(t1-t0)^2
+        ||a0|| == 1
+        ||a1|| == 1
+Expanding out the vectors in 2 dimensions using:
+        p1 = px1,py1
+        v1 = vx1,vy1
+        a0 = ax0,ay0
+        a1 = ax1,ay1
+This means we are trying to solve the following 6 equations
+for the 6 variables ax0,ay0,ax1,ay1,t0,t1:
+        vx1 == ax0*t0 + ax1*(t1-t0)
+        vy1 == ay0*t0 + ay1*(t1-t0)
+        px1 == .5*ax0*t0^2 + ax0*t0*(t1-t0) + .5*ax1*(t1-t0)^2
+        py1 == .5*ay0*t0^2 + ay0*t0*(t1-t0) + .5*ay1*(t1-t0)^2
+        ax0^2 + ay0^2 == 1
+        ax1^2 + ay1^2 == 1
+So give the following to mathematica:
+        Solve[{
+            vx1 == ax0*t0 + ax1*(t1-t0),
+            vy1 == ay0*t0 + ay1*(t1-t0),
+            px1 == .5*ax0*t0^2 + ax0*t0*(t1-t0) + .5*ax1*(t1-t0)^2,
+            py1 == .5*ay0*t0^2 + ay0*t0*(t1-t0) + .5*ay1*(t1-t0)^2,
+            ax0^2 + ay0^2 == 1,
+            ax1^2 + ay1^2 == 1
+            }, {ax0,ay0,ax1,ay1,t0,t1}]
+Well, mathematica is taking a LONG time on that one.
+
+Well let's try rephrasing it...
+This time we'll let the end position and velocity be 0,0.
+Given:
+        p0 = start position
+        v0 = start velocity
+Find a,t such that ||a||=1 and such that
+intermediate position p = p0 + v0*t + .5*a*t^2  and
+intermediate velocity v = v0 + a*t
+line up with the origin so that it can be smoothly landed by a parabola
+with acceleration 1.
+In other words, p,v should satisfy
+        p = -.5*v*|v|
+i.e.    px,py = -.5*(vx,vy)*Sqrt[vx^2+vy^2]
+So we are trying to solve the following 3 equations
+for the 3 variables ax,ay,t:
+        ax^2+ay^2 == 1
+        px0 + vx0*t + .5*ax*t^2 == -.5*(v0x+ax*t)*Sqrt[(v0x+ax*t)^2+(v0y+ay*t)^2]
+        py0 + vy0*t + .5*ay*t^2 == -.5*(v0y+ay*t)*Sqrt[(v0x+ax*t)^2+(v0y+ay*t)^2]
+So give the following to mathematica:
+        Solve[{
+            ax^2+ay^2 == 1,
+            px0 + vx0*t + .5*ax*t^2 == -.5*(v0x+ax*t)*Sqrt[(v0x+ax*t)^2+(v0y+ay*t)^2],
+            py0 + vy0*t + .5*ay*t^2 == -.5*(v0y+ay*t)*Sqrt[(v0x+ax*t)^2+(v0y+ay*t)^2]
+            }, {ax,ay,t}]
+Bleah, it's taking a long time on that one too,
+and eventually ate up all the memory on my machine.
+
+Okay let's try lining up both...
+Lining up with the initial p0,v0 means
+there is some time t and unit a such that
+        v = v0 + a*t
+        p = p0 + v0*t + .5*a*t^2
+So from the first equation, t = ||v-v0||
+and a = (v-v0)/||v-v0||.
+Plugging those into the second equation, we get:
+        p = p0 + v0*||v-v0|| + .5*(v-v0)/||v-v0||*||v-v0||^2
+          = p0 + v0*||v-v0|| + .5*(v-v0)*||v-v0||
+          = p0 + .5*(v+v0)*||v-v0||
+Matching up this formula for p with the other formula for p,
+we get a single vector equation that we want to solve for v:
+    -.5*v*||v|| = p0 + .5*(v+v0)*||v-v0||
+i.e. two scalar equations that we want to solve for vx,vy:
+    -.5*vx*Sqrt[vx^2+vy^2] == px0 + .5*(vx+vx0)*Sqrt[(vx-vx0)^2+(vy-vy0)^2]
+    -.5*vy*Sqrt[vx^2+vy^2] == py0 + .5*(vy+vy0)*Sqrt[(vx-vx0)^2+(vy-vy0)^2]
+Not sure if we will get better results by squaring both sides, but if we do,
+it will be:
+    .25*vx^2*(vx^2+vy^2) == (px0 + .5*(vx+vx0)*Sqrt[(vx-vx0)^2+(vy-vy0)^2])^2
+    .25*vy^2*(vx^2+vy^2) == (py0 + .5*(vy+vy0)*Sqrt[(vx-vx0)^2+(vy-vy0)^2])^2
+
+So give mathematica either of the following:
+    Solve[{-1/2*vx*Sqrt[vx^2+vy^2] == px0 + 1/2*(vx+vx0)*Sqrt[(vx-vx0)^2+(vy-vy0)^2],
+           -1/2*vy*Sqrt[vx^2+vy^2] == py0 + 1/2*(vy+vy0)*Sqrt[(vx-vx0)^2+(vy-vy0)^2]},
+          {vx,vy}]
+    Solve[{1/4*vx^2*(vx^2+vy^2) == (px0 + 1/2*(vx+vx0)*Sqrt[(vx-vx0)^2+(vy-vy0)^2])^2,
+           1/4*vy^2*(vx^2+vy^2) == (py0 + 1/2*(vy+vy0)*Sqrt[(vx-vx0)^2+(vy-vy0)^2])^2},
+          {vx,vy}]
+Same thing, it's eating up all my memory.
+Dangit, mathematica seems to be useless for this problem.
+
+Subject: optimal trajectory for smooth landing
+
+I'll rephrase it as "smooth starting" instead of "smooth landing"
+because it's an equivalent problem but easier to think about
+for what I'm going to say...
+
+Given: initial position 0, initial velocity 0,
+final position p1, final velocity v1, and constant acceleration magnitude 1,
+in 1 dimension, we know that there is a unique 2-piece quadratic trajectory
+that satisfies these constraints.
+
+I said before that this can't be true in >= 2 dimensions
+because the number of degrees of freedom is wrong... but now I think
+I was mistaken.
+In n dimensions, the number of degrees of freedom in the inputs p1,v1 is 2*n.
+The two quadratic output trajectories can be parametrized by:
+    acceleration during the first part (n-1 degrees of freedom)
+    duration of the first part (1 degree of freedom)
+    acceleration during the second part (n-1 degrees of freedom)
+    duration of the second part (1 degree of freedom)
+So the total number of degrees of freedom in the output is 2*n as well.
+
+So, it *might* be true that the general optimal trajectory
+between any starting and ending position&velocity, in any number of dimensions,
+will always be a 2-piece quadratic spline.
+
+However, finding the two quadratic trajectories, given p1 and v1,
+in 2 dimensions, seems to be surprisingly difficult.
+I tried to ask mathematica, phrasing it in various different ways,
+but it took forever and ate up all my memory every time.
+
+Don
+
+*/
+
+
+
+
