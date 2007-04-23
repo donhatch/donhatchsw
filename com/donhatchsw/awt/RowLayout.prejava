@@ -1,0 +1,40 @@
+//
+// RowLayout.java
+//
+
+package com.donhatchsw.awt;
+
+import java.awt.GridBagConstraints;
+
+/**
+ * A sane layout manager (I think).
+ * <p>
+ * Like GridBagLayout except for the following:
+ * <ul>
+ *      <li> the default constraints' anchor is WEST instead of CENTER
+ *      <li> Just lays out its components in a single row.
+ *           gridx and gridy should be RELATIVE,
+ *           and gridwidth and gridheight should be 1;
+ *           if not, the behavior is undefined.
+ * </ul>
+ */
+public class RowLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
+{
+    public RowLayout()
+    {
+        super();
+        super.defaultConstraints.anchor = GridBagConstraints.WEST;
+    }
+
+    /**
+     * Overriding the superclass's method as required;
+     * for this class, RELATIVE will mean next x, same y.
+     */
+    protected void setNextGridxy(int gridx, int gridy,
+                                 int gridwidth, int gridheight)
+    {
+        super.nextGridx = gridx + 1;
+        super.nextGridy = gridy;
+    } // setNextGridxy
+
+} // class RowLayout

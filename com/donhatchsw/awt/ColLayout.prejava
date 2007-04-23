@@ -1,0 +1,40 @@
+//
+// ColLayout.java
+//
+
+package com.donhatchsw.awt;
+
+import java.awt.GridBagConstraints;
+
+/**
+ * A sane layout manager (I think).
+ * <p>
+ * Like GridBagLayout except for the following:
+ * <ul>
+ *      <li> the default constraints' anchor is WEST instead of CENTER
+ *      <li> Just lays out its components in a single column.
+ *           gridx and gridy should be RELATIVE,
+ *           and gridwidth and gridheight should be 1;
+ *           if not, the behavior is undefined.
+ * </ul>
+ */
+public class ColLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
+{
+    public ColLayout()
+    {
+        super();
+        super.defaultConstraints.anchor = GridBagConstraints.WEST;
+    }
+
+    /**
+     * Overriding the superclass's method as required;
+     * for this class, RELATIVE will mean next y, same x.
+     */
+    protected void setNextGridxy(int gridx, int gridy,
+                                 int gridwidth, int gridheight)
+    {
+        nextGridx = gridx;
+        nextGridy = gridy + 1;
+    } // setNextGridxy
+
+} // class ColLayout

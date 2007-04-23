@@ -1,0 +1,129 @@
+package com.donhatchsw.awt;
+import java.awt.*;
+public class LayoutExample
+{
+
+    /**
+        Test program, creates the following panel
+        in a single statement:
+        <pre>
+        +----------------------------+
+        |I:                          |
+        | -------------------------- |
+        |  |A:                       |
+        |  | ---------------------   |
+        |  |   |1: | aa | b | c      |
+        |  |   |-----------------    |
+        |  |   |2: | d | eee | f     |
+        |  |-----------------------  |
+        |  |B:                       |
+        |  | ---------------------   |
+        |  |   |1: | aa              |
+        |  |   |-----------------    |
+        |  |   |2: | a | b           |
+        |----------------------------|
+        |II:                         |
+        | -------------------------- |
+        |  |M:                       |
+        |  |-----------------------  |
+        |  |  |m00|m01               |
+        |  |  |---+---------------   |
+        |  |  |m10|m11               |
+        +----------------------------+
+        </pre>
+    */
+
+    private static class LabeledCol
+        extends NewCol
+    {
+        private NewCol theRealCol;
+        public LabeledCol(final String topLabelText,
+                          final String sideLabelText)
+        {
+            super.add(new Label(topLabelText)); // super so I don't call my own!
+            super.add(new NewRow() {{              // super so I don't call my own!
+                this.add(new Label(sideLabelText));
+                this.add(theRealCol = new NewCol());
+            }});
+        }
+        public Component add(Component comp)
+        {
+            theRealCol.add(comp);
+            return comp;
+        }
+        public void add(Component comp, Object constraints)
+        {
+            theRealCol.add(comp, constraints);
+        }
+    }
+
+    private static void randomlyColorize(Component c)
+    {
+        c.setBackground(new java.awt.Color((float)Math.random(),
+                                           (float)Math.random(),
+                                           (float)Math.random()));
+        c.setForeground(new java.awt.Color((float)Math.random(),
+                                           (float)Math.random(),
+                                           (float)Math.random()));
+        if (c instanceof Container)
+        {
+            Container C = (Container)c;
+            int n = C.getComponentCount();
+            for (int i = 0; i < n; ++i)
+                randomlyColorize(C.getComponent(i));
+        }
+    } // randomlyColorize
+
+    public static void main(String args[])
+    {
+        final GridBagConstraints stretchxy = new GridBagConstraints(){{fill=BOTH;}};
+        new Frame("TableLayout, RowLayout, ColLayout Test") {{
+            add(new NewCol() {{
+                add(new LabeledCol("I:"," ") {{
+                    add(new LabeledCol("A:"," ") {{
+                        add(new NewRow() {{
+                            add(new Label("1:"));
+                            add(new Button("aa"));
+                            add(new Button("b"));
+                            add(new Button("c"));
+                        }});
+                        add(new NewRow() {{
+                            add(new Label("2:"));
+                            add(new Button("d"));
+                            add(new Button("eee"));
+                            add(new Button("f"));
+                        }});
+                    }});
+                    add(new LabeledCol("B:"," ") {{
+                        add(new NewRow() {{
+                            add(new Label("1:"));
+                            add(new Button("aa"));
+                        }});
+                        add(new NewRow() {{
+                            add(new Label("2:"));
+                            add(new Button("a"));
+                            add(new Button("b"));
+                        }});
+                    }});
+                }});
+                add(new LabeledCol("II:"," ") {{
+                    add(new LabeledCol("M:"," ") {{
+                        add(new TablePanel() {{
+                            add(new Button("m00"), stretchxy);
+                            add(new Button("m01"), stretchxy);
+                            advanceRow();
+                            add(new Button("0"), stretchxy);
+                            add(new Button("m11"), stretchxy);
+                        }});
+                    }});
+                }});
+            }});
+            if (false)
+                randomlyColorize(this);
+            pack();
+            show();
+        }};
+    } // main
+
+
+} // class LayoutExample

@@ -1,0 +1,13 @@
+package com.donhatchsw.awt;
+
+/**
+ * A Panel whose layout manager is a RowLayout.
+ */
+public class NewRow
+    extends java.awt.Panel
+{
+    public NewRow()
+    {
+        super(new RowLayout());
+    }
+}

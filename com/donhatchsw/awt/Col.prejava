@@ -1,0 +1,13 @@
+package com.donhatchsw.awt;
+
+/**
+ * A Panel whose layout manager is a ColLayout.
+ */
+public class NewCol
+    extends java.awt.Panel
+{
+    public NewCol()
+    {
+        super(new ColLayout());
+    }
+}

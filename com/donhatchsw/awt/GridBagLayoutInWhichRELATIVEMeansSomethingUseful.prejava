@@ -1,0 +1,122 @@
+//
+// GridBagLayoutInWhichRELATIVEMeansSomethingUseful.java
+//
+
+package com.donhatchsw.awt;
+
+import java.awt.Component;
+import java.awt.GridBagLayout;
+import java.awt.GridBagConstraints;
+
+/**
+ * Abstract base class for sane (I think) layout managers,
+ * with more useful behavior of gridx=RELATIVE and gridy=RELATIVE.
+ * The behavior and implementation is exactly like GridBagLayout,
+ * except that on the way in to GridBagLayout's addLayoutComponent method,
+ * gridx and gridy are changed from RELATIVE
+ * to actual non-negative numbers, the exact values being determined by
+ * the particular concrete subclass.
+ * <p>
+ * Subclasses should implement the protected abstract method setNextGridxy(),
+ * which defines what RELATIVE actually means in that subclass.
+ * <p>
+ * Also see the subclasses TableLayout, RowLayout and ColLayout,
+ * and the convenience classes TablePanel, Row, Col, JTablePanel, JRow, JCol.
+ * XXX not written yet
+ */
+public abstract class GridBagLayoutInWhichRELATIVEMeansSomethingUseful extends GridBagLayout
+{
+    protected int nextGridx = 0, nextGridy = 0;
+    // Since all GUI construction is done in the same thread
+    // (the event handling thread), it's okay to make the scratch area static.
+    // If this breaks anything, it was already broken anyway :-)
+    private static GridBagConstraints scratchConstraints = new GridBagConstraints();
+    private static void copyGridBagConstraints(java.awt.GridBagConstraints to,
+                                                 java.awt.GridBagConstraints from)
+    {
+        to.gridx = from.gridx;
+        to.gridy = from.gridy;
+        to.gridwidth = from.gridwidth;
+        to.gridheight = from.gridheight;
+        to.weightx = from.weightx;
+        to.weighty = from.weighty;
+        to.anchor = from.anchor;
+        to.fill = from.fill;
+        to.insets.top = from.insets.top;
+        to.insets.left = from.insets.left;
+        to.insets.bottom = from.insets.bottom;
+        to.insets.right = from.insets.right;
+        to.ipadx = from.ipadx;
+        to.ipady = from.ipady;
+    } // copyGridBagConstraints(to,from)
+
+
+
+    public GridBagLayoutInWhichRELATIVEMeansSomethingUseful()
+    {
+        super();
+        super.defaultConstraints.anchor = GridBagConstraints.WEST;
+    }
+
+    /**
+     * Overrides GridBagLayout's method.
+     */
+    public void addLayoutComponent(Component child, Object constraints)
+    {
+        if (constraints == null)
+            constraints = super.defaultConstraints;
+        else if (!(constraints instanceof GridBagConstraints))
+        {
+            // send to super, who will throw a clear IllegalArgumentException
+            super.addLayoutComponent(child, constraints);
+            return;
+        }
+
+        GridBagConstraints gridBagConstraints = (GridBagConstraints)constraints;
+        copyGridBagConstraints(scratchConstraints, gridBagConstraints);
+
+        //
+        // Interpret RELATIVE depending on what the subclass
+        // set nextGridx,nextGridy to at the end of the previous call.
+        //
+        if (scratchConstraints.gridx == GridBagConstraints.RELATIVE)
+            scratchConstraints.gridx = nextGridx;
+        if (scratchConstraints.gridy == GridBagConstraints.RELATIVE)
+            scratchConstraints.gridy = nextGridy;
+
+        //System.out.println("    scratchConstraints.gridx = "+scratchConstraints.gridx);
+        //System.out.println("    scratchConstraints.gridy = "+scratchConstraints.gridy);
+        //System.out.println("    scratchConstraints.gridwidth = "+scratchConstraints.gridwidth);
+        //System.out.println("    scratchConstraints.gridheight = "+scratchConstraints.gridheight);
+
+        //
+        // Invoke GridBagLayout's method with actual values for gridx,gridy.
+        //
+        super.addLayoutComponent(child, scratchConstraints);
+
+        //
+        // The subclass determines what nextGridx,nextGridy gets set to,
+        // to be used by the next call.
+        //
+        setNextGridxy(scratchConstraints.gridx,
+                      scratchConstraints.gridy,
+                      scratchConstraints.gridwidth,
+                      scratchConstraints.gridheight);
+    } // addLayoutComponent
+
+    /**
+     * This method sets the protected members nextGridx and nextGridy,
+     * which are the values that will be used in place
+     * of gridx=RELATIVE and/or gridy=RELATIVE
+     * when placing the following component.
+     * <p>
+     * Subclasses (like RowLayout, ColLayout) will want to override this.
+     * gridx, gridy, gridwidth, gridheight are where the previous
+     * component was placed.  gridx,gridy are guaranteed
+     * to be &gt;= 0 when this method is called,
+     * although gridwidth,gridheight may have freaky special values.
+     */
+    protected abstract void setNextGridxy(int gridx, int gridy,
+                                          int gridwidth, int gridheight);
+
+} // class GridBagLayoutInWhichRELATIVEMeansSomethingUseful

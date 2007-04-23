@@ -1,0 +1,123 @@
+//
+// TableLayout.java
+//
+
+package com.donhatchsw.awt;
+
+import java.awt.GridBagConstraints;
+
+// for the example...
+import java.awt.Frame;
+import java.awt.Button;
+
+
+/**
+ * A sane layout manager (I think).
+ * <p>
+ * Like GridBagLayout except for the following:
+ * <ul>
+ *      <li> the default constraints' anchor is WEST instead of CENTER
+ *      <li> gridx==RELATIVE means the next column (as usual)
+ *           but gridy==RELATIVE means the <b>same</b> row.
+ *           The usual case is the default in which both are RELATIVE,
+ *           in which case this behavior is what GridBagLayout actually does
+ *           (in spite of its documentation which says otherwise).
+ *           The added value here is that TableLayout provides an advanceRow()
+ *           method which means the following gridx=RELATIVE will mean
+ *           gridx=0 and the following gridy=RELATIVE will mean the next row.
+ *      <li> there is an advanceRow() method that advances to the next row.
+ * </ul>
+ */
+public class TableLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
+{
+    public TableLayout()
+    {
+        super();
+        super.defaultConstraints.anchor = GridBagConstraints.WEST;
+    }
+
+    /**
+     * Overriding the superclass's method as required;
+     * for this class, RELATIVE will mean next x, same y,
+     * except if gridwidth is REMAINDER,
+     * advance to the beginning of the next row.
+     * gridheight is ignored in any case.
+     */
+    protected void setNextGridxy(int gridx, int gridy,
+                                 int gridwidth, int gridheight)
+    {
+        // At this point gridx and gridy should be >= 0;
+        // if not, the caller messed up.
+        if (gridx < 0 || gridy < 0)
+            throw new IllegalArgumentException("Internal error in TableLayout.setNextGridxy: gridx or gridy is negative");
+
+        if (gridwidth == GridBagConstraints.REMAINDER)
+        {
+            // Next position is beginning of next row after previous compoenent.
+            nextGridx = 0;
+            nextGridy = gridy+1;
+        }
+        else if (gridwidth >= 1)
+        {
+            // Next position is immediately to right of previous component.
+            nextGridx = gridx + gridwidth;
+            nextGridy = gridy;
+        }
+        else
+        {
+            // we don't support new age crap like gridwidth=RELATIVE.
+            throw new IllegalArgumentException("TableLayout given illegal constraint");
+        }
+    } // setNextGridxy
+
+    /**
+     * Advances one row, so that the next RELATIVE,RELATIVE component
+     * will be added at the beginning of the next grid row.
+     * <p>
+     * This probably doesn't make sense in subclasses (RowLayout, ColLayout)
+     * which will want to override this function
+     * to throw an IllegalArgumentException instead.
+     */
+    public void advanceRow()
+    {
+        nextGridx = 0;
+        nextGridy++;
+    }
+
+
+    /**
+     * Test/example program.
+     */
+    public static void main(String args[])
+    {
+        System.out.println("in main");
+
+        new Frame("TableLayout example") {{
+            addWindowListener(new java.awt.event.WindowAdapter() {
+                public void windowClosing(java.awt.event.WindowEvent we) {
+                    dispose();
+                    System.exit(0); // makes it exit quicker on my machine
+                }
+            });
+
+            setLayout(new TableLayout(){{defaultConstraints.fill=GridBagConstraints.BOTH;}});
+            add(new Button(""));
+            add(new Button("1"));
+            ((TableLayout)getLayout()).advanceRow();
+            add(new Button("22"));
+            add(new Button("333"));
+            add(new Button("4444"));
+            ((TableLayout)getLayout()).advanceRow();
+            add(new Button("55555"));
+            add(new Button("REMAINDER"), new GridBagConstraints(){{fill=HORIZONTAL;gridwidth=REMAINDER;}});
+            ((TableLayout)getLayout()).advanceRow();
+            add(new Button("gridwidth=2"), new GridBagConstraints(){{fill=HORIZONTAL;gridwidth=2;}});
+            add(new Button("666666"));
+            pack();
+            show();
+        }};
+
+        System.out.println("out main");
+    } // main
+
+} // class TableLayout

@@ -1,0 +1,19 @@
+package com.donhatchsw.awt;
+
+/**
+ * A Panel whose layout manager is a RowLayout,
+ * with an advanceRow() method that calls
+ * the layout manager's.
+ */
+public class TablePanel
+    extends java.awt.Panel
+{
+    public TablePanel()
+    {
+        super(new TableLayout());
+    }
+    public void advanceRow()
+    {
+        ((TableLayout)getLayout()).advanceRow();
+    }
+}
