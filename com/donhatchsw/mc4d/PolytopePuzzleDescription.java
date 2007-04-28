@@ -52,14 +52,15 @@
                       mode, you can solve the puzzle while it's spinning,
                       since when you click to twist it won't stop the spin.
                       However, even if you are in the default mode,
-                      you can still do a twist without stopping the spin
+                      you can still twists without stopping the spin
                       if you want-- simply hold down the ctrl key
                       when you click to twist.
 
             - "Restrict Roll" preference
                (only works for generic puzzles currently) XXX might not be true by the time I'm through
             - Friendlier interface to the 2x2x2x2 puzzle
-               that lets you use the same moves as for the other puzzles
+               that lets you use the same moves as for the other puzzles,
+               (rather than just corner twists).
             - You can now 4d-rotate any element
                (vertex, edge, 2d face, hyperface) of the puzzle
                to the center of the view, not just the hyperface centers.
@@ -77,6 +78,7 @@
             - You can hold down the shift key while twisting
               to get a smooth double twist.
               (Or hold down both shift keys for a quadruple twist!)
+              (XXX obsolete?  don't do it? yeah I think it's crack at this point, with the combining feature)
             - Better depth sorting of polygons
                (still doesn't always work though)
                (only works for generic puzzles currently)
@@ -140,6 +142,8 @@
     BUGS / URGENT TODOS:
     ===================
 
+        - spinning when restricting roll spins tilt as well as twirl, I thought I was making it not do that
+        - shrink-to calculation is fucked for the 2x2x2x2 I think, because of the extra cuts
         - undo tree's colors are wrong!
         - "{8}x{} 3" problems:   (or bigger)
             - click in middle of square face, the wrong thing gets twisted.
@@ -572,11 +576,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 Assert(fullThickness != 0.); // XXX actually this fails if puzzle dimension <= 1, maybe should disallow
 
-                //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
-
                 boolean isPrismOfThisFace = Math.abs(-1. - faceOffsets[iFace]) < 1e-6;
 
                 double sliceThickness = fullThickness / doubleLength;
+
+                //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
 
                 // If even length and *not* a prism of this face,
                 // then the middle-most cuts will meet,
@@ -674,7 +678,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
                         faceInwardNormals[iFace],
                         faceCutOffsets[iFace][iCut]);
-                    Object auxOfCut = null; // we don't set any aux on the cut for now
+                    Object auxOfCut = new CutInfo(iFace,iCut);
                     slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut);
                     iTotalCut++;
                     if (progressWriter != null)
@@ -713,7 +717,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
                         faceInwardNormals[iFace],
                         (faceOffsets[iFace]+faceCutOffsets[iFace][0])/2.);
-                    Object auxOfCut = null; // we don't set any aux on the cut for now
+                    Object auxOfCut = null; // XXX ARGH! further cuts completely mess up the shrink-to point calculation... oh this sucks!!!
                     slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut);
                     if (progressWriter != null)
                     {
@@ -774,8 +778,12 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iSlicedRidge = 0; iSlicedRidge < slicedRidges.length; ++iSlicedRidge)
             {
                 CSG.Polytope ridge = slicedRidges[iSlicedRidge];
-                boolean ridgeIsFromOriginal = (ridge.aux != null);
-                if (ridgeIsFromOriginal) // if it's not a cut
+                // ridge.aux is now either an Integer (the index
+                // of the original ridge it was a part of)
+                // or a CutInfo (if it was created by a cut).
+                Assert(ridge.aux != null);
+                boolean ridgeIsFromOriginal = (ridge.aux instanceof Integer);
+                if (ridgeIsFromOriginal) // if it's not from a cut
                 {
                     // Find the two stickers that meet at this ridge...
                     int indsOfStickersContainingThisRidge[] = allSlicedIncidences[nDims-2][iSlicedRidge][nDims-1];
@@ -809,28 +817,38 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         double faceCentersD[][] = new double[nFaces][nDims];
         {
-            for (int iFace = 0; iFace < nFaces; ++iFace)
-                com.donhatchsw.util.CSG.cgOfVerts(faceCentersD[iFace], originalFaces[iFace]);
-        }
-        this.stickerCentersD = new double[nStickers][nDims];
-        this.stickerCentersHashTable = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
-        {
-            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
-                com.donhatchsw.util.CSG.cgOfVerts(stickerCentersD[iSticker], stickers[iSticker]);
-                stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
+                for (int iFace = 0; iFace < nFaces; ++iFace)
+                    com.donhatchsw.util.CSG.cgOfVerts(faceCentersD[iFace], originalFaces[iFace]);
             }
+            this.stickerCentersD = new double[nStickers][nDims];
+            this.stickerCentersHashTable = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
+            {
+                for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                {
+                    com.donhatchsw.util.CSG.cgOfVerts(stickerCentersD[iSticker], stickers[iSticker]);
+                    stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
+                }
+            }
+            this.faceCentersF = VecMath.doubleToFloat(faceCentersD);
+            this.stickerCentersF = VecMath.doubleToFloat(stickerCentersD);
         }
-        this.faceCentersF = VecMath.doubleToFloat(faceCentersD);
-        this.stickerCentersF = VecMath.doubleToFloat(stickerCentersD);
 
-        System.out.println("XXX WARNING: sticker shrink points on face boundaries not implemented");
-        this.stickerAltCentersF = VecMath.copymat(stickerCentersF);
+        //
+        // Calculate the alternate sticker centers;
+        // intuitively, these are the shrink-to points
+        // on the face boundaries.
+        //
+        this.stickerAltCentersF = computeStickerAltCentersF(slicedPolytope,
+                                                            face2OppositeFace,
+                                                            intLength,
+                                                            doubleLength);
 
         //
         // PolyFromPolytope doesn't seem to like the fact that
         // some elements have an aux and some don't... so clear all the vertex
         // auxs.
+        // (Actually now they all have aux.)
         // XXX why does this seem to be a problem for nonregular cross products but not for regulars?  figure this out
         //
         if (true)
@@ -1330,12 +1348,254 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     //
     // Utilities...
     //
+
+        private static class CutInfo {
+            public int iFace;
+            public int iCutThisFace;
+            public CutInfo(int iFace, int iCutThisFace)
+            {
+                this.iFace = iFace;
+                this.iCutThisFace = iCutThisFace;
+            }
+        }
+
+        //
+        // Utility function to do the complicated
+        // alt sticker center calculation in the ctor.
+        //
+        // The alt sticker center is a weighted average of the sticker
+        // vertices.  The weight of a particular vertex in a sticker
+        // is the product of the weights of the planes that contribute
+        // to it, in that sticker.
+        // The planes that contribute to a sticker
+        // come in parallel pairs and singletons.  Singletons
+        // get weight 1, parallel pairs get weights according
+        // to the relative depths of the cut, so that
+        // the closer the cut is to the surface, the higher the weight:
+        // weight 1 if the cut is at the surface.
+        //
+        //
+        private static float[][] computeStickerAltCentersF(
+                CSG.SPolytope slicedPolytope,
+                int face2OppositeFace[],
+                int intLength,
+                double doubleLength)
+        {
+            int nDims = slicedPolytope.p.dim;
+            Assert(nDims == slicedPolytope.p.fullDim);
+
+            CSG.Polytope allSlicedElements[][] = slicedPolytope.p.getAllElements();
+            int allSlicedIncidences[][][][] = slicedPolytope.p.getAllIncidences();
+
+            CSG.Polytope stickers[] = allSlicedElements[nDims-1];
+            CSG.Polytope ridges[] = allSlicedElements[nDims-2];
+            CSG.Polytope verts[] = allSlicedElements[0];
+
+            int nFaces = face2OppositeFace.length;
+            int nStickers = stickers.length;
+            int nVerts = verts.length;
+
+            float stickerAltCentersF[][] = new float[nStickers][nDims];
+
+
+            // Scratch arrays... the size of the whole thing,
+            // but we only use the parts that are incident on a particular sticker
+            // at a time, and we clear those parts
+            // when we are through with that sticker.
+            double avgDepthOfThisStickerBelowFace[] = VecMath.fillvec(nFaces, -1.);
+            int nCutsParallelToThisFace[] = VecMath.fillvec(nFaces, 0);
+            double vertexWeights[] = VecMath.fillvec(nVerts, 1.);
+
+            double stickerAltCenterD[] = new double[nDims];
+
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+            {
+                // Figure out avg cut depth of this sticker
+                // with respect to each of the faces whose planes
+                // contribute to it
+                int ridgesThisSticker[] = allSlicedIncidences[nDims-1][iSticker][nDims-2];
+                for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)
+                {
+                    int iRidge = ridgesThisSticker[iRidgeThisSticker];
+                    CSG.Polytope ridge = ridges[iRidge];
+                    int iFace, iCutThisFace;
+                    if (ridge.aux instanceof CutInfo)
+                    {
+                        CutInfo cutInfo = (CutInfo)ridge.aux;
+                        iFace = cutInfo.iFace;
+                        iCutThisFace = cutInfo.iCutThisFace+1;
+                    }
+                    else // it's not from a cut, it's from an original face
+                    {
+                        // Which original face?
+                        // well, this ridge is on two stickers: iSticker
+                        // and some other.  Find that other sticker,
+                        // and find which face that other sticker
+                        // was originally from.
+                        int theTwoStickersSharingThisRidge[] = allSlicedIncidences[nDims-2][iRidge][nDims-1];
+                        Assert(theTwoStickersSharingThisRidge.length == 2);
+                        Assert(theTwoStickersSharingThisRidge[0] == iSticker
+                            || theTwoStickersSharingThisRidge[1] == iSticker);
+                        int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
+                        CSG.Polytope otherSticker = stickers[iOtherSticker];
+                        iFace = ((Integer)otherSticker.aux).intValue();
+                        iCutThisFace = 0;
+                    }
+                    double cutDepth = iCutThisFace / doubleLength;
+                    double depth = cutDepth;
+                    if (avgDepthOfThisStickerBelowFace[iFace] != -1.)
+                    {
+                        // There are at most two cuts per face
+                        // contributing to this sticker, and we already saw
+                        // one.  Take the average of that one and this one.
+                        depth = .5*(depth + avgDepthOfThisStickerBelowFace[iFace]);
+                    }
+                    avgDepthOfThisStickerBelowFace[iFace] = depth;
+                    nCutsParallelToThisFace[iFace]++;
+                    int oppFace = face2OppositeFace[iFace];
+                    if (oppFace != -1)
+                    {
+                        avgDepthOfThisStickerBelowFace[oppFace] = 1.-depth;
+                        nCutsParallelToThisFace[oppFace]++;
+                    }
+                } // for each ridge this sticker
+
+                // Now figure out the weight of each cut in the sticker.
+                // Any time there are two parallel cuts contributing
+                // to the sticker, those two cuts' weights
+                // will add up to 1.  All other cuts contributing to the
+                // sticker just get weight 1.
+                // As we go, multiply in these cut weights
+                // into the sticker weights.
+                for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)
+                {
+                    int iRidge = ridgesThisSticker[iRidgeThisSticker];
+                    CSG.Polytope ridge = ridges[iRidge];
+                    int iFace, iCutThisFace;
+                    if (ridge.aux instanceof CutInfo)
+                    {
+                        CutInfo cutInfo = (CutInfo)ridge.aux;
+                        iFace = cutInfo.iFace;
+                        iCutThisFace = cutInfo.iCutThisFace+1;
+                    }
+                    else // it's not from a cut, it's from an original face
+                    {
+                        // Which original face?
+                        // well, this ridge is on two stickers: iSticker
+                        // and some other.  Find that other sticker,
+                        // and find which face that other sticker
+                        // was originally from.
+                        int theTwoStickersSharingThisRidge[] = allSlicedIncidences[nDims-2][iRidge][nDims-1];
+                        Assert(theTwoStickersSharingThisRidge.length == 2);
+                        Assert(theTwoStickersSharingThisRidge[0] == iSticker
+                            || theTwoStickersSharingThisRidge[1] == iSticker);
+                        int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
+                        CSG.Polytope otherSticker = stickers[iOtherSticker];
+                        iFace = ((Integer)otherSticker.aux).intValue();
+                        iCutThisFace = 0;
+                    }
+                    double cutDepth = iCutThisFace / doubleLength;
+                    double cutWeight = 1.;
+                    if (nCutsParallelToThisFace[iFace] == 2)
+                    {
+                        double avgStickerDepth = avgDepthOfThisStickerBelowFace[iFace];
+
+                        double stickerSize = 2*Math.abs(avgStickerDepth-cutDepth);
+                        cutWeight =
+                            stickerSize==1. ? .5 :
+                            cutDepth < avgStickerDepth ? 1. - cutDepth / (1. - stickerSize)
+                                                       : (cutDepth-stickerSize) / (1. - stickerSize);
+                    }
+                    Assert(cutWeight >= 0. && cutWeight <= 1.);
+
+                    // Each vertex weight is going to be the product
+                    // of all the cut weights that contribute to it.
+                    // So multiply this cut weight into each vertex
+                    // incident on this cut.
+                    for (int iVertThisRidge = 0; iVertThisRidge < allSlicedIncidences[nDims-2][iRidge][0].length; ++iVertThisRidge)
+                    {
+                        int iVert = allSlicedIncidences[nDims-2][iRidge][0][iVertThisRidge];
+                        vertexWeights[iVert] *= cutWeight;
+                    }
+                } // for each ridge this sticker
+
+                VecMath.zerovec(stickerAltCenterD);
+                double totalWeight = 0.;
+                for (int iVertThisSticker = 0; iVertThisSticker < allSlicedIncidences[nDims-1][iSticker][0].length; ++iVertThisSticker)
+                {
+                    int iVert = allSlicedIncidences[nDims-1][iSticker][0][iVertThisSticker];
+                    CSG.Polytope vert = verts[iVert];
+                    double vertexWeight = vertexWeights[iVert];
+                    Assert(vertexWeight >= 0. && vertexWeight <= 1.);
+                    totalWeight += vertexWeight;
+                    // stickerAltCenterD += vertexWeight * vertexPosition
+                    VecMath.vpsxv(stickerAltCenterD,
+                                  stickerAltCenterD,
+                                  vertexWeight, vert.getCoords());
+                    vertexWeights[iVert] = 1.; // clear for next time
+                }
+                VecMath.vxs(stickerAltCenterD, stickerAltCenterD, 1./totalWeight);
+                stickerAltCentersF[iSticker] = VecMath.doubleToFloat(stickerAltCenterD);
+
+                // Clear the parts of avgDepthOfThisStickerBelowFace
+                // that we touched.
+                for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)
+                {
+                    int iRidge = ridgesThisSticker[iRidgeThisSticker];
+                    CSG.Polytope ridge = ridges[iRidge];
+                    int iFace, iCutThisFace;
+                    if (ridge.aux instanceof CutInfo)
+                    {
+                        CutInfo cutInfo = (CutInfo)ridge.aux;
+                        iFace = cutInfo.iFace;
+                        iCutThisFace = cutInfo.iCutThisFace+1;
+                    }
+                    else // it's not from a cut, it's from an original face
+                    {
+                        // Which original face?
+                        // well, this ridge is on two stickers: iSticker
+                        // and some other.  Find that other sticker,
+                        // and find which face that other sticker
+                        // was originally from.
+                        int theTwoStickersSharingThisRidge[] = allSlicedIncidences[nDims-2][iRidge][nDims-1];
+                        Assert(theTwoStickersSharingThisRidge.length == 2);
+                        Assert(theTwoStickersSharingThisRidge[0] == iSticker
+                            || theTwoStickersSharingThisRidge[1] == iSticker);
+                        int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
+                        CSG.Polytope otherSticker = stickers[iOtherSticker];
+                        iFace = ((Integer)otherSticker.aux).intValue();
+                        iCutThisFace = 0;
+                    }
+
+                    avgDepthOfThisStickerBelowFace[iFace] = -1.;
+                    nCutsParallelToThisFace[iFace] = 0;
+                    int oppFace = face2OppositeFace[iFace];
+                    if (oppFace != -1)
+                    {
+                        avgDepthOfThisStickerBelowFace[oppFace] = -1.;
+                        nCutsParallelToThisFace[oppFace] = 0;
+                    }
+                }
+            } // for each sticker
+
+            // Make sure we've been properly cleaning up both
+            // avgDepthOfThisStickerBelowFace and vertexWeights.
+            for (int iFace = 0; iFace < nFaces; ++iFace)
+            {
+                Assert(avgDepthOfThisStickerBelowFace[iFace] == -1.);
+                Assert(nCutsParallelToThisFace[iFace] == 0);
+            }
+            for (int iVert = 0; iVert < nVerts; ++iVert)
+                Assert(vertexWeights[iVert] == 1.);
+
+            return stickerAltCentersF;
+        } // computeStickerAltCentersF
+
         // magic crap used in a couple of methods below
         private double[][] getTwistMat(int gripIndex, int dir, double frac)
         {
             int order = gripSymmetryOrders[gripIndex];
             double angle = dir * (2*Math.PI/order) * frac;
-            int nDims = slicedPolytope.p.fullDim;
             double gripUsefulMat[][] = gripUsefulMats[gripIndex];
             Assert(gripUsefulMat.length == _nDisplayDims);
             double mat[][] = VecMath.mxmxm(VecMath.transpose(gripUsefulMats[gripIndex]),
