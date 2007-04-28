@@ -142,6 +142,7 @@
     BUGS / URGENT TODOS:
     ===================
 
+        - woops, Row is broken I think... rows of control panel have centered items when I wanted left justified
         - spinning when restricting roll spins tilt as well as twirl, I thought I was making it not do that
         - shrink-to calculation is fucked for the 2x2x2x2 I think, because of the extra cuts
         - undo tree's colors are wrong!
