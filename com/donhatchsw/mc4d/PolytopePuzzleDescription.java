@@ -161,6 +161,7 @@
           and white, or something!
 
         - scale doesn't quite match original
+           - oh! and the effect of viewScale2d is getting squared! see "Frame Picture" code
         - need more colors!
         - sometimes exception during picking trying to access too big
           an index right after switching to a smaller puzzle (e.g.
@@ -228,7 +229,7 @@
                with some hope of being efficient
 
         NON-IMMEDIATE:
-            - Grand Antiprism
+            - Grand Antiprism (should be as accessible as an icosahedron, anyway)
             - 3 level cascading menus for {3..12}x{3..12}?
             - nframes proportional to angle actually kind of sucks...
                 should be proportionally less frames when rot angle is big,

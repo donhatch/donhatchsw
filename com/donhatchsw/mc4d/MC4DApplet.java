@@ -51,7 +51,8 @@ public class MC4DViewApplet
                     controlPanelFrame.dispose();
                 }
             });
-            controlPanelFrame.add(new MC4DControlPanel(guts.viewParams));
+            controlPanelFrame.add(new MC4DControlPanel(guts.viewParams,
+                                                       guts.viewState));
             controlPanelFrame.pack();
             controlPanelFrame.show();
         }

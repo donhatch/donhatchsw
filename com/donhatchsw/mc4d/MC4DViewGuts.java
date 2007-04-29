@@ -264,7 +264,7 @@ public class MC4DViewGuts
     private Component controllerComponent = null;
     private Component viewComponent = null;
     public ViewParams viewParams = new ViewParams(); // XXX not sure if it should be public or what
-    private ViewState viewState = new ViewState();
+    public ViewState viewState = new ViewState(); // XXX made public so that the Frame Picture button can use it to get the bbox of the most recent frame... maybe should be accessors to get this info instead, expecially since there are probably race conditions with it now
     private com.donhatchsw.compat.ArrayList keepalive = new com.donhatchsw.compat.ArrayList(); // keeps my listeners alive with strong refs for as long as I'm alive
         {
             Listenable listenables[] = Listenable.allListenablesInObject(viewParams);
