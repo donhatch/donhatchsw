@@ -299,6 +299,47 @@ public final class CSG
                 return _bbox;
             } // getBBox
 
+            // For pushAux/popAux/getAux/setAux
+            private class PushedAux
+            {
+                public Object thisAux;
+                public Object savedAux;
+                public PushedAux(Object thisAux, Object savedAux)
+                {
+                    this.thisAux = thisAux;
+                    this.savedAux = savedAux;
+                }
+            }
+            /** Pushes the new aux value onto a stack of aux values; popAux can be used to pop it back off later. */
+            public void pushAux(Object newAux)
+            {
+                aux = new PushedAux(newAux, aux);
+            }
+            /** Pops the top aux value off the stack and returns it. */
+            public Object popAux()
+            {
+                assert(aux instanceof PushedAux); // XXX throw something useful
+                PushedAux pushedAux = (PushedAux)aux;
+                aux = pushedAux.savedAux;
+                return pushedAux.thisAux;
+            }
+            /** Returns the value at the top of the aux stack.  If the stack has depth 1 (e.g. if pushAux has never been called), this is simply the aux member.XXX direct public access to the aux member is likely to go away soon */
+            public Object getAux()
+            {
+                if (aux instanceof PushedAux)
+                    return  ((PushedAux)aux).thisAux;
+                else
+                    return aux;
+            }
+            /** Replaces the value at the top of the aux stack with the new value. */
+            public void setAux(Object newAux)
+            {
+                if (aux instanceof PushedAux)
+                    ((PushedAux)aux).thisAux = newAux;
+                else
+                    aux = newAux;
+            }
+
             /**
             * Get a list of all verts, edges, faces, ..., ridges, facets, self
             * of this polytope.
@@ -346,16 +387,25 @@ public final class CSG
                     {
                         _allElements[iDim] = new Polytope[lists[iDim].size()];
                         lists[iDim].copyInto(_allElements[iDim]);
-                        SortStuff.sort(_allElements[iDim],
-                                       new SortStuff.Comparator() {
-                                           public int compare(Object _a, Object _b)
-                                           {
-                                               Polytope a = (Polytope)_a;
-                                               Polytope b = (Polytope)_b;
-                                               return a.id < b.id ? -1 :
-                                                      a.id > b.id ? 1 : 0;
-                                           }
-                                       });
+                        if (true)
+                        {
+                            // Make it come out in a deterministic order,
+                            // depending on the original creation order
+                            // (so it won't change if I re-implement
+                            // any of the above differently)
+                            // even though this is not the order in which
+                            // the facets appeared in the facets list :-(
+                            SortStuff.sort(_allElements[iDim],
+                                           new SortStuff.Comparator() {
+                                               public int compare(Object _a, Object _b)
+                                               {
+                                                   Polytope a = (Polytope)_a;
+                                                   Polytope b = (Polytope)_b;
+                                                   return a.id < b.id ? -1 :
+                                                          a.id > b.id ? 1 : 0;
+                                               }
+                                           });
+                        }
                         FORI (iElt, _allElements[iDim].length)
                         {
                             Polytope elt = _allElements[iDim][iElt];
@@ -422,6 +472,7 @@ public final class CSG
 
                     // Mark each element temporarily with its index in allElts,
                     // so we don't have to do time consuming searches...
+                    // XXX should use the new pushAux/popAux mechanism instead of this, it would be simpler
                     class GlobalIndexAux
                     {
                         public int globalIndex;
