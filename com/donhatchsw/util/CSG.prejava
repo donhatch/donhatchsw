@@ -534,12 +534,12 @@ public final class CSG
                                     FORI (jDim, dim+1)
                                     {
                                         _allIncidences[iDim][iElt][jDim] = new int[counts[iDim][iElt][jDim]];
-                                        counts[iDim][iElt][jDim] = 0;
+                                        counts[iDim][iElt][jDim] = 0; // reset for use again during filling
                                     }
                                 }
                             }
                         }
-                    }
+                    } // for iPass = 0 then 1
 
                     // restore old auxs...
                     FORI (iDim, dim+1)
