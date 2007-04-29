@@ -140,7 +140,6 @@
     BUGS / URGENT TODOS:
     ===================
 
-        - woops, spinning when restricting roll spins tilt as well as twirl, I thought I was making it not do that
         - undo tree's colors are wrong!
         - "{8}x{} 3" problems:   (or bigger)
             - click in middle of square face, the wrong thing gets twisted.
