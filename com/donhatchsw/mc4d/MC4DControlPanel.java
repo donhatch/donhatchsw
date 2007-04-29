@@ -281,7 +281,7 @@ public class MC4DControlPanel
     private static class CheckboxThing extends ColorSwatchMaybeAndCheckBoxMaybe
     {
         public CheckboxThing(Listenable.Boolean b,
-                                String name)
+                             String name)
         {
             super(null, b, name);
         }
@@ -529,7 +529,8 @@ public class MC4DControlPanel
         nRows++;
     }
 
-    public MC4DControlPanel(final MC4DViewGuts.ViewParams viewParams)
+    public MC4DControlPanel(final MC4DViewGuts.ViewParams viewParams,
+                            final MC4DViewGuts.ViewState viewState)
     {
         this.setLayout(new GridBagLayout());
         addSingleLabelRow(new BigBoldLabel("Behavior"));
@@ -705,47 +706,173 @@ public class MC4DControlPanel
                 "Setting it to a value between 0 and 1 will result",
                 "in shrinking towards some point in between.",
             });
+
         if (true)
         {
             add(new CanvasOfSize(20,10), // indent
                      new GridBagConstraints(){{gridy = nRows;}});
-            // XXX oh hmm, this could really just be a checkbox that acts just like the button
-            add(new Button("Contiguous cubies") {
-                 Listenable.Listener listener; // need to keep a strong ref to the listener for as long as I'm alive
-                {
+            add(new Button("Frame Picture") {{
                     addActionListener(new ActionListener() {
                         public void actionPerformed(ActionEvent e)
                         {
-                            //System.out.println("Contiguous cubies button was bonked!");
-                            viewParams.faceShrink4d.set(1.f);
-                            viewParams.faceShrink3d.set(1.f);
-                            viewParams.stickersShrinkTowardsFaceBoundaries.set(1.f);
+                            float oldScale = viewParams.viewScale2d.get();
+                            if (oldScale <= 0.f)
+                            {
+                                viewParams.viewScale2d.resetToDefault();
+                                // they'll have to hit the button again
+                                // after it paints with the sane value.
+                                // serves them right.
+                                return;
+                            }
+                            // Figure out a bounding box for what's painted
+                            GenericPipelineUtils.Frame frame = viewState.untwistedFrame;
+                            float verts[][] = frame.verts; // XXX does this maybe include extras?
+                            float bbox[/*2*/][] = com.donhatchsw.util.VecMath.bbox(verts);
+                            System.out.println("nVerts = "+verts.length);
+                            System.out.println("bbox = "+com.donhatchsw.util.VecMath.toString(bbox));
+                            float windowWidth = 502.f; // XXX
+                            float windowHeight = 485.f; // XXX
+                            float oldPercentage = Math.max(
+                                (bbox[1][0]-bbox[0][0])/windowWidth,
+                                (bbox[1][1]-bbox[0][1])/windowHeight);
+                            System.out.println("oldPercentage = "+oldPercentage);
+                            float rescaleNeeded = .9f / oldPercentage;
+                            // XXX I think there's a bug that makes the effect of scale get squared... so only rescale it by square root of what we should REALLY rescale it by
+                            rescaleNeeded = (float)Math.sqrt(rescaleNeeded);
+                            float newScale = oldScale * rescaleNeeded;
+                            viewParams.viewScale2d.set(newScale);
                         }
                     });
-                    listener = new Listenable.Listener() {
-                        public void valueChanged()
-                        {
-                            //System.out.println("One of the 3 float values changed");
-                            setEnabled(viewParams.faceShrink4d.get() != 1.f
-                                    || viewParams.faceShrink3d.get() != 1.f
-                                    || viewParams.stickersShrinkTowardsFaceBoundaries.get() != 1.f);
-                        }
-                    };
-                    viewParams.faceShrink4d.addListener(listener);
-                    viewParams.faceShrink3d.addListener(listener);
-                    viewParams.stickersShrinkTowardsFaceBoundaries.addListener(listener);
                 }},
+                new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
+            super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            add(new HelpButton("Frame Picture",
+                               new String[] {
+                                   "Pressing the Frame Picture button",
+                                   "changes the 2d scale if necessary",
+                                   "so that the picture takes up",
+                                   "90% of the viewing window in one",
+                                   "of the two directions (width or height)",
+                                   "and at most that in the other direction.",
+                                }),
+                new GridBagConstraints(){{gridy = nRows;}});
+            nRows++;
+        }
+
+        if (true)
+        {
+            add(new CanvasOfSize(20,10), // indent
+                     new GridBagConstraints(){{gridy = nRows;}});
+            add(new Button("Contiguous cubies") {
+                    private Listenable.Listener listener; // need to keep a strong ref to the listener for as long as I'm alive
+                    private void updateShownValue()
+                    {
+                        setEnabled(viewParams.faceShrink4d.get() != 1.f
+                                || viewParams.faceShrink3d.get() != 1.f
+                                || viewParams.stickersShrinkTowardsFaceBoundaries.get() != 1.f);
+                    }
+                    {
+                        addActionListener(new ActionListener() {
+                            public void actionPerformed(ActionEvent e)
+                            {
+                                //System.out.println("Contiguous cubies button was bonked!");
+                                viewParams.faceShrink4d.set(1.f);
+                                viewParams.faceShrink3d.set(1.f);
+                                viewParams.stickersShrinkTowardsFaceBoundaries.set(1.f);
+                            }
+                        });
+                        listener = new Listenable.Listener() {
+                            public void valueChanged()
+                            {
+                                //System.out.println("One of the 3 float values changed");
+                                updateShownValue();
+                            }
+                        };
+                        viewParams.faceShrink4d.addListener(listener);
+                        viewParams.faceShrink3d.addListener(listener);
+                        viewParams.stickersShrinkTowardsFaceBoundaries.addListener(listener);
+                        updateShownValue();
+                    }
+                },
                 new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
             super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
             add(new HelpButton("Contiguous cubies",
                                new String[] {
                                    "Pressing the Contiguous Cubies button",
                                    "is the same as setting 4d Face Shrink, 3d Face Shrink,",
-                                   "and \"Stickers shrink to face boundaries\" to 1.",
+                                   "and \"Stickers shrink to face boundaries\" all to 1.",
+                                   "",
+                                   "This button is only enabled when they are not already all 1.",
                                 }),
                 new GridBagConstraints(){{gridy = nRows;}});
             nRows++;
-        }
+        } // contiguous cubies button
+
+        if (true)
+        {
+            add(new CanvasOfSize(20,10), // indent
+                     new GridBagConstraints(){{gridy = nRows;}});
+            add(new Checkbox("Contiguous cubies") {
+                    private Listenable.Listener listener; // need to keep a strong ref to the listener for as long as I'm alive
+                    private void updateShownValue()
+                    {
+                        setState(viewParams.faceShrink4d.get() == 1.f
+                              && viewParams.faceShrink3d.get() == 1.f
+                              && viewParams.stickersShrinkTowardsFaceBoundaries.get() == 1.f);
+                    }
+                    {
+                        addItemListener(new ItemListener() {
+                            public void itemStateChanged(ItemEvent e)
+                            {
+                                if (e.getStateChange() == ItemEvent.SELECTED)
+                                {
+                                    viewParams.faceShrink4d.set(1.f);
+                                    viewParams.faceShrink3d.set(1.f);
+                                    viewParams.stickersShrinkTowardsFaceBoundaries.set(1.f);
+                                }
+                                else
+                                {
+                                    // If the Contiguous cubies is on
+                                    // and the user turns it off again,
+                                    // it turns back on because cubies
+                                    // are still contiguous.
+                                    // The is a bit obnoxious... maybe that's why
+                                    // it should be a button instead of a checkbox
+                                    updateShownValue();
+                                }
+                            }
+                        });
+                        listener = new Listenable.Listener() {
+                            public void valueChanged()
+                            {
+                                //System.out.println("One of the 3 float values changed");
+                                updateShownValue();
+                            }
+                        };
+                        viewParams.faceShrink4d.addListener(listener);
+                        viewParams.faceShrink3d.addListener(listener);
+                        viewParams.stickersShrinkTowardsFaceBoundaries.addListener(listener);
+                        updateShownValue();
+                    }
+                },
+                new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
+            super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            add(new HelpButton("Contiguous cubies",
+                               new String[] {
+                                   "Checking the Contiguous Cubies checkbox",
+                                   "is the same as setting 4d Face Shrink, 3d Face Shrink,",
+                                   "and \"Stickers shrink to face boundaries\" all to 1.",
+                                   "",
+                                   "You can't uncheck it directly,",
+                                   "but it will uncheck itself when you set",
+                                   "any of those three parameters to a value",
+                                   "other than 1.",
+                                }),
+                new GridBagConstraints(){{gridy = nRows;}});
+            nRows++;
+        } // contiguous cubies checkbox
+
+
         addCheckboxRow(
             "Highlight by cubie",
             viewParams.highlightByCubie,
@@ -874,6 +1001,7 @@ public class MC4DControlPanel
     {
         // Only one set of params, share it among all the panels
         MC4DViewGuts.ViewParams viewParams = new MC4DViewGuts.ViewParams();
+        MC4DViewGuts.ViewState viewState = new MC4DViewGuts.ViewState();
         final int nAlive[] = {0};
         for (int i = 0; i < 2; ++i)
         {
@@ -900,7 +1028,7 @@ public class MC4DControlPanel
                 });
             }
 
-            frame.add(new MC4DControlPanel(viewParams));
+            frame.add(new MC4DControlPanel(viewParams, viewState));
             frame.pack();
             frame.show();
             nAlive[0]++;
