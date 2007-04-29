@@ -404,11 +404,11 @@ public class MC4DControlPanel
     * <pre>
         +----------------------------------------------------------+
         |Behavior                                                  |
-        | <-> Twist speed                             [Reset][Help]|
+        | <-> Twist duration                          [Reset][Help]|
         | <-> Bounce                                  [Reset][Help]|
+        | [ ] Stop between moves                      [Reset][Help]|
         | [ ] Require Ctrl to 3d Rotate               [Reset][Help]|
         | [ ] Restrict roll                           [Reset][Help]|
-        | [ ] Stop between moves                      [Reset][Help]|
         +----------------------------------------------------------+
         |Appearance                                                |
         | <-> 4d Face Shrink                          [Reset][Help]|
@@ -705,6 +705,47 @@ public class MC4DControlPanel
                 "Setting it to a value between 0 and 1 will result",
                 "in shrinking towards some point in between.",
             });
+        if (true)
+        {
+            add(new CanvasOfSize(20,10), // indent
+                     new GridBagConstraints(){{gridy = nRows;}});
+            // XXX oh hmm, this could really just be a checkbox that acts just like the button
+            add(new Button("Contiguous cubies") {
+                 Listenable.Listener listener; // need to keep a strong ref to the listener for as long as I'm alive
+                {
+                    addActionListener(new ActionListener() {
+                        public void actionPerformed(ActionEvent e)
+                        {
+                            //System.out.println("Contiguous cubies button was bonked!");
+                            viewParams.faceShrink4d.set(1.f);
+                            viewParams.faceShrink3d.set(1.f);
+                            viewParams.stickersShrinkTowardsFaceBoundaries.set(1.f);
+                        }
+                    });
+                    listener = new Listenable.Listener() {
+                        public void valueChanged()
+                        {
+                            //System.out.println("One of the 3 float values changed");
+                            setEnabled(viewParams.faceShrink4d.get() != 1.f
+                                    || viewParams.faceShrink3d.get() != 1.f
+                                    || viewParams.stickersShrinkTowardsFaceBoundaries.get() != 1.f);
+                        }
+                    };
+                    viewParams.faceShrink4d.addListener(listener);
+                    viewParams.faceShrink3d.addListener(listener);
+                    viewParams.stickersShrinkTowardsFaceBoundaries.addListener(listener);
+                }},
+                new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
+            super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            add(new HelpButton("Contiguous cubies",
+                               new String[] {
+                                   "Pressing the Contiguous Cubies button",
+                                   "is the same as setting 4d Face Shrink, 3d Face Shrink,",
+                                   "and \"Stickers shrink to face boundaries\" to 1.",
+                                }),
+                new GridBagConstraints(){{gridy = nRows;}});
+            nRows++;
+        }
         addCheckboxRow(
             "Highlight by cubie",
             viewParams.highlightByCubie,
