@@ -149,8 +149,8 @@
           in case of double-clicks... ARGH but the rest frame will lag behind
           if we are spin dragging!!! fuck fuck fuck... okay maybe the most recent non-twisting one, regardless of whether rotating or not? maybe
         - in the 2x2x2x2, rotate-arbitrary-element-to-center should rotate a grip to center, not a sticker
-        - XXX why isn't this working, when clicking when spinDragRequiresCtrl is on
-        - side of prefs menu cut off
+        - XXX why isn't this working, when clicking when spinDragRequiresCtrl is on XXX wtf was I talking about
+        - side of prefs menu cut off XXX wtf was I talking about... melinda's?
         - truncated tet is picking inconsistent slices!
         - progress meter on the slice-- just notice when it's taking a long time, and start spewing percentage  (started doing this, need to make it nicer)
         - {5}x{5} 2 has sliver polygons-- I think the isPrismOfThisFace
@@ -160,12 +160,7 @@
           rotation handles!  Think about this... maybe draw them smaller
           and white, or something!
 
-        - why is scale different before I touch the slider??
         - scale doesn't quite match original
-        - it's not oriented correctly at the end after slicing-- so I had
-           to make orientDeep public and have the caller call it-- lame!
-           need to send in all planes at once so it can do that automatically
-           with some hope of being efficient
         - need more colors!
         - sometimes exception during picking trying to access too big
           an index right after switching to a smaller puzzle (e.g.
@@ -181,15 +176,8 @@
         - float slider with range 0..1 is mostly right but shows 0.0060, should be 0.006
         - args to MC4DViewApplet need to have clear error and usage message
             including form of the puzzle description,
-            and probably <puzzleDescription> should get changed
+            and probably if they give <puzzleDescription> it should get changed
             into puzzleDescription=<puzzleDescription>
-
-    NOT HAVING TO DO WITH THIS GENERIC STUFF:
-    =====================================================
-        - fucking twisting after I let up on the mouse sucks! fix it!!!
-        - fucking gui lies... not acceptable.
-        - just noticed, Esc doesn't work to cancel immediately, have to click
-            at least one thing first
 
     TODO:
     =====
@@ -207,12 +195,26 @@
                   failed attempt
             - should mention Johnson numbers where applicable
         MISC:
+            - checkbox "Auto 2d scale"
+                When checked, 2d view scale moves automatically
+                combined with other params
+                Hmm, could have another slider with it...
+                "2d view fraction"; scale2d and frac2d move together,
+                normally the other sliders affect frac2d
+                while leaving scale2d alone...
+                but if auto 2d scale is on, they affect scale2d
+                while leaving frac2d alone.
+            - 'frame' button?
+
             - can't twist while twist is in progress yet-- sucks for usability
             - the cool rotate-arbitrary-element-to-center thing
-               should be undoable
+               should be undoable... somehow
+               - preference whether that should be treated as an undo move?
             - faceExplode / stickerExplode sliders?
                I'm really confused on what the relationship is
                between those and viewScale, faceShrink, stickerShrink
+               Maybe could have a mode checkbox, that toggles
+               between a shrink notion and an explode notion
             - history compression
 
         HIGHLIGHT BY GRIP:
@@ -220,9 +222,10 @@
             - 2x outlines shows too much
 
         POLYTOPE STUFF:
-            - getAllIncidences would be faster
-              if I did it in two passes, counting first and then filling,
-              instead of using a gzillion Vectors one for each element
+            - it's not oriented correctly at the end after slicing-- so I had
+               to make orientDeep public and have the caller call it-- lame!
+            -  need to send in all planes at once so it can do that automatically
+               with some hope of being efficient
 
         NON-IMMEDIATE:
             - Grand Antiprism
