@@ -808,7 +808,7 @@ public class MC4DControlPanel
     } // MC4DControlPanel ctor
 
 
-    // for debugging
+    // for debugging XXX should probably be in com.donhatchsw.awt somewhere, the layout stuff has it too
     private static void randomlyColorize(Component c)
     {
         c.setBackground(new java.awt.Color((float)Math.random(),
