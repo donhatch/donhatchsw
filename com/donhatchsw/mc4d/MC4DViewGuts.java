@@ -899,7 +899,7 @@ public class MC4DViewGuts
         if (viewState.spinDelta != null) // note, the old applet had an additional test "and not dragging" but we don't need it because spinDelta is never set during dragging now, dragDelta is instead
         {
             if (viewParams.restrictRoll.get())
-                viewParams.viewMat3d.set(VecMath.mxm(viewParams.viewMat3d.get(), zeroOutRollOnSpinDelta(viewState, viewState.spinDelta)));
+                viewParams.viewMat3d.set(VecMath.mxm(viewParams.viewMat3d.get(), zeroOutRollAndTiltOnSpinDelta(viewState, viewState.spinDelta)));
             else
                 viewParams.viewMat3d.set(VecMath.mxm(viewParams.viewMat3d.get(), viewState.spinDelta));
             view.repaint();
