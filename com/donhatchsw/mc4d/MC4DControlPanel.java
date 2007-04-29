@@ -268,14 +268,14 @@ public class MC4DControlPanel
                     {
                         //System.out.println("in checkbox callback");
                         b.set(e.getStateChange() == ItemEvent.SELECTED);
-                        // will trigger valueChanged()
+                        // will trigger b.valueChanged()
                         // which will call updateShownValues()
                     }
                 });
             }
             updateShownValues();
         }
-    } // ColorSwatch
+    } // ColorSwatchMaybeAndCheckBoxMaybe ctor
 
     // XXX think of a name
     private static class CheckboxThing extends ColorSwatchMaybeAndCheckBoxMaybe
@@ -802,7 +802,31 @@ public class MC4DControlPanel
         addSingleButtonRow(new ResetButton(
             "Reset All To Defaults",
             Listenable.allListenablesInObject(viewParams)));
+
+        if (false)
+            randomlyColorize(this);
     } // MC4DControlPanel ctor
+
+
+    // for debugging
+    private static void randomlyColorize(Component c)
+    {
+        c.setBackground(new java.awt.Color((float)Math.random(),
+                                           (float)Math.random(),
+                                           (float)Math.random()));
+        c.setForeground(new java.awt.Color((float)Math.random(),
+                                           (float)Math.random(),
+                                           (float)Math.random()));
+        if (c instanceof Container)
+        {
+            Container C = (Container)c;
+            int n = C.getComponentCount();
+            for (int i = 0; i < n; ++i)
+                randomlyColorize(C.getComponent(i));
+        }
+    } // randomlyColorize
+
+
 
 
     public static void main(String args[])
