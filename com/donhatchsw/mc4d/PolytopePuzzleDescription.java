@@ -706,8 +706,46 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.flush();
             }
 
+            //
+            // Have to compute the shrink-to points here
+            // before doing further cuts,
+            // since it assumes there will be at most two ridges
+            // per sticker from a given face...
+            //
+            // Calculate the alternate sticker centers;
+            // intuitively, these are the shrink-to points
+            // on the face boundaries.
+            //
+            {
+                if (progressWriter != null)
+                {
+                    progressWriter.print("    Computing alternate sticker shrink-to points on face boundaries... ");
+                    progressWriter.flush();
+                }
+                this.stickerAltCentersF = computeStickerAltCentersF(
+                                              slicedPolytope,
+                                              face2OppositeFace,
+                                              intLength,
+                                              doubleLength);
+                if (progressWriter != null)
+                {
+                    progressWriter.println(" done.");
+                    progressWriter.flush();
+                }
+            }
             if (doFurtherCuts)
             {
+                {
+                    // ARGH! The further slicing is going to give a different
+                    // order of stickers... can't have that.
+                    // Temporarily mark each sticker with its current index;
+                    // we will use these marks to re-permute stickerAltCentersF
+                    // afterwards.
+                    CSG.Polytope stickers[] = slicedPolytope.p.getAllElements()[nDims-1];
+                    for (int iSticker = 0; iSticker < stickers.length; ++iSticker)
+                        stickers[iSticker].pushAux(new Integer(iSticker));
+                }
+
                 if (progressWriter != null)
                 {
                     progressWriter.print("    Further slicing for grips("+slicedPolytope.p.getAllElements()[2].length+" polygons)");
@@ -718,7 +756,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
                         faceInwardNormals[iFace],
                         (faceOffsets[iFace]+faceCutOffsets[iFace][0])/2.);
-                    Object auxOfCut = null; // XXX ARGH! further cuts completely mess up the shrink-to point calculation... oh this sucks!!!
+                    Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual case) that will get nulls for auxes, and that's fine
                     slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut);
                     if (progressWriter != null)
                     {
@@ -731,6 +769,21 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.println(" done ("+slicedPolytope.p.getAllElements()[2].length+" polygons).");
                     progressWriter.flush();
                 }
+
+                {
+                    // Permute newStickerAltCentersF
+                    // and pop each sticker's original index
+                    // from its aux stack.
+                    CSG.Polytope stickers[] = slicedPolytope.p.getAllElements()[nDims-1];
+                    float oldStickerAltCentersF[][] = this.stickerAltCentersF;
+                    float newStickerAltCentersF[][] = new float[stickers.length][];
+                    for (int iSticker = 0; iSticker < stickers.length; ++iSticker)
+                        newStickerAltCentersF[iSticker] = oldStickerAltCentersF[((Integer)stickers[iSticker].popAux()).intValue()];
+                    this.stickerAltCentersF = newStickerAltCentersF;
+                }
+
+
+
             }
 
             if (progressWriter != null)
@@ -782,6 +835,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // ridge.aux is now either an Integer (the index
                 // of the original ridge it was a part of)
                 // or a CutInfo (if it was created by a cut).
+                // XXX hey waitaminute, if there were further cuts for grips, there should be some nulls
                 Assert(ridge.aux != null);
                 boolean ridgeIsFromOriginal = (ridge.aux instanceof Integer);
                 if (ridgeIsFromOriginal) // if it's not from a cut
@@ -834,16 +888,6 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             this.faceCentersF = VecMath.doubleToFloat(faceCentersD);
             this.stickerCentersF = VecMath.doubleToFloat(stickerCentersD);
         }
-
-        //
-        // Calculate the alternate sticker centers;
-        // intuitively, these are the shrink-to points
-        // on the face boundaries.
-        //
-        this.stickerAltCentersF = computeStickerAltCentersF(slicedPolytope,
-                                                            face2OppositeFace,
-                                                            intLength,
-                                                            doubleLength);
 
         //
         // PolyFromPolytope doesn't seem to like the fact that
@@ -1453,11 +1497,13 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     avgDepthOfThisStickerBelowFace[iFace] = depth;
                     nCutsParallelToThisFace[iFace]++;
+                    Assert(nCutsParallelToThisFace[iFace] <= 2);
                     int oppFace = face2OppositeFace[iFace];
                     if (oppFace != -1)
                     {
                         avgDepthOfThisStickerBelowFace[oppFace] = 1.-depth;
                         nCutsParallelToThisFace[oppFace]++;
+                        Assert(nCutsParallelToThisFace[oppFace] <= 2);
                     }
                 } // for each ridge this sticker
 
@@ -1545,6 +1591,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     int iRidge = ridgesThisSticker[iRidgeThisSticker];
                     CSG.Polytope ridge = ridges[iRidge];
                     int iFace, iCutThisFace;
+                    Assert(ridge.aux != null);
                     if (ridge.aux instanceof CutInfo)
                     {
                         CutInfo cutInfo = (CutInfo)ridge.aux;
