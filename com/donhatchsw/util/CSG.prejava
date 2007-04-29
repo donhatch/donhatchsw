@@ -349,6 +349,7 @@ public final class CSG
             {
                 if (_allElements == null)
                 {
+                    // don't use pushAux because it's slightly more heavyweight than we need, and this can be a bottleneck function I think
                     class VisitedAux
                     {
                         public Object savedAux;
@@ -472,7 +473,7 @@ public final class CSG
 
                     // Mark each element temporarily with its index in allElts,
                     // so we don't have to do time consuming searches...
-                    // XXX should use the new pushAux/popAux mechanism instead of this, it would be simpler
+                    // We don't use pushAux because it's slightly more heavyweight than we need, and this can be a bottleneck function I think
                     class GlobalIndexAux
                     {
                         public int globalIndex;
