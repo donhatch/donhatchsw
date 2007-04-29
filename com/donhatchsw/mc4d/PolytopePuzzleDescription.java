@@ -118,12 +118,10 @@
                by turning on "Stickers shrink towards face boundaries"
                and setting "Face Shrink" to 1, and sliding stickerShrink
                up and down.
-            3. (Optional): There could be a Button (NOT a checkbox)
+            3. (Optional) There could be a Button (NOT a checkbox)
                called Contiguous Cubies that:
                    turns on "Stickers shrink towards face boundaries" if
                    not already on, and sets "Face Shrink" to 1.
-               I think we can do without it though; it's easy enough
-               to do by hand.
             4. Once the above is done, there will be no reason
                to let them go above 1 on either faceshrink or stickershrink
                any more, so both of those sliders's maxes can be set to 1.
@@ -143,8 +141,7 @@
     ===================
 
         - woops, Row is broken I think... rows of control panel have centered items when I wanted left justified
-        - spinning when restricting roll spins tilt as well as twirl, I thought I was making it not do that
-        - shrink-to calculation is fucked for the 2x2x2x2 I think, because of the extra cuts
+        - woops, spinning when restricting roll spins tilt as well as twirl, I thought I was making it not do that
         - undo tree's colors are wrong!
         - "{8}x{} 3" problems:   (or bigger)
             - click in middle of square face, the wrong thing gets twisted.
