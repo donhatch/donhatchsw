@@ -5,7 +5,7 @@ public class LayoutExample
 
     /**
         Test program, creates the following panel
-        in a single statement:
+        in a concise single statement:
         <pre>
         +----------------------------+
         |I:                          |
@@ -36,6 +36,7 @@ public class LayoutExample
     private static class LabeledCol
         extends NewCol
     {
+        private static final GridBagConstraints stretchxy = new GridBagConstraints(){{fill=BOTH; weightx=weighty=1.;}};
         private NewCol theRealCol;
         public LabeledCol(final String topLabelText,
                           final String sideLabelText)
@@ -43,8 +44,8 @@ public class LayoutExample
             super.add(new Label(topLabelText)); // super so I don't call my own!
             super.add(new NewRow() {{              // super so I don't call my own!
                 this.add(new Label(sideLabelText));
-                this.add(theRealCol = new NewCol());
-            }});
+                this.add(theRealCol = new NewCol(), stretchxy);
+            }}, stretchxy);
         }
         public Component add(Component comp)
         {
@@ -76,53 +77,103 @@ public class LayoutExample
 
     public static void main(String args[])
     {
-        final GridBagConstraints stretchxy = new GridBagConstraints(){{fill=BOTH;}};
-        new Frame("TableLayout, RowLayout, ColLayout Test") {{
-            add(new NewCol() {{
-                add(new LabeledCol("I:"," ") {{
-                    add(new LabeledCol("A:"," ") {{
-                        add(new NewRow() {{
-                            add(new Label("1:"));
-                            add(new Button("aa"));
-                            add(new Button("b"));
-                            add(new Button("c"));
+        {
+            final GridBagConstraints stretchxy = new GridBagConstraints(){{fill=BOTH; weightx=weighty=1.;}};
+            new Frame("TableLayout, RowLayout, ColLayout Test") {{
+                setLayout(new ColLayout());
+                add(new NewCol() {{
+                    add(new LabeledCol("I:"," ") {{
+                        add(new LabeledCol("A:"," ") {{
+                            add(new NewRow() {{
+                                add(new Label("1:"));
+                                add(new Button("aa"));
+                                add(new Button("b"));
+                                add(new Button("c"));
+                            }});
+                            add(new NewRow() {{
+                                add(new Label("2:"));
+                                add(new Button("d"));
+                                add(new Button("eee"));
+                                add(new Button("f"));
+                            }});
                         }});
-                        add(new NewRow() {{
-                            add(new Label("2:"));
-                            add(new Button("d"));
-                            add(new Button("eee"));
-                            add(new Button("f"));
+                        add(new LabeledCol("B:"," ") {{
+                            add(new NewRow() {{
+                                add(new Label("1:"));
+                                add(new Button("aa"));
+                            }});
+                            add(new NewRow() {{
+                                add(new Label("2:"));
+                                add(new Button("a"));
+                                add(new Button("b"));
+                            }});
                         }});
                     }});
-                    add(new LabeledCol("B:"," ") {{
-                        add(new NewRow() {{
-                            add(new Label("1:"));
-                            add(new Button("aa"));
-                        }});
-                        add(new NewRow() {{
-                            add(new Label("2:"));
-                            add(new Button("a"));
-                            add(new Button("b"));
+                    add(new LabeledCol("II:"," ") {{
+                        add(new LabeledCol("M:"," ") {{
+                            add(new TablePanel() {{
+                                add(new Button("m00"), stretchxy);
+                                add(new Button("m01"), stretchxy);
+                                advanceRow();
+                                add(new Button("0"), stretchxy);
+                                add(new Button("m11"), stretchxy);
+                            }});
                         }});
                     }});
                 }});
-                add(new LabeledCol("II:"," ") {{
-                    add(new LabeledCol("M:"," ") {{
-                        add(new TablePanel() {{
-                            add(new Button("m00"), stretchxy);
-                            add(new Button("m01"), stretchxy);
-                            advanceRow();
-                            add(new Button("0"), stretchxy);
-                            add(new Button("m11"), stretchxy);
-                        }});
-                    }});
+                if (false)
+                    randomlyColorize(this);
+
+                pack();
+
+                addWindowListener(new java.awt.event.WindowAdapter() {
+                    public void windowClosing(java.awt.event.WindowEvent we) {
+                        dispose();
+                        System.exit(0); // makes it exit quicker on my machine
+                    }
+                });
+
+                show();
+            }};
+        }
+
+        // Stealing from
+        // http://java.sun.com/docs/books/tutorial/uiswing/layout/spring.html
+        // to make sure we can do it easily...
+        // Oh, I guess an odd amount of inter-item spacing is awkward.
+        // WhatEVER.
+        if (false)
+        {
+            final GridBagConstraints constraints = new GridBagConstraints(){{fill=BOTH; weightx=1.; weighty=1.; insets = new Insets(3,3,0,0);}};
+            new javax.swing.JFrame("Compact grid using TableLayout") {{
+                setContentPane(new TablePanel() {{
+                    int rows = 10;
+                    int cols = 10;
+                    for (int r = 0; r < rows; r++) {
+                        for (int c = 0; c < cols; c++) {
+                            int anInt = (int) Math.pow(r, c);
+                            add(new javax.swing.JTextField(Integer.toString(anInt)),constraints);
+                        }
+                        add(new Canvas(){{setSize(3,3);}}); // fudge right pad
+                        advanceRow();
+                    }
                 }});
-            }});
-            if (false)
-                randomlyColorize(this);
-            pack();
-            show();
-        }};
+                add(new Canvas(){{setSize(3,3);}}); // fudge bottom pad
+                if (false)
+                    randomlyColorize(this);
+
+                pack();
+
+                addWindowListener(new java.awt.event.WindowAdapter() {
+                    public void windowClosing(java.awt.event.WindowEvent we) {
+                        dispose();
+                        System.exit(0); // makes it exit quicker on my machine
+                    }
+                });
+
+                show();
+            }};
+        }
     } // main
 
 

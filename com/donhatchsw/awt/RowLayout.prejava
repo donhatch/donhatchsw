@@ -11,7 +11,7 @@ import java.awt.GridBagConstraints;
  * <p>
  * Like GridBagLayout except for the following:
  * <ul>
- *      <li> the default constraints' anchor is WEST instead of CENTER
+ *      <li> the default constraints' anchor is WEST instead of CENTER.
  *      <li> Just lays out its components in a single row.
  *           gridx and gridy should be RELATIVE,
  *           and gridwidth and gridheight should be 1;

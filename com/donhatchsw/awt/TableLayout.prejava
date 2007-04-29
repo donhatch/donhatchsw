@@ -16,7 +16,7 @@ import java.awt.Button;
  * <p>
  * Like GridBagLayout except for the following:
  * <ul>
- *      <li> the default constraints' anchor is WEST instead of CENTER
+ *      <li> the default constraints' anchor is WEST instead of CENTER.
  *      <li> gridx==RELATIVE means the next column (as usual)
  *           but gridy==RELATIVE means the <b>same</b> row.
  *           The usual case is the default in which both are RELATIVE,
@@ -83,6 +83,8 @@ public class TableLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUsefu
         nextGridx = 0;
         nextGridy++;
     }
+
+
 
 
     /**
