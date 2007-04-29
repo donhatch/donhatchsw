@@ -5,6 +5,7 @@
 package com.donhatchsw.awt;
 
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.GridBagLayout;
 import java.awt.GridBagConstraints;
 
@@ -23,6 +24,18 @@ import java.awt.GridBagConstraints;
  * Also see the subclasses TableLayout, RowLayout and ColLayout,
  * and the convenience classes TablePanel, Row, Col, JTablePanel, JRow, JCol.
  * XXX not written yet
+ * <p>
+ * There are convenience methods for expressing the most common
+ * calls to add:
+ * <ul>
+ *     <li> add(container, component, fill)
+ *     <li> add(container, component, gridx, gridy)
+ *     <li> add(container, component, gridx, gridy, fill)
+ *     <li> add(container, component, gridx, gridy, gridwidth, gridheight, fill)
+ * </ul>
+ * Sorry, if you want anchor you have to do it yourself.
+ * <br>
+ * XXX know what, these are less than useful the way I'm usually using it.  probably should make a string parser instead.
  */
 public abstract class GridBagLayoutInWhichRELATIVEMeansSomethingUseful extends GridBagLayout
 {
@@ -55,7 +68,6 @@ public abstract class GridBagLayoutInWhichRELATIVEMeansSomethingUseful extends G
     public GridBagLayoutInWhichRELATIVEMeansSomethingUseful()
     {
         super();
-        super.defaultConstraints.anchor = GridBagConstraints.WEST;
     }
 
     /**
@@ -118,5 +130,57 @@ public abstract class GridBagLayoutInWhichRELATIVEMeansSomethingUseful extends G
      */
     protected abstract void setNextGridxy(int gridx, int gridy,
                                           int gridwidth, int gridheight);
+
+
+
+
+    /**
+     * Convenience...
+     */
+    public static void add(Container C, Component c, int fill)
+    {
+        GridBagLayoutInWhichRELATIVEMeansSomethingUseful layout = (GridBagLayoutInWhichRELATIVEMeansSomethingUseful)C.getLayout();
+        copyGridBagConstraints(scratchConstraints, layout.defaultConstraints);
+        scratchConstraints.fill = fill;
+        C.add(c, scratchConstraints);
+    }
+    public static void add(Container C, Component c, int gridx, int gridy)
+    {
+        GridBagLayoutInWhichRELATIVEMeansSomethingUseful layout = (GridBagLayoutInWhichRELATIVEMeansSomethingUseful)C.getLayout();
+        copyGridBagConstraints(scratchConstraints, layout.defaultConstraints);
+        scratchConstraints.gridx = gridx;
+        scratchConstraints.gridy = gridy;
+        C.add(c, scratchConstraints);
+    }
+    public static void add(Container C, Component c, int gridx, int gridy, int fill)
+    {
+        GridBagLayoutInWhichRELATIVEMeansSomethingUseful layout = (GridBagLayoutInWhichRELATIVEMeansSomethingUseful)C.getLayout();
+        copyGridBagConstraints(scratchConstraints, layout.defaultConstraints);
+        scratchConstraints.gridx = gridx;
+        scratchConstraints.gridy = gridy;
+        scratchConstraints.fill = fill;
+        C.add(c, scratchConstraints);
+    }
+    public static void add(Container C, Component c, int gridx, int gridy, int gridwidth, int gridheight)
+    {
+        GridBagLayoutInWhichRELATIVEMeansSomethingUseful layout = (GridBagLayoutInWhichRELATIVEMeansSomethingUseful)C.getLayout();
+        copyGridBagConstraints(scratchConstraints, layout.defaultConstraints);
+        scratchConstraints.gridx = gridx;
+        scratchConstraints.gridy = gridy;
+        scratchConstraints.gridwidth = gridwidth;
+        scratchConstraints.gridheight = gridheight;
+        C.add(c, scratchConstraints);
+    }
+    public static void add(Container C, Component c, int gridx, int gridy, int gridwidth, int gridheight, int fill)
+    {
+        GridBagLayoutInWhichRELATIVEMeansSomethingUseful layout = (GridBagLayoutInWhichRELATIVEMeansSomethingUseful)C.getLayout();
+        copyGridBagConstraints(scratchConstraints, layout.defaultConstraints);
+        scratchConstraints.gridx = gridx;
+        scratchConstraints.gridy = gridy;
+        scratchConstraints.gridwidth = gridwidth;
+        scratchConstraints.gridheight = gridheight;
+        scratchConstraints.fill = fill;
+        C.add(c, scratchConstraints);
+    }
 
 } // class GridBagLayoutInWhichRELATIVEMeansSomethingUseful
