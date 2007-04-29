@@ -140,7 +140,6 @@
     BUGS / URGENT TODOS:
     ===================
 
-        - woops, Row is broken I think... rows of control panel have centered items when I wanted left justified
         - woops, spinning when restricting roll spins tilt as well as twirl, I thought I was making it not do that
         - undo tree's colors are wrong!
         - "{8}x{} 3" problems:   (or bigger)
