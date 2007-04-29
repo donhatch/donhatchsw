@@ -711,58 +711,6 @@ public class MC4DControlPanel
         {
             add(new CanvasOfSize(20,10), // indent
                      new GridBagConstraints(){{gridy = nRows;}});
-            add(new Button("Frame Picture") {{
-                    addActionListener(new ActionListener() {
-                        public void actionPerformed(ActionEvent e)
-                        {
-                            float oldScale = viewParams.viewScale2d.get();
-                            if (oldScale <= 0.f)
-                            {
-                                viewParams.viewScale2d.resetToDefault();
-                                // they'll have to hit the button again
-                                // after it paints with the sane value.
-                                // serves them right.
-                                return;
-                            }
-                            // Figure out a bounding box for what's painted
-                            GenericPipelineUtils.Frame frame = viewState.untwistedFrame;
-                            float verts[][] = frame.verts; // XXX does this maybe include extras?
-                            float bbox[/*2*/][] = com.donhatchsw.util.VecMath.bbox(verts);
-                            System.out.println("nVerts = "+verts.length);
-                            System.out.println("bbox = "+com.donhatchsw.util.VecMath.toString(bbox));
-                            float windowWidth = 502.f; // XXX
-                            float windowHeight = 485.f; // XXX
-                            float oldPercentage = Math.max(
-                                (bbox[1][0]-bbox[0][0])/windowWidth,
-                                (bbox[1][1]-bbox[0][1])/windowHeight);
-                            System.out.println("oldPercentage = "+oldPercentage);
-                            float rescaleNeeded = .9f / oldPercentage;
-                            // XXX I think there's a bug that makes the effect of scale get squared... so only rescale it by square root of what we should REALLY rescale it by
-                            rescaleNeeded = (float)Math.sqrt(rescaleNeeded);
-                            float newScale = oldScale * rescaleNeeded;
-                            viewParams.viewScale2d.set(newScale);
-                        }
-                    });
-                }},
-                new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
-            super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
-            add(new HelpButton("Frame Picture",
-                               new String[] {
-                                   "Pressing the Frame Picture button",
-                                   "changes the 2d scale if necessary",
-                                   "so that the picture takes up",
-                                   "90% of the viewing window in one",
-                                   "of the two directions (width or height)",
-                                   "and at most that in the other direction.",
-                                }),
-                new GridBagConstraints(){{gridy = nRows;}});
-            nRows++;
-        }
-
-        if (true)
-        {
-            add(new CanvasOfSize(20,10), // indent
-                     new GridBagConstraints(){{gridy = nRows;}});
             add(new Button("Contiguous cubies") {
                     private Listenable.Listener listener; // need to keep a strong ref to the listener for as long as I'm alive
                     private void updateShownValue()
@@ -806,7 +754,7 @@ public class MC4DControlPanel
                                 }),
                 new GridBagConstraints(){{gridy = nRows;}});
             nRows++;
-        } // contiguous cubies button
+        } // contiguous cubies button row
 
         if (true)
         {
@@ -870,7 +818,60 @@ public class MC4DControlPanel
                                 }),
                 new GridBagConstraints(){{gridy = nRows;}});
             nRows++;
-        } // contiguous cubies checkbox
+        } // contiguous cubies checkbox row
+
+        if (true)
+        {
+            add(new CanvasOfSize(20,10), // indent
+                     new GridBagConstraints(){{gridy = nRows;}});
+            add(new Button("Frame Picture") {{
+                    addActionListener(new ActionListener() {
+                        public void actionPerformed(ActionEvent e)
+                        {
+                            float oldScale = viewParams.viewScale2d.get();
+                            if (oldScale <= 0.f)
+                            {
+                                viewParams.viewScale2d.resetToDefault();
+                                // they'll have to hit the button again
+                                // after it paints with the sane value.
+                                // serves them right.
+                                return;
+                            }
+                            // Figure out a bounding box for what's painted
+                            GenericPipelineUtils.Frame frame = viewState.untwistedFrame;
+                            float verts[][] = frame.verts; // XXX does this maybe include extras?
+                            float bbox[/*2*/][] = com.donhatchsw.util.VecMath.bbox(verts);
+                            System.out.println("nVerts = "+verts.length);
+                            System.out.println("bbox = "+com.donhatchsw.util.VecMath.toString(bbox));
+                            float windowWidth = 502.f; // XXX
+                            float windowHeight = 485.f; // XXX
+                            float oldPercentage = Math.max(
+                                (bbox[1][0]-bbox[0][0])/windowWidth,
+                                (bbox[1][1]-bbox[0][1])/windowHeight);
+                            System.out.println("oldPercentage = "+oldPercentage);
+                            float rescaleNeeded = .9f / oldPercentage;
+                            // XXX I think there's a bug that makes the effect of scale get squared... so only rescale it by square root of what we should REALLY rescale it by
+                            rescaleNeeded = (float)Math.sqrt(rescaleNeeded);
+                            float newScale = oldScale * rescaleNeeded;
+                            viewParams.viewScale2d.set(newScale);
+                        }
+                    });
+                }},
+                new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
+            super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            add(new HelpButton("Frame Picture",
+                               new String[] {
+                                   "Pressing the Frame Picture button",
+                                   "changes the 2d scale if necessary",
+                                   "so that the picture takes up",
+                                   "90% of the viewing window in one",
+                                   "of the two directions (width or height)",
+                                   "and at most that in the other direction.",
+                                }),
+                new GridBagConstraints(){{gridy = nRows;}});
+            nRows++;
+        } // frame picture button row
+
 
 
         addCheckboxRow(
