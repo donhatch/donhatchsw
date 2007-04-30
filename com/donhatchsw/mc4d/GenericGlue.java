@@ -216,7 +216,7 @@ public class GenericGlue
         }
 
         String menuScheme[][] = {
-          {"-"}, // separator
+          //{"-"}, // separator
           //{"Generic puzzles (no saving or macros)"},
           {"2d puzzles"},
           {"    {3} Triangle",        "1,2,3,4,5"},
@@ -409,7 +409,7 @@ public class GenericGlue
           {"    {3,3,3,3,3} Simplex",      "1,2,3"},
           {"    {4,3,3,3,3} Hypercube",    "1,2,3"},
           {"    {3,3,3,3,4} Cross",        "1"}, // vertex figure not simplex
-          //{"-"}, // separator
+          {"-"}, // separator
           //{"Invent my own!",}, // XXX currently done by the older code down below-- need to port and get rid of that
         }; // menuScheme
 
@@ -742,7 +742,7 @@ public class GenericGlue
                             }
 
                             int nDims = newPuzzle.nDims();
-                            if (nDims != 4)
+                            if (nDims > 4)
                             {
                                 JOptionPane.showMessageDialog(null,
                                     "Re: Your invention \""+schlafli+"  "+lengthString+"\"\n"+
@@ -857,7 +857,9 @@ public class GenericGlue
         statusLabel.setText("");
     } // cheatAction
 
-    public void scrambleAction(Component view, JLabel statusLabel, int scramblechenfrengensen)
+    public void scrambleAction(Component view, // Canvas or JPanel, probably
+                               Component statusLabel, // Label or JLabel
+                               int scramblechenfrengensen)
     {
         GenericGlue glue = this;
         int nDims = model.genericPuzzleDescription.nDims();
@@ -899,7 +901,11 @@ public class GenericGlue
         view.repaint();
         boolean fully = scramblechenfrengensen == MagicCube_FULL_SCRAMBLE;
         // scrambleState = fully ? SCRAMBLE_FULL : SCRAMBLE_PARTIAL; XXX do we need to do this here?
-        statusLabel.setText(fully ? "Fully Scrambled" : scramblechenfrengensen + " Random Twist" + (scramblechenfrengensen==1?"":"s"));
+        String labelText = fully ? "Fully Scrambled" : scramblechenfrengensen + " Random Twist" + (scramblechenfrengensen==1?"":"s");
+        if (statusLabel instanceof JLabel)
+            ((JLabel)statusLabel).setText(labelText);
+        else
+            ((Label)statusLabel).setText(labelText);
     } // scrambleAction
 
 
