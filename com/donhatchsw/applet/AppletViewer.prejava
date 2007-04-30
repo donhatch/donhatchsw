@@ -151,7 +151,7 @@ public class AppletViewer
 
 
         //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
-        final java.awt.Frame frame = new java.awt.Frame("Example Applet") {
+        final java.awt.Frame frame = new java.awt.Frame("Applet Viewer: "+appletClassName) {
             public boolean handleEvent(java.awt.Event event)
             {
                 switch(event.id)
@@ -193,7 +193,7 @@ public class AppletViewer
 
         // The following seems to be necessary, or getParameter() will crash, at least in 1.4.
         // And we need it anyway, to send params from the command line.
-        // XXX need a clever way to detect spurious extra params! not sure there is a way when in a web page, but if using main's args, could remove them as we read them and see if anything is left over
+        // XXX need a clever way to detect spurious extra params! not sure there is a way when in a web page, but if using main's args, could remove them as we read them and see if anything is left over.
         applet.setStub(new java.applet.AppletStub() {
              public void appletResize(int width, int height) 
              {
