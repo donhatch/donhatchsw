@@ -153,6 +153,7 @@ public class MC4DApplet
             extends NewRow
         {
             private int eventVerbose = 0;
+            private boolean doHighlighting = false; // not ready for prime time-- sometimes background is white
             private boolean someMenuIsShowing = false; // XXX bleah! this isn't working right at all... how the hell can I tell when it pops up and down???
             public MyMenuBar()
             {
@@ -184,9 +185,12 @@ public class MC4DApplet
                         {
                             if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseEntered");
                             if (eventVerbose >= 2) System.out.println("        "+me);
-                            if (savedForeground == null)
-                                savedForeground = getForeground();
-                            setForeground(Color.white);
+                            if (doHighlighting)
+                            {
+                                if (savedForeground == null)
+                                    savedForeground = getForeground();
+                                setForeground(Color.white);
+                            }
 
                             if (me.getModifiers() != 0)
                             {
@@ -198,10 +202,13 @@ public class MC4DApplet
                         public void mouseExited(MouseEvent me)
                         {
                             if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseExited");
-                            if (savedForeground != null)
+                            if (doHighlighting)
                             {
-                                setForeground(savedForeground);
-                                savedForeground = null;
+                                if (savedForeground != null)
+                                {
+                                    setForeground(savedForeground);
+                                    savedForeground = null;
+                                }
                             }
                         } // mouseExited
                     });
@@ -245,8 +252,34 @@ public class MC4DApplet
                 add("File", new PopupMenu() {{
                     if (isInSandbox)
                     {
-                        add("Save to the cookie");
-                        add("Load from the cookie");
+                        add(new MyMenuItem("Save to the cookie") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                com.donhatchsw.applet.CookieUtils.setCookie(MC4DApplet.this, "mc4dmodelstate", viewGuts.model.toString());
+                            }
+                        });
+                        add(new MyMenuItem("Load from the cookie") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(MC4DApplet.this, "mc4dmodelstate");
+                                MC4DModel newModel = MC4DModel.fromString(modelStateString);
+                                if (newModel != null)
+                                    viewGuts.setModel(newModel);
+                            }
+                        });
+                        if (true)
+                            add(new MyMenuItem("Test to/from string") {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    MC4DModel m0 = viewGuts.model;
+                                    String s1 = m0.toString();
+                                    System.out.println("model = "+s1);
+                                    MC4DModel m2 = MC4DModel.fromString(s1);
+                                    String s3 = m2.toString();
+                                    Assert(s3.equals(s1));
+                                    System.out.println("Good!");
+                                }
+                            });
                     }
                     else
                     {
@@ -265,7 +298,6 @@ public class MC4DApplet
                                 viewGuts.model.genericPuzzleState,
                                 viewGuts.model.genericPuzzleDescription.getSticker2Face());
                             viewGuts.model.controllerUndoTreeSquirrel.Clear();
-                            canvas.repaint(); // XXX necessary?
                         }
                     });
                     add(new MyMenuItem("Undo") {
@@ -273,7 +305,6 @@ public class MC4DApplet
                         {
                             if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
                                 System.out.println("Nothing to undo.");
-                            canvas.repaint(); // XXX necessary?
                         }
                     });
                     add(new MyMenuItem("Redo") {
@@ -281,7 +312,6 @@ public class MC4DApplet
                         {
                             if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
                                 System.out.println("Nothing to redo.");
-                            canvas.repaint(); // XXX necessary?
                         }
                     });
                     addSeparator();
@@ -290,7 +320,6 @@ public class MC4DApplet
                         {
                             while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
                                 ;
-                            canvas.repaint(); // XXX necessary?
                         }
                     });
                     add(new MyMenuItem("Solve (for real)") {
@@ -355,6 +384,13 @@ public class MC4DApplet
                         }
                     });
                     add(new MyMenuItem("Cloned view of cloned model") {
+                        {setEnabled(false);}
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                        }
+                    });
+                    addSeparator();
+                    add(new MyMenuItem("Progress/diagnostics/debug") {
                         {setEnabled(false);}
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
