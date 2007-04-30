@@ -16,6 +16,7 @@ public class AppletUtils
     public static void getParametersIntoPublicFields(java.applet.Applet applet,
                                                      int verboseLevel)
     {
+        // XXX this is backwards, I think! should iterate over all the params, not all the public fields.  unfortunately I don't think there is any API for that?? oh wait, there is getParameterInfo. hmm. that requires the caller to cooperate.  hmm.
         Class appletClass = applet.getClass();
         java.lang.reflect.Field[] fields = appletClass.getFields();
         for (int i = 0; i < fields.length; i++)
