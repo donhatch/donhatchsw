@@ -139,6 +139,8 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - in java 1.6, File->Test to/from string gives stack oflow
+
         - label each window, e.g.
                 View and controller windows:
                     model 0 view 0
