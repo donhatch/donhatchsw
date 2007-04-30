@@ -590,6 +590,8 @@ public class ExampleApplet
                 public void windowClosing(java.awt.event.WindowEvent we) {
                     System.out.println("ciao!");
                     frame.dispose(); // hide() doesn't delete the windows
+                }
+                public void windowClosed(java.awt.event.WindowEvent we) {
                     System.exit(0);
                 }
             });
