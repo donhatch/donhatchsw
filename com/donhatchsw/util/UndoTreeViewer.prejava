@@ -191,6 +191,8 @@ public class UndoTreeViewer
     //
     private UndoTreeSquirrel undoTreeSquirrel = null;
     private UndoTreeSquirrel.Listener undoTreeListener = null;
+    private UndoTreeSquirrel undoTreeSquirrel2 = null; // XXX lame, should be a list
+    private UndoTreeSquirrel.Listener undoTreeListener2 = null; // XXX lame, should be a list
     private java.awt.Component component;
     private java.awt.event.KeyListener componentKeyListener = null;
     private java.awt.event.MouseListener componentMouseListener = null;
@@ -255,6 +257,25 @@ public class UndoTreeViewer
             component.repaint();
 
     } // attachToUndoTreeSquirrel
+    public void attachToUndoTreeSquirrel2(UndoTreeSquirrel undoTreeSquirrel2)
+    {
+        if (undoTreeListener2 != null)
+            throw new IllegalArgumentException("UndoTreeViewer.attachToUndoTreeSquirrel2: already attached to someone"); // XXX should be illegal state or something instead?
+        this.undoTreeSquirrel2 = undoTreeSquirrel2;
+        undoTreeSquirrel2.addListener(this.undoTreeListener2 = new UndoTreeSquirrel.Listener() {
+            public void somethingChanged()
+            {
+                if (component != null)
+                    component.repaint();
+            }
+        });
+
+        // And just do it, since something did change...
+        if (component != null)
+            component.repaint();
+
+    } // attachToUndoTreeSquirrel
+
     /** Detaches from the UndoTreeSquirrel that was previously attached using attachToUndoTreeSquirrel. */
     public void detachFromUndoTreeSquirrel()
     {
@@ -268,6 +289,21 @@ public class UndoTreeViewer
         if (component != null)
             component.repaint();
     } // detachFromUndoTreeSquirrel
+
+    public void detachFromUndoTreeSquirrel2()
+    {
+        if (undoTreeListener2 == null)
+            throw new IllegalArgumentException("UndoTreeViewer.detachFromUndoTreeSquirrel: not attached to any UndoTreeSquirrel"); // XXX should be illegal state or something instead?
+        undoTreeSquirrel2.removeListener(undoTreeListener);
+        undoTreeListener2 = null;
+        undoTreeSquirrel2 = null;
+
+        // And just do it, since something did change...
+        if (component != null)
+            component.repaint();
+    } // detachFromUndoTreeSquirrel2
+
+
     /** Installs event listeners on the given Component, which can be a Canvas or a JPanel or whatever. It is an error to try to attach to more than one Component at a given time. */
     public void attachToComponent(final java.awt.Component component)
     {
@@ -755,7 +791,9 @@ public class UndoTreeViewer
             }
         }
 
-        undoTreeSquirrel.takeSnapshot(snapshot);
+        UndoTreeSquirrel otherSquirrels[] = undoTreeSquirrel2 != null ? new UndoTreeSquirrel[] {undoTreeSquirrel2} : new UndoTreeSquirrel[] {};
+
+        undoTreeSquirrel.takeSnapshot(snapshot, otherSquirrels);
         int nNodes = snapshot.nNodes;
         int parentNode = snapshot.parents[snapshot.currentNode]==-1 ? snapshot.currentNode : snapshot.parents[snapshot.currentNode];
         double currentNodeTimeFraction = snapshot.currentNodeFraction;
@@ -950,9 +988,23 @@ public class UndoTreeViewer
             // Put a ring around the current node
             //
             {
-
                 double currentNodeX = LERP(x[parentNode], x[snapshot.currentNode], currentNodeSpaceFraction);
                 double currentNodeY = LERP(y[parentNode], y[snapshot.currentNode], currentNodeSpaceFraction);
+                g.setColor(java.awt.Color.white);
+                int radius = 5;
+                g.drawRect((int)currentNodeX-radius,
+                           (int)currentNodeY-radius,
+                           2*radius,2*radius);
+            }
+
+            //
+            // Put smaller rings around any secondary squirrels' positions.
+            //
+            for (int i = 0; i < snapshot.nOtherSquirrels; ++i)
+            {
+                int parentNode2 = snapshot.parents[snapshot.otherSquirrelsCurrentNodes[i]]==-1 ? snapshot.otherSquirrelsCurrentNodes[i] : snapshot.parents[snapshot.otherSquirrelsCurrentNodes[i]];
+                double currentNodeX = LERP(x[parentNode2], x[snapshot.otherSquirrelsCurrentNodes[i]], snapshot.otherSquirrelsCurrentNodeFractions[i]); // assumes time = space
+                double currentNodeY = LERP(y[parentNode2], y[snapshot.otherSquirrelsCurrentNodes[i]], snapshot.otherSquirrelsCurrentNodeFractions[i]); // assumes time = space
                 g.setColor(java.awt.Color.white);
                 int radius = 4;
                 g.drawRect((int)currentNodeX-radius,
@@ -1047,6 +1099,7 @@ public class UndoTreeViewer
     public static UndoTreeViewer makeExampleUndoTreeViewer(
                                            final String name,
                                            final UndoTreeSquirrel undoTreeSquirrel,
+                                           final UndoTreeSquirrel otherSquirrels[],
                                            final String nameOfOtherViewThatThisViewShouldFollowAround,
                                            final UndoTreeSquirrel otherViewThatThisViewShouldFollowAround,
                                            final int x, final int y, final int w, final int h,
@@ -1124,8 +1177,11 @@ public class UndoTreeViewer
             }
         };
         // should work in either order...
+        // XXX need confidence test for it in both orders then
         undoTreeViewer.attachToComponent(jpanel);
         undoTreeViewer.attachToUndoTreeSquirrel(undoTreeSquirrel);
+        for (int i = 0; i < otherSquirrels.length; ++i)
+            undoTreeViewer.attachToUndoTreeSquirrel2(otherSquirrels[i]);
 
 
         // XXX hmm, I think I have listener memory leaks everywhere...
@@ -1211,6 +1267,7 @@ public class UndoTreeViewer
                 {
                     makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++),
                                               new UndoTreeSquirrel(undoTreeSquirrel), // different view, same model
+                                              new UndoTreeSquirrel[]{},
                                               ke.isControlDown() ? name : null, // ctrl-n means the new one should follow me around
                                               ke.isControlDown() ? undoTreeSquirrel : null, // ctrl-n means the new one should follow me around
                                               x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, allowDo, allowUndoRedo, lengthizer, colorizer);
@@ -1362,27 +1419,27 @@ public class UndoTreeViewer
         int nViewersEverMade[] = {0};
         int x = 50;
         int w = 400;
-        makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, null, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+        makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, new UndoTreeSquirrel[]{}, null, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         // The following two lines are very different!
         if (false)
         {
             // Doing it this way, both viewers will share
             // undos and redos (as well as changes in the tree structure).
             // Each can have its own display style though.
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, new UndoTreeSquirrel[]{}, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
         if (false)
         {
             // Doing it this way, both viewers see tree changes
             // but they can explore the tree independently;
             // one viewer's undos and redos will not affect the other.
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel = new UndoTreeSquirrel(squirrel), null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel = new UndoTreeSquirrel(squirrel), new UndoTreeSquirrel[]{}, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
         if (true)
         {
             // Doing it this way, the new one will follow the previous one
             // around!
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), new UndoTreeSquirrel(squirrel), "View "+(nViewsEverMade[0]-2/*omg this is outa control*/), squirrel, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), new UndoTreeSquirrel(squirrel), new UndoTreeSquirrel[]{}, "View "+(nViewsEverMade[0]-2/*omg this is outa control*/), squirrel, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
 
         //

@@ -7,6 +7,32 @@ import com.donhatchsw.compat.regex;
 /**
 * Experimenting with the idea of an undo/redo tree.
 * <a href="http://www.geocities.com/Hollywood/Set/4159/COULDWRK.WAV">It could work</a>!
+* <p>
+* An UndoTreeSquirrel represents the notion of a current position
+* in an undo tree.  It can travel up and down the tree (undo and redo),
+* and it also has a memory of where it's been;
+* when given a choice of possible redo branches, it will choose
+* the branch it was most recently in.
+* <p>
+* Multiple squirrels can live in the same undo tree,
+* and one squirrel can be told to follow another, possibly
+* at a limited speed.
+* This can be useful in Model/View/Controller scenario
+* in which the Controller's notion of current state
+* is allowed to change very fast or instantaneously,
+* while the View's animation lags behind, progressing continuously
+* at a slower speed.
+* This scenario would be represented by two squirrels
+* living in the same tree: the Controller squirrel
+* moves around fast and can create new branches,
+* while the View squirrel follows the Controller squirrel around,
+* always moving towards it.
+* <p>
+* Currently there is no way for an application to have a direct
+* handle to an undo tree; undo trees are only accessed and manipulated
+* through squirrels.  This includes growing the tree: the only way
+* to add nodes to a tree is by the actions of a squirrel
+* (the Do method).
 */
 
 public class UndoTreeSquirrel
@@ -36,14 +62,15 @@ public class UndoTreeSquirrel
         public void somethingChanged();
     }
 
-    // It's a model/view setup, where UndoTreeSquirrel itself is the view and UndoTreeSquirrel.Model is the model.
+    // It's a model/view setup, where UndoTreeSquirrel itself is the view and UndoTreeSquirrel.Model is the model (the tree itself).
+    // The name Model is left over from when UndoTreeSquirrel was called UndoTree...   Model should probably be renamed UndoTree.  However it's not part of the public interface so apps shouldn't care.
     // XXX gah, I hate that privates of subclasses are accessible... I want to make them private so I don't cheat, I should be able to, dammit
     private static class Model
     {
         // A node represents a state of the application;
         // the edges are editing operations that go from node to node.
         // Do, undo, and redo means traversing an edge
-        // (although that is a View concept, since the model
+        // (although that is a Squirrel concept, since the model
         // has no concept of current position).
         public static class Node
         {
@@ -762,11 +789,19 @@ public class UndoTreeSquirrel
         public Object sharedLabels[] = null;
         public Object privateLabels[] = null;
         public int preferredChild[] = null;
+        public int nOtherSquirrels = -1;
+        public int otherSquirrelsCurrentNodes[] = null;
+        public double otherSquirrelsCurrentNodeFractions[] = null;
     } // Snapshot
 
     /** Take a snapshot of the undo tree, locking down the shared data structures for as short a time as possible. */
-    public void takeSnapshot(Snapshot snapshot)
+    public void takeSnapshot(Snapshot snapshot,
+                             UndoTreeSquirrel otherSquirrels[])
     {
+        for (int i = 0; i < otherSquirrels.length; ++i)
+            if (otherSquirrels[i].model != model)
+                throw new IllegalArgumentException("UndoTreeSquirrel.takeSnapshot called with other squirrel that's not in the same tree!");
+
         // Don't lock down while allocating,
         // just re-do the allocations if something changed,
         // which will almost never happen.
@@ -777,7 +812,9 @@ public class UndoTreeSquirrel
         while (true)
         {
             int nNodes = model.nodes.size();
+            int nOtherSquirrels = otherSquirrels.length;
             snapshot.nNodes = nNodes;
+            snapshot.nOtherSquirrels = nOtherSquirrels;
             if (snapshot.parents == null
              || snapshot.parents.length < nNodes)
                 snapshot.parents = new int[nNodes];
@@ -793,6 +830,13 @@ public class UndoTreeSquirrel
             if (snapshot.preferredChild == null ||
                 snapshot.preferredChild.length < nNodes)
                 snapshot.preferredChild = new int[nNodes];
+            if (snapshot.otherSquirrelsCurrentNodes == null ||
+                snapshot.otherSquirrelsCurrentNodes.length < nOtherSquirrels)
+                snapshot.otherSquirrelsCurrentNodes = new int[nOtherSquirrels];
+            if (snapshot.otherSquirrelsCurrentNodeFractions == null ||
+                snapshot.otherSquirrelsCurrentNodeFractions.length < nOtherSquirrels)
+                snapshot.otherSquirrelsCurrentNodeFractions = new double[nOtherSquirrels];
+
             synchronized(model.nodes) // model.nodes.size can change while waiting for this lock... and our currentNodeIndex might change with it due to our listener being called
             {
                 if (model.nodes.size() != nNodes)
@@ -827,13 +871,18 @@ public class UndoTreeSquirrel
                 }
                 snapshot.currentNode = currentNodeIndex;
                 snapshot.currentNodeFraction = currentNodeFraction.get();
+                for (int i = 0; i < nOtherSquirrels; ++i)
+                {
+                    snapshot.otherSquirrelsCurrentNodes[i] = otherSquirrels[i].currentNodeIndex;
+                    snapshot.otherSquirrelsCurrentNodeFractions[i] = otherSquirrels[i].currentNodeFraction.get();
+                }
                 break;
             } // synchronized(model.nodes)
         }
         // we could nicify it here if we want... perhaps putting in the children pointers as well, we're in no hurry any more
         assert(snapshot.currentNode >= 0);
         assert(snapshot.currentNode < snapshot.nNodes);
-    } // takeSnapshot // takeSnapshot
+    } // takeSnapshot
 
 
     /**
