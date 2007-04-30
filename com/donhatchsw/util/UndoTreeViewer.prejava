@@ -126,8 +126,8 @@ import com.donhatchsw.compat.regex;
 * |Component |---------->|UndoTreeViewer |------------------->|              |
 * |          |           |               |                    | Do,undo,redo |
 * |-  -  -  -| repaint() |               | somethingChanged() | +---------+  |
-* |          |<----------|<--------------|<---------------------|UndoTree |  |
-* |          |---------->|               |           +----------|         |  |
+* |          |<----------|<--------------|<---------------------|UndoTree-|  |
+* |          |---------->|               |           +----------|Squirrel |  |
 * |          |  paint()  |               |           |        | |         |  |
 * |          |           |               |           |        | +---------+  |
 * |          |<--------- +---------------+           v        +--------------+
@@ -164,7 +164,7 @@ public class UndoTreeViewer
 
 
     private ItemColorizer colorizer; // set in ctor
-    private UndoTree.ItemLengthizer lengthizer; // set in ctor
+    private UndoTreeSquirrel.ItemLengthizer lengthizer; // set in ctor
 
     //
     // Viewing parameters that always change SMOOTHLY
@@ -189,8 +189,8 @@ public class UndoTreeViewer
     //
     // Things I listen to...
     //
-    private UndoTree undoTree = null;
-    private UndoTree.Listener undoTreeListener = null;
+    private UndoTreeSquirrel undoTreeSquirrel = null;
+    private UndoTreeSquirrel.Listener undoTreeListener = null;
     private java.awt.Component component;
     private java.awt.event.KeyListener componentKeyListener = null;
     private java.awt.event.MouseListener componentMouseListener = null;
@@ -200,7 +200,7 @@ public class UndoTreeViewer
     //
     private com.donhatchsw.compat.ArrayList/*<Applistener>*/ appListeners = new com.donhatchsw.compat.ArrayList();
 
-    /** Install one of these if you want the UndoTree to be able to request app actions in response to the user manipulating the UndoTreeViewer window. */
+    /** Install one of these if you want the UndoTreeSquirrel to be able to request app actions in response to the user manipulating the UndoTreeViewer window. */
     // XXX I'm not sure this is functional?  revisit this
     public interface AppListener
     {
@@ -236,13 +236,13 @@ public class UndoTreeViewer
         String rightLabel(Object item);
     }
 
-    /** Attaches to the given UndoTree. It is an error to try to attach to more than one UndoTree at a given time. */
-    public void attachToUndoTree(UndoTree undoTree)
+    /** Attaches to the given UndoTreeSquirrel. It is an error to try to attach to more than one UndoTreeSquirrel at a given time. */
+    public void attachToUndoTreeSquirrel(UndoTreeSquirrel undoTreeSquirrel)
     {
         if (undoTreeListener != null)
-            throw new IllegalArgumentException("UndoTreeViewer.attachToUndoTree: already attached to someone"); // XXX should be illegal state or something instead?
-        this.undoTree = undoTree;
-        undoTree.addListener(this.undoTreeListener = new UndoTree.Listener() {
+            throw new IllegalArgumentException("UndoTreeViewer.attachToUndoTreeSquirrel: already attached to someone"); // XXX should be illegal state or something instead?
+        this.undoTreeSquirrel = undoTreeSquirrel;
+        undoTreeSquirrel.addListener(this.undoTreeListener = new UndoTreeSquirrel.Listener() {
             public void somethingChanged()
             {
                 if (component != null)
@@ -254,20 +254,20 @@ public class UndoTreeViewer
         if (component != null)
             component.repaint();
 
-    } // attachToUndoTree
-    /** Detaches from the UndoTree that was previously attached using attachToUndoTree. */
-    public void detachFromUndoTree()
+    } // attachToUndoTreeSquirrel
+    /** Detaches from the UndoTreeSquirrel that was previously attached using attachToUndoTreeSquirrel. */
+    public void detachFromUndoTreeSquirrel()
     {
         if (undoTreeListener == null)
-            throw new IllegalArgumentException("UndoTreeViewer.detachFromUndoTree: not attached to any UndoTree"); // XXX should be illegal state or something instead?
-        undoTree.removeListener(undoTreeListener);
+            throw new IllegalArgumentException("UndoTreeViewer.detachFromUndoTreeSquirrel: not attached to any UndoTreeSquirrel"); // XXX should be illegal state or something instead?
+        undoTreeSquirrel.removeListener(undoTreeListener);
         undoTreeListener = null;
-        undoTree = null;
+        undoTreeSquirrel = null;
 
         // And just do it, since something did change...
         if (component != null)
             component.repaint();
-    } // detachFromUndoTree
+    } // detachFromUndoTreeSquirrel
     /** Installs event listeners on the given Component, which can be a Canvas or a JPanel or whatever. It is an error to try to attach to more than one Component at a given time. */
     public void attachToComponent(final java.awt.Component component)
     {
@@ -404,7 +404,7 @@ public class UndoTreeViewer
                 }
                 else if (c == 'a') // ascii dump
                 {
-                    asciiDump(undoTree, stretchOutAlongTimeLine.get());
+                    asciiDump(undoTreeSquirrel, stretchOutAlongTimeLine.get());
                 }
                 else if (c == 'S')
                 {
@@ -422,11 +422,11 @@ public class UndoTreeViewer
                 /*
                 else if (c == 's') // set shared label
                 {
-                    undoTree.setSharedLabel("this_is_a_shared_label"); // XXX get rid of the underscores when I make the parsing smarter
+                    undoTreeSquirrel.setSharedLabel("this_is_a_shared_label"); // XXX get rid of the underscores when I make the parsing smarter
                 }
                 else if (c == 'p') // set private label
                 {
-                    undoTree.setPrivateLabel("this_is_a_private_label"); // XXX get rid of the underscores when I make the parsing smarter
+                    undoTreeSquirrel.setPrivateLabel("this_is_a_private_label"); // XXX get rid of the underscores when I make the parsing smarter
                 }
                 */
                 else if (c == 'j') // toggle jitter
@@ -447,7 +447,7 @@ public class UndoTreeViewer
             public void mousePressed(java.awt.event.MouseEvent me)
             {
                 if (eventVerboseLevel >= 1) System.out.println("mousePressed on a "+component.getClass().getSuperclass().getName());
-                setCurrentToClosestToMouse(frameForPicking, me.getX(), me.getY(), undoTree);
+                setCurrentToClosestToMouse(frameForPicking, me.getX(), me.getY(), undoTreeSquirrel);
                 // no repaint necessary from us... it notifies everyone who's drawing it
             } // mousePressed
             public void mouseReleased(java.awt.event.MouseEvent me)
@@ -477,7 +477,7 @@ public class UndoTreeViewer
                     // XXX there might be other things we could do... think about it
                 }
                 else
-                    setCurrentToClosestToMouse(frameForPicking, me.getX(), me.getY(), undoTree);
+                    setCurrentToClosestToMouse(frameForPicking, me.getX(), me.getY(), undoTreeSquirrel);
                 // no repaint necessary from us... it notifies everyone who's drawing it
             } // mouseDragged
             public void mouseMoved(java.awt.event.MouseEvent me)
@@ -496,25 +496,25 @@ public class UndoTreeViewer
             {
                 if (eventVerboseLevel >= 1) System.out.println("request younger branch");
                 int nUndosDone = 0;
-                while (undoTree.undo() != null)
+                while (undoTreeSquirrel.undo() != null)
                 {
                     nUndosDone++;
-                    if (undoTree.preferYoungerChild())
+                    if (undoTreeSquirrel.preferYoungerChild())
                     {
-                        undoTree.redo();
+                        undoTreeSquirrel.redo();
                         return;
                     }
                 }
                 // oops, hit the top. unroll
                 while (nUndosDone-- > 0)
-                    undoTree.redo();
+                    undoTreeSquirrel.redo();
             }
             private void requestUndo(double amount)        // 8 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request undo");
                 assert(amount >= 0);
 
-                double originalFraction = undoTree.getCurrentNodeFraction();
+                double originalFraction = undoTreeSquirrel.getCurrentNodeFraction();
                 double targetFraction = originalFraction-amount;
                 //
                 // If it would go from strictly after a node
@@ -523,49 +523,49 @@ public class UndoTreeViewer
                 if (originalFraction > 0.
                  && targetFraction <= 0.)
                 {
-                    Object undoneItem = undoTree.undo();
+                    Object undoneItem = undoTreeSquirrel.undo();
                     if (eventVerboseLevel >= 1) System.out.println("undid "+(String)undoneItem);
-                    undoTree.setCurrentNodeFraction(1.);
+                    undoTreeSquirrel.setCurrentNodeFraction(1.);
                 }
                 else
                 {
-                    undoTree.setCurrentNodeFraction(targetFraction);
+                    undoTreeSquirrel.setCurrentNodeFraction(targetFraction);
                 }
             }
             private void requestOlderBranch()   // 9 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request older branch");
                 int nUndosDone = 0;
-                while (undoTree.undo() != null)
+                while (undoTreeSquirrel.undo() != null)
                 {
                     nUndosDone++;
-                    if (undoTree.preferOlderChild())
+                    if (undoTreeSquirrel.preferOlderChild())
                     {
-                        undoTree.redo();
+                        undoTreeSquirrel.redo();
                         return;
                     }
                 }
                 // oops, hit the top. unroll
                 while (nUndosDone-- > 0)
-                    undoTree.redo();
+                    undoTreeSquirrel.redo();
             }
             private void requestOlder()       // 4 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request older at same depth");
                 int nUndosDone = 0;
-                while (undoTree.undo() != null)
+                while (undoTreeSquirrel.undo() != null)
                 {
                     nUndosDone++;
-                    if (undoTree.preferOlderChild())
+                    if (undoTreeSquirrel.preferOlderChild())
                     {
                         // Try to go back to same level as before,
                         // sticking to the young side
                         while (nUndosDone-- > 0)
                         {
-                            undoTree.redo(); // okay if fails
+                            undoTreeSquirrel.redo(); // okay if fails
                             if (nUndosDone > 0)
                             {
-                                while (undoTree.preferYoungerChild())
+                                while (undoTreeSquirrel.preferYoungerChild())
                                     ;
                             }
                         }
@@ -574,26 +574,26 @@ public class UndoTreeViewer
                 }
                 // oops, hit the top. unroll
                 while (nUndosDone-- > 0)
-                    undoTree.redo();
+                    undoTreeSquirrel.redo();
             }
             // App is expected to handle the 5 key and do a Do, maybe
             private void requestYounger()     // 6 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request younger at same depth");
                 int nUndosDone = 0;
-                while (undoTree.undo() != null)
+                while (undoTreeSquirrel.undo() != null)
                 {
                     nUndosDone++;
-                    if (undoTree.preferYoungerChild())
+                    if (undoTreeSquirrel.preferYoungerChild())
                     {
                         // Try to go back to same level as before,
                         // sticking to the old side
                         while (nUndosDone-- > 0)
                         {
-                            undoTree.redo(); // okay if fails
+                            undoTreeSquirrel.redo(); // okay if fails
                             if (nUndosDone > 0)
                             {
-                                while (undoTree.preferOlderChild())
+                                while (undoTreeSquirrel.preferOlderChild())
                                     ;
                             }
                         }
@@ -602,22 +602,22 @@ public class UndoTreeViewer
                 }
                 // oops, hit the top. unroll
                 while (nUndosDone-- > 0)
-                    undoTree.redo();
+                    undoTreeSquirrel.redo();
             }
             private void requestOlderLeaf()   // 7 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request older leaf");
                 int nUndosDone = 0;
-                while (undoTree.undo() != null)
+                while (undoTreeSquirrel.undo() != null)
                 {
                     nUndosDone++;
-                    if (undoTree.preferOlderChild())
+                    if (undoTreeSquirrel.preferOlderChild())
                     {
                         // Go as deep as possible,
                         // sticking to the young side
-                        while (undoTree.redo() != null)
+                        while (undoTreeSquirrel.redo() != null)
                         {
-                            while (undoTree.preferYoungerChild())
+                            while (undoTreeSquirrel.preferYoungerChild())
                                 ;
                         }
                         return;
@@ -625,7 +625,7 @@ public class UndoTreeViewer
                 }
                 // oops, hit the top. unroll
                 while (nUndosDone-- > 0)
-                    undoTree.redo();
+                    undoTreeSquirrel.redo();
             }
             private void requestRedo(double amount)        // 8 key on numeric keypad
             {
@@ -636,7 +636,7 @@ public class UndoTreeViewer
                 // If it would go from strictly before a node
                 // to strictly after it, then clamp.
                 //
-                double originalFraction = undoTree.getCurrentNodeFraction();
+                double originalFraction = undoTreeSquirrel.getCurrentNodeFraction();
                 double targetFraction = originalFraction+amount;
 
                 double eps = 1e-3;
@@ -648,29 +648,29 @@ public class UndoTreeViewer
                 else if (EQ(originalFraction, 1., eps)
                       && GT(targetFraction, 1., eps))
                 {
-                    Object redoneItem = undoTree.redo();
+                    Object redoneItem = undoTreeSquirrel.redo();
                     if (eventVerboseLevel >= 1) System.out.println("redid "+(String)redoneItem);
                     if (redoneItem == null)
                         targetFraction = 1.; // the redo failed-- it's a leaf, don't go past it
                     else
                         targetFraction -= 1.;
                 }
-                undoTree.setCurrentNodeFraction(targetFraction);
+                undoTreeSquirrel.setCurrentNodeFraction(targetFraction);
             }
             private void requestYoungerLeaf() // 9 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request younger leaf");
                 int nUndosDone = 0;
-                while (undoTree.undo() != null)
+                while (undoTreeSquirrel.undo() != null)
                 {
                     nUndosDone++;
-                    if (undoTree.preferYoungerChild())
+                    if (undoTreeSquirrel.preferYoungerChild())
                     {
                         // Go as deep as possible,
                         // sticking to the old side
-                        while (undoTree.redo() != null)
+                        while (undoTreeSquirrel.redo() != null)
                         {
-                            while (undoTree.preferOlderChild())
+                            while (undoTreeSquirrel.preferOlderChild())
                                 ;
                         }
                         return;
@@ -678,10 +678,10 @@ public class UndoTreeViewer
                 }
                 // oops, hit the top. unroll
                 while (nUndosDone-- > 0)
-                    undoTree.redo();
+                    undoTreeSquirrel.redo();
             }
 
-            private static void setCurrentToClosestToMouse(double frameForPicking[][], int mouseX, int mouseY, UndoTree undoTree)
+            private static void setCurrentToClosestToMouse(double frameForPicking[][], int mouseX, int mouseY, UndoTreeSquirrel undoTreeSquirrel)
             {
                 if (frameForPicking != null)
                 {
@@ -697,7 +697,7 @@ public class UndoTreeViewer
                             closestDistSqrd = thisDistSqrd;
                         }
                     }
-                    undoTree.setCurrentNodeIndex(closestNode);
+                    undoTreeSquirrel.setCurrentNodeIndex(closestNode);
                 }
             } // setCurrentToClosestToMouse
 
@@ -716,7 +716,7 @@ public class UndoTreeViewer
         component = null;
     } // detachFromComponent
 
-    private UndoTree.Snapshot snapshot = new UndoTree.Snapshot(); // scratch to reuse each time  // XXX put this up top somewhere, and should probably clear it if the tree is cleared
+    private UndoTreeSquirrel.Snapshot snapshot = new UndoTreeSquirrel.Snapshot(); // scratch to reuse each time  // XXX put this up top somewhere, and should probably clear it if the tree is cleared
     private double frameForPicking[][] = null;
 
     // XXX figure out where to put this, if anywhere
@@ -755,7 +755,7 @@ public class UndoTreeViewer
             }
         }
 
-        undoTree.takeSnapshot(snapshot);
+        undoTreeSquirrel.takeSnapshot(snapshot);
         int nNodes = snapshot.nNodes;
         int parentNode = snapshot.parents[snapshot.currentNode]==-1 ? snapshot.currentNode : snapshot.parents[snapshot.currentNode];
         double currentNodeTimeFraction = snapshot.currentNodeFraction;
@@ -783,14 +783,14 @@ public class UndoTreeViewer
         }
         double x[] = new double[nNodes];
         double y[] = new double[nNodes];
-        UndoTree.chooseNodePositions(snapshot.nNodes,
-                                     snapshot.parents,
-                                     snapshot.preferredChild,
-                                     edgeLengths,
-                                     snapshot.currentNode,
-                                     snapshot.currentNodeFraction,
-                                     stretchOutAlongTimeLine.get(),
-                                     x, y);
+        UndoTreeSquirrel.chooseNodePositions(snapshot.nNodes,
+                                             snapshot.parents,
+                                             snapshot.preferredChild,
+                                             edgeLengths,
+                                             snapshot.currentNode,
+                                             snapshot.currentNodeFraction,
+                                             stretchOutAlongTimeLine.get(),
+                                             x, y);
         double xmin = Double.POSITIVE_INFINITY;
         double ymin = Double.POSITIVE_INFINITY;
         double xmax = Double.NEGATIVE_INFINITY;
@@ -968,19 +968,19 @@ public class UndoTreeViewer
     } // paint
     private int nPaintsDone = 0;
 
-    /** Creates an UndoTreeViewer.  Attach it to a Component using attachToComponent and to an UndoTree using attachToUndoTree. */
+    /** Creates an UndoTreeViewer.  Attach it to a Component using attachToComponent and to an UndoTreeSquirrel using attachToUndoTreeSquirrel. */
     public UndoTreeViewer(ItemColorizer colorizer,
-                          UndoTree.ItemLengthizer lengthizer)
+                          UndoTreeSquirrel.ItemLengthizer lengthizer)
     {
         this.colorizer = colorizer;
         this.lengthizer = lengthizer;
     } // UndoTreeViewer ctor
 
-    private static void asciiDump(UndoTree undoTree, double stretchOutAlongTimeLine)
+    private static void asciiDump(UndoTreeSquirrel undoTreeSquirrel, double stretchOutAlongTimeLine)
     {
         //PRINT(__LINE__);
-        //PRINT(undoTree);
-        UndoTree.ItemToString itemToString = new UndoTree.ItemToString(){
+        //PRINT(undoTreeSquirrel);
+        UndoTreeSquirrel.ItemToString itemToString = new UndoTreeSquirrel.ItemToString(){
             public String regex()
             {
                 //return "-?\\d+"; // ints
@@ -994,7 +994,7 @@ public class UndoTreeViewer
                 return obj.toString(); // identifiers too
             }
         };
-        UndoTree.ItemFromString itemFromString = new UndoTree.ItemFromString(){
+        UndoTreeSquirrel.ItemFromString itemFromString = new UndoTreeSquirrel.ItemFromString(){
             public String regex()
             {
                 // return "-?\\d+"; // ints
@@ -1012,15 +1012,15 @@ public class UndoTreeViewer
         String indentSpaces = "";
         String separatorSpaces = " ";
 
-        if (undoTree != null)
+        if (undoTreeSquirrel != null)
         {
-            UndoTree t0 = undoTree;
+            UndoTreeSquirrel t0 = undoTreeSquirrel;
             String s1 = t0.toString(itemToString, indentSpaces, separatorSpaces);
             System.out.println(s1);
 
             if (true)
             {
-                UndoTree t2 = UndoTree.fromString(s1, itemFromString);
+                UndoTreeSquirrel t2 = UndoTreeSquirrel.fromString(s1, itemFromString);
                 String s3 = t2.toString(itemToString, indentSpaces, separatorSpaces);
                 if (!s3.equals(s1))
                 {
@@ -1031,7 +1031,7 @@ public class UndoTreeViewer
                 }
             }
             System.out.println("===================================");
-            System.out.println(undoTree.toStringVisualCool(stretchOutAlongTimeLine >= .5f));
+            System.out.println(undoTreeSquirrel.toStringVisualCool(stretchOutAlongTimeLine >= .5f));
         }
         else
         {
@@ -1046,9 +1046,9 @@ public class UndoTreeViewer
     // XXX shouldn't use swing for this... or maybe I should, I don't know
     public static UndoTreeViewer makeExampleUndoTreeViewer(
                                            final String name,
-                                           final UndoTree undoTree,
+                                           final UndoTreeSquirrel undoTreeSquirrel,
                                            final String nameOfOtherViewThatThisViewShouldFollowAround,
-                                           final UndoTree otherViewThatThisViewShouldFollowAround,
+                                           final UndoTreeSquirrel otherViewThatThisViewShouldFollowAround,
                                            final int x, final int y, final int w, final int h,
                                            final int nThingsDoneEver[],
                                            final int nViewersAlive[],
@@ -1057,7 +1057,7 @@ public class UndoTreeViewer
                                            final int nViewersEverMade[],
                                            final boolean allowDo,
                                            final boolean allowUndoRedo,
-                                           final UndoTree.ItemLengthizer lengthizer,
+                                           final UndoTreeSquirrel.ItemLengthizer lengthizer,
                                            final UndoTreeViewer.ItemColorizer colorizer)
     {
         final UndoTreeViewer undoTreeViewer = new UndoTreeViewer(colorizer,
@@ -1076,7 +1076,7 @@ public class UndoTreeViewer
                 if (isAFollower)
                 {
                     //System.out.println("        kibbles and bits!");
-                    UndoTree.ReturnValueOfIncrementViewTowardsOtherView stateChange = undoTree.incrementViewTowardsOtherView(
+                    UndoTreeSquirrel.ReturnValueOfIncrementViewTowardsOtherView stateChange = undoTreeSquirrel.incrementViewTowardsOtherView(
                         otherViewThatThisViewShouldFollowAround,
                         1., // ref trip dist = one unit of edge length
                         undoTreeViewer.nFramesPerEdgeWhenFollowing, // ref trip time = that many frames
@@ -1125,18 +1125,18 @@ public class UndoTreeViewer
         };
         // should work in either order...
         undoTreeViewer.attachToComponent(jpanel);
-        undoTreeViewer.attachToUndoTree(undoTree);
+        undoTreeViewer.attachToUndoTreeSquirrel(undoTreeSquirrel);
 
 
         // XXX hmm, I think I have listener memory leaks everywhere...
         // XXX this one in particular, no one is keeping track of it at all.
-        // XXX in fact I don't think anyone ever calls detachFromUndoTree or detachFromComponent yet!
+        // XXX in fact I don't think anyone ever calls detachFromUndoTreeSquirrel or detachFromComponent yet!
         {
-            UndoTree.Listener otherViewThatThisViewShouldFollowAroundListener = null;
+            UndoTreeSquirrel.Listener otherViewThatThisViewShouldFollowAroundListener = null;
             final java.awt.Component component = jpanel;
             if (otherViewThatThisViewShouldFollowAround != null)
             {
-                otherViewThatThisViewShouldFollowAround.addListener(otherViewThatThisViewShouldFollowAroundListener = new UndoTree.Listener() {
+                otherViewThatThisViewShouldFollowAround.addListener(otherViewThatThisViewShouldFollowAroundListener = new UndoTreeSquirrel.Listener() {
                     public void somethingChanged()
                     {
                         //System.out.println("    woof!");
@@ -1204,15 +1204,15 @@ public class UndoTreeViewer
                         n /= 27;
                     }
 
-                    undoTree.Do(doneItem);
+                    undoTreeSquirrel.Do(doneItem);
                     if (undoTreeViewer.eventVerboseLevel >= 1) System.out.println("Did "+doneItem);
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_N)
                 {
                     makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++),
-                                              new UndoTree(undoTree), // different view, same model
+                                              new UndoTreeSquirrel(undoTreeSquirrel), // different view, same model
                                               ke.isControlDown() ? name : null, // ctrl-n means the new one should follow me around
-                                              ke.isControlDown() ? undoTree : null, // ctrl-n means the new one should follow me around
+                                              ke.isControlDown() ? undoTreeSquirrel : null, // ctrl-n means the new one should follow me around
                                               x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, allowDo, allowUndoRedo, lengthizer, colorizer);
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
@@ -1229,7 +1229,7 @@ public class UndoTreeViewer
                 if (false) {}
                 else if (c == 'c') // toggle center current node
                 {
-                    undoTree.Clear();
+                    undoTreeSquirrel.Clear();
                     nThingsDoneEver[0] = 0;
                 }
             }
@@ -1267,22 +1267,22 @@ public class UndoTreeViewer
     public static void main(String args[])
     {
         System.out.println("in main");
-        UndoTree tree = new UndoTree();
+        UndoTreeSquirrel squirrel = new UndoTreeSquirrel();
         if (false) // nah, cooler to start with nothing
         {
             // Seed it with something mildly interesting
-            tree.Do("A");
-            tree.Do("B");
-            tree.setPrivateLabel("private_before_fork");
-            tree.undo();
-            tree.undo();
-            tree.Do("C");
-            tree.setPrivateLabel("shared_before_fork");
-            tree.undo();
-            tree.preferYoungerChild();
-            tree.redo();
-            tree.Do("D");
-            tree.Do("E");
+            squirrel.Do("A");
+            squirrel.Do("B");
+            squirrel.setPrivateLabel("private_before_fork");
+            squirrel.undo();
+            squirrel.undo();
+            squirrel.Do("C");
+            squirrel.setPrivateLabel("shared_before_fork");
+            squirrel.undo();
+            squirrel.preferYoungerChild();
+            squirrel.redo();
+            squirrel.Do("D");
+            squirrel.Do("E");
         }
 
 
@@ -1308,7 +1308,7 @@ public class UndoTreeViewer
         // XXX but I moved this here so it wouldn't be used in mc4d
         // XXX which at the moment also uses makeExampleViewer.  should make a usable utility version that it can call instead.
         final java.util.Random hashRandomizer = new java.util.Random();
-        final UndoTree.ItemLengthizer lengthizer = new UndoTree.ItemLengthizer() {
+        final UndoTreeSquirrel.ItemLengthizer lengthizer = new UndoTreeSquirrel.ItemLengthizer() {
             public double length(Object item)
             {
                 if (true)
@@ -1362,27 +1362,27 @@ public class UndoTreeViewer
         int nViewersEverMade[] = {0};
         int x = 50;
         int w = 400;
-        makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree, null, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+        makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, null, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         // The following two lines are very different!
         if (false)
         {
             // Doing it this way, both viewers will share
             // undos and redos (as well as changes in the tree structure).
             // Each can have its own display style though.
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
         if (false)
         {
             // Doing it this way, both viewers see tree changes
             // but they can explore the tree independently;
             // one viewer's undos and redos will not affect the other.
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), tree = new UndoTree(tree), null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel = new UndoTreeSquirrel(squirrel), null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
         if (true)
         {
             // Doing it this way, the new one will follow the previous one
             // around!
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), new UndoTree(tree), "View "+(nViewsEverMade[0]-2/*omg this is outa control*/), tree, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), new UndoTreeSquirrel(squirrel), "View "+(nViewsEverMade[0]-2/*omg this is outa control*/), squirrel, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
         }
 
         //

@@ -1577,7 +1577,7 @@ public class MC4DViewGuts
             for (int i = 0; i < faceRGB.length; ++i)
                 faceColor[i] = new java.awt.Color(faceRGB[i][0],faceRGB[i][1],faceRGB[i][2]);
 
-            com.donhatchsw.util.UndoTree.ItemLengthizer lengthizer = new com.donhatchsw.util.UndoTree.ItemLengthizer() {
+            com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer lengthizer = new com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer() {
                 // XXX this is duplicated in MC4DModel
                 public double length(Object item)
                 {

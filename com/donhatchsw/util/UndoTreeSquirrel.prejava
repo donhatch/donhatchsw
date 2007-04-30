@@ -9,7 +9,7 @@ import com.donhatchsw.compat.regex;
 * <a href="http://www.geocities.com/Hollywood/Set/4159/COULDWRK.WAV">It could work</a>!
 */
 
-public class UndoTree
+public class UndoTreeSquirrel
 {
     public interface ItemLengthizer
     {
@@ -30,13 +30,13 @@ public class UndoTree
         double length(Object item);
     }
 
-    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTree. Hears changes to both the shared model (the actual tree, which other views (UndoTrees) might be listening to) and your individual view (i.e. current position and private node labels). */
+    /** A listening callback that you can create and install using addListener to listen for changes to the UndoTreeSquirrel. Hears changes to both the shared model (the actual tree, which other views (UndoTrees) might be listening to) and your individual view (i.e. current position and private node labels). */
     public interface Listener
     {
         public void somethingChanged();
     }
 
-    // It's a model/view setup, where UndoTree itself is the view and UndoTree.Model is the model.
+    // It's a model/view setup, where UndoTreeSquirrel itself is the view and UndoTreeSquirrel.Model is the model.
     // XXX gah, I hate that privates of subclasses are accessible... I want to make them private so I don't cheat, I should be able to, dammit
     private static class Model
     {
@@ -68,10 +68,10 @@ public class UndoTree
         // into view change notifications (since every model change
         // is also a view change, for the purposes of someone
         // displaying the view in a viewer, for example).
-        // XXX this should be PRIVATE to the view (UndoTree)!
+        // XXX this should be PRIVATE to the view (UndoTreeSquirrel)!
         // XXX I don't have any way
         // XXX of enforcing that because java's privacy semantics are screwed,
-        // XXX but there should be no cases where the UndoTree accesses
+        // XXX but there should be no cases where the UndoTreeSquirrel accesses
         // XXX this list directly.
         private com.donhatchsw.compat.ArrayList modelListeners = new com.donhatchsw.compat.ArrayList();
 
@@ -114,7 +114,7 @@ public class UndoTree
         public int[] Do(int parentNodeIndex, Object item, long timeStampMillis)
         {
             if (item == null)
-                throw new IllegalArgumentException("UndoTree.Do called with null item");
+                throw new IllegalArgumentException("UndoTreeSquirrel.Do called with null item");
             int newChildIndex = nodes.size();
             Node newChild = new Node(parentNodeIndex-newChildIndex, item, timeStampMillis);
             nodes.add(newChild);
@@ -153,7 +153,7 @@ public class UndoTree
     private com.donhatchsw.compat.ArrayList viewListeners = new com.donhatchsw.compat.ArrayList();
 
     //
-    // An UndoTree is actually a view into the nodes (the model).
+    // An UndoTreeSquirrel is actually a view into the nodes (the model).
     // So we don't store view-specific info on the nodes themselves;
     // that way multiple views can look at the same model.
     //
@@ -217,7 +217,7 @@ public class UndoTree
     * Creates a new view onto an existing undo tree, or a new undo tree (if other is null).
     */
     // CTOR    (for quick find in editor)
-    public UndoTree(UndoTree other)
+    public UndoTreeSquirrel(UndoTreeSquirrel other)
     {
         if (other == null)
         {
@@ -262,10 +262,10 @@ public class UndoTree
                 notifyListenersSomethingChanged(viewListeners);
             }
         });
-    } // UndoTree (view) ctor
+    } // UndoTreeSquirrel (view) ctor
 
-    /** Creates a new undo tree (view) with a brand new empty tree; equivalent to UndoTree(null). */
-    public UndoTree()
+    /** Creates a new undo tree (view) with a brand new empty tree; equivalent to UndoTreeSquirrel(null). */
+    public UndoTreeSquirrel()
     {
         this(null);
     }
@@ -293,7 +293,7 @@ public class UndoTree
     public void Do(Object item, long timeStampMillis)
     {
         if (item == null)
-            throw new IllegalArgumentException("UndoTree.Do called with null item");
+            throw new IllegalArgumentException("UndoTreeSquirrel.Do called with null item");
         synchronized(this) // note currentNodeIndex can change while waiting for this lock!  that will make us hang it off the new currentNodeIndex instead.  that's the way the ball bounces.
         {
             currentNodeFraction.snap(1.); // XXX seems safe, didn't think about this much
@@ -431,7 +431,7 @@ public class UndoTree
     /**
     * Returns true if a call to incrementViewTowardsOtherView(target) would actually change anything.
     */
-    public boolean isMoving(UndoTree target)
+    public boolean isMoving(UndoTreeSquirrel target)
     {
         return currentNodeIndex != target.currentNodeIndex
             || currentNodeFraction.get() != target.currentNodeFraction.get();
@@ -441,17 +441,17 @@ public class UndoTree
     * Moves my current position one step towards the current position of the other view.  Returns a structure describing the discrete state change involved (if any) and the fractional offset from the new integer state that should be used to display the new fractional state.
     */
     // XXX restructure this function to make it clearer
-    public ReturnValueOfIncrementViewTowardsOtherView incrementViewTowardsOtherView(UndoTree otherView,
+    public ReturnValueOfIncrementViewTowardsOtherView incrementViewTowardsOtherView(UndoTreeSquirrel otherView,
                                                  double referenceTripDistance,
                                                  double referenceTripTime,
                                                  double dt,
                                                  double bounce,
-                                                 UndoTree.ItemLengthizer lengthizer)
+                                                 UndoTreeSquirrel.ItemLengthizer lengthizer)
     {
         boolean debug = false;
         if (debug) System.out.println("in incrementViewTowardsOtherView");
         if (otherView.model.nodes != model.nodes)
-            throw new IllegalStateException("UndoTree.incrementViewTowardsOtherView called with a different underlying tree!");
+            throw new IllegalStateException("UndoTreeSquirrel.incrementViewTowardsOtherView called with a different underlying tree!");
         // XXX need to lock something down while we do this... if someone else changes currentNodeIndex out from under us we are super screwed!!!
 
         int targetNodeIndex = otherView.currentNodeIndex;
@@ -867,19 +867,19 @@ public class UndoTree
     * </pre>
     * These were created by executing the following commands:
     * <pre>
-    *   UndoTree tree = new UndoTree();
-    *   tree.Do("A");
-    *   tree.Do("B");
-    *   tree.undo();
-    *   tree.undo();
-    *   tree.Do("C");
-    *   tree.undo();
-    *   tree.preferYoungerChild();
-    *   tree.redo();
-    *   tree.Do("D");
-    *   tree.Do("E");
-    *   System.out.println(tree.toStringVisualCool(true));
-    *   System.out.println(tree.toStringVisualCool(false));
+    *   UndoTreeSquirrel squirrel = new UndoTreeSquirrel();
+    *   squirrel.Do("A");
+    *   squirrel.Do("B");
+    *   squirrel.undo();
+    *   squirrel.undo();
+    *   squirrel.Do("C");
+    *   squirrel.undo();
+    *   squirrel.preferYoungerChild();
+    *   squirrel.redo();
+    *   squirrel.Do("D");
+    *   squirrel.Do("E");
+    *   System.out.println(squirrel.toStringVisualCool(true));
+    *   System.out.println(squirrel.toStringVisualCool(false));
     * </pre>
     */
     // TODO: compactify even more if it gets bushy then stringy then bushy, the lower bush can go under the upper bush
@@ -1072,7 +1072,7 @@ public class UndoTree
     } // toStringVisualCool
 
 
-    /** Static utility function for choosing a nice graphical layout, given the treee relation and edge lengths. The root node will be at y=0, with other y positions depending on the given edge lengths (if stretchOutAlongTimeLine is true, the y position will be the sum of the edge lengths that preceded this node in time; otherwise it will be the sum of the edge lengths from the root to this node).  The x positions will be integers from 0 to number of leaf nodes minus 1: each node will have the same x position as the leaf that would be reached by following its preferred children. */
+    /** Static utility function for choosing a nice graphical layout, given the tree relation and edge lengths. The root node will be at y=0, with other y positions depending on the given edge lengths (if stretchOutAlongTimeLine is true, the y position will be the sum of the edge lengths that preceded this node in time; otherwise it will be the sum of the edge lengths from the root to this node).  The x positions will be integers from 0 to number of leaf nodes minus 1: each node will have the same x position as the leaf that would be reached by following its preferred children. */
     // XXX see if I can leverage this in toStringVisualCool?  currently it duplicates this code I think
     public static void chooseNodePositions(int nNodes,
                                            int parents[],
@@ -1221,7 +1221,7 @@ public class UndoTree
     * You tell it how to stringify the individual items
     * by passing in an itemToString functor, and a regex that describes
     * what an item string can look like.
-    * The result can be turned back into another UndoTree
+    * The result can be turned back into another UndoTreeSquirrel
     * by calling fromString(), so this is suitable for a save/load
     * mechanism.
     * <p>
@@ -1241,24 +1241,24 @@ public class UndoTree
                            String indentSpaces,
                            String separatorSpaces) // hmm, I guess itemToString isn't needed, it could just use the item's toString... but then where do we get the regex from?
     {
-        System.out.println("in UndoTree.toString");
+        System.out.println("in UndoTreeSquirrel.toString");
         if (!regex.matches(indentSpaces, "\\s*"))
-            throw new IllegalArgumentException("UndoTree.toString given indent string "+Arrays.toStringCompact(indentSpaces)+", should be zero or more spaces");
+            throw new IllegalArgumentException("UndoTreeSquirrel.toString given indent string "+Arrays.toStringCompact(indentSpaces)+", should be zero or more spaces");
         if (!regex.matches(separatorSpaces, "\\s+"))
-            throw new IllegalArgumentException("UndoTree.toString given separator string "+Arrays.toStringCompact(separatorSpaces)+", should be one or more spaces");
+            throw new IllegalArgumentException("UndoTreeSquirrel.toString given separator string "+Arrays.toStringCompact(separatorSpaces)+", should be one or more spaces");
         String itemRegex = itemToString.regex();
         regex.Matcher itemMatcher = regex.Pattern.compile(itemRegex).matcher("dummy");
         // XXX dup code in the other place, should combine
         if (itemMatcher.reset("").matches())
-            throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches the empty string, that's messed up!");
+            throw new IllegalArgumentException("UndoTreeSquirrel.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches the empty string, that's messed up!");
         if (itemMatcher.reset("u").matches()
          || itemMatcher.reset("u1").matches()
          || itemMatcher.reset("u10").matches())
-            throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
+            throw new IllegalArgumentException("UndoTreeSquirrel.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
         if (itemMatcher.reset("(0)").matches()
          || itemMatcher.reset("(1)").matches()
          || itemMatcher.reset("(10)").matches())
-            throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches a parenthesized number something like (2), can't do that because it's special!");
+            throw new IllegalArgumentException("UndoTreeSquirrel.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches a parenthesized number something like (2), can't do that because it's special!");
 
         StringBuffer sb = new StringBuffer();
         sb.append("{");
@@ -1273,7 +1273,7 @@ public class UndoTree
                 String itemString = itemToString.itemToString(node.itemOnEdgeFromParentToMe);
                 if (!itemMatcher.reset(itemString).matches())
                 {
-                    throw new IllegalArgumentException("UndoTree.toString given itemToString functor that produced string "+Arrays.toStringCompact(itemString)+" which does not match its regex pattern "+itemRegex+"!");
+                    throw new IllegalArgumentException("UndoTreeSquirrel.toString given itemToString functor that produced string "+Arrays.toStringCompact(itemString)+" which does not match its regex pattern "+itemRegex+"!");
                 }
                 if (node.parent == -1)
                     ; // nothing, this is the default
@@ -1304,26 +1304,26 @@ public class UndoTree
         }
         sb.append("}");
         String s = sb.toString();
-        System.out.println("out UndoTree.toString");
+        System.out.println("out UndoTreeSquirrel.toString");
         return s;
     } // toString
 
     /** Parses a string that was created by toString(). */
-    public static UndoTree fromString(String s, ItemFromString itemFromString)
+    public static UndoTreeSquirrel fromString(String s, ItemFromString itemFromString)
     {
         String itemRegex = itemFromString.regex();
         regex.Matcher itemMatcher = regex.Pattern.compile(itemRegex).matcher("dummy");
         // XXX dup code in the other place, should combine
         if (itemMatcher.reset("").matches())
-            throw new IllegalArgumentException("UndoTree.fromString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches the empty string, that's messed up!");
+            throw new IllegalArgumentException("UndoTreeSquirrel.fromString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches the empty string, that's messed up!");
         if (itemMatcher.reset("u").matches()
          || itemMatcher.reset("u1").matches()
          || itemMatcher.reset("u10").matches())
-            throw new IllegalArgumentException("UndoTree.fromString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
+            throw new IllegalArgumentException("UndoTreeSquirrel.fromString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches something starting with \"u\", can't do that because it's special!");
         if (itemMatcher.reset("(0)").matches()
          || itemMatcher.reset("(1)").matches()
          || itemMatcher.reset("(10)").matches())
-            throw new IllegalArgumentException("UndoTree.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches a parenthesized number something like (2), can't do that because it's special!");
+            throw new IllegalArgumentException("UndoTreeSquirrel.toString given item regex "+Arrays.toStringCompact(itemRegex)+" which matches a parenthesized number something like (2), can't do that because it's special!");
 
         regex.Matcher doubleQuotedStringMatcher = regex.Pattern.compile(
             "\"((\\\\|.)*)\""
@@ -1334,7 +1334,7 @@ public class UndoTree
         if (s.length() < 2
          || s.charAt(0) != '{'
          || s.charAt(s.length()-1) != '}')
-            throw new IllegalArgumentException("UndoTree.fromStringCompact called on string not surrounded by '{'");
+            throw new IllegalArgumentException("UndoTreeSquirrel.fromStringCompact called on string not surrounded by '{'");
         s = s.substring(1, s.length()-1).trim();
 
         String words[];
@@ -1408,7 +1408,7 @@ public class UndoTree
               && words[iWord+2].equals("here)")))
             {
                 if (currentNodeIndex != -1)
-                    throw new IllegalArgumentException("UndoTree.fromString given an undo tree with more than one current node!");
+                    throw new IllegalArgumentException("UndoTreeSquirrel.fromString given an undo tree with more than one current node!");
                 currentNodeIndex = nNodes-1;
                 if (words[iWord].equals("(you"))
                     iWord += 2;
@@ -1446,7 +1446,7 @@ public class UndoTree
                     (words[iWord].equals("u") ? 1 :
                                 Integer.parseInt(words[iWord].substring(1)));
                 if (nNodes-1+parentOffset < 0) // e.g. node 3 can have offset at most 2, which makes its parent node 0
-                    throw new IllegalArgumentException("UndoTree.fromString node "+(nNodes-1)+"'s parent offset is "+parentOffset+", which would put the parent at "+(nNodes-1+parentOffset)+"");
+                    throw new IllegalArgumentException("UndoTreeSquirrel.fromString node "+(nNodes-1)+"'s parent offset is "+parentOffset+", which would put the parent at "+(nNodes-1+parentOffset)+"");
                 nodes[nNodes-1].parent = parentOffset;
                 int parentIndex = nNodes-1+parentOffset;
                 iWord++;
@@ -1454,7 +1454,7 @@ public class UndoTree
             childrens[nNodes-1 + nodes[nNodes-1].parent].add(new Integer(-nodes[nNodes-1].parent));
 
             if (iWord == words.length)
-                throw new IllegalArgumentException("UndoTree.fromString premature end of input trying to read item at word "+iWord+"");
+                throw new IllegalArgumentException("UndoTreeSquirrel.fromString premature end of input trying to read item at word "+iWord+"");
 
             //
             // required item from regex
@@ -1468,12 +1468,12 @@ public class UndoTree
             else
             {
                 PRINT(words[iWord]);
-                throw new IllegalArgumentException("UndoTree.fromString expected item at word "+iWord+" but got "+Arrays.toStringCompact(words[iWord])+" which does not match regex "+Arrays.toStringCompact(itemRegex)+"");
+                throw new IllegalArgumentException("UndoTreeSquirrel.fromString expected item at word "+iWord+" but got "+Arrays.toStringCompact(words[iWord])+" which does not match regex "+Arrays.toStringCompact(itemRegex)+"");
             }
         } // while (iWord < words.length)
 
         if (currentNodeIndex == -1)
-            throw new IllegalArgumentException("UndoTree.fromString given an undo tree with no current node!");
+            throw new IllegalArgumentException("UndoTreeSquirrel.fromString given an undo tree with no current node!");
 
         //
         // Now go through and hang each child on each parent,
@@ -1491,11 +1491,11 @@ public class UndoTree
              && (privateNodeInfo.preferredChildIndex < -1 // -1 is always okay
               || privateNodeInfo.preferredChildIndex >= nodes[iNode].children.length))
             {
-                throw new IllegalArgumentException("UndoTree.fromString node "+iNode+"'s preferred child is "+privateNodeInfo.preferredChildIndex+" but only has "+nodes[iNode].children.length+" children!");
+                throw new IllegalArgumentException("UndoTreeSquirrel.fromString node "+iNode+"'s preferred child is "+privateNodeInfo.preferredChildIndex+" but only has "+nodes[iNode].children.length+" children!");
             }
         }
 
-        UndoTree undoTree = new UndoTree(null);
+        UndoTreeSquirrel undoTree = new UndoTreeSquirrel(null);
         undoTree.currentNodeIndex = currentNodeIndex;
         undoTree.privateNodeInfosHashtable = privateNodeInfosHashtable;
         undoTree.model.nodes = new com.donhatchsw.compat.ArrayList(nNodes);
@@ -1536,38 +1536,38 @@ public class UndoTree
     public static void main(String args[])
     {
         System.out.println("in main");
-        UndoTree tree = new UndoTree();
-        tree.Do("A");
-        tree.Do("B");
-        tree.setPrivateLabel("private_before_fork");
-        tree.undo();
-        tree.undo();
-        tree.Do("C");
-        tree.setPrivateLabel("shared_before_fork");
-        tree.undo();
-        tree.preferYoungerChild();
-        tree.redo();
-        tree.Do("D");
-        tree.Do("E");
-        UndoTree tree0 = tree;
-        UndoTree tree1 = new UndoTree(tree);
-        tree0.Do("F0");
-        tree1.Do("G1");
-        tree0.Do("H0");
-        tree0.setPrivateLabel("0_private_after_fork");
-        tree1.setPrivateLabel("1_private_after_fork");
-        tree0.setSharedLabel("0_shared_after_fork");
-        tree1.setSharedLabel("1_shared_after_fork");
+        UndoTreeSquirrel squirrel = new UndoTreeSquirrel();
+        squirrel.Do("A");
+        squirrel.Do("B");
+        squirrel.setPrivateLabel("private_before_fork");
+        squirrel.undo();
+        squirrel.undo();
+        squirrel.Do("C");
+        squirrel.setPrivateLabel("shared_before_fork");
+        squirrel.undo();
+        squirrel.preferYoungerChild();
+        squirrel.redo();
+        squirrel.Do("D");
+        squirrel.Do("E");
+        UndoTreeSquirrel squirrel0 = squirrel;
+        UndoTreeSquirrel squirrel1 = new UndoTreeSquirrel(squirrel);
+        squirrel0.Do("F0");
+        squirrel1.Do("G1");
+        squirrel0.Do("H0");
+        squirrel0.setPrivateLabel("0_private_after_fork");
+        squirrel1.setPrivateLabel("1_private_after_fork");
+        squirrel0.setSharedLabel("0_shared_after_fork");
+        squirrel1.setSharedLabel("1_shared_after_fork");
         System.out.println("Tree 0:");
-        System.out.println(tree0.toStringVisualCool(true));
-        System.out.println(tree0.toStringVisualCool(false));
+        System.out.println(squirrel0.toStringVisualCool(true));
+        System.out.println(squirrel0.toStringVisualCool(false));
         System.out.println("Tree 1:");
-        System.out.println(tree1.toStringVisualCool(true));
-        System.out.println(tree1.toStringVisualCool(false));
+        System.out.println(squirrel1.toStringVisualCool(true));
+        System.out.println(squirrel1.toStringVisualCool(false));
 
 
 
-        UndoTree.ItemToString itemToString = new UndoTree.ItemToString(){
+        UndoTreeSquirrel.ItemToString itemToString = new UndoTreeSquirrel.ItemToString(){
             public String regex()
             {
                 //return "-?\\d+"; // ints
@@ -1583,7 +1583,7 @@ public class UndoTree
                 return obj.toString(); // identifiers too
             }
         };
-        UndoTree.ItemFromString itemFromString = new UndoTree.ItemFromString(){
+        UndoTreeSquirrel.ItemFromString itemFromString = new UndoTreeSquirrel.ItemFromString(){
             public String regex()
             {
                 // return "-?\\d+"; // ints
@@ -1603,11 +1603,11 @@ public class UndoTree
         String indentSpaces = "";
         String separatorSpaces = " ";
 
-        String s0 = tree0.toString(itemToString, indentSpaces, separatorSpaces);
-        String s1 = tree1.toString(itemToString, indentSpaces, separatorSpaces);
+        String s0 = squirrel0.toString(itemToString, indentSpaces, separatorSpaces);
+        String s1 = squirrel1.toString(itemToString, indentSpaces, separatorSpaces);
 
-        UndoTree t0 = UndoTree.fromString(s0, itemFromString);
-        UndoTree t1 = UndoTree.fromString(s1, itemFromString);
+        UndoTreeSquirrel t0 = UndoTreeSquirrel.fromString(s0, itemFromString);
+        UndoTreeSquirrel t1 = UndoTreeSquirrel.fromString(s1, itemFromString);
 
         String u0 = t0.toString(itemToString, indentSpaces, separatorSpaces);
         String u1 = t1.toString(itemToString, indentSpaces, separatorSpaces);
@@ -1618,4 +1618,4 @@ public class UndoTree
 
         // XXX maybe should compare the visualcools too?
     } // main
-} // class UndoTree
+} // class UndoTreeSquirrel

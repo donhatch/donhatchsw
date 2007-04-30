@@ -75,14 +75,14 @@ public class MC4DModel
 
             return new Twist(grip, dir, slicemask);
         }
-        /** regex describing the possible strings returned by fromString() and parsed by toString(). This is used by UndoTree.fromString() and UndoTree.toString(). */
+        /** regex describing the possible strings returned by fromString() and parsed by toString(). This is used by UndoTreeSquirrel.fromString() and UndoTreeSquirrel.toString(). */
         public static String regex()
         {
             return "(|-|-?\\d+\\*)(\\d+)(|:-?\\d+)";
         }
         /**
         * equals.
-        * This is used by UndoTree to decide whether it can
+        * This is used by UndoTreeSquirrel to decide whether it can
         * smoothly transition between two consecutive moves
         * without having to decelerate to zero at the transition point.
         * <p>
@@ -133,12 +133,12 @@ public class MC4DModel
         public GenericPuzzleDescription genericPuzzleDescription;
         public int genericPuzzleState[]; // only accessible via listener notification     XXX make this private!  glue looks at it currently
 
-        public com.donhatchsw.util.UndoTree controllerUndoTree = new com.donhatchsw.util.UndoTree();
+        public com.donhatchsw.util.UndoTreeSquirrel controllerUndoTree = new com.donhatchsw.util.UndoTreeSquirrel();
 
     //
     // VOLATILE NON-SERIALIZABLE PART
     //
-        public com.donhatchsw.util.UndoTree animationUndoTree = new com.donhatchsw.util.UndoTree(controllerUndoTree); // follows controllerUndoTree, but lags behind at the pace of the animation
+        public com.donhatchsw.util.UndoTreeSquirrel animationUndoTree = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTree); // follows controllerUndoTree, but lags behind at the pace of the animation
         private java.util.Vector/*<Listener>*/ listeners = new java.util.Vector(); // XXX use ArrayList
 
 
@@ -151,7 +151,7 @@ public class MC4DModel
         // which is not the usual way we do things.)
         private MC4DModel(GenericPuzzleDescription genericPuzzleDescription,
                          int genericPuzzleState[],
-                         com.donhatchsw.util.UndoTree controllerUndoTree)
+                         com.donhatchsw.util.UndoTreeSquirrel controllerUndoTree)
         {
             if (genericPuzzleState.length != genericPuzzleDescription.nStickers())
                 throw new IllegalArgumentException("MC4DModel.fromString: puzzle description has "+genericPuzzleDescription.nStickers()+" stickers, but state has size "+genericPuzzleState.length+"!?");
@@ -196,7 +196,7 @@ public class MC4DModel
             // or the undo tree viewer window or whatever...
             // I haven't even written that part yet!)
             // This will start things pumping.
-            controllerUndoTree.addListener(new com.donhatchsw.util.UndoTree.Listener() {
+            controllerUndoTree.addListener(new com.donhatchsw.util.UndoTreeSquirrel.Listener() {
                 public void somethingChanged()
                 {
                     // controllerUndoTree changed.
@@ -331,7 +331,7 @@ public class MC4DModel
 
             boolean wasMoving = animationUndoTree.isMoving(controllerUndoTree);
 
-            com.donhatchsw.util.UndoTree.ReturnValueOfIncrementViewTowardsOtherView discreteStateChange = animationUndoTree.incrementViewTowardsOtherView(
+            com.donhatchsw.util.UndoTreeSquirrel.ReturnValueOfIncrementViewTowardsOtherView discreteStateChange = animationUndoTree.incrementViewTowardsOtherView(
                 controllerUndoTree, // increment towards this other view
                 1.,        // the canonical edge length
                 nFrames90, // takes this amount of time
@@ -339,7 +339,7 @@ public class MC4DModel
                 bounce,
                 // XXX don't need to make this every time!
                 // XXX and this is duplicated in MC4DViewGuts
-                new com.donhatchsw.util.UndoTree.ItemLengthizer() {
+                new com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer() {
                     public double length(Object item)
                     {
                         Twist twist = (Twist)item;
@@ -482,7 +482,7 @@ public class MC4DModel
             }
 
             com.donhatchsw.compat.regex.replaceAll(historyString, "\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
-            com.donhatchsw.util.UndoTree controllerUndoTree = com.donhatchsw.util.UndoTree.fromString(historyString, new com.donhatchsw.util.UndoTree.ItemFromString() {
+            com.donhatchsw.util.UndoTreeSquirrel controllerUndoTree = com.donhatchsw.util.UndoTreeSquirrel.fromString(historyString, new com.donhatchsw.util.UndoTreeSquirrel.ItemFromString() {
                 public String regex()
                 {
                     return Twist.regex();
