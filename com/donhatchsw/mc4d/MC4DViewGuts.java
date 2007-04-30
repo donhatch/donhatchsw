@@ -1414,21 +1414,23 @@ public class MC4DViewGuts
 
 
         JFrame jframe = new JFrame("A spiffy new JPanel");
+        {
+            com.donhatchsw.awt.MainWindowCount.increment();
+            jframe.addWindowListener(new java.awt.event.WindowAdapter() {
+                public void windowClosing(java.awt.event.WindowEvent event)
+                {
+                    System.out.println("Chow!");
+                    guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
+                    guts.setViewComponent(null); // XXX make this not necessary, with weak ref I think
+                    com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
+                }
+            });
+        }
 
         jframe.setForeground(java.awt.Color.white);
         jframe.setBackground(java.awt.Color.black);
 
         jframe.setContentPane(myPanel);
-        jframe.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent event)
-            {
-                System.out.println("Chow!");
-                guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
-                guts.setViewComponent(null); // XXX make this not necessary, with weak ref I think
-                if (model.nListeners() == 0)
-                    System.exit(0); // asinine way of doing things
-            }
-        });
 
         //jframe.pack();
         jframe.setSize(w,h); // set size top down
@@ -1505,40 +1507,16 @@ public class MC4DViewGuts
         //myCanvas.setSize(new java.awt.Dimension(w,h)); // set size bottom up
 
 
-        final Frame frame = new Frame("A sucky old Canvas") { 
-            public boolean handleEvent(java.awt.Event event)
-            {
-                switch(event.id)
-                {
-                    case java.awt.Event.WINDOW_DESTROY:
-                        System.out.println("bye!");
-                        // Empirically, either of the following
-                        // cause the app to exit-- do both to be safe!
-                        // (XXX I've heard rumors that just doing dispose()
-                        //  messes up the debugger)
-                        // (XXX but doing exit is evil)
-                        dispose(); // hide() doesn't delete the windows
-                        guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
-                        guts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
-                        if (model.nListeners() == 0)
-                            System.exit(0); // asinine way of doing things
-                        return true;
-                }
-                return super.handleEvent(event);
-            }
-        };
-        // The above handleEvent no longer seems to work as of java 1.5.
-        // So we have to use a listener.
-        // XXX not sure how far back this exists, we'll need to use reflection to get it
+        final Frame frame = new Frame("A sucky old Canvas");
         {
+            com.donhatchsw.awt.MainWindowCount.increment();
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
                 public void windowClosing(java.awt.event.WindowEvent we) {
                     System.out.println("ciao!");
                     frame.dispose(); // hide() doesn't delete the windows
                     guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
                     guts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
-                    if (model.nListeners() == 0)
-                        System.exit(0); // asinine way of doing things
+                    com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
                 }
             });
         }
@@ -1675,6 +1653,9 @@ public class MC4DViewGuts
             animationUndoTreeViewer.showLabels = false;
             animationUndoTreeViewer.centerCurrentNode.set(0.); // false
         }
+
+        // release the main token
+        com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
 
     } // main
 
