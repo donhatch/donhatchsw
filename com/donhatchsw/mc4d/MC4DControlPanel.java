@@ -840,6 +840,11 @@ public class MC4DControlPanel
                             // Figure out a bounding box for what's painted
                             GenericPipelineUtils.Frame frame = viewState.untwistedFrame;
                             float verts[][] = frame.verts; // XXX does this maybe include extras?
+                            if (verts == null)
+                            {
+                                viewParams.viewScale2d.resetToDefault();
+                                return;
+                            }
                             float bbox[/*2*/][] = com.donhatchsw.util.VecMath.bbox(verts);
                             System.out.println("nVerts = "+verts.length);
                             System.out.println("bbox = "+com.donhatchsw.util.VecMath.toString(bbox));
@@ -849,6 +854,11 @@ public class MC4DControlPanel
                                 (bbox[1][0]-bbox[0][0])/windowWidth,
                                 (bbox[1][1]-bbox[0][1])/windowHeight);
                             System.out.println("oldPercentage = "+oldPercentage);
+                            if (oldPercentage == 0.f)
+                            {
+                                viewParams.viewScale2d.resetToDefault();
+                                return;
+                            }
                             float rescaleNeeded = .9f / oldPercentage;
                             // XXX I think there's a bug that makes the effect of scale get squared... so only rescale it by square root of what we should REALLY rescale it by
                             rescaleNeeded = (float)Math.sqrt(rescaleNeeded);
@@ -977,7 +987,7 @@ public class MC4DControlPanel
     } // MC4DControlPanel ctor
 
 
-    // for debugging XXX should probably be in com.donhatchsw.awt somewhere, the layout stuff has it too
+    // for debugging XXX should probably be in com.donhatchsw.awt somewhere, the layout stuff has it too.  also the printComponent stuff, maybe
     private static void randomlyColorize(Component c)
     {
         c.setBackground(new java.awt.Color((float)Math.random(),
@@ -1003,28 +1013,19 @@ public class MC4DControlPanel
         // Only one set of params, share it among all the panels
         MC4DViewGuts.ViewParams viewParams = new MC4DViewGuts.ViewParams();
         MC4DViewGuts.ViewState viewState = new MC4DViewGuts.ViewState();
-        final int nAlive[] = {0};
         for (int i = 0; i < 2; ++i)
         {
             final Frame frame = new Frame("MC4DControlPanel Test");
-
-            // In >=1.5, this seems to be the only way
-            // to get the window to close when the user hits the close
-            // window button.
-            // (overriding handleEvent doesn't work any more)
             {
+                com.donhatchsw.awt.MainWindowCount.increment();
                 frame.addWindowListener(new WindowAdapter() {
                     public void windowClosing(WindowEvent we) {
                         frame.dispose();
-                        if (--nAlive[0] == 0)
-                        {
-                            System.out.println("Ciao!");
-                            System.exit(0); // asinine way of doing things
-                        }
+                        if (com.donhatchsw.awt.MainWindowCount.howMany() == 1)
+                            System.out.println("Ciao!!");
                         else
-                        {
                             System.out.println("ciao!");
-                        }
+                        com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
                     }
                 });
             }
@@ -1032,7 +1033,8 @@ public class MC4DControlPanel
             frame.add(new MC4DControlPanel(viewParams, viewState));
             frame.pack();
             frame.show();
-            nAlive[0]++;
         }
+        // release the main token
+        com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
     }
 } // MC4DControlPanel
