@@ -184,10 +184,18 @@ public class GenericGlue
              || iTwist < nTwist);
     }
 
+    private void setText(Component label, String text)
+    {
+        if (label instanceof JLabel)
+            ((JLabel)label).setText(text);
+        else
+            ((Label)label).setText(text);
+    }
+
     // Call this from MC4DSwing ctor right after all
     // the other menu items are added
     public void addMoreItemsToPuzzleMenu(Menu puzzlemenu,
-                                         final JLabel statusLabel,
+                                         final Component statusLabel, // Label or JLabel
                                          final Callback initPuzzleCallback)
     {
         if (verboseLevel >= 1) System.out.println("in GenericGlue.addMoreItemsToPuzzleMenu");
@@ -586,7 +594,7 @@ public class GenericGlue
                                 // PropertyManager.userprefs.setProperty("genericLength", ""+len); // XXX not yet
                                 initPuzzleCallback.call(); // really just want a repaint I think
                                 String statuslabel = name + "  length="+lengthString;
-                                statusLabel.setText(statuslabel); // XXX BUG - hey, it's not set right on program startup!
+                                setText(statusLabel, statuslabel); // XXX BUG - hey, it's not set right on program startup!
 
                                 untwistedFrame = new GenericPipelineUtils.Frame();
                                 twistingFrame = new GenericPipelineUtils.Frame();
@@ -768,7 +776,7 @@ public class GenericGlue
                             // PropertyManager.userprefs.setProperty("genericLength", ""+len); // XXX not yet
                             initPuzzleCallback.call(); // really just want a repaint I think
                             String statuslabel = name + "  length="+lengthString;
-                            statusLabel.setText(statuslabel); // XXX BUG - hey, it's not set right on program startup!
+                            setText(statusLabel, statuslabel); // XXX BUG - hey, it's not set right on program startup!
 
                             untwistedFrame = new GenericPipelineUtils.Frame();
                             twistingFrame = new GenericPipelineUtils.Frame();
