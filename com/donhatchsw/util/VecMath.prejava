@@ -1348,6 +1348,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // bboxIndexed
 
     /** bounding box of an array of points */
+    public static void bbox(float result[/*2*/][], float array[][])
+    {
+        FORIDOWN (i, result[0].length)
+        {
+            result[0][i] = Float.POSITIVE_INFINITY;
+            result[1][i] = Float.NEGATIVE_INFINITY;
+        }
+        FORIDOWN (i, array.length)
+        FORIDOWN (j, array[i].length)
+        {
+            result[0][j] = Math.min(result[0][j], array[i][j]);
+            result[1][j] = Math.max(result[1][j], array[i][j]);
+        }
+    }
+    /** bounding box of an array of points */
     public static void bbox(double result[/*2*/][], double array[][])
     {
         FORIDOWN (i, result[0].length)
@@ -3096,6 +3111,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return null; // XXX could be dangerous
             double result[][] = new double[2][array[0].length];
             bboxUniform(result, array);
+            return result;
+        }
+        /** bounding box, returning newly allocated result */
+        public static float[/*2*/][] bbox(float array[][])
+        {
+            if (array.length == 0)
+                return null; // XXX could be dangerous
+            float result[][] = new float[2][array[0].length];
+            bbox(result, array);
             return result;
         }
         /** bounding box, returning newly allocated result */
