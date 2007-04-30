@@ -7,8 +7,9 @@ package com.donhatchsw.mc4d;
 *       Serializable part:
 *           - an immutable puzzle desciption (can be shared among multiple models)
 *           - the puzzle state (an array of ints)
-*           - a history (undo/redo stack of (grip,dir,slicemask) tuples)
+*           - a history (undo/redo tree of (grip,dir,slicemask) tuples)
 *       Non-serializable part:
+*           XXX this is out of date now that we have an undo tree
 *           - a queue of pending twists
 *           - time fraction of the way done with the first pending twist
 *               (it's the view's responsibility to smooth this into a space fraction,
@@ -185,6 +186,7 @@ public class MC4DModel
             commonInitCode();
         }
 
+        // XXX this may have been before I realized I could call one ctor from another
         private void commonInitCode()
         {
             // XXX need to store this listener and remove it when we break down, I think?
