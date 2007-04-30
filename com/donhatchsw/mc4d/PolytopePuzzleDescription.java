@@ -139,9 +139,6 @@
 
     BUGS / URGENT TODOS:
     ===================
-
-        - make vi skip the class files
-
         - Frame Picture assumes window is 502x485-- bogus!
         - undo tree's colors are wrong!
         - "{8}x{} 3" problems:   (or bigger)
