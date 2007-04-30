@@ -1413,11 +1413,14 @@ public class MC4DViewGuts
         //myPanel.setPreferredSize(new java.awt.Dimension(w,h)); // set size bottom up
 
 
-        JFrame jframe = new JFrame("A spiffy new JPanel");
-        {
+        JFrame jframe = new JFrame("A spiffy new JPanel") {{
             com.donhatchsw.awt.MainWindowCount.increment();
-            jframe.addWindowListener(new java.awt.event.WindowAdapter() {
+            addWindowListener(new java.awt.event.WindowAdapter() {
                 public void windowClosing(java.awt.event.WindowEvent event)
+                {
+                    dispose();
+                }
+                public void windowClosed(java.awt.event.WindowEvent event)
                 {
                     System.out.println("Chow!");
                     guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
@@ -1425,7 +1428,7 @@ public class MC4DViewGuts
                     com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
                 }
             });
-        }
+        }};
 
         jframe.setForeground(java.awt.Color.white);
         jframe.setBackground(java.awt.Color.black);
@@ -1466,7 +1469,7 @@ public class MC4DViewGuts
         guts.setModel(model);
         final Canvas myCanvas = new Canvas() {
             private Image backBuffer = null;
-            int bbw=0, bbh=0;
+            private int bbw=0, bbh=0;
             public void update(Graphics g) { paint(g); } // don't flash
             public void paint(Graphics frontBufferGraphics)
             {
@@ -1511,9 +1514,13 @@ public class MC4DViewGuts
         {
             com.donhatchsw.awt.MainWindowCount.increment();
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we) {
+                public void windowClosing(java.awt.event.WindowEvent we)
+                {
+                    frame.dispose();
+                }
+                public void windowClosed(java.awt.event.WindowEvent we)
+                {
                     System.out.println("ciao!");
-                    frame.dispose(); // hide() doesn't delete the windows
                     guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
                     guts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
                     com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
@@ -1559,7 +1566,7 @@ public class MC4DViewGuts
 
         makeExampleModernViewer(model, 50,50, 300,300);
 
-        boolean doDoubleBuffer = true; // make it even more sucky than necessary
+        boolean doDoubleBuffer = true; // false to make it even more sucky than necessary
         makeExampleAncientViewer(model, 350,50, 300,300, doDoubleBuffer);
 
 
