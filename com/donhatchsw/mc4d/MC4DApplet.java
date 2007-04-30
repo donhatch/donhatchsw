@@ -361,7 +361,7 @@ public class MC4DApplet
                     final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
                     glue.addMoreItemsToPuzzleMenu(
                         this,
-                        new javax.swing.JLabel("dum dum"),
+                        new Label("dum dum"),
                         new GenericGlue.Callback() {
                             public void call()
                             {
