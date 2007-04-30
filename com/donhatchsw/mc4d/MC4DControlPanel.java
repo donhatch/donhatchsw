@@ -873,7 +873,7 @@ public class MC4DControlPanel
                                new String[] {
                                    "Pressing the Frame Picture button",
                                    "changes the 2d scale if necessary",
-                                   "so that the picture takes up",
+                                   "so that the picture will take up",
                                    "90% of the viewing window in one",
                                    "of the two directions (width or height)",
                                    "and at most that in the other direction.",
@@ -988,7 +988,7 @@ public class MC4DControlPanel
 
 
     // for debugging XXX should probably be in com.donhatchsw.awt somewhere, the layout stuff has it too.  also the printComponent stuff, maybe
-    private static void randomlyColorize(Component c)
+    public static void randomlyColorize(Component c)
     {
         c.setBackground(new java.awt.Color((float)Math.random(),
                                            (float)Math.random(),
@@ -1008,6 +1008,7 @@ public class MC4DControlPanel
 
 
 
+    /** A little test/example program. */
     public static void main(String args[])
     {
         // Only one set of params, share it among all the panels
@@ -1019,8 +1020,12 @@ public class MC4DControlPanel
             {
                 com.donhatchsw.awt.MainWindowCount.increment();
                 frame.addWindowListener(new WindowAdapter() {
-                    public void windowClosing(WindowEvent we) {
+                    public void windowClosing(WindowEvent we)
+                    {
                         frame.dispose();
+                    }
+                    public void windowClosed(WindowEvent we)
+                    {
                         if (com.donhatchsw.awt.MainWindowCount.howMany() == 1)
                             System.out.println("Ciao!!");
                         else
@@ -1036,5 +1041,6 @@ public class MC4DControlPanel
         }
         // release the main token
         com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
-    }
+    } // main
+
 } // MC4DControlPanel
