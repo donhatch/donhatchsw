@@ -1626,7 +1626,7 @@ public class MC4DViewGuts
             // and the animation view which lags behind.
             //
             com.donhatchsw.util.UndoTreeViewer controllerUndoTreeViewer =
-            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Controller's view of the undo tree", model.controllerUndoTree, null, null, 500, 20, 350, 600,
+            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Controller's view of the undo tree", model.controllerUndoTreeSquirrel, null, null, 500, 20, 350, 600,
                     // XXX oh gag
                     new int[1],
                     new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
@@ -1644,7 +1644,7 @@ public class MC4DViewGuts
 
 
             com.donhatchsw.util.UndoTreeViewer animationUndoTreeViewer = 
-            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Animation's view of the undo tree", model.animationUndoTree, null, null, 850, 20, 350, 600,
+            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Animation's view of the undo tree", model.animationUndoTreeSquirrel, null, null, 850, 20, 350, 600,
                     // XXX oh gag
                     new int[1],
                     new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)

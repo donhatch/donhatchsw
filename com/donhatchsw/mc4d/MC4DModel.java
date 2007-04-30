@@ -133,12 +133,12 @@ public class MC4DModel
         public GenericPuzzleDescription genericPuzzleDescription;
         public int genericPuzzleState[]; // only accessible via listener notification     XXX make this private!  glue looks at it currently
 
-        public com.donhatchsw.util.UndoTreeSquirrel controllerUndoTree = new com.donhatchsw.util.UndoTreeSquirrel();
+        public com.donhatchsw.util.UndoTreeSquirrel controllerUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel();
 
     //
     // VOLATILE NON-SERIALIZABLE PART
     //
-        public com.donhatchsw.util.UndoTreeSquirrel animationUndoTree = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTree); // follows controllerUndoTree, but lags behind at the pace of the animation
+        public com.donhatchsw.util.UndoTreeSquirrel animationUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTreeSquirrel); // follows controllerUndoTreeSquirrel, but lags behind at the pace of the animation
         private java.util.Vector/*<Listener>*/ listeners = new java.util.Vector(); // XXX use ArrayList
 
 
@@ -151,14 +151,14 @@ public class MC4DModel
         // which is not the usual way we do things.)
         private MC4DModel(GenericPuzzleDescription genericPuzzleDescription,
                          int genericPuzzleState[],
-                         com.donhatchsw.util.UndoTreeSquirrel controllerUndoTree)
+                         com.donhatchsw.util.UndoTreeSquirrel controllerUndoTreeSquirrel)
         {
             if (genericPuzzleState.length != genericPuzzleDescription.nStickers())
                 throw new IllegalArgumentException("MC4DModel.fromString: puzzle description has "+genericPuzzleDescription.nStickers()+" stickers, but state has size "+genericPuzzleState.length+"!?");
 
             this.genericPuzzleDescription = genericPuzzleDescription;
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleState);
-            this.controllerUndoTree = controllerUndoTree;
+            this.controllerUndoTreeSquirrel = controllerUndoTreeSquirrel;
         }
 
 
@@ -191,15 +191,15 @@ public class MC4DModel
         {
             // XXX need to store this listener and remove it when we break down, I think?
             // Make it so the animation gets goosed when
-            // the controllerUndoTree changes (e.g. when
+            // the controllerUndoTreeSquirrel changes (e.g. when
             // an undo is initiated, either from the app
             // or the undo tree viewer window or whatever...
             // I haven't even written that part yet!)
             // This will start things pumping.
-            controllerUndoTree.addListener(new com.donhatchsw.util.UndoTreeSquirrel.Listener() {
+            controllerUndoTreeSquirrel.addListener(new com.donhatchsw.util.UndoTreeSquirrel.Listener() {
                 public void somethingChanged()
                 {
-                    // controllerUndoTree changed.
+                    // controllerUndoTreeSquirrel changed.
                     // actually all we have to do is call repaint;
                     // this will make our paint() eventually get called
                     // which will advance the animation.
@@ -235,20 +235,20 @@ public class MC4DModel
                                                int slicemask)
         {
             Twist twist = new Twist(grip, dir, slicemask);
-            controllerUndoTree.Do(twist);
+            controllerUndoTreeSquirrel.Do(twist);
         }
         /** Initiates an undo.  Returns true if successful, false if there was nothing to undo. */
         public synchronized boolean initiateUndo()
         {
             if (verboseLevel >= 1) System.out.println("MODEL: initiating an undo");
-            Twist twist = (Twist)controllerUndoTree.undo();
+            Twist twist = (Twist)controllerUndoTreeSquirrel.undo();
             return twist != null; // whether there was actually something to undo
         }
         /** Initiates an redo.  Returns true if successful, false if there was nothing to redo. */
         public synchronized boolean initiateRedo()
         {
             if (verboseLevel >= 1) System.out.println("MODEL: initiating a redo");
-            Twist twist = (Twist)controllerUndoTree.undo();
+            Twist twist = (Twist)controllerUndoTreeSquirrel.undo();
             if (twist != null)
             {
                 if (!listeners.isEmpty())
@@ -265,9 +265,9 @@ public class MC4DModel
         public synchronized void initiateCheat()
         {
             if (verboseLevel >= 1) System.out.println("MODEL: initiating a cheat");
-            if (controllerUndoTree.getCurrentNodeIndex() != 0)
+            if (controllerUndoTreeSquirrel.getCurrentNodeIndex() != 0)
             {
-                controllerUndoTree.setCurrentNodeIndex(0);
+                controllerUndoTreeSquirrel.setCurrentNodeIndex(0);
                 if (!listeners.isEmpty())
                 {
                     // Just notify the first listener in the chain.
@@ -329,10 +329,10 @@ public class MC4DModel
             // XXX hack-- trying to figure out the nice way to do it when there are like 90 windows each with different nFrames90... go at the speed of the slowest?  for now, since each listener is only getting 1/nListeners of the notifications, multiply by the number of listeners, otherwise we'll get huge gaps and it sucks.  I tried it.
             nFrames90 *= listeners.size();
 
-            boolean wasMoving = animationUndoTree.isMoving(controllerUndoTree);
+            boolean wasMoving = animationUndoTreeSquirrel.isMoving(controllerUndoTreeSquirrel);
 
-            com.donhatchsw.util.UndoTreeSquirrel.ReturnValueOfIncrementViewTowardsOtherView discreteStateChange = animationUndoTree.incrementViewTowardsOtherView(
-                controllerUndoTree, // increment towards this other view
+            com.donhatchsw.util.UndoTreeSquirrel.ReturnValueOfIncrementViewTowardsOtherView discreteStateChange = animationUndoTreeSquirrel.incrementViewTowardsOtherView(
+                controllerUndoTreeSquirrel, // increment towards this other view
                 1.,        // the canonical edge length
                 nFrames90, // takes this amount of time
                 1.,        // and we are incrementing by this amount of time
@@ -392,7 +392,7 @@ public class MC4DModel
         */
         public synchronized boolean isMoving()
         {
-            return animationUndoTree.isMoving(controllerUndoTree);
+            return animationUndoTreeSquirrel.isMoving(controllerUndoTreeSquirrel);
         }
 
 
@@ -410,8 +410,8 @@ public class MC4DModel
                                                      int returnPuzzleState[],
                                                      Twist returnTwist)
         {
-            Twist twist = (Twist)animationUndoTree.getItemOnEdgeFromParentToCurrentNode();
-            double returnFrac = 1.-animationUndoTree.getCurrentNodeFraction();
+            Twist twist = (Twist)animationUndoTreeSquirrel.getItemOnEdgeFromParentToCurrentNode();
+            double returnFrac = 1.-animationUndoTreeSquirrel.getCurrentNodeFraction();
 
             if (twist == null) // this happens if it's the root
             {
@@ -444,7 +444,7 @@ public class MC4DModel
             // XXX need to sort by face and put each on a line by itself
             sb.append(com.donhatchsw.util.Arrays.toStringCompact(genericPuzzleState));
             sb.append(","+nl);
-            sb.append("    history = "+com.donhatchsw.util.Arrays.toStringCompact(controllerUndoTree)+","+nl); // XXX not right yet!
+            sb.append("    history = "+com.donhatchsw.util.Arrays.toStringCompact(controllerUndoTreeSquirrel)+","+nl); // XXX not right yet!
             sb.append("}");
             return sb.toString();
         } // toString
@@ -482,7 +482,7 @@ public class MC4DModel
             }
 
             com.donhatchsw.compat.regex.replaceAll(historyString, "\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
-            com.donhatchsw.util.UndoTreeSquirrel controllerUndoTree = com.donhatchsw.util.UndoTreeSquirrel.fromString(historyString, new com.donhatchsw.util.UndoTreeSquirrel.ItemFromString() {
+            com.donhatchsw.util.UndoTreeSquirrel controllerUndoTreeSquirrel = com.donhatchsw.util.UndoTreeSquirrel.fromString(historyString, new com.donhatchsw.util.UndoTreeSquirrel.ItemFromString() {
                 public String regex()
                 {
                     return Twist.regex();
@@ -509,7 +509,7 @@ public class MC4DModel
 
             MC4DModel model = new MC4DModel(genericPuzzleDescription,
                                             genericPuzzleState,
-                                            controllerUndoTree);
+                                            controllerUndoTreeSquirrel);
             return model;
         } // fromString
 
