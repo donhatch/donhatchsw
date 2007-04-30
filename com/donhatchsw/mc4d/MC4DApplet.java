@@ -231,6 +231,8 @@ public class MC4DApplet
             }
         } // MyMenuItem
 
+        final boolean isInSandbox = true; // XXX figure this out for real
+
         //
         // Make a panel, containing the canvas
         // and a menu bar and maybe some other stuff, I don't know yet
@@ -241,9 +243,17 @@ public class MC4DApplet
             add("Center", canvas);
             add("North", new MyMenuBar() {{
                 add("File", new PopupMenu() {{
-                    add("Open...");
-                    add("Save");
-                    add("Save As...");
+                    if (isInSandbox)
+                    {
+                        add("Save to the cookie");
+                        add("Load from the cookie");
+                    }
+                    else
+                    {
+                        add("Open...");
+                        add("Save");
+                        add("Save to...");
+                    }
                     addSeparator();
                     add("Quit");
                 }});
@@ -254,14 +264,14 @@ public class MC4DApplet
                             com.donhatchsw.util.VecMath.copyvec(
                                 viewGuts.model.genericPuzzleState,
                                 viewGuts.model.genericPuzzleDescription.getSticker2Face());
-                            viewGuts.model.controllerUndoTree.Clear();
+                            viewGuts.model.controllerUndoTreeSquirrel.Clear();
                             canvas.repaint(); // XXX necessary?
                         }
                     });
                     add(new MyMenuItem("Undo") {
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            if (viewGuts.model.controllerUndoTree.undo() == null)
+                            if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
                                 System.out.println("Nothing to undo.");
                             canvas.repaint(); // XXX necessary?
                         }
@@ -269,7 +279,7 @@ public class MC4DApplet
                     add(new MyMenuItem("Redo") {
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            if (viewGuts.model.controllerUndoTree.redo() == null)
+                            if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
                                 System.out.println("Nothing to redo.");
                             canvas.repaint(); // XXX necessary?
                         }
@@ -278,7 +288,7 @@ public class MC4DApplet
                     add(new MyMenuItem("Solve (cheat)") {
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            while (viewGuts.model.controllerUndoTree.undo() != null)
+                            while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
                                 ;
                             canvas.repaint(); // XXX necessary?
                         }
@@ -324,6 +334,13 @@ public class MC4DApplet
                         }
                     });
                     addSeparator();
+                    add(new MyMenuItem("Macros") {
+                        {setEnabled(false);}
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                        }
+                    });
+                    addSeparator();
                     add(new MyMenuItem("Undo Tree") {
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
@@ -331,12 +348,6 @@ public class MC4DApplet
                         }
                     });
                     addSeparator();
-                    add(new MyMenuItem("Cloned view of same model that follows this one") {
-                        {setEnabled(false);}
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                        }
-                    });
                     add(new MyMenuItem("Cloned view of same model") {
                         {setEnabled(false);}
                         public void actionPerformed(java.awt.event.ActionEvent e)
@@ -344,13 +355,6 @@ public class MC4DApplet
                         }
                     });
                     add(new MyMenuItem("Cloned view of cloned model") {
-                        {setEnabled(false);}
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                        }
-                    });
-                    addSeparator();
-                    add(new MyMenuItem("Macros") {
                         {setEnabled(false);}
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
@@ -477,40 +481,53 @@ public class MC4DApplet
             // the controller view which updates immediately,
             // and the animation view which lags behind.
             //
-            com.donhatchsw.util.UndoTreeViewer controllerUndoTreeViewer =
-            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Controller's view of the undo tree", viewGuts.model.controllerUndoTree, null, null, 500, 20, 350, 600,
-                    // XXX oh gag
-                    new int[1],
-                    new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
-                    new int[1],
-                    new int[1],
-                    new int[1],
-                    false, // don't allow the example "Do" which would put dummy strings in the tree
-                    true, // but do allow undo/redo
-                    lengthizer,
-                    colorizer);
+            {
+                com.donhatchsw.util.UndoTreeViewer controllerUndoTreeViewer =
+                com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer(
+                        //"Controller's view of the undo tree",
+                        "MC4D Undo Tree",
+                        viewGuts.model.controllerUndoTreeSquirrel,
+                        new com.donhatchsw.util.UndoTreeSquirrel[]{viewGuts.model.animationUndoTreeSquirrel},
+                        null, null, 500, 20, 350, 600,
+                        // XXX oh gag
+                        new int[1],
+                        new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
+                        new int[1],
+                        new int[1],
+                        new int[1],
+                        false, // don't allow the example "Do" which would put dummy strings in the tree
+                        true, // but do allow undo/redo
+                        lengthizer,
+                        colorizer);
 
-            // XXX need accessors for these instead of making them public I think
-            controllerUndoTreeViewer.showLabels = false; // XXX need an accessofr for this
-            controllerUndoTreeViewer.centerCurrentNode.set(0.); // false
+                // XXX need accessors for these instead of making them public I think
+                controllerUndoTreeViewer.showLabels = false; // XXX need an accessofr for this
+                controllerUndoTreeViewer.centerCurrentNode.set(0.); // false
+            }
 
+            if (false) // defunct, probably get rid of this
+            {
+                com.donhatchsw.util.UndoTreeViewer animationUndoTreeViewer = 
+                com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer(
+                        "Animation's view of the undo tree",
+                        viewGuts.model.animationUndoTreeSquirrel,
+                        new com.donhatchsw.util.UndoTreeSquirrel[]{},
+                        null, null, 850, 20, 350, 600,
+                        // XXX oh gag
+                        new int[1],
+                        new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
+                        new int[1],
+                        new int[1],
+                        new int[1],
+                        false, // don't allow the example "Do" which would put dummy strings in the tree
+                        false, // and don't allow undo/redo from this view either, since instantaneous changes would make it get out of sync with the permutation array. undo/redo must be done from the controller window, this one is just for watching.
+                        lengthizer,
+                        colorizer);
 
-            com.donhatchsw.util.UndoTreeViewer animationUndoTreeViewer = 
-            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Animation's view of the undo tree", viewGuts.model.animationUndoTree, null, null, 850, 20, 350, 600,
-                    // XXX oh gag
-                    new int[1],
-                    new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
-                    new int[1],
-                    new int[1],
-                    new int[1],
-                    false, // don't allow the example "Do" which would put dummy strings in the tree
-                    false, // and don't allow undo/redo from this view either, since instantaneous changes would make it get out of sync with the permutation array. undo/redo must be done from the controller window, this one is just for watching.
-                    lengthizer,
-                    colorizer);
-
-            // XXX need accessors for these instead of making them public I think
-            animationUndoTreeViewer.showLabels = false;
-            animationUndoTreeViewer.centerCurrentNode.set(0.); // false
+                // XXX need accessors for these instead of making them public I think
+                animationUndoTreeViewer.showLabels = false;
+                animationUndoTreeViewer.centerCurrentNode.set(0.); // false
+            }
         } // makeNewUndoTreeWindow
 
 
