@@ -444,7 +444,20 @@ public class MC4DModel
             // XXX need to sort by face and put each on a line by itself
             sb.append(com.donhatchsw.util.Arrays.toStringCompact(genericPuzzleState));
             sb.append(","+nl);
-            sb.append("    history = "+com.donhatchsw.util.Arrays.toStringCompact(controllerUndoTreeSquirrel)+","+nl); // XXX not right yet!
+            //sb.append("    history = "+com.donhatchsw.util.Arrays.toStringCompact(controllerUndoTreeSquirrel)+","+nl); // XXX not right yet!
+            sb.append("    history = "
+                     +controllerUndoTreeSquirrel.toString(
+                          new com.donhatchsw.util.UndoTreeSquirrel.ItemToString() {
+                              public String regex()
+                              {
+                                  return Twist.regex();
+                              }
+                              public String itemToString(Object item)
+                              {
+                                  return ((Twist)item).toString();
+                              }
+                          },
+                          "", " "));
             sb.append("}");
             return sb.toString();
         } // toString
@@ -460,7 +473,7 @@ public class MC4DModel
             // I can write the pattern more clearly if I use a single space
             // whenever I mean \s*, and then convert...
             //com.donhatchsw.compat.regex.verboseLevel = 1;
-            String prepattern = " \\{ genericPuzzleDescription = ([^\n]+) , \n genericPuzzleState = ([^\n]+) , \n history = ([^\n]+) , \n undoPartSize = (\\d+) ,? \\} ";
+            String prepattern = " \\{ genericPuzzleDescription = ([^\n]+) , \n genericPuzzleState = ([^\n]+) , \n history = ([^\n]+) \\} "; // XXX I think } should be in the excluded part near the end
                    //prepattern = " \\{ genericPuzzleDescription = ([^\n]+) ,  (.|\r|\n)*"; // XXX
             String pattern = com.donhatchsw.compat.regex.replaceAll(prepattern, " ", "\\\\s*");
             System.out.println("pattern = "+com.donhatchsw.util.Arrays.toStringCompact(pattern)+"");
@@ -468,17 +481,15 @@ public class MC4DModel
             com.donhatchsw.compat.regex.Pattern.compile(pattern).matcher(s);
             if (!matcher.matches())
                 throw new IllegalArgumentException("MC4DModel.fromString called on a bad string of length "+s.length()+": "+com.donhatchsw.util.Arrays.toStringCompact(s)+"");
-            Assert(matcher.groupCount() == 4);
+            Assert(matcher.groupCount() == 3);
             String genericPuzzleDescriptionString = matcher.group(1);
             String genericPuzzleStateString = matcher.group(2);
             String historyString = matcher.group(3);
-            String undoPartSizeString = matcher.group(4);
             if (false)
             {
                 System.out.println("genericPuzzleDescriptionString = "+genericPuzzleDescriptionString);
                 System.out.println("genericPuzzleStateString = "+genericPuzzleStateString);
                 System.out.println("historyString = "+historyString);
-                System.out.println("undoPartSizeString = "+undoPartSizeString);
             }
 
             com.donhatchsw.compat.regex.replaceAll(historyString, "\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
