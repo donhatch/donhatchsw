@@ -139,6 +139,24 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - label each window, e.g.
+                View and controller windows:
+                    model 0 view 0
+                    model 0 view 1
+                    model 0 view 2
+
+                    model 1 view 3
+                    model 1 view 4
+                Undo tree window:
+                    if I can get all the views in the same undo tree window,
+                    then just "model 0" or whatever
+        - should there be an overall list of all the models and views,
+            that the user can manually attach stuff to,
+            and also maybe make different views follow different other views?
+            and also maybe share control panels (view params)?
+
+        - doesn't start spinning easily enough when I let go
+        - call it MC4DApplet, not MC4DViewApplet
         - Frame Picture assumes window is 502x485-- bogus!
         - undo tree's colors are wrong!
         - "{8}x{} 3" problems:   (or bigger)
@@ -217,6 +235,12 @@
                Maybe could have a mode checkbox, that toggles
                between a shrink notion and an explode notion
             - history compression
+            - highlight should highlight all views of the model--
+               that would be a good way to get one's bearings
+
+        AWT/APPLET/GUI LAYOUT:
+            - MyMenuBar menus don't pop down nicely when others opened
+
 
         HIGHLIGHT BY GRIP:
             - 2x shows cracks :-(
@@ -229,17 +253,10 @@
                with some hope of being efficient
 
         NON-IMMEDIATE:
-            - Grand Antiprism (should be as accessible as an icosahedron, anyway)
+            - Grand Antiprism (there's a menu item for it)
             - 3 level cascading menus for {3..12}x{3..12}?
-            - nframes proportional to angle actually kind of sucks...
-                should be proportionally less frames when rot angle is big,
-                otherwise very small rotations get large acceleration
-                which looks lame.  maybe the way to think about it is
-                that slider should control max acceleration? i.e.
-                the acceleration at the start and finish, if we make it
-                a cubic function (or even if we leave it sine, I think)
             - nframes should ALWAYS be odd!  even means sometimes
-                we get flat faces!
+                we get flat faces!  (XXX is this true any more?)
             - ooh, make more slices proportionally slower, would feel more massive!
             - completely general solve?
             - general uniform polytopes! yeah!
@@ -248,6 +265,8 @@
                 that should cut stuff down by a factor of 100 maybe
 
         PIE IN THE SKY:
+            - ooh, solve should add stuff to undo queue as it goes, while animation lags behind.
+               maybe.
             - ooh, stereo
             - named sets of settings that can be saved and restored
             - copy and paste view params or sets of them
