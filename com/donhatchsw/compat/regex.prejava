@@ -37,8 +37,8 @@ public class regex
     public static class PatternSyntaxException extends IllegalArgumentException
     {
         public PatternSyntaxException(String description,
-                               String patString,
-                               int index)
+                                      String patString,
+                                      int index)
         {
             super(description+" near index "+index
                              +System.getProperty("line.separator")
@@ -690,7 +690,7 @@ public class regex
             // or -1 if no match.
             private int __match(String input, int inputStart, int inputEnd, int iState, int captureGroups[][/*2*/])
             {
-                if (verboseLevel >= 2) System.out.println("    matching input \""+input.substring(inputStart, inputEnd)+"\" against pattern \""+patString.substring(iState)+"\"");
+                if (verboseLevel >= 2) System.out.println("    matching input \""+input.substring(inputStart, inputEnd)+"\" against pattern \""+patString.substring(iState)+"\""); // XXX stringify
                 if (iState == states.length)
                     return inputStart;
                 Transition transitions[] = states[iState].transitions;
@@ -769,7 +769,7 @@ public class regex
                 if (verboseLevel >= 1)
                 {
                     System.out.println("    =================");
-                    System.out.println("    in Pattern.compile(patString=\""+patString+"\")");
+                    System.out.println("    in Pattern.compile(patString=\""+patString+"\")"); // XXX stringify
                 }
                 Pattern pattern = new Pattern(patString);
                 if (verboseLevel >= 1)
@@ -790,7 +790,7 @@ public class regex
                 if (verboseLevel >= 1)
                 {
                     System.out.println("=================");
-                    System.out.println("in Pattern.split(patString=\""+patString+"\", input=\""+input+"\", limit="+limit+")");
+                    System.out.println("in Pattern.split(patString=\""+patString+"\", input=\""+input+"\", limit="+limit+")"); // XXX stringify
                 }
 
                 java.util.Vector resultVector = new java.util.Vector();
@@ -856,7 +856,7 @@ public class regex
                 if (verboseLevel >= 1)
                 {
                     System.out.println("=================");
-                    System.out.println("in Matcher.find(patString=\""+pattern.patString+"\", input tail=\""+input.substring(inputStart)+"\")");
+                    System.out.println("in Matcher.find(patString=\""+pattern.patString+"\", input tail=\""+input.substring(inputStart)+"\")"); // XXX stringify
                 }
 
                 reset();
@@ -895,7 +895,7 @@ public class regex
                 if (verboseLevel >= 1)
                 {
                     System.out.println("=================");
-                    System.out.println("in Matcher.matches(patString=\""+pattern.patString+"\", input=\""+input+"\")");
+                    System.out.println("in Matcher.matches(patString=\""+pattern.patString+"\", input=\""+input+"\")"); // XXX stringify
                 }
 
                 reset();
@@ -943,9 +943,9 @@ public class regex
                 {
                     System.out.println("=================");
                     System.out.println("in Matcher.replaceAll()");
-                    System.out.println("    pattern.patString = "+pattern.patString);
-                    System.out.println("    input = "+input);
-                    System.out.println("    replacement = "+replacement);
+                    System.out.println("    pattern.patString = "+pattern.patString); // XXX stringify
+                    System.out.println("    input = "+input); // XXX stringify
+                    System.out.println("    replacement = "+replacement); // XXX stringify
                 }
                 this.reset(); // so that we start at the beginning
                 int replacementLength = replacement.length();
@@ -1472,13 +1472,14 @@ public class regex
             matches("b", "[z-b0-9]"); // Backwards range near index 3
             matches("%.2g", "%\\(.((\\d+)|(\\*  )  )  )?g"); // Unmatched closing ')' near index 22 (theirs says 21, I like mine better because it points to the ')')
         }
-        if (true)
+        if (false)
         {
             replaceAll("abc\r\n", ".", "!");
             matches("{\n    genericPuzzleDescription\n",
                     "\\s*\\{\\s*genericPuzzleDescription(.|\n|\r)*");
             matches(",abc\r\ndef\n\r", ",(.|\r|\n)*");
 
+            // XXX this gives stack overflow in 1.6... sometimes
             matches(
 "{\n"+
 "    genericPuzzleDescription = new PolytopePuzzleDescription(\"{4,3,3} 3\"),\n"+
@@ -1486,7 +1487,32 @@ public class regex
 "    history = [],\n"+
 "    undoPartSize = 0,\n"+
 "}",
-            "\\s*\\{\\s*genericPuzzleDescription\\s*=\\s*([^\n,]+),(.|\r|\n)*");
+            "\\s*\\{\\s*genericPuzzleDescription\\s*=\\s*([^\n,]+),(.|\r|\n)*"
+            );
+        }
+        if (false)
+        {
+            // XXX gives a stack overflow in 1.6... sometimes
+            matches(
+"{\n"+
+"    genericPuzzleDescription = new PolytopePuzzleDescription(\"{5,3}x{} 3\"),\n"+
+"    genericPuzzleState = {12,13,12,13,12,12,13,13,12,12,13,13,12,12,12,12,12,12,12,13,13,13,13,13,13,13,12,12,12,12,12,12,12,13,13,13,13,13,13,13,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,13,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,7,7,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11},\n"+
+"    history = { (you are here) }}",
+"\\s*\\{\\s*genericPuzzleDescription\\s*=\\s*([^\n]+)\\s*,\\s*\n\\s*genericPuzzleState\\s*=\\s*([^\n]+)\\s*,\\s*\n\\s*history\\s*=\\s*([^\n]+)\\s*\\}\\s*");
+        }
+        if (true)
+        {
+            // Yeah, this is enough to do it...
+            // definitely need to re-implement using
+            // a real stack instead of the recursion stack,
+            // since I'm going to be using real chars
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < 10*1000; ++i)
+                sb.append('a');
+            String input = sb.toString();
+            sb = null;
+            System.out.println("Trying to match input of length "+input.length());
+            matches(input, ".*");
         }
 
         System.out.println("All good!");
