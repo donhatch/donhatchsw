@@ -742,14 +742,152 @@ public class regex
             } // FSM.__match
             public int match(String input, int inputStart, int inputEnd, int captureGroups[][/*2*/])
             {
-                int matchEnd = __match(input, inputStart, inputEnd, 0, captureGroups);
-                if (matchEnd != -1
-                 && captureGroups != null)
+                boolean doItRecursively = false;
+                if (doItRecursively)
                 {
-                    captureGroups[0][0] = inputStart;
-                    captureGroups[0][1] = matchEnd;
+                    int matchEnd = __match(input, inputStart, inputEnd, 0, captureGroups);
+                    if (matchEnd != -1
+                     && captureGroups != null)
+                    {
+                        captureGroups[0][0] = inputStart;
+                        captureGroups[0][1] = matchEnd;
+                    }
+                    return matchEnd;
                 }
-                return matchEnd;
+                else
+                {
+                    //
+                    // Recursing on every char won't fly--
+                    // it bombs after 20000 or so recursion levels, on my machine.
+                    // So, need to simulate the runtime stack instead.
+                    // Each stack frame contains:
+                    //        inputStart
+                    //        iState
+                    //        iTransition
+                    // This kinda sucks for small strings,
+                    // since the recursive version was actually allocation-free, I think.
+
+                    // XXX what is the right number?
+                    // 2 states (.*):
+                    //   0->1
+                    //   1->3
+                    //   2->5
+                    // 4 states (.*.*):
+                    //   0->2
+                    //   1->4
+                    //   2->6
+                    //   3->8
+                    int stack[] = new int[(2*(inputEnd-inputStart) + 2*states.length)*3]; // XXX what is the right upper bound??
+                    //int stack[] = new int[12];
+                    int iStack = 0;
+
+
+        
+                    {
+                        int iTransition = 0;
+           stateLoop:   for (int iState = 0; iState < states.length;)
+                        {
+                            if (verboseLevel >= 2) System.out.println("    matching input \""+input.substring(inputStart, inputEnd)+"\" against pattern \""+patString.substring(iState)+"\""); // XXX stringify
+                            Transition transitions[] = states[iState].transitions;
+                            for (; iTransition < transitions.length; ++iTransition)
+                            {
+
+                                // XXX get rid of the following when I get the right bound, above
+                                if (iStack+3 >= stack.length)
+                                {
+                                    //int newStack[] = new int[stack.length*5/4]; // 11.68 secs for 10m if start small
+                                    int newStack[] = new int[stack.length*3/2]; // 9.6 secs for 10m if start small
+                                    //int newStack[] = new int[stack.length*2]; // 7.6 secs for 10m if start small
+                                    // 3.9 secs for 10m if allocate it big up front
+                                    System.arraycopy(stack, 0, newStack, 0, stack.length);
+                                    stack = newStack;
+                                }
+
+                                Transition transition = transitions[iTransition];
+                                if (transition.chars == null)
+                                {
+                                    // Free transition-- always succeeds, and don't eat a char
+                                    if (verboseLevel >= 2) System.out.println("    "+iState+" -----> "+(transition.nextState==states.length?"[":"")+transition.nextState+(transition.nextState==states.length?"]":""));
+
+                                    stack[iStack++] = inputStart;
+                                    stack[iStack++] = iState;
+                                    stack[iStack++] = iTransition;
+
+                                    iState = transition.nextState;
+                                    iTransition = 0;
+                                    continue stateLoop; // recurse
+                                }
+                                else
+                                {
+                                    // Transition, and eat the char, only if it matches
+                                    if (inputStart < inputEnd)
+                                    {
+                                        char c = input.charAt(inputStart);
+                                        if ((transition.chars.indexOf(c) == -1) == transition.complement)
+                                        {
+                                            if (verboseLevel >= 2) System.out.println("    "+iState+" -("+c+")-> "+(transition.nextState==states.length?"[":"")+transition.nextState+(transition.nextState==states.length?"]":""));
+
+                                            stack[iStack++] = inputStart;
+                                            stack[iStack++] = iState;
+                                            stack[iStack++] = iTransition;
+
+                                            inputStart++;
+                                            iState = transition.nextState;
+                                            iTransition = 0;
+                                            continue stateLoop; // recurse
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // This transition failed; on to next iTransition
+                                    }
+                                }
+                            }
+                            //
+                            // No transitions worked from this state
+                            // at this inputStart; pop to parent stack frame,
+                            // and on to the next transition in the parent state.
+                            // If we're at the beginning, fail.
+                            // This is really returning from the recursion;
+                            // we jump right into the middle of the caller's iTransition loop.
+                            //
+                            if (iStack == 0)
+                                return -1;
+
+                            iTransition = stack[--iStack];
+                            iState = stack[--iStack];
+                            inputStart = stack[--iStack];
+
+                            iTransition++;
+                        } // for iState
+                    }
+
+                    // Success!
+                    // Unwind the stack information into captureGroups,
+                    // and return the current value of inputStart,
+                    // which is the end of the match.
+                    int matchEnd = inputStart;
+                    if (captureGroups != null)
+                    {
+                        while (iStack > 0)
+                        {
+                            int iTransition = stack[--iStack];
+                            int iState = stack[--iStack];
+                            inputStart = stack[--iStack];
+
+                            Transition transition = states[iState].transitions[iTransition];
+
+                            if (transition.captureGroupIndex != -1
+                             && captureGroups[transition.captureGroupIndex/2]
+                                             [transition.captureGroupIndex%2] == -1) // for a * or +, we want the last one, so don't clobber it
+                                captureGroups[transition.captureGroupIndex/2]
+                                             [transition.captureGroupIndex%2] = inputStart;
+                        }
+                        captureGroups[0][0] = inputStart;
+                        captureGroups[0][1] = matchEnd;
+                    }
+                    return matchEnd;
+                }
             } // FSM.match
         } // class My.FSM
 
@@ -1367,6 +1505,19 @@ public class regex
 
         if (true)
         {
+            matches("", ".*.*");
+            matches("a", ".*.*");
+            matches("ab", ".*.*");
+            matches("abc", ".*.*");
+            matches("abcd", ".*.*");
+            matches("abcde", ".*.*");
+            matches("abcdef", ".*.*");
+            matches("abcdefg", ".*.*");
+            matches("abcdefgh", ".*.*");
+            matches("abcdefghi", ".*.*");
+        }
+        if (true)
+        {
             testSplit(new String[]{"","a"},
                       new String[]{"","a","a?","a*","a+"},
                       new int[]{-1,0,1,2});
@@ -1468,11 +1619,11 @@ public class regex
         }
         if (false)
         {
-            // Purposely try to throw exceptions to exercise that
+            // Purposely try to throw exceptions to exercise that XXX should catch and verify these
             matches("b", "[z-b0-9]"); // Backwards range near index 3
             matches("%.2g", "%\\(.((\\d+)|(\\*  )  )  )?g"); // Unmatched closing ')' near index 22 (theirs says 21, I like mine better because it points to the ')')
         }
-        if (false)
+        if (true)
         {
             replaceAll("abc\r\n", ".", "!");
             matches("{\n    genericPuzzleDescription\n",
@@ -1490,7 +1641,7 @@ public class regex
             "\\s*\\{\\s*genericPuzzleDescription\\s*=\\s*([^\n,]+),(.|\r|\n)*"
             );
         }
-        if (false)
+        if (true)
         {
             // XXX gives a stack overflow in 1.6... sometimes
             matches(
@@ -1503,11 +1654,14 @@ public class regex
         if (true)
         {
             // Yeah, this is enough to do it...
-            // definitely need to re-implement using
-            // a real stack instead of the recursion stack,
-            // since I'm going to be using real chars
+            // needed to re-implement using a real stack instead
+            // of the recursion stack.
+            // With the resursive algorithm,
+            // 10,000 or 20,000 was stack overflowing on all vms (1.6 got worse)...
+            // but with non-recursive implementation, can handle 1000 times that much:
+            // 30,000,000, maybe bigger with bigger machine
             StringBuffer sb = new StringBuffer();
-            for (int i = 0; i < 10*1000; ++i)
+            for (int i = 0; i < 10*1000*1000; ++i)
                 sb.append('a');
             String input = sb.toString();
             sb = null;
