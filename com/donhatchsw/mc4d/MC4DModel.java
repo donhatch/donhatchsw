@@ -159,6 +159,7 @@ public class MC4DModel
             this.genericPuzzleDescription = genericPuzzleDescription;
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleState);
             this.controllerUndoTreeSquirrel = controllerUndoTreeSquirrel;
+            this.animationUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTreeSquirrel); // follows controllerUndoTreeSquirrel, but lags behind at the pace of the animation
         }
 
 
