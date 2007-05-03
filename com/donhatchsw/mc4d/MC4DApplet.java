@@ -252,13 +252,13 @@ public class MC4DApplet
                 add("File", new PopupMenu() {{
                     if (isInSandbox)
                     {
-                        add(new MyMenuItem("Save to the cookie") {
+                        add(new MyMenuItem("Save to browser cookie") {
                             public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 com.donhatchsw.applet.CookieUtils.setCookie(MC4DApplet.this, "mc4dmodelstate", viewGuts.model.toString());
                             }
                         });
-                        add(new MyMenuItem("Load from the cookie") {
+                        add(new MyMenuItem("Load from browser cookie") {
                             public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(MC4DApplet.this, "mc4dmodelstate");
@@ -278,6 +278,7 @@ public class MC4DApplet
                                     String s3 = m2.toString();
                                     Assert(s3.equals(s1));
                                     System.out.println("Good!");
+                                    viewGuts.setModel(m2);
                                 }
                             });
                     }
@@ -289,6 +290,18 @@ public class MC4DApplet
                     }
                     addSeparator();
                     add("Quit");
+                }});
+                add("Puzzle", new PopupMenu() {{
+                    final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
+                    glue.addMoreItemsToPuzzleMenu(
+                        this,
+                        new Label("dum dum"),
+                        new GenericGlue.Callback() {
+                            public void call()
+                            {
+                                viewGuts.setModel(glue.model);
+                            }
+                        });
                 }});
                 add("Edit", new PopupMenu() {{
                     add(new MyMenuItem("Reset") {
@@ -377,13 +390,25 @@ public class MC4DApplet
                         }
                     });
                     addSeparator();
-                    add(new MyMenuItem("Cloned view of same model") {
+                    add(new MyMenuItem("Shared view of shared puzzle state") {
                         {setEnabled(false);}
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
                         }
                     });
-                    add(new MyMenuItem("Cloned view of cloned model") {
+                    add(new MyMenuItem("Shared view of cloned puzzle state") {
+                        {setEnabled(false);}
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                        }
+                    });
+                    add(new MyMenuItem("Cloned view of shared puzzle state ") {
+                        {setEnabled(false);}
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                        }
+                    });
+                    add(new MyMenuItem("Cloned view of cloned puzzle state ") {
                         {setEnabled(false);}
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
@@ -396,18 +421,6 @@ public class MC4DApplet
                         {
                         }
                     });
-                }});
-                add("Puzzle", new PopupMenu() {{
-                    final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
-                    glue.addMoreItemsToPuzzleMenu(
-                        this,
-                        new Label("dum dum"),
-                        new GenericGlue.Callback() {
-                            public void call()
-                            {
-                                viewGuts.setModel(glue.model);
-                            }
-                        });
                 }});
                 add("Help", new PopupMenu() {{
                     add("About...");
@@ -447,7 +460,7 @@ public class MC4DApplet
     //
         private static void makeNewControlPanelWindow(MC4DViewGuts viewGuts)
         {
-            final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4DControlPanel Test");
+            final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4D Control Panel");
             // XXX the following is probably not what I want
             controlPanelFrame.addWindowListener(new WindowAdapter() {
                 public void windowClosing(WindowEvent we) {
@@ -591,6 +604,7 @@ public class MC4DApplet
         // and that one of them is puzzleDescription.
         // XXX is there a way we can make AppletViewer do this automatically?
         {
+            boolean requirePuzzleDescriptionArg = false; // XXX ARGH! I want this to be true when run from the command line, but it has to be false when launching through a jar's manifest.mf because you can't pass args through there :-(
             boolean foundPuzzleDescriptionArg = false;
             boolean foundBadArg = false;
             for (int iArg = 0; iArg < args.length; ++iArg)
@@ -608,7 +622,8 @@ public class MC4DApplet
                 if (args[iArg].startsWith("puzzleDescription="))
                     foundPuzzleDescriptionArg = true;
             }
-            if (!foundPuzzleDescriptionArg || foundBadArg)
+            if (foundBadArg
+             || (requirePuzzleDescriptionArg && !foundPuzzleDescriptionArg))
             {
                 System.err.println();
                 System.err.println("Usage: MC4DApplet puzzleDescription=\"<puzzleDescription>\" [<otherparam>=<othervalue> ... ]");
