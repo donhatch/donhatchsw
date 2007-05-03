@@ -139,10 +139,15 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - in java 1.6, File->Test to/from string gives stack oflow
-
+        - need to get javacpp fixed and usable before I ship this
+        - puzzle change or load makes undo tree viewer go stale...
+           well that's expected, but should maybe close the window if no more views
+           of it?  or have a "launch view" from the undo tree window?
+           Oh no wait, the undo tree viewer should maintain focus
+           on a particular view window's animation squirrel!
+           Its window title should reflect that!
         - label each window, e.g.
-                View and controller windows:
+                View/controller windows:
                     model 0 view 0
                     model 0 view 1
                     model 0 view 2
@@ -152,6 +157,9 @@
                 Undo tree window:
                     if I can get all the views in the same undo tree window,
                     then just "model 0" or whatever
+                    NO, needs to be specific to a view-- 
+                    different squirrels in the same tree see the tree differently!
+                    but yes, should show all the squirrels in that tree.
         - should there be an overall list of all the models and views,
             that the user can manually attach stuff to,
             and also maybe make different views follow different other views?
@@ -214,7 +222,7 @@
                    not the squares, of a {5}x{4} and the {5,3}x{})
             - invention form should come up with current puzzle or previous
                   failed attempt
-            - should mention Johnson numbers where applicable
+            - should mention Johnson numbers and short names where applicable
         MISC:
             - checkbox "Auto 2d scale"
                 When checked, 2d view scale moves automatically
@@ -225,9 +233,9 @@
                 while leaving scale2d alone...
                 but if auto 2d scale is on, they affect scale2d
                 while leaving frac2d alone.
-            - 'frame' button?
-
-            - can't twist while twist is in progress yet-- sucks for usability
+            - 'frame' button? it should be on the view window, not the control panel,
+                since that is the one wart that is preventing multiple
+                view windows from sharing a control panel
             - the cool rotate-arbitrary-element-to-center thing
                should be undoable... somehow
                - preference whether that should be treated as an undo move?
@@ -237,8 +245,9 @@
                Maybe could have a mode checkbox, that toggles
                between a shrink notion and an explode notion
             - history compression
-            - highlight should highlight all views of the model--
-               that would be a good way to get one's bearings
+            - highlight should highlight in all views that share the controller
+               squirrel-- that would be a good way to get one's bearings
+            - in control panel, checkbox for frontfaces or backfaces
 
         AWT/APPLET/GUI LAYOUT:
             - MyMenuBar menus don't pop down nicely when others opened
@@ -246,7 +255,7 @@
 
         HIGHLIGHT BY GRIP:
             - 2x shows cracks :-(
-            - 2x outlines shows too much
+            - 2x outlines shows outlines on the cracks, too
 
         POLYTOPE STUFF:
             - it's not oriented correctly at the end after slicing-- so I had
