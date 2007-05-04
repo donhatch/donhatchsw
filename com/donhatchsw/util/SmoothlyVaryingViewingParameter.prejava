@@ -516,10 +516,731 @@ public class SmoothlyVaryingViewingParameter
 
     } // confidenceTests
 
-    private static int eventVerbose = 2;
+    // Trying to visualize the kinodynamic planning problem.
+    // not part of the SmoothlyVaryingViewingParameter implementation yet.
+    private static void interactiveDemo2()
+    {
+        final int eventVerbose = 0; // set to something else to debug
+
+        java.awt.Canvas canvas = new java.awt.Canvas() {
+            class Model
+            {
+                double A0[] = {1.5,-.5};
+                double At1[] = {1.5,0};
+                double A1[] = VecMath.lerp(A0, At1, 1./VecMath.dist(A0,At1));
+
+                // 0: A0
+                // 1: A1, to change the angle only
+                // 2: At1, to move in and out on the line
+                // 3: both A1 and At1-- allow dragging At1 freely
+                int pickClosestThing(double x, double y)
+                {
+                    double dist = VecMath.dist(A0,At1);
+                    if (dist == 0.)
+                        return 3; // At1 freely, so user can separate them
+                    double points[][] = {
+                        A0,
+                        A1,
+                        At1,
+                    };
+                    double distSqrds[] = new double[points.length];
+                    for (int i = 0; i < points.length; ++i)
+                        distSqrds[i] = (x-points[i][0])*(x-points[i][0])
+                                     + (y-points[i][1])*(y-points[i][1]);
+
+                    double pickRadiusSqrd = .1*.1; // XXX hack-- should be a fixed number of pixels
+                    if (distSqrds[0] <= pickRadiusSqrd
+                     && distSqrds[0] < distSqrds[1]
+                     && distSqrds[0] < distSqrds[2])
+                        return 0;
+
+                    if (distSqrds[1] <= pickRadiusSqrd
+                     && distSqrds[2] <= pickRadiusSqrd)
+                        return 3; // picked both
+
+                    if (distSqrds[1] <= pickRadiusSqrd)
+                        return 1;
+                    if (distSqrds[2] <= pickRadiusSqrd)
+                        return 2;
+                    return -1;
+                } // pickClosestThing
+            }
+            Model model = new Model();
+            com.donhatchsw.awt.MyGraphics mostRecentGraphics = null;
+            double prevPoint[] = null;
+            int indexOfThingBeingDragged = -1;
+
+            public java.awt.Dimension getPreferredSize()
+            {
+                return new java.awt.Dimension(800,800);
+                //return new java.awt.Dimension(200,200);
+            }
+
+
+            // Stuff so I don't have to translate from mathematica
+            private double[] List(double x, double y) {return new double[]{x,y};}
+            private double Power(double x, int y) {assert(y==2); return x*x;}
+            private double Power(double x, double y) {return Math.pow(x,y);}
+            private double Sqrt(double x) {return Math.sqrt(x);}
+            private double Log(double x) {return Math.log(x);}
+
+            /*
+                Integral from 0 to t
+                of lerp(A0,A1,u)/|lerp(A0,A1,u)| du
+            */
+            private double[] calcVelocity(double A0[],
+                                          double A1[],
+                                          double t)
+            {
+                double x0 = A0[0];
+                double y0 = A0[1];
+                double x1 = A1[0];
+                double y1 = A1[1];
+                return
+List(-(((-x0 + x1)*Sqrt(Power(x0, 2) + Power(y0, 2)))/(Power(x0, 2) - 
+                2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2))) + ((-x0 + x1)*
+            Sqrt(Power(-1 + t, 2)*Power(x0, 2) - 2*(-1 + t)*t*x0*x1 + 
+                Power(y0, 2) + 
+                Power(t, 2)*(Power(x1, 2) + Power(y0 - y1, 2)) - 
+                2*t*y0*(y0 - y1)))/(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+            Power(y0 - y1, 2)) - ((y0 - y1)*(x1*y0 - x0*y1)*
+              Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                            Sqrt(Power(x0, 2) + Power(y0, 2))*
+                              Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0 - y1, 2)) + y0*y1))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0 - y1, 2))))/
+          Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+          1.5) + ((y0 - y1)*(x1*y0 - x0*y1)*
+              Log((2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 2*t*x0*x1 + 
+                            t*Power(x1, 2) - Power(y0, 2) + t*Power(y0, 2) + 
+                            Sqrt(Power(-1 + t, 2)*Power(x0, 2) - 
+                                  2*(-1 + t)*t*x0*x1 + Power(y0, 2) + 
+                                  Power(t, 
+                                      2)*(Power(x1, 2) + Power(y0 - y1, 2)) - 
+                                  2*t*y0*(y0 - y1))*
+                              Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0 - y1, 2)) + y0*y1 - 2*t*y0*y1 + 
+                            t*Power(y1, 2)))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0 - y1, 2))))/
+          Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+          1.5), -((Sqrt(Power(x0, 2) + Power(y0, 2))*(-y0 + y1))/(Power(x0, 
+                    2) - 2*x0*x1 + Power(x1, 2) + 
+                Power(y0 - y1, 2))) + (Sqrt(Power(-1 + t, 2)*Power(x0, 2) - 
+                2*(-1 + t)*t*x0*x1 + Power(y0, 2) + 
+                Power(t, 2)*(Power(x1, 2) + Power(y0 - y1, 2)) - 
+                2*t*y0*(y0 - y1))*(-y0 + y1))/(Power(x0, 2) - 2*x0*x1 + 
+            Power(x1, 2) + 
+            Power(y0 - y1, 2)) - ((x0 - x1)*(-(x1*y0) + x0*y1)*
+              Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                            Sqrt(Power(x0, 2) + Power(y0, 2))*
+                              Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0 - y1, 2)) + y0*y1))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0 - y1, 2))))/
+          Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+          1.5) + ((x0 - x1)*(-(x1*y0) + x0*y1)*
+              Log((2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 2*t*x0*x1 + 
+                            t*Power(x1, 2) - Power(y0, 2) + t*Power(y0, 2) + 
+                            Sqrt(Power(-1 + t, 2)*Power(x0, 2) - 
+                                  2*(-1 + t)*t*x0*x1 + Power(y0, 2) + 
+                                  Power(t, 
+                                      2)*(Power(x1, 2) + Power(y0 - y1, 2)) - 
+                                  2*t*y0*(y0 - y1))*
+                              Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0 - y1, 2)) + y0*y1 - 2*t*y0*y1 + 
+                            t*Power(y1, 2)))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0 - y1, 2))))/
+          Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+          1.5));
+            } // calcVelocity
+            /*
+                Integral from 0 to t
+                of integral from 0 to u
+                of lerp(A0,A1,v)/|lerp(A0,A1,v)| dv du
+            */
+            private double[] calcPosition(double A0[],
+                                          double A1[],
+                                          double t)
+            {
+                double x0 = A0[0];
+                double y0 = A0[1];
+                double x1 = A1[0];
+                double y1 = A1[1];
+                return
+List((t*(x0 - x1)*Sqrt(Power(x0, 2) + Power(y0, 2)))/(Power(x0, 2) - 
+            2*x0*x1 + Power(x1, 2) + 
+            Power(y0 - y1, 2)) - ((y0 - y1)*(x1*y0 - x0*y1)*
+            Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + Power(t, 2)*Power(x0, 2) + 
+                2*t*x0*x1 - 2*Power(t, 2)*x0*x1 + Power(t, 2)*Power(x1, 2) + 
+                Power(y0, 2) - 2*t*Power(y0, 2) + Power(t, 2)*Power(y0, 2) + 
+                2*t*y0*y1 - 2*Power(t, 2)*y0*y1 + 
+                Power(t, 2)*Power(y1, 2)))/(Power(Power(x0, 2) - 2*x0*x1 + 
+                Power(x1, 2) + Power(y0 - y1, 2), 1.5)*
+            Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                2*y0*y1 + Power(y1, 2))) + ((-x0 + x1)*
+            Sqrt(Power(-1 + t, 2)*Power(x0, 2) - 2*(-1 + t)*x0*x1 - 
+                2*Power(-1 + t, 2)*x0*x1 + Power(x1, 2) + 
+                2*(-1 + t)*Power(x1, 2) + Power(-1 + t, 2)*Power(x1, 2) + 
+                Power(-1 + t, 2)*Power(y0, 2) - 2*(-1 + t)*y0*y1 - 
+                2*Power(-1 + t, 2)*y0*y1 + Power(y1, 2) + 
+                2*(-1 + t)*Power(y1, 2) + 
+                Power(-1 + t, 2)*Power(y1, 2))*((-1 + t)/
+                  2. - (x0*x1 - Power(x1, 2) + y0*y1 - 
+                      Power(y1, 2))/(2.*(Power(x0, 2) - 2*x0*x1 + 
+                          Power(x1, 2) + Power(y0, 2) - 2*y0*y1 + 
+                          Power(y1, 2)))))/(Power(x0, 2) - 2*x0*x1 + 
+            Power(x1, 2) + Power(y0, 2) - 2*y0*y1 + 
+            Power(y1, 2)) + (t*(y0 - y1)*(-(x1*y0) + x0*y1)*
+              Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                            Sqrt(Power(x0, 2) + Power(y0, 2))*
+                              Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0 - y1, 2)) + y0*y1))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0 - y1, 2))))/
+          Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+          1.5) + ((-2*
+                    Sqrt(Power(x0, 2) + Power(y0, 2))*(y0 - y1)*(-(x1*y0) + 
+                        x0*y1))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 
+                2) + ((x0 - x1)*
+                    Sqrt(Power(x0, 2) + Power(y0, 2))*(-Power(x0, 2) + 
+                        x0*x1 + y0*(-y0 + y1)))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 
+                2) - (2*(Power(x0, 2) - x0*x1 + y0*(y0 - y1))*(y0 - 
+                        y1)*(-(x1*y0) + 
+                        x0*y1)*(Log(2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                                  Sqrt(Power(x0, 2) + Power(y0, 2))*
+                                    Sqrt(Power(x0, 2) - 2*x0*x1 + 
+                                        Power(x1, 2) + Power(y0 - y1, 2)) + 
+                                  y0*y1)) - 
+                        Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                                        Sqrt(Power(x0, 2) + Power(y0, 2))*
+                                        Sqrt(Power(x0, 2) - 2*x0*x1 + 
+                                        Power(x1, 2) + Power(y0 - y1, 2)) + 
+                                        y0*y1))/
+                                Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0 - y1, 2)))))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 
+                2.5) + ((x0 - x1)*Power(x1*y0 - x0*y1, 2)*
+                    Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                                  Sqrt(Power(x0, 2) + Power(y0, 2))*
+                                    Sqrt(Power(x0, 2) - 2*x0*x1 + 
+                                        Power(x1, 2) + Power(y0 - y1, 2)) + 
+                                  y0*y1))/
+                          Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                            Power(y0 - y1, 2))))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 
+                2.5) - (2*(Power(x0, 2) - x0*x1 + y0*(y0 - y1))*(y0 - 
+                        y1)*(-(x1*y0) + x0*y1)*
+                    Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                                  Sqrt(Power(x0, 2) + Power(y0, 2))*
+                                    Sqrt(Power(x0, 2) - 2*x0*x1 + 
+                                        Power(x1, 2) + Power(y0 - y1, 2)) + 
+                                  y0*y1))/
+                          Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                            Power(y0 - y1, 2))))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 2.5))/
+        2. + ((-x0 + x1)*Power(-(x1*y0) + x0*y1, 2)*
+            Log((2*((-1 + t)*Power(x0, 2) - x0*x1 - 2*(-1 + t)*x0*x1 + 
+                            Power(x1, 2) + (-1 + t)*Power(x1, 2) + (-1 + t)*
+                              Power(y0, 2) - y0*y1 - 2*(-1 + t)*y0*y1 + 
+                            Power(y1, 2) + (-1 + t)*Power(y1, 2)))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0, 2) - 2*y0*y1 + Power(y1, 2)) + 
+                2*Sqrt(Power(-1 + t, 2)*Power(x0, 2) - 2*(-1 + t)*x0*x1 - 
+                      2*Power(-1 + t, 2)*x0*x1 + Power(x1, 2) + 
+                      2*(-1 + t)*Power(x1, 2) + 
+                      Power(-1 + t, 2)*Power(x1, 2) + 
+                      Power(-1 + t, 2)*Power(y0, 2) - 2*(-1 + t)*y0*y1 - 
+                      2*Power(-1 + t, 2)*y0*y1 + Power(y1, 2) + 
+                      2*(-1 + t)*Power(y1, 2) + 
+                      Power(-1 + t, 2)*Power(y1, 2))))/(2.*
+            Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                2*y0*y1 + Power(y1, 2), 2.5)) + (t*(y0 - y1)*(x1*y0 - x0*y1)*
+              Log((2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 2*t*x0*x1 + 
+                            t*Power(x1, 2) - Power(y0, 2) + t*Power(y0, 2) + 
+                            y0*y1 - 2*t*y0*y1 + t*Power(y1, 2) + 
+                            Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0, 2) - 2*y0*y1 + Power(y1, 2))*
+                              Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + 
+                                  Power(t, 2)*Power(x0, 2) + 2*t*x0*x1 - 
+                                  2*Power(t, 2)*x0*x1 + 
+                                  Power(t, 2)*Power(x1, 2) + Power(y0, 2) - 
+                                  2*t*Power(y0, 2) + 
+                                  Power(t, 2)*Power(y0, 2) + 2*t*y0*y1 - 
+                                  2*Power(t, 2)*y0*y1 + 
+                                  Power(t, 2)*Power(y1, 2))))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0, 2) - 2*y0*y1 + Power(y1, 2))))/
+          Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+          1.5) + ((y0 - y1)*(x1*y0 - x0*y1)*(-Power(x0, 2) + x0*x1 - 
+                Power(y0, 2) + y0*y1)*
+            Log((2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 2*t*x0*x1 + 
+                          t*Power(x1, 2) - Power(y0, 2) + t*Power(y0, 2) + 
+                          y0*y1 - 2*t*y0*y1 + t*Power(y1, 2) + 
+                          Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                Power(y0, 2) - 2*y0*y1 + Power(y1, 2))*
+                            Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + 
+                                Power(t, 2)*Power(x0, 2) + 2*t*x0*x1 - 
+                                2*Power(t, 2)*x0*x1 + 
+                                Power(t, 2)*Power(x1, 2) + Power(y0, 2) - 
+                                2*t*Power(y0, 2) + Power(t, 2)*Power(y0, 2) + 
+                                2*t*y0*y1 - 2*Power(t, 2)*y0*y1 + 
+                                Power(t, 2)*Power(y1, 2))))/
+                  Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                    2*y0*y1 + Power(y1, 2))))/(Power(Power(x0, 2) - 2*x0*x1 + 
+                Power(x1, 2) + Power(y0 - y1, 2), 
+              1.5)*(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                2*y0*y1 + Power(y1, 2))) + ((y0 - y1)*(x1*y0 - 
+                x0*y1)*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                y0*y1)*(-Log((2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 
+                                2*t*x0*x1 + t*Power(x1, 2) - Power(y0, 2) + 
+                                t*Power(y0, 2) + y0*y1 - 2*t*y0*y1 + 
+                                t*Power(y1, 2) + 
+                                Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                      Power(y0, 2) - 2*y0*y1 + Power(y1, 2))*
+                                  Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + 
+                                      Power(t, 2)*Power(x0, 2) + 2*t*x0*x1 - 
+                                      2*Power(t, 2)*x0*x1 + 
+                                      Power(t, 2)*Power(x1, 2) + 
+                                      Power(y0, 2) - 2*t*Power(y0, 2) + 
+                                      Power(t, 2)*Power(y0, 2) + 2*t*y0*y1 - 
+                                      2*Power(t, 2)*y0*y1 + 
+                                      Power(t, 2)*Power(y1, 2))))/
+                        Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                          Power(y0, 2) - 2*y0*y1 + Power(y1, 2))) + 
+                Log(2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 2*t*x0*x1 + 
+                            t*Power(x1, 2) - Power(y0, 2) + t*Power(y0, 2) + 
+                            y0*y1 - 2*t*y0*y1 + t*Power(y1, 2)) + 
+                      2*Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                            Power(y0, 2) - 2*y0*y1 + Power(y1, 2))*
+                        Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + 
+                            Power(t, 2)*Power(x0, 2) + 2*t*x0*x1 - 
+                            2*Power(t, 2)*x0*x1 + Power(t, 2)*Power(x1, 2) + 
+                            Power(y0, 2) - 2*t*Power(y0, 2) + 
+                            Power(t, 2)*Power(y0, 2) + 2*t*y0*y1 - 
+                            2*Power(t, 2)*y0*y1 + 
+                            Power(t, 2)*Power(y1, 2)))))/(Power(Power(x0, 
+                    2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+              1.5)*(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                2*y0*y1 + Power(y1, 2))), (t*
+            Sqrt(Power(x0, 2) + Power(y0, 2))*(y0 - y1))/(Power(x0, 2) - 
+            2*x0*x1 + Power(x1, 2) + 
+            Power(y0 - y1, 2)) - ((x0 - x1)*(-(x1*y0) + x0*y1)*
+            Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + Power(t, 2)*Power(x0, 2) + 
+                2*t*x0*x1 - 2*Power(t, 2)*x0*x1 + Power(t, 2)*Power(x1, 2) + 
+                Power(y0, 2) - 2*t*Power(y0, 2) + Power(t, 2)*Power(y0, 2) + 
+                2*t*y0*y1 - 2*Power(t, 2)*y0*y1 + 
+                Power(t, 2)*Power(y1, 2)))/(Power(Power(x0, 2) - 2*x0*x1 + 
+                Power(x1, 2) + Power(y0 - y1, 2), 1.5)*
+            Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                2*y0*y1 + Power(y1, 2))) + ((-y0 + y1)*
+            Sqrt(Power(-1 + t, 2)*Power(x0, 2) - 2*(-1 + t)*x0*x1 - 
+                2*Power(-1 + t, 2)*x0*x1 + Power(x1, 2) + 
+                2*(-1 + t)*Power(x1, 2) + Power(-1 + t, 2)*Power(x1, 2) + 
+                Power(-1 + t, 2)*Power(y0, 2) - 2*(-1 + t)*y0*y1 - 
+                2*Power(-1 + t, 2)*y0*y1 + Power(y1, 2) + 
+                2*(-1 + t)*Power(y1, 2) + 
+                Power(-1 + t, 2)*Power(y1, 2))*((-1 + t)/
+                  2. - (x0*x1 - Power(x1, 2) + y0*y1 - 
+                      Power(y1, 2))/(2.*(Power(x0, 2) - 2*x0*x1 + 
+                          Power(x1, 2) + Power(y0, 2) - 2*y0*y1 + 
+                          Power(y1, 2)))))/(Power(x0, 2) - 2*x0*x1 + 
+            Power(x1, 2) + Power(y0, 2) - 2*y0*y1 + 
+            Power(y1, 2)) - (t*(x0 - x1)*(-(x1*y0) + x0*y1)*
+              Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                            Sqrt(Power(x0, 2) + Power(y0, 2))*
+                              Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0 - y1, 2)) + y0*y1))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0 - y1, 2))))/
+          Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+          1.5) + ((2*(x0 - x1)*
+                    Sqrt(Power(x0, 2) + Power(y0, 2))*(-(x1*y0) + x0*y1))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 
+                2) + (Sqrt(Power(x0, 2) + Power(y0, 2))*(y0 - 
+                        y1)*(-Power(x0, 2) + x0*x1 + y0*(-y0 + y1)))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 
+                2) + ((y0 - y1)*Power(x1*y0 - x0*y1, 2)*
+                    Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                                  Sqrt(Power(x0, 2) + Power(y0, 2))*
+                                    Sqrt(Power(x0, 2) - 2*x0*x1 + 
+                                        Power(x1, 2) + Power(y0 - y1, 2)) + 
+                                  y0*y1))/
+                          Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                            Power(y0 - y1, 2))))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 
+                2.5) + (2*(x0 - x1)*(Power(x0, 2) - x0*x1 + 
+                        y0*(y0 - y1))*(-(x1*y0) + x0*y1)*
+                    Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                                  Sqrt(Power(x0, 2) + Power(y0, 2))*
+                                    Sqrt(Power(x0, 2) - 2*x0*x1 + 
+                                        Power(x1, 2) + Power(y0 - y1, 2)) + 
+                                  y0*y1))/
+                          Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                            Power(y0 - y1, 2))))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 
+                2.5) - (2*(x0 - x1)*(Power(x0, 2) - x0*x1 + 
+                        y0*(y0 - y1))*(-(x1*y0) + 
+                        x0*y1)*(-Log(2*(-Power(x0, 2) + x0*x1 - 
+                                  Power(y0, 2) + 
+                                  Sqrt(Power(x0, 2) + Power(y0, 2))*
+                                    Sqrt(Power(x0, 2) - 2*x0*x1 + 
+                                        Power(x1, 2) + Power(y0 - y1, 2)) + 
+                                  y0*y1)) + 
+                        Log((2*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                                        Sqrt(Power(x0, 2) + Power(y0, 2))*
+                                        Sqrt(Power(x0, 2) - 2*x0*x1 + 
+                                        Power(x1, 2) + Power(y0 - y1, 2)) + 
+                                        y0*y1))/
+                                Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0 - y1, 2)))))/
+                Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                  Power(y0 - y1, 2), 2.5))/
+        2. + ((-y0 + y1)*Power(-(x1*y0) + x0*y1, 2)*
+            Log((2*((-1 + t)*Power(x0, 2) - x0*x1 - 2*(-1 + t)*x0*x1 + 
+                            Power(x1, 2) + (-1 + t)*Power(x1, 2) + (-1 + t)*
+                              Power(y0, 2) - y0*y1 - 2*(-1 + t)*y0*y1 + 
+                            Power(y1, 2) + (-1 + t)*Power(y1, 2)))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0, 2) - 2*y0*y1 + Power(y1, 2)) + 
+                2*Sqrt(Power(-1 + t, 2)*Power(x0, 2) - 2*(-1 + t)*x0*x1 - 
+                      2*Power(-1 + t, 2)*x0*x1 + Power(x1, 2) + 
+                      2*(-1 + t)*Power(x1, 2) + 
+                      Power(-1 + t, 2)*Power(x1, 2) + 
+                      Power(-1 + t, 2)*Power(y0, 2) - 2*(-1 + t)*y0*y1 - 
+                      2*Power(-1 + t, 2)*y0*y1 + Power(y1, 2) + 
+                      2*(-1 + t)*Power(y1, 2) + 
+                      Power(-1 + t, 2)*Power(y1, 2))))/(2.*
+            Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                2*y0*y1 + Power(y1, 2), 
+              2.5)) + (t*(x0 - x1)*(-(x1*y0) + x0*y1)*
+              Log((2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 2*t*x0*x1 + 
+                            t*Power(x1, 2) - Power(y0, 2) + t*Power(y0, 2) + 
+                            y0*y1 - 2*t*y0*y1 + t*Power(y1, 2) + 
+                            Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                  Power(y0, 2) - 2*y0*y1 + Power(y1, 2))*
+                              Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + 
+                                  Power(t, 2)*Power(x0, 2) + 2*t*x0*x1 - 
+                                  2*Power(t, 2)*x0*x1 + 
+                                  Power(t, 2)*Power(x1, 2) + Power(y0, 2) - 
+                                  2*t*Power(y0, 2) + 
+                                  Power(t, 2)*Power(y0, 2) + 2*t*y0*y1 - 
+                                  2*Power(t, 2)*y0*y1 + 
+                                  Power(t, 2)*Power(y1, 2))))/
+                    Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                      Power(y0, 2) - 2*y0*y1 + Power(y1, 2))))/
+          Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+          1.5) + ((x0 - x1)*(-(x1*y0) + x0*y1)*(-Power(x0, 2) + x0*x1 - 
+                Power(y0, 2) + y0*y1)*
+            Log((2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 2*t*x0*x1 + 
+                          t*Power(x1, 2) - Power(y0, 2) + t*Power(y0, 2) + 
+                          y0*y1 - 2*t*y0*y1 + t*Power(y1, 2) + 
+                          Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                Power(y0, 2) - 2*y0*y1 + Power(y1, 2))*
+                            Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + 
+                                Power(t, 2)*Power(x0, 2) + 2*t*x0*x1 - 
+                                2*Power(t, 2)*x0*x1 + 
+                                Power(t, 2)*Power(x1, 2) + Power(y0, 2) - 
+                                2*t*Power(y0, 2) + Power(t, 2)*Power(y0, 2) + 
+                                2*t*y0*y1 - 2*Power(t, 2)*y0*y1 + 
+                                Power(t, 2)*Power(y1, 2))))/
+                  Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                    2*y0*y1 + Power(y1, 2))))/(Power(Power(x0, 2) - 2*x0*x1 + 
+                Power(x1, 2) + Power(y0 - y1, 2), 
+              1.5)*(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                2*y0*y1 + Power(y1, 2))) + ((x0 - x1)*(-(x1*y0) + 
+                x0*y1)*(-Power(x0, 2) + x0*x1 - Power(y0, 2) + 
+                y0*y1)*(-Log((2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 
+                                2*t*x0*x1 + t*Power(x1, 2) - Power(y0, 2) + 
+                                t*Power(y0, 2) + y0*y1 - 2*t*y0*y1 + 
+                                t*Power(y1, 2) + 
+                                Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                                      Power(y0, 2) - 2*y0*y1 + Power(y1, 2))*
+                                  Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + 
+                                      Power(t, 2)*Power(x0, 2) + 2*t*x0*x1 - 
+                                      2*Power(t, 2)*x0*x1 + 
+                                      Power(t, 2)*Power(x1, 2) + 
+                                      Power(y0, 2) - 2*t*Power(y0, 2) + 
+                                      Power(t, 2)*Power(y0, 2) + 2*t*y0*y1 - 
+                                      2*Power(t, 2)*y0*y1 + 
+                                      Power(t, 2)*Power(y1, 2))))/
+                        Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                          Power(y0, 2) - 2*y0*y1 + Power(y1, 2))) + 
+                Log(2*(-Power(x0, 2) + t*Power(x0, 2) + x0*x1 - 2*t*x0*x1 + 
+                            t*Power(x1, 2) - Power(y0, 2) + t*Power(y0, 2) + 
+                            y0*y1 - 2*t*y0*y1 + t*Power(y1, 2)) + 
+                      2*Sqrt(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
+                            Power(y0, 2) - 2*y0*y1 + Power(y1, 2))*
+                        Sqrt(Power(x0, 2) - 2*t*Power(x0, 2) + 
+                            Power(t, 2)*Power(x0, 2) + 2*t*x0*x1 - 
+                            2*Power(t, 2)*x0*x1 + Power(t, 2)*Power(x1, 2) + 
+                            Power(y0, 2) - 2*t*Power(y0, 2) + 
+                            Power(t, 2)*Power(y0, 2) + 2*t*y0*y1 - 
+                            2*Power(t, 2)*y0*y1 + 
+                            Power(t, 2)*Power(y1, 2)))))/(Power(Power(x0, 
+                    2) - 2*x0*x1 + Power(x1, 2) + Power(y0 - y1, 2), 
+              1.5)*(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + Power(y0, 2) - 
+                2*y0*y1 + Power(y1, 2))));
+            } // calcPosition
+
+            // PAINT
+            public void paint(java.awt.Graphics g)
+            {
+                if (eventVerbose >= 2) System.out.println("    in paint");
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, getSize(),
+                                               -1.,5.,-3.,3.);
+
+
+                java.awt.Color lightBlue = new java.awt.Color(128, 128, 255);
+
+                // Draw a white unit circle around the origin
+                mg.setColor(java.awt.Color.white);
+                mg.drawArc(-1.,-1.,2.,2.,0.,2*Math.PI);
+
+                int pointSize = 7;
+
+                double A0[] = model.A0;
+                double A1[] = model.A1;
+                double At1[] = model.At1;
+                double a0[] = VecMath.normalize(A0);
+                double a1[] = VecMath.normalize(A1);
+                double at1[] = VecMath.normalize(At1);
+
+                double v1[] = calcVelocity(A0,A1,1);
+                double p1[] = calcPosition(A0,A1,1);
+                double t1 = VecMath.dist(A0, At1);
+                double vt1[] = calcVelocity(A0,A1,t1);
+                double pt1[] = calcPosition(A0,A1,t1);
+
+                // Draw a cyan circle point at the origin,
+                // since both v0 (green) and p0 (blue) are there
+                mg.setColor(java.awt.Color.cyan);
+                mg.drawHollowCirclePoint(0.,0.,
+                                         pointSize);
+
+                //
+                // Accelerations in red
+                //
+                mg.setColor(java.awt.Color.red);
+                mg.drawHollowCirclePoint(A0[0],
+                                         A0[1],
+                                         pointSize);
+                mg.drawHollowCirclePoint(a0[0],
+                                         a0[1],
+                                         pointSize);
+                mg.drawHollowRegularPolygonPoint(At1[0],
+                                                 At1[1],
+                                                 3, // triangle
+                                                 pointSize+1);
+                mg.drawHollowRegularPolygonPoint(at1[0],
+                                                 at1[1],
+                                                 3, // triangle
+                                                 pointSize);
+
+                mg.drawHollowPoint(A1[0],
+                                   A1[1],
+                                   pointSize);
+                mg.drawHollowPoint(a1[0],
+                                   a1[1],
+                                   pointSize);
+
+                //
+                // Velocities in green
+                //
+                mg.setColor(java.awt.Color.green);
+                mg.drawHollowPoint(v1[0],
+                                   v1[1],
+                                   pointSize);
+                mg.drawHollowRegularPolygonPoint(vt1[0],
+                                                 vt1[1],
+                                                 3, // triangle
+                                                 pointSize+1);
+                //
+                // Positions in blue
+                //
+                mg.setColor(lightBlue);
+                mg.drawHollowPoint(p1[0],
+                                   p1[1],
+                                   pointSize);
+                mg.drawHollowRegularPolygonPoint(pt1[0],
+                                                 pt1[1],
+                                                 3, // triangle
+                                                 pointSize+1);
+
+
+
+                int nSubdivs = 10;
+                for (int i = 0; i <= t1 * nSubdivs; ++i)
+                {
+                    double t = (double)i/nSubdivs;
+                    double A[] = VecMath.lerp(A0, A1, t);
+                    double a[] = VecMath.normalize(A);
+                    double v[] = calcVelocity(A0, A1, t);
+                    double p[] = calcPosition(A0, A1, t);
+
+                    mg.setColor(java.awt.Color.red);
+                    mg.drawPoint(A[0],A[1], 3);
+                    mg.drawPoint(a[0],a[1], 3);
+                    mg.setColor(java.awt.Color.green);
+                    mg.drawPoint(v[0],v[1], 3);
+                    mg.setColor(lightBlue);
+                    mg.drawPoint(p[0],p[1], 3);
+                }
+
+
+
+                int w = getSize().width;
+                int h = getSize().height;
+                g.setColor(java.awt.Color.red);
+                g.drawString("Acceleration (drag the circle, square, and triangle around)", 20, h - 60);
+                g.setColor(java.awt.Color.green);
+                g.drawString("Velocity", 20, h - 40);
+                g.setColor(lightBlue);
+                g.drawString("Position", 20, h - 20);
+                           
+                mostRecentGraphics = mg;
+
+                if (eventVerbose >= 2) System.out.println("    out paint");
+            } // paint
+            {
+                addMouseListener(new java.awt.event.MouseListener() {
+                    public void mouseClicked(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseClicked at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseClicked");
+                    }
+                    public void mousePressed(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mousePressed at "+e.getX()+","+e.getY()+"");
+
+                        double thisPoint[] = new double[2];
+                        mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+                        indexOfThingBeingDragged = model.pickClosestThing(thisPoint[0], thisPoint[1]);
+                        if (eventVerbose >= 1) PRINT(indexOfThingBeingDragged);
+
+                        prevPoint = thisPoint;
+                        if (eventVerbose >= 1) System.out.println("    out mousePressed");
+                    }
+                    public void mouseReleased(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
+
+                        if (eventVerbose >= 1) System.out.println("    out mouseReleased");
+                    }
+                    public void mouseEntered(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseEntered");
+                    }
+                    public void mouseExited(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseExited at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseExited");
+                    }
+                });
+                addMouseMotionListener(new java.awt.event.MouseMotionListener() {
+                    public void mouseMoved(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 3) System.out.println("    in mouseMoved to "+e.getX()+","+e.getY()+"");
+                        if (mostRecentGraphics != null)
+                        {
+                            double thisPoint[] = new double[2];
+                            mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+                            prevPoint = thisPoint;
+                        }
+                        if (eventVerbose >= 3) System.out.println("    out mouseMoved");
+                    }
+                    public void mouseDragged(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseDragged to "+e.getX()+","+e.getY()+"");
+                        double thisPoint[] = new double[2];
+                        mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+
+                        double delta[] = VecMath.vmv(thisPoint, prevPoint);
+                        if (indexOfThingBeingDragged == 0)
+                        {
+                            // dragging A0 drags the whole line
+                            VecMath.vpv(model.A0,model.A0, delta);
+                            VecMath.vpv(model.At1,model.At1, delta);
+                        }
+                        else if (indexOfThingBeingDragged == 1)
+                        {
+                            // dragging A1 spins the line around A0,
+                            // and recalculate At1.
+                            double thisTheta = Math.atan2(thisPoint[1]-model.A0[1],
+                                                          thisPoint[0]-model.A0[0]);
+                            double prevTheta = Math.atan2(prevPoint[1]-model.A0[1],
+                                                          prevPoint[0]-model.A0[0]);
+                            double thetaDelta = thisTheta - prevTheta;
+                            double oldTheta = Math.atan2(model.At1[1]-model.A0[1],
+                                                         model.At1[0]-model.A0[0]);
+                            double newTheta = oldTheta + thetaDelta;
+                            model.A1[0] = model.A0[0] + Math.cos(newTheta);
+                            model.A1[1] = model.A0[1] + Math.sin(newTheta);
+                            double t1 = VecMath.dist(model.A0, model.At1);
+                            VecMath.lerp(model.At1, model.A0, model.A1, t1);
+                        }
+                        else if (indexOfThingBeingDragged == 2)
+                        {
+                            // dragging At1 just moves At1 in the line dir.
+                            // Project delta onto the line direction
+                            double lineDir[] = VecMath.normalize(VecMath.vmv(model.At1, model.A0));
+                            VecMath.vxs(delta, lineDir, VecMath.dot(delta, lineDir));
+                            VecMath.vpv(model.At1,model.At1, delta);
+                        }
+                        else if (indexOfThingBeingDragged == 3)
+                        {
+                            // picked both A1 and At1--
+                            // allow At1 to move freely,
+                            // then recalculate A1
+                            VecMath.vpv(model.At1,model.At1, delta);
+                            double t1 = VecMath.dist(model.A0, model.At1);
+                            if (t1 != 0.)
+                                VecMath.lerp(model.A1, model.A0, model.At1, 1./t1);
+                        }
+                        repaint();
+
+                        prevPoint = thisPoint;
+                        if (eventVerbose >= 1) System.out.println("    out mouseDragged");
+                    }
+                });
+            }
+        }; // canvas
+        canvas.requestFocus(); // seems to be needed initially XXX see whether this is true
+
+        final java.awt.Frame frame = new java.awt.Frame("Smoothly Varying Viewing Parameters");
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent we)
+            {
+                frame.dispose();
+                System.out.println("ciao!");
+                System.exit(0); // asinine way of doing things
+            }
+        });
+        frame.setForeground(java.awt.Color.white);
+        frame.setBackground(java.awt.Color.black);
+        frame.add(canvas);
+        frame.pack();
+        frame.show();
+    } // interactiveDemo2
 
     private static void interactiveDemo()
     {
+        final int eventVerbose = 0; // set to something else to debug
+
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
             class Model
@@ -571,7 +1292,7 @@ public class SmoothlyVaryingViewingParameter
                         }
                     }
                     return bestI;
-                }
+                } // pickClosestThing
             }
             Model model = new Model();
             com.donhatchsw.awt.MyGraphics mostRecentGraphics = null;
@@ -717,7 +1438,7 @@ public class SmoothlyVaryingViewingParameter
                         double thisPoint[] = new double[2];
                         mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
                         indexOfThingBeingDragged = model.pickClosestThing(thisPoint[0], thisPoint[1]);
-                        PRINT(indexOfThingBeingDragged);
+                        if (eventVerbose >= 1) PRINT(indexOfThingBeingDragged);
 
                         prevPoint = thisPoint;
                         if (eventVerbose >= 1) System.out.println("    out mousePressed");
@@ -782,23 +1503,23 @@ public class SmoothlyVaryingViewingParameter
             }
         }; // new Canvas
 
-            canvas.requestFocus(); // seems to be needed initially XXX see whether this is true
+        canvas.requestFocus(); // seems to be needed initially XXX see whether this is true
 
-            final java.awt.Frame frame = new java.awt.Frame("Smoothly Varying Viewing Parameters");
-            frame.addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we)
-                {
-                    frame.dispose();
-                    System.out.println("ciao!");
-                    System.exit(0); // asinine way of doing things
-                }
-            });
-            frame.setForeground(java.awt.Color.white);
-            frame.setBackground(java.awt.Color.black);
-            frame.add(canvas);
-            frame.pack();
-            frame.show();
-        } // interactiveDemo
+        final java.awt.Frame frame = new java.awt.Frame("Smoothly Varying Viewing Parameters");
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent we)
+            {
+                frame.dispose();
+                System.out.println("ciao!");
+                System.exit(0); // asinine way of doing things
+            }
+        });
+        frame.setForeground(java.awt.Color.white);
+        frame.setBackground(java.awt.Color.black);
+        frame.add(canvas);
+        frame.pack();
+        frame.show();
+    } // interactiveDemo
 
 
 
@@ -811,7 +1532,11 @@ public class SmoothlyVaryingViewingParameter
         if (justDoConfidenceTests)
             confidenceTests();
         else
-            interactiveDemo();
+        {
+            // XXX make option for either
+            //interactiveDemo();
+            interactiveDemo2();
+        }
 
         System.out.println("out main");
     } // main
