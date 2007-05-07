@@ -560,12 +560,18 @@ public class SmoothlyVaryingViewingParameter
                 double x = VecMath.dot(A0, u);
                 double y0 = VecMath.dot(A0, v);
                 double y1 = VecMath.dot(At1, v);
-                double hypot_x_y0 = MyMath.hypot(x,y0); // XXX oh wait, this is just norm(A0)
-                double hypot_x_y1 = MyMath.hypot(x,y1); // XXX oh wait, this is just norm(At1)
+                //double hypot_x_y0 = VecMath.norm(A0); // = hypot(x,y0)  NOT STABLE!
+                //double hypot_x_y1 = VecMath.norm(At1); // = hypot(x,y1)  NOT STABLE!
+                double hypot_x_y0 = MyMath.hypot(x,y0);
+                double hypot_x_y1 = MyMath.hypot(x,y1);
+
+                // XXX hmm, I think this might be less stable?  something is bombing when At1 is right at the origin... which means x==0 and y1==0 I think
                 double answer[] = {
+                    (y1 + hypot_x_y1) == 0. ? 0. : // XXX put this in because it waw making it blow some times... when this happens, x is tiny tiny, can assume 0
+                    (y0 + hypot_x_y0) == 0. ? 0. :
                     x==0. ? 0.
                           : x * Math.log((y1 + hypot_x_y1)
-                                       / (y0 + hypot_x_y0)), // looks scary, but gnuplot shows this being pretty stable all the way down to really small x like 1e-304
+                                       / (y0 + hypot_x_y0)), // looks scary, but gnuplot shows this being pretty stable all the way down to really small x like 1e-304.  but definitely NOT stable if we calculate hypot_x_y as norm(A), I tried it and it blew chunks
                     hypot_x_y1 - hypot_x_y0,
                 };
                 // Convert back to original basis
@@ -600,6 +606,8 @@ public class SmoothlyVaryingViewingParameter
                 // so far, identical to calcVt1FromA0At1 (except for return p0 instead of v0);
                 // see that function for comments.
                 double answer[] = {
+                    (y1 + hypot_x_y1) == 0. ? 0. :
+                    (y0 + hypot_x_y0) == 0. ? 0. :
                     x==0. ? 0.
                           : x*(- hypot_x_y1
                                + hypot_x_y0
@@ -608,7 +616,9 @@ public class SmoothlyVaryingViewingParameter
                     .5*(y0*hypot_x_y0
                       - 2*y1*hypot_x_y0
                       + y1*hypot_x_y1
-                      + (x*x==0. ? 0. : x*x*(Math.log((y1+hypot_x_y1)
+                      + ((y1 + hypot_x_y1) == 0. ? 0. :
+                         (y0 + hypot_x_y0) == 0. ? 0. :
+                         x*x==0. ? 0. : x*x*(Math.log((y1+hypot_x_y1)
                                                     / (y0+hypot_x_y0))))),
                 };
                 // Convert back to original basis
