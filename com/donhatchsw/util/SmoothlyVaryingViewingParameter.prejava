@@ -529,11 +529,14 @@ public class SmoothlyVaryingViewingParameter
             private static double Sqrt(double x) {return Math.sqrt(x);}
             private static double Log(double x) {return Math.log(x);}
 
+
             /*
-                New way, try to get something simpler than
+                Try to get something simpler than
                 the 60 lines mathematica gave me.
                 Know that the integral of {x,y}/sqrt(x^2+y^2) dy
                 is {x log(y+sqrt(x^2+y^2)), sqrt(x^2+y^2)}.
+                Work in a coord system in which the line segment
+                is parallel to the y axis.
             */
             private static double[] calcVt1FromA0At1(double v0[],
                                                      double A0[],
@@ -573,6 +576,51 @@ public class SmoothlyVaryingViewingParameter
             } // calcVt1FromA0At1
 
             /*
+                MyDefiniteIntegrate[fun_,{var_,a_,b_}] := Module[{temp=Integrate[fun,var]}, (temp /. var->b) - (temp /. var->a)]
+                MyDefiniteIntegrate[{x,y}/Sqrt[x^2+y^2], {y, y0,y1}] // Simplify
+                MyDefiniteIntegrate[MyDefiniteIntegrate[{x,y}/Sqrt[x^2+y^2], {y, y0,yy1}], {yy1,y0,y1}] // Simplify
+            */
+            private static double[] calcPt1FromA0At1(double p0[],
+                                                     double v0[],
+                                                     double A0[],
+                                                     double At1[])
+            {
+                double At1_minus_A0[] = VecMath.vmv(At1, A0);
+                double t1sqrd = VecMath.normsqrd(At1_minus_A0);
+                if (t1sqrd == 0.)
+                    return p0;
+                double t1 = Math.sqrt(t1sqrd);
+                double v[] = VecMath.vxs(At1_minus_A0, 1./t1);
+                double u[] = VecMath.xv2(v); VecMath.vxs(u,u,-1.);
+                double x = VecMath.dot(A0, u);
+                double y0 = VecMath.dot(A0, v);
+                double y1 = VecMath.dot(At1, v);
+                double hypot_x_y0 = MyMath.hypot(x,y0);
+                double hypot_x_y1 = MyMath.hypot(x,y1);
+                // so far, identical to calcVt1FromA0At1 (except for return p0 instead of v0);
+                // see that function for comments.
+                double answer[] = {
+                    x==0. ? 0.
+                          : x*(- hypot_x_y1
+                               + hypot_x_y0
+                               + y1*Math.log(y1+hypot_x_y1)
+                               - y1*Math.log(y0+hypot_x_y0)), // yes, y1, not y0!  I don't friggin know why
+                    .5*(y0*hypot_x_y0
+                      - 2*y1*hypot_x_y0
+                      + y1*hypot_x_y1
+                      + (x*x==0. ? 0. : x*x*(Math.log((y1+hypot_x_y1)
+                                                    / (y0+hypot_x_y0))))),
+                };
+                // Convert back to original basis
+                answer = VecMath.sxvpsxv(answer[0], u,
+                                         answer[1], v);
+                VecMath.vpsxv(answer, answer, t1, v0);
+                VecMath.vpv(answer, answer, p0);
+                return answer;
+
+            } // calcPt1FromA0At1
+
+            /*
                 Integral from 0 to t
                 of lerp(A0,A1,u)/|lerp(A0,A1,u)| du
             */
@@ -581,6 +629,12 @@ public class SmoothlyVaryingViewingParameter
                                                  double A1[],
                                                  double t)
             {
+                if (true)
+                {
+                    double At1[] = VecMath.lerp(A0, A1, t);
+                    return calcVt1FromA0At1(v0, A0, At1);
+                }
+
                 double x0 = A0[0];
                 double y0 = A0[1];
                 double x1 = A1[0];
@@ -679,6 +733,12 @@ List(((x0 - x1)*
                                                  double A1[],
                                                  double t)
             {
+                if (true)
+                {
+                    double At1[] = VecMath.lerp(A0, A1, t);
+                    return calcPt1FromA0At1(p0, v0, A0, At1);
+                }
+
                 double x0 = A0[0];
                 double y0 = A0[1];
                 double x1 = A1[0];
