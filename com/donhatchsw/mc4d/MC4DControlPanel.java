@@ -273,6 +273,11 @@ public class MC4DControlPanel
                     }
                 });
             }
+            if (this.checkbox != null
+             && name.indexOf("(not yet implemented)") != -1)
+            {
+                this.checkbox.setEnabled(false);
+            }
             updateShownValues();
         }
     } // ColorSwatchMaybeAndCheckBoxMaybe ctor
