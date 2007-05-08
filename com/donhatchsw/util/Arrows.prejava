@@ -897,7 +897,7 @@ public class Arrows
                         } catch (InterruptedException e) { }
                     }
                 }
-                if (true)
+                if (false)
                 {
                     // print the stack trace, so I can ponder why
                     // this works so well when resizing but
