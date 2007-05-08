@@ -905,7 +905,13 @@ public class GenericGlue
                                             slicemask));
             glue.undoPartSize++;
 
+            // Do it in the undo tree too...
+            // The undoq will be removed eventually
+            MC4DModel.Twist twist = new MC4DModel.Twist(iGrip, dir, slicemask);
+            model.controllerUndoTreeSquirrel.Do(twist);
         }
+        model.animationUndoTreeSquirrel.setCurrentNodeIndex(model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
+
         view.repaint();
         boolean fully = scramblechenfrengensen == MagicCube_FULL_SCRAMBLE;
         // scrambleState = fully ? SCRAMBLE_FULL : SCRAMBLE_PARTIAL; XXX do we need to do this here?
