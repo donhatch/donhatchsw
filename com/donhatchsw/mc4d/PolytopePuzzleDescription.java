@@ -139,6 +139,14 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - when 3d face shrunk, it woggles during twists
+        - status bar and puzzle prescription bar
+        - implement expert control panel
+            - num paints should go under it, probably
+        - close a view window that's in sync with another view window...
+           the remaining one doesn't update any more :-(
+        - shared view/cloned puzzle state restrict roll doesn't work right
+            -- do I really want shared view?  seems like a weird concept
         - need to get javacpp fixed and usable before I ship this
         - puzzle change or load makes undo tree viewer go stale...
            well that's expected, but should maybe close the window if no more views
@@ -692,7 +700,11 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     nTotalCuts++;
                 }
             }
-            System.out.print("("+nTotalCuts+" cuts)");
+            if (progressWriter != null)
+            {
+                progressWriter.print("("+nTotalCuts+" cuts)");
+                progressWriter.flush();
+            }
 
             int iTotalCut = 0;
             for (int iFace = 0; iFace < nFaces; ++iFace)
