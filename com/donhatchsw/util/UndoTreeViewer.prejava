@@ -1148,7 +1148,7 @@ public class UndoTreeViewer
                 undoTreeViewer.paint(this, g);
 
                 // XXX should use the font height instead of hard coding 20
-                int y = h - (isAFollower ? 7 : allowUndoRedo ? allowDo ? 12 : 11 : 6)*20 - 20; // XXX holy hell!
+                int y = h - (isAFollower ? 7 : allowUndoRedo ? allowDo ? 13 : 12 : 7)*20 - 20; // XXX holy hell!
                 if (!isAFollower)
                 {
                     if (allowUndoRedo)
@@ -1159,6 +1159,7 @@ public class UndoTreeViewer
                         g.drawString("  Down to redo", 10, y+=20);
                         g.drawString("  Left for older", 10, y+=20);
                         g.drawString("  Right for younger", 10, y+=20);
+                        g.drawString("    (or just click and drag around)", 10, y+=20);
                         g.drawString("c to Clear", 10, y+=20);
                     }
                 }
@@ -1171,6 +1172,9 @@ public class UndoTreeViewer
                 g.drawString("l to toggle labels", 10, y+=20);
                 g.drawString("n for new view window of same tree", 10, y+=20);
                 g.drawString("ctrl-n for new view that follows this view around like a dog", 10, y+=20);
+                //PRINT(isAFollower);
+                //PRINT(allowUndoRedo);
+                //PRINT(allowDo);
                 //PRINT((h - (y+20)) / 20);
                 assert(y+20 == h);
                 if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    out paintComponent");
