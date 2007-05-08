@@ -133,12 +133,12 @@ public class MC4DModel
         public GenericPuzzleDescription genericPuzzleDescription;
         public int genericPuzzleState[]; // only accessible via listener notification     XXX make this private!  glue looks at it currently
 
-        public com.donhatchsw.util.UndoTreeSquirrel controllerUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel();
+        public com.donhatchsw.util.UndoTreeSquirrel controllerUndoTreeSquirrel;
 
     //
     // VOLATILE NON-SERIALIZABLE PART
     //
-        public com.donhatchsw.util.UndoTreeSquirrel animationUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTreeSquirrel); // follows controllerUndoTreeSquirrel, but lags behind at the pace of the animation
+        public com.donhatchsw.util.UndoTreeSquirrel animationUndoTreeSquirrel;
         private java.util.Vector/*<Listener>*/ listeners = new java.util.Vector(); // XXX use ArrayList
 
 
@@ -159,7 +159,8 @@ public class MC4DModel
             this.genericPuzzleDescription = genericPuzzleDescription;
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleState);
             this.controllerUndoTreeSquirrel = controllerUndoTreeSquirrel;
-            this.animationUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTreeSquirrel); // follows controllerUndoTreeSquirrel, but lags behind at the pace of the animation
+            this.animationUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTreeSquirrel); // follows controllerUndoTreeSquirrel in the same tree, but lags behind at the pace of the animation
+            commonInitCode();
         }
 
 
@@ -170,6 +171,8 @@ public class MC4DModel
         {
             this.genericPuzzleDescription = genericPuzzleDescription;
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+            this.controllerUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(); // new tree
+            this.animationUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTreeSquirrel); // same tree
             commonInitCode();
         }
 
@@ -184,6 +187,8 @@ public class MC4DModel
                                                     prescription,
                                                     progressWriter);
             this.genericPuzzleState = com.donhatchsw.util.VecMath.copyvec(genericPuzzleDescription.getSticker2Face());
+            this.controllerUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(); // new tree
+            this.animationUndoTreeSquirrel = new com.donhatchsw.util.UndoTreeSquirrel(controllerUndoTreeSquirrel); // same tree
             commonInitCode();
         }
 
