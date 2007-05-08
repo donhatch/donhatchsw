@@ -18,7 +18,7 @@ public class MyGraphics
 
     //
     // Set translate and scale
-    // so that x0,x1,y0,y0
+    // so that x0,x1,y0,y1
     // map to left,right,bottom,top.
     //
     public void fit(double x0,   double x1,    double y0,     double y1,
@@ -82,6 +82,55 @@ public class MyGraphics
             return;
         g.fillRect(x0, y0, nPixels, nPixels);
     }
+    public void drawHollowPoint(double x, double y, int nPixels)
+    {
+        int x0 = (int)(x * scaleX + translateX - .5*nPixels);
+        int y0 = (int)(y * scaleY + translateY - .5*nPixels);
+        if (verbose >= 2) System.out.println("in drawHollowPoint("+x+","+y+","+nPixels+") -> "+x0+","+y0);
+        // have to check, otherwise java fillRect does weird wraparound stuff
+        // XXX should check in floating-point
+        if (x0 < -nPixels
+         || x0 > gsize.width+nPixels
+         || y0 < -nPixels
+         || y0 > gsize.height+nPixels)
+            return;
+        g.drawRect(x0, y0, nPixels-1, nPixels-1);
+    }
+    public void drawHollowCirclePoint(double x, double y, int nPixels)
+    {
+        int x0 = (int)(x * scaleX + translateX - .5*nPixels);
+        int y0 = (int)(y * scaleY + translateY - .5*nPixels);
+        if (verbose >= 2) System.out.println("in drawHollowPoint("+x+","+y+","+nPixels+") -> "+x0+","+y0);
+        // have to check, otherwise java fillRect does weird wraparound stuff
+        // XXX should check in floating-point
+        if (x0 < -nPixels
+         || x0 > gsize.width+nPixels
+         || y0 < -nPixels
+         || y0 > gsize.height+nPixels)
+            return;
+        g.drawArc(x0, y0, nPixels, nPixels, 0, 360);
+    }
+    public void drawHollowRegularPolygonPoint(double x, double y,
+                                              int n, // gonality
+                                              int nPixels)
+    {
+        // XXX the fudge is empirical, to make it match the drawHollowPoint square. lame! somewhere between 1.24264068711 and 1.24264068712, and it still warbles :-(
+        double radiusX = Math.abs((.5*(nPixels-1)+1.24264068711) / scaleX);
+        double radiusY = Math.abs((.5*(nPixels-1)+1.24264068711) / scaleY);
+
+        FORI (i, n)
+        {
+            // XXX could do this with half as much math by reusing
+            double t0 = -Math.PI/2 + 2*Math.PI*(i-.5)/n;
+            double t1 = -Math.PI/2 + 2*Math.PI*(i+.5)/n;
+            double x0 = x + radiusX*Math.cos(t0);
+            double y0 = y + radiusY*Math.sin(t0);
+            double x1 = x + radiusX*Math.cos(t1);
+            double y1 = y + radiusY*Math.sin(t1);
+            drawLine(x0,y0, x1,y1);
+        }
+    }
+
     public void drawString(String s, double x, double y)
     {
         g.drawString(s, (int)(x * scaleX + translateX),
@@ -128,7 +177,7 @@ public class MyGraphics
         return Math.abs(fm.getHeight() / scaleY);
     }
 
-#if 0 // commented out so we don't have to depend on VecMath or MyMath
+#if 1 // commented out so we don't have to depend on VecMath or MyMath  (NOT, it's needed for the SmoothlyVaryingViewingParameter demo)
     public void smartDrawArcNonClipped(
         double focusX, double focusY, // a point on the arc
         double focusAngleRadians,     // from center to focus
@@ -136,7 +185,7 @@ public class MyGraphics
         double start, double end)     // arc goes from focusAngle+start to focusAngle+end in arc length
     {
         int nSegs = MAX(10, (int)(ABS((end-start)*c) / (1*(Math.PI/180)))); // 1 degree-- delicate tradeoff, if we make it too fine, it looks all warbly because the endpoints are snapped to unit pixel coords
-PRINT(nSegs);
+        //PRINT(nSegs);
 
         double cosFocusAngle = Math.cos(focusAngleRadians);
         double sinFocusAngle = Math.sin(focusAngleRadians);
@@ -153,15 +202,15 @@ PRINT(nSegs);
         {
             double t = LERP(start, end, (double)i/nSegs);
             // coeff of normal vector: -(1-cos(t*c))/c
-            coeff[0] = -MyMath.cosf1_over_x(t*c) * t;
+            coeff[0] = -com.donhatchsw.util.MyMath.cosf1_over_x(t*c) * t;
             // coeff of tangent vector: sin(t*c)/c
-            coeff[1] = MyMath.sin_over_x(t*c) * t;
+            coeff[1] = com.donhatchsw.util.MyMath.sin_over_x(t*c) * t;
 
-            VecMath.vxm(point, coeff, normalAndTangent);
+            com.donhatchsw.util.VecMath.vxm(point, coeff, normalAndTangent);
             if (i > 0)
                 this.drawLine(focusX + prevPoint[0], focusY + prevPoint[1],
                               focusX + point[0],     focusY + point[1]);
-            VecMath.copyvec(prevPoint, point);
+            com.donhatchsw.util.VecMath.copyvec(prevPoint, point);
         }
     } // smartDrawArcNonClipped
 
