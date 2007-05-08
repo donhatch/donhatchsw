@@ -151,6 +151,7 @@ public class MC4DViewGuts
         public Listenable.Double nFrames90 = new Listenable.Double(0., 100., 30.);
         public Listenable.Double bounce = new Listenable.Double(0., 1., 0.);
 
+        // XXX I think this is used for rot to center, but not for twists (which are smoothed by the undo tree?)  work this out
         public InterpFunc interp = sine_interp;
         //InterpFunc interp = linear_interp;
         public Listenable.Boolean requireCtrlTo3dRotate = new Listenable.Boolean(false);
@@ -266,32 +267,8 @@ public class MC4DViewGuts
     public ViewParams viewParams = new ViewParams(); // XXX not sure if it should be public or what
     public ViewState viewState = new ViewState(); // XXX made public so that the Frame Picture button can use it to get the bbox of the most recent frame... maybe should be accessors to get this info instead, expecially since there are probably race conditions with it now
     private com.donhatchsw.compat.ArrayList keepalive = new com.donhatchsw.compat.ArrayList(); // keeps my listeners alive with strong refs for as long as I'm alive
-        {
-            Listenable listenables[] = Listenable.allListenablesInObject(viewParams);
-            for (int i = 0; i < listenables.length; ++i)
-            {
-                Listenable.Listener listener = new Listenable.Listener() {
-                    public void valueChanged()
-                    {
-                        if (viewComponent != null)
-                            viewComponent.repaint();
-                    }
-                };
-                listenables[i].addListener(listener);
-                keepalive.add(listener);
-            }
 
-            {
-                Listenable.Listener listener = new Listenable.Listener() {
-                    public void valueChanged()
-                    {
-                        viewParams.setRestrictRoll(model, viewComponent, viewState, viewParams.restrictRoll.get());
-                    }
-                };
-                viewParams.restrictRoll.addListener(listener);
-                keepalive.add(listener);
-            }
-        }
+
 
     //
     // The listener I use to listen to the model
@@ -777,15 +754,66 @@ public class MC4DViewGuts
     public MC4DViewGuts()
     {
         //
-        // Nothing!
-        // We don't even take a model in the constructor;
+        // We don't take a model in the constructor;
         // the caller has to call setModel(model) instead (or leave it null).
         // This may seem like a pain but it makes it
         // so they are always thinking in terms of attaching and detaching,
         // and they won't have to go rooting through the API
         // looking for setModel later.
         //
-    }
+        viewParams = new ViewParams();
+        attachListenersToViewParams();
+    } // ctor from nothing
+
+    /** Constructor that shares or clones view parameters from an existing guts. */
+    public MC4DViewGuts(ViewParams otherParams,
+                        boolean cloneParams)
+    {
+        if (cloneParams)
+        {
+            // Copy the params
+            viewParams = new ViewParams();
+            Listenable fromListenables[] = Listenable.allListenablesInObject(otherParams);
+            Listenable toListenables[] = Listenable.allListenablesInObject(viewParams);
+            for (int i = 0; i < fromListenables.length; ++i)
+                toListenables[i].set(fromListenables[i]);
+        }
+        else
+        {
+            // Share the params
+            viewParams = otherParams;
+        }
+        attachListenersToViewParams();
+    } // ctor from existing params
+
+    // just common init code
+    private void attachListenersToViewParams()
+    {
+        Listenable listenables[] = Listenable.allListenablesInObject(viewParams);
+        for (int i = 0; i < listenables.length; ++i)
+        {
+            Listenable.Listener listener = new Listenable.Listener() {
+                public void valueChanged()
+                {
+                    if (viewComponent != null)
+                        viewComponent.repaint();
+                }
+            };
+            listenables[i].addListener(listener);
+            keepalive.add(listener);
+        }
+
+        {
+            Listenable.Listener listener = new Listenable.Listener() {
+                public void valueChanged()
+                {
+                    viewParams.setRestrictRoll(model, viewComponent, viewState, viewParams.restrictRoll.get());
+                }
+            };
+            viewParams.restrictRoll.addListener(listener);
+            keepalive.add(listener);
+        }
+    } // attachListenersToViewParams
 
 
     // PAINT
@@ -1626,7 +1654,7 @@ public class MC4DViewGuts
             // and the animation view which lags behind.
             //
             com.donhatchsw.util.UndoTreeViewer controllerUndoTreeViewer =
-            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Controller's view of the undo tree", model.controllerUndoTreeSquirrel, null, null, 500, 20, 350, 600,
+            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Controller's view of the undo tree", model.controllerUndoTreeSquirrel, new com.donhatchsw.util.UndoTreeSquirrel[]{}, null, null, 500, 20, 350, 600,
                     // XXX oh gag
                     new int[1],
                     new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
@@ -1639,12 +1667,12 @@ public class MC4DViewGuts
                     colorizer);
 
             // XXX need accessors for these instead of making them public I think
-            controllerUndoTreeViewer.showLabels = false; // XXX need an accessofr for this
+            controllerUndoTreeViewer.showLabels = false; // XXX need an accessor for this
             controllerUndoTreeViewer.centerCurrentNode.set(0.); // false
 
 
             com.donhatchsw.util.UndoTreeViewer animationUndoTreeViewer = 
-            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Animation's view of the undo tree", model.animationUndoTreeSquirrel, null, null, 850, 20, 350, 600,
+            com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer("Animation's view of the undo tree", model.animationUndoTreeSquirrel, new com.donhatchsw.util.UndoTreeSquirrel[]{}, null, null, 850, 20, 350, 600,
                     // XXX oh gag
                     new int[1],
                     new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
