@@ -182,11 +182,15 @@ public class AppletViewer
         // So we have to use a listener.
         // XXX not sure how far back this exists, may need to use reflection to get it
         {
+            com.donhatchsw.awt.MainWindowCount.increment();
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we) {
+                public void windowClosing(java.awt.event.WindowEvent we)
+                {
+                    frame.dispose();
+                } 
+                public void windowClosed(java.awt.event.WindowEvent we) {
                     System.out.println("ciao!");
-                    frame.dispose(); // hide() doesn't delete the windows
-                    System.exit(0);
+                    com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
                 }
             });
         }
