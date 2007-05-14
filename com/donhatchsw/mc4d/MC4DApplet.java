@@ -86,9 +86,10 @@ public class MC4DApplet
 
     private static Canvas makeNewMC4DViewCanvas(final MC4DViewGuts viewGuts,
                                                 final boolean doDoubleBuffer,
-                                                final Component menuBarForWidth[/*1*/]) // XXX should really be local to this view window so we can change it I think
+                                                final Component menuBarForWidth[/*1*/],
+                                                final PuzzlesAndWindows allPuzzlesAndWindows) // XXX should really be local to this view window so we can change it I think
     {
-        Canvas canvas = new Canvas() {
+        final Canvas canvas = new Canvas() {
             private Image backBuffer = null;
             private Dimension backBufferSize = null;
 
@@ -143,6 +144,79 @@ public class MC4DApplet
         };
         viewGuts.setControllerComponent(canvas, true);
         viewGuts.setViewComponent(canvas);
+
+        canvas.addKeyListener(new java.awt.event.KeyListener() {
+            public void keyPressed(KeyEvent ke)
+            {
+                char c = ke.getKeyChar();
+                if (false) {}
+                else if (c == 'r'-'a'+1 // ctrl-r -- reset
+                      || c == 'c')
+                {
+                    // XXX duplicated code in menu and key... should be model method
+                    com.donhatchsw.util.VecMath.copyvec(
+                        viewGuts.model.genericPuzzleState,
+                        viewGuts.model.genericPuzzleDescription.getSticker2Face());
+                    viewGuts.model.controllerUndoTreeSquirrel.Clear();
+                    viewGuts.model.animationUndoTreeSquirrel.setCurrentNodeIndex(viewGuts.model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
+                    canvas.repaint();
+                }
+                else if (c == 'z'-'a'+1 // ctrl-z -- undo
+                      || c == 'u')      // u -- undo
+                {
+                    if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
+                        System.out.println("Nothing to undo.");
+                }
+                else if (c == 'y'-'a'+1 // ctrl-y -- redo
+                      || c == 'U'       // U -- redo
+                      || c == 'r')      // U -- redo
+                {
+                    if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
+                        System.out.println("Nothing to redo.");
+                }
+                else if (c == 't'-'a'+1) // ctrl-t -- cheat
+                {
+                    while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
+                        ;
+                }
+                else if (c >= '1' && c <= '9' // ctrl-1 .. ctrl-9 -- scramble
+                      && ke.isControlDown()) // XXX need to use something else for old javas
+                {
+                    int scramblechenfrengensen = c - '0';
+                    System.out.println("Scramble "+scramblechenfrengensen);
+                    GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
+                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
+                }
+                else if (c == 'f'-'a'+1) // ctrl-f -- full scramble
+                {
+                    // XXX dup code in menu
+                    // XXX Maybe 6 times number of faces?  not sure
+                    int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
+                    System.out.println("Fully scrambling");
+                    GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
+                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
+                }
+                else if (c == 'c'-'a'+1) // ctrl-c -- new control panel window
+                {
+                    openOrMakeNewControlPanelWindow(viewGuts,
+                                                    allPuzzlesAndWindows);
+                }
+                else if (c == 'u'-'a'+1) // ctrl-u -- new undo tree window
+                {
+                    makeNewUndoTreeWindow(viewGuts);
+                }
+                else
+                {
+                }
+            }
+            public void keyTyped(KeyEvent ke)
+            {
+            }
+            public void keyReleased(KeyEvent ke)
+            {
+            }
+        });
+
         return canvas;
     } // makeNewMC4DViewCanvas
 
@@ -243,244 +317,292 @@ public class MC4DApplet
 
     // new menu bar and new view canvas, inside a new panel.
     // XXX should use a real menu bar if there's a frame, and a MyMenuBar otherwise
-    private static Panel makeNewMC4DViewPanel(final MC4DViewGuts viewGuts,
-                                              final boolean doDoubleBuffer,
-                                              final Applet applet) // for context for cookie
+    private static class MC4DViewerPanel
+        extends Panel
     {
-        final boolean isInSandbox = true; // XXX figure this out for real
+        private String name;
+        public String getName()
+        {
+            return name;
+        }
+        private MC4DViewGuts viewGuts;
+        public MC4DViewGuts getViewGuts()
+        {
+            return viewGuts;
+        }
 
-        Component menuBarHolder[] = new Component[1]; // so that the canvas can access the menuBar later when it needs to for getPreferredSize, even though we haven't created the menu bar yet
-        final Canvas canvas = makeNewMC4DViewCanvas(viewGuts,
-                                                    doDoubleBuffer,
-                                                    menuBarHolder); // canvas wants to be square and same size as menu bar
+        public MC4DViewerPanel(final String name,
+                               final MC4DViewGuts viewGuts,
+                               final boolean doDoubleBuffer,
+                               final Applet applet, // for context for cookie
+                               final PuzzlesAndWindows allPuzzlesAndWindows) // for save
+        {
+            this.name = name;
+            this.viewGuts = viewGuts;
 
-        final Component menuBar = new MyMenuBar() {{
-            add("File", new PopupMenu() {{ // XXX argh, this gives under 1.1: java.lang.IncompatibleClassChangeError: Unimplemented interface method   -- what does that mean?  did this exist under 1.1 or not?
-                if (isInSandbox)
-                {
-                    add(new MyMenuItem("Save to browser cookie") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate", viewGuts.model.toString());
-                        }
-                    });
-                    add(new MyMenuItem("Load from browser cookie") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate");
-                            MC4DModel newModel = MC4DModel.fromString(modelStateString);
-                            if (newModel != null)
-                                viewGuts.setModel(newModel);
-                        }
-                    });
-                    if (true)
-                        add(new MyMenuItem("Test to/from string") {
+            allPuzzlesAndWindows.addViewerPanel(this);
+
+            final boolean isInSandbox = true; // XXX figure this out for real
+
+            Component menuBarHolder[] = new Component[1]; // so that the canvas can access the menuBar later when it needs to for getPreferredSize, even though we haven't created the menu bar yet
+            final Canvas canvas = makeNewMC4DViewCanvas(viewGuts,
+                                                        doDoubleBuffer,
+                                                        menuBarHolder, // canvas wants to be square and same size as menu bar
+                                                        allPuzzlesAndWindows);
+
+            final Component menuBar = new MyMenuBar() {{
+                add("File", new PopupMenu() {{ // XXX argh, this gives under 1.1: java.lang.IncompatibleClassChangeError: Unimplemented interface method   -- what does that mean?  did this exist under 1.1 or not?
+                    if (isInSandbox)
+                    {
+                        add(new MyMenuItem("Save to browser cookie") {
                             public void actionPerformed(java.awt.event.ActionEvent e)
                             {
-                                MC4DModel m0 = viewGuts.model;
-                                String s1 = m0.toString();
-                                System.out.println("model = "+s1);
-                                MC4DModel m2 = MC4DModel.fromString(s1);
-                                String s3 = m2.toString();
-                                Assert(s3.equals(s1));
-                                System.out.println("Good!");
-                                viewGuts.setModel(m2);
+                                com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate", viewGuts.model.toString());
                             }
                         });
-                }
-                else
-                {
-                    add("Open...");
-                    add("Save");
-                    add("Save to...");
-                }
-                addSeparator();
-                add("Quit");
-            }});
-            add("Edit", new PopupMenu() {{
-                add(new MyMenuItem("Reset") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        com.donhatchsw.util.VecMath.copyvec(
-                            viewGuts.model.genericPuzzleState,
-                            viewGuts.model.genericPuzzleDescription.getSticker2Face());
-                        viewGuts.model.controllerUndoTreeSquirrel.Clear();
+                        add(new MyMenuItem("Save to browser cookie #2") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate2", viewGuts.model.toString());
+                            }
+                        });
+                        add(new MyMenuItem("Load from browser cookie") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate");
+                                MC4DModel newModel = MC4DModel.fromString(modelStateString);
+                                if (newModel != null)
+                                    viewGuts.setModel(newModel);
+                            }
+                        });
+                        add(new MyMenuItem("Load from browser cookie #2") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate2");
+                                MC4DModel newModel = MC4DModel.fromString(modelStateString);
+                                if (newModel != null)
+                                    viewGuts.setModel(newModel);
+                            }
+                        });
+                        if (true)
+                            add(new MyMenuItem("Test to/from string") {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    MC4DModel m0 = viewGuts.model;
+                                    String s1 = m0.toString();
+                                    System.out.println("model = "+s1);
+                                    MC4DModel m2 = MC4DModel.fromString(s1);
+                                    String s3 = m2.toString();
+                                    Assert(s3.equals(s1));
+                                    System.out.println("Good!");
+                                    viewGuts.setModel(m2);
+                                }
+                            });
+                        addSeparator();
+                        add(new MyMenuItem("Experimental print app to terminal") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                System.out.println(allPuzzlesAndWindows.toString());
+                            }
+                        });
                     }
-                });
-                add(new MyMenuItem("Undo") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    else
                     {
-                        if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
-                            System.out.println("Nothing to undo.");
+                        add("Open...");
+                        add("Save");
+                        add("Save to...");
                     }
-                });
-                add(new MyMenuItem("Redo") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
-                            System.out.println("Nothing to redo.");
-                    }
-                });
-                addSeparator();
-                add(new MyMenuItem("Solve (cheat)") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
-                            ;
-                    }
-                });
-                add(new MyMenuItem("Solve (for real)") {
-                    {setEnabled(false);}
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        System.out.println("Sorry, not smart enough for that.");
-                    }
-                });
-            }});
-            add("Scramble", new PopupMenu() {{
-                for (int i = 1; i <= 8; ++i)
-                {
-                    final int scramblechenfrengensen = i;
-                    add(new MyMenuItem(""+i) {
+                    addSeparator();
+                    add("Quit");
+                }});
+                add("Edit", new PopupMenu() {{
+                    add(new MyMenuItem("Reset            Ctrl-R") {
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            System.out.println("Scramble "+scramblechenfrengensen);
+                            // XXX duplicated code in menu and key... should be model method
+                            com.donhatchsw.util.VecMath.copyvec(
+                                viewGuts.model.genericPuzzleState,
+                                viewGuts.model.genericPuzzleDescription.getSticker2Face());
+                            viewGuts.model.controllerUndoTreeSquirrel.Clear();
+                            viewGuts.model.animationUndoTreeSquirrel.setCurrentNodeIndex(viewGuts.model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
+                            canvas.repaint();
+                        }
+                    });
+                    add(new MyMenuItem("Undo             Ctrl-Z") {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
+                                System.out.println("Nothing to undo.");
+                        }
+                    });
+                    add(new MyMenuItem("Redo             Ctrl-Y") {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
+                                System.out.println("Nothing to redo.");
+                        }
+                    });
+                    addSeparator();
+                    add(new MyMenuItem("Solve (cheat)  Ctrl-T") {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
+                                ;
+                        }
+                    });
+                    add(new MyMenuItem("Solve (for real)") {
+                        {setEnabled(false);}
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            System.out.println("Sorry, not smart enough for that.");
+                        }
+                    });
+                }});
+                add("Scramble", new PopupMenu() {{
+                    for (int i = 1; i <= 8; ++i)
+                    {
+                        final int scramblechenfrengensen = i;
+                        add(new MyMenuItem(""+i+"      Ctrl-"+i) {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                System.out.println("Scramble "+scramblechenfrengensen);
+                                GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
+                                glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
+                            }
+                        });
+                    }
+                    addSeparator();
+                    add(new MyMenuItem("Full   Ctrl-F") {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            // XXX dup code in key listener
+                            // XXX Maybe 6 times number of faces?  not sure
+                            int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
+                            System.out.println("Fully scrambling");
                             GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
                             glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
                         }
                     });
-                }
-                addSeparator();
-                add(new MyMenuItem("Full") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        // XXX Maybe 6 times number of faces?  not sure
-                        int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
-                        System.out.println("Fully scrambling");
-                        GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
-                        glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
-                    }
-                });
-            }});
-            add("Puzzle", new PopupMenu() {{
-                final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
-                glue.addMoreItemsToPuzzleMenu(
-                    this,
-                    new Label("dum dum"),
-                    new GenericGlue.Callback() {
-                        public void call()
+                }});
+                add("Puzzle", new PopupMenu() {{
+                    final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
+                    glue.addMoreItemsToPuzzleMenu(
+                        this,
+                        new Label("dum dum"),
+                        new GenericGlue.Callback() {
+                            public void call()
+                            {
+                                viewGuts.setModel(glue.model);
+                            }
+                        });
+                }});
+                add("Windows", new PopupMenu() {{
+                    add(new MyMenuItem("Control Panel                       Ctrl-C") {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            viewGuts.setModel(glue.model);
+                            openOrMakeNewControlPanelWindow(viewGuts,
+                                                            allPuzzlesAndWindows);
                         }
                     });
-            }});
-            add("Windows", new PopupMenu() {{
-                add(new MyMenuItem("Control Panel") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        makeNewControlPanelWindow(viewGuts);
-                    }
-                });
-                add(new MyMenuItem("Expert Control Panel") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        // XXX implement me
-                    }
-                });
-                addSeparator();
-                add(new MyMenuItem("Macros") {
-                    {setEnabled(false);}
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                    }
-                });
-                addSeparator();
-                add(new MyMenuItem("Undo Tree") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        makeNewUndoTreeWindow(viewGuts);
-                    }
-                });
-                addSeparator();
-                add(new MyMenuItem("Shared view of shared puzzle state") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        makeNewViewWindow(viewGuts,
-                                          false, // don't clone view, share it
-                                          false, // don't clone puzzle state, share it
-                                          doDoubleBuffer,
-                                          applet);
-                    }
-                });
-                if (false) // this is a weird one, I don't know if it's useful
-                    add(new MyMenuItem("Shared view of cloned puzzle state") {
+                    add(new MyMenuItem("Expert Control Panel") {
+                        {setEnabled(false);}
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            // XXX implement me
+                        }
+                    });
+                    addSeparator();
+                    add(new MyMenuItem("Macros") {
+                        {setEnabled(false);}
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                        }
+                    });
+                    addSeparator();
+                    add(new MyMenuItem("Undo Tree                           Ctrl-U") {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            makeNewUndoTreeWindow(viewGuts);
+                        }
+                    });
+                    addSeparator();
+                    add(new MyMenuItem("Shared view of shared puzzle state") {
                         public void actionPerformed(java.awt.event.ActionEvent e)
                         {
                             makeNewViewWindow(viewGuts,
                                               false, // don't clone view, share it
-                                              true, // clone puzzle state
+                                              false, // don't clone puzzle state, share it
                                               doDoubleBuffer,
-                                              applet);
+                                              applet,
+                                              allPuzzlesAndWindows);
                         }
                     });
-                add(new MyMenuItem("Cloned view of shared puzzle state ") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        makeNewViewWindow(viewGuts,
-                                          true, // clone view
-                                          false, // don't clone puzzle state, share it
-                                          doDoubleBuffer,
-                                          applet);
-                    }
-                });
-                add(new MyMenuItem("Cloned view of cloned puzzle state ") {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        makeNewViewWindow(viewGuts,
-                                          true, // clone view
-                                          true, // clone puzzle state
-                                          doDoubleBuffer,
-                                          applet);
-                    }
-                });
-                addSeparator();
-                add(new MyMenuItem("Progress/diagnostics/debug") {
-                    {setEnabled(false);}
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                    }
-                });
-            }});
-            add("Help", new PopupMenu() {{
-                add("About...");
-            }});
-            // XXX MyMenuBar should do this automatically-- what is the cleanest way?
-            add(new Label(""),
-                new GridBagConstraints(){{fill=HORIZONTAL;weightx=1.;}}); // stretch
-        }}; // menuBar
+                    if (false) // this is a weird one, I don't know if it's useful
+                        add(new MyMenuItem("Shared view of cloned puzzle state") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                makeNewViewWindow(viewGuts,
+                                                  false, // don't clone view, share it
+                                                  true, // clone puzzle state
+                                                  doDoubleBuffer,
+                                                  applet,
+                                                  allPuzzlesAndWindows);
+                            }
+                        });
+                    add(new MyMenuItem("Cloned view of shared puzzle state ") {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            makeNewViewWindow(viewGuts,
+                                              true, // clone view
+                                              false, // don't clone puzzle state, share it
+                                              doDoubleBuffer,
+                                              applet,
+                                              allPuzzlesAndWindows);
+                        }
+                    });
+                    add(new MyMenuItem("Cloned view of cloned puzzle state ") {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            makeNewViewWindow(viewGuts,
+                                              true, // clone view
+                                              true, // clone puzzle state
+                                              doDoubleBuffer,
+                                              applet,
+                                              allPuzzlesAndWindows);
+                        }
+                    });
+                    addSeparator();
+                    add(new MyMenuItem("Progress/diagnostics/debug") {
+                        {setEnabled(false);}
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                        }
+                    });
+                }});
+                add("Help", new PopupMenu() {{
+                    add("About...");
+                }});
+                // XXX MyMenuBar should do this automatically-- what is the cleanest way?
+                add(new Label(""),
+                    new GridBagConstraints(){{fill=HORIZONTAL;weightx=1.;}}); // stretch
+            }}; // menuBar
 
-        menuBarHolder[0] = menuBar;
+            menuBarHolder[0] = menuBar;
 
-        //
-        // Make a panel, containing the canvas
-        // and a menu bar and maybe some other stuff, I don't know yet
-        //
-        Panel mainWindowPanel = new NewCol() {{
+            this.setLayout(new BorderLayout());
+            this.add("North", menuBar);
+            this.add("Center", canvas);
+        } // MC4DViewerPanel ctor
+    } // class MC4DViewerPanel
 
-            setLayout(new BorderLayout());
-            add("North", menuBar);
-            add("Center", canvas);
-        }};
-
-        return mainWindowPanel;
-    } // makeNewMC4DViewPanel
 
     // This gets called when spawning a new window... not the first one.
     private static void makeNewViewWindow(final MC4DViewGuts oldViewGuts,
                                           final boolean cloneView,
                                           final boolean cloneState,
                                           final boolean doDoubleBuffer,
-                                          final Applet applet)
+                                          final Applet applet,
+                                          final PuzzlesAndWindows allPuzzlesAndWindows)
     {
         final MC4DViewGuts newViewGuts = new MC4DViewGuts(oldViewGuts.viewParams,
                                                           cloneView);
@@ -496,29 +618,394 @@ public class MC4DApplet
             newViewGuts.setModel(oldViewGuts.model);
         }
 
-        new Frame() {{
-            add(makeNewMC4DViewPanel(newViewGuts,  
-                                     doDoubleBuffer,
-                                     applet));
+        final String viewName = "View "+(allPuzzlesAndWindows.nextViewerNumber++);
+        Frame frame = new Frame() {{
+            add(new MC4DViewerPanel(viewName,
+                                    newViewGuts,  
+                                    doDoubleBuffer,
+                                    applet,
+                                    allPuzzlesAndWindows));
             pack();
 
             com.donhatchsw.awt.MainWindowCount.increment();
             addWindowListener(new java.awt.event.WindowAdapter() {
                 public void windowClosing(java.awt.event.WindowEvent we)
                 {
+                    System.out.println("in windowClosing from makeNewViewWindow");
                     dispose();
                 }
+
+                // ARGH! this gets called twice when in browswer:
+                // once when user closes it (due to the dispose() above)
+                // then again when applet is destroyed.  So,
+                // we keep track of whether we are already closed.
+                private boolean closedAlreadyYouMoron = false;
                 public void windowClosed(java.awt.event.WindowEvent we)
                 {
-                    System.out.println("ciao!");
-                    newViewGuts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
-                    newViewGuts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
-                    com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
+                    if (!closedAlreadyYouMoron)
+                    {
+                        System.out.println("ciao from makeNewViewWindow!");
+                        newViewGuts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
+                        newViewGuts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
+                        com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
+                        closedAlreadyYouMoron = true;
+                    }
+                    else
+                    {
+                        System.out.println("Got duplicate window close event, sigh.");
+                    }
                 }
-            });
+            }); // addWindowListener
+        }}; // new Frame
 
-        }}.show();
+        frame.setTitle("MC4D "+viewName);
+        frame.show();
     } // makeNewViewWindow
+
+    //
+    // The applet state's toString is a dump of the entire
+    // applet state including all window positions.
+    // It is suitable for saving to and loading from a file or cookie.
+    //
+    /*
+        Example of what I think it will look like:
+
+        applet = {
+            puzzleDescriptionsAndUndoTrees = {
+                {genericPuzzleDescription = new PolytopePuzzleDescription("{4,3,3} 3"), undoTree={233 343 624 384 923 923}},
+                {genericPuzzleDescription = new PolytopePuzzleDescription("{5,3,3} 3"), undoTree={233 343 624 384 923 923}},
+            }
+            macros = {
+                # Heirarchical tree, they can arrange however
+                {
+                    "My Solving Macros For Hypercube",
+                    "{4,3,3} 3",
+                    {
+                        "Cross", {123,123,233},{433,655,345,56,7,4454,5456}
+                        "DoubleCross", {123,123,233},{433,655,"Cross"(345,456,567),56,7,"Cross",5456}
+                    }
+                },
+                {
+                    "Pretty Patterns",
+                },
+            },
+            controlPanelWindows = {
+                {
+                    name = "Control Panel 0",
+                    windowState = closed@100x100+20+20,
+                    viewParams = {twistDuration=10,bounce=20,...}
+                },
+                {
+                    name = "Control Panel 1",
+                    windowState = open@100x100+20+20,
+                    viewParams = {twistDuration=10,bounce=20,...},
+                },
+                {
+                    name = "Control Panel 2",
+                    windowState = open@100x100+20+20,
+                    viewParams = {twistDuration=10,bounce=20,...},
+                },
+            }
+            undoTreeWindows = {
+                {
+                    name = "Animation Undo Tree Squirrel 0",
+                    windowState = applet@100x100+20+20,
+                    undoTree = "{4,3,3} 3"
+                    undoTreePos=3
+                    puzzleState={0,0,0,1,1,1,2,2,2,...}}
+                },
+                {
+                    name = "Animation Undo Tree Squirrel 1",
+                    ...
+                }
+            }
+            viewerWindows = {
+                {
+                    name = "View 0",
+                    windowState = applet@100x100+20+20,
+                    controlPanelWindowName = "Control Panel 0"
+                    undoTreeWindowName = "Animation Undo Tree Squirrel 0"
+                },
+                {
+                    name = "View 1 left",
+                    windowState = open@400x300+70+32
+                    controlPanelWindowName = "Control Panel 1"
+                    undoTreeWindowName = "Animation Undo Tree Squirrel 1"
+                },
+                {
+                    name = "View 1 right",
+                    windowState = open@400x300+70+32
+                    controlPanelWindowName = "Control Panel 1"
+                    undoTreeWindowName = "Animation Undo Tree Squirrel 1"
+                }
+            }
+            nextViewerNumber = 2,
+            nextControlPanelNumber = 3,
+            nextUndoTreeWindowNumber = 3,
+        }
+    */
+
+
+
+    private static class PuzzlesAndWindows
+    {
+        private static class NamedObject
+        {
+            String name;
+            Object object;
+        }
+
+        // Kind of a general purpose utility, could be put in util
+        private static class OrderedHashTable
+        {
+            private com.donhatchsw.compat.ArrayList orderedKeys = new com.donhatchsw.compat.ArrayList();
+            private java.util.Hashtable hashTable = new java.util.Hashtable();
+            public void add(Object key, Object value)
+            {
+                Assert(hashTable.get(key) == null); // XXX throw something more legit
+                orderedKeys.add(key);
+                hashTable.put(key, value);
+            }
+            public void remove(Object key)
+            {
+                Assert(hashTable.get(key) != null); // XXX throw something more legit
+                orderedKeys.remove(key); // takes O(n) time
+                hashTable.remove(key);
+            }
+            public Object get(int i)
+            {
+                return orderedKeys.get(i);
+            }
+            public Object get(Object o)
+            {
+                return hashTable.get(o);
+            }
+            public int size()
+            {
+                return orderedKeys.size();
+            }
+        } // OrderedHashTable
+
+        OrderedHashTable puzzlePrescriptionToUndoTree = new OrderedHashTable();
+        OrderedHashTable nameToUndoTreePanel = new OrderedHashTable();
+        OrderedHashTable nameToControlPanelPanel = new OrderedHashTable();
+        OrderedHashTable nameToViewerPanel = new OrderedHashTable();
+
+        OrderedHashTable viewerPanelToControlPanel = new OrderedHashTable();
+        OrderedHashTable viewerPanelToPuzzlePrescription = new OrderedHashTable();
+        // XXX do I even need any of the above?
+
+        public com.donhatchsw.compat.ArrayList puzzleDescriptionsAndUndoTrees = new com.donhatchsw.compat.ArrayList();
+        private com.donhatchsw.compat.ArrayList viewerPanels = new com.donhatchsw.compat.ArrayList();
+        private com.donhatchsw.compat.ArrayList controlPanels = new com.donhatchsw.compat.ArrayList();
+        public com.donhatchsw.compat.ArrayList undoTreeSquirrelPanels = new com.donhatchsw.compat.ArrayList();
+        public int nextViewerNumber = 0;
+        public int nextControlPanelNumber = 0;
+        public int nextUndoTreeWindowNumber = 0;
+
+        private String windowStateToString(Component component)
+        {
+            Component frameOrApplet = getTopLevelFrameOrApplet(component);
+            java.awt.Rectangle bounds = frameOrApplet.getBounds();
+            String s = (frameOrApplet instanceof Applet ? "applet" :
+                        !frameOrApplet.isVisible() ? "closed" :
+                        ((Frame)frameOrApplet).getState() == Frame.ICONIFIED ? "iconified" : "open");
+            s += "@" + bounds.width
+               + "x" + bounds.height
+               + "+" + bounds.x
+               + "+" + bounds.y;
+            return s;
+        }
+
+        // XXX should use a hash table, probably
+        private MC4DControlPanel findControlPanelOfViewParams(MC4DViewGuts.ViewParams viewParams)
+        {
+            int n = controlPanels.size();
+            for (int i = 0; i < n; ++i)
+            {
+                MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(i);
+                if (controlPanel.getViewParams() == viewParams)
+                    return controlPanel;
+            }
+            return null;
+        } // findControlPanelOfViewParams
+        private MC4DControlPanel findUndoTreeSquirrelPanelOfSquirrel(com.donhatchsw.util.UndoTreeSquirrel squirrel)
+        {
+            int n = undoTreeSquirrelPanels.size();
+            for (int i = 0; i < n; ++i)
+            {
+                Assert(false); // XXX do me
+            }
+            return null;
+        } // findUndoTreeSquirrelPanelOfSquirrel
+
+        public void addControlPanel(MC4DControlPanel controlPanel)
+        {
+            {
+                // Make sure name doesn't exist...
+                String name = controlPanel.getName();
+                int n = controlPanels.size();
+                for (int i = 0; i < n; ++i)
+                    if (((MC4DControlPanel)controlPanels.get(i)).getName().equals(name))
+                    {
+                        throw new IllegalStateException("Tried to add a control panel named "+com.donhatchsw.util.Arrays.toStringCompact(name)+" but there is already one with that name!?");
+                    }
+            }
+            controlPanels.add(controlPanel);
+            updateControlPanelWindowTitles();
+        }
+        public void addViewerPanel(MC4DViewerPanel viewerPanel)
+        {
+            {
+                // Make sure name doesn't exist...
+                String name = viewerPanel.getName();
+                int n = viewerPanels.size();
+                for (int i = 0; i < n; ++i)
+                    if (((MC4DViewerPanel)viewerPanels.get(i)).getName().equals(name))
+                    {
+                        throw new IllegalStateException("Tried to add a viewer panel named "+com.donhatchsw.util.Arrays.toStringCompact(name)+" but there is already one with that name!?");
+                    }
+            }
+            viewerPanels.add(viewerPanel);
+            updateControlPanelWindowTitles();
+        }
+
+        // Turn "View 1,View 2" into "Views 1,2".
+        // Doesn't necessarily complete in one application-- run it
+        // until length doesn't change.
+        private final static com.donhatchsw.compat.regex.Pattern viewStringCompressionPattern = com.donhatchsw.compat.regex.Pattern.compile("Views? (\\d+(,\\d+)*),\\s*Views? (\\d+(,\\d+)*)");
+        private final static String viewStringCompressionReplacement = "Views $1,$3";
+
+        // Title will be something like "MC4D Control Panel for Views 0,1,47)"
+        private void updateControlPanelWindowTitles()
+        {
+            int nControlPanels = controlPanels.size();
+            int nViewerPanels = viewerPanels.size();
+            for (int iControlPanel = 0; iControlPanel < nControlPanels; ++iControlPanel)
+            {
+                MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(iControlPanel);
+                String title = "MC4D Control Panel for ";
+                int nViewsFound = 0;
+                for (int iViewerPanel = 0; iViewerPanel < nViewerPanels; ++iViewerPanel)
+                {
+                    MC4DViewerPanel viewerPanel = (MC4DViewerPanel)viewerPanels.get(iViewerPanel);
+                    if (viewerPanel.getViewGuts().viewParams
+                     == controlPanel.getViewParams())
+                    {
+                        if (nViewsFound > 0)
+                            title += ",";
+                        title += viewerPanel.getName();
+                        nViewsFound++;
+                    }
+                }
+                if (nViewsFound == 0)
+                {
+                    title = title.substring(0,title.length()-3);
+                    title += " (orphaned!)";
+                }
+
+                if (true)
+                {
+                    System.out.println("Before: "+title);
+                    while (true)
+                    {
+                        int oldLength = title.length();
+                        title = viewStringCompressionPattern.matcher(title).replaceAll(viewStringCompressionReplacement);
+                        int newLength = title.length();
+                        if (newLength == oldLength)
+                            break;
+                    }
+                    System.out.println("After: "+title);
+                }
+
+                ((Frame)getTopLevelFrameOrApplet(controlPanel)).setTitle(title);
+            }
+
+        } // updateControlPanelWindowTitles
+
+
+        public String toString()
+        {
+            StringBuffer sb = new StringBuffer();
+            sb.append("applet = {\n");
+            {
+                sb.append("    puzzleDescriptionsAndUndoTrees = {\n");
+                /*
+                for (int i = 0; i < puzzleDescriptionsAndUndoTrees.length; ++i)
+                {
+                    String undoTreeString = new com.donhatchsw.util.UndoTreeSquirrel(puzzleDescriptionsAndUndoTrees[i].undoTree).toString(); // XXX lame-- UndoTree should have its own toString now, without the (you are here)
+                    sb.append("        {puzzleDescription = \""+puzzleDescriptionsAndUndoTrees[i].puzzlePrescription+"\", undoTree="+undoTreeString+"},\n");
+                }
+                */
+                sb.append("    },\n");
+            }
+            {
+                sb.append("    macros = {\n");
+                // some day
+                sb.append("    },\n");
+            }
+            {
+                sb.append("    controlPanelWindows = {\n");
+                int n = controlPanels.size();
+                for (int i = 0; i < n; ++i)
+                {
+                    MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(i);
+                    sb.append("        {\n");
+                    sb.append("            name = "+com.donhatchsw.util.Arrays.toStringCompact(controlPanel.getName())+"\n");
+                    sb.append("            state = "+windowStateToString(controlPanel)+"\n");
+                    sb.append("            viewParams = "+controlPanel.getViewParams().toString()+"\n");
+                    sb.append("        }\n");
+                }
+                sb.append("    },\n");
+            }
+            {
+                sb.append("    undoTreeWindows = {\n");
+                sb.append("    },\n");
+            }
+            {
+                sb.append("    viewerWindows = {\n");
+                int n = viewerPanels.size();
+                for (int i = 0; i < n; ++i)
+                {
+                    MC4DViewerPanel viewerPanel = (MC4DViewerPanel)viewerPanels.get(i);
+                    sb.append("        {\n");
+                    sb.append("            name = "+com.donhatchsw.util.Arrays.toStringCompact(viewerPanel.getName())+",\n");
+                    sb.append("            state = "+windowStateToString(viewerPanel)+",\n");
+                    MC4DControlPanel controlPanel = findControlPanelOfViewParams(viewerPanel.getViewGuts().viewParams);
+                    if (controlPanel != null)
+                        sb.append("            controlPanelName = "+com.donhatchsw.util.Arrays.toStringCompact(controlPanel.getName())+",\n");
+                    // XXX same for undo tree window
+
+                    sb.append("        },\n");
+                }
+                sb.append("    },\n");
+            }
+            sb.append("}");
+            return sb.toString();
+        } // toString
+    } // class PuzzlesAndWindows
+    private PuzzlesAndWindows allPuzzlesAndWindows = new PuzzlesAndWindows();
+
+    // Walk up the component hierarchy to the root,
+    // which better be a Frame or Applet.
+    // XXX hmm, empirically, when in mozilla, the applet is
+    // XXX inside a class sun.plugin.viewer.frame.XNetscapeEmbeddedFrame.
+    // XXX how to deal with this, do the detach/attach thing, and still be able to restore
+    // XXX position just like any other Frame when in the AppletViewer? hmm
+    private static Component getTopLevelFrameOrApplet(Component comp)
+    {
+        System.out.println("in getTopLevelFrameOrApplet");
+        {
+            Container parent;
+            while ((parent = comp.getParent()) != null)
+                comp = parent;
+        }
+        System.out.println("out getTopLevelFrameOrApplet ("+comp.getClass()+")");
+        Assert(comp instanceof Frame
+            || comp instanceof Applet);
+        return comp;
+    } // getTopLevelFrameOrApplet
+
 
     public void init()
     {
@@ -535,7 +1022,8 @@ public class MC4DApplet
         {
             int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
             for (int i = 0; i < nControlPanelsAtStartup; ++i)
-                makeNewControlPanelWindow(viewGuts);
+                openOrMakeNewControlPanelWindow(viewGuts,
+                                                allPuzzlesAndWindows);
         }
 
         //
@@ -548,9 +1036,12 @@ public class MC4DApplet
         }
 
 
-        Panel mainWindowPanel = makeNewMC4DViewPanel(viewGuts,
-                                                     doDoubleBuffer,
-                                                     MC4DApplet.this);
+        String viewName = "View "+(allPuzzlesAndWindows.nextViewerNumber++);
+        Panel mainWindowPanel = new MC4DViewerPanel(viewName,
+                                                    viewGuts,
+                                                    doDoubleBuffer,
+                                                    MC4DApplet.this,
+                                                    allPuzzlesAndWindows);
 
         setLayout(new BorderLayout());
         add(mainWindowPanel);
@@ -578,21 +1069,50 @@ public class MC4DApplet
     //
     // Common code...
     //
-        private static void makeNewControlPanelWindow(MC4DViewGuts viewGuts)
+        private static void openOrMakeNewControlPanelWindow(MC4DViewGuts viewGuts,
+                                                            PuzzlesAndWindows allPuzzlesAndWindows)
         {
+            String controlPanelName = "Settings "+(allPuzzlesAndWindows.nextControlPanelNumber++);
+            MC4DControlPanel controlPanel = allPuzzlesAndWindows.findControlPanelOfViewParams(viewGuts.viewParams);
+            if (controlPanel != null)
+            {
+                Frame controlPanelFrame = (Frame)getTopLevelFrameOrApplet(controlPanel);
+                controlPanelFrame.pack(); // XXX should I?
+                controlPanelFrame.setState(Frame.NORMAL);
+                controlPanelFrame.show();
+                return;
+            }
+
+            System.out.println("Making the panel...");
+            controlPanel = new MC4DControlPanel(controlPanelName,
+                                                viewGuts.viewParams,
+                                                viewGuts.viewState); // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
+
+            System.out.println("Making the window...");
             final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4D Control Panel");
             // XXX the following is probably not what I want
             controlPanelFrame.addWindowListener(new WindowAdapter() {
                 public void windowClosing(WindowEvent we) {
-                    controlPanelFrame.dispose();
+                    //controlPanelFrame.dispose();
+                    controlPanelFrame.hide();
                     // no exit, this isn't a main window
                 }
             });
-            controlPanelFrame.add(new MC4DControlPanel(viewGuts.viewParams,
-                                                       viewGuts.viewState));
+            controlPanelFrame.add(controlPanel);
+
+            allPuzzlesAndWindows.addControlPanel(controlPanel); // needs the frame before doing this, so it can set window titles
+
+            System.out.println("Packing the window...");
             controlPanelFrame.pack();
+            System.out.println("Showing the window...");
             controlPanelFrame.show();
-        } // makeNewControlPanelWindow
+            System.out.println("Done.");
+        } // openOrMakeNewControlPanelWindow
+
+        private class MC4DUndoTreeWindow
+            extends Frame
+        {
+        } // MC4DUndoTreeWindow
 
         private static void makeNewUndoTreeWindow(final MC4DViewGuts viewGuts)
         {
@@ -670,33 +1190,10 @@ public class MC4DApplet
                         colorizer);
 
                 // XXX need accessors for these instead of making them public I think
-                controllerUndoTreeViewer.showLabels = false; // XXX need an accessofr for this
+                controllerUndoTreeViewer.showLabels = false; // XXX need an accessor for this
                 controllerUndoTreeViewer.centerCurrentNode.set(0.); // false
             }
 
-            if (false) // defunct, probably get rid of this
-            {
-                com.donhatchsw.util.UndoTreeViewer animationUndoTreeViewer = 
-                com.donhatchsw.util.UndoTreeViewer.makeExampleUndoTreeViewer(
-                        "Animation's view of the undo tree",
-                        viewGuts.model.animationUndoTreeSquirrel,
-                        new com.donhatchsw.util.UndoTreeSquirrel[]{},
-                        null, null, 850, 20, 350, 600,
-                        // XXX oh gag
-                        new int[1],
-                        new int[]{1}, // nViewersAlive-- set this to a positive number so the viewer won't exit the program when it's closed (XXX in fact we could also use the same mechanism, that would be even better)
-                        new int[1],
-                        new int[1],
-                        new int[1],
-                        false, // don't allow the example "Do" which would put dummy strings in the tree
-                        false, // and don't allow undo/redo from this view either, since instantaneous changes would make it get out of sync with the permutation array. undo/redo must be done from the controller window, this one is just for watching.
-                        lengthizer,
-                        colorizer);
-
-                // XXX need accessors for these instead of making them public I think
-                animationUndoTreeViewer.showLabels = false;
-                animationUndoTreeViewer.centerCurrentNode.set(0.); // false
-            }
         } // makeNewUndoTreeWindow
 
 
