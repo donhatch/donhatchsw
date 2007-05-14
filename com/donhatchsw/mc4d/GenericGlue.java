@@ -125,6 +125,7 @@ public class GenericGlue
 
     //
     // Rudimentary undo queue.
+    // XXX this needs to go away now that we have an undo tree
     //
     public static class HistoryNode
     {
@@ -590,6 +591,9 @@ public class GenericGlue
                                 undoq.setSize(0);
                                 undoPartSize = 0;
 
+                                model.controllerUndoTreeSquirrel.Clear();
+                                model.animationUndoTreeSquirrel.setCurrentNodeIndex(model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
+
                                 // PropertyManager.userprefs.setProperty("genericSchlafli", schlafli); // XXX not yet
                                 // PropertyManager.userprefs.setProperty("genericLength", ""+len); // XXX not yet
                                 initPuzzleCallback.call(); // really just want a repaint I think
@@ -772,6 +776,9 @@ public class GenericGlue
                             undoq.setSize(0);
                             undoPartSize = 0;
 
+                            model.controllerUndoTreeSquirrel.Clear();
+                            model.animationUndoTreeSquirrel.setCurrentNodeIndex(model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
+
                             // PropertyManager.userprefs.setProperty("genericSchlafli", schlafli); // XXX not yet
                             // PropertyManager.userprefs.setProperty("genericLength", ""+len); // XXX not yet
                             initPuzzleCallback.call(); // really just want a repaint I think
@@ -821,6 +828,10 @@ public class GenericGlue
         }
         else
             statusLabel.setText("Nothing to undo.");
+
+        if (model.controllerUndoTreeSquirrel.undo() == null)
+            statusLabel.setText("Nothing to undo.");
+
     } // undoAction
 
     public void redoAction(Component view, JLabel statusLabel, float nFrames90)
@@ -854,6 +865,9 @@ public class GenericGlue
             view.repaint();
         }
         else
+            statusLabel.setText("Nothing to redo.");
+
+        if (model.controllerUndoTreeSquirrel.redo() == null)
             statusLabel.setText("Nothing to redo.");
     } // redoAction
 
