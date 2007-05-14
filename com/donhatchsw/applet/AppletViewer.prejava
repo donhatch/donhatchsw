@@ -245,6 +245,8 @@ public class AppletViewer
 
         frame.show();
 
+        com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
+
         System.out.println("out main");
     } // main
 
