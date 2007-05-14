@@ -207,6 +207,36 @@ public class MC4DViewGuts
         public Listenable.Boolean showPartialOrder = new Listenable.Boolean(false);
         public Listenable.Boolean frozenForDebugging = new Listenable.Boolean(false); // XXX is this state rather than params?  never want to save it out, do we? but we do set it using the ctrl-alt keys... hmm
             public int frozenPartialOrderForDebugging[][] = null; // XXX this is state you dingbat
+
+        // String representation includes all current values of
+        // all fields that are Listenables
+        // (but not their mins, maxes, or defaults).
+        public String toString()
+        {
+            StringBuffer sb = new StringBuffer();
+            sb.append("{");
+
+            Class myClass = getClass();
+            java.lang.reflect.Field[] fields = myClass.getFields();
+            for (int iField = 0; iField < fields.length; iField++)
+            {
+                java.lang.reflect.Field field = fields[iField];
+                Class fieldType = field.getType();
+                if (Listenable.class.isAssignableFrom(fieldType))
+                {
+                    try {
+                        Listenable fieldValue = (Listenable)field.get(this);
+                        sb.append(field.getName()+"="+fieldValue.toString());
+                        sb.append(',');
+                    } catch (IllegalAccessException e) {
+                        Assert(false);
+                    }
+                }
+            }
+            sb.deleteCharAt(sb.length()-1); // delete the last comma
+            sb.append("}");
+            return sb.toString();
+        } // toString
     } // class ViewParams
 
     //
@@ -366,6 +396,7 @@ public class MC4DViewGuts
                     int numkey = keyCode - KeyEvent.VK_0;
                     if(1 <= numkey && numkey <= 9)
                         viewState.slicemask &= ~(1<<(numkey-1)); // turn off the specified bit
+                    // XXX get rid of this I think
                     if (keyCode == KeyEvent.VK_SHIFT)
                     {
                         // If nShiftsDown becomes >= 2,
@@ -767,7 +798,7 @@ public class MC4DViewGuts
 
     /** Constructor that shares or clones view parameters from an existing guts. */
     public MC4DViewGuts(ViewParams otherParams,
-                        boolean cloneParams)
+                        boolean cloneParams) // if not cloneParams, then share
     {
         if (cloneParams)
         {
