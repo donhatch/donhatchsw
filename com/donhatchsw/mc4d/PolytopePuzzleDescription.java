@@ -139,6 +139,11 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - clicking on the < or > on side of the scrollbars only take about every other time
+        - ack! can clear the tree from the undo tree viewer, which messes up everything
+        - need to click initially in the applet-- not okay
+        - twist speed of generic 2x in melinda's is way too fast
+        - gratuitous undo tree animation is really slow and postpones puzzle animation!?
         - when 3d face shrunk, it woggles during twists
         - status bar and puzzle prescription bar
         - implement expert control panel
