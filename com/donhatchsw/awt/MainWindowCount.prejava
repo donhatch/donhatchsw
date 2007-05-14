@@ -1,0 +1,185 @@
+//
+// MainWindowCount.java
+//
+package com.donhatchsw.awt;
+
+/**
+* This class serves as a registry for all the "main windows"
+* in a single run of a java program--
+* that is, windows such that, when there are none of them left,
+* System.exit(0) should be called (which kills all the threads).
+* <p>
+* Note, the main() function is considered a "main window"
+* for the purposes of this utility.  That is so that it
+* can open a main window that uses this mechanism
+* without the risk of getting killed prematurely if that window closes
+* before it's through.
+* Therefore, main should call
+* MainWindowCount.decrementAndExitIfImTheLastOne()
+* before it returns.
+* It should *not* call increment() for itself, however; that is done
+* automatically (i.e. the global count starts at 1, so a main
+* that doesn't use this mechanism will never exit due to it,
+* even if it uses components that use the mechanism).
+* <p>
+* If you use SwingUtilities.invokeLater()
+* to schedule the gui creation later, and that gui uses this mechanism,
+* then you should call an additional increment() from the calling thread
+* and a matching decrementAndExitIfImTheLastOne()
+* at the end of the scheduled run() method.
+* If you omit these, you run the risk of the program exiting
+* before that invokeLater() ever gets a chance to run.
+* In fact, to avoid the possibility of losing track of a token
+* in the event of an exception, you should enclose the body of your run()
+* in a try block, with the decrementAndExitIfImTheLastOne() call
+* inside the corresponding finally block.
+* <p>
+* Example:
+* <pre>
+        public void main(String args[])
+        {
+            MainWindowCount.increment(); // token for run
+            javax.swing.SwingUtilities.invokeLater(new Runnable() {
+                public void run()
+                {
+                    try
+                    {
+                        ... make my gui ...
+                    }
+                    finally
+                    {
+                        // release run's token
+                        MainWindowCount.decrementAndExitIfImTheLastOne();
+                    }
+                }
+            });
+            // release main's token
+            MainWindowCount.decrementAndExitIfImTheLastOne();
+        } // main
+* </pre>
+* <p>
+* TODO: figure out a way for different packages
+* for different vendors, who use a similar mechanism,
+* to rendezvous and all find a common counter to use.
+*/
+
+public class MainWindowCount
+{
+    private MainWindowCount() {} // non-instantiatable
+
+    private static int howMany = 1; // main() automatically gets a token
+    private static Object theLock = new Object();
+
+    /**
+    * Adds 1 to the number of main windows that are considered to be open.
+    */
+    public static void increment()
+    {
+        synchronized(theLock)
+        {
+            howMany++;
+        }
+    }
+
+    /**
+    * Subtracts 1 from the number of main windows that are open,
+    * and calls System.exit(0) if the resulting number is zero.
+    */
+    public static void decrementAndExitIfImTheLastOne()
+    {
+        if (false)
+        {
+            System.out.println("decrement called from here: ");
+            new Throwable().printStackTrace();
+        }
+
+        synchronized(theLock)
+        {
+            if (--howMany == 0)
+                System.exit(0);
+            //System.out.println(""+howMany+" main windows left");
+        }
+    }
+
+    /**
+    * Returns the number of main windows that are open.
+    * Of course, by the time you look at it, that number
+    * may have changed, so in general this should only be used
+    * for debugging, rather than to make decisions.
+    */
+    public static int howMany()
+    {
+        synchronized(theLock)
+        {
+            return howMany;
+        }
+    }
+
+    /**
+    * Example/text program.
+    */
+    public static void main(String[] args)
+    {
+        System.out.println("in main");
+
+        class MyWindow
+            extends java.awt.Frame
+        {
+            public MyWindow(final boolean isMain)
+            {
+                super(isMain ? "a main window" : "a non-main window");
+                if (isMain)
+                    MainWindowCount.increment();
+                addWindowListener(new java.awt.event.WindowAdapter() {
+                    // "invoked when the user attempts to close the window
+                    // from the window's system menu. if the program does not
+                    // explicitly hide or dispose the window
+                    // while processing this event,
+                    // the window close operation will be cancelled."
+                    public void windowClosing(java.awt.event.WindowEvent e)
+                    {
+                        dispose(); // causes a windowClosed event
+                    }
+                    public void windowClosed(java.awt.event.WindowEvent e)
+                    {
+                        if (isMain)
+                            com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
+                    }
+                });
+                setLayout(new java.awt.FlowLayout());
+                add(new java.awt.Button("Close") {{
+                    addActionListener(new java.awt.event.ActionListener() {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            dispose(); // causes a windowClosed event
+                        }
+                    });
+                }});
+                add(new java.awt.Button("Spawn main window") {{
+                    addActionListener(new java.awt.event.ActionListener() {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            new MyWindow(true).show();
+                        }
+                    });
+                }});
+                add(new java.awt.Button("Spawn non-main window") {{
+                    addActionListener(new java.awt.event.ActionListener() {
+                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            new MyWindow(false).show();
+                        }
+                    });
+                }});
+                pack();
+            }
+        } // class MyWindow
+
+        new MyWindow(true).show();
+
+        // release the main token
+        MainWindowCount.decrementAndExitIfImTheLastOne();
+        System.out.println("out main");
+    } // main
+
+} // class MainWindowCount
