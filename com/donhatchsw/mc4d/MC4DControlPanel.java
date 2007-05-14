@@ -534,9 +534,26 @@ public class MC4DControlPanel
         nRows++;
     }
 
-    public MC4DControlPanel(final MC4DViewGuts.ViewParams viewParams,
-                            final MC4DViewGuts.ViewState viewState)
+    // XXX should this name be associated with the viewParams instead?
+    private String name;
+    public String getName()
     {
+        return name;
+    }
+    private MC4DViewGuts.ViewParams viewParams;
+    public MC4DViewGuts.ViewParams getViewParams()
+    {
+        return viewParams;
+    }
+
+    public MC4DControlPanel(String name,
+                            final MC4DViewGuts.ViewParams viewParams,
+                            final MC4DViewGuts.ViewState viewState) // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
+
+    {
+        this.name = name;
+        this.viewParams = viewParams;
+
         this.setLayout(new GridBagLayout());
         addSingleLabelRow(new BigBoldLabel("Behavior"));
         addFloatSliderRow(
@@ -703,7 +720,7 @@ public class MC4DControlPanel
             "Stickers shrink to face boundaries",
             viewParams.stickersShrinkTowardsFaceBoundaries,
             new String[] {
-                "Normally this option is set to 0 which causes stickers",
+                "Normally this option is set to 0, which causes stickers",
                 "to shrink towards their centers.",
                 "Setting it to 1 causes stickers to shrink towards",
                 "the face boundaries instead (so if the 4d and 3d face shrinks are 1,",
@@ -753,15 +770,17 @@ public class MC4DControlPanel
                                new String[] {
                                    "Pressing the Contiguous Cubies button",
                                    "is the same as setting 4d Face Shrink, 3d Face Shrink,",
-                                   "and \"Stickers shrink to face boundaries\" all to 1.",
+                                   "and \"Stickers shrink to face boundaries\" all to 1,",
+                                   "With these settings, all the stickers of a given cubie",
+                                   "will appear to be contiguous",
                                    "",
-                                   "This button is only enabled when they are not already all 1.",
+                                   "This button is only enabled when not already contiguous.",
                                 }),
                 new GridBagConstraints(){{gridy = nRows;}});
             nRows++;
         } // contiguous cubies button row
 
-        if (true)
+        if (false) // XXX just get rid of this, I think
         {
             add(new CanvasOfSize(20,10), // indent
                      new GridBagConstraints(){{gridy = nRows;}});
@@ -1040,7 +1059,7 @@ public class MC4DControlPanel
                 });
             }
 
-            frame.add(new MC4DControlPanel(viewParams, viewState));
+            frame.add(new MC4DControlPanel("Settings", viewParams, viewState));
             frame.pack();
             frame.show();
         }
