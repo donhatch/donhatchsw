@@ -139,15 +139,15 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - java MC4DViewGuts gives exceptions on one of the undo tree windows
+        - hotkeys don't work from java 1.6??
         - clicking on the < or > on side of the scrollbars only take about every other time
         - ack! can clear the tree from the undo tree viewer, which messes up everything
-        - need to click initially in the applet-- not okay
         - twist speed of generic 2x in melinda's is way too fast
         - gratuitous undo tree animation is really slow and postpones puzzle animation!?
-        - when 3d face shrunk, it woggles during twists
         - status bar and puzzle prescription bar
         - implement expert control panel
-            - num paints should go under it, probably
+            - num paints should go under it, probably... maybe
         - close a view window that's in sync with another view window...
            the remaining one doesn't update any more :-(
         - shared view/cloned puzzle state restrict roll doesn't work right
@@ -179,7 +179,6 @@
             and also maybe share control panels (view params)?
 
         - doesn't start spinning easily enough when I let go
-        - call it MC4DApplet, not MC4DViewApplet
         - Frame Picture assumes window is 502x485-- bogus!
         - undo tree's colors are wrong!
         - "{8}x{} 3" problems:   (or bigger)
