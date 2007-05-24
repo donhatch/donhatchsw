@@ -196,6 +196,7 @@ public class GenericPipelineUtils
 
         float stickerCenters[][] = new float[nStickers][nDisplayDims]; // XXX MEM ALLOCATION
         float stickerAltCenters[][] = new float[nStickers][nDisplayDims]; // XXX MEM ALLOCATION
+        float stickerShrinkPoints[][] = new float[nStickers][nDisplayDims]; // XXX MEM ALLOCATION
         float perStickerFaceCenters[][] = new float[nStickers][nDisplayDims]; // XXX MEM ALLOCATION
 
         //
@@ -229,19 +230,12 @@ public class GenericPipelineUtils
         // so they will be appropriate for subsequent shrink passes.
         //
         {
-            float stickerShrinkPoints[][] = new float[nStickers][nDisplayDims]; // XXX mem allocation
             int sticker2face[] = puzzleDescription.getSticker2Face();
 
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
                 VecMath.lerp(stickerShrinkPoints[iSticker],
                              stickerCenters[iSticker], stickerAltCenters[iSticker], stickersShrinkTowardsFaceBoundaries); // BEFORE shrinking towards face center
-                // shrink the sticker shrink-to points towards the face center,
-                // for the 3d shrink pass later
-                VecMath.lerp(stickerCenters[iSticker],
-                             perStickerFaceCenters[iSticker], stickerCenters[iSticker], faceShrink4d);
-                VecMath.lerp(stickerAltCenters[iSticker],
-                             perStickerFaceCenters[iSticker], stickerAltCenters[iSticker], faceShrink4d);
             }
 
             for (int iVert = 0; iVert < verts.length; ++iVert)
@@ -253,12 +247,15 @@ public class GenericPipelineUtils
                              perStickerFaceCenters[iSticker], verts[iVert], faceShrink4d);
             }
         }
+
+        // The three arrays we need to rotate and project...
+        float arrays[][][] = {verts, stickerShrinkPoints, perStickerFaceCenters};
         
         //
         // Rotate/scale in 4d.
         // Not just the verts, but also the shrink-to points,
         // since we'll need to shrink towards them again
-        // for the 3d part of the shrink.
+        // for the 3d part of the shrink.  And the per-sticker face centers too.
         //
         {
             // Make it so circumradius is 6.
@@ -267,10 +264,14 @@ public class GenericPipelineUtils
             float scale4d = 6.f/puzzleDescription.circumRadius();
             float rotScale4d[][] = VecMath.mxs(rot4d, scale4d); // XXX MEMORY ALLOCATION
             float temp[] = new float[4]; // XXX MEMORY ALLOCATION
-            for (int iVert = 0; iVert < verts.length; ++iVert)
+            for (int iArray = 0; iArray < 3; ++iArray)
             {
-                VecMath.vxm(temp, verts[iVert], rotScale4d);
-                VecMath.copyvec(verts[iVert], temp);
+                float array[][] = arrays[iArray];
+                for (int i = 0; i < array.length; ++i)
+                {
+                    VecMath.vxm(temp, array[i], rotScale4d);
+                    VecMath.copyvec(array[i], temp);
+                }
             }
         }
         if (verboseLevel >= 3) System.out.println("        after 4d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
@@ -284,16 +285,21 @@ public class GenericPipelineUtils
         //if (verboseLevel >= 3) System.out.println("        after 4d clip: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
-        // Project down to 3d
+        // Project down to 3d.
+        // Verts, face centers, and sticker shrink-to points.
         //
         {
-            for (int i = 0; i < verts.length; ++i)
+            for (int iArray = 0; iArray < arrays.length; ++iArray)
             {
-                float w = eyeW - verts[i][3];
-                float invW = 1.f/w;
-                for (int j = 0; j < 3; ++j)
-                    verts[i][j] *= invW;
-                verts[i][3] = w; // keep this for future reference
+                float array[][] = arrays[iArray];
+                for (int i = 0; i < array.length; ++i)
+                {
+                    float w = eyeW - array[i][3];
+                    float invW = 1.f/w;
+                    for (int j = 0; j < 3; ++j)
+                        array[i][j] *= invW;
+                    array[i][3] = w; // keep this for future reference
+                }
             }
         }
         if (verboseLevel >= 3) System.out.println("        after 4d->3d project: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
@@ -343,47 +349,14 @@ public class GenericPipelineUtils
         // XXX could try to only do this on vertices that passed the culls
         // XXX need to do this with the xformed and projected shrink-to point,
         // XXX not calculate screwy centers on the fly here.
-        // XXX Q: should the sticker shrink-to point always be shrunk towards the face shrink-to point in 4d?  Or does 3d make sense?  Well, 4d would be more robust, since that shrinking could prevent having to do with projected original points that could end up behind the eye.
+        // XXX Q: should the sticker shrink-to point always be shrunk towards the face shrink-to point in 4d?  Or does 3d make sense?  Well, 4d would be more robust, since that shrinking could prevent having to do with projected original points that could end up behind the eye.  So that's what we do.
         //
-        if (faceShrink3d != 1.f
-         || stickerShrink3d != 1.f)
-        {
-            int sticker2face[] = puzzleDescription.getSticker2Face();
-            int nFaces = puzzleDescription.nFaces();
-
-            if (stickerShrink3d != 1.f)
-            {
-                float stickerCenters3d[][] = new float[stickerInds.length][3]; // XXX MEM ALLOCATION -- XXX get rid of this, use the projected centers instead
-                int nStickerCenterContributors[] = new int[stickerInds.length]; // XXX MEM ALLOCATION
-                for (int iVert = 0; iVert < verts.length; ++iVert)
-                {
-                    int iSticker = vert2sticker[iVert];
-                    VecMath.vpv(stickerCenters3d[iSticker], stickerCenters3d[iSticker], verts[iVert]);
-                    nStickerCenterContributors[iSticker]++;
-                }
-                for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
-                    VecMath.vxs(stickerCenters3d[iSticker], stickerCenters3d[iSticker], 1.f/nStickerCenterContributors[iSticker]);
-                for (int iVert = 0; iVert < verts.length; ++iVert)
-                    VecMath.lerp(verts[iVert], stickerCenters3d[vert2sticker[iVert]], verts[iVert], stickerShrink3d);
-            }
-            if (faceShrink3d != 1.f)
-            {
-                float faceCenters[][] = new float[nFaces][3]; // XXX MEM ALLOCATION
-                int nFaceCenterContributors[] = new int[nFaces]; // XXX MEM ALLOCATION
-
-                for (int iVert = 0; iVert < verts.length; ++iVert)
-                {
-                    int iFace = sticker2face[vert2sticker[iVert]];
-                    VecMath.vpv(faceCenters[iFace], faceCenters[iFace], verts[iVert]);
-                    nFaceCenterContributors[iFace]++;
-                }
-                for (int iFace = 0; iFace < nFaces; ++iFace)
-                    VecMath.vxs(faceCenters[iFace], faceCenters[iFace], 1.f/nFaceCenterContributors[iFace]);
-
-                for (int iVert = 0; iVert < verts.length; ++iVert)
-                    VecMath.lerp(verts[iVert], faceCenters[sticker2face[vert2sticker[iVert]]], verts[iVert], faceShrink3d);
-            }
-        }
+        if (stickerShrink3d != 1.f)
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+                VecMath.lerp(verts[iVert], stickerShrinkPoints[vert2sticker[iVert]], verts[iVert], stickerShrink3d);
+        if (faceShrink3d != 1.f)
+            for (int iVert = 0; iVert < verts.length; ++iVert)
+                VecMath.lerp(verts[iVert], perStickerFaceCenters[vert2sticker[iVert]], verts[iVert], faceShrink3d);
 
         //
         // Rotate/scale in 3d
