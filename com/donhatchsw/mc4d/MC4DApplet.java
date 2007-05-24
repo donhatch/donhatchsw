@@ -141,6 +141,11 @@ public class MC4DApplet
                 else
                     return super.getPreferredSize();
             }
+            // So we can type immediately in it
+            public boolean isFocusTraversable()
+            {
+                return true;
+            }
         };
         viewGuts.setControllerComponent(canvas, true);
         viewGuts.setViewComponent(canvas);
@@ -994,13 +999,13 @@ public class MC4DApplet
     // XXX position just like any other Frame when in the AppletViewer? hmm
     private static Component getTopLevelFrameOrApplet(Component comp)
     {
-        System.out.println("in getTopLevelFrameOrApplet");
+        //System.out.println("in getTopLevelFrameOrApplet");
         {
             Container parent;
             while ((parent = comp.getParent()) != null)
                 comp = parent;
         }
-        System.out.println("out getTopLevelFrameOrApplet ("+comp.getClass()+")");
+        //System.out.println("out getTopLevelFrameOrApplet ("+comp.getClass()+")");
         Assert(comp instanceof Frame
             || comp instanceof Applet);
         return comp;
