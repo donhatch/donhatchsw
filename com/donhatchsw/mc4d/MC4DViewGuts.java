@@ -1694,6 +1694,7 @@ public class MC4DViewGuts
                     new int[1],
                     false, // don't allow the example "Do" which would put dummy strings in the tree
                     true, // but do allow undo/redo
+                    false, // don't allow clear which would mess up everything currently (although maybe should hook up to reset at some time in the future)
                     lengthizer,
                     colorizer);
 
@@ -1712,6 +1713,7 @@ public class MC4DViewGuts
                     new int[1],
                     false, // don't allow the example "Do" which would put dummy strings in the tree
                     false, // and don't allow undo/redo from this view either, since instantaneous changes would make it get out of sync with the permutation array. undo/redo must be done from the controller window, this one is just for watching.
+                    false, // don't allow clear which would mess up everything currently (although maybe should hook up to reset at some time in the future)
                     lengthizer,
                     colorizer);
 
