@@ -139,10 +139,8 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - java MC4DViewGuts gives exceptions on one of the undo tree windows
         - hotkeys don't work from java 1.6??
         - clicking on the < or > on side of the scrollbars only take about every other time
-        - ack! can clear the tree from the undo tree viewer, which messes up everything
         - twist speed of generic 2x in melinda's is way too fast
         - gratuitous undo tree animation is really slow and postpones puzzle animation!?
         - status bar and puzzle prescription bar
