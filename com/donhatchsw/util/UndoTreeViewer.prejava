@@ -1110,6 +1110,7 @@ public class UndoTreeViewer
                                            final int nViewersEverMade[],
                                            final boolean allowDo,
                                            final boolean allowUndoRedo,
+                                           final boolean allowClear,
                                            final UndoTreeSquirrel.ItemLengthizer lengthizer,
                                            final UndoTreeViewer.ItemColorizer colorizer)
     {
@@ -1147,36 +1148,38 @@ public class UndoTreeViewer
                 g.fillRect(0,0,w,h);
                 undoTreeViewer.paint(this, g);
 
-                // XXX should use the font height instead of hard coding 20
-                int y = h - (isAFollower ? 7 : allowUndoRedo ? allowDo ? 13 : 12 : 7)*20 - 20; // XXX holy hell!
+                
+                com.donhatchsw.compat.ArrayList stringsToDraw = new com.donhatchsw.compat.ArrayList(50);
                 if (!isAFollower)
                 {
                     if (allowUndoRedo)
                     {
                         if (allowDo)
-                            g.drawString("Enter to Do", 10, y+=20);
-                        g.drawString("  Up to undo", 10, y+=20);
-                        g.drawString("  Down to redo", 10, y+=20);
-                        g.drawString("  Left for older", 10, y+=20);
-                        g.drawString("  Right for younger", 10, y+=20);
-                        g.drawString("    (or just click and drag around)", 10, y+=20);
-                        g.drawString("c to Clear", 10, y+=20);
+                            stringsToDraw.add("Enter to Do");
+                        stringsToDraw.add("  Up to undo");
+                        stringsToDraw.add("  Down to redo");
+                        stringsToDraw.add("  Left for older");
+                        stringsToDraw.add("  Right for younger");
+                        stringsToDraw.add("    (or just click and drag around)");
+                        if (allowClear)
+                            stringsToDraw.add("c to Clear");
                     }
                 }
                 else
-                    g.drawString("S/s to follow Slower/faster", 10, y+=20);
-                //g.drawString("  (or just click and drag around and hit enter a lot)", 10, y+=20);
-                g.drawString("+/-/= to zoom in/out", 10, y+=20);
-                g.drawString("0 to toggle keep-current-node-in-center mode", 10, y+=20);
-                g.drawString("t to toggle stretch-out-along-time-line display mode", 10, y+=20);
-                g.drawString("l to toggle labels", 10, y+=20);
-                g.drawString("n for new view window of same tree", 10, y+=20);
-                g.drawString("ctrl-n for new view that follows this view around like a dog", 10, y+=20);
-                //PRINT(isAFollower);
-                //PRINT(allowUndoRedo);
-                //PRINT(allowDo);
-                //PRINT((h - (y+20)) / 20);
-                assert(y+20 == h);
+                    stringsToDraw.add("S/s to follow Slower/faster");
+                //stringsToDraw.add("  (or just click and drag around and hit enter a lot)");
+                stringsToDraw.add("+/-/= to zoom in/out");
+                stringsToDraw.add("0 to toggle keep-current-node-in-center mode");
+                stringsToDraw.add("t to toggle stretch-out-along-time-line display mode");
+                stringsToDraw.add("l to toggle labels");
+                stringsToDraw.add("n for new view window of same tree");
+                stringsToDraw.add("ctrl-n for new view that follows this view around like a dog");
+                int nStringsToDraw = stringsToDraw.size();
+                // XXX should use the font height instead of hard coding 20
+                for (int i = 0; i < nStringsToDraw; ++i)
+                    g.drawString((String)stringsToDraw.get(i),
+                                 10, h-(nStringsToDraw-i)*20);
+
                 if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    out paintComponent");
             }
         };
@@ -1274,7 +1277,7 @@ public class UndoTreeViewer
                                               new UndoTreeSquirrel[]{},
                                               ke.isControlDown() ? name : null, // ctrl-n means the new one should follow me around
                                               ke.isControlDown() ? undoTreeSquirrel : null, // ctrl-n means the new one should follow me around
-                                              x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, allowDo, allowUndoRedo, lengthizer, colorizer);
+                                              x+20, y+20, jframe.getWidth(), jframe.getHeight(), nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, allowDo, allowUndoRedo, allowClear, lengthizer, colorizer);
                 }
                 else if (keyCode == java.awt.event.KeyEvent.VK_C // I keep hitting ctrl-c so let's do it baby
                       && ke.isControlDown())
@@ -1423,27 +1426,27 @@ public class UndoTreeViewer
         int nViewersEverMade[] = {0};
         int x = 50;
         int w = 400;
-        makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, new UndoTreeSquirrel[]{}, null, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+        makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, new UndoTreeSquirrel[]{}, null, null, x, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, true, lengthizer, colorizer);
         // The following two lines are very different!
         if (false)
         {
             // Doing it this way, both viewers will share
             // undos and redos (as well as changes in the tree structure).
             // Each can have its own display style though.
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, new UndoTreeSquirrel[]{}, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel, new UndoTreeSquirrel[]{}, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, true, lengthizer, colorizer);
         }
         if (false)
         {
             // Doing it this way, both viewers see tree changes
             // but they can explore the tree independently;
             // one viewer's undos and redos will not affect the other.
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel = new UndoTreeSquirrel(squirrel), new UndoTreeSquirrel[]{}, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), squirrel = new UndoTreeSquirrel(squirrel), new UndoTreeSquirrel[]{}, null, null, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, true, lengthizer, colorizer);
         }
         if (true)
         {
             // Doing it this way, the new one will follow the previous one
             // around!
-            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), new UndoTreeSquirrel(squirrel), new UndoTreeSquirrel[]{}, "View "+(nViewsEverMade[0]-2/*omg this is outa control*/), squirrel, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, lengthizer, colorizer);
+            makeExampleUndoTreeViewer("View "+(nViewsEverMade[0]++), new UndoTreeSquirrel(squirrel), new UndoTreeSquirrel[]{}, "View "+(nViewsEverMade[0]-2/*omg this is outa control*/), squirrel, x+=w, 20, w, 700, nThingsDoneEver, nViewersAlive, nModelsEverMade, nViewsEverMade, nViewersEverMade, true, true, true, lengthizer, colorizer);
         }
 
         //
