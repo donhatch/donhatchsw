@@ -174,6 +174,13 @@ public final class VecMath
             result[i] = s * v[i];
     }
 
+    /** v0 as a single-column matrix times v1 as a single-row matrix */
+    public static void outerProduct(double result[][], double v0[], double v1[])
+    {
+        FORIDOWN (i, result.length)
+            sxv(result[i], v0[i], v1);
+    }
+
     /** perp dot */
     public static void xv2(double result[/*2*/], double v[/*2*/])
     {
@@ -358,6 +365,20 @@ public final class VecMath
     }
     /** add v to every row of M. */
     public static void vpm(int result[][], int v[], int M[][])
+    {
+        FORIDOWN (i, M.length)
+            if (M[i] != null)
+                vpv(result[i], M[i], v);
+    }
+    /** add v to every row of M. */
+    public static void mpv(double result[][], double M[][], double v[])
+    {
+        FORIDOWN (i, M.length)
+            if (M[i] != null)
+                vpv(result[i], M[i], v);
+    }
+    /** add v to every row of M. */
+    public static void mpv(int result[][], int M[][], int v[])
     {
         FORIDOWN (i, M.length)
             if (M[i] != null)
@@ -2905,6 +2926,17 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             normalize(result, v);
             return result; // XXX should return NULL on failure?  Not sure
         }
+
+        /** v0 as a single-column matrix times v1 as a single-row matrix,
+        * returning newly allocated result */
+        public static double[][] outerProduct(double v0[], double v1[])
+        {
+            int n = v0.length;
+            assert(n == v1.length);
+            double result[][] = new double[n][n];
+            outerProduct(result, v0, v1);
+            return result;
+        }
         /** perp dot, returning newly allocated result */
         public static double[] xv2(double v[/*2*/])
         {
@@ -3305,6 +3337,29 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
 #endif // DEFUNCT
         }
+
+        /** inverse matrix times matrix, returning newly allocated result */
+        public static double[][] invmxm(double m0[][],
+                                        double m1[][])
+        {
+            int n = m1.length;
+            int m = n==0 ? 0 : m1[0].length;
+            double result[][] = new double[n][m];
+            invmxm(result, m0, m1);
+            return result;
+        }
+
+        /** matrix times inverse matrix, returning newly allocated result */
+        public static double[][] mxinvm(double m0[][],
+                                        double m1[][])
+        {
+            int n = m0.length;
+            int m = n==0 ? 0 : m0[0].length;
+            double result[][] = new double[n][m];
+            mxinvm(result, m0, m1);
+            return result;
+        }
+
         // XXX duplicate code
         /** matrix times matrix, returning newly allocated result */
         public static float[][] mxm(float m0[/*n*/][/*dotLength*/],
@@ -3327,6 +3382,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             int m = (dotLength == 0 ? 0 : m1[0].length);
             int[][] result = new int[n][m];
             mxm(result, m0, m1);
+            return result;
+        }
+
+        /** vector plus vector minus vector, returning newly allocated result */
+        public static double[] vpvmv(double v0[], double v1[], double v2[])
+        {
+            double[] result = new double[v0.length];
+            vpvmv(result, v0, v1, v2);
             return result;
         }
 
@@ -3433,6 +3496,20 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
         /** add v to every row of m, returning newly allocated result */
         public static int[][] vpm(int v[], int m[][])
+        {
+            int result[][] = new int[m.length][ROWLENGTH(m)];
+            vpm(result, v, m);
+            return result;
+        }
+        /** add v to every row of m, returning newly allocated result */
+        public static double[][] mpv(double v[], double m[][])
+        {
+            double result[][] = new double[m.length][ROWLENGTH(m)];
+            vpm(result, v, m);
+            return result;
+        }
+        /** add v to every row of m, returning newly allocated result */
+        public static int[][] mpv(int v[], int m[][])
         {
             int result[][] = new int[m.length][ROWLENGTH(m)];
             vpm(result, v, m);
