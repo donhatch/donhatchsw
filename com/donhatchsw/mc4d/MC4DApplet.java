@@ -1191,6 +1191,7 @@ public class MC4DApplet
                         new int[1],
                         false, // don't allow the example "Do" which would put dummy strings in the tree
                         true, // but do allow undo/redo
+                        false, // don't allow clear which would mess up everything currently (although maybe should hook up to reset at some time in the future)
                         lengthizer,
                         colorizer);
 
