@@ -770,7 +770,7 @@ public class MC4DControlPanel
                                new String[] {
                                    "Pressing the Contiguous Cubies button",
                                    "is the same as setting 4d Face Shrink, 3d Face Shrink,",
-                                   "and \"Stickers shrink to face boundaries\" all to 1,",
+                                   "and \"Stickers shrink to face boundaries\" all to 1.",
                                    "With these settings, all the stickers of a given cubie",
                                    "will appear to be contiguous",
                                    "",
