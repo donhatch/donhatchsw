@@ -346,6 +346,7 @@ public class regex
             public String patString; // for debugging so we can print where we are
             public State states[];
             public int nCaptureGroups;
+            private int stack[] = new int[0]; // runtime stack.  note this makes it so only one thread can execute stuff at once.
 
             public static class State
             {
@@ -764,8 +765,10 @@ public class regex
                     //        inputStart
                     //        iState
                     //        iTransition
-                    // This kinda sucks for small strings,
+                    // This kinda sucks for small strings, or when doing a ton of finds, e.g. during a long split.
                     // since the recursive version was actually allocation-free, I think.
+                    // In fact it was so bad that we had to move the ownership of this stack
+                    // into a member of the FSM, making the FSM not thread-safe.  Which I guess is fine.
 
                     // XXX what is the right number?
                     // 2 states (.*):
@@ -777,8 +780,9 @@ public class regex
                     //   1->4
                     //   2->6
                     //   3->8
-                    int stack[] = new int[(2*(inputEnd-inputStart) + 2*states.length)*3]; // XXX what is the right upper bound??
-                    //int stack[] = new int[12];
+                    int upperBound = (2*(inputEnd-inputStart) + 2*states.length)*3; // XXX what is the right upper bound??
+                    if (upperBound > stack.length)
+                        stack = new int[upperBound];
                     int iStack = 0;
 
 
@@ -1667,6 +1671,30 @@ public class regex
             sb = null;
             System.out.println("Trying to match input of length "+input.length());
             matches(input, ".*");
+        }
+
+        if (true)
+        {
+            // Oh hell, but then the non-recursive implementation takes forever
+            // when trying to split the grand antiprism input string
+            // (1646 lines of reasonable length, split by "\\s*\n\\s*".
+            // This should be almost instantaneous.
+            // Okay it is now that I moved the stack ownership
+            // into the caller.
+            StringBuffer sb = new StringBuffer();
+            FORI (i, 1000)
+            {
+                FORI (j, 80)
+                {
+                    sb.append('a');
+                }
+                sb.append('\n');
+            }
+            String input = sb.toString();
+            sb = null;
+            System.out.println("Trying to split input of length "+input.length());
+            String result[] = split(input, "\\s*\n\\s*");
+            System.out.println("    result = "+result.length+" pieces");
         }
 
         System.out.println("All good!");
