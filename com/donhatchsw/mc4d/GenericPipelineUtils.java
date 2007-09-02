@@ -84,6 +84,8 @@ public class GenericPipelineUtils
         public int drawListBuffer[/*nStickers*/][/*nPolysThisSticker*/][/*2*/];
 
         public int[][/*2*/] partialOrder; // optional, for debugging
+
+        GenericPuzzleDescription puzzleDescription; // puzzle description used when filling it, to be used later for picking
     } // class Frame
 
     static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
@@ -782,6 +784,7 @@ public class GenericPipelineUtils
 
         frame.drawListSize = drawListSize;
         frame.shadowDrawListSize = groundNormal!=null ? shadowDrawListSize : 0;
+        frame.puzzleDescription = puzzleDescription;
 
         if (verboseLevel >= 2) System.out.println("    out GenericPipelineUtils.computeFrame");
     } // computeFrame
@@ -795,15 +798,16 @@ public class GenericPipelineUtils
     * XXX I think I want to take out the Y inversion from the Frame?  not sure
     */
     public static int[] pick(float x, float y,
-                             Frame frame,
-                             GenericPuzzleDescription puzzleDescription)
+                             Frame frame)
     {
         if (verboseLevel >= 3) System.out.println("    in GenericPipelineUtils.pick");
+        if (frame.puzzleDescription == null)
+            return null;
         float thispoint[] = {x, y};
         // From front to back, returning the first hit
         float verts[][] = frame.verts;
         int drawList[][] = frame.drawList;
-        int stickerInds[][][] = puzzleDescription.getStickerInds();
+        int stickerInds[][][] = frame.puzzleDescription.getStickerInds();
         int pickedItem[] = null;
         for (int i = frame.drawListSize-1; i >= 0; --i) // front to back
         {
@@ -826,38 +830,36 @@ public class GenericPipelineUtils
     }
 
     public static int pickSticker(float x, float y,
-                                  Frame frame,
-                                  GenericPuzzleDescription puzzleDescription)
+                                  Frame frame)
     {
-        int iStickerAndPoly[] = pick(x, y, frame, puzzleDescription);
+        int iStickerAndPoly[] = pick(x, y, frame);
         return iStickerAndPoly != null ? iStickerAndPoly[0] : -1;
     }
 
     public static float[][] pickPolyAndStickerAndFaceCenter(float x, float y,
-                                                     Frame frame,
-                                                     GenericPuzzleDescription puzzleDescription)
+                                                     Frame frame)
     {
-        int hit[] = pick(x, y, frame, puzzleDescription);
+        int hit[] = pick(x, y, frame);
         if (hit == null)
             return null;
         // XXX would really like to map the pick point back to 4d...
         // XXX for now, map the polygon center back.
 
         // XXX argh, this is sure overkill here...
-        float verts[][] = new float[puzzleDescription.nVerts()][puzzleDescription.nDisplayDims()];
-        puzzleDescription.computeVertsAndShrinkToPointsAtRest(
+        float verts[][] = new float[frame.puzzleDescription.nVerts()][frame.puzzleDescription.nDisplayDims()];
+        frame.puzzleDescription.computeVertsAndShrinkToPointsAtRest(
                 verts,
                 null, // sticker centers
                 null, // alt sticker centers,
                 null); // per sticker face centers
 
-        int stickerInds[][][] = puzzleDescription.getStickerInds();
+        int stickerInds[][][] = frame.puzzleDescription.getStickerInds();
         // XXX not sure which of the following are better if either-- maybe poly for 2x, sticker otherwise? it's definitely disconcerting when different parts of the sticker do diff things...
         int sticker[][] = stickerInds[hit[0]];
         int poly[] = sticker[hit[1]];
         float polyCenter[] = VecMath.averageIndexed(poly, verts);
         float stickerCenter[] = VecMath.averageIndexed(sticker, verts);
-        float faceCenter[] = puzzleDescription.getFaceCentersAtRest()[puzzleDescription.getSticker2Face()[hit[0]]];
+        float faceCenter[] = frame.puzzleDescription.getFaceCentersAtRest()[frame.puzzleDescription.getSticker2Face()[hit[0]]];
 
         //System.out.println("        poly center = "+VecMath.toString(polyCenter));
         //System.out.println("        sticker center = "+VecMath.toString(stickerCenter));
@@ -867,10 +869,9 @@ public class GenericPipelineUtils
     // Pick poly center if it's a 2x2x2x2, sticker center otherwise.
     // XXX not sure this is used any more? well it's used when rotating to center, but I'm not sure it should be... have to check
     public static float[] pickPolyOrStickerCenter(float x, float y,
-                                                  Frame frame,
-                                                  GenericPuzzleDescription puzzleDescription)
+                                                  Frame frame)
     {
-        float polyAndStickerCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame, puzzleDescription);
+        float polyAndStickerCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame);
         if (polyAndStickerCenter == null)
             return null;
         float polyCenter[] = polyAndStickerCenter[0];
@@ -881,40 +882,39 @@ public class GenericPipelineUtils
         //boolean itsProbablyThe2 = VecMath.normsqrd(stickerCenter) == 1.75
         //                     && (VecMath.normsqrd(polyCenter) == 1.5
         //                      || VecMath.normsqrd(polyCenter) == 2.5);
-        boolean itsProbablyThe2 = puzzleDescription.getStickerPoly2Grip() != null;
+        boolean itsProbablyThe2 = frame.puzzleDescription.getStickerPoly2Grip() != null;
         if (verboseLevel >= 3) System.out.println("itsProbablyThe2 = "+itsProbablyThe2);
 
         return itsProbablyThe2 ? polyCenter : stickerCenter;
     } // pickPolyOrStickerCenter
 
     public static int pickGrip(float x, float y,
-                               Frame frame,
-                               GenericPuzzleDescription puzzleDescription)
+                               Frame frame)
     {
-        if (puzzleDescription.getStickerPoly2Grip() != null)
+        if (frame.puzzleDescription.getStickerPoly2Grip() != null)
         {
-            int stickerAndPoly[] = pick(x, y, frame, puzzleDescription);
+            int stickerAndPoly[] = pick(x, y, frame);
             if (stickerAndPoly == null)
                 return -1;
-            return puzzleDescription.getStickerPoly2Grip()[stickerAndPoly[0]][stickerAndPoly[1]];
+            return frame.puzzleDescription.getStickerPoly2Grip()[stickerAndPoly[0]][stickerAndPoly[1]];
         }
 
-        float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame, puzzleDescription);
+        float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame);
         if (polyAndStickerAndFaceCenter == null)
             return -1;
 
         float polyCenter[] = polyAndStickerAndFaceCenter[0];
         float stickerCenter[] = polyAndStickerAndFaceCenter[1];
         float faceCenter[] = polyAndStickerAndFaceCenter[2];
-        if (puzzleDescription.nDims() < 4)
+        if (frame.puzzleDescription.nDims() < 4)
         {
-            int iGrip = puzzleDescription.getClosestGrip(VecMath.vmv(polyCenter, stickerCenter),
-                                                         faceCenter);
+            int iGrip = frame.puzzleDescription.getClosestGrip(VecMath.vmv(polyCenter, stickerCenter),
+                                                               faceCenter);
             return iGrip;
         }
         else
         {
-            int iGrip = puzzleDescription.getClosestGrip(stickerCenter);
+            int iGrip = frame.puzzleDescription.getClosestGrip(stickerCenter);
             //System.out.println("    the closest grip to "+VecMath.toString(stickerCenter)+" is "+iGrip);
             return iGrip;
         }
@@ -922,17 +922,16 @@ public class GenericPipelineUtils
 
     public static float[] pickNicePointToRotateToCenter(float x, float y,
                                                         boolean allowArbitraryElements,
-                                                        Frame frame,
-                                                        GenericPuzzleDescription puzzleDescription)
+                                                        Frame frame)
     {
-        float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame, puzzleDescription);
+        float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame);
         if (polyAndStickerAndFaceCenter == null)
             return null;
         float polyCenter[] = polyAndStickerAndFaceCenter[0];
         float stickerCenter[] = polyAndStickerAndFaceCenter[1];
         float faceCenter[] = polyAndStickerAndFaceCenter[2];
         if (allowArbitraryElements)
-            return puzzleDescription.getClosestNicePointToRotateToCenter(stickerCenter);
+            return frame.puzzleDescription.getClosestNicePointToRotateToCenter(stickerCenter);
         else
             return faceCenter;
     }
@@ -944,7 +943,6 @@ public class GenericPipelineUtils
 
     // PAINT
     public static void paintFrame(Frame frame,
-                                  GenericPuzzleDescription puzzleDescription,
                                   int puzzleState[],
 
                                   boolean showShadows,
@@ -967,6 +965,7 @@ public class GenericPipelineUtils
         if (verboseLevel >= 2) System.out.println("    in GenericPipelineUtils.paintFrame");
         if (verboseLevel >= 2) System.out.println("        iStickerUnderMouse = "+iStickerUnderMouse);
 
+        GenericPuzzleDescription puzzleDescription = frame.puzzleDescription;
         int drawList[][/*2*/] = frame.drawList;
         float brightnesses[][] = frame.brightnesses;
         int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][] = puzzleDescription.getStickerInds();

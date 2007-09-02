@@ -946,8 +946,7 @@ public class GenericGlue
         GenericGlue genericGlue = this;
         int pickedStickerPoly[] = GenericPipelineUtils.pick(
                                         e.getX(), e.getY(),
-                                        genericGlue.untwistedFrame,
-                                        model.genericPuzzleDescription);
+                                        genericGlue.untwistedFrame);
         int newSticker = pickedStickerPoly!=null ? pickedStickerPoly[0] : -1;
         int newPoly = pickedStickerPoly!=null ? pickedStickerPoly[1] : -1;
         if (newSticker != genericGlue.iStickerUnderMouse
@@ -972,8 +971,7 @@ public class GenericGlue
         if (false) // make this true to debug the pick
         {
             int hit[] = GenericPipelineUtils.pick(e.getX(), e.getY(),
-                                                  genericGlue.untwistedFrame,
-                                                  model.genericPuzzleDescription);
+                                                  genericGlue.untwistedFrame);
             if (hit != null)
             {
                 int iSticker = hit[0];
@@ -991,8 +989,7 @@ public class GenericGlue
             float nicePoint[] = GenericPipelineUtils.pickNicePointToRotateToCenter(
                              e.getX(), e.getY(),
                              allowArbitraryElements,
-                             genericGlue.untwistedFrame,
-                             model.genericPuzzleDescription);
+                             genericGlue.untwistedFrame);
 
             if (nicePoint != null)
             {
@@ -1031,8 +1028,7 @@ public class GenericGlue
                     {
                         float polyAndStickerAndFaceCenter[][] = GenericPipelineUtils.pickPolyAndStickerAndFaceCenter(
                              e.getX(), e.getY(),
-                             genericGlue.untwistedFrame,
-                             model.genericPuzzleDescription);
+                             genericGlue.untwistedFrame);
                         Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
                         float polyCenter[] = polyAndStickerAndFaceCenter[0];
 
@@ -1083,8 +1079,7 @@ public class GenericGlue
         {
             int iGrip = GenericPipelineUtils.pickGrip(
                             e.getX(), e.getY(),
-                            genericGlue.untwistedFrame,
-                            model.genericPuzzleDescription);
+                            genericGlue.untwistedFrame);
             if (iGrip != -1)
             {
                 int order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
@@ -1329,8 +1324,7 @@ public class GenericGlue
 
         GenericPipelineUtils.paintFrame(
                 glueFrameToDrawInto,
-                model.genericPuzzleDescription,
-                model.genericPuzzleState,
+                model.genericPuzzleState, // XXX what if model.puzzleDescription is out of sync with frame.puzzleDescription??
                 showShadows,
                 ground,
                 faceRGB,

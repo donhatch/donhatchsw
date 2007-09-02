@@ -503,8 +503,7 @@ public class MC4DViewGuts
                     if (false) // make this true to debug the pick
                     {
                         int hit[] = GenericPipelineUtils.pick(me.getX(), me.getY(),
-                                                              viewState.untwistedFrame,
-                                                              model.genericPuzzleDescription);
+                                                              viewState.untwistedFrame);
                         if (hit != null)
                         {
                             int iSticker = hit[0];
@@ -526,8 +525,7 @@ public class MC4DViewGuts
                         float nicePoint[] = GenericPipelineUtils.pickNicePointToRotateToCenter(
                                          me.getX(), me.getY(),
                                          allowArbitraryElements,
-                                         viewState.untwistedFrame, // XXX move that into here, it's view specific!
-                                         model.genericPuzzleDescription);
+                                         viewState.untwistedFrame); // XXX move that into here, it's view specific!
 
                         if (nicePoint != null)
                         {
@@ -567,8 +565,7 @@ public class MC4DViewGuts
                                 {
                                     float polyAndStickerAndFaceCenter[][] = GenericPipelineUtils.pickPolyAndStickerAndFaceCenter(
                                          me.getX(), me.getY(),
-                                         viewState.untwistedFrame,
-                                         model.genericPuzzleDescription);
+                                         viewState.untwistedFrame);
                                     Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
                                     float polyCenter[] = polyAndStickerAndFaceCenter[0];
 
@@ -620,8 +617,7 @@ public class MC4DViewGuts
                     {
                         int iGrip = GenericPipelineUtils.pickGrip(
                                         me.getX(), me.getY(),
-                                        viewState.untwistedFrame,
-                                        model.genericPuzzleDescription);
+                                        viewState.untwistedFrame);
                         if (iGrip != -1)
                         {
                             int order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
@@ -755,8 +751,7 @@ public class MC4DViewGuts
 
                     int pickedStickerPoly[] = GenericPipelineUtils.pick(
                                                     me.getX(), me.getY(),
-                                                    viewState.untwistedFrame,
-                                                    model.genericPuzzleDescription);
+                                                    viewState.untwistedFrame);
                     int newSticker = pickedStickerPoly!=null ? pickedStickerPoly[0] : -1;
                     int newPoly = pickedStickerPoly!=null ? pickedStickerPoly[1] : -1;
                     if (newSticker != viewState.iStickerUnderMouse
@@ -1044,10 +1039,10 @@ public class MC4DViewGuts
             }
         }
 
-        GenericPipelineUtils.paintFrame(
+        if (frameToDrawInto.puzzleDescription != null)
+            GenericPipelineUtils.paintFrame(
                 frameToDrawInto,
-                model.genericPuzzleDescription,
-                model.genericPuzzleState,
+                model.genericPuzzleState, // XXX what if model.puzzleDescription is out of sync with frame.puzzleDescription??
                 viewParams.showShadows.get(),
                 viewParams.drawGround.get() ? viewParams.groundColor.get() : null,
                 faceRGB,
