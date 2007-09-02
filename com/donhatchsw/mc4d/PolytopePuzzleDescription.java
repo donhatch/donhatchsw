@@ -139,6 +139,9 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - cascading menus don't cascade well, see if anything I can do
+        - need good help describing all the controls
+        - need to get javacpp fixed and usable before I ship this  (partially fixed now, still lame on jikes output)
         - hotkeys don't work from java 1.6??
         - clicking on the < or > on side of the scrollbars only take about every other time
         - twist speed of generic 2x in melinda's is way too fast
@@ -150,7 +153,6 @@
            the remaining one doesn't update any more :-(
         - shared view/cloned puzzle state restrict roll doesn't work right
             -- do I really want shared view?  seems like a weird concept
-        - need to get javacpp fixed and usable before I ship this
         - puzzle change or load makes undo tree viewer go stale...
            well that's expected, but should maybe close the window if no more views
            of it?  or have a "launch view" from the undo tree window?
@@ -432,6 +434,10 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
     */
     public PolytopePuzzleDescription(String prescription, java.io.PrintWriter progressWriter)
     {
+        prescription = com.donhatchsw.compat.regex.replaceAll(prescription,
+                                                              "Grand Antiprism",
+                                                              "Grand_Antiprism");
+
         //com.donhatchsw.compat.regex.verboseLevel = 2;
         com.donhatchsw.compat.regex.Matcher matcher =
         com.donhatchsw.compat.regex.Pattern.compile(
