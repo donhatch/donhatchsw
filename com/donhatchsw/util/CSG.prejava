@@ -1798,11 +1798,11 @@ public final class CSG
                 throw new IllegalArgumentException("Schlafli numerators "+Arrays.toStringCompact(schlafli)+" does not match schlafli denominators "+Arrays.toStringCompact(schlafliDenoms)+"");
 
             if (schlafli.length == 3
-             && schlafli[0] == -5
-             && schlafli[1] == -5
-             && schlafli[2] == -5)
+             && schlafli[0] == 5
+             && schlafli[1] == 0
+             && schlafli[2] == 3)
             {
-                // Hack to smuggle a grand antiprism: {-5,-5,-5}
+                // Hack to smuggle a grand antiprism: {5,0,3}
                 return makeGrandAntiprism();
             }
 
@@ -2147,6 +2147,7 @@ public final class CSG
         * Makes a product of regular (star) polytopes from a string specification,
         * for example "{4,3}x{}x{5,3,3}xGrand_Antiprismx{3}x {3, 3,3,3,3 }x{} x {5/2,5} "
         * '*' can be used in place of 'x' as well.
+        * {2} or 2 can be used in place of {}.
         *
         * Also instead of {5,3,3}, any of the following will do:
         *       5,3,3                    (the braces are optional)
@@ -2157,17 +2158,14 @@ public final class CSG
         *       5,,                     (since the 3's may be omitted)
         * You can put different things inside the parens to get
         * different wythoff variants.  Just don't make them all zero.
-        *
-        * TODO:
-        *       2 = {}
-        *       p = {p}  for p>=3
-        *       5,, doesn't work yet for some reason
         */
         public static SPolytope makeRegularStarPolytopeProductFromString(String s)
         {
             // Oh ARGH. the thing we call, makeRegularStarPolytopeProduct, isn't general enough.
-            // So we smuggle in grand antiprism as {-5,-5,-5}.
-            s = regex.replaceAll(s, "[Gg]rand.[Aa]nti[Pp]rism", "{-5,-5,-5}");
+            // So we smuggle in grand antiprism as {5,0,3}.
+            // Can't use negative numbers because '-' means something else
+            // so the parsing would get confused.
+            s = regex.replaceAll(s, "[Gg]rand.[Aa]nti[Pp]rism", "{5,0,3}");
 
             String factors[] = regex.split(s.trim(), "[x*]");
             int schlaflis[][] = new int[factors.length][];
@@ -2187,20 +2185,27 @@ public final class CSG
                     factor = factor.substring(1, factor.length()-1); // trim off { and }
                     factor = factor.trim(); // and any white space inside
                 }
-                if (factor.indexOf("(") != -1)
+                if (factor.indexOf("{") != -1
+                 || factor.indexOf("}") != -1)
+                    throw new IllegalArgumentException("makeRegularStartPolytopeProductFromString: bad schlafli symbol \""+s+"\"");
+
+                // XXX Formerly, we only did this if factor.indexOf("(") != -1.
+                // XXX Now we do it all the time, so that there are no special cases.  Should look over the logic down inside makeRegularStarPolytopeProduct to make sure we're not suffering somehow because we are passing down wythoff coeffs unnecessarily.
                 {
                     // Extract wythoff stuff
+                    if (factor.endsWith(","))
+                        factor += "3"; // so that we get the right number of (0)'s
                     factor = regex.replaceAll(factor, ",", "(0)");
                     if (!factor.startsWith("("))
                         factor = "(1)"+factor;
                     if (!factor.endsWith(")"))
                         factor += "(0)";
-                    factor = regex.replaceAll(factor, "\\)-*\\(", ")3("); // 3's in the schlafli symbol are implicit
+                    factor = regex.replaceAll(factor, "\\)-*\\(", ")3("); // 3's in the input schlafli symbol are implicit; make them explicit
 
                     String foo = factor;
 
                     factor = regex.replaceAll(factor, "-",""); // XXX seems unscientific
-                    factor = regex.replaceAll(factor, "\\([^)]+\\)", ",");
+                    factor = regex.replaceAll(factor, "\\([^)]+\\)", ","); // done with the (w), change back to comma
                     if (factor.startsWith(","))
                         factor = factor.substring(1);
                     if (factor.endsWith(","))
@@ -2243,11 +2248,23 @@ public final class CSG
                     {
                         schlaflis[iFactor][iFraction] = Integer.parseInt(n_and_d[0]);
                         schlafliDenomss[iFactor][iFraction] = 1;
+                        wythoffs[iFactor] = null;
                     }
                     else
                         throw new IllegalArgumentException("makeRegularStartPolytopeProductFromString: bad schlafli symbol \""+s+"\"");
                 }
-            }
+                // Special case: {2/1} -> {}.
+                // Maybe should really just remove any 2 from any of the lists,
+                // but that would take a bit more work
+                // and this is the only case that people really use anyway
+                // (e.g. so they can express a pentagonal prism as 5x2).
+                if (schlaflis[iFactor].length == 1
+                 && schlaflis[iFactor][0] == 2)
+                {
+                    schlaflis[iFactor] = new int[0];
+                    schlafliDenomss[iFactor] = new int[0];
+                }
+            } // FOR (iFactor, factors.length)
             //PRINTARRAY(s);
             //PRINTARRAY(schlaflis);
             //PRINTARRAY(schlafliDenomss);
