@@ -1,18 +1,19 @@
+package com.donhatchsw.mc4d;
 /**
  * Description of a generic Rubik's-cube-like puzzle,
  * in any number of dimensions
  * (although the grip concept probably doesn't make sense in higher
  * than 4 dimensions).
- *
+ * <p>
  * Note, even derived classes will carry no scrambled state!
  * NOTE: All returned arrays are immutable!!!!!
  * (They would be const if java had a way to express that.)
- *
+ * <p>
  * In addition to the interface methods,
  * all derived classes must also define a constructor
  * that takes arguments (String puzzlePrescription, java.io.PrintWriter progressWriter);
  * this is used by GenericPuzzleFactory to deserialize a puzzle description.
- *
+ * <p>
  * (Interfaces don't seem to be able to enforce that...
  * nor can they enforce static methods, which would have worked too...
  * nor can I make this an actual class method with a dummy "this" param that accepts null,
@@ -22,20 +23,21 @@
  * XXX hmm, if I make this be not actually a constructor, I can enforce it through here.
  * XXX hmm, actually I guess not... unless I give it a dummy "this"?  oh this is so stupid
  */
+public interface GenericPuzzleDescription {
 
-package com.donhatchsw.mc4d;
-
-interface GenericPuzzleDescription {
-
-    public int nDims(); /** number of dimensions of the abstract puzzle */
-    public int nDisplayDims(); /** number of dimensions of the physical representation (for PolytopePuzzleDescription this is always 4; we make prisms out of smaller dimensional puzzles) */
+    /** Number of dimensions of the abstract puzzle. */
+    public int nDims();
+    /** Number of dimensions of the physical representation (for PolytopePuzzleDescription this is always 4; we make prisms out of smaller dimensional puzzles). */
+    public int nDisplayDims();
     public int nVerts();
     public int nFaces();
     public int nCubies();
     public int nStickers();
     public int nGrips();
-    public float circumRadius(); // distance of farthest vertex from origin
-    public float inRadius();     // distance of closest face hyperplane to origin
+    /** Distance of farthest vertex from origin. */
+    public float circumRadius();
+    /** Distance of closest face hyperplane to origin. */
+    public float inRadius();
 
     /**
     * Get the indices (into the vertices returned by computeVertsAndShrinkToPointsAtRest()
