@@ -139,8 +139,13 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - undo tree's colors are wrong!
+        - ctrl-c in undo window quits program
+        - 3d >8gonal prism 3,4,5 - twist on side, it's wrong
+        - "restrict roll" on, set it spinning, reset 3d rotation, it ends up weird
+        - contiguous cubies doesn't do anything sensible in Melinda's
         - cascading menus don't cascade well, see if anything I can do
-        - need good help describing all the controls
+        - need good help describing all the controls, in the main help part
         - need to get javacpp fixed and usable before I ship this  (partially fixed now, still lame on jikes output)
         - hotkeys don't work from java 1.6??
         - clicking on the < or > on side of the scrollbars only take about every other time
@@ -148,7 +153,7 @@
         - gratuitous undo tree animation is really slow and postpones puzzle animation!?
         - status bar and puzzle prescription bar
         - implement expert control panel
-            - num paints should go under it, probably... maybe
+            - num paints should go under it, probably... maybe (I like seeing it from very start though)
         - close a view window that's in sync with another view window...
            the remaining one doesn't update any more :-(
         - shared view/cloned puzzle state restrict roll doesn't work right
@@ -180,7 +185,6 @@
 
         - doesn't start spinning easily enough when I let go
         - Frame Picture assumes window is 502x485-- bogus!
-        - undo tree's colors are wrong!
         - "{8}x{} 3" problems:   (or bigger)
             - click in middle of square face, the wrong thing gets twisted.
         - get antialiasing's notion of "still" right, then turn it on by default
@@ -260,6 +264,8 @@
             - highlight should highlight in all views that share the controller
                squirrel-- that would be a good way to get one's bearings
             - in control panel, checkbox for frontfaces or backfaces
+            - I'd sure like to be able to set it spinning more gently
+                (maybe controls to speed up / slow down spin when it's spinning?)
 
         AWT/APPLET/GUI LAYOUT:
             - MyMenuBar menus don't pop down nicely when others opened
@@ -444,7 +450,7 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             "\\s*([^ ]+)\\s+(\\d+)(\\((.*)\\))?"
         ).matcher(prescription);
         if (!matcher.matches())
-            throw new IllegalArgumentException("PolytopePuzzleDescription didn't understand prescription string \""+com.donhatchsw.util.Arrays.toStringCompact(prescription)+"\"");
+            throw new IllegalArgumentException("PolytopePuzzleDescription didn't understand prescription string "+com.donhatchsw.util.Arrays.toStringCompact(prescription)+"");
 
         String schlafliProductString = matcher.group(1);
         String intLengthString = matcher.group(2);
