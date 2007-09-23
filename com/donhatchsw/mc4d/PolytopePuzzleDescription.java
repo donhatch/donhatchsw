@@ -139,9 +139,9 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - why no package help in the javadoc any more??
         - undo tree's colors are wrong!
         - ctrl-c in undo window quits program
-        - 3d >8gonal prism 3,4,5 - twist on side, it's wrong
         - "restrict roll" on, set it spinning, reset 3d rotation, it ends up weird
         - contiguous cubies doesn't do anything sensible in Melinda's
         - cascading menus don't cascade well, see if anything I can do
@@ -360,7 +360,7 @@
 package com.donhatchsw.mc4d;
 import com.donhatchsw.util.*; // XXX get rid... at least get more specific
 
-class PolytopePuzzleDescription implements GenericPuzzleDescription {
+public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private String prescription; // what was originally passed to the constructor. we are an immutable object that is completely a function of this string, so an identical clone of ourself can be constructed using this string in any future lifetime.
 
@@ -1287,6 +1287,8 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
                                 if (VecMath.normsqrd(this.gripOffsF[iGrip]) <= 1e-4*1e-4)
                                 {
+                                    // This happens for the center sticker of a face.
+                                    // Make it a "can't twist that" sticker.
                                     VecMath.zeromat(gripUsefulMats[iGrip]);
                                     this.gripSymmetryOrders[iGrip] = 0;
                                 }
@@ -1309,6 +1311,9 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                            maxOrder,
                                                                            gripUsefulMats[iGrip]);
                                 }
+                                // Make sure dirs and offs are normalized
+                                this.gripDirsF[iGrip] = VecMath.normalize(this.gripDirsF[iGrip]);
+                                this.gripOffsF[iGrip] = VecMath.normalize(this.gripOffsF[iGrip]);
                                 grip2face[iGrip] = iFace;
                                 //System.out.println("iGrip = "+iGrip);
                                 //System.out.println("this.gripSymmetryOrders["+iGrip+"] = "+VecMath.toString(gripUsefulMats[iGrip]));
@@ -1804,40 +1809,49 @@ class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return bestIndex;
         }
         // XXX lame, this should be precomputed and looked up by
-        // XXX poly and sticker index
-        public int getClosestGrip(float polyCenter[/*4*/],
-                                  float stickerCenter[/*4*/])
+        // XXX poly and sticker index.
+        // XXX This only seems to be called
+        // XXX for 3d puzzles, and it's called using
+        // XXX faceCenter, polyCenter-stickerCenter.
+        public int getClosestGrip(float unNormalizedDir[/*4*/],
+                                  float unNormalizedOff[/*4*/])
         {
-            float mat[][] = {VecMath.copyvec(stickerCenter),
-                             VecMath.copyvec(polyCenter)};
+            float mat[][] = {VecMath.copyvec(unNormalizedDir),
+                             VecMath.copyvec(unNormalizedOff)};
             VecMath.gramschmidt(mat, mat);
             float dir[] = mat[0];
             float off[] = mat[1];
-            //System.out.println("    poly center = "+com.donhatchsw.util.Arrays.toStringCompact(polyCenter));
-            //System.out.println("    sticker center = "+com.donhatchsw.util.Arrays.toStringCompact(stickerCenter));
+            //System.out.println("    unNormalizedDir = "+com.donhatchsw.util.Arrays.toStringCompact(unNormalizedDir));
+            //System.out.println("    unNormalizedOff = "+com.donhatchsw.util.Arrays.toStringCompact(unNormalizedOff));
             //System.out.println("        dir= "+com.donhatchsw.util.Arrays.toStringCompact(dir));
             //System.out.println("        off= "+com.donhatchsw.util.Arrays.toStringCompact(off));
-            float eps2 = 1e-6f*1e-6f;
+            //System.out.println("        nGrips = "+gripDirsF.length);
+            float eps = 1e-6f; // note, using this to compare squares, but it's all right (the distances are < 2, so the squared distances are < 4, so we are off by at most a factor of 8 here)
             int bestGrip = -1;
             float bestDistSqrd = Float.MAX_VALUE;
             float bestOffDistSqrd = Float.MAX_VALUE;
+            // Primary criterion is closeness to grip dir.
+            // Secondary criterion is closeness to off dir (in case of a tie
+            // in closeness to grip dir).
             for (int iGrip = 0; iGrip < gripDirsF.length; ++iGrip)
             {
-                //if (iGrip < 12) System.out.println("    gripDirsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripDirsF[iGrip]));
-                //if (iGrip < 12) System.out.println("    gripOffsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripOffsF[iGrip]));
+                //if (iGrip < 68) System.out.println("    gripDirsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripDirsF[iGrip]));
+                //if (iGrip < 68) System.out.println("    gripOffsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripOffsF[iGrip]));
                 float thisDistSqrd = VecMath.distsqrd(gripDirsF[iGrip],
                                                       dir);
-                if (thisDistSqrd > bestDistSqrd + eps2)
+                if (thisDistSqrd > bestDistSqrd + eps)
                     continue;
                 float thisOffDistSqrd = VecMath.distsqrd(gripOffsF[iGrip],
                                                          off);
-                if (thisDistSqrd >= bestDistSqrd - eps2
-                 && thisOffDistSqrd > bestOffDistSqrd + eps2)
+                if (thisDistSqrd >= bestDistSqrd - eps
+                 && thisOffDistSqrd > bestOffDistSqrd + eps)
                         continue;
                 bestDistSqrd = thisDistSqrd;
                 bestOffDistSqrd = thisOffDistSqrd;
                 bestGrip = iGrip;
                 //System.out.println("            best grip = "+bestGrip);
+                //System.out.println("            bestDistSqrd "+bestDistSqrd);
+                //System.out.println("            bestOffDistSqrd "+bestOffDistSqrd);
             }
             //System.out.println("        best grip = "+bestGrip);
             return bestGrip;
