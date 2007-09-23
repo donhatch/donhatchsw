@@ -3481,6 +3481,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** vector plus (scalar times vector), returning newly allocated result */
+        public static float[] vpsxv(float v0[], float s1, float v1[])
+        {
+            float result[] = new float[v0.length];
+            vpsxv(result, v0, s1, v1);
+            return result;
+        }
+        /** vector plus (scalar times vector), returning newly allocated result */
         public static int[] vpsxv(int v0[], int s1, int v1[])
         {
             int result[] = new int[v0.length];
