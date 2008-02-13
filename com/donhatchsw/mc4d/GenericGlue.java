@@ -287,7 +287,7 @@ public class GenericGlue
           {"        {3,4,3} 24-cell",                   "1"}, // vertex figure not simplex
           {"        {5,3,3} 120-cell (hypermegaminx)",  "1,2,3(2.5),3"},
           {"        {3,3,5} 600-cell",                  "1"}, // vertex figure not simplex
-          {"    4d uniform wythoff"}, // XXX should be at bottom of menu, so when someone is shooting for the moon they always to to the bottom of each cascading menu?
+          {"    4d uniform wythoff"}, // XXX should be at bottom of menu, so when someone is shooting for the moon they always go to the bottom of each cascading menu?
           {"        Simplex based"},
           {"            (1)---(0)---(0)---(0) Simplex",                         "1,3(5.0),5(9.0),7(13.0)"},
           {"            (1)---(.5)---(0)---(0) Barely truncated simplex",      "1,3(9.0)"},
