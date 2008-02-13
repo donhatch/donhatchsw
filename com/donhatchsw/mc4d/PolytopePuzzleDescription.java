@@ -139,6 +139,7 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - wythoffs based on 24-cell aren't working, they all come out as 24-cell
         - why no package help in the javadoc any more??
         - undo tree's colors are wrong!
         - ctrl-c in undo window quits program
@@ -185,8 +186,6 @@
 
         - doesn't start spinning easily enough when I let go
         - Frame Picture assumes window is 502x485-- bogus!
-        - "{8}x{} 3" problems:   (or bigger)
-            - click in middle of square face, the wrong thing gets twisted.
         - get antialiasing's notion of "still" right, then turn it on by default
         - resetting 4d rotation or rotation should do it smoothly, otherwise it's jarring and disorienting
         - really need to pick from the rest frame, not the intermediate twist frame,
