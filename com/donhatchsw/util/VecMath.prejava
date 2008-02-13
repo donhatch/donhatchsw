@@ -1072,7 +1072,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         int mini = -1;
         double min = Double.POSITIVE_INFINITY;
-        FORIDOWN (i, v.length)
+        FORI (i, v.length) // not FORIDOWN, so smallest index will be chosen
         {
             if (v[i] < min)
             {
@@ -1087,7 +1087,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         int maxi = -1;
         double max = Double.NEGATIVE_INFINITY;
-        FORIDOWN (i, v.length)
+        FORI (i, v.length) // not FORIDOWN, so smallest index will be chosen
         {
             if (v[i] > max)
             {
