@@ -140,22 +140,14 @@
     BUGS / URGENT TODOS:
     ===================
         - the following don't work:
-                "{4,3} 6"
-                "{4,3} 7"  (in computing alternate shrink-to points on face boundaries)
-                "{5,3} 7"  (in computing alternate shrink-to points on face boundaries)
-                "{4,3} 11"
-                "(1)---(1)---(0) 3(4.0)"  (truncated tet)
+                "(1)---(1)---(0) 3(4.0)"  (truncated tet)   (messes up in slice)
                 "(1)---(1)-4-(1)---(0) 3" and opposite too  (messes up in slice)
                 "(1)-5-(0)---(1) 1"  assertion failed CSG.prejava(4531): k + nNormals == n
-        - what was I thinking with:
-                -  (1)---(0)-4-(0)---(0) 24-cell",                         "1,3(2.5),3"},
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
         - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
         - "(0)---(1)--(1)---(0) 3(4.0)" twists are backwards!!!
         - "(1)---(1)---(0) 3" cuts are all random and messed up!
-
-                - "(0)---(1)-4-(1)---(0) 1,3(4.0)"   (bitruncated 24-cell)
 
         - truncated hypercube, both 4d and 3d sticker shrink move stuff off center, so twisting makes it jump
         - why no package help in the javadoc any more??
@@ -1631,7 +1623,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             cutDepth < avgStickerDepth ? 1. - cutDepth / (1. - stickerSize)
                                                        : (cutDepth-stickerSize) / (1. - stickerSize);
                     }
-                    Assert(cutWeight >= 0. && cutWeight <= 1.);
+                    Assert(cutWeight >= -1e-9 && cutWeight <= 1.); // I've seen 1e-16 on "{4,3} 7" due to floating point roundoff error
+                    if (cutWeight < 0.)
+                        cutWeight = 0.;
+
 
                     // Each vertex weight is going to be the product
                     // of all the cut weights that contribute to it.
