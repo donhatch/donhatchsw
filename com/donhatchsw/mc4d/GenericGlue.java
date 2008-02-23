@@ -245,16 +245,16 @@ public class GenericGlue
           {"        {5,3} Dodecahedron (Megaminx)", "1,2,3(2.5),3,5,7,9"},
           {"    3d wythoff"},
           {"        Tetrahedron based"},
-          {"            (1)---(0)---(0) Tetrahedron",                       "1,3"},
-          {"            (1)---(1)---(0) Truncated tetrahedron",             "1,3"},
+          {"            (1)---(0)---(0) Tetrahedron",                       "1,3(4.0)"},
+          {"            (1)---(1)---(0) Truncated tetrahedron",             "1,3(4.0)"},
           {"            (0)---(1)---(0) Octahedron",                        "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(1) Truncated tetrahedron (dual)",      "1,3"},
-          {"            (0)---(0)---(1) Tetrahedron(dual)",                 "1,3"},
+          {"            (0)---(1)---(1) Truncated tetrahedron (dual)",      "1,3(4.0)"},
+          {"            (0)---(0)---(1) Tetrahedron(dual)",                 "1,3(4.0)"},
           {"            (1)---(0)---(1) Cantellated tetrahedron",       "1"}, // vertex figure not simplex
-          {"            (1)---(1)---(1) Omnitruncated tetrahedron",         "1,3"}, 
+          {"            (1)---(1)---(1) Omnitruncated tetrahedron (truncated octahedron)",         "1,3"}, 
           {"        Cube/Octahedron based"},
           {"            (1)-4-(0)---(0) Cube",                              "1,3"},
-          {"            (1)-4-(1)---(0) Truncated cube",                    "1,3"},
+          {"            (1)-4-(1)---(0) Truncated cube",                    "1,3(4.0)"},
           {"            (0)-4-(1)---(0) Cuboctahedron",                     "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(1) Truncated octahedron",              "1,3"},
           {"            (0)-4-(0)---(1) Octahedron",                        "1"}, // vertex figure not simplex
@@ -262,7 +262,7 @@ public class GenericGlue
           {"            (1)-4-(1)---(1) Omnitruncated cuboctahedron",       "1,3"},
           {"        Dodecahedron/Icosahedron based"},
           {"            (1)-5-(0)---(0) Dodecahedron",                      "1,3"},
-          {"            (1)-5-(1)---(0) Truncated dodecahedron",            "1,3"},
+          {"            (1)-5-(1)---(0) Truncated dodecahedron",            "1,3(4.0)"},
           {"            (0)-5-(1)---(0) Icosadodecahedron",                 "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1) Truncated icosahedron (soccer ball)", "1,3"},
           {"            (0)-5-(0)---(1) Icosahedron",                       "1"}, // vertex figure not simplex
@@ -325,22 +325,22 @@ public class GenericGlue
           {"            (0)-4-(1)---(1)---(1)   (truncated octas and cubes)",   "1,3"},
           {"            (1)-4-(1)---(1)---(1) Omnitruncated hypercube/cross",   "1,3"},
           {"        24-cell based"},
-          {"            (1)---(0)-4-(0)---(0) 24-cell",                         "1,3(2.5),3"},
-          {"            (1)---(.5)-4-(0)---(0) Barely truncated 24-cell",      "1,3"},
+          {"            (1)---(0)-4-(0)---(0) 24-cell",                         "1"}, // vertex figure not a simplex
+          {"            (1)---(.5)-4-(0)---(0) Barely truncated 24-cell",       "1,3"},
           {"            (1)---(1)-4-(0)---(0) Truncated 24-cell",               "1,3"},
           {"            (0)---(1)-4-(0)---(0)   (cuboctas and cubes)",          "1"}, // vertex figure not simplex
-          {"            (0)---(1)-4-(1)---(0)   (truncated cubes)",             "1,3"},
+          {"            (0)---(1)-4-(1)---(0)   (truncated cubes)",             "1,3(4.0)"},
           {"            (0)---(0)-4-(1)---(0)   (cubes and cuboctas)",          "1"}, // vertex figure not simplex
           {"            (0)---(0)-4-(1)---(1) Truncated 24-cell (dual)",        "1,3"},
           {"            (0)---(0)-4-(.5)---(1) Barely truncated 24-cell (dual)","1,3"},
-          {"            (0)---(0)-4-(0)---(1) 24-cell (dual)",                  "1,3"},
+          {"            (0)---(0)-4-(0)---(1) 24-cell (dual)",                  "1"}, // vertex figure not simplex
           {"            (1)---(0)-4-(0)---(1)",                                 "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
           {"            (1)---(0)-4-(1)---(0)",                                 "1"}, // vertex figure not simplex
           {"            (0)---(1)-4-(0)---(1)",                                 "1"},  // vertex figure not simplex
-          {"            (1)---(1)-4-(1)---(0)",                                 "1,3"},
+          {"            (1)---(1)-4-(1)---(0)",                                 "1,3(4.0)"},
           {"            (1)---(1)-4-(0)---(1)",                                 "1"}, // vertex figure not simplex
           {"            (1)---(0)-4-(1)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (0)---(1)-4-(1)---(1)",                                 "1,3"},
+          {"            (0)---(1)-4-(1)---(1)",                                 "1,3(4.0)"},
           {"            (1)---(1)-4-(1)---(1) Omnitruncated 24-cell",           "1,3"},
           {"        120-cell/600-cell based"},
           {"            (1)-5-(0)---(0)---(0) 120-cell (hypermegaminx)",        "1,3(2.5),3"},
@@ -361,7 +361,7 @@ public class GenericGlue
           {"            (0)-5-(1)---(1)---(1) Cantitruncated 600-cell",         "1,3"},
           {"            (1)-5-(1)---(1)---(1) Omnitruncated 120-cell/600-cell", "1,3"},
           {"    4d uniform anomolous"},
-          {"        Grand Antiprism", "1"}, // XXX not supported yet
+          {"        Grand Antiprism", "1"},
           {"    3d regular x 1d  hyperprisms"},
           {"        {3,3}x{} Tetrahedral prism",                "1,2,3(5.0),5(9.0),7(13.0)"},
           {"        {4,3}x{} Hypercube",                        "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
@@ -516,12 +516,15 @@ public class GenericGlue
 
                                     try {
                                         //System.out.println("lengthString = "+lengthString);
-                                        if (lengthString.length() >= 4
-                                         && lengthString.charAt(1) == '(' // XXX assumes intLength < 9
-                                         && lengthString.endsWith(")"))
+
+                                        com.donhatchsw.compat.regex.Matcher matcher =
+                                        com.donhatchsw.compat.regex.Pattern.compile(
+                                            "(\\d+)\\((.*)\\)"
+                                        ).matcher(lengthString);
+                                        if (matcher.matches())
                                         {
-                                            String intPart = lengthString.substring(0,1);
-                                            String doublePart = lengthString.substring(2, lengthString.length()-1);
+                                            String intPart = matcher.group(1);
+                                            String doublePart = matcher.group(2);
                                             //System.out.println("intPart = "+intPart);
                                             //System.out.println("doublePart = "+doublePart);
 
@@ -700,13 +703,16 @@ public class GenericGlue
                                 lengthString = lengthString.trim();
 
                                 try {
-                                    System.out.println("lengthString = "+lengthString);
-                                    if (lengthString.length() >= 4
-                                     && lengthString.charAt(1) == '(' // XXX assumes intLength < 9
-                                     && lengthString.endsWith(")"))
+                                    //System.out.println("lengthString = "+lengthString);
+
+                                    com.donhatchsw.compat.regex.Matcher matcher =
+                                    com.donhatchsw.compat.regex.Pattern.compile(
+                                        "(\\d+)\\((.*)\\)"
+                                    ).matcher(lengthString);
+                                    if (matcher.matches())
                                     {
-                                        String intPart = lengthString.substring(0,1);
-                                        String doublePart = lengthString.substring(2, lengthString.length()-1);
+                                        String intPart = matcher.group(1);
+                                        String doublePart = matcher.group(2);
                                         //System.out.println("intPart = "+intPart);
                                         //System.out.println("doublePart = "+doublePart);
 

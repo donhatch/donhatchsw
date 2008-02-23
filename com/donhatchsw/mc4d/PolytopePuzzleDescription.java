@@ -52,7 +52,7 @@
                       mode, you can solve the puzzle while it's spinning,
                       since when you click to twist it won't stop the spin.
                       However, even if you are in the default mode,
-                      you can still twists without stopping the spin
+                      you can still twist without stopping the spin
                       if you want-- simply hold down the ctrl key
                       when you click to twist.
 
@@ -105,7 +105,7 @@
 
     ISSUES:
     =======
-        XXX this is done in my version... update these relnotes
+        XXX these are done in my version... update these relnotes
         - Contiguous cubies.  I would like to do the following:
             1. Get rid of the "Contiguous Cubies" checkbox;
                there will be no magical half-broken
@@ -139,7 +139,25 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - wythoffs based on 24-cell aren't working, they all come out as 24-cell
+        - the following don't work:
+                "{4,3} 6"
+                "{4,3} 7"
+                "{4,3} 11"
+                "(1)---(1)---(0) 3(4.0)"  (truncated tet)
+                "{5,3} 7"
+                "(1)---(1)-4-(1)---(0) 3" and opposite too  (messes up in slice)
+                "(1)-5-(0)---(1) 1"  assertion failed CSG.prejava(4531): k + nNormals == n
+        - what was I thinking with:
+                -  (1)---(0)-4-(0)---(0) 24-cell",                         "1,3(2.5),3"},
+        - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
+        - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
+        - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
+        - "(0)---(1)--(1)---(0) 3(4.0)" twists are backwards!!!
+        - "(1)---(1)---(0) 3" cuts are all random and messed up!
+
+                - "(0)---(1)-4-(1)---(0) 1,3(4.0)"   (bitruncated 24-cell)
+
+        - truncated hypercube, both 4d and 3d sticker shrink move stuff off center, so twisting makes it jump
         - why no package help in the javadoc any more??
         - undo tree's colors are wrong!
         - ctrl-c in undo window quits program
@@ -291,6 +309,7 @@
             - make slicing faster-- for humongous polytopes, only need to 
                 look at neighbor facets (and slices thereof) and no farther,
                 that should cut stuff down by a factor of 100 maybe
+            - hyperlinks to wikipedia or dinogeorge?
 
         PIE IN THE SKY:
             - ooh, solve should add stuff to undo queue as it goes, while animation lags behind.
