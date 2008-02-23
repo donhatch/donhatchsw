@@ -141,10 +141,10 @@
     ===================
         - the following don't work:
                 "{4,3} 6"
-                "{4,3} 7"
+                "{4,3} 7"  (in computing alternate shrink-to points on face boundaries)
+                "{5,3} 7"  (in computing alternate shrink-to points on face boundaries)
                 "{4,3} 11"
                 "(1)---(1)---(0) 3(4.0)"  (truncated tet)
-                "{5,3} 7"
                 "(1)---(1)-4-(1)---(0) 3" and opposite too  (messes up in slice)
                 "(1)-5-(0)---(1) 1"  assertion failed CSG.prejava(4531): k + nNormals == n
         - what was I thinking with:
