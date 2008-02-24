@@ -142,7 +142,6 @@
         - the following don't work:
                 "(1)---(1)---(0) 3(4.0)"  (truncated tet)   (messes up in slice)
                 "(1)---(1)-4-(1)---(0) 3" and opposite too  (messes up in slice)
-                "(1)-5-(0)---(1) 1"  assertion failed CSG.prejava(4531): k + nNormals == n
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
         - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
