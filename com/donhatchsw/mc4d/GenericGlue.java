@@ -250,7 +250,7 @@ public class GenericGlue
           {"            (0)---(1)---(0) Octahedron",                        "1"}, // vertex figure not simplex
           {"            (0)---(1)---(1) Truncated tetrahedron (dual)",      "1,3(4.0)"},
           {"            (0)---(0)---(1) Tetrahedron(dual)",                 "1,3(4.0)"},
-          {"            (1)---(0)---(1) Cantellated tetrahedron",       "1"}, // vertex figure not simplex
+          {"            (1)---(0)---(1) Cuboctahedron",                     "1"}, // vertex figure not simplex
           {"            (1)---(1)---(1) Omnitruncated tetrahedron (truncated octahedron)",         "1,3"}, 
           {"        Cube/Octahedron based"},
           {"            (1)-4-(0)---(0) Cube",                              "1,3"},
@@ -258,15 +258,15 @@ public class GenericGlue
           {"            (0)-4-(1)---(0) Cuboctahedron",                     "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(1) Truncated octahedron",              "1,3"},
           {"            (0)-4-(0)---(1) Octahedron",                        "1"}, // vertex figure not simplex
-          {"            (1)-4-(0)---(1) Cantellated cuboctahedron",         "1"}, // vertex figure not simplex
+          {"            (1)-4-(0)---(1) Rhombicuboctahedron",               "1"}, // vertex figure not simplex
           {"            (1)-4-(1)---(1) Omnitruncated cuboctahedron",       "1,3"},
           {"        Dodecahedron/Icosahedron based"},
           {"            (1)-5-(0)---(0) Dodecahedron",                      "1,3"},
           {"            (1)-5-(1)---(0) Truncated dodecahedron",            "1,3(4.0)"},
-          {"            (0)-5-(1)---(0) Icosadodecahedron",                 "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(0) Icosidodecahedron",                 "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1) Truncated icosahedron (soccer ball)", "1,3"},
           {"            (0)-5-(0)---(1) Icosahedron",                       "1"}, // vertex figure not simplex
-          {"            (1)-5-(0)---(1) Cantellated icosadodecahedron",     "1"}, // vertex figure not simplex
+          {"            (1)-5-(0)---(1) Rhombicosidodecahedron",            "1"}, // vertex figure not simplex
           {"            (1)-5-(1)---(1) Omnitruncated dodecahedron",        "1,3"},
           {"    2d x 1d prisms"},
           {"        {3}x{} Triangular prism",    "1,2,3,4,5"},
@@ -346,7 +346,7 @@ public class GenericGlue
           {"            (1)-5-(0)---(0)---(0) 120-cell (hypermegaminx)",        "1,3(2.5),3"},
           {"            (1)-5-(.5)---(0)---(0) Barely truncated 120-cell",    "1,3"},
           {"            (1)-5-(1)---(0)---(0) Truncated 120-cell",             "1,3(5.0)"},
-          {"            (0)-5-(1)---(0)---(0) Rectified 120/600-cell (icosadodecas and tets)",           "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(0)---(0) Rectified 120/600-cell (icosidodecas and tets)",           "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1)---(0) Bitruncated 120-cell (truncated icosas and truncated tets)", "1,3"},
           {"            (0)-5-(0)---(1)---(0) Rectified 600-cell (icosas and octas)",            "1"}, // vertex figure not simplex
           {"            (0)-5-(0)---(1)---(1) Truncated 600-cell",              "1,3"},
@@ -374,7 +374,7 @@ public class GenericGlue
           {"            (0)---(1)---(0)x{} Octahedral prism",                   "1"}, // vertex figure not simplex
           {"            (0)---(1)---(1)x{} Truncated-tetrahedron(dual) prism",  "1,3"},
           {"            (0)---(0)---(1)x{} Tetrahedral(dual) prism",            "1,3"},
-          {"            (1)---(0)---(1)x{} Cantellated-tetrahedral prism",       "1"}, // vertex figure not simplex
+          {"            (1)---(0)---(1)x{} Cuboctahedral prism",                "1"}, // vertex figure not simplex
           {"            (1)---(1)---(1)x{} Omnitruncated-tetrahedron prism",    "1,3"}, 
           {"        Cube/Octahedron based"},
           {"            (1)-4-(0)---(0)x{} Cube prism (hypercube)",             "1,3"},
@@ -382,15 +382,15 @@ public class GenericGlue
           {"            (0)-4-(1)---(0)x{} Cuboctahedral prism",                "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(1)x{} Truncated-octahedron prism",         "1,3"},
           {"            (0)-4-(0)---(1)x{} Octahedral prism",                   "1"}, // vertex figure not simplex
-          {"            (1)-4-(0)---(1)x{} Cantellated-cuboctahedral prism",    "1"}, // vertex figure not simplex
+          {"            (1)-4-(0)---(1)x{} Rhombicuboctahedral prism",          "1"}, // vertex figure not simplex
           {"            (1)-4-(1)---(1)x{} Omnitruncated-cube prism",           "1,3"},
           {"        Dodecahedron/Icosahedron based"},
           {"            (1)-5-(0)---(0)x{} Dodecahedral prism",                 "1,3"},
           {"            (1)-5-(1)---(0)x{} Truncated-dodecahedron prism",       "1,3"},
-          {"            (0)-5-(1)---(0)x{} Icosadodecahedral prism",            "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(0)x{} Icosidodecahedral prism",            "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1)x{} Truncated-icosahedron (soccer ball) prism",        "1,3"},
           {"            (0)-5-(0)---(1)x{} Icosahedral prism",                  "1"}, // vertex figure not simplex
-          {"            (1)-5-(0)---(1)x{} Cantellated-icosadodecahedral prism","1"}, // vertex figure not simplex
+          {"            (1)-5-(0)---(1)x{} Rhombicosidodecahedral prism",       "1"}, // vertex figure not simplex
           {"            (1)-5-(1)---(1)x{} Omnitruncated-dodecahedron prism",   "1,3"},
           {"    2d x 2d  duoprisms"},
           {"        {3}x{4} Triangular prism prism",            "1,3(4.0),5(7.0),7(10.0)"},
