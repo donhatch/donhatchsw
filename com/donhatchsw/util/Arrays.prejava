@@ -1243,13 +1243,13 @@ public final class Arrays
                         }
                         else
                         {
-                            java.util.Vector v = new java.util.Vector(); // XXX use compat.ArrayList!
+                            com.donhatchsw.compat.ArrayList list = new com.donhatchsw.compat.ArrayList();
                             while (true)
                             {
                                 pos.setIndex(i);
-                                v.addElement(parseObject(s, pos,
-                                                         end,
-                                                         clazz.getComponentType()));
+                                list.add(parseObject(s, pos,
+                                                     end,
+                                                     clazz.getComponentType()));
                                 i = pos.getIndex();
 
                                 SKIPSPACES(s,i,end);
@@ -1278,17 +1278,17 @@ public final class Arrays
                                         throw new java.text.ParseException("unmatched '{'", i);
                                 }
                             }
-                            obj = java.lang.reflect.Array.newInstance(clazz.getComponentType(),v.size());
+                            obj = java.lang.reflect.Array.newInstance(clazz.getComponentType(),list.size());
                             if (false) // lame, it doesn't do the right thing for wrappers
                             {
-                                v.copyInto((Object[])obj);
+                                list.toArray((Object[])obj);
                             }
                             else
                             {
-                                int n = v.size();
+                                int n = list.size();
                                 FORI (ii, n)
                                     java.lang.reflect.Array.set(obj,ii,
-                                                                v.elementAt(ii));
+                                                                list.get(ii));
                             }
                         }
                     }
