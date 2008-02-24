@@ -140,13 +140,11 @@
     BUGS / URGENT TODOS:
     ===================
         - the following don't work:
-                "(1)---(1)---(0) 3(4.0)"  (truncated tet)   (messes up in slice)
                 "(1)---(1)-4-(1)---(0) 3" and opposite too  (messes up in slice)
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
         - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
         - "(0)---(1)--(1)---(0) 3(4.0)" twists are backwards!!!
-        - "(1)---(1)---(0) 3" cuts are all random and messed up!
 
         - truncated hypercube, both 4d and 3d sticker shrink move stuff off center, so twisting makes it jump
         - why no package help in the javadoc any more??
@@ -247,6 +245,10 @@
             - invention form should come up with current puzzle or previous
                   failed attempt
             - should mention Johnson numbers and short names where applicable
+            - sanity check that doubleLength and intLength are compatible,
+                   e.g. in 3d, should be 3(4.0) and in 4d, should be 3(5.).
+                   Currently sometimes slicing succeeds and sometimes it fails,
+                   but when it succeeds we get bad artifacts
         MISC:
             - checkbox "Auto 2d scale"
                 When checked, 2d view scale moves automatically
@@ -588,7 +590,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // Note, we store face inward normals rather than outward ones,
         // so that, as we iterate through the slicemask bit indices later,
         // the corresponding cut offsets will be in increasing order,
-        // for sanity.
+        // for my sanity.
         //
         this.faceCutOffsets = new double[nFaces][];
         {
@@ -674,10 +676,21 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 for (int iNearCut = 0; iNearCut < nNearCuts; ++iNearCut)
                     faceCutOffsets[iFace][iNearCut] = faceOffsets[iFace] + (iNearCut+1)*sliceThickness;
+                // we'll fill in the far cuts in another pass
+            }
+
+            // Fill in far cuts of each face,
+            // from near cuts of the opposite face.
+            // Note the opposite face may have a different
+            // offset from the origin, and different slice thickness
+            // (e.g. the truncated simplex in 3 or 4 dimensions).
+            for (int iFace = 0; iFace < nFaces; ++iFace)
+            {
+                int iOppositeFace = face2OppositeFace[iFace];
+                int nNearCuts = intLength / 2; // same as in previous pass
+                int nFarCuts = faceCutOffsets[iFace].length - nNearCuts;
                 for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
-                    faceCutOffsets[iFace][nNearCuts+nFarCuts-1-iFarCut]
-                        = -faceOffsets[iFace] // offset of opposite face
-                        - (iFarCut+1)*sliceThickness;
+                    faceCutOffsets[iFace][nNearCuts+nFarCuts-1-iFarCut] = -faceCutOffsets[iOppositeFace][iFarCut];
             }
         }
 
