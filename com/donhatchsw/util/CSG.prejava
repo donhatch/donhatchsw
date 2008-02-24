@@ -359,25 +359,25 @@ public final class CSG
                         }
                     }
 
-                    java.util.Vector lists[] = new java.util.Vector[dim+1];
+                    com.donhatchsw.compat.ArrayList lists[] = new com.donhatchsw.compat.ArrayList[dim+1];
                     {
                         FORI (iDim, dim+1)
-                            lists[iDim] = new java.util.Vector();
-                        java.util.Vector flatList = new java.util.Vector();
+                            lists[iDim] = new com.donhatchsw.compat.ArrayList();
+                        com.donhatchsw.compat.ArrayList flatList = new com.donhatchsw.compat.ArrayList();
 
                         this.aux = new VisitedAux(this.aux); // mark it visited when queued
-                        flatList.addElement(this);
+                        flatList.add(this);
                         FORI (flatIndex, flatList.size()) // while flatList.size() is increasing!
                         {
-                            Polytope elt = (Polytope)flatList.elementAt(flatIndex); // not get, for 1.1
-                            lists[elt.dim].addElement(elt);
+                            Polytope elt = (Polytope)flatList.get(flatIndex);
+                            lists[elt.dim].add(elt);
                             FORI (iFacet, elt.facets.length)
                             {
                                 Polytope facet = elt.facets[iFacet].p;
                                 if (!(facet.aux instanceof VisitedAux)) // save even when elt.aux is null
                                 {
                                     facet.aux = new VisitedAux(facet.aux); // mark it visited when queued
-                                    flatList.addElement(facet);
+                                    flatList.add(facet);
                                 }
                             }
                         }
@@ -387,7 +387,7 @@ public final class CSG
                     FORI (iDim, dim+1)
                     {
                         _allElements[iDim] = new Polytope[lists[iDim].size()];
-                        lists[iDim].copyInto(_allElements[iDim]);
+                        lists[iDim].toArray(_allElements[iDim]);
                         if (true)
                         {
                             // Make it come out in a deterministic order,
@@ -455,7 +455,7 @@ public final class CSG
                     //
                     // We don't know how many incidences each element
                     // has beforehand.  We could do this by starting
-                    // with a gzillion Vectors and then converting to arrays
+                    // with a gzillion ArraysLists and then converting to arrays
                     // at the end... but there are a gzillion of them.
                     // So instead, we do it in two passes--
                     // a counting pass, then allocate arrays
@@ -1386,10 +1386,10 @@ public final class CSG
             // The vertices of the omni correspond to the flags of p.
             // So enumerate all the flags...
             //
-            java.util.Vector/*<Polytope[]>*/ flags = new java.util.Vector();
+            com.donhatchsw.compat.ArrayList/*<Polytope[]>*/ flags = new com.donhatchsw.compat.ArrayList();
             {
-                java.util.Vector/*<Polytope[]>*/ partialFlags = new java.util.Vector();
-                partialFlags.addElement(new Polytope[]{p});
+                com.donhatchsw.compat.ArrayList/*<Polytope[]>*/ partialFlags = new com.donhatchsw.compat.ArrayList();
+                partialFlags.add(new Polytope[]{p});
                 FORI (iPartialFlag, partialFlags.size()) // while growing
                 {
                     Polytope partialFlag[] = (Polytope[])partialFlags.get(iPartialFlag);
@@ -1404,10 +1404,10 @@ public final class CSG
 
                             Polytope flag[] = (Polytope[])Arrays.subarray(superPartialFlag,1,superPartialFlag.length-1); // omit the cell itself
                             //System.out.println("        Adding flag "+flagToString(flag));
-                            flags.addElement(flag);
+                            flags.add(flag);
                         }
                         else
-                            partialFlags.addElement(superPartialFlag);
+                            partialFlags.add(superPartialFlag);
                     }
                 }
             }
@@ -1491,7 +1491,7 @@ public final class CSG
                 omniEltsHashTable.put(new HashableSortedArray(flag), omniVert);
             }
 
-            java.util.Vector subFlags = flags;
+            com.donhatchsw.compat.ArrayList subFlags = flags;
             flags = null;
             FORI (iSubFlag, subFlags.size()) // while growing
             {
@@ -1506,7 +1506,7 @@ public final class CSG
                     {
                         subSubFlagOmniElt = new Polytope(p.dim-subSubFlag.length,p.fullDim,new SPolytope[0],new Hyperplane[0],null);
                         omniEltsHashTable.put(new HashableSortedArray(subSubFlag), subSubFlagOmniElt);
-                        subFlags.addElement(subSubFlag);
+                        subFlags.add(subSubFlag);
                     }
                     // make subFlagOmniElt a facet of subSubFlagOmniElt
                     subSubFlagOmniElt.facets = (SPolytope[])Arrays.append(subSubFlagOmniElt.facets, new SPolytope(0,1,subFlagOmniElt));
@@ -1878,19 +1878,19 @@ public final class CSG
             // Reflect the initial flag in all possible ways
             // using the generators repeatedly.
             //
-            java.util.Vector flagList = new java.util.Vector();
+            com.donhatchsw.compat.ArrayList flagList = new com.donhatchsw.compat.ArrayList();
             {
                 FuzzyPointHashTable flagHashTable = new FuzzyPointHashTable(1e-9,
                                                                             1e-8,
                                                                             1./512);
-                flagList.addElement(initialFlag);
+                flagList.add(initialFlag);
                 flagHashTable.put(VecMath.flatten(initialFlag), initialFlag);
 
                 double scratchFlag[][] = new double[nDims][nDims];
                 double scratchFlagFlattened[] = new double[nDims*nDims];
                 FORI (iFlag, flagList.size()) // while it's growing
                 {
-                    double flag[][] = (double[][])flagList.elementAt(iFlag); // not get, for 1.1
+                    double flag[][] = (double[][])flagList.get(iFlag);
                     FORI (iGen, nDims)
                     {
                         VecMath.mxm(scratchFlag,
@@ -1906,7 +1906,7 @@ public final class CSG
                             //
                             // It wasn't already there... we found a new flag.
                             //
-                            flagList.addElement(VecMath.copymat(scratchFlag));
+                            flagList.add(VecMath.copymat(scratchFlag));
 
                             // The hash table now owns the scratch flag
                             // and flattened, so we have to make another
@@ -1931,12 +1931,12 @@ public final class CSG
             Polytope wholeThing = new Polytope(nDims,nDims,new SPolytope[0],new Hyperplane[0],null);
             if (verbose) PRINT(wholeThing.id);
             {
-                java.util.Vector elementLists[] = new java.util.Vector[nDims+1];
+                com.donhatchsw.compat.ArrayList elementLists[] = new com.donhatchsw.compat.ArrayList[nDims+1];
                 FuzzyPointHashTable elementHashTables[] = new FuzzyPointHashTable[nDims+1];
 
                 FORI (iDim, nDims+1)
                 {
-                    elementLists[iDim] = new java.util.Vector();
+                    elementLists[iDim] = new com.donhatchsw.compat.ArrayList();
                     elementHashTables[iDim] = new FuzzyPointHashTable(1e-9,
                                                                       1e-8,
                                                                       1./512);
@@ -1944,13 +1944,13 @@ public final class CSG
                 // The whole one, which isn't mentioned explicitly
                 // in the flags.  Don't need to put it in the hash table
                 // because it's not going to collide with anyone.
-                elementLists[nDims].addElement(wholeThing);
+                elementLists[nDims].add(wholeThing);
 
                 //System.out.println("    starting something I think might be time consuming...");
                 Polytope flagElements[] = new Polytope[nDims+1];
                 FORI (iFlag, flagList.size())
                 {
-                    double flag[][] = (double[][])flagList.elementAt(iFlag); // not get, for 1.1
+                    double flag[][] = (double[][])flagList.get(iFlag);
                     FORI (iDim, nDims)
                     {
                         int index;
@@ -1976,10 +1976,10 @@ public final class CSG
                                     }
                                     elt.setCoords(coords);
                                 }
-                                elementLists[iDim].addElement(elt);
+                                elementLists[iDim].add(elt);
                             }
                         }
-                        flagElements[iDim] = (Polytope)elementLists[iDim].elementAt(index); // not get, for 1.1
+                        flagElements[iDim] = (Polytope)elementLists[iDim].get(index);
                     }
                     //
                     // For each iDim, make the iDim-dimensional element
@@ -4422,8 +4422,7 @@ public final class CSG
             }
             double v0coords[] = v0.getCoords();
 
-            // XXX it looks to me like Vector behavior is O(n^2) !?? stupid!
-            java.util.Vector simplicesList = new java.util.Vector();
+            com.donhatchsw.compat.ArrayList simplicesList = new com.donhatchsw.compat.ArrayList();
             {
                 SPolytope facets[] = p.facets;
                 int nFacets = facets.length;
@@ -4445,7 +4444,7 @@ public final class CSG
                             SWAP(simplex[k-1], simplex[k], temp);
                         }
                         FORIDOWN (i, ABS(facet.sign))
-                            simplicesList.addElement(VecMath.copymat(simplex));
+                            simplicesList.add(VecMath.copymat(simplex));
                     }
                 }
                 else // k > 1
@@ -4473,13 +4472,13 @@ public final class CSG
                                 SWAP(simplex[k-1], simplex[k], temp);
                             }
                             FORIDOWN (i, ABS(facet.sign))
-                                simplicesList.addElement(VecMath.copymat(simplex));
+                                simplicesList.add(VecMath.copymat(simplex));
                         }
                     }
                 }
             }
             double array[][][] = new double[simplicesList.size()][k+1][n];
-            simplicesList.copyInto(array);
+            simplicesList.toArray(array);
             return array;
         } // simplicallySubdivide
 
