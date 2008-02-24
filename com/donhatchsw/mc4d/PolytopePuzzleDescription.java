@@ -139,6 +139,7 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - ""{3,3}x{} 5(9)" twists are wrong and says "can't twist that"
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
         - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
