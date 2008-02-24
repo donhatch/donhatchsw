@@ -261,7 +261,7 @@ public class GenericGlue
           {"            (1)-4-(0)---(1) Rhombicuboctahedron",               "1"}, // vertex figure not simplex
           {"            (1)-4-(1)---(1) Omnitruncated cuboctahedron",       "1,3"},
           {"        Dodecahedron/Icosahedron based"},
-          {"            (1)-5-(0)---(0) Dodecahedron",                      "1,3"},
+          {"            (1)-5-(0)---(0) Dodecahedron",                      "1,2,3(2.5),3,5,7,9"},
           {"            (1)-5-(1)---(0) Truncated dodecahedron",            "1,3(4.0)"},
           {"            (0)-5-(1)---(0) Icosidodecahedron",                 "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1) Truncated icosahedron (soccer ball)", "1,3"},
