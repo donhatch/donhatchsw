@@ -139,7 +139,7 @@ public class GenericGlue
             this.slicemask = slicemask;
         }
     }
-    public java.util.Vector undoq = new java.util.Vector(); // of HistoryNode
+    public com.donhatchsw.compat.ArrayList undoq = new com.donhatchsw.compat.ArrayList(); // of HistoryNode
     public int undoPartSize = 0; // undoq has undo part followed by redo part
 
     //
@@ -591,7 +591,7 @@ public class GenericGlue
                                 }
                                 model = new MC4DModel(newPuzzle);
 
-                                undoq.setSize(0);
+                                undoq.clear();
                                 undoPartSize = 0;
 
                                 model.controllerUndoTreeSquirrel.Clear();
@@ -779,7 +779,7 @@ public class GenericGlue
                             }
                             model = new MC4DModel(newPuzzle);
 
-                            undoq.setSize(0);
+                            undoq.clear();
                             undoPartSize = 0;
 
                             model.controllerUndoTreeSquirrel.Clear();
@@ -918,8 +918,12 @@ public class GenericGlue
                     dir,
                     slicemask);
 
-            glue.undoq.setSize(glue.undoPartSize); // clear redo part
-            glue.undoq.addElement(new GenericGlue.HistoryNode(
+            // clear redo part
+            //glue.undoq.setSize(glue.undoPartSize); // argh, setSize doesn't exist
+            //glue.undoq.removeRange(glue.undoPartSize, glue.undoq.size()); // argh, removeRange is protected
+            while (glue.undoq.size() > glue.undoPartSize) glue.undoq.remove(glue.undoq.size()-1);
+
+            glue.undoq.add(new GenericGlue.HistoryNode(
                                             iGrip,
                                             dir,
                                             slicemask));
@@ -1146,8 +1150,13 @@ public class GenericGlue
                 // XXX the current state array instead of
                 // XXX away from it)
                 // 
-                genericGlue.undoq.setSize(genericGlue.undoPartSize); // clear redo part
-                genericGlue.undoq.addElement(new GenericGlue.HistoryNode(
+
+                // clear redo part
+                //genericGlue.undoq.setSize(genericGlue.undoPartSize); // argh, setSize doesn't exist
+                //genericGlue.undoq.removeRange(genericGlue.undoPartSize, genericGlue.undoq.size()); // argh, removeRange is protected
+                while (genericGlue.undoq.size() > genericGlue.undoPartSize) genericGlue.undoq.remove(genericGlue.undoq.size()-1);
+
+                genericGlue.undoq.add(new GenericGlue.HistoryNode(
                                                     genericGlue.iTwistGrip,
                                                     genericGlue.twistDir,
                                                     genericGlue.twistSliceMask));
