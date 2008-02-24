@@ -233,7 +233,41 @@ public class MyGraphics
                                 curvature,
                                 start, end);
     } // drawArc
+
+    public void fillArc(double x, double y, double width, double height,
+                        double startRadians, double arcRadians)
+    {
+        g.fillArc((int)Math.round(x * scaleX + translateX - 1), // FUDGE
+                  (int)Math.round((y+height) * scaleY + translateY - 1), // FUDGE
+                  (int)Math.round(width * scaleX + .5), // FUDGE
+                  (int)Math.round(-height * scaleY + .5), // FUDGE
+                  (int)Math.round(RTOD(startRadians)), (int)Math.round(RTOD(arcRadians)));
+    } // fillArc
+
+
 #endif // 0
+
+    public void drawArrow(double x0, double y0,
+                          double x1, double y1,
+                          double relativeHeadSize,
+                          double headRadians)
+    {
+        drawLine(x0,y0,x1,y1);
+
+        double headSize = relativeHeadSize * Math.sqrt((x1-x0)*(x1-x0) + (y1-y0)*(y1-y0));
+
+        // More trig than necessary, but whatever
+        double ang = Math.atan2(y1-y0, x1-x0);
+        double leftAng = ang+Math.PI - headRadians*.5;
+        double rightAng = ang+Math.PI + headRadians*.5;
+
+        drawLine(x1,y1,
+                 x1 + headSize*Math.cos(leftAng),
+                 y1 + headSize*Math.sin(leftAng));
+        drawLine(x1,y1,
+                 x1 + headSize*Math.cos(rightAng),
+                 y1 + headSize*Math.sin(rightAng));
+    } // drawArrow
 
     public java.awt.Color getColor() 
     {
