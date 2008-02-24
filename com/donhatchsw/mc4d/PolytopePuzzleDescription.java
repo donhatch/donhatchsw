@@ -139,8 +139,6 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - the following don't work:
-                "(1)---(1)-4-(1)---(0) 3" and opposite too  (messes up in slice)
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
         - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
@@ -244,11 +242,44 @@
                    not the squares, of a {5}x{4} and the {5,3}x{})
             - invention form should come up with current puzzle or previous
                   failed attempt
-            - should mention Johnson numbers and short names where applicable
+            - should mention Johnson numbers and short names where applicable... and hyperlinks would be great.
+                  Maybe an "about the shape" page with links.
             - sanity check that doubleLength and intLength are compatible,
+              on invention and also in all standard puzzles.
                    e.g. in 3d, should be 3(4.0) and in 4d, should be 3(5.).
                    Currently sometimes slicing succeeds and sometimes it fails,
-                   but when it succeeds we get bad artifacts
+                   but when it succeeds we get bad artifacts.
+                   Let's see, the forbidden ones would be (for just odds, I'm unclear on evens):
+                   triangle with:
+                       3(2)
+                       3(3)
+                            3(4) is preferred
+                       5(4)
+                       5(5)
+                       5(6)
+                            5(7) is preferred
+                       7(6)
+                       7(7)
+                       7(8)
+                       7(9)
+                            7(10) is preferred
+                       etc.
+                   tetrahedron with:
+                       3(2)
+                       3(3)
+                       3(4)
+                           3(5) is preferred
+                       5(4)
+                       5(5)
+                       5(6)
+                       5(7)
+                       5(8)
+                          5(9) is preferred
+                       7(6)
+                       ...
+                          7(13) is preferred
+
+                       
         MISC:
             - checkbox "Auto 2d scale"
                 When checked, 2d view scale moves automatically
