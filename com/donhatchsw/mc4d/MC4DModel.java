@@ -139,7 +139,7 @@ public class MC4DModel
     // VOLATILE NON-SERIALIZABLE PART
     //
         public com.donhatchsw.util.UndoTreeSquirrel animationUndoTreeSquirrel;
-        private java.util.Vector/*<Listener>*/ listeners = new java.util.Vector(); // XXX use ArrayList
+        private com.donhatchsw.compat.ArrayList/*<Listener>*/ listeners = new com.donhatchsw.compat.ArrayList();
 
 
     //
@@ -212,7 +212,7 @@ public class MC4DModel
                     if (!listeners.isEmpty())
                     {
                         // Just notify the first listener in the chain.
-                        ((Listener)listeners.elementAt(0)).movingNotify();
+                        ((Listener)listeners.get(0)).movingNotify();
                     }
                 }
             });
@@ -222,13 +222,13 @@ public class MC4DModel
         public synchronized void addListener(Listener listener)
         {
             // XXX assert it wasn't there
-            listeners.addElement(listener);
+            listeners.add(listener);
         }
         /** Removes a listener. */
         public synchronized void removeListener(Listener listener)
         {
             // XXX assert it was there
-            listeners.removeElement(listener);
+            listeners.remove(listener);
         }
         public synchronized int nListeners()
         {
@@ -260,7 +260,7 @@ public class MC4DModel
                 if (!listeners.isEmpty())
                 {
                     // Just notify the first listener in the chain.
-                    ((Listener)listeners.elementAt(0)).movingNotify();
+                    ((Listener)listeners.get(0)).movingNotify();
                 }
                 return true;
             }
@@ -277,7 +277,7 @@ public class MC4DModel
                 if (!listeners.isEmpty())
                 {
                     // Just notify the first listener in the chain.
-                    ((Listener)listeners.elementAt(0)).movingNotify();
+                    ((Listener)listeners.get(0)).movingNotify();
                 }
             }
         }
@@ -540,7 +540,7 @@ public class MC4DModel
             int index = listeners.indexOf(listener);
             if (index == -1)
                 throw new IllegalArgumentException("MC4DModel: listener "+listener+" is not attached!? ("+listeners.size()+" listeners attached)");
-            return (Listener)listeners.elementAt((index+1)%listeners.size());
+            return (Listener)listeners.get((index+1)%listeners.size());
         }
 
 } // class MC4DModel
