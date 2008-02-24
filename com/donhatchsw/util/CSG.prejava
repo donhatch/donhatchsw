@@ -88,7 +88,7 @@ import com.donhatchsw.compat.regex;
 *  Some primitive CSG.SPolytopes can also be made using makePolygon(),
 *  makeSimplex(), and makeHypercube().
 *  <p>
-*  Caveats: not at all robust about concident or coplanar elements;
+*  Caveats: not at all robust about coincident or coplanar elements;
 *  really only works reliably if everything is in general position.
 *  <p>
 *  Depends on classes:
@@ -654,36 +654,8 @@ public final class CSG
                             }
                             else
                             {
-                                // Find explicit coords of the vertex.
-                                // We want column vector c
-                                // such that
-                                //    normal0 dot c == offset0
-                                //    normal1 dot c == offset1
-                                //    normal2 dot c == offset2
-                                // etc.
-                                // so c = inv(normalsMatrix) * offsetsColumnVector.
-
-                                int nRows = contributingHyperplanes.length;
-                                double normalsMatrix[][] = new double[nRows][nRows];
-                                double offsetsColumnVector[][] = new double[nRows][1];
-                                FORI (iRow, nRows)
-                                {
-                                    VecMath.copyvec(normalsMatrix[iRow], contributingHyperplanes[iRow].normal);
-                                    offsetsColumnVector[iRow][0] = contributingHyperplanes[iRow].offset;
-                                }
-                                // replace normalsMatrix by its inverse,
-                                // replace the offsets in c by the solution
-                                try {
-                                    VecMath.gaussj(normalsMatrix, nRows,
-                                                   offsetsColumnVector, 1);
-                                    double c[] = VecMath.getcolumn(offsetsColumnVector, 0);
-
-                                    sb.append("  ->  " + VecMath.toString(c));
-                                }
-                                catch (Exception e)
-                                {
-                                    sb.append("  -> !!!!!!!!!!!!!!!!!! singular matrix !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                                }
+                                // don't call getCoords(), since that will set _coords and we don't want to change anything
+                                sb.append("  ->  " + VecMath.toString(intersectHyperplanes(contributingHyperplanes)));
                             }
                         }
                         FORI (iFacet, facets.length)
@@ -2248,7 +2220,6 @@ public final class CSG
                     {
                         schlaflis[iFactor][iFraction] = Integer.parseInt(n_and_d[0]);
                         schlafliDenomss[iFactor][iFraction] = 1;
-                        wythoffs[iFactor] = null;
                     }
                     else
                         throw new IllegalArgumentException("makeRegularStartPolytopeProductFromString: bad schlafli symbol \""+s+"\"");
@@ -2268,6 +2239,7 @@ public final class CSG
             //PRINTARRAY(s);
             //PRINTARRAY(schlaflis);
             //PRINTARRAY(schlafliDenomss);
+            //PRINTARRAY(wythoffs);
             SPolytope sp = makeRegularStarPolytopeProduct(schlaflis,
                                                           schlafliDenomss,
                                                           wythoffs);
@@ -4527,6 +4499,7 @@ public final class CSG
             int k = simplices[0].length-1;  // dimension of each simplex
             int n = simplices[0][0].length; // full dimension of space
 
+            assert(sp.p.fullDim == n);
             assert(k + nNormals == n);
             double sum = 0.;
             double M[][] = new double[n][n];
@@ -4617,7 +4590,7 @@ public final class CSG
             String subIndentString = null;
             if (verboseLevel >= 1)
             {
-                System.out.println(indentString+"in CSG._cross");
+                System.out.println(indentString+"in CSG._cross("+A.dim+"/"+A.fullDim+" x "+B.dim+"/"+B.fullDim+")");
                 subIndentString = indentString + "        ";
             }
             HashablePair key = new HashablePair(A, B);
@@ -4680,7 +4653,7 @@ public final class CSG
             }
 
             if (verboseLevel >= 1)
-                System.out.println(indentString+"out CSG._cross");
+                System.out.println(indentString+"out CSG._cross("+A.dim+"/"+A.fullDim+" x "+B.dim+"/"+B.fullDim+" = "+AB.dim+"/"+AB.fullDim+")");
             return AB;
         } // _cross
 
@@ -5628,7 +5601,7 @@ public final class CSG
         // in order.
         // I.e. it should be equal to the sign of the determinant of the matrix
         // whose rows are the n vectors
-        // i(F)-i(P), i(R)-(P), ..., i(f)-i(P), i(e)-i(P), i(v)-i(P)
+        // i(F)-i(P), i(R)-i(P), ..., i(f)-i(P), i(e)-i(P), i(v)-i(P)
         // where i() denotes any interior point of the respective polytope.
         //
         // So, in particular,
@@ -6425,35 +6398,13 @@ public final class CSG
             //    normal2 dot c == offset2
             //    ...
             // so c = inv(normalsMatrix) * offsetsColumnVector.
+            // It's okay if there are more equations (planes)
+            // than unknowns (dimensions);
+            // in that case the solver will find the least-squares solution.
             //
-
-#ifdef DEFUNCT
             int nRows = hyperplanes.length;
-            double normalsMatrix[][] = new double[nRows][nRows];
-            double offsetsColumnVector[][] = new double[nRows][1];
-
-            double c[] = new double[nRows];
-            FORI (iRow, nRows)
-            {
-                VecMath.copyvec(normalsMatrix[iRow], hyperplanes[iRow].normal);
-                offsetsColumnVector[iRow][0] = hyperplanes[iRow].offset;
-            }
-            // replace normalsMatrix by its inverse,
-            // replace offsetsColumnVector by the solution
-            try
-            {
-                VecMath.gaussj(normalsMatrix, nRows,
-                               offsetsColumnVector, 1);
-            }
-            catch (Exception e) // XXX singular matrix-- should figure out a cleaner way to do this
-            {
-                return null;
-            }
-            return VecMath.getcolumn(offsetsColumnVector, 0);
-#endif // DEFUNCT
-
-            int nRows = hyperplanes.length;
-            double normalsMatrix[][] = new double[nRows][nRows];
+            int nCols = hyperplanes[0].normal.length;
+            double normalsMatrix[][] = new double[nRows][nCols];
             double offsetsColumnVector[] = new double[nRows];
             FORI (iRow, nRows)
             {
