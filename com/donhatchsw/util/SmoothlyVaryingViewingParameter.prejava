@@ -138,7 +138,7 @@ public class SmoothlyVaryingViewingParameter
     * then you will be able to go 100 miles in 10 seconds
     * (using the same constant acceleration/deceleration magnitude).
     * <p>
-    * @param bounce  Set this to a number from 0 to 1.  Setting it to a positive number causes the spring to be underdamped and so it will overshoot and osciallate as it converges on the target.
+    * @param bounce  Set this to a number from 0 to 1.  Setting it to a positive number causes the spring to be underdamped and so it will overshoot and oscillate as it converges on the target.
     */
     public void evolve(double referenceTripDistance,
                        double referenceTripTime,
@@ -169,6 +169,7 @@ public class SmoothlyVaryingViewingParameter
         }
     } // evolve
 
+    // XXX argh, javadoc things the first sentence ends after the i.e.
     /** Returns true if we are still moving towards the target (i.e. if an evolve() would actually change anything), false otherwise. */
     public boolean isMoving()
     {
