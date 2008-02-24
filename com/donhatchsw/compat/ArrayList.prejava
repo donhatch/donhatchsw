@@ -142,6 +142,7 @@ public class ArrayList
         unimplemented();
         return false;
     }
+    // yes, protected. (!?)
     protected void removeRange(int fromIndex, int toIndex)
     {
         if (toIndex != size)
