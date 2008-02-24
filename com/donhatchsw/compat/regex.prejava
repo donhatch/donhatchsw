@@ -935,7 +935,7 @@ public class regex
                     System.out.println("in Pattern.split(patString=\""+patString+"\", input=\""+input+"\", limit="+limit+")"); // XXX stringify
                 }
 
-                java.util.Vector resultVector = new java.util.Vector();
+                ArrayList resultVector = new ArrayList();
                 {
                     int inputLength = input.length();
                     Matcher matcher = matcher(input);
@@ -953,21 +953,21 @@ public class regex
                         prevSearchStart = searchStart;
                         // Found a match; send everything up to it
                         // and then advance past it.
-                        resultVector.addElement(input.substring(i, matcher.start(0)));
+                        resultVector.add(input.substring(i, matcher.start(0)));
                         i = matcher.end(0);
                     }
                     // Send the rest of the input.
-                    resultVector.addElement(input.substring(i));
+                    resultVector.add(input.substring(i));
                 }
                 if (limit == 0)
                 {
                     // special case: trailing empty strings are discarded
                     while (resultVector.size() >= 1
-                        && ((String)resultVector.lastElement()).equals(""))
-                        resultVector.removeElementAt(resultVector.size()-1); // not remove, for 1.1
+                        && ((String)resultVector.get(resultVector.size()-1)).equals(""))
+                        resultVector.remove(resultVector.size()-1);
                 }
                 String result[] = new String[resultVector.size()];
-                resultVector.copyInto(result);
+                resultVector.toArray(result);
 
                 // Fudge to make mine match theirs, even though
                 // I don't think I agree...
