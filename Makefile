@@ -19,9 +19,10 @@
 #JAVAROOT=/usr/java/jdk1.3.1_18
 #JAVAC=${JAVAROOT}/bin/javac -target 1.1
 
-#JAVAROOT=/usr/java/j2sdk1.4.2
+##JAVAROOT=/usr/java/j2sdk1.4.2
 ##JAVAROOT=/usr/java/jdk1.5.0
 ##JAVAROOT=/usr/java/jdk1.5.0_01
+#JAVAROOT=/usr/java/jdk1.6.0
 #JAVAC=${JAVAROOT}/bin/javac -source 1.2 -target 1.1 -g
 ##JAVAC=${JAVAROOT}/bin/javac -source 1.4 -target 1.4 -g
 
@@ -264,4 +265,4 @@ send: doc
 	scp donhatchsw.jar hatch@plunk.org:public_html/donhatchsw/.
 	(cd ..; scp -r donhatchsw hatch@plunk.org:public_html/private/.)
 senddoc: doc
-	scp -r *.html *.css resources com hatch@plunk.org:public_html/donhatchsw/javadoc/.
+	scp -r *.html *.css resources com hatch@plunk.org:public_html/donhatchsw/.
