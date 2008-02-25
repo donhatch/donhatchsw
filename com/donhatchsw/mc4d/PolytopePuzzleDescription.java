@@ -150,6 +150,7 @@
         - "{3,3,3,3,4}" can't even make it
 
         - truncated hypercube, both 4d and 3d sticker shrink move stuff off center, so twisting makes it jump
+        - why is the progressWriter.flush() needed when doing sanity checking, to see any output at all??  makes me think something bogus is going on otherwise
         - why no package help in the javadoc any more??
         - undo tree's colors are wrong!
         - ctrl-c in undo window quits program
@@ -278,6 +279,8 @@
             - I'd sure like to be able to set it spinning more gently
                 (maybe controls to speed up / slow down spin when it's spinning?)
             - the cascading menus for are intolerable.  need a big dialog with stuff all layed out on a page with icons
+            - need some sort of wizard to pick nice 4d eye distance...
+              or, maybe better, always pick nice radius so that the default 4d eye distance is good
 
         AWT/APPLET/GUI LAYOUT:
             - MyMenuBar menus don't pop down nicely when others opened
