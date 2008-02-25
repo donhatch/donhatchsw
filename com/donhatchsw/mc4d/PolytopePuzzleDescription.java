@@ -139,6 +139,8 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - ctrl-c when in applet just does the c thing (clear) (oh it's when run with java 1.6!? argh!!)
+
         - ""{3,3}x{} 5(9)" twists are wrong and says "can't twist that"
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
@@ -148,6 +150,7 @@
         - "5x5 3" and up, twists wrong thing
         - "{3,3,3,4}" can't even make it
         - "{3,3,3,3,4}" can't even make it
+        - truncated hypercube, twists mostly right except twists something when left-click on center sticker
 
         - truncated hypercube, both 4d and 3d sticker shrink move stuff off center, so twisting makes it jump
         - why is the progressWriter.flush() needed when doing sanity checking, to see any output at all??  makes me think something bogus is going on otherwise
@@ -156,7 +159,7 @@
         - ctrl-c in undo window quits program
         - "restrict roll" on, set it spinning, reset 3d rotation, it ends up weird
         - contiguous cubies doesn't do anything sensible in Melinda's
-        - cascading menus don't cascade well, see if anything I can do
+        - cascading menus don't cascade well, see if anything I can do (especially when hitting right side, or when trying to do it with clicks but not drags)
         - need good help describing all the controls, in the main help part
         - need to get javacpp fixed and usable before I ship this  (partially fixed now, still lame on jikes output)
         - hotkeys don't work from java 1.6??
