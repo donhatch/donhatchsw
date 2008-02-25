@@ -144,6 +144,10 @@
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
         - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
         - "(0)---(1)--(1)---(0) 3(4.0)" twists are backwards!!!
+        - "{3}x{3} 3(4.0)" try to click on square, it says can't twist that
+        - "5x5 3" and up, twists wrong thing
+        - "{3,3,3,4}" can't even make it
+        - "{3,3,3,3,4}" can't even make it
 
         - truncated hypercube, both 4d and 3d sticker shrink move stuff off center, so twisting makes it jump
         - why no package help in the javadoc any more??
@@ -245,41 +249,6 @@
                   failed attempt
             - should mention Johnson numbers and short names where applicable... and hyperlinks would be great.
                   Maybe an "about the shape" page with links.
-            - sanity check that doubleLength and intLength are compatible,
-              on invention and also in all standard puzzles.
-                   e.g. in 3d, should be 3(4.0) and in 4d, should be 3(5.).
-                   Currently sometimes slicing succeeds and sometimes it fails,
-                   but when it succeeds we get bad artifacts.
-                   Let's see, the forbidden ones would be (for just odds, I'm unclear on evens):
-                   triangle with:
-                       3(2)
-                       3(3)
-                            3(4) is preferred
-                       5(4)
-                       5(5)
-                       5(6)
-                            5(7) is preferred
-                       7(6)
-                       7(7)
-                       7(8)
-                       7(9)
-                            7(10) is preferred
-                       etc.
-                   tetrahedron with:
-                       3(2)
-                       3(3)
-                       3(4)
-                           3(5) is preferred
-                       5(4)
-                       5(5)
-                       5(6)
-                       5(7)
-                       5(8)
-                          5(9) is preferred
-                       7(6)
-                       ...
-                          7(13) is preferred
-
                        
         MISC:
             - checkbox "Auto 2d scale"
@@ -308,6 +277,7 @@
             - in control panel, checkbox for frontfaces or backfaces
             - I'd sure like to be able to set it spinning more gently
                 (maybe controls to speed up / slow down spin when it's spinning?)
+            - the cascading menus for are intolerable.  need a big dialog with stuff all layed out on a page with icons
 
         AWT/APPLET/GUI LAYOUT:
             - MyMenuBar menus don't pop down nicely when others opened
