@@ -300,7 +300,7 @@ public class GenericGlue
           {"            (0)---(0)---(0)---(1) Simplex (dual)",                  "1,3(5.0),3(9.0)"},
           {"            (1)---(0)---(0)---(1)   (tets and triprisms)",          "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
           {"            (1)---(0)---(1)---(0)",                                 "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(0)---(1)",                                 "1,3(4.0),3(9.0)"},
+          {"            (0)---(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
           {"            (1)---(1)---(1)---(0)",                                 "1,3(4.0),3(9.0)"},
           {"            (1)---(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
           {"            (1)---(0)---(1)---(1)",                                 "1"}, // vertex figure not simplex
@@ -581,14 +581,33 @@ public class GenericGlue
                             }
                         } // for each lengthString
 
-                        // length only iff vertex figure is not a simplex
+                        // Some other consistency checks on the list of lengths for this polytope...
+                        boolean vertexFigureIsSimplex;
                         {
-                            //bool vertexFigureIsSimplex = ...
-                            // TODO: do me!
+                            int allIncidences[][][][] = proxy.p.getAllIncidences();
+                            for (int iVert = 0; iVert < allIncidences[0].length; ++iVert)
+                            {
+                                // allIncidences[0][iVert][1] is the list of all edges incident
+                                // on this vertex
+                                Assert(allIncidences[0][iVert][1].length
+                                    == allIncidences[0][0][1].length);
+                            }
+                            vertexFigureIsSimplex = (allIncidences[0][0][1].length == proxy.p.dim);
                         }
-                        // TODO: if doesn't have a tet, there should be a 3(4)
-                        // TODO: if doesn't have a triangle, there should be a 3(3)
-                        // TODO: if has a penta, should be a 3(2.5) (if other conditions allow it)
+
+                        if (!vertexFigureIsSimplex)
+                        {
+                            Assert(lengthStrings.length == 1);
+                            Assert(lengthStrings[0].equals("1"));
+                        }
+                        else
+                        {
+                            Assert(lengthStrings.length > 1);
+                            // TODO: if doesn't have a tet, there should be a 3(4)
+                            // TODO: if doesn't have a triangle, there should be a 3(3)
+                            // TODO: if has a penta, should be a 3(2.5) (if other conditions allow it)
+                        }
+
                         progressWriter.flush(); // XXX HEY! at least one flush around here was necessary or I don't see any output at all!?  that makes me think something bogus is going on
                     }
 
