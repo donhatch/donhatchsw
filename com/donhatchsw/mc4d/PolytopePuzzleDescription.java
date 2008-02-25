@@ -144,10 +144,10 @@
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
         - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
         - "(0)---(1)--(1)---(0) 3(4.0)" twists are backwards!!!
+        - "(0)4(1)(1)(1) 3" twists wrong thing
+        - "(0)---(1)---(1)---(1) 3(4.0)" twists wrong thing
         - "{3}x{3} 3(4.0)" try to click on square, it says can't twist that
         - "5x5 3" and up, twists wrong thing
-        - "{3,3,3,4}" can't even make it
-        - "{3,3,3,3,4}" can't even make it
         - truncated hypercube, twists mostly right except twists something when left-click on center sticker
 
         - why is the progressWriter.flush() needed when doing sanity checking, to see any output at all??  makes me think something bogus is going on otherwise
