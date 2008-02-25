@@ -1060,7 +1060,7 @@ public final class CSG
 
         /**
         * Makes a regular (n/d)-gon of edge length 2, centered at the origin,
-        * with a face pointing in the -Y axis direction.
+        * with a side pointing in the -Y axis direction.
         * (That makes it so that, when used as the right-hand-side
         * of a product, the result will appear face-first if -W means "first").
         */
@@ -1361,14 +1361,16 @@ public final class CSG
         * can be used to linearly interpolate.
         * In the general case, there is one facet for
         * each element of any dimension in the original,
-        * but there may be less for specific cases
+        * but there may be fewer for specific cases
         * (namely when only one node is circled).
+        * <p>
         * Assumptions:
+        * <pre>
         *    p is regular
         *    p is centered at the origin
         *          XXX not sure whether this is really assumed; if it is, it should be fixed.
         *    p is full-dimensional
-        *
+        </pre>
         * Starts by creating the topology of the full omnitruncated polytope
         * and then squashes out degeneracies.
         */
@@ -2032,7 +2034,7 @@ public final class CSG
             FORI (iStupidTimes, 2) // XXX this is stupid, the first time the normal calculation will be wrong, but it will fill the arrays which orientDeep needs
             {
                 {
-                    // XXX clear the hperplanes, oh my god this is lame
+                    // XXX clear the hyperplanes, oh my god this is lame
                     Polytope allElements[][] = sp.p.getAllElements();
                     FORI (i, allElements.length)
                     FORI (j, allElements[i].length)
@@ -2075,7 +2077,6 @@ public final class CSG
                         e.contributingHyperplanes = unionOfHyperplanesAndSort(e.contributingHyperplanes, hyperplanes);
                     }
                 }
-
                 orientDeep(sp);
             }
         } // bootstrapHyperplanes
@@ -2117,21 +2118,46 @@ public final class CSG
 
         /**
         * Makes a product of regular (star) polytopes from a string specification,
-        * for example "{4,3}x{}x{5,3,3}xGrand_Antiprismx{3}x {3, 3,3,3,3 }x{} x {5/2,5} "
+        * for example <code>"{4,3}x{}x{5,3,3}xGrand_Antiprismx{3}x {3, 3,3,3,3 }x{} x {5/2,5} "</code>.
         * '*' can be used in place of 'x' as well.
         * {2} or 2 can be used in place of {}.
-        *
+        * <p>
         * Also instead of {5,3,3}, any of the following will do:
+        * <pre>
         *       5,3,3                    (the braces are optional)
         *       (1)5(0)3(0)3(0)
         *       (1)-5-(0)-3-(0)-3-(0)    (dashes are optional, you can insert them for readability)
         *       (1)-5-(0)--(0)--(0)      (3's in the schlafli symbol may be omitted)
         *       (1)5(0)(0)(0)
         *       5,,                     (since the 3's may be omitted)
+        * </pre>
         * You can put different things inside the parens to get
         * different wythoff variants.  Just don't make them all zero.
+        * <p>
+        * This is really just a convenience function that calls
+        * {@link #makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString}(s)
+        * and then calls {@link #makeRegularStarPolytopeProduct makeRegularStarPolytopeProduct}() on the result.
         */
         public static SPolytope makeRegularStarPolytopeProductFromString(String s)
+        {
+            Object[][] schlaflisAndWythoffs = makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString(s);
+            int[][] schlaflis = (int[][])schlaflisAndWythoffs[0];
+            int[][] schlafliDenoms = (int[][])schlaflisAndWythoffs[1];
+            double[][] wythoffs = (double[][])schlaflisAndWythoffs[2];
+            return makeRegularStarPolytopeProduct(schlaflis,
+                                                  schlafliDenoms,
+                                                  wythoffs);
+        } // makeRegularStarPolytopeProductFromString
+
+        /**
+        * Parses a star polytope product string specification
+        * into schlafli symbols (numerators and denominators)
+        * and respective wythoff symbols.
+        * <p>
+        * {@link #makeRegularStarPolytopeProductFromString makeRegularStarPolytopeProductFromString}(s) works by calling this
+        * and then calling {@link #makeRegularStarPolytopeProduct makeRegularStarPolytopeProduct} on the result.
+        */
+        public static Object[][] makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString(String s)
         {
             // Oh ARGH. the thing we call, makeRegularStarPolytopeProduct, isn't general enough.
             // So we smuggle in grand antiprism as {5,0,3}.
@@ -2240,11 +2266,8 @@ public final class CSG
             //PRINTARRAY(schlaflis);
             //PRINTARRAY(schlafliDenomss);
             //PRINTARRAY(wythoffs);
-            SPolytope sp = makeRegularStarPolytopeProduct(schlaflis,
-                                                          schlafliDenomss,
-                                                          wythoffs);
-            return sp;
-        } // makeRegularStarPolytopeProductFromString
+            return new Object[][]{schlaflis, schlafliDenomss, wythoffs};
+        } // makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString
 
 
         public static SPolytope makeGrandAntiprism()
@@ -4498,8 +4521,10 @@ public final class CSG
             int k = simplices[0].length-1;  // dimension of each simplex
             int n = simplices[0][0].length; // full dimension of space
 
+            assert(sp.p.dim == k);
             assert(sp.p.fullDim == n);
-            assert(k + nNormals == n);
+            int nNonRedundantNormals = n-k;
+            assert(nNonRedundantNormals <= nNormals);
             double sum = 0.;
             double M[][] = new double[n][n];
             FORI (iSimplex, nSimplices)
@@ -4507,7 +4532,7 @@ public final class CSG
                 double simplex[][] = simplices[iSimplex];
                 FORI (iRow, k)
                     VecMath.vmv(M[iRow], simplex[iRow+1], simplex[0]);
-                FORI (iNormal, nNormals)
+                FORI (iNormal, nNonRedundantNormals) // XXX just takes the first nNonRedundantNormals normals... is this what we want?  should we be doing something smarter?  test using {3,3,3,4}.  hopefully the nonequal case only occurs when we only care about the sign of the volume (i.e. when called from orientFacetsConsistently)... but then what the hell are we doing down in here anyway? hmm.
                     VecMath.copyvec(M[k+iNormal],
                                     sp.p.contributingHyperplanes[iNormal].normal);
                 sum += VecMath.detDestructive(M);
