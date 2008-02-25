@@ -139,8 +139,6 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - ctrl-c when in applet just does the c thing (clear) (oh it's when run with java 1.6!? argh!!)
-
         - ""{3,3}x{} 5(9)" twists are wrong and says "can't twist that"
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
@@ -161,7 +159,7 @@
         - cascading menus don't cascade well, see if anything I can do (especially when hitting right side, or when trying to do it with clicks but not drags)
         - need good help describing all the controls, in the main help part
         - need to get javacpp fixed and usable before I ship this  (partially fixed now, still lame on jikes output)
-        - hotkeys don't work from java 1.6??
+        - hotkeys don't work from java 1.6??  e.g. ctrl-c only gives what c gives
         - clicking on the < or > on side of the scrollbars only take about every other time
         - twist speed of generic 2x in melinda's is way too fast
         - gratuitous undo tree animation is really slow and postpones puzzle animation!?
