@@ -269,7 +269,7 @@ public class GenericGlue
           {"            (1)-5-(0)---(1) Rhombicosidodecahedron",            "1"}, // vertex figure not simplex
           {"            (1)-5-(1)---(1) Omnitruncated dodecahedron",        "1,3"},
           {"    2d x 1d prisms"},
-          {"        {3}x{} Triangular prism",    "1,2,3,4,5"},
+          {"        {3}x{} Triangular prism",    "1,3(4.0),5(7.0),7(10.0)"},
           {"        {4}x{} Cube",                "1,2,3,4,5"},
           {"        {5}x{} Pentagonal prism",    "1,2,3,4,5"},
           {"        {6}x{} Hexagonal prism",     "1,2,3,4,5"},
@@ -290,36 +290,36 @@ public class GenericGlue
           {"    4d uniform wythoff"}, // XXX should be at bottom of menu, so when someone is shooting for the moon they always go to the bottom of each cascading menu?
           {"        Simplex based"},
           {"            (1)---(0)---(0)---(0) Simplex",                         "1,3(5.0),5(9.0),7(13.0)"},
-          {"            (1)---(.5)---(0)---(0) Barely truncated simplex",      "1,3(9.0)"},
-          {"            (1)---(1)---(0)---(0) Truncated simplex",               "1,3(5.0)"},
+          {"            (1)---(.5)---(0)---(0) Barely truncated simplex",      "1,3(5.0),3(9.0)"},
+          {"            (1)---(1)---(0)---(0) Truncated simplex",               "1,3(5.0),3(9.0)"},
           {"            (0)---(1)---(0)---(0)   (octas and tets)",              "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(1)---(0)   (truncated tets)",              "1,3,3(9.0)"},
+          {"            (0)---(1)---(1)---(0)   (truncated tets)",              "1,3(4.0),3(9.0)"},
           {"            (0)---(0)---(1)---(0)   (tets and octas)",              "1"}, // vertex figure not simplex
-          {"            (0)---(0)---(1)---(1) Truncated simplex (dual)",        "1,3,3(9.0)"},
-          {"            (0)---(0)---(.5)---(1) Barely truncated simplex (dual)","1,3,3(9.0)"},
-          {"            (0)---(0)---(0)---(1) Simplex (dual)",                  "1,3,3(9.0)"},
+          {"            (0)---(0)---(1)---(1) Truncated simplex (dual)",        "1,3(5.0),3(9.0)"},
+          {"            (0)---(0)---(.5)---(1) Barely truncated simplex (dual)","1,3(5.0),3(9.0)"},
+          {"            (0)---(0)---(0)---(1) Simplex (dual)",                  "1,3(5.0),3(9.0)"},
           {"            (1)---(0)---(0)---(1)   (tets and triprisms)",          "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
           {"            (1)---(0)---(1)---(0)",                                 "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(0)---(1)",                                 "1,3,3(9.0)"},
-          {"            (1)---(1)---(1)---(0)",                                 "1,3,3(9.0)"},
+          {"            (0)---(1)---(0)---(1)",                                 "1,3(4.0),3(9.0)"},
+          {"            (1)---(1)---(1)---(0)",                                 "1,3(4.0),3(9.0)"},
           {"            (1)---(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
           {"            (1)---(0)---(1)---(1)",                                 "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(1)---(1)",                                 "1,3,3(9.0)"},
-          {"            (1)---(1)---(1)---(1) Omnitruncated simplex",           "1,3,3(9.0)"}, // XXX get rid of these 9s?
+          {"            (0)---(1)---(1)---(1)",                                 "1,3(4.0),3(9.0)"},
+          {"            (1)---(1)---(1)---(1) Omnitruncated simplex",           "1,3,3(9.0)"}, // XXX get rid of these 9s? not sure, they're kind of interesting
           {"        Hypercube/Cross based"},
           {"            (1)-4-(0)---(0)---(0) Hypercube",                       "1,3"},
           {"            (1)-4-(.5)---(0)---(0) Barely truncated hypercube",    "1,3(5.0)"},
           {"            (1)-4-(1)---(0)---(0) Truncated hypercube",             "1,3(5.0)"},
-          {"            (0)-4-(1)---(0)---(0)   (cuboctas and tets)",           "1"}, // vertex figure not simplex
-          {"            (0)-4-(1)---(1)---(0)   (truncated octas and truncated tets)", "1,3"},
-          {"            (0)-4-(0)---(1)---(0)   (octas and tets)",              "1"}, // vertex figure not simplex
-          {"            (0)-4-(0)---(1)---(1) Truncated cross",                 "1,3"},
-          {"            (0)-4-(0)---(.5)---(1) Barely truncated cross",        "1,3"},
-          {"            (0)-4-(0)---(0)---(1) Cross",                           "1,3"},
-          {"            (1)-4-(0)---(0)---(1)   (cubes, tets, and tri prisms)", "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
-          {"            (1)-4-(0)---(1)---(0)",                                 "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(0)---(0) Rectified hypercube (cuboctas and tets)", "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(1)---(0) Bitruncated hypercube/cross (truncated octas and truncated tets)", "1,3(4.0)"},
+          {"            (0)-4-(0)---(1)---(0) Rectified cross (octas and tets)", "1"}, // vertex figure not simplex
+          {"            (0)-4-(0)---(1)---(1) Truncated cross",                 "1"}, // vertex figure not simplex
+          {"            (0)-4-(0)---(.5)---(1) Barely truncated cross",         "1"}, // vertex figure not simplex
+          {"            (0)-4-(0)---(0)---(1) Cross",                           "1"}, // vertex figure not simplex
+          {"            (1)-4-(0)---(0)---(1) Runcinated hypercube/cross (cubes, tets, and tri prisms)", "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)-4-(0)---(1)---(0) Cantellated hypercube",           "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(0)---(1)   (cuboctas and cubes)",          "1"},  // vertex figure not simplex
-          {"            (1)-4-(1)---(1)---(0)",                                 "1,3"},
+          {"            (1)-4-(1)---(1)---(0)",                                 "1,3(4.0)"},
           {"            (1)-4-(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
           {"            (1)-4-(0)---(1)---(1)",                                 "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(1)---(1)   (truncated octas and cubes)",   "1,3"},
@@ -344,18 +344,18 @@ public class GenericGlue
           {"            (1)---(1)-4-(1)---(1) Omnitruncated 24-cell",           "1,3"},
           {"        120-cell/600-cell based"},
           {"            (1)-5-(0)---(0)---(0) 120-cell (hypermegaminx)",        "1,3(2.5),3"},
-          {"            (1)-5-(.5)---(0)---(0) Barely truncated 120-cell",    "1,3"},
-          {"            (1)-5-(1)---(0)---(0) Truncated 120-cell",             "1,3(5.0)"},
-          {"            (0)-5-(1)---(0)---(0) Rectified 120/600-cell (icosidodecas and tets)",           "1"}, // vertex figure not simplex
-          {"            (0)-5-(1)---(1)---(0) Bitruncated 120-cell (truncated icosas and truncated tets)", "1,3"},
-          {"            (0)-5-(0)---(1)---(0) Rectified 600-cell (icosas and octas)",            "1"}, // vertex figure not simplex
-          {"            (0)-5-(0)---(1)---(1) Truncated 600-cell",              "1,3"},
-          {"            (0)-5-(0)---(.5)---(1) Barely truncated 600-cell",      "1,3"},
-          {"            (0)-5-(0)---(0)---(1) 600-cell",                        "1,3"},
-          {"            (1)-5-(0)---(0)---(1) Runcinated 120/600-cell",                                 "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)-5-(.5)---(0)---(0) Barely truncated 120-cell",      "1,3(5.0)"},
+          {"            (1)-5-(1)---(0)---(0) Truncated 120-cell",              "1,3(5.0)"},
+          {"            (0)-5-(1)---(0)---(0) Rectified 120 (icosidodecas and tets)", "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(1)---(0) Bitruncated 120-cell/600-cell (truncated icosas and truncated tets)", "1,3(4.0)"},
+          {"            (0)-5-(0)---(1)---(0) Rectified 600-cell (icosas and octas)", "1"}, // vertex figure not simplex
+          {"            (0)-5-(0)---(1)---(1) Truncated 600-cell",              "1"}, // vertex figure not simplex
+          {"            (0)-5-(0)---(.5)---(1) Barely truncated 600-cell",      "1"}, // vertex figure not simplex
+          {"            (0)-5-(0)---(0)---(1) 600-cell",                        "1"},
+          {"            (1)-5-(0)---(0)---(1) Runcinated 120/600-cell",         "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
           {"            (1)-5-(0)---(1)---(0) Cantellated 120-cell",            "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(0)---(1) Cantellated 600-cell",            "1"},  // vertex figure not simplex
-          {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1,3"},
+          {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1,3(4)"},
           {"            (1)-5-(1)---(0)---(1) Runcitruncated 120-cell",         "1"}, // vertex figure not simplex
           {"            (1)-5-(0)---(1)---(1) Runcitruncated 600-cell",         "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1)---(1) Cantitruncated 600-cell",         "1,3"},
@@ -363,22 +363,22 @@ public class GenericGlue
           {"    4d uniform anomolous"},
           {"        Grand Antiprism", "1"},
           {"    3d regular x 1d  hyperprisms"},
-          {"        {3,3}x{} Tetrahedral prism",                "1,2,3(5.0),5(9.0),7(13.0)"},
+          {"        {3,3}x{} Tetrahedral prism",                "1,3(5.0),5(9.0),7(13.0)"},
           {"        {4,3}x{} Hypercube",                        "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
           {"        {5,3}x{} Dodecahedral prism",               "1,2,3(2.5),3,4,5,6,7"},
           {"        {}x{5,3} Dodecahedral prism (alt)",         "1,2,3(2.5),3,4,5,6,7"},
           {"    3d wythoff x 1d  hyperprisms"},
           {"        Tetrahedron based"},
-          {"            (1)---(0)---(0)x{} Tetrahedral prism",                  "1,3"},
-          {"            (1)---(1)---(0)x{} Truncated-tetrahedron prism",        "1,3"},
+          {"            (1)---(0)---(0)x{} Tetrahedral prism",                  "1,3(5.0)"},
+          {"            (1)---(1)---(0)x{} Truncated-tetrahedron prism",        "1,3(4.0)"},
           {"            (0)---(1)---(0)x{} Octahedral prism",                   "1"}, // vertex figure not simplex
-          {"            (0)---(1)---(1)x{} Truncated-tetrahedron(dual) prism",  "1,3"},
-          {"            (0)---(0)---(1)x{} Tetrahedral(dual) prism",            "1,3"},
+          {"            (0)---(1)---(1)x{} Truncated-tetrahedron(dual) prism",  "1,3(4.0)"},
+          {"            (0)---(0)---(1)x{} Tetrahedral(dual) prism",            "1,3(5.0)"},
           {"            (1)---(0)---(1)x{} Cuboctahedral prism",                "1"}, // vertex figure not simplex
           {"            (1)---(1)---(1)x{} Omnitruncated-tetrahedron prism",    "1,3"}, 
           {"        Cube/Octahedron based"},
           {"            (1)-4-(0)---(0)x{} Cube prism (hypercube)",             "1,3"},
-          {"            (1)-4-(1)---(0)x{} Truncated-cube prism",               "1,3"},
+          {"            (1)-4-(1)---(0)x{} Truncated-cube prism",               "1,3(4.0)"},
           {"            (0)-4-(1)---(0)x{} Cuboctahedral prism",                "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(1)x{} Truncated-octahedron prism",         "1,3"},
           {"            (0)-4-(0)---(1)x{} Octahedral prism",                   "1"}, // vertex figure not simplex
@@ -386,7 +386,7 @@ public class GenericGlue
           {"            (1)-4-(1)---(1)x{} Omnitruncated-cube prism",           "1,3"},
           {"        Dodecahedron/Icosahedron based"},
           {"            (1)-5-(0)---(0)x{} Dodecahedral prism",                 "1,3"},
-          {"            (1)-5-(1)---(0)x{} Truncated-dodecahedron prism",       "1,3"},
+          {"            (1)-5-(1)---(0)x{} Truncated-dodecahedron prism",       "1,3(4.0)"},
           {"            (0)-5-(1)---(0)x{} Icosidodecahedral prism",            "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1)x{} Truncated-icosahedron (soccer ball) prism",        "1,3"},
           {"            (0)-5-(0)---(1)x{} Icosahedral prism",                  "1"}, // vertex figure not simplex
@@ -404,18 +404,18 @@ public class GenericGlue
           {"        {10}x{4} Decagonal prism prism",            "1,2,3(2.5),3,4,5,6,7"},
           {"        {50}x{4} Fiftyagonal prism prism",          "1,3"},
           {"        {100}x{4} Onehundredagonal prism prism",    "1,3"},
-          {"        {3}x{3}",                                   "1,2,3(4.0),4,5,6,7"},
-          {"        {3}x{5}",                                   "1,2,3(2.5),3(4.0),4,5,6,7"},
+          {"        {3}x{3}",                                   "1,3(4.0),5(7.0),7(10.0)"},
+          {"        {3}x{5}",                                   "1,3(4.0),5(7.0),7(10.0)"},
           {"        {5}x{5}",                                   "1,2,3(2.5),3,4,5,6,7"}, // XXX 2 is ugly, has slivers
           {"        {5}x{10}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
           {"        {10}x{5}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
           {"        {10}x{10}",                                 "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
           {"5d puzzles"},
-          {"    {3,3,3,3} Simplex",        "1,2,3,4,5"},
+          {"    {3,3,3,3} Simplex",        "1,3(6.0),5(11.0)"},
           {"    {4,3,3,3} Hypercube",      "1,2,3,4,5"},
           {"    {3,3,3,4} Cross",          "1"}, // vertex figure not simplex
           {"6d puzzles"},
-          {"    {3,3,3,3,3} Simplex",      "1,2,3"},
+          {"    {3,3,3,3,3} Simplex",      "1,3(7.0)"},
           {"    {4,3,3,3,3} Hypercube",    "1,2,3"},
           {"    {3,3,3,3,4} Cross",        "1"}, // vertex figure not simplex
           {"-"}, // separator
@@ -460,6 +460,138 @@ public class GenericGlue
                     final String finalName = item0; // including the schlafli symbol
                     final String finalSchlafli = (item0.equalsIgnoreCase("Grand Antiprism") ? item0 : regex.split(item0, " ")[0]);
                     String lengthStrings[] = regex.split(item1, ",");
+
+                    boolean sanityCheckMenuScheme = false; // XXX make option for this?  hardcoding for now
+                    if (sanityCheckMenuScheme)
+                    {
+                        // Convert the polytope product string
+                        // to a spec, and replace 5's with 4's
+                        // (to make a simplified proxy, that has triangles
+                        // iff the original has triangles,
+                        // and has tets iff the original has tets),
+                        // and make the polytope product.
+                        // Then do sanity checks on it with the different lengths.
+                        progressWriter.println("    Checking sanity on schlafli \""+finalSchlafli+"\"");
+                        progressWriter.flush();
+                        Object[][] schlaflisAndWythoffs = com.donhatchsw.util.CSG.makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString(finalSchlafli);
+                        int schlaflis[][] = (int[][])schlaflisAndWythoffs[0];
+                        int schlaflisDenoms[][] = (int[][])schlaflisAndWythoffs[1];
+                        double wythoffs[][] = (double[][])schlaflisAndWythoffs[2];
+                        Assert(schlaflis.length == schlaflisDenoms.length);
+                        Assert(schlaflis.length == wythoffs.length);
+                        for (int iFactor = 0; iFactor < schlaflis.length; ++iFactor)
+                        {
+                            int schlafli[] = schlaflis[iFactor];
+                            int schlafliDenoms[] = schlaflisDenoms[iFactor];
+                            double wythoff[] = wythoffs[iFactor];
+                            Assert(schlafli.length == schlafliDenoms.length);
+                            Assert(schlafli.length == wythoff.length-1);
+                            for (int iSchlafli = 0; iSchlafli < schlafli.length; ++iSchlafli)
+                            {
+                                if (schlafli[iSchlafli] == 5 && schlafliDenoms[iSchlafli] == 1
+                                 && !(iSchlafli+1 < schlafli.length && schlafli[iSchlafli+1] == 0)) // don't do it if grand antiprism hack, or it will barf on {4,0,3}
+                                {
+                                    progressWriter.println("        proxying 4 for 5");
+                                    schlafli[iSchlafli] = 4;
+                                }
+                            }
+                        }
+                        progressWriter.println("        making the non-subdivided polytope");
+                        progressWriter.flush();
+                        com.donhatchsw.util.CSG.SPolytope proxy = com.donhatchsw.util.CSG.makeRegularStarPolytopeProduct(schlaflis, schlaflisDenoms, wythoffs);
+                        for (int j = 0; j < lengthStrings.length; ++j)
+                        {
+                            String lengthString = lengthStrings[j];
+
+                            progressWriter.println("            "+lengthString+":");
+                            progressWriter.flush();
+
+                            int intLength = 0;
+                            double doubleLength = 0.;
+                            // XXX duplicated from elsewhere... need to make a function I think
+                            {
+                                lengthString = lengthString.trim();
+
+                                try {
+                                    //System.out.println("lengthString = "+lengthString);
+
+                                    com.donhatchsw.compat.regex.Matcher matcher =
+                                    com.donhatchsw.compat.regex.Pattern.compile(
+                                        "(\\d+)\\((.*)\\)"
+                                    ).matcher(lengthString);
+                                    if (matcher.matches())
+                                    {
+                                        String intPart = matcher.group(1);
+                                        String doublePart = matcher.group(2);
+                                        //System.out.println("intPart = "+intPart);
+                                        //System.out.println("doublePart = "+doublePart);
+
+                                        intLength = Integer.parseInt(intPart);
+                                        doubleLength = Double.parseDouble(doublePart);
+                                    }
+                                    else
+                                    {
+                                        doubleLength = Double.parseDouble(lengthString);
+                                        intLength = (int)Math.ceil(doubleLength);
+                                    }
+                                }
+                                catch (java.lang.NumberFormatException e)
+                                {
+                                    //System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
+                                    //initPuzzleCallback.call(); // XXX really just want a repaint I think
+                                    //return;
+                                    Assert(false);
+                                }
+                                //System.out.println("intLength = "+intLength);
+                                //System.out.println("doubleLength = "+doubleLength);
+                            }
+                            if (intLength % 2 == 0)
+                            {
+                                Assert(doubleLength == (double)intLength);
+                                intLength++;
+                                doubleLength += .01;
+                            }
+                            Assert(intLength % 2 == 1);
+                            com.donhatchsw.util.CSG.Polytope allElts[][] = proxy.p.getAllElements();
+                            for (int iDim = 2; iDim < allElts.length-1; ++iDim) // triangle, tetrahedron, up to but not including the whole polytope
+                            {
+                                // If it has a triangle, doubleLength must be > (3*intLength-1)/2-1.
+                                // If it has a tetrahedron, doubleLength must be > (4*intLength-2)/2-1
+                                // etc.
+                                boolean hasASimplexOfThisDimension = false; // until proven otherwise
+                                for (int iElt = 0; iElt < allElts[iDim].length; ++iElt)
+                                {
+                                    if (allElts[iDim][iElt].getAllElements()[0].length == iDim+1)
+                                    {
+                                        hasASimplexOfThisDimension = true;
+                                        break;
+                                    }
+                                }
+                                if (hasASimplexOfThisDimension)
+                                {
+                                    if (!(doubleLength > ((iDim+1)*intLength-(iDim-1))/2 - 1))
+                                    {
+                                        progressWriter.println("            WARNING: "+
+                                                               (iDim==2 ? "triangle" : iDim==3 ? "tetrahedron" : "simplex of dimension "+iDim)
+                                                               +" with length "+intLength+"("+doubleLength+")");
+                                        progressWriter.flush();
+                                    }
+                                    Assert(doubleLength > ((iDim+1)*intLength-(iDim-1))/2 - 1);
+                                }
+                            }
+                        } // for each lengthString
+
+                        // length only iff vertex figure is not a simplex
+                        {
+                            //bool vertexFigureIsSimplex = ...
+                            // TODO: do me!
+                        }
+                        // TODO: if doesn't have a tet, there should be a 3(4)
+                        // TODO: if doesn't have a triangle, there should be a 3(3)
+                        // TODO: if has a penta, should be a 3(2.5) (if other conditions allow it)
+                        progressWriter.flush(); // XXX HEY! at least one flush around here was necessary or I don't see any output at all!?  that makes me think something bogus is going on
+                    }
+
                     for (int j = 0; j < lengthStrings.length; ++j)
                     {
                         final String finalLengthString = lengthStrings[j];
@@ -608,8 +740,8 @@ public class GenericGlue
                                     { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
                             }
                         });
-                    }
-                }
+                    } // for each length
+                } // if item1 != null
             }
         } // for each pair in menuScheme
 
