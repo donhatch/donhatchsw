@@ -152,7 +152,6 @@
         - "{3,3,3,3,4}" can't even make it
         - truncated hypercube, twists mostly right except twists something when left-click on center sticker
 
-        - truncated hypercube, both 4d and 3d sticker shrink move stuff off center, so twisting makes it jump
         - why is the progressWriter.flush() needed when doing sanity checking, to see any output at all??  makes me think something bogus is going on otherwise
         - why no package help in the javadoc any more??
         - undo tree's colors are wrong!
