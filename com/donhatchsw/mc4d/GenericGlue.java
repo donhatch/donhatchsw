@@ -499,6 +499,9 @@ public class GenericGlue
                         progressWriter.println("        making the non-subdivided polytope");
                         progressWriter.flush();
                         com.donhatchsw.util.CSG.SPolytope proxy = com.donhatchsw.util.CSG.makeRegularStarPolytopeProduct(schlaflis, schlaflisDenoms, wythoffs);
+                        progressWriter.println("        getting all elements");
+                        progressWriter.flush();
+                        com.donhatchsw.util.CSG.Polytope allElts[][] = proxy.p.getAllElements();
                         for (int j = 0; j < lengthStrings.length; ++j)
                         {
                             String lengthString = lengthStrings[j];
@@ -552,7 +555,6 @@ public class GenericGlue
                                 doubleLength += .01;
                             }
                             Assert(intLength % 2 == 1);
-                            com.donhatchsw.util.CSG.Polytope allElts[][] = proxy.p.getAllElements();
                             for (int iDim = 2; iDim < allElts.length-1; ++iDim) // triangle, tetrahedron, up to but not including the whole polytope
                             {
                                 // If it has a triangle, doubleLength must be > (3*intLength-1)/2-1.
@@ -584,6 +586,8 @@ public class GenericGlue
                         // Some other consistency checks on the list of lengths for this polytope...
                         boolean vertexFigureIsSimplex;
                         {
+                            progressWriter.println("        getting all incidences");
+                            progressWriter.flush();
                             int allIncidences[][][][] = proxy.p.getAllIncidences();
                             for (int iVert = 0; iVert < allIncidences[0].length; ++iVert)
                             {
