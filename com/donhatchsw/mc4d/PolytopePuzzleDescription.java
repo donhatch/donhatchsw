@@ -75,10 +75,6 @@
                (small rotations are slower and large rotations are faster
                than before, so that the acceleration feels the same
                for all types of moves).
-            - You can hold down the shift key while twisting
-              to get a smooth double twist.
-              (Or hold down both shift keys for a quadruple twist!)
-              (XXX obsolete?  don't do it? yeah I think it's crack at this point, with the combining feature)
             - Better depth sorting of polygons
                (still doesn't always work though)
                (only works for generic puzzles currently)

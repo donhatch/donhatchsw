@@ -249,7 +249,6 @@ public class MC4DViewGuts
         // Mouse and keyboard state...
         //
         private int slicemask = 0; // bitmask representing which number keys are down
-        private int nShiftsDown = 0; // keep track of whether both shift keys are being held down.  This isn't completely reliable (e.g. when mouse exits window while shift is down) but we always set it to 0 when a non-shifted mouse event occurs so it's not too dangerous.
         private int lastDrag[] = null; // non-null == dragging.  always tracks mouse drag regardless of ctrl
         private long time0 = System.currentTimeMillis();
         private long lastDragTime = -1L; // timestamp of last drag event.  always tracks mouse drag regardless of ctrl
@@ -382,11 +381,6 @@ public class MC4DViewGuts
                     int numkey = keyCode - KeyEvent.VK_0;
                     if(1 <= numkey && numkey <= 9)
                         viewState.slicemask |= 1<<(numkey-1); // turn on the specified bit
-                    if (keyCode == KeyEvent.VK_SHIFT)
-                    {
-                        viewState.nShiftsDown++;
-                        if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("    nShiftsDown = "+viewState.nShiftsDown);
-                    }
                 } // keyPressed
                 public void keyReleased(KeyEvent ke)
                 {
@@ -396,20 +390,6 @@ public class MC4DViewGuts
                     int numkey = keyCode - KeyEvent.VK_0;
                     if(1 <= numkey && numkey <= 9)
                         viewState.slicemask &= ~(1<<(numkey-1)); // turn off the specified bit
-                    // XXX get rid of this I think
-                    if (keyCode == KeyEvent.VK_SHIFT)
-                    {
-                        // If nShiftsDown becomes >= 2,
-                        // don't decrease it when we get the shift key release.
-                        // This lets the user hold down one shift key
-                        // and pump up the power with the other!
-                        // This is not too dangerous because it always
-                        // deflates to zero as any mouse event occurs
-                        // with no shift key down.
-                        if (viewState.nShiftsDown == 1)
-                            viewState.nShiftsDown = 0;
-                        if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("    nShiftsDown = "+viewState.nShiftsDown);
-                    }
                 } // keyReleased
                 public void keyTyped(KeyEvent ke)
                 {
@@ -488,9 +468,6 @@ public class MC4DViewGuts
                 public void mouseClicked(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseClicked on a "+controllerComponent.getClass().getSuperclass().getName());
-                    if (!me.isShiftDown())
-                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
-
                     if (viewParams.requireCtrlTo3dRotate.get())
                     {
                         if (me.isControlDown())
@@ -636,12 +613,6 @@ public class MC4DViewGuts
 
                             int dir = (isLeftMouseButton(me) || isMiddleMouseButton(me)) ? 1 : -1; // ccw is 1, cw is -1
 
-                            if(me.isShiftDown())
-                            {
-                                dir *= 2; // double power-twist!
-                                for (int i = 0; i < viewState.nShiftsDown-1; ++i)
-                                    dir *= 2; // quadruple mega-power-twist!
-                            }
                             model.initiateTwist(iGrip, dir, viewState.slicemask);
                             // do NOT call repaint here!
                             // the model will notify us when
@@ -654,8 +625,6 @@ public class MC4DViewGuts
                 public void mousePressed(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mousePressed on a "+controllerComponent.getClass().getSuperclass().getName());
-                    if (!me.isShiftDown())
-                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
                     viewState.lastDrag = new int[]{me.getX(), me.getY()};
                     viewState.lastDragTime = me.getWhen();
                     if (viewParams.requireCtrlTo3dRotate.get() == me.isControlDown())
@@ -668,8 +637,6 @@ public class MC4DViewGuts
                 {
                     long timedelta = me.getWhen() - viewState.lastDragTime;
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseReleased on a "+controllerComponent.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-viewState.time0)/1000.+", timedelta = "+timedelta);
-                    if (!me.isShiftDown())
-                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
                     viewState.lastDrag = null;
                     viewState.lastDragTime = -1L;
                     if (viewParams.requireCtrlTo3dRotate.get() == me.isControlDown())
@@ -700,14 +667,10 @@ public class MC4DViewGuts
                 public void mouseEntered(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 4) System.out.println("mouseExited on a "+controllerComponent.getClass().getSuperclass().getName());
-                    if (!me.isShiftDown())
-                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 }
                 public void mouseExited(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 4) System.out.println("mouseExited on a "+controllerComponent.getClass().getSuperclass().getName());
-                    if (!me.isShiftDown())
-                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
                 }
             }); // mouse listener
             // watch for dragging gestures to rotate the 3D view
@@ -715,8 +678,6 @@ public class MC4DViewGuts
                 public void mouseDragged(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseDragged on a "+controllerComponent.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-viewState.time0)/1000.);
-                    if (!me.isShiftDown())
-                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
                     if (viewState.lastDrag == null)
                         return;
                     int thisDrag[] = {me.getX(), me.getY()};
@@ -746,8 +707,6 @@ public class MC4DViewGuts
                 public void mouseMoved(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 5) System.out.println("        mouseMoved on a "+controllerComponent.getClass().getSuperclass().getName());
-                    if (!me.isShiftDown())
-                        viewState.nShiftsDown = 0; // kill drift if we know no shifts down
 
                     int pickedStickerPoly[] = GenericPipelineUtils.pick(
                                                     me.getX(), me.getY(),
