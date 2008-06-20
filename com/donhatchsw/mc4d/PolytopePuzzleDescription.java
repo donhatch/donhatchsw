@@ -78,6 +78,7 @@
             - Better depth sorting of polygons
                (still doesn't always work though)
                (only works for generic puzzles currently)
+               (and only 4d generic puzzles, doesn't work for 3d ones at all)
             - Lots of new puzzle types available from the Puzzle menu.
                These are called "generic puzzles" and they are a work
                in progress.
