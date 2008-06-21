@@ -191,7 +191,7 @@ public class UndoTreeSquirrel
     }
     private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this, make it an array instead?  not sure
     private int currentNodeIndex; // set in ctor
-    private SmoothlyVaryingViewingParameter currentNodeFraction = new SmoothlyVaryingViewingParameter(1.); // current fraction of the way from parent to current node
+    private SmoothlyVaryingViewingParameter currentNodeFraction = new SmoothlyVaryingViewingParameter(1.); // current fraction of the way from parent to current node. Usually in (0,1] but can be outside that range in the case of a bouncy system.
 
     // XXX these haven't been thought out well... probably should not be here, are not safe... bleah bleah bleah
     public void setCurrentNodeIndex(int currentNodeIndex)
@@ -477,6 +477,7 @@ public class UndoTreeSquirrel
 
     /**
     * Moves my current position one step towards the current position of the other view.  Returns a structure describing the discrete state change involved (if any) and the fractional offset from the new integer state that should be used to display the new fractional state.
+    * XXX that doesn't seem to be true any more... doesn't return the fractional offset, just stores it
     */
     // XXX restructure this function to make it clearer
     public ReturnValueOfIncrementViewTowardsOtherView incrementViewTowardsOtherView(UndoTreeSquirrel otherView,
@@ -486,7 +487,7 @@ public class UndoTreeSquirrel
                                                  double bounce,
                                                  UndoTreeSquirrel.ItemLengthizer lengthizer)
     {
-        boolean debug = false;
+        boolean debug = false; // manually set to true to debug this function
         if (debug) System.out.println("in incrementViewTowardsOtherView");
         if (otherView.model.nodes != model.nodes)
             throw new IllegalStateException("UndoTreeSquirrel.incrementViewTowardsOtherView called with a different underlying tree!");
@@ -502,6 +503,7 @@ public class UndoTreeSquirrel
             if (!currentNodeFraction.isMoving())
             {
                 if (debug) System.out.println("        already there");
+                if (debug) System.out.println("out incrementViewTowardsOtherView (no change)");
                 return null;
             }
             //
@@ -516,6 +518,7 @@ public class UndoTreeSquirrel
                                        dt,
                                        bounce);
             notifyListenersSomethingChanged(viewListeners);
+            if (debug) System.out.println("out incrementViewTowardsOtherView (no discrete change)");
             return null; // no discrete state change
         }
         int ancestorIndex = findLowestCommonAncestorIndex(currentNodeIndex,
@@ -561,7 +564,7 @@ public class UndoTreeSquirrel
                 // which will do something or other depending
                 // on whether the new one is the target or not.
             }
-            else
+            else // currentNodeFraction.isMoving()
             {
                 if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
 
@@ -576,7 +579,10 @@ public class UndoTreeSquirrel
                 // (XXX need to do this for redos too)
                 // (XXX need a smarter transition mechanism... !isMoving won't cut it any more)
                 //
+                if (true)
                 {
+                    double currentItemLength = lengthizer.length(currentNode.itemOnEdgeFromParentToMe);
+
                     int nodeIndex = currentNodeIndex;
                     UndoTree.Node node = currentNode;
                     Object item = currentNode.itemOnEdgeFromParentToMe;
@@ -605,7 +611,13 @@ public class UndoTreeSquirrel
                             //System.out.println("        no, child item is different from this item");
                             break;
                         }
-                        currentNodeFraction.set(currentNodeFraction.getTarget()+1.);
+                        //
+                        // Advance the target farther.
+                        //
+                        currentNodeFraction.set(currentNodeFraction.getTarget()
+                                + (lengthizer.length(childItem)
+                                 / currentItemLength));
+
                         //System.out.println("            power -> "+currentNodeFraction.getTarget()+" baby!");
                         //System.out.println("        should I add more?");
                         nodeIndex = childIndex;
@@ -613,9 +625,12 @@ public class UndoTreeSquirrel
                     }
                     if (!currentNodeFraction.isMoving())
                     {
-                        // this should NOT happen... it will happen
+                        // this should NOT happen,
+                        // since we WERE moving originally before we started
+                        // glomming on additional segments.
+                        // but this will happen
                         // if we get all the way to the target
-                        // without doing the switcheroo.
+                        // without doing the switcheroo for some reason.
                         System.out.println("SOMEONE STOP THIS THING, I WANT TO GET OFF!");
                     }
                 }
@@ -636,7 +651,7 @@ public class UndoTreeSquirrel
                     // one discrete state change to the caller.
                     // We'll get the next one next time around (hopefully).
                     //System.out.println("SWITCHING HORSES, BABY!");
-                    currentNodeFraction.warp(currentNodeFraction.get()-1.); // i.e. change position without changing velocity
+                    currentNodeFraction.warp(currentNodeFraction.get()-1.); // i.e. change position without changing velocity   XXX in more general circumstances, we may have to rescale the velocity, although this is fine for now since we only merge when consecutive edges are identical
                     assert(currentNode.children.length == 1); // XXX for now
                     currentNodeIndex += currentNode.children[0]; // XXX should be preferred child index
                     currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
@@ -645,7 +660,7 @@ public class UndoTreeSquirrel
                 }
             }
         }
-        else
+        else // ancestorIndex != currentNodeIndex
         {
             // Go up in the undo direction
             if (debug) System.out.println("    going in undo direction");
@@ -662,18 +677,92 @@ public class UndoTreeSquirrel
                 // which will do something or other depending
                 // on whether the new one is the target or not.
             }
-            else
+            else // currentNodeFraction.isMoving()
             {
+                //
+                // Do the combining-consecutive-identical-targets-
+                // into-one-long-target thing.
+                // Doing this here in the undo case is easier
+                // than in the redo case since there is only one choice
+                // of parent.
+
+                if (true)
+                {
+                    Object currentItem = currentNode.itemOnEdgeFromParentToMe;
+                    double currentItemLength = lengthizer.length(currentItem); // redundant calculation, maybe move this to a more outer scope
+
+                    // Immediate target starts as the parent,
+                    // but we might make it the grandparent, etc.
+                    int immediateTargetNodeIndex = currentNodeIndex+currentNode.parent;
+                    UndoTree.Node immediateTargetNode = (UndoTree.Node)model.nodes.get(immediateTargetNodeIndex);
+
+                    //System.out.println("    Should I add power?");
+                    while (true)
+                    {
+                        if (immediateTargetNodeIndex == ancestorIndex)
+                        {
+                            // too hairy to try to do this over the ancestor transition, so don't bother for now
+                            //System.out.println("        no, at ancestor hump");
+                            break;
+                        }
+                        if (!immediateTargetNode.itemOnEdgeFromParentToMe.equals(currentItem))
+                        {
+                            //System.out.println("        no, child item is different from this item");
+                            break;
+                        }
+                        //
+                        // Advance the immediate target farther.
+                        //
+                        currentNodeFraction.set(currentNodeFraction.getTarget()
+                                - (lengthizer.length(immediateTargetNode.itemOnEdgeFromParentToMe)
+                                 / currentItemLength));
+                        immediateTargetNodeIndex += immediateTargetNode.parent;
+                        immediateTargetNode = (UndoTree.Node)model.nodes.get(immediateTargetNodeIndex);
+                        //System.out.println("            power -> "+currentNodeFraction.getTarget()+" baby!");
+                        //System.out.println("        should I add more?");
+                    }
+                    if (!currentNodeFraction.isMoving())
+                    {
+                        // this should NOT happen,
+                        // since we WERE moving originally before we started
+                        // glomming on additional segments.
+                        // but this will happen
+                        // if we get all the way to the target
+                        // without doing the switcheroo for some reason.
+                        //System.out.println("SOMEONE STOP THIS THING, I WANT TO GET OFF!");
+                    }
+                }
+
+
                 if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
                 double referenceTripFraction = referenceTripDistance/lengthizer.length(currentNode.itemOnEdgeFromParentToMe);
                 currentNodeFraction.evolve(referenceTripFraction,
                                            referenceTripTime,
                                            dt,
                                            bounce);
+                //
+                // Switch rails here!
+                //
+                if (currentNodeFraction.getTarget() < 0.
+                 && currentNodeFraction.get() < 0.)
+                {
+                    // Just do one switch even though potentially get()
+                    // might be > 2, since we are only capable of returning
+                    // one discrete state change to the caller.
+                    // We'll get the next one next time around (hopefully).
+                    //System.out.println("SWITCHING HORSES, BABY!");
+                    currentNodeFraction.warp(currentNodeFraction.get()+1.); // i.e. change position without changing velocity   XXX in more general circumstances, we may have to rescale the velocity, although this is fine for now since we only merge when consecutive edges are identical
+
+                    assert(returnVal == null); // there shouldn't be any other discrete change we're trying to return
+                    returnVal = new ReturnValueOfIncrementViewTowardsOtherView(-1, currentNode.itemOnEdgeFromParentToMe/*BEFORE we change current node*/); // tell caller there was a discrete undo
+                    currentNodeIndex += currentNode.parent;
+                    currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
+                }
             }
 
             //
-            // Hack for beautiful smooth transition as we turn around.
+            // Hack for beautiful smooth transition in the undo tree viewer
+            // as we turn around.
             // If we are about to switch to redos when we hit the parent,
             // then set its preferred child *now* instead of when
             // we get to the parent.
@@ -704,6 +793,7 @@ public class UndoTreeSquirrel
             }
         }
         notifyListenersSomethingChanged(viewListeners);
+        if (debug) System.out.println("out incrementViewTowardsOtherView");
         return returnVal;
     } // incrementViewTowardsOtherView
 
