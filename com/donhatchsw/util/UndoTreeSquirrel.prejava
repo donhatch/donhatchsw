@@ -576,8 +576,7 @@ public class UndoTreeSquirrel
                 // If so, set our target to be the end of the stretch
                 // of identical redos, so that we don't slow down
                 // at the transition.
-                // (XXX need to do this for redos too)
-                // (XXX need a smarter transition mechanism... !isMoving won't cut it any more)
+                // (XXX need a smarter transition mechanism... !isMoving won't cut it any more)  (XXX what did I mean by this??)
                 //
                 if (true)
                 {
@@ -747,7 +746,7 @@ public class UndoTreeSquirrel
                  && currentNodeFraction.get() < 0.)
                 {
                     // Just do one switch even though potentially get()
-                    // might be > 2, since we are only capable of returning
+                    // might be < -1, since we are only capable of returning
                     // one discrete state change to the caller.
                     // We'll get the next one next time around (hopefully).
                     //System.out.println("SWITCHING HORSES, BABY!");
