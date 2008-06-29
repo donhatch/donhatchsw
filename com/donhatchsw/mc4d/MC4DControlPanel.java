@@ -588,7 +588,7 @@ public class MC4DControlPanel
                 "You can change this value in the middle of an animation if you want.",
             });
         addCheckboxRow(
-            "Stop Between Moves",
+            "Stop Between Moves (not yet implemented)",
             viewParams.stopBetweenMoves,
             new String[] {
                 "Normally this option is checked, which means",
