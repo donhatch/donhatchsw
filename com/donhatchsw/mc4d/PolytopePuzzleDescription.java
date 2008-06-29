@@ -136,6 +136,8 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - clicking twist duration down from 30 to 29.99 takes 8 clicks, back up takes 12???
+        - with multiple windows, animation doesn't go by itself any more
         - {5,3} 3(1.0001) "stickers shrink to face boundaries" doesn't work
         - ""{3,3}x{} 5(9)" twists are wrong and says "can't twist that"
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
@@ -152,6 +154,7 @@
         - why no package help in the javadoc any more??
         - undo tree's colors are wrong!
         - ctrl-c in undo window quits program
+        - Quit doesn't quit program
         - "restrict roll" on, set it spinning, reset 3d rotation, it ends up weird
         - contiguous cubies doesn't do anything sensible in Melinda's
         - cascading menus don't cascade well, see if anything I can do (especially when hitting right side, or when trying to do it with clicks but not drags)
