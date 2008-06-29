@@ -142,7 +142,7 @@ public class MC4DControlPanel
             addAdjustmentListener(new AdjustmentListener() {
                 public void adjustmentValueChanged(AdjustmentEvent e)
                 {
-                    if (true)
+                    if (false)
                     {
                         System.out.println("==================");
                         System.out.println("    min = "+getMinimum());
