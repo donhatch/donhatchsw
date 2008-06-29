@@ -123,9 +123,9 @@ public class MC4DControlPanel
             super(Scrollbar.HORIZONTAL);
 
             // 3 significant digits seems reasonable...
-            int min = (int)(f.minDouble()*1000);
-            int max = (int)(f.maxDouble()*1000);
-            int vis = (int)(.1*(max-min));
+            int min = (int)Math.round(f.minDouble()*1000);
+            int max = (int)Math.round(f.maxDouble()*1000);
+            int vis = (int)Math.round(.1*(max-min));
             setValues(0,   // value (we'll set it right later)
                       vis,
                       min,
@@ -142,19 +142,19 @@ public class MC4DControlPanel
             addAdjustmentListener(new AdjustmentListener() {
                 public void adjustmentValueChanged(AdjustmentEvent e)
                 {
-                    if (false)
+                    if (true)
                     {
                         System.out.println("==================");
-                        System.out.println("min = "+getMinimum());
-                        System.out.println("max = "+getMaximum());
-                        System.out.println("visible = "+getVisibleAmount());
-                        System.out.println("max-vis-min = "+(getMaximum()-getVisibleAmount()-getMinimum()));
-                        System.out.println("e.getValue() = "+e.getValue());
-                        System.out.println("getValue() = "+getValue());
-                        System.out.println("getUnitIncrement() = "+getUnitIncrement());
-                        System.out.println("getBlockIncrement() = "+getBlockIncrement());
-                        System.out.println("getSize() = "+getSize());
-                        System.out.println("getPreferredSize() = "+getPreferredSize());
+                        System.out.println("    min = "+getMinimum());
+                        System.out.println("    max = "+getMaximum());
+                        System.out.println("    visible = "+getVisibleAmount());
+                        System.out.println("    max-vis-min = "+(getMaximum()-getVisibleAmount()-getMinimum()));
+                        System.out.println("    e.getValue() = "+e.getValue());
+                        System.out.println("    getValue() = "+getValue());
+                        System.out.println("    getUnitIncrement() = "+getUnitIncrement());
+                        System.out.println("    getBlockIncrement() = "+getBlockIncrement());
+                        System.out.println("    getSize() = "+getSize());
+                        System.out.println("    getPreferredSize() = "+getPreferredSize());
                     }
                     // Doing the following in double precision makes a difference;
                     // if we do it in float, we get ugly values in the textfield
