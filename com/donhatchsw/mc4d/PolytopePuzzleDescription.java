@@ -136,7 +136,6 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - clicking twist duration down from 30 to 29.99 takes 8 clicks, back up takes 12???
         - with multiple windows, animation doesn't go by itself any more
         - {5,3} 3(1.0001) "stickers shrink to face boundaries" doesn't work
         - ""{3,3}x{} 5(9)" twists are wrong and says "can't twist that"
@@ -285,6 +284,7 @@
 
         AWT/APPLET/GUI LAYOUT:
             - MyMenuBar menus don't pop down nicely when others opened
+            - clicking twist duration down from 30 to 29.99 takes 8 clicks, back up takes 12???  turn on the block of debugging messages in SliderForFloat to see.  damn, looks like this is a bug in Scrollbar??
 
 
         HIGHLIGHT BY GRIP:
