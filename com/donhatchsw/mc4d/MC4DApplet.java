@@ -154,6 +154,17 @@ public class MC4DApplet
             public void keyPressed(KeyEvent ke)
             {
                 char c = ke.getKeyChar();
+
+                // In java 1.6, apparently ctrl-letter
+                // started coming out as just the letter
+                // (with ke.isControlDown() true).
+                // Detect this and change it to the old behavior...
+                // XXX need to do something else, or nothing at all here, for old javas (1.1) in which isControlDown doesn't exist... or else just stop trying to support 1.1 at all
+                if (c >= 'a' && c <= 'z' && ke.isControlDown())
+                {
+                    c -= ('a'-1);
+                }
+
                 if (false) {}
                 else if (c == 'r'-'a'+1 // ctrl-r -- reset
                       || c == 'c')
@@ -355,247 +366,252 @@ public class MC4DApplet
                                                         menuBarHolder, // canvas wants to be square and same size as menu bar
                                                         allPuzzlesAndWindows);
 
-            final Component menuBar = new MyMenuBar() {{
-                add("File", new PopupMenu() {{ // XXX argh, this gives under 1.1: java.lang.IncompatibleClassChangeError: Unimplemented interface method   -- what does that mean?  did this exist under 1.1 or not?
-                    if (isInSandbox)
-                    {
-                        add(new MyMenuItem("Save to browser cookie") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate", viewGuts.model.toString());
-                            }
-                        });
-                        add(new MyMenuItem("Save to browser cookie #2") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate2", viewGuts.model.toString());
-                            }
-                        });
-                        add(new MyMenuItem("Load from browser cookie") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate");
-                                MC4DModel newModel = MC4DModel.fromString(modelStateString);
-                                if (newModel != null)
-                                    viewGuts.setModel(newModel);
-                            }
-                        });
-                        add(new MyMenuItem("Load from browser cookie #2") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate2");
-                                MC4DModel newModel = MC4DModel.fromString(modelStateString);
-                                if (newModel != null)
-                                    viewGuts.setModel(newModel);
-                            }
-                        });
-                        if (true)
-                            add(new MyMenuItem("Test to/from string") {
+            Component menuBar = null;
+            if (System.getProperty("java.version").startsWith("1.1."))
+                System.out.println("ARGH, no menubar supported at all in java 1.1!");
+            else
+                menuBar = new MyMenuBar() {{
+                    add("File", new PopupMenu() {{ // XXX argh, this gives under 1.1: java.lang.IncompatibleClassChangeError: Unimplemented interface method   -- what does that mean?  did this exist under 1.1 or not?
+                        if (isInSandbox)
+                        {
+                            add(new MyMenuItem("Save to browser cookie") {
                                 public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
-                                    MC4DModel m0 = viewGuts.model;
-                                    String s1 = m0.toString();
-                                    System.out.println("model = "+s1);
-                                    MC4DModel m2 = MC4DModel.fromString(s1);
-                                    String s3 = m2.toString();
-                                    Assert(s3.equals(s1));
-                                    System.out.println("Good!");
-                                    viewGuts.setModel(m2);
+                                    com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate", viewGuts.model.toString());
                                 }
                             });
+                            add(new MyMenuItem("Save to browser cookie #2") {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate2", viewGuts.model.toString());
+                                }
+                            });
+                            add(new MyMenuItem("Load from browser cookie") {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate");
+                                    MC4DModel newModel = MC4DModel.fromString(modelStateString);
+                                    if (newModel != null)
+                                        viewGuts.setModel(newModel);
+                                }
+                            });
+                            add(new MyMenuItem("Load from browser cookie #2") {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate2");
+                                    MC4DModel newModel = MC4DModel.fromString(modelStateString);
+                                    if (newModel != null)
+                                        viewGuts.setModel(newModel);
+                                }
+                            });
+                            if (true)
+                                add(new MyMenuItem("Test to/from string") {
+                                    public void actionPerformed(java.awt.event.ActionEvent e)
+                                    {
+                                        MC4DModel m0 = viewGuts.model;
+                                        String s1 = m0.toString();
+                                        System.out.println("model = "+s1);
+                                        MC4DModel m2 = MC4DModel.fromString(s1);
+                                        String s3 = m2.toString();
+                                        Assert(s3.equals(s1));
+                                        System.out.println("Good!");
+                                        viewGuts.setModel(m2);
+                                    }
+                                });
+                            addSeparator();
+                            add(new MyMenuItem("Experimental print app to terminal") {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    System.out.println(allPuzzlesAndWindows.toString());
+                                }
+                            });
+                        }
+                        else
+                        {
+                            add("Open...");
+                            add("Save");
+                            add("Save to...");
+                        }
                         addSeparator();
-                        add(new MyMenuItem("Experimental print app to terminal") {
+                        add("Quit");
+                    }});
+                    add("Edit", new PopupMenu() {{
+                        add(new MyMenuItem("Reset            Ctrl-R") {
                             public void actionPerformed(java.awt.event.ActionEvent e)
                             {
-                                System.out.println(allPuzzlesAndWindows.toString());
+                                // XXX duplicated code in menu and key... should be model method
+                                com.donhatchsw.util.VecMath.copyvec(
+                                    viewGuts.model.genericPuzzleState,
+                                    viewGuts.model.genericPuzzleDescription.getSticker2Face());
+                                viewGuts.model.controllerUndoTreeSquirrel.Clear();
+                                viewGuts.model.animationUndoTreeSquirrel.setCurrentNodeIndex(viewGuts.model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
+                                canvas.repaint();
                             }
                         });
-                    }
-                    else
-                    {
-                        add("Open...");
-                        add("Save");
-                        add("Save to...");
-                    }
-                    addSeparator();
-                    add("Quit");
-                }});
-                add("Edit", new PopupMenu() {{
-                    add(new MyMenuItem("Reset            Ctrl-R") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            // XXX duplicated code in menu and key... should be model method
-                            com.donhatchsw.util.VecMath.copyvec(
-                                viewGuts.model.genericPuzzleState,
-                                viewGuts.model.genericPuzzleDescription.getSticker2Face());
-                            viewGuts.model.controllerUndoTreeSquirrel.Clear();
-                            viewGuts.model.animationUndoTreeSquirrel.setCurrentNodeIndex(viewGuts.model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
-                            canvas.repaint();
-                        }
-                    });
-                    add(new MyMenuItem("Undo             Ctrl-Z") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
-                                System.out.println("Nothing to undo.");
-                        }
-                    });
-                    add(new MyMenuItem("Redo             Ctrl-Y") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
-                                System.out.println("Nothing to redo.");
-                        }
-                    });
-                    addSeparator();
-                    add(new MyMenuItem("Solve (cheat)  Ctrl-T") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
-                                ;
-                        }
-                    });
-                    add(new MyMenuItem("Solve (for real)") {
-                        {setEnabled(false);}
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            System.out.println("Sorry, not smart enough for that.");
-                        }
-                    });
-                }});
-                add("Scramble", new PopupMenu() {{
-                    for (int i = 1; i <= 8; ++i)
-                    {
-                        final int scramblechenfrengensen = i;
-                        add(new MyMenuItem(""+i+"      Ctrl-"+i) {
+                        add(new MyMenuItem("Undo             Ctrl-Z") {
                             public void actionPerformed(java.awt.event.ActionEvent e)
                             {
-                                System.out.println("Scramble "+scramblechenfrengensen);
+                                if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
+                                    System.out.println("Nothing to undo.");
+                            }
+                        });
+                        add(new MyMenuItem("Redo             Ctrl-Y") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
+                                    System.out.println("Nothing to redo.");
+                            }
+                        });
+                        addSeparator();
+                        add(new MyMenuItem("Solve (cheat)  Ctrl-T") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
+                                    ;
+                            }
+                        });
+                        add(new MyMenuItem("Solve (for real)") {
+                            {setEnabled(false);}
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                System.out.println("Sorry, not smart enough for that.");
+                            }
+                        });
+                    }});
+                    add("Scramble", new PopupMenu() {{
+                        for (int i = 1; i <= 8; ++i)
+                        {
+                            final int scramblechenfrengensen = i;
+                            add(new MyMenuItem(""+i+"      Ctrl-"+i) {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    System.out.println("Scramble "+scramblechenfrengensen);
+                                    GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
+                                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
+                                }
+                            });
+                        }
+                        addSeparator();
+                        add(new MyMenuItem("Full   Ctrl-F") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                // XXX dup code in key listener
+                                // XXX Maybe 6 times number of faces?  not sure
+                                int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
+                                System.out.println("Fully scrambling");
                                 GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
                                 glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
                             }
                         });
-                    }
-                    addSeparator();
-                    add(new MyMenuItem("Full   Ctrl-F") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            // XXX dup code in key listener
-                            // XXX Maybe 6 times number of faces?  not sure
-                            int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
-                            System.out.println("Fully scrambling");
-                            GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
-                            glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
-                        }
-                    });
-                }});
-                add("Puzzle", new PopupMenu() {{
-                    final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
-                    glue.addMoreItemsToPuzzleMenu(
-                        this,
-                        new Label("dum dum"),
-                        new GenericGlue.Callback() {
-                            public void call()
+                    }});
+                    add("Puzzle", new PopupMenu() {{
+                        final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
+                        glue.addMoreItemsToPuzzleMenu(
+                            this,
+                            new Label("dum dum"),
+                            new GenericGlue.Callback() {
+                                public void call()
+                                {
+                                    viewGuts.setModel(glue.model);
+                                }
+                            });
+                    }});
+                    add("Windows", new PopupMenu() {{
+                        add(new MyMenuItem("Control Panel                       Ctrl-C") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
                             {
-                                viewGuts.setModel(glue.model);
+                                openOrMakeNewControlPanelWindow(viewGuts,
+                                                                allPuzzlesAndWindows);
                             }
                         });
-                }});
-                add("Windows", new PopupMenu() {{
-                    add(new MyMenuItem("Control Panel                       Ctrl-C") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            openOrMakeNewControlPanelWindow(viewGuts,
-                                                            allPuzzlesAndWindows);
-                        }
-                    });
-                    add(new MyMenuItem("Expert Control Panel") {
-                        {setEnabled(false);}
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            // XXX implement me
-                        }
-                    });
-                    addSeparator();
-                    add(new MyMenuItem("Macros") {
-                        {setEnabled(false);}
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                        }
-                    });
-                    addSeparator();
-                    add(new MyMenuItem("Undo Tree                           Ctrl-U") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            makeNewUndoTreeWindow(viewGuts);
-                        }
-                    });
-                    addSeparator();
-                    add(new MyMenuItem("Shared view of shared puzzle state") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            makeNewViewWindow(viewGuts,
-                                              false, // don't clone view, share it
-                                              false, // don't clone puzzle state, share it
-                                              doDoubleBuffer,
-                                              applet,
-                                              allPuzzlesAndWindows);
-                        }
-                    });
-                    if (false) // this is a weird one, I don't know if it's useful
-                        add(new MyMenuItem("Shared view of cloned puzzle state") {
+                        add(new MyMenuItem("Expert Control Panel") {
+                            {setEnabled(false);}
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                // XXX implement me
+                            }
+                        });
+                        addSeparator();
+                        add(new MyMenuItem("Macros") {
+                            {setEnabled(false);}
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                            }
+                        });
+                        addSeparator();
+                        add(new MyMenuItem("Undo Tree                           Ctrl-U") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                makeNewUndoTreeWindow(viewGuts);
+                            }
+                        });
+                        addSeparator();
+                        add(new MyMenuItem("Shared view of shared puzzle state") {
                             public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 makeNewViewWindow(viewGuts,
                                                   false, // don't clone view, share it
+                                                  false, // don't clone puzzle state, share it
+                                                  doDoubleBuffer,
+                                                  applet,
+                                                  allPuzzlesAndWindows);
+                            }
+                        });
+                        if (false) // this is a weird one, I don't know if it's useful
+                            add(new MyMenuItem("Shared view of cloned puzzle state") {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    makeNewViewWindow(viewGuts,
+                                                      false, // don't clone view, share it
+                                                      true, // clone puzzle state
+                                                      doDoubleBuffer,
+                                                      applet,
+                                                      allPuzzlesAndWindows);
+                                }
+                            });
+                        add(new MyMenuItem("Cloned view of shared puzzle state ") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                makeNewViewWindow(viewGuts,
+                                                  true, // clone view
+                                                  false, // don't clone puzzle state, share it
+                                                  doDoubleBuffer,
+                                                  applet,
+                                                  allPuzzlesAndWindows);
+                            }
+                        });
+                        add(new MyMenuItem("Cloned view of cloned puzzle state ") {
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                                makeNewViewWindow(viewGuts,
+                                                  true, // clone view
                                                   true, // clone puzzle state
                                                   doDoubleBuffer,
                                                   applet,
                                                   allPuzzlesAndWindows);
                             }
                         });
-                    add(new MyMenuItem("Cloned view of shared puzzle state ") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            makeNewViewWindow(viewGuts,
-                                              true, // clone view
-                                              false, // don't clone puzzle state, share it
-                                              doDoubleBuffer,
-                                              applet,
-                                              allPuzzlesAndWindows);
-                        }
-                    });
-                    add(new MyMenuItem("Cloned view of cloned puzzle state ") {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                            makeNewViewWindow(viewGuts,
-                                              true, // clone view
-                                              true, // clone puzzle state
-                                              doDoubleBuffer,
-                                              applet,
-                                              allPuzzlesAndWindows);
-                        }
-                    });
-                    addSeparator();
-                    add(new MyMenuItem("Progress/diagnostics/debug") {
-                        {setEnabled(false);}
-                        public void actionPerformed(java.awt.event.ActionEvent e)
-                        {
-                        }
-                    });
-                }});
-                add("Help", new PopupMenu() {{
-                    add("About...");
-                }});
-                // XXX MyMenuBar should do this automatically-- what is the cleanest way?
-                add(new Label(""),
-                    new GridBagConstraints(){{fill=HORIZONTAL;weightx=1.;}}); // stretch
-            }}; // menuBar
+                        addSeparator();
+                        add(new MyMenuItem("Progress/diagnostics/debug") {
+                            {setEnabled(false);}
+                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            {
+                            }
+                        });
+                    }});
+                    add("Help", new PopupMenu() {{
+                        add("About...");
+                    }});
+                    // XXX MyMenuBar should do this automatically-- what is the cleanest way?
+                    add(new Label(""),
+                        new GridBagConstraints(){{fill=HORIZONTAL;weightx=1.;}}); // stretch
+                }}; // menuBar
 
             menuBarHolder[0] = menuBar;
 
             this.setLayout(new BorderLayout());
-            this.add("North", menuBar);
+            if (menuBar != null)
+                this.add("North", menuBar);
             this.add("Center", canvas);
         } // MC4DViewerPanel ctor
     } // class MC4DViewerPanel
