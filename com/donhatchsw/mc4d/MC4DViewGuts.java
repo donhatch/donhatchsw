@@ -113,7 +113,8 @@ public class MC4DViewGuts
             {0,0,1,0},
             {0,0,0,1},
         });
-        public Listenable.Float eyeW = new Listenable.Float(0.f, 20.f, 5.2f);
+        //public Listenable.Float eyeW = new Listenable.Float(0.f, 20.f, 5.2f); // used this when circumradius was scaled to be 6 instead of 1
+        public Listenable.Float eyeW = new Listenable.Float(0.f, 4.f, .867f); // XXX default should be a little more than 1!
         public Listenable.FloatMatrix viewMat3d = new Listenable.FloatMatrix(
             VecMath.mxm(VecMath.makeRowRotMat(3, 2,0, -42*(float)Math.PI/180), // twirl
                         VecMath.makeRowRotMat(3, 1,2,  30*(float)Math.PI/180))); // tilt
