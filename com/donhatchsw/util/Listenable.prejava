@@ -13,23 +13,15 @@ package com.donhatchsw.util;
 */
 public abstract class Listenable
 {
-    // XXX need to use reflection so that this will compile under 1.1.
-    // XXX actually it's not running at all under 1.1... so need to comment out the following
-    // XXX line to experiment with 1.1, until I get my act together and code it up with reflection.
-#define USE_WEAK_REFS
     private static boolean weakRefsExist()
     {
-#ifdef USE_WEAK_REFS
         try {
-            Object dummy = (java.lang.ref.WeakReference)null;
+            Class dummy = Class.forName("java.lang.ref.WeakReference");
             return true;
-        } catch (NoClassDefFoundError e) {
+        } catch (ClassNotFoundException e) {
             //System.out.println("BONK! weak refs do not exist");
             return false;
         }
-#else
-        return false;
-#endif
     }
     private static boolean useWeakRefs = weakRefsExist(); // true in >= 1.2
 
@@ -44,10 +36,8 @@ public abstract class Listenable
         {
             if (useWeakRefs)
             {
-#ifdef USE_WEAK_REFS
                 java.lang.ref.WeakReference wr = new java.lang.ref.WeakReference(listener);
                 listeners.add(wr);
-#endif
             }
             else
                 listeners.add(listener);
@@ -62,14 +52,12 @@ public abstract class Listenable
             {
                 if (useWeakRefs)
                 {
-#ifdef USE_WEAK_REFS
                     java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
                     if (wr.get() == listener)
                     {
                         listeners.remove(i);
                         return;
                     }
-#endif
                 }
                 else
                 {
@@ -101,22 +89,20 @@ public abstract class Listenable
             {
                 if (useWeakRefs)
                 {
-#ifdef USE_WEAK_REFS
                     java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
                     Listener listener = (Listener)wr.get();
                     if (listener != null)
                         listener.valueChanged();
                     else
                         nLapsedListeners++;
-#endif
                 }
                 else
                     ((Listener)listeners.get(i)).valueChanged();
             }
-#ifdef USE_WEAKREFS
             if (nLapsedListeners > 0)
             {
                 //System.out.println("CLEARING "+nLapsedListeners+" LAPSED LISTENER"+(nLapsedListeners==1?"":"S")+"!");
+                assert(!useWeakRefs);
                 synchronized(listeners) // XXX this is the part that needs a real synchronize
                 {
                     int nOut = 0;
@@ -131,7 +117,6 @@ public abstract class Listenable
                         listeners.remove(--n);
                 }
             }
-#endif
         }
     }
 
