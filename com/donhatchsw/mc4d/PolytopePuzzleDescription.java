@@ -279,10 +279,11 @@
             - I'd sure like to be able to set it spinning more gently
                 (maybe controls to speed up / slow down spin when it's spinning?)
             - the cascading menus for are intolerable.  need a big dialog with stuff all layed out on a page with icons
-            - need some sort of wizard to pick nice 4d eye distance...
-              or, maybe better, always pick nice radius so that the default 4d eye distance is good
+            - now that circumradius is 1, change eyeW and eyeZ so
+              that eyeW > 1 so that it's safe by default, for all puzzles.
 
         AWT/APPLET/GUI LAYOUT:
+            - menu bar not supported at all in 1.1 currently (something about popupmenu api?)
             - MyMenuBar menus don't pop down nicely when others opened
             - clicking twist duration down from 30 to 29.99 takes 8 clicks, back up takes 12???  turn on the block of debugging messages in SliderForFloat to see.  damn, looks like this is a bug in Scrollbar??
 
