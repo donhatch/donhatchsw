@@ -145,7 +145,7 @@ import com.donhatchsw.compat.regex;
 * for the dotted line across the Component in the above diagram),
 * although I don't know why you'd want that.
 */
-// XXX would it make more sense for the UndoTreeViewer to call undo/redo etc. on the UntoTree directly, and have the Application be set up to intercept those somehow?  Think about that...
+// XXX would it make more sense for the UndoTreeViewer to call undo/redo etc. on the UndoTree directly, and have the Application be set up to intercept those somehow?  Think about that...
 public class UndoTreeViewer
 {
     /**
@@ -752,6 +752,49 @@ public class UndoTreeViewer
         component = null;
     } // detachFromComponent
 
+    //-----------------------------------------------------------------------
+    // Little drawing utils...
+    // XXX should be in a different class
+    //
+        /**
+         * Draws a string with arbitrary justification.
+         * <p>
+         * xJustify : -1,0,1 -> Left,Center,Right
+         * <br>
+         * yJustify : -1,0,1 -> Top,Center,Bottom  (if y increases from top to bottom)
+         * <br>
+         * and anything in between.
+         * <br>
+         * XXX fix param descriptions for javadoc
+         */
+        public static void drawString(java.awt.Graphics2D g2d,
+                                      String s, double x, double y, 
+                                      double xJustify, // -1,0,1 -> L,C,R
+                                      double yJustify) // -1,0,1 -> T,C,B
+        {
+            java.awt.FontMetrics fm = g2d.getFontMetrics();
+
+            /*
+            x:
+                -1 -> 0
+                0 -> -.5
+                1 -> -1
+
+            y:
+                -1 -> 1
+                0 -> .5
+                1 -> 0
+            */
+
+            g2d.drawString(s, (float)(x - fm.stringWidth(s)*(xJustify+1.)*.5),
+                              (float)(y + fm.getAscent()*(1.-yJustify)*.5));
+                            // XXX centered height seems to come out a bit low-- maybe fiddle with leading?
+        }
+    //
+    // End of little drawing utils.
+    //-----------------------------------------------------------------------
+
+
     private UndoTreeSquirrel.Snapshot snapshot = new UndoTreeSquirrel.Snapshot(); // scratch to reuse each time  // XXX put this up top somewhere, and should probably clear it if the tree is cleared
     private double frameForPicking[][] = null;
 
@@ -960,7 +1003,7 @@ public class UndoTreeViewer
                         if (leftLabels[iNode] != null
                          && !leftLabels[iNode].equals(""))
                         {
-                            com.donhatchsw.util.Arrows.drawString(
+                            drawString(
                                 (java.awt.Graphics2D)g, // XXX !? is this necessary??
                                 leftLabels[iNode],
                                 edgeCenterX,
@@ -971,7 +1014,7 @@ public class UndoTreeViewer
                         if (rightLabels[iNode] != null
                          && !rightLabels[iNode].equals(""))
                         {
-                            com.donhatchsw.util.Arrows.drawString(
+                            drawString(
                                 (java.awt.Graphics2D)g, // XXX !? is this necessary??
                                 rightLabels[iNode],
                                 edgeCenterX+2, // fudge
@@ -1015,7 +1058,7 @@ public class UndoTreeViewer
             frameForPicking = new double[][]{x,y};
 
             ++nPaintsDone;
-            com.donhatchsw.util.Arrows.drawString((java.awt.Graphics2D)g, "("+nPaintsDone+" paint"+(nPaintsDone==1?"":"s")+")", w-2, 2, 1, -1.);
+            drawString((java.awt.Graphics2D)g, "("+nPaintsDone+" paint"+(nPaintsDone==1?"":"s")+")", w-2, 2, 1, -1.);
         }
     } // paint
     private int nPaintsDone = 0;
