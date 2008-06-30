@@ -261,10 +261,9 @@ public class GenericPipelineUtils
         // for the 3d part of the shrink.  And the per-sticker face centers too.
         //
         {
-            // Make it so circumradius is 6.
-            // XXX I have no basis for this except that empirically it makes
-            // XXX the 3^4 hypercube match what the puzzle usually does
-            float scale4d = 6.f/puzzleDescription.circumRadius();
+            // Make it so circumradius is 1.
+            // That way any 4d eye distance > 1 is safe.
+            float scale4d = 1.f/puzzleDescription.circumRadius();
             float rotScale4d[][] = VecMath.mxs(rot4d, scale4d); // XXX MEMORY ALLOCATION
             float temp[] = new float[4]; // XXX MEMORY ALLOCATION
             for (int iArray = 0; iArray < 3; ++iArray)
