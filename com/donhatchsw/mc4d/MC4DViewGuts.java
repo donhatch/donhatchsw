@@ -859,7 +859,8 @@ public class MC4DViewGuts
 
         if (true) // XXX not ready for prime time-- need to figure out whether moving in any way, not just twisting
         {
-            if(g instanceof Graphics2D) {
+            if (!System.getProperty("java.version").startsWith("1.1.") // have to check to avoid Graphics2D class not found error under 1.1
+             && g instanceof Graphics2D) {
                 boolean okToAntialias = true
                                       // && allowAntiAliasing && lastDrag==null && spindelta==null // XXX need to do this!
                                       && viewParams.antialiasWhenStill.get()
