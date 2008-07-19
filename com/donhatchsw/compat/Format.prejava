@@ -141,7 +141,7 @@ public class Format
                         x /= 10;
                         scale /= 10;
                     }
-                    x = Math.floor(x);
+                    x = Math.round(x);
                     x /= scale;
                     if (Math.floor(x) == x)
                         thisConversionResult = sign+(int)Math.floor(x);
