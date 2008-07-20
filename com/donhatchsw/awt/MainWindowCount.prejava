@@ -36,26 +36,26 @@ package com.donhatchsw.awt;
 * <p>
 * Example:
 * <pre>
-        public void main(String args[])
-        {
-            MainWindowCount.increment(); // token for run
-            javax.swing.SwingUtilities.invokeLater(new Runnable() {
-                public void run()
-                {
-                    try
-                    {
-                        ... make my gui ...
-                    }
-                    finally
-                    {
-                        // release run's token
-                        MainWindowCount.decrementAndExitIfImTheLastOne();
-                    }
-                }
-            });
-            // release main's token
-            MainWindowCount.decrementAndExitIfImTheLastOne();
-        } // main
+*       public void main(String args[])
+*       {
+*           MainWindowCount.increment(); // token for run
+*           javax.swing.SwingUtilities.invokeLater(new Runnable() {
+*               public void run()
+*               {
+*                   try
+*                   {
+*                       ... make my gui ...
+*                   }
+*                   finally
+*                   {
+*                       // release run's token
+*                       MainWindowCount.decrementAndExitIfImTheLastOne();
+*                   }
+*               }
+*           });
+*           // release main's token
+*           MainWindowCount.decrementAndExitIfImTheLastOne();
+*       } // main
 * </pre>
 * <p>
 * TODO: figure out a way for different packages
