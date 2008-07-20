@@ -4571,6 +4571,10 @@ public final class CSG
             VecMath.vxs(result, result, (double)sp.sign/(double)factorial(k));
         } // areaNormal
 
+        /**
+        * returns the centroid (average) of the vertices of p
+        * into an array supplied by the caller.
+        */
         public static void cgOfVerts(double result[], Polytope p)
         {
             Polytope vertPolytopes[] = p.getAllElements()[0];
@@ -4579,6 +4583,17 @@ public final class CSG
                 VecMath.vpv(result, result, vertPolytopes[i].getCoords());
             assert(vertPolytopes.length != 0);
             VecMath.vxs(result, result, 1./vertPolytopes.length);
+        } // cgOfVerts
+
+        /**
+        * returns the centroid (average) of the vertices of p
+        * as a newly allocated double[].
+        */
+        public static double[] cgOfVerts(Polytope p)
+        {
+            double result[] = new double[p.fullDim];
+            cgOfVerts(result, p);
+            return result;
         } // cgOfVerts
 
         public static SPolytope cross(SPolytope A,
