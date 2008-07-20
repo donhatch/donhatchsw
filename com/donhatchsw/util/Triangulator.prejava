@@ -23,8 +23,8 @@ package com.donhatchsw.util;
 * <p>
 *  The polygon should all lie (approximately) in a plane;
 *  all calculations are done in the plane of the two coordinate
-*  axes in which the bounding box of the polygon is largest.
-*  <!-- XXX NOT any more, since that's wrong! re-do this comment -->
+*  axes in which the magnitude of the projected area of the polygon
+*  is largest.
 * <p>
 *  The polygons can consist of multiple contours and multiple connected
 *  components.  Contours must be consistently oriented;
