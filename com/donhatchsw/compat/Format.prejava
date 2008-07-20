@@ -268,11 +268,28 @@ public class Format
         if (true)
         {
             // XXX should check these against the real printf
-            System.out.println(sprintf("%41.26g", 1/3.));
-            System.out.println(sprintf("%.26g", 1/3.));
+            System.out.println(sprintf("%41.26g", 1/3.)); // wrong
+            System.out.println(sprintf("%.26g", 1/3.)); // wrong
             System.out.println(sprintf("%.17g", 1/3.));
             System.out.println(sprintf("%.*g", 9, 1/3.));
             System.out.println(sprintf("%g", 1/3.));
+            System.out.println(sprintf("%.0g", 1-1e-14));
+            System.out.println(sprintf("%.1g", 1-1e-14));
+            System.out.println(sprintf("%.2g", 1-1e-14));
+            System.out.println(sprintf("%.3g", 1-1e-14));
+            System.out.println(sprintf("%.4g", 1-1e-14));
+            System.out.println(sprintf("%.5g", 1-1e-14));
+            System.out.println(sprintf("%.6g", 1-1e-14));
+            System.out.println(sprintf("%.7g", 1-1e-14));
+            System.out.println(sprintf("%.8g", 1-1e-14));
+            System.out.println(sprintf("%.9g", 1-1e-14));
+            System.out.println(sprintf("%.10g", 1-1e-14));
+            System.out.println(sprintf("%.11g", 1-1e-14));
+            System.out.println(sprintf("%.12g", 1-1e-14));
+            System.out.println(sprintf("%.13g", 1-1e-14));
+            System.out.println(sprintf("%.14g", 1-1e-14));
+            System.out.println(sprintf("%.15g", 1-1e-14));
+            System.out.println(sprintf("%.16g", 1-1e-14));
             System.out.println("|"+sprintf("%10.3g", 1/3.)+"|");
             System.out.println("|"+sprintf("%-10.3g", 1/3.)+"|");
             System.out.println("|"+sprintf("%*.3g", 20, 1/3.)+"|");
