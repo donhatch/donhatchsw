@@ -1,0 +1,132 @@
+package com.donhatchsw.compat;
+#include "macros.h"
+/**
+* ArrayList<double>.
+* Not optimized (but it could be).
+*/
+public class DoubleArrayList
+{
+    private ArrayList arrayList;
+
+    public DoubleArrayList(int initialCapacity)
+    {
+        arrayList = new ArrayList(initialCapacity);
+    }
+    public DoubleArrayList()
+    {
+        arrayList = new ArrayList();
+    }
+    public DoubleArrayList(ArrayList from) // this is Collection in the real ArrayList
+    {
+        arrayList = new ArrayList(from);
+    }
+    public void trimToSize()
+    {
+        arrayList.trimToSize();
+    }
+    public void ensureCapacity(int minCapacity)
+    {
+        arrayList.ensureCapacity(minCapacity);
+    }
+    public int size()
+    {
+        return arrayList.size();
+    }
+    public boolean isEmpty()
+    {
+        return arrayList.isEmpty();
+    }
+    public boolean contains(double element)
+    {
+        return arrayList.contains(new Double(element));
+    }
+    public int indexOf(double element)
+    {
+        return arrayList.indexOf(new Double(element));
+    }
+    public int lastIndexOf(double element)
+    {
+        return arrayList.lastIndexOf(new Double(element));
+    }
+    public java.lang.Object clone()
+    {
+        DoubleArrayList cloned = new DoubleArrayList();
+        cloned.arrayList = (ArrayList)this.arrayList.clone();
+        return cloned;
+    }
+    public double[] toArray()
+    {
+        return toArray(new double[arrayList.size()]);
+    }
+    public double[] toArray(double[] to)
+    {
+        if (to.length < arrayList.size())
+            return toArray();
+        for (int i = 0; i < arrayList.size(); ++i)
+            to[i] = ((Double)arrayList.get(i)).doubleValue();
+        return to;
+    }
+    public double get(int index)
+    {
+        return ((Double)arrayList.get(index)).doubleValue();
+    }
+    public double set(int index, double element)
+    {
+        return ((Double)arrayList.set(index, new Double(element))).doubleValue();
+    }
+    public boolean add(double element)
+    {
+        return arrayList.add(new Double(element));
+    }
+    public void add(int index, double element)
+    {
+        arrayList.add(index, new Double(element));
+    }
+    /** the version of remove() that takes an index */
+    public double removeIndex(int index)
+    {
+        return ((Double)arrayList.remove(index)).doubleValue();
+    }
+    /** the version of remove() that takes an element */
+    /** XXX javap says boolean, some doc says it returns an Object, some other doc doesn't mention it at all... fuck it, I'm returning void. */
+    public void removeElement(double element)
+    {
+        arrayList.remove(new Double(element));
+    }
+    public void clear()
+    {
+        arrayList.clear();
+    }
+    public boolean addAll(DoubleArrayList from) // this is Collection in the real ArrayList
+    {
+        return arrayList.addAll(from.arrayList);
+    }
+    public boolean addAll(int index, DoubleArrayList from) // this is Collection in the real ArrayList
+    {
+        return arrayList.addAll(index, from.arrayList);
+    }
+    protected void removeRange(int fromIndex, int toIndex)
+    {
+        arrayList.removeRange(fromIndex, toIndex);
+    }
+
+    /** test program */
+    public static void main(String args[])
+    {
+        DoubleArrayList a = new DoubleArrayList();
+        assert(a.size() == 0);
+        a.add(100.);
+        assert(a.size() == 1);
+        a.add(200.);
+        assert(a.size() == 2);
+        a.add(-1.);
+        assert(a.size() == 3);
+        a.removeIndex(a.size()-1);
+        assert(a.size() == 2);
+        a.add(300.);
+        assert(a.size() == 3);
+        a.clear();
+        assert(a.size() == 0);
+        System.out.println("All good!");
+    }
+} // class ArrayList
