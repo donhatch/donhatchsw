@@ -5,8 +5,8 @@
 
 
 # Sticking points:
-#    - Arrows uses javax.swing.Icon or something, doesn't exist in 1.2
-#    - weak pointer doesn't exist in 1.1... is it of any use to me then?
+#    - Arrows uses javax.swing.AbstractAction or something, doesn't exist in 1.2, can omit Arrows to compile with 1.2 JAVAROOT if desired
+#    - weak reference doesn't exist in 1.1... is it of any use to me then??
 #    - something's going funny with jikes and renumbering, it's looking for .prejava.lines which is wrong
 
 # To use cookies, need netscape.javascript.JSObject
@@ -35,7 +35,7 @@ JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
 donhatchsw.jar:
 
 # XXX Poly is a prefix of PolyCSG, so the * thing is not robust.
-# XXX also UndoTree and UndoTreeViewer and UndoTreeSquirrel
+# XXX also UndoTree and UndoTreeViewer and UndoTreeSquirrel, same issue
 
 com/donhatchsw/compat/ArrayList.class: com/donhatchsw/compat/ArrayList.prejava
 	javacpp ${JAVAC} com/donhatchsw/compat/ArrayList.prejava
@@ -43,6 +43,9 @@ com/donhatchsw/compat/ArrayList.class: com/donhatchsw/compat/ArrayList.prejava
 com/donhatchsw/compat/IntArrayList.class: com/donhatchsw/compat/IntArrayList.prejava
 	javacpp ${JAVAC} com/donhatchsw/compat/IntArrayList.prejava
 	javarenumber -v 0 com/donhatchsw/compat/IntArrayList*.class
+com/donhatchsw/compat/DoubleArrayList.class: com/donhatchsw/compat/DoubleArrayList.prejava
+	javacpp ${JAVAC} com/donhatchsw/compat/DoubleArrayList.prejava
+	javarenumber -v 0 com/donhatchsw/compat/DoubleArrayList*.class
 
 com/donhatchsw/util/MyMath.class: com/donhatchsw/util/MyMath.prejava
 	javacpp ${JAVAC} com/donhatchsw/util/MyMath.prejava
@@ -199,7 +202,7 @@ com/donhatchsw/mc4d/MC4DApplet.class: com/donhatchsw/mc4d/MC4DApplet.java
 
 
 
-donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/compat/ArrayList.class com/donhatchsw/compat/IntArrayList.class com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/Listenable.class com/donhatchsw/util/Arrows.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/awt/OldMyPanel.class com/donhatchsw/awt/OldRow.class com/donhatchsw/awt/OldCol.class com/donhatchsw/awt/OldMyPanelExample.class com/donhatchsw/awt/MyGraphics.class com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class com/donhatchsw/awt/TableLayout.class com/donhatchsw/awt/RowLayout.class com/donhatchsw/awt/ColLayout.class com/donhatchsw/awt/TablePanel.class com/donhatchsw/awt/NewRow.class com/donhatchsw/awt/NewCol.class com/donhatchsw/awt/LayoutExample.class com/donhatchsw/awt/MainWindowCount.class com/donhatchsw/util/SmoothlyVaryingViewingParameter.class com/donhatchsw/util/UndoTreeSquirrel.class com/donhatchsw/util/UndoTreeViewer.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/GenericPuzzleFactory.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DControlPanel.class com/donhatchsw/mc4d/MC4DApplet.class
+donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/compat/ArrayList.class com/donhatchsw/compat/IntArrayList.class com/donhatchsw/compat/DoubleArrayList.class com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/Listenable.class com/donhatchsw/util/Arrows.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/awt/OldMyPanel.class com/donhatchsw/awt/OldRow.class com/donhatchsw/awt/OldCol.class com/donhatchsw/awt/OldMyPanelExample.class com/donhatchsw/awt/MyGraphics.class com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class com/donhatchsw/awt/TableLayout.class com/donhatchsw/awt/RowLayout.class com/donhatchsw/awt/ColLayout.class com/donhatchsw/awt/TablePanel.class com/donhatchsw/awt/NewRow.class com/donhatchsw/awt/NewCol.class com/donhatchsw/awt/LayoutExample.class com/donhatchsw/awt/MainWindowCount.class com/donhatchsw/util/SmoothlyVaryingViewingParameter.class com/donhatchsw/util/UndoTreeSquirrel.class com/donhatchsw/util/UndoTreeViewer.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/GenericPuzzleFactory.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DControlPanel.class com/donhatchsw/mc4d/MC4DApplet.class
 	/bin/rm -rf scratch
 	mkdir scratch
 	cp -a Makefile RCS com scratch
