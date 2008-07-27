@@ -1,0 +1,261 @@
+package com.donhatchsw.util;
+#include "macros.h"
+/**
+* http://en.wikipedia.org/wiki/Binary_heap
+*/
+class IndexBinaryHeap
+{
+    private double values[];        // index to value
+    private int heap[];             // heap index to index
+    private int indexToHeapIndex[]; // index to heap index
+    private int size;               // size of heap
+
+    public IndexBinaryHeap(int max)
+    {
+        values = VecMath.fillvec(max, Double.NaN);
+        heap = VecMath.fillvec(max, -1);
+        indexToHeapIndex = VecMath.fillvec(max, -1);
+        size = 0;
+    }
+    public void add(int index, double val)
+    {
+        assert(Double.isNaN(values[index]));
+        assert(indexToHeapIndex[index] == -1);
+        values[index] = val;
+        indexToHeapIndex[index] = size;
+        heap[size] = index;
+        size++;
+
+        if (false)
+        {
+            System.out.println("in add before adjust:");
+            print();
+        }
+
+        adjust(index, val);
+
+        if (false)
+        {
+            System.out.println("in add after adjust:");
+            print();
+        }
+    }
+    public void remove(int index)
+    {
+        assert(size >= 1);
+        assert(!Double.isNaN(values[index]));
+        int heapIndex = indexToHeapIndex[index];
+        assert(heapIndex != -1);
+
+        values[index] = Double.NaN;
+        indexToHeapIndex[index] = -1;
+        size--;
+
+        if (heapIndex != size)
+        {
+            // Move the last heap item into the vacated position
+            int indexBeingMoved = heap[size];
+            heap[size] = -1;
+            heap[heapIndex] = indexBeingMoved;
+            indexToHeapIndex[indexBeingMoved] = heapIndex;
+
+            if (false)
+            {
+                System.out.println("in remove before adjust:");
+                print();
+            }
+            adjust(indexBeingMoved, values[indexBeingMoved]);
+            if (false)
+            {
+                System.out.println("in remove after adjust:");
+                print();
+            }
+        }
+        else
+        {
+            heap[size] = -1;
+        }
+    }
+    public int min()
+    {
+        assert(size >= 1);
+        return heap[0];
+    }
+    public int extractMin()
+    {
+        int ret = min();
+        remove(ret);
+        return ret;
+    }
+    public boolean isEmpty()
+    {
+        return size == 0;
+    }
+    public void adjust(int index, double val)
+    {
+        //System.out.println("in adjust(index="+index+", val="+val+")");
+        int heapIndex = indexToHeapIndex[index];
+        assert(heapIndex != -1);
+
+        #define HEAP_PARENT(i) (((i)-1)>>1)
+        #define HEAP_CHILD0(i) (((i)<<1)+1)
+        #define HEAP_CHILD1(i) (((i)<<1)+2)
+
+        int heapIndexParent;
+        if (heapIndex > 0
+         && val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]])
+        {
+            // trickle up
+            //System.out.println("TRICKLING UP");
+            do
+            {
+                // swap heapIndex with heapIndexParent,
+                // but don't bother to fill it in at the parent,
+                // and ascend
+                int indexParent = heap[heapIndexParent];
+                heap[heapIndex] = indexParent;
+                indexToHeapIndex[indexParent] = heapIndex;
+                heapIndex = heapIndexParent;
+                // index stays the same
+            } while (heapIndex > 0
+                  && val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]);
+        }
+        else
+        {
+            // trickle down
+            //System.out.println("TRICKLING DOWN");
+            while (true)
+            {
+                int heapIndexChild0 = HEAP_CHILD0(heapIndex);
+                if (heapIndexChild0 >= size)
+                    break; // at leaf of tree; done
+
+                int heapIndexChild1 = HEAP_CHILD1(heapIndex);
+                int heapIndexChild = (heapIndexChild1 < size
+                                   && values[heap[heapIndexChild1]] < values[heap[heapIndexChild0]] ? heapIndexChild1 : heapIndexChild0);
+                if (val > values[heap[heapIndexChild]])
+                {
+                    // swap with smaller of children,
+                    // but don't bother to fill it in at the child,
+                    // and descend
+                    int indexChild = heap[heapIndexChild];
+                    heap[heapIndex] = indexChild;
+                    indexToHeapIndex[indexChild] = heapIndex;
+                    heapIndex = heapIndexChild;
+                    // index stays the same
+                }
+                else
+                    break; // happy with children; done
+            }
+        }
+        heap[heapIndex] = index;
+        indexToHeapIndex[index] = heapIndex;
+        values[index] = val;
+        //System.out.println("out adjust");
+    } // adjust
+
+
+    public void print()
+    {
+        System.out.println("-----");
+        PRINT(size);
+        PRINTARRAY(heap);
+        PRINTARRAY(indexToHeapIndex);
+        PRINTARRAY(values);
+        System.out.println("-----");
+    }
+    public void sanityCheck()
+    {
+        if (false)
+        {
+            System.out.println("in sanityCheck");
+            print();
+        }
+
+        int max = values.length;
+        assert(max == heap.length);
+        assert(max == indexToHeapIndex.length);
+        assert(INRANGE(0 <=, size, <= max));
+
+        int nValid = 0;
+        int nInvalid = 0;
+        FORI (i, max)
+        {
+            if (indexToHeapIndex[i] != -1)
+            {
+                assert(!Double.isNaN(values[i]));
+                assert(INRANGE(0 <=, indexToHeapIndex[i], < size));
+                assert(heap[indexToHeapIndex[i]] == i);
+                nValid++;
+            }
+            else
+            {
+                assert(Double.isNaN(values[i]));
+                nInvalid++;
+            }
+        }
+        assert(nValid == size);
+        assert(nValid+nInvalid == max);
+
+        FORI (i, size)
+        {
+            assert(INRANGE(0 <=, heap[i], < max));
+            assert(indexToHeapIndex[heap[i]] == i);
+        }
+        for (int i = size; i < max; ++i)
+        {
+            assert(heap[i] == -1);
+        }
+
+        for (int i = 1; i < size; ++i) // all but [0]
+        {
+            assert(values[heap[HEAP_PARENT(i)]] <= values[heap[i]]);
+        }
+    } // sanityCheck
+
+    private static int[] heapSortWithSanityChecks(double vals[])
+    {
+        int sortedInds[] = new int[vals.length];
+        IndexBinaryHeap heap = new IndexBinaryHeap(vals.length);
+        heap.sanityCheck();
+        FORI (i, vals.length)
+        {
+            heap.add(i, vals[i]);
+            heap.sanityCheck();
+        }
+        FORI (i, sortedInds.length)
+        {
+            assert(!heap.isEmpty());
+            sortedInds[i] = heap.extractMin();
+            heap.sanityCheck();
+        }
+        assert(heap.isEmpty());
+        return sortedInds;
+    }
+
+    public static void main(String args[])
+    {
+        System.out.println("in IndexBinaryHeap.main");
+        int nMaxes = 15;
+        int nSortsPerMax = 15;
+        java.util.Random rng = new java.util.Random(0);
+        FORI (max, nMaxes)
+        {
+            FORI (iSort, nSortsPerMax)
+            {
+                double vals[] = VecMath.random(max, rng);
+                PRINTARRAY(vals);
+                int sortedInds[] = heapSortWithSanityChecks(vals);
+                PRINTARRAY(sortedInds);
+                System.out.println("============");
+                assert(sortedInds.length == max);
+                FORI (i, max-1)
+                    assert(vals[sortedInds[i]] <= vals[sortedInds[i+1]]);
+                assert(VecMath.sum(sortedInds) == max*(max-1)/2); // if this is right then we probably got all the indices
+            }
+        }
+        System.out.println("ALL GOOD!");
+        System.out.println("out IndexBinaryHeap.main");
+    }
+} // class IndexBinaryHeap
+
