@@ -1132,6 +1132,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** sum of elements */
+    public static int sum(int v[])
+    {
+        int sum = 0;
+        FORIDOWN (i, v.length)
+            sum += v[i];
+        return sum;
+    }
+    /** sum of elements */
     public static double sum(double v[])
     {
         double sum = 0.;
