@@ -1,0 +1,315 @@
+#include "macros.h"
+package com.donhatchsw.util;
+/**
+* http://www.cse.unsw.edu.au/~lambert/java/3d/quickhull.html
+*/
+import com.donhatchsw.compat.ArrayList;
+import com.donhatchsw.compat.IntArrayList;
+import com.donhatchsw.compat.DoubleArrayList;
+
+public class QuickHull
+{
+    private QuickHull() {} // uninstantiatable
+
+    // Little private utilities...
+
+        private static double calcParallelotopeContentSquared(
+                                    double verts[][/*d*/],
+                                    int points[/*1<= <=d+1*/],
+                                    int nPoints)
+        {
+            // Could make caller do these memory allocations,
+            // but this isn't really called enough for it to matter
+            double M[][] = new double[nPoints-1][];
+            FORI (iRow, M.length)
+                M[iRow] = VecMath.vmv(verts[points[iRow+1]],
+                                      verts[points[0]]);
+            return VecMath.det(VecMath.mxm(M,
+                                           VecMath.transpose(M)));
+
+        } // calcParallelotopeContentSquared
+        private static double calcParallelotopeContent(
+                                    double verts[][/*d*/],
+                                    int points[/*d+1*/])
+        {
+            // Should maybe make caller do this
+            double M[][] = new double[points.length-1][];
+            FORI (iRow, M.length)
+                M[iRow] = VecMath.vmv(verts[points[iRow+1]],
+                                      verts[points[0]]);
+            return VecMath.det(M);
+        }
+        private static void fastRemove(ArrayList arrayList, int index)
+        {
+            int n = arrayList.size();
+            arrayList.set(index, arrayList.get(n-1));
+            arrayList.remove(n-1);
+        }
+        private static void fastRemove(DoubleArrayList arrayList, int index)
+        {
+            int n = arrayList.size();
+            arrayList.set(index, arrayList.get(n-1));
+            arrayList.removeIndex(n-1);
+        }
+
+        private static class IntArrayHashKey
+        {
+            private int item[];
+            IntArrayHashKey(int item[])
+            {
+                this.item = item;
+            }
+            public int hashCode()
+            {
+                int hash = 47;
+                for (int i = 0; i < item.length; ++i)
+                    hash = hash*31 + item[i];
+                return hash;
+            }
+        } // class IntArrayHashKey
+
+    /**
+    * Computes the convex hull in d dimensions,
+    * using the QuickHull algorithm
+    * (i.e. the incremental algorithm, but always
+    * choosing the next point farthest from the current hull).
+    * Returns a list of (d-1)-dimensional simplices.
+    */
+    public static int[][/*d*/] convexHull(double verts[][/*d*/],
+                                          double eps)
+    {
+        int nVerts = verts.length;
+        if (nVerts == 0)
+            return new int[0][];
+        int d = verts[0].length;
+        if (nVerts < d)
+            return new int[0][]; // not enough vertices to make a facet out of
+        if (nVerts == d)
+            return new int[/*1*/][/*d*/] {VecMath.identityperm(d)};
+
+        assert(nVerts >= d);
+
+        if (d == 0)
+            return new int[0][]; // not sure what the hell's going on here
+        if (d == 1)
+        {
+            // In this case expressing the sidedness of a facet
+            // is problematic.  So just do it the trivial way,
+            // returning the lowest and highest vertex.
+            int answer[][] = new int[2][1];
+            answer[0][0] = answer[1][0] = 0;
+            for (int iVert = 1; iVert < nVerts; ++iVert) // skip 0
+            {
+                if (verts[iVert][0] < verts[answer[0][0]][0]) // < so prefer first index
+                    answer[0][0] = iVert;
+                if (verts[iVert][0] >= verts[answer[1][0]][0]) // >= so prefer last index
+                    answer[1][0] = iVert;
+            }
+            return answer;
+        }
+
+        assert(d >= 2);
+
+        // Start with any non-degenerate (d-1)-dimensional simplex
+        // (if there is any)
+        int firstHullFacet[] = VecMath.fillvec(d, -1);
+        double biggestContentSquared = -1.;
+        FORI (i, d)
+        {
+            if (i == 0)
+            {
+                firstHullFacet[i] = 0;
+                biggestContentSquared = 1.;
+            }
+            else
+            {
+                int bestVert = -1;
+                FORI (iVert, nVerts)
+                {
+                    if (Arrays.indexOf(firstHullFacet, i, iVert) != -1)
+                        continue; // this vertex is already on the facet
+                    firstHullFacet[i] = iVert; // speculatively
+                    double thisContentSquared = calcParallelotopeContentSquared(verts,
+                                                                                firstHullFacet,
+                                                                                iVert+1);
+                    if (thisContentSquared > biggestContentSquared)
+                    {
+                        biggestContentSquared = thisContentSquared;
+                        bestVert = iVert;
+                    }
+                }
+                assert(bestVert != -1);
+                firstHullFacet[i] = bestVert;
+            }
+        }
+        double firstFacetUnsignedArea = Math.sqrt(biggestContentSquared);
+        if (firstFacetUnsignedArea <= Math.pow(eps, d-1))
+            return null; // XXX throw?
+
+        // Second hull facet is opposite of first
+        int secondHullFacet[] = VecMath.copyvec(firstHullFacet);
+        Arrays.swap(secondHullFacet, 0, secondHullFacet, 1);
+
+        IndexBinaryHeap queue = new IndexBinaryHeap(nVerts);
+
+        IntArrayList vertsAboveOrOnFirstHullFacetPlane = new IntArrayList();
+        IntArrayList vertsBelowFirstHullFacetPlane = new IntArrayList();
+
+        double distanceFromHull[] = new double[nVerts];
+
+        int scratchSimplex[] = new int[d+1];
+        Arrays.copy(scratchSimplex, firstHullFacet, d);
+        FORI (iVert, nVerts)
+        {
+            if (Arrays.indexOf(firstHullFacet, iVert) != -1)
+                continue; // this vertex is already part of the hull
+            scratchSimplex[d] = iVert;
+            double content = calcParallelotopeContent(verts, scratchSimplex);
+            if (content >= 0.)
+            {
+                vertsAboveOrOnFirstHullFacetPlane.add(iVert);
+            }
+            else
+            {
+                vertsBelowFirstHullFacetPlane.add(iVert);
+                content = -content;
+            }
+            double height = content / firstFacetUnsignedArea;
+            queue.add(iVert, -height); // reverse sense so we can extract max height item as min item
+        }
+
+
+        ArrayList/*<int[][d]>*/ hullFacets = new ArrayList();
+        DoubleArrayList hullFacetUnsignedArea = new DoubleArrayList(); // XXX NO! should be array of facet normals!  Maybe unit normals
+        ArrayList/*<ArrayList<int>>*/ hullFacetToHoveringVerts = new ArrayList();
+
+        hullFacets.add(firstHullFacet);
+        hullFacets.add(secondHullFacet);
+        hullFacetUnsignedArea.add(firstFacetUnsignedArea);
+        hullFacetUnsignedArea.add(firstFacetUnsignedArea);
+        hullFacetToHoveringVerts.add(vertsAboveOrOnFirstHullFacetPlane);
+        hullFacetToHoveringVerts.add(vertsBelowFirstHullFacetPlane);
+
+
+        IntArrayList visibleFacets = new IntArrayList(); // scratch, logically local to loop body below
+        java.util.Hashtable visibleBoundary = new java.util.Hashtable(); // scratch, logically local to loop body below
+        int scratchRidge[] = new int[d-1];
+        IntArrayHashKey scratchRidgeHashKey = new IntArrayHashKey(scratchRidge);
+        while (!queue.isEmpty())
+        {
+            int iVert = queue.extractMin();
+            int nFacetsBefore = hullFacets.size();
+            visibleFacets.clear();
+            FORI (iFacet, nFacetsBefore)
+            {
+                int facet[] = (int[])hullFacets.get(iFacet);
+                double facetUnsignedArea = hullFacetUnsignedArea.get(iFacet);
+                Arrays.copy(scratchSimplex, facet, d);
+                scratchSimplex[d] = iVert;
+                double content = calcParallelotopeContent(verts,
+                                                          scratchSimplex);
+                double height = content / facetUnsignedArea;
+                if (height >= -eps) // if facet is visible or borderline visible from vertex
+                {
+                    visibleFacets.add(iFacet);
+                    FORI (iRidgeThisFacet, d)
+                    {
+                        // Look at the ridge formed by omitting
+                        // the iRidgeThisFacet'th vertex from the facet
+                        FORI (i, d-1)
+                            scratchRidge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
+                        // sort into canonical order
+                        SortStuff.sort(scratchRidge);
+
+                        if (visibleBoundary.remove(scratchRidgeHashKey) == null)
+                        {
+                            int ridge[] = VecMath.copyvec(scratchRidge);
+                            IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
+                            int newFacetMaybe[] = VecMath.copyvec(facet);
+                            newFacetMaybe[iRidgeThisFacet] = iVert;
+                            visibleBoundary.put(ridgeKey, newFacetMaybe);
+                        }
+                    }
+                }
+            }
+
+            int nVisibleFacets = visibleFacets.size();
+            assert(nVisibleFacets >= 1); // the facet that iVert was hovering over, at least
+
+            // For each ridge on the visible boundary...
+            for (java.util.Enumeration e = visibleBoundary.keys();
+                 e.hasMoreElements();)
+            {
+                IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
+                int newFacet[] = (int[])visibleBoundary.get(ridgeKey);
+                hullFacets.add(newFacet);
+                hullFacetUnsignedArea.add(Math.sqrt(calcParallelotopeContentSquared(verts,
+                                                                                    newFacet,
+                                                                                    d)));
+                hullFacetToHoveringVerts.add(new IntArrayList());
+            }
+
+            int nFacetsAfter = hullFacets.size();
+            assert(nFacetsAfter > nFacetsBefore); // we didn't delete any yet
+
+            // Transfer the hovering vertices
+            // from the visible facets (which are about to be deleted)
+            // to the facets that just got created
+            FORI (iVisibleFacet, nVisibleFacets)
+            {
+                int iFacet = visibleFacets.get(iVisibleFacet);
+                // For each vertex that was hovering over this visible facet...
+                IntArrayList hoverers = (IntArrayList)hullFacetToHoveringVerts.get(iFacet);
+                int nHoverers = hoverers.size();
+                FORI (iHoverer, nHoverers)
+                {
+                    int jVert = hoverers.get(iHoverer);
+
+                    int theNewFacetIndex = -1;
+                    double highestHeight = Double.NEGATIVE_INFINITY;
+                    for (int iNewFacet = nFacetsBefore; iNewFacet < nFacetsAfter; ++iNewFacet)
+                    {
+                        double content = calcParallelotopeContent(verts,
+                                                                  (int[])hullFacets.get(iNewFacet));
+                        double height = content / hullFacetUnsignedArea.get(iNewFacet);
+                        if (height > highestHeight
+                         && height >= -eps)
+                        {
+                            highestHeight = height;
+                            theNewFacetIndex = iNewFacet;
+                        }
+                    }
+                    if (theNewFacetIndex != -1)
+                    {
+                        ((IntArrayList)hullFacetToHoveringVerts.get(theNewFacetIndex)).add(jVert);
+                        queue.adjust(jVert, -highestHeight);
+                    }
+                    else
+                    {
+                        // Nothing was >= -eps.
+                        // So jVert is inside the hull, so it should
+                        // be ignored.
+                        queue.remove(jVert);
+                    }
+                }
+            }
+
+            // Remove the visible facets from the hull
+            FORI (iVisibleFacet, nVisibleFacets)
+            {
+                int iFacet = visibleFacets.get(iVisibleFacet);
+                fastRemove(hullFacets, iFacet);
+                fastRemove(hullFacetUnsignedArea, iFacet);
+                fastRemove(hullFacetToHoveringVerts, iFacet);
+            }
+        } // while queue not empty
+
+        int hullFacetsArray[][] = new int[hullFacets.size()][];
+        hullFacets.toArray(hullFacetsArray);
+        return hullFacetsArray;
+    } // convexHull
+
+
+} // class QuickHull
+
+
