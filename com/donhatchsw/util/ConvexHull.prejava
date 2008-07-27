@@ -189,16 +189,11 @@ public class QuickHull
                         // the iRidgeThisFacet'th vertex from the facet
                         FORI (i, d-1)
                             scratchRidge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
-                        //canonicalizeOrderWithoutChangingSign(scratchRidge); // XXX GET RID if wrong
-                        SortStuff.sort(scratchRidge);
+                        SortStuff.sort(scratchRidge); // canonical order
 
                         if (visibleBoundary.remove(scratchRidgeHashKey) == null)
                         {
                             int ridge[] = VecMath.copyvec(scratchRidge);
-#if 0
-                            if (ridge.length >= 2)
-                                Arrays.swap(ridge,0, ridge,ridge.length-1); // to match neighbor who will look for it with opposite sign
-#endif
                             IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
                             int newFacetMaybe[] = VecMath.copyvec(facet);
                             newFacetMaybe[iRidgeThisFacet] = iVert;
@@ -377,23 +372,6 @@ public class QuickHull
             }
         } // class IntArrayHashKey
 
-        private static void canonicalizeOrderWithoutChangingSign(int array[])
-        {
-            // Brain dead sort, counting swaps.
-            // This is O(n^2) but it's assumed n is small.
-            int nSwaps = 0;
-            FORI (i, array.length-1)
-                FORI (j, array.length-1-i)
-                    if (array[j] > array[j+1])
-                    {
-                        Arrays.swap(array,i, array,i+1);
-                        nSwaps++;
-                    }
-            // If sign changed, swap first and last to get it right again.
-            if (nSwaps % 2 != 0)
-                Arrays.swap(array,0, array,array.length-1);
-        } // canonicalizeOrderWithoutChangingSign
-
         // XXX won't be needed when Arrays.toStringCompact gets smarter
         static String intArrayArrayListToStringCompact(ArrayList arrayList)
         {
@@ -466,18 +444,13 @@ public class QuickHull
                                         int ridge[] = new int[d-1];
                                         FORI (i, d-1)
                                             ridge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
-                                        //canonicalizeOrderWithoutChangingSign(ridge);
-                                        SortStuff.sort(ridge);
+                                        SortStuff.sort(ridge); // canonical order
                                         IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
                                         //PRINTARRAY(ridge);
                                         //PRINT(boundary.size());
                                         //PRINT(boundary.contains(ridgeKey));
                                         if (!boundary.remove(ridgeKey))
                                         {
-#if 0
-                                            if (ridge.length >= 2)
-                                                Arrays.swap(ridge,0, ridge,ridge.length-1); // to match neighbor who will look for it with opposite sign
-#endif
                                             boundary.add(ridgeKey);
                                             //System.out.println("added ridge "+Arrays.toStringCompact(ridge)+" to boundary");
                                         }
@@ -487,7 +460,7 @@ public class QuickHull
                                         }
                                         //PRINT(boundary.size());
                                     }
-                                    PRINT(boundary.size());
+                                    //PRINT(boundary.size());
                                     if (iFacet+1 < hull.length)
                                         assert(boundary.size() > 0);
                                 }
