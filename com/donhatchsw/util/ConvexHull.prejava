@@ -21,7 +21,7 @@ public class QuickHull
     public static int[][/*d*/] convexHull(double verts[][/*d*/],
                                           double eps)
     {
-        int debugLevel = 3; // 0: nothing, 1: function in/out, 2: phases, 3: detail
+        int debugLevel = 0; // 0: nothing, 1: function in/out, 2: phases, 3: detail
         if (debugLevel >= 1)
         {
             System.out.println("    in convexHull");
@@ -93,7 +93,8 @@ public class QuickHull
                 assert(bestVert != -1);
                 firstHullFacet[i] = bestVert;
             }
-            System.out.println("            "+firstHullFacet[i]);
+            if (debugLevel >= 3)
+                System.out.println("            "+firstHullFacet[i]);
         }
         double firstFacetUnsignedArea = Math.sqrt(biggestContentSquared);
         if (firstFacetUnsignedArea <= Math.pow(eps, d-1))
@@ -127,13 +128,15 @@ public class QuickHull
             if (content >= 0.)
             {
                 vertsAboveOrOnFirstHullFacetPlane.add(iVert);
-                System.out.println("            vertex "+iVert+" is hovering at height "+(content / firstFacetUnsignedArea)+" over facet "+Arrays.toStringCompact(firstHullFacet));
+                if (debugLevel >= 3)
+                    System.out.println("            vertex "+iVert+" is hovering at height "+(content / firstFacetUnsignedArea)+" over facet "+Arrays.toStringCompact(firstHullFacet));
             }
             else
             {
                 content = -content;
                 vertsBelowFirstHullFacetPlane.add(iVert);
-                System.out.println("            vertex "+iVert+" is hovering at height "+(content / firstFacetUnsignedArea)+" over facet "+Arrays.toStringCompact(secondHullFacet));
+                if (debugLevel >= 3)
+                    System.out.println("            vertex "+iVert+" is hovering at height "+(content / firstFacetUnsignedArea)+" over facet "+Arrays.toStringCompact(secondHullFacet));
             }
             double height = content / firstFacetUnsignedArea;
             queue.add(iVert, -height); // reverse sense so we can extract max height item as min item
@@ -270,7 +273,8 @@ public class QuickHull
                     }
                     if (theNewFacetIndex != -1)
                     {
-                        System.out.println("        transfering vertex "+jVert+" from facet "+Arrays.toStringCompact((int[])hullFacets.get(iVisibleFacet))+" to hovering at height "+highestHeight+" above facet "+Arrays.toStringCompact((int[])hullFacets.get(theNewFacetIndex))+"");
+                        if (debugLevel >= 3)
+                            System.out.println("        transfering vertex "+jVert+" from facet "+Arrays.toStringCompact((int[])hullFacets.get(iVisibleFacet))+" to hovering at height "+highestHeight+" above facet "+Arrays.toStringCompact((int[])hullFacets.get(theNewFacetIndex))+"");
                         ((IntArrayList)hullFacetToHoveringVerts.get(theNewFacetIndex)).add(jVert);
                         queue.adjust(jVert, -highestHeight);
                     }
@@ -279,7 +283,8 @@ public class QuickHull
                         // Nothing was >= -eps.
                         // So jVert is inside the hull, so it should
                         // be ignored.
-                        System.out.println("        transfering vertex "+jVert+" from facet "+Arrays.toStringCompact((int[])hullFacets.get(iVisibleFacet))+" to the void because it's inside the hull");
+                        if (debugLevel >= 3)
+                            System.out.println("        transfering vertex "+jVert+" from facet "+Arrays.toStringCompact((int[])hullFacets.get(iVisibleFacet))+" to the void because it's inside the hull");
                         queue.remove(jVert);
                     }
                 }
@@ -388,9 +393,9 @@ public class QuickHull
     {
         java.util.Random rng = new java.util.Random(0);
 
-        int minDim = 1;
+        int minDim = 0;
         int maxDim = 5;
-        int minVerts = 4;
+        int minVerts = 0;
         int maxVerts = 20;
         int nTestsPerSize = 10;
         for (int d = minDim; d <= maxDim; ++d)
