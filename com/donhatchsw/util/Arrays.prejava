@@ -852,29 +852,38 @@ public final class Arrays
     } // singleton
 
 
+    public static int indexOf(int n, boolean Array[], boolean item)
+    {
+        FORI (i, n)
+            if (Array[i] == item)
+                return i;
+        return -1;
+    }
     public static int indexOf(boolean Array[], boolean item)
     {
-        int i, n = Array.length;
-        FOR (i, n)
+        return indexOf(Array.length, Array, item);
+    }
+    public static int indexOf(int n, int Array[], int item)
+    {
+        FORI (i, n)
             if (Array[i] == item)
                 return i;
         return -1;
     }
     public static int indexOf(int Array[], int item)
     {
-        int i, n = Array.length;
-        FOR (i, n)
+        return indexOf(Array.length, Array, item);
+    }
+    public static int indexOfUsingEqualsSymbol(int n, Object Array[], Object item)
+    {
+        FORI (i, n)
             if (Array[i] == item)
                 return i;
         return -1;
     }
     public static int indexOfUsingEqualsSymbol(Object Array[], Object item)
     {
-        int i, n = Array.length;
-        FOR (i, n)
-            if (Array[i] == item)
-                return i;
-        return -1;
+        return indexOfUsingEqualsSymbol(Array.length, Array, item);
     }
 
     /**
