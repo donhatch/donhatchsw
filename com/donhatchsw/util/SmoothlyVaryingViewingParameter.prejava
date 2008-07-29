@@ -10444,7 +10444,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         final int eventVerbose = 0; // set to something else to debug
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
-            private class Model
+            class Model
             {
 
                 public static final int PICK_A0 = 0;
@@ -10515,7 +10515,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     return bestI;
                 } // pickClosestThing
             }
-            private class View
+            class View
             {
                 // Really viewing params...
                 boolean showAccelerationLines = false;
@@ -10524,7 +10524,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 double intensityMultiplier = 0.;
                 double scale = .24;
             }
-            private class Controller
+            class Controller
             {
                 private double prevPoint[] = null;
                 private int indexOfThingBeingDragged = -1;
