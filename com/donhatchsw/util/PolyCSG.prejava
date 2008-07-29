@@ -44,10 +44,10 @@ package com.donhatchsw.util;
 /**
 *  The functions here simply provide a way
 *  of translating back and forth
-*  between a Poly (an easy-to-create-and-understand representation)
-*  and a CSG.Polytope
+*  between a {@link Poly} (an easy-to-create-and-understand representation)
+*  and a {@link CSG.Polytope}
 *  (on which boolean operations can be done using the static functions
-*  in the CSG utility class).
+*  in the {@link CSG} utility class).
 */
 public final class PolyCSG
 {

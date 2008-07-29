@@ -82,11 +82,16 @@ import com.donhatchsw.compat.regex;
 *  on polytopes (i.e polygons or polyhedra or ...).
 *  <p>
 *  The objects that the boolean operators operate on
-*  are CSG.Polytope and CSG.SPolytope (signed polytope).
+*  are {@link CSG.Polytope} and {@link CSG.SPolytope} (signed polytope).
 *  The simplest way to create a CSG.Polytope
-*  is probably by using the PolyCSG class.
-*  Some primitive CSG.SPolytopes can also be made using makePolygon(),
-*  makeSimplex(), and makeHypercube().
+*  is probably by using the {@link PolyCSG} class.
+*  Some primitive CSG.SPolytopes can also be made using
+*  {@link #makePolygon makePolygon}(),
+*  {@link #makeSimplex makeSimplex}(),
+*  and {@link #makeHypercube makeHypercube}().
+*  You can also create any (star) regular or wythoff polytope,
+*  or a product of them, from a string,
+*  using {@link #makeRegularStarPolytopeProductFromString makeRegularStarPolytopeProductFromString}().
 *  <p>
 *  Caveats: not at all robust about coincident or coplanar elements;
 *  really only works reliably if everything is in general position.
@@ -2129,7 +2134,7 @@ public final class CSG
         *       (1)-5-(0)-3-(0)-3-(0)    (dashes are optional, you can insert them for readability)
         *       (1)-5-(0)--(0)--(0)      (3's in the schlafli symbol may be omitted)
         *       (1)5(0)(0)(0)
-        *       5,,                     (since the 3's may be omitted)
+        *       5,,                      (since the 3's may be omitted)
         * </pre>
         * You can put different things inside the parens to get
         * different wythoff variants.  Just don't make them all zero.
