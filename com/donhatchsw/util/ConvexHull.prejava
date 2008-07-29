@@ -7,9 +7,9 @@ import com.donhatchsw.compat.ArrayList;
 import com.donhatchsw.compat.IntArrayList;
 import com.donhatchsw.compat.DoubleArrayList;
 
-public class QuickHull
+public class ConvexHull
 {
-    private QuickHull() {} // uninstantiatable
+    private ConvexHull() {} // uninstantiatable
 
     /**
     * Computes the convex hull in d dimensions,
@@ -17,6 +17,12 @@ public class QuickHull
     * (i.e. the incremental algorithm, but always
     * choosing the next point farthest from the current hull).
     * Returns a list of (d-1)-dimensional simplices.
+    * <p>
+    * WARNING: this hasn't had much testing yet
+    * <p>
+    * WARNING: the search for visible faces isn't smart so the whole thing is O(n^2)
+    * <p>
+    * WARNING: no attempt is made to correct topological faults yet
     */
     public static int[][/*d*/] convexHull(double verts[][/*d*/],
                                           double eps)
@@ -78,7 +84,7 @@ public class QuickHull
                 biggestContentSquared = -1.;
                 FORI (iVert, nVerts)
                 {
-                    if (Arrays.indexOf(firstHullFacet, i, iVert) != -1)
+                    if (Arrays.indexOf(i, firstHullFacet, iVert) != -1)
                         continue; // this vertex is already on the facet
                     firstHullFacet[i] = iVert; // speculatively
                     double thisContentSquared = calcParallelotopeContentSquared(verts,
@@ -408,12 +414,15 @@ public class QuickHull
                     System.out.println("    Testing d="+d+" nVerts="+nVerts+" iTest="+iTest+"/"+nTestsPerSize+"");
                     double verts[][] = new double[nVerts][];
                     if (iTest == 0)
+                    {
+                        double invScale = Math.pow(nVerts, d); // if nVerts is 0 we'll never use it
                         FORI (iVert, nVerts)
                         {
                             verts[iVert] = new double[d];
                             FORI (i, d)
-                                verts[iVert][i] = Math.pow(iVert, i+1);
+                                verts[iVert][i] = Math.pow(iVert, i+1)/invScale;
                         }
+                    }
                     else
                         FORI (iVert, nVerts)
                             verts[iVert] = VecMath.random(d, rng);
@@ -472,9 +481,54 @@ public class QuickHull
                                 assert(boundary.size() == 0);
                             }
 
+                            // XXX need check that it's in right order
+
                             //
                             // Make sure it bounds the hull
                             //
+                            {
+                                double vertsCenter[] = VecMath.average(verts);
+
+                                double facetVerts[][] = new double[d][];
+                                double facetPlaneVecs[][] = new double[MAX(d-1,0)][d];
+                                double facetNormal[] = new double[d];
+                                double facetCenter[] = new double[d];
+                                double facetCenterToVert[] = new double[d];
+
+                                int sign = 0;
+
+                                FORI (iFacet, hull.length)
+                                {
+                                    FORI (i, d)
+                                        facetVerts[i] = verts[hull[iFacet][i]];
+                                    FORI (i, d-1)
+                                        VecMath.vmv(facetPlaneVecs[i], facetVerts[i+1], facetVerts[0]);
+                                    VecMath.crossprod(facetNormal, facetPlaneVecs);
+                                    // special case for d==1 --
+                                    // in this case cross product always
+                                    // returns {+1} and so gives no information
+                                    if (d == 1)
+                                        facetNormal[0] = facetVerts[0][0] - vertsCenter[0];
+                                    VecMath.normalize(facetNormal, facetNormal);
+                                    // XXX need to deal with degeneracy here maybe
+                                    double eps = 1e-12;
+                                    assert(EQ(VecMath.normsqrd(facetNormal), 1., 2*eps));
+                                    VecMath.average(facetCenter, facetVerts);
+
+
+                                    FORI (iVert, nVerts)
+                                    {
+                                        double vert[] = verts[iVert];
+                                        VecMath.vmv(facetCenterToVert,
+                                                    vert, facetCenter);
+                                        double foo = VecMath.dot(facetNormal, facetCenterToVert);
+                                        int thisSign = (LT(foo,0,eps) ? -1 : GT(foo,0,eps) ? 1 : 0);
+                                        if (sign == 0)
+                                            sign = thisSign; // might still be 0
+                                        assert(sign * thisSign >= 0);
+                                    }
+                                }
+                            }
                         }
                     }
                     System.out.println("======================");
@@ -483,6 +537,6 @@ public class QuickHull
         }
     } // main
 
-} // class QuickHull
+} // class ConvexHull
 
 
