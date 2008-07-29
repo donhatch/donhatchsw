@@ -53,15 +53,17 @@ public class SortStuff
     {
         sortRange(list, i0, i0+n-1, comparator);
     }
+    private static DoubleComparator defaultDoubleComparator = new DoubleComparator();
     /** Sorts the array of doubles into increasing order. */
     public static void sort(double list[])
     {
-        sort(list, new DoubleComparator());
+        sort(list, defaultDoubleComparator);
     }
+    private static IntComparator defaultIntComparator = new IntComparator();
     /** Sorts the array of ints into increasing order. */
     public static void sort(int list[])
     {
-        sort(list, new IntComparator());
+        sort(list, defaultIntComparator);
     }
     /** Sorts the array of doubles using the given DoubleComparator. */
     public static void sort(double list[], final DoubleComparator comparator)
