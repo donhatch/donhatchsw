@@ -42,6 +42,8 @@
 #define MAX(a,b) ((a)>=(b)?(a):(b))
 #define MIN3(a,b,c) ((a)<=(b)?MIN(a,c):MIN(b,c))
 #define MAX3(a,b,c) ((a)>=(b)?MAX(a,c):MAX(b,c))
+#define MID3(a,b,c) ((a)<=(b)?((b)<=(c)?(b):(a)>=(c)?(a):(c)) \
+                             :((a)<=(c)?(a):(b)>=(c)?(b):(c)))
 #define MIN4(a,b,c,d) ((a)<=(b)?MIN3(a,c,d):MIN3(b,c,d))
 #define MAX4(a,b,c,d) ((a)>=(b)?MAX3(a,c,d):MAX3(b,c,d))
 #define MINI(a,b) ((a)<=(b)?0:1)
@@ -50,6 +52,8 @@
                               :(b)<=(c)?1:2)
 #define MAXI3(a,b,c) ((a)>=(b)?(a)>=(c)?0:2 \
                               :(b)>=(c)?1:2)
+#define MIDI3(a,b,c) ((a)<=(b)?((b)<=(c)?1:(a)>=(c)?0:2) \
+                              :((a)<=(c)?0:(b)>=(c)?1:2))
 #define CLAMP(x,a,b) ((x)<=(a)?(a):(x)>=(b)?(b):(x))
 #define BIT(x,i) (((x)>>(i))&1)
 #define SQR(x) ((x)*(x))
