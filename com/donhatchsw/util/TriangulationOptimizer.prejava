@@ -314,7 +314,7 @@ public class TriangulationOptimizer
     // Private utility stuff begins here...
     // 
         private static class DirectedEdge
-            extends TriangulationOptimizer.Heap.HeapItem
+            extends TriangulationOptimizer.Heap.Item
         {
             public int initialVertex;
             public int finalVertex;
@@ -418,11 +418,11 @@ public class TriangulationOptimizer
         // The scale of this is approximately the fourth power
         // of the scale of the coordinates.
         //
-        static double calcQuadComfort(double a[],
-                                      double b[],
-                                      double c[],
-                                      double d[],
-                                      int xAxis, int yAxis)
+        private static double calcQuadComfort(double a[],
+                                              double b[],
+                                              double c[],
+                                              double d[],
+                                              int xAxis, int yAxis)
         {
             if (false)
             {
@@ -465,9 +465,10 @@ public class TriangulationOptimizer
 
 
 
+        // note, more generally useful public implementation in IndexBinaryHeap
         private static class Heap
         {
-            private static class HeapItem
+            public static class Item
             {
                 private int indexInHeap;
                 private double val;
@@ -475,29 +476,29 @@ public class TriangulationOptimizer
                 {
                     return val;
                 }
-            } // class HeapItem
+            } // class Item
 
-            private HeapItem heap[];
+            private Item heap[];
             private int n; // current number of elements in heap
 
             public Heap(int max)
             {
-                heap = new HeapItem[max];
+                heap = new Item[max];
                 n = 0;
             }
             public void reset(int max)
             {
                 if (max > heap.length)
-                    heap = new HeapItem[max];
+                    heap = new Item[max];
                 n = 0;
             }
 
-            public HeapItem min()
+            public Item min()
             {
                 assert(n > 0);
                 return heap[0];
             }
-            public void add(HeapItem item, double val)
+            public void add(Item item, double val)
             {
                 item.val = val;
                 heap[n] = item;
@@ -507,7 +508,7 @@ public class TriangulationOptimizer
             }
 
 
-            public void adjust(HeapItem item, double val)
+            public void adjust(Item item, double val)
             {
                 item.val = val;
 
