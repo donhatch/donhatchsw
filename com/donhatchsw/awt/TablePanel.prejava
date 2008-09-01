@@ -1,7 +1,7 @@
 package com.donhatchsw.awt;
 
 /**
- * A Panel whose layout manager is a RowLayout,
+ * A Panel whose layout manager is a {@link TableLayout},
  * with an advanceRow() method that calls
  * the layout manager's.
  */
