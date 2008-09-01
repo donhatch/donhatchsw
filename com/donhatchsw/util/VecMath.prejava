@@ -356,6 +356,14 @@ public final class VecMath
         }
     } // mmm
 
+    /** matrix minus matrix, returning newly allocated result */
+    public static double[][] mmm(double M0[][], double M1[][])
+    {
+        double result[][] = new double[M0.length][M0[0].length];
+        mmm(result, M0, M1);
+        return result;
+    }
+
     /** add v to every row of M. */
     public static void vpm(double result[][], double v[], double M[][])
     {
@@ -444,17 +452,28 @@ public final class VecMath
 
 
     /** linear interpolation between vectors */
+    public static void lerp(int n, double result[], double p0[], double p1[], double t)
+    {
+        FORIDOWN (i, n)
+            result[i] = p0[i] + t*(p1[i]-p0[i]);
+    }
+    /** linear interpolation between vectors */
     public static void lerp(double result[], double p0[], double p1[], double t)
     {
-        FORIDOWN (i, p0.length)
+        lerp(p0.length, result, p0, p1, t);
+    }
+    /** linear interpolation between vectors */
+    public static void lerp(int n, float result[], float p0[], float p1[], float t)
+    {
+        FORIDOWN (i, n)
             result[i] = p0[i] + t*(p1[i]-p0[i]);
     }
     /** linear interpolation between vectors */
     public static void lerp(float result[], float p0[], float p1[], float t)
     {
-        FORIDOWN (i, p0.length)
-            result[i] = p0[i] + t*(p1[i]-p0[i]);
+        lerp(p0.length, result, p0, p1, t);
     }
+
     /** barycentric interpolation between vectors */
     public static void bary(double result[],
                             double p0[],
@@ -731,20 +750,30 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** vector dot product */
-    public static double dot(double v0[], double v1[])
+    public static double dot(int n, double v0[], double v1[])
     {
         double result = (double)0;
-        FORIDOWN (i, v0.length)
+        FORIDOWN (i, n)
+            result += v0[i]*v1[i];
+        return result;
+    }
+    /** vector dot product */
+    public static double dot(double v0[], double v1[])
+    {
+        return dot(v0.length, v0, v1);
+    }
+    /** vector dot product */
+    public static float dot(int n, float v0[], float v1[])
+    {
+        float result = (float)0;
+        FORIDOWN (i, n)
             result += v0[i]*v1[i];
         return result;
     }
     /** vector dot product */
     public static float dot(float v0[], float v1[])
     {
-        float result = (float)0;
-        FORIDOWN (i, v0.length)
-            result += v0[i]*v1[i];
-        return result;
+        return dot(v0.length, v0, v1);
     }
 
     // XXX duplicate code below
@@ -1035,10 +1064,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int n = v0.length; // == v1.length
         return distsqrd(n, v0, v1);
     }
+
+    /** vector distance */
+    public static double dist(int n, double v0[], double v1[])
+    {
+        return Math.sqrt(distsqrd(n, v0, v1));
+    }
     /** vector distance */
     public static double dist(double v0[], double v1[])
     {
         return Math.sqrt(distsqrd(v0, v1));
+    }
+    /** vector distance */
+    public static float dist(int n, float v0[], float v1[])
+    {
+        return (float)Math.sqrt(distsqrd(n, v0, v1));
     }
     /** vector distance */
     public static float dist(float v0[], float v1[])
@@ -2629,17 +2669,31 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             normalize(result[i], M[i]);
     }
 
-    /** Normalize a vector. XXX leaves 0 as 0! may be unexpected in some cases */
+    /** Normalize a vector. */
     public static void normalize(double result[], double v[])
     {
         double len = norm(v);
-        vxs(result, v, len==(double)0 ? (double)1 : (double)1/len);
+        if (len == 0)
+        {
+            zerovec(result);
+            if (result.length >= 1)
+                result[0] = (double)1;
+        }
+        else
+            vxs(result, v, (double)1/len);
     }
-    /** Normalize a vector. XXX leaves 0 as 0! may be unexpected in some cases */
+    /** Normalize a vector. */
     public static void normalize(float result[], float v[])
     {
         float len = norm(v);
-        vxs(result, v, len==(float)0 ? (float)1 : (float)1/len);
+        if (len == 0)
+        {
+            zerovec(result);
+            if (result.length >= 1)
+                result[0] = (float)1;
+        }
+        else
+            vxs(result, v, (float)1/len);
     }
 
     /** Extend the k vectors to l vectors and gramschmidt.  If the result is a square matrix and the original wasn't, make sure the result's determinant is +1, not -1. */
