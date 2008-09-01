@@ -87,6 +87,10 @@ com/donhatchsw/util/TopSorter.class: com/donhatchsw/util/TopSorter.prejava
 com/donhatchsw/util/Listenable.class: com/donhatchsw/util/Listenable.prejava
 	javacpp ${JAVAC} com/donhatchsw/util/Listenable.prejava
 	javarenumber -v 0 com/donhatchsw/util/Listenable*.class
+com/donhatchsw/util/ConvexHull.class: com/donhatchsw/util/ConvexHull.prejava
+	javacpp ${JAVAC} com/donhatchsw/util/ConvexHull.prejava
+	javarenumber -v 0 com/donhatchsw/util/ConvexHull*.class
+
 
 
 
@@ -111,18 +115,6 @@ com/donhatchsw/util/PolyCSG.class: com/donhatchsw/util/PolyCSG.prejava
 	javacpp ${JAVAC} com/donhatchsw/util/PolyCSG.prejava
 	javarenumber -v 0 com/donhatchsw/util/PolyCSG*.class
 
-com/donhatchsw/awt/OldMyPanel.class: com/donhatchsw/awt/OldMyPanel.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/OldMyPanel.prejava
-	javarenumber -v 0 com/donhatchsw/awt/OldMyPanel*.class
-com/donhatchsw/awt/OldRow.class: com/donhatchsw/awt/OldRow.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/OldRow.prejava
-	javarenumber -v 0 com/donhatchsw/awt/OldRow*.class
-com/donhatchsw/awt/OldCol.class: com/donhatchsw/awt/OldCol.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/OldCol.prejava
-	javarenumber -v 0 com/donhatchsw/awt/OldCol*.class
-com/donhatchsw/awt/OldMyPanelExample.class: com/donhatchsw/awt/OldMyPanelExample.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/OldMyPanelExample.prejava
-	javarenumber -v 0 com/donhatchsw/awt/OldMyPanelExample*.class
 com/donhatchsw/awt/MyGraphics.class: com/donhatchsw/awt/MyGraphics.prejava
 	javacpp ${JAVAC} com/donhatchsw/awt/MyGraphics.prejava
 	javarenumber -v 0 com/donhatchsw/awt/MyGraphics*.class
@@ -141,12 +133,12 @@ com/donhatchsw/awt/ColLayout.class: com/donhatchsw/awt/ColLayout.prejava
 com/donhatchsw/awt/TablePanel.class: com/donhatchsw/awt/TablePanel.prejava
 	javacpp ${JAVAC} com/donhatchsw/awt/TablePanel.prejava
 	javarenumber -v 0 com/donhatchsw/awt/TablePanel*.class
-com/donhatchsw/awt/NewRow.class: com/donhatchsw/awt/NewRow.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/NewRow.prejava
-	javarenumber -v 0 com/donhatchsw/awt/NewRow*.class
-com/donhatchsw/awt/NewCol.class: com/donhatchsw/awt/NewCol.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/NewCol.prejava
-	javarenumber -v 0 com/donhatchsw/awt/NewCol*.class
+com/donhatchsw/awt/Row.class: com/donhatchsw/awt/Row.prejava
+	javacpp ${JAVAC} com/donhatchsw/awt/Row.prejava
+	javarenumber -v 0 com/donhatchsw/awt/Row.class # no auxiliary classes so it's safe to not use * so we don't mess up RowLayout
+com/donhatchsw/awt/Col.class: com/donhatchsw/awt/Col.prejava
+	javacpp ${JAVAC} com/donhatchsw/awt/Col.prejava
+	javarenumber -v 0 com/donhatchsw/awt/Col.class # no auxiliary classes so it's safe to not use * so we don't mess up ColLayout
 com/donhatchsw/awt/LayoutExample.class: com/donhatchsw/awt/LayoutExample.prejava
 	javacpp ${JAVAC} com/donhatchsw/awt/LayoutExample.prejava
 	javarenumber -v 0 com/donhatchsw/awt/LayoutExample*.class
@@ -205,7 +197,7 @@ com/donhatchsw/mc4d/MC4DApplet.class: com/donhatchsw/mc4d/MC4DApplet.java
 
 
 
-donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/compat/ArrayList.class com/donhatchsw/compat/IntArrayList.class com/donhatchsw/compat/DoubleArrayList.class com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/IndexBinaryHeap.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/Listenable.class com/donhatchsw/util/Arrows.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/awt/OldMyPanel.class com/donhatchsw/awt/OldRow.class com/donhatchsw/awt/OldCol.class com/donhatchsw/awt/OldMyPanelExample.class com/donhatchsw/awt/MyGraphics.class com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class com/donhatchsw/awt/TableLayout.class com/donhatchsw/awt/RowLayout.class com/donhatchsw/awt/ColLayout.class com/donhatchsw/awt/TablePanel.class com/donhatchsw/awt/NewRow.class com/donhatchsw/awt/NewCol.class com/donhatchsw/awt/LayoutExample.class com/donhatchsw/awt/MainWindowCount.class com/donhatchsw/util/SmoothlyVaryingViewingParameter.class com/donhatchsw/util/UndoTreeSquirrel.class com/donhatchsw/util/UndoTreeViewer.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/GenericPuzzleFactory.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DControlPanel.class com/donhatchsw/mc4d/MC4DApplet.class
+donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/compat/ArrayList.class com/donhatchsw/compat/IntArrayList.class com/donhatchsw/compat/DoubleArrayList.class com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/IndexBinaryHeap.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/ConvexHull.class com/donhatchsw/util/Listenable.class com/donhatchsw/util/Arrows.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/awt/MyGraphics.class com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class com/donhatchsw/awt/TableLayout.class com/donhatchsw/awt/RowLayout.class com/donhatchsw/awt/ColLayout.class com/donhatchsw/awt/TablePanel.class com/donhatchsw/awt/Row.class com/donhatchsw/awt/Col.class com/donhatchsw/awt/LayoutExample.class com/donhatchsw/awt/MainWindowCount.class com/donhatchsw/util/SmoothlyVaryingViewingParameter.class com/donhatchsw/util/UndoTreeSquirrel.class com/donhatchsw/util/UndoTreeViewer.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/GenericPuzzleFactory.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DControlPanel.class com/donhatchsw/mc4d/MC4DApplet.class
 	/bin/rm -rf scratch
 	mkdir scratch
 	cp -a Makefile RCS com scratch
