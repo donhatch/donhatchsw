@@ -3,16 +3,16 @@ package com.donhatchsw.awt;
 /**
  * A Panel whose layout manager is a RowLayout.
  */
-public class NewRow
+public class Row
     extends java.awt.Panel
 {
-    public NewRow()
+    public Row()
     {
         super(new RowLayout());
     }
 
     // return type has to be Component instead of void,
-    // to match the one that happens to be in the bas class
+    // to match the one that happens to be in the base class
     public java.awt.Component add(java.awt.Component c, int fill)
     {
         TableLayout.add(this, c, fill);
@@ -34,4 +34,4 @@ public class NewRow
     {
         TableLayout.add(this, c, gridx, gridy, gridwidth, gridheight, fill);
     }
-} // class NewRow
+} // class Row

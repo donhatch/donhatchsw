@@ -3,8 +3,8 @@ package com.donhatchsw.mc4d;
 import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
-import com.donhatchsw.awt.NewRow;
-import com.donhatchsw.awt.NewCol;
+import com.donhatchsw.awt.Row;
+import com.donhatchsw.awt.Col;
 import com.donhatchsw.awt.RowLayout;
 
 
@@ -243,7 +243,7 @@ public class MC4DApplet
         // I mean, how friggin hard is this???
         // All right, making my own that need not be associated with a frame
         private static class MyMenuBar
-            extends NewRow
+            extends Row
         {
             private int eventVerbose = 0;
             private boolean doHighlighting = false; // not ready for prime time-- sometimes background is white

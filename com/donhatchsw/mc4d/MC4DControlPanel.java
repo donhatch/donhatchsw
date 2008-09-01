@@ -2,8 +2,8 @@ package com.donhatchsw.mc4d;
 
 import java.awt.*;
 import java.awt.event.*;
-import com.donhatchsw.awt.NewRow;
-import com.donhatchsw.awt.NewCol;
+import com.donhatchsw.awt.Row;
+import com.donhatchsw.awt.Col;
 import com.donhatchsw.util.Listenable;
 
 public class MC4DControlPanel
@@ -218,7 +218,7 @@ public class MC4DControlPanel
         }
     } // ColorSwatch
 
-    private static class ColorSwatchMaybeAndCheckBoxMaybe extends NewRow
+    private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
 
@@ -377,7 +377,7 @@ public class MC4DControlPanel
                         // XXX I don't know if this behavior is the same on other VMs besides linux, need to check
                         final GridBagConstraints c = new GridBagConstraints(){{anchor = WEST; ipady = -6;}};
 
-                        Container panel = new NewCol() {{
+                        Container panel = new Col() {{
                             for (int i = 0; i < helpMessage.length; ++i)
                                 add(new Label(helpMessage[i]), c);
                         }};
@@ -985,7 +985,7 @@ public class MC4DControlPanel
 
                 this.add(new CanvasOfSize(20,swatchHeight), // overall additional indent
                          new GridBagConstraints(){{gridy = nRows;}});
-                NewRow row = new NewRow() {{
+                Row row = new Row() {{
 
                     add(new CanvasOfSize(indent,swatchHeight));
 

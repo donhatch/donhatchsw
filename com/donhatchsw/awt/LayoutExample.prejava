@@ -34,17 +34,17 @@ public class LayoutExample
     */
 
     private static class LabeledCol
-        extends NewCol
+        extends Col
     {
         private static final GridBagConstraints stretchxy = new GridBagConstraints(){{fill=BOTH; weightx=weighty=1.;}};
-        private NewCol theRealCol;
+        private Col theRealCol;
         public LabeledCol(final String topLabelText,
                           final String sideLabelText)
         {
             super.add(new Label(topLabelText)); // super so I don't call my own!
-            super.add(new NewRow() {{              // super so I don't call my own!
+            super.add(new Row() {{              // super so I don't call my own!
                 this.add(new Label(sideLabelText));
-                this.add(theRealCol = new NewCol(), stretchxy);
+                this.add(theRealCol = new Col(), stretchxy);
             }}, stretchxy);
         }
         public Component add(Component comp)
@@ -81,16 +81,16 @@ public class LayoutExample
             final GridBagConstraints stretchxy = new GridBagConstraints(){{fill=BOTH; weightx=weighty=1.;}};
             new Frame("TableLayout, RowLayout, ColLayout Test") {{
                 setLayout(new ColLayout());
-                add(new NewCol() {{
+                add(new Col() {{
                     add(new LabeledCol("I:"," ") {{
                         add(new LabeledCol("A:"," ") {{
-                            add(new NewRow() {{
+                            add(new Row() {{
                                 add(new Label("1:"));
                                 add(new Button("aa"));
                                 add(new Button("b"));
                                 add(new Button("c"));
                             }});
-                            add(new NewRow() {{
+                            add(new Row() {{
                                 add(new Label("2:"));
                                 add(new Button("d"));
                                 add(new Button("eee"));
@@ -98,11 +98,11 @@ public class LayoutExample
                             }});
                         }});
                         add(new LabeledCol("B:"," ") {{
-                            add(new NewRow() {{
+                            add(new Row() {{
                                 add(new Label("1:"));
                                 add(new Button("aa"));
                             }});
-                            add(new NewRow() {{
+                            add(new Row() {{
                                 add(new Label("2:"));
                                 add(new Button("a"));
                                 add(new Button("b"));

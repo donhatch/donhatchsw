@@ -3,10 +3,10 @@ package com.donhatchsw.awt;
 /**
  * A Panel whose layout manager is a ColLayout.
  */
-public class NewCol
+public class Col
     extends java.awt.Panel
 {
-    public NewCol()
+    public Col()
     {
         super(new ColLayout());
     }
