@@ -10330,7 +10330,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                         fx = fun.f(x);
                     }
-                }
+                } // solve
 
                 // Little test program
                 public static void main(String args[])
@@ -10366,7 +10366,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                         solve(x, y, fun, 1000);
                     }
-                    System.out.println("    in NewtonSolver.main");
+                    System.out.println("    out NewtonSolver.main");
                 } // main
             } // class NewtonSolver
 
