@@ -10444,6 +10444,14 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         final int eventVerbose = 0; // set to something else to debug
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
+
+            // Make it so we get keyboard focus on startup,
+            // without having to click first.  Thanks, Melinda!
+            public boolean isFocusTraversable()
+            {
+                return true;
+            }
+
             class Model
             {
 
@@ -10459,8 +10467,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public double p0[] = {0,0};
 
                 public double A0[] = {1.5,-1};
-                public double A1[] = {1.5,1};
+                public double A1[] = {1.5,1}; // will be adjusted to be unit distance away
                 public double t1 = 2.5;
+
+                public boolean twoQuadraticsMode = false;
 
                 //public double A0[] = {.25,-1.25};
                 //public double A1[] = {.25,0};
@@ -10980,6 +10990,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         else if (c == '+' || c == '=')
                         {
                             view.scale *= Math.sqrt(2.);
+                            repaint();
+                        }
+                        else if (c == 'q' || c == 'Q')
+                        {
+                            model.twoQuadraticsMode ^= true;
+                            PRINT(model.twoQuadraticsMode);
                             repaint();
                         }
                         else
