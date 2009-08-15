@@ -10567,8 +10567,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 }
                 java.awt.Graphics g = backBuffer.getGraphics();
 
-                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, getSize(),
-                                               -1./view.scale,1./view.scale,-1./view.scale,1./view.scale);
+                int minSize = Math.min(w,h);
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
+                                               -1.*w/minSize/view.scale,
+                                               1.*w/minSize/view.scale,
+                                               -1.*h/minSize/view.scale,
+                                               1.*h/minSize/view.scale);
 
 
                 // Clear to black
@@ -11315,7 +11319,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 }
                 java.awt.Graphics g = backBuffer.getGraphics();
 
-                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, getSize(),
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
                                                -1.,1.,-1.,1.);
 
                 // Clear to black
