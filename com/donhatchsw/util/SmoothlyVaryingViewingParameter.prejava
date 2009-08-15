@@ -646,12 +646,10 @@ public class SmoothlyVaryingViewingParameter
                     // and whose bisector is in the direction of the
                     // A trajectory.
                     double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
-                    double t1 = 2*switchTime;
-                    double At1[] = VecMath.lerp(A0, A1, t1);
                     if (t < switchTime)
-                        return VecMath.normalize(A0);
+                        return VecMath.normalize(VecMath.lerp(A0,A1, switchTime-1.));
                     else
-                        return VecMath.normalize(At1);
+                        return VecMath.normalize(VecMath.lerp(A0,A1, switchTime+1.));
                 }
                 else
                     return VecMath.normalize(
@@ -671,16 +669,13 @@ public class SmoothlyVaryingViewingParameter
                 if (twoQuadraticsMode)
                 {
                     double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
-                    double t1 = 2*switchTime;
-                    double At1[] = VecMath.lerp(A0, A1, t1);
-
                     if (t < switchTime)
-                        return VecMath.vpsxv(v0, t, VecMath.normalize(A0));
+                        return VecMath.vpsxv(v0, t, VecMath.normalize(VecMath.lerp(A0,A1, switchTime-1.)));
                     else
                         return VecMath.sxvpsxvpsxv(
                             1., v0,
-                            switchTime, VecMath.normalize(A0),
-                            t-switchTime, VecMath.normalize(At1));
+                            switchTime, VecMath.normalize(VecMath.lerp(A0,A1, switchTime-1.)),
+                            t-switchTime, VecMath.normalize(VecMath.lerp(A0,A1, switchTime+1.)));
                 }
                 else
                 {
@@ -703,37 +698,34 @@ public class SmoothlyVaryingViewingParameter
                 if (twoQuadraticsMode)
                 {
                     double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
-                    double t1 = 2*switchTime;
-                    double At1[] = VecMath.lerp(A0, A1, t1);
-
                     if (t < switchTime)
                     {
                         // p0 plus integral from 0 to t
-                        // of s*normalize(A0) ds
+                        // of s*a0 ds
                         double answer[] = VecMath.vpsxv(p0, t, v0);
                         VecMath.vpsxv(answer,
                                       answer,
-                                      SQR(t)/2, VecMath.normalize(A0));
+                                      SQR(t)/2, VecMath.normalize(VecMath.lerp(A0,A1, switchTime-1.)));
                         return answer;
                     }
                     else
                     {
                         // p0
                         // plus t*v0
-                        // plus integral from 0 to t of s*normalize(A0) ds
+                        // plus integral from 0 to t of s*a0 ds
                         // plus integral from 0 to t-switchTime
-                        // of switchV + s*normalize(At1)
-                        double switchV[] = VecMath.sxv(switchTime, VecMath.normalize(A0));
+                        // of switchV + s*a1
+                        double switchV[] = VecMath.sxv(switchTime, VecMath.normalize(VecMath.lerp(A0,A1, switchTime-1.)));
                         double answer[] = VecMath.vpsxv(p0, t, v0);
                         VecMath.vpsxv(answer,
                                       answer,
-                                      SQR(switchTime)/2, VecMath.normalize(A0));
+                                      SQR(switchTime)/2, VecMath.normalize(VecMath.lerp(A0,A1, switchTime-1.)));
                         VecMath.vpsxv(answer,
                                       answer,
                                       t-switchTime, switchV);
                         VecMath.vpsxv(answer,
                                       answer,
-                                      SQR(t-switchTime)/2, VecMath.normalize(At1));
+                                      SQR(t-switchTime)/2, VecMath.normalize(VecMath.lerp(A0,A1, switchTime+1.)));
                         return answer;
                     }
                 }
