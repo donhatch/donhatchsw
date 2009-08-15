@@ -11033,7 +11033,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     // From bottom to top
                     int y = h;
                     g.setColor(java.awt.Color.white);
-                    g.drawString("q to toggle two-quadratics mode", 20,y-=20);
+                    g.drawString("q to toggle two-quadratics mode (non-optimal but simpler to calculate)", 20,y-=20);
                     g.drawString("v to toggle velocity handles", 20,y-=20);
                     g.drawString("a to toggle acceleration segments", 20,y-=20);
                     g.drawString("r to reset", 20, y -= 20);
