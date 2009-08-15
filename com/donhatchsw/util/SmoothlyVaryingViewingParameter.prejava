@@ -633,6 +633,34 @@ public class SmoothlyVaryingViewingParameter
 
             } // calcPt1FromA0At1
 
+            private static double[] calcAcceleration(double A0[],
+                                                     double A1[],
+                                                     double t,
+                                                     boolean twoQuadraticsMode,
+                                                     double t1) // XXX shouldn't need
+            {
+                if (twoQuadraticsMode)
+                {
+                    // Goal is to make the v trajectory
+                    // consist of two segments whose total length is t1
+                    // (i.e. same total length as the A trajectory)
+                    // and whose bisector is in the direction of the
+                    // A trajectory.
+                    // XXX The following is something more brain dead
+                    double At1[] = VecMath.lerp(A0, A1, t1);
+                    double fractionOfTimeAta0 =
+                        -VecMath.dot(A0,VecMath.vmv(At1,A0))
+                        / VecMath.distsqrd(A0,At1);
+                    if (t < fractionOfTimeAta0*t1)
+                        return VecMath.normalize(A0);
+                    else
+                        return VecMath.normalize(At1);
+                }
+                else
+                    return VecMath.normalize(
+                               VecMath.lerp(A0, A1, t));
+            }
+
             /*
                 Integral from 0 to t
                 of lerp(A0,A1,u)/|lerp(A0,A1,u)| du
@@ -641,10 +669,30 @@ public class SmoothlyVaryingViewingParameter
                                                  double A0[],
                                                  double A1[],
                                                  double t,
-                                                 boolean twoQuadraticsMode)
+                                                 boolean twoQuadraticsMode,
+                                                 double t1) // XXX shouldn't need
             {
-                double At1[] = VecMath.lerp(A0, A1, t);
-                return calcVt1FromA0At1(v0, A0, At1, twoQuadraticsMode);
+                if (twoQuadraticsMode)
+                {
+                    double At1[] = VecMath.lerp(A0, A1, t1);
+                    double fractionOfTimeAta0 =
+                        -VecMath.dot(A0,VecMath.vmv(At1,A0))
+                        / VecMath.distsqrd(A0,At1);
+
+                    double switchTime = fractionOfTimeAta0 * t1;
+                    if (t < switchTime)
+                        return VecMath.vpsxv(v0, t, VecMath.normalize(A0));
+                    else
+                        return VecMath.sxvpsxvpsxv(
+                            1., v0,
+                            switchTime, VecMath.normalize(A0),
+                            t-switchTime, VecMath.normalize(At1));
+                }
+                else
+                {
+                    double At[] = VecMath.lerp(A0, A1, t);
+                    return calcVt1FromA0At1(v0, A0, At, twoQuadraticsMode);
+                }
             } // calcVelocity
 
             /*
@@ -656,10 +704,53 @@ public class SmoothlyVaryingViewingParameter
                                                  double A0[],
                                                  double A1[],
                                                  double t,
-                                                 boolean twoQuadraticsMode)
+                                                 boolean twoQuadraticsMode,
+                                                 double t1) // XXX shouldn't need
             {
-                double At1[] = VecMath.lerp(A0, A1, t);
-                return calcPt1FromA0At1(p0, v0, A0, At1, twoQuadraticsMode);
+                if (twoQuadraticsMode)
+                {
+                    double At1[] = VecMath.lerp(A0, A1, t1);
+                    double fractionOfTimeAta0 =
+                        -VecMath.dot(A0,VecMath.vmv(At1,A0))
+                        / VecMath.distsqrd(A0,At1);
+
+                    double switchTime = fractionOfTimeAta0 * t1;
+                    if (t < switchTime)
+                    {
+                        // p0 plus integral from 0 to t
+                        // of s*normalize(A0) ds
+                        double answer[] = VecMath.vpsxv(p0, t, v0);
+                        VecMath.vpsxv(answer,
+                                      answer,
+                                      SQR(t)/2, VecMath.normalize(A0));
+                        return answer;
+                    }
+                    else
+                    {
+                        // p0
+                        // plus t*v0
+                        // plus integral from 0 to t of s*normalize(A0) ds
+                        // plus integral from 0 to t-switchTime
+                        // of switchV + s*normalize(At1)
+                        double switchV[] = VecMath.sxv(switchTime, VecMath.normalize(A0));
+                        double answer[] = VecMath.vpsxv(p0, t, v0);
+                        VecMath.vpsxv(answer,
+                                      answer,
+                                      SQR(switchTime)/2, VecMath.normalize(A0));
+                        VecMath.vpsxv(answer,
+                                      answer,
+                                      t-switchTime, switchV);
+                        VecMath.vpsxv(answer,
+                                      answer,
+                                      SQR(t-switchTime)/2, VecMath.normalize(At1));
+                        return answer;
+                    }
+                }
+                else
+                {
+                    double At[] = VecMath.lerp(A0, A1, t);
+                    return calcPt1FromA0At1(p0, v0, A0, At, twoQuadraticsMode);
+                }
             } // calcPosition
 
             /*
@@ -10397,8 +10488,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     double At1[] = {x[2],x[3]};
                     double t1 = VecMath.dist(A0, At1);
                     double A1[] = VecMath.lerp(A0, At1, 1./t1);
-                    double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode);
-                    double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode);
+                    double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode, t1);
+                    double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode, t1);
                     return new double[] {vt1[0],vt1[1],pt1[0],pt1[1]};
                 }
             } // class MyFun
@@ -10417,8 +10508,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     double At1[] = {x[2],x[3]};
                     double t1 = VecMath.dist(A0, At1);
                     double A1[] = VecMath.lerp(A0, At1, 1./t1);
-                    double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode);
-                    double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode);
+                    double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode, t1);
+                    double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode, t1);
                     double answer[][] = calcVelocityAndPositionJacobianWithRespectToA0At1(p0,v0,A0,At1, twoQuadraticsMode);
                     return answer;
                 }
@@ -10499,8 +10590,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 {
                     if (t1 == 0.)
                         return 3; // At1 freely, so user can separate them
-                    double vt1[] = calcVelocity(v0,A0,A1,t1,twoQuadraticsMode);
-                    double pt1[] = calcPosition(p0,v0,A0,A1,t1,twoQuadraticsMode);
+                    double vt1[] = calcVelocity(v0,A0,A1,t1,twoQuadraticsMode, t1);
+                    double pt1[] = calcPosition(p0,v0,A0,A1,t1,twoQuadraticsMode, t1);
                     double points[][] = { // must match PICK_ values above
                         this.A0,
                         this.A1,
@@ -10565,8 +10656,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
             public java.awt.Dimension getPreferredSize()
             {
-                //return new java.awt.Dimension(850,850);
-                return new java.awt.Dimension(200,200);
+                return new java.awt.Dimension(850,850);
+                //return new java.awt.Dimension(400,400);
+                //return new java.awt.Dimension(200,200);
             }
 
 
@@ -10616,14 +10708,15 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 boolean twoQuadraticsMode = model.twoQuadraticsMode;
 
                 double At1[] = VecMath.lerp(A0,A1,t1);
-                double a0[] = VecMath.normalize(A0);
-                double a1[] = VecMath.normalize(A1);
-                double at1[] = VecMath.normalize(At1);
 
-                double v1[] = calcVelocity(v0,A0,A1,1,twoQuadraticsMode);
-                double p1[] = calcPosition(p0,v0,A0,A1,1,twoQuadraticsMode);
-                double vt1[] = calcVelocity(v0,A0,A1,t1,twoQuadraticsMode);
-                double pt1[] = calcPosition(p0,v0,A0,A1,t1,twoQuadraticsMode);
+                double a0[] = calcAcceleration(A0,A1,0,twoQuadraticsMode, t1);
+                double a1[] = calcAcceleration(A0,A1,1,twoQuadraticsMode, t1);
+                double at1[] = calcAcceleration(A0,A1,t1,twoQuadraticsMode, t1);
+
+                double v1[] = calcVelocity(v0,A0,A1,1,twoQuadraticsMode, t1);
+                double p1[] = calcPosition(p0,v0,A0,A1,1,twoQuadraticsMode, t1);
+                double vt1[] = calcVelocity(v0,A0,A1,t1,twoQuadraticsMode, t1);
+                double pt1[] = calcPosition(p0,v0,A0,A1,t1,twoQuadraticsMode, t1);
 
                 if (false)
                 {
@@ -10691,8 +10784,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                         double t1_ = VecMath.dist(A0_, At1_);
                         double A1_[] = VecMath.lerp(A0_, At1_, 1./t1_);
-                        double vt1_[] = calcVelocity(v0,A0_, A1_, t1_, twoQuadraticsMode);
-                        double pt1_[] = calcPosition(p0,v0,A0_, A1_, t1_, twoQuadraticsMode);
+                        double vt1_[] = calcVelocity(v0,A0_, A1_, t1_, twoQuadraticsMode, t1);
+                        double pt1_[] = calcPosition(p0,v0,A0_, A1_, t1_, twoQuadraticsMode, t1);
                         AGrid[iX][iY] = (controller.mostRecentThingBeingDragged == Model.PICK_A0 ? A0_ : At1_);
                         vGrid[iX][iY] = vt1_;
                         pGrid[iX][iY] = pt1_;
@@ -10830,9 +10923,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     {
                         double t = (double)i/nSubdivs;
                         double A[] = VecMath.lerp(A0, A1, sign_t1*t);
-                        double a[] = VecMath.normalize(A);
-                        double v[] = calcVelocity(v0, A0, A1, sign_t1*t, twoQuadraticsMode);
-                        double p[] = calcPosition(p0,v0, A0, A1, sign_t1*t, twoQuadraticsMode);
+
+                        double a[] = calcAcceleration(A0, A1, sign_t1*t, twoQuadraticsMode, t1);
+                        double v[] = calcVelocity(v0, A0, A1, sign_t1*t, twoQuadraticsMode, t1);
+                        double p[] = calcPosition(p0,v0, A0, A1, sign_t1*t, twoQuadraticsMode, t1);
 
                         //int thisPointSize = (i>nSubdivs && i%nSubdivs==0 ? 4 : 3); // no, too busy
                         int thisPointSize = 3;
@@ -10948,6 +11042,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     // From bottom to top
                     int y = h;
                     g.setColor(java.awt.Color.white);
+                    g.drawString("q to toggle two-quadratics mode", 20,y-=20);
                     g.drawString("v to toggle velocity handles", 20,y-=20);
                     g.drawString("a to toggle acceleration segments", 20,y-=20);
                     g.drawString("r to reset", 20, y -= 20);
@@ -11044,8 +11139,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                          || controller.indexOfThingBeingDragged == Model.PICK_handlet1)
 
                         {
-                            controller.target_vt1 = calcVelocity(model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
-                            controller.target_pt1 = calcPosition(model.p0,model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
+                            controller.target_vt1 = calcVelocity(model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode, model.t1);
+                            controller.target_pt1 = calcPosition(model.p0,model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode, model.t1);
                         }
                         else if (controller.indexOfThingBeingDragged != Model.PICK_v0) // with v0, still use targets... until they drag one of the A's instead
                         {
@@ -11209,8 +11304,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             double t1 = model.t1;
                             boolean twoQuadraticsMode = model.twoQuadraticsMode;
                             double At1[] = VecMath.lerp(A0,A1,t1);
-                            double vt1[] = calcVelocity(v0, A0,A1,t1, twoQuadraticsMode);
-                            double pt1[] = calcPosition(p0,v0, A0,A1,t1, twoQuadraticsMode);
+                            double vt1[] = calcVelocity(v0, A0,A1,t1, twoQuadraticsMode, t1);
+                            double pt1[] = calcPosition(p0,v0, A0,A1,t1, twoQuadraticsMode, t1);
 
                             double solvedA0At1[][] = solveA0At1(
                                      p0,v0,
