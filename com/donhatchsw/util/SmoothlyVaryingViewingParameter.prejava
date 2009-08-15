@@ -11115,8 +11115,30 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         }
                         else if (c == 'q' || c == 'Q')
                         {
+                            //
+                            // Toggle twoQuadraticsMode,
+                            // attempting to keep vt1,pt1 constant
+                            //
+
+                            // take a snapshot of vt1,pt1
+                            double vt1[] = calcVelocity(model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
+                            double pt1[] = calcPosition(model.p0,model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
+
                             model.twoQuadraticsMode ^= true;
                             PRINT(model.twoQuadraticsMode);
+
+                            // solve for A0,At1
+                            double At1[] = VecMath.lerp(model.A0, model.A1, model.t1);
+                            double solvedA0At1[][] = solveA0At1(
+                                     model.p0,model.v0,
+                                     vt1,pt1,
+                                     model.twoQuadraticsMode,
+                                     model.A0, At1); // initial guess
+                            model.A0 = solvedA0At1[0];
+                            At1 = solvedA0At1[1];
+                            model.t1 = VecMath.dist(model.A0,At1);
+                            model.A1 = VecMath.lerp(model.A0,At1,1./model.t1);
+
                             repaint();
                         }
                         else
