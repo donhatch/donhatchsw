@@ -10989,11 +10989,24 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                    a1[1],
                                    pointSize);
                 mg.drawString("  t=0", A0[0],A0[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
+                if (twoQuadraticsMode)
+                {
+                    double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
+                    double Aswitch[] = VecMath.lerp(A0,A1,switchTime);
+                    if (GT(switchTime, 0, 1e-3)
+                     && LT(switchTime, t1, 1e-3))
+                    {
+                        mg.drawPoint(Aswitch[0], Aswitch[1], 5);
+                        if (!EQ(switchTime, 1, 1e-3))
+                            mg.drawString("  t="+Math.round(switchTime*1000.)/1000., Aswitch[0],Aswitch[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
+                    }
+                }
                 mg.drawString("  t=1", A1[0],A1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
                 mg.drawString("  t="+Math.round(t1*1000.)/1000., At1[0],At1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
                 mg.drawString("  a(t)", at1[0],at1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
                 mg.drawString("  a(0)", a0[0],a0[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
-                mg.drawString("  a(1)", a1[0],a1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
+                if (!twoQuadraticsMode)
+                    mg.drawString("  a(1)", a1[0],a1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
 
                 //
                 // Velocities in green
@@ -11008,6 +11021,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                                  pointSize+1);
                 mg.drawString("  v(t)", vt1[0],vt1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
                 mg.drawString(VecMath.normsqrd(model.v0)==0. ? "v(0)=0 " : "v(0) ", model.v0[0],model.v0[1],1,1.5); // XXX argh, spaces are fudge because it's not working right
+                if (twoQuadraticsMode)
+                {
+                    double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
+                    double vSwitch[] = calcVelocity(v0, A0, A1, switchTime, twoQuadraticsMode);
+                    mg.drawPoint(vSwitch[0], vSwitch[1], 5);
+                }
 
                 //
                 // Positions in blue
@@ -11022,6 +11041,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                                  pointSize+1);
                 mg.drawString("  p(t)", pt1[0],pt1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
                 mg.drawString(VecMath.normsqrd(model.p0)==0. ? "p(0)=0 " : "p(0) ", model.p0[0],model.p0[1],1,-1.5); // XXX argh, spaces are fudge because it's not working right
+                if (twoQuadraticsMode)
+                {
+                    double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
+                    double pSwitch[] = calcPosition(p0,v0, A0, A1, switchTime, twoQuadraticsMode);
+                    mg.drawPoint(pSwitch[0], pSwitch[1], 5);
+                }
 
 
 
