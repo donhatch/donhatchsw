@@ -101,8 +101,8 @@ public abstract class Listenable
             }
             if (nLapsedListeners > 0)
             {
-                //System.out.println("CLEARING "+nLapsedListeners+" LAPSED LISTENER"+(nLapsedListeners==1?"":"S")+"!");
-                assert(!useWeakRefs);
+                System.out.println("CLEARING "+nLapsedListeners+" LAPSED LISTENER"+(nLapsedListeners==1?"":"S")+"!");
+                assert(!useWeakRefs); // XXX is this a mistake??? looks like it
                 synchronized(listeners) // XXX this is the part that needs a real synchronize
                 {
                     int nOut = 0;
