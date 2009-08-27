@@ -417,8 +417,9 @@ public class TriangulationOptimizer
         //
         // The scale of this is approximately the fourth power
         // of the scale of the coordinates.
+        // XXX public because used in shephardsPlayApplet... maybe should put somewhere else
         //
-        private static double calcQuadComfort(double a[],
+        public static double calcQuadComfort(double a[],
                                               double b[],
                                               double c[],
                                               double d[],
