@@ -10795,6 +10795,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         };
 
                         double t1_ = VecMath.dist(A0_, At1_);
+                        if (t1 < 0.)
+                            t1_ = -t1_;
                         double A1_[] = VecMath.lerp(A0_, At1_, 1./t1_);
                         double vt1_[] = calcVelocity(v0,A0_, A1_, t1_, twoQuadraticsMode);
                         double pt1_[] = calcPosition(p0,v0,A0_, A1_, t1_, twoQuadraticsMode);
