@@ -133,7 +133,7 @@ public class SmoothlyVaryingViewingParameter
     * you would say canonicalTripDistance=1 and canonicalTripTime=60.
     * <p>
     * The acceleration will be equal to
-    * 2*canonicalTripDistance/canonicalTripTime<sup>2</sup>.
+    * 4*canonicalTripDistance/canonicalTripTime<sup>2</sup>.
     * This shows that if you can go 1 mile in 1 second,
     * then you will be able to go 100 miles in 10 seconds
     * (using the same constant acceleration/deceleration magnitude).
