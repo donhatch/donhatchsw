@@ -11294,7 +11294,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             {
                                 // drag A0 alone
                                 VecMath.vpv(model.A0,model.A0, delta);
-                                model.t1 = VecMath.dist(model.A0, At1);
+                                double sign_t1 = model.t1<0. ? -1. : 1.;
+                                model.t1 = sign_t1*VecMath.dist(model.A0, At1);
                                 model.A1 = VecMath.lerp(model.A0, At1, 1./model.t1);
                             }
                         }
@@ -11327,7 +11328,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 // then recalculate t1 and A1
                                 double At1[] = VecMath.lerp(model.A0, model.A1, model.t1);
                                 VecMath.vpv(At1, At1, delta);
-                                model.t1 = VecMath.dist(model.A0, At1); // XXX turns it non-negative
+                                double sign_t1 = model.t1<0. ? -1. : 1.;
+                                model.t1 = sign_t1*VecMath.dist(model.A0, At1); 
                                 if (model.t1 != 0.)
                                     VecMath.lerp(model.A1, model.A0, At1, 1./model.t1);
                             }
