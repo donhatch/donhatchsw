@@ -11111,7 +11111,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     public void keyPressed(java.awt.event.KeyEvent e)
                     {
                         char c = e.getKeyChar();
-                        if (c == 'r' || c == 'R')
+                        if (eventVerbose >= 1) System.out.println("    in keyPressed, keyEvent = "+e+" keyChar = (char)"+(int)c+"");
+                        if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
+                        {
+                            // This is the case for control keys
+                        }
+                        else if (c == 'r' || c == 'R')
                         {
                             model = new Model();
                             view = new View();
