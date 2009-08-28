@@ -668,6 +668,7 @@ public class SmoothlyVaryingViewingParameter
             {
                 if (twoQuadraticsMode)
                 {
+                    // XXX TODO: do it differently when t < 0
                     double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
                     if (t < switchTime)
                         return VecMath.vpsxv(v0, t, VecMath.normalize(VecMath.lerp(A0,A1, switchTime-1.)));
@@ -680,7 +681,15 @@ public class SmoothlyVaryingViewingParameter
                 else
                 {
                     double At[] = VecMath.lerp(A0, A1, t);
-                    return calcVt1FromA0At1(v0, A0, At, twoQuadraticsMode);
+                    double[] answer = calcVt1FromA0At1(v0, A0, At, twoQuadraticsMode);
+                    if (t < 0.)
+                    {
+                        // answer = v0 - (answer-v0)
+                        VecMath.sxvpsxv(answer,
+                                        2., v0,
+                                        -1., answer);
+                    }
+                    return answer;
                 }
             } // calcVelocity
 
@@ -697,6 +706,7 @@ public class SmoothlyVaryingViewingParameter
             {
                 if (twoQuadraticsMode)
                 {
+                    // XXX TODO: do it differently when t < 0
                     double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
                     if (t < switchTime)
                     {
@@ -732,7 +742,16 @@ public class SmoothlyVaryingViewingParameter
                 else
                 {
                     double At[] = VecMath.lerp(A0, A1, t);
-                    return calcPt1FromA0At1(p0, v0, A0, At, twoQuadraticsMode);
+                    if (t < 0.)
+                    {
+                        return calcPt1FromA0At1(p0,
+                                                VecMath.vxs(v0, -1.),
+                                                A0, At, twoQuadraticsMode);
+                    }
+                    else
+                    {
+                        return calcPt1FromA0At1(p0, v0, A0, At, twoQuadraticsMode);
+                    }
                 }
             } // calcPosition
 
@@ -10524,6 +10543,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 return new double[][] {A0,At1};
             } // solveA0At1
 
+
     // Trying to visualize the kinodynamic planning problem.
     // not part of the SmoothlyVaryingViewingParameter implementation yet.
     private static void interactiveDemo2()
@@ -10913,12 +10933,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     double sign_t1 = t1<0. ? -1. : 1.;
                     for (int i = 0; i <= sign_t1*t1 * nSubdivs; ++i)
                     {
-                        double t = (double)i/nSubdivs;
-                        double A[] = VecMath.lerp(A0, A1, sign_t1*t);
+                        double t = sign_t1*(double)i/nSubdivs;
+                        double A[] = VecMath.lerp(A0, A1, t);
 
-                        double a[] = calcAcceleration(A0, A1, sign_t1*t, twoQuadraticsMode);
-                        double v[] = calcVelocity(v0, A0, A1, sign_t1*t, twoQuadraticsMode);
-                        double p[] = calcPosition(p0,v0, A0, A1, sign_t1*t, twoQuadraticsMode);
+                        double a[] = calcAcceleration(A0, A1, t, twoQuadraticsMode);
+                        double v[] = calcVelocity(v0, A0, A1, t, twoQuadraticsMode);
+                        double p[] = calcPosition(p0,v0, A0, A1, t, twoQuadraticsMode);
 
                         //int thisPointSize = (i>nSubdivs && i%nSubdivs==0 ? 4 : 3); // no, too busy
                         int thisPointSize = 3;
