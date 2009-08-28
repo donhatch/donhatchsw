@@ -10548,7 +10548,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public static final int PICK_vt1 = 3;
                 public static final int PICK_pt1 = 4;
                 public static final int PICK_v0 = 5;
-                public static final int PICK_handlet1 = 6;
+                public static final int PICK_velocityHandlet1 = 6;
+                public static final int PICK_velocityKnee = 7;
 
 
 
@@ -10572,9 +10573,16 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                             boolean finalVelocityHandleIsNegative)
                 {
                     if (t1 == 0.)
-                        return 3; // At1 freely, so user can separate them
+                        return 3; // At1 freely, so user can separate it from A0
                     double vt1[] = calcVelocity(v0,A0,A1,t1,twoQuadraticsMode);
                     double pt1[] = calcPosition(p0,v0,A0,A1,t1,twoQuadraticsMode);
+                    double vSwitch[] = null;
+                    if (twoQuadraticsMode)
+                    {
+                        double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
+                        vSwitch = calcVelocity(v0, A0, A1, switchTime, twoQuadraticsMode);
+                    }
+
                     double points[][] = { // must match PICK_ values above
                         this.A0,
                         this.A1,
@@ -10585,6 +10593,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         allowPickingFinalVelocityHandle ? finalVelocityHandleIsNegative ? VecMath.vmv(pt1,vt1)
                                                                                         : VecMath.vpv(pt1,vt1)
                                                         : null,
+                        vSwitch,
                     };
 
                     double distSqrds[] = new double[points.length];
@@ -11047,7 +11056,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
 
                 {
-                    // From bottom to top
+                    // Labels, from bottom to top
                     int y = h;
                     g.setColor(java.awt.Color.white);
                     g.drawString("q to toggle two-quadratics mode (non-optimal but simpler to calculate)", 20,y-=20);
@@ -11166,7 +11175,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         view.intensityMultiplier = 1.;
                         if (controller.indexOfThingBeingDragged == Model.PICK_vt1
                          || controller.indexOfThingBeingDragged == Model.PICK_pt1
-                         || controller.indexOfThingBeingDragged == Model.PICK_handlet1)
+                         || controller.indexOfThingBeingDragged == Model.PICK_velocityHandlet1
+                         || controller.indexOfThingBeingDragged == Model.PICK_velocityKnee)
 
                         {
                             controller.target_vt1 = calcVelocity(model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
@@ -11304,7 +11314,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             VecMath.vpv(controller.target_vt1, controller.target_vt1, delta); // and will fix up below
                         else if (controller.indexOfThingBeingDragged == Model.PICK_pt1)
                             VecMath.vpv(controller.target_pt1, controller.target_pt1, delta); // and will fix up below
-                        else if (controller.indexOfThingBeingDragged == Model.PICK_handlet1)
+                        else if (controller.indexOfThingBeingDragged == Model.PICK_velocityHandlet1)
                         {
                             // just another way of dragging target_vt1...
                             // by the opposite of delta
@@ -11318,6 +11328,23 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             VecMath.vpv(model.v0, model.v0, delta); // and will fix up below if targets are set
                             if (VecMath.normsqrd(model.v0) <= 1e-6*1e-6)
                                 VecMath.zerovec(model.v0);
+                        }
+                        else if (controller.indexOfThingBeingDragged == Model.PICK_velocityKnee)
+                        {
+                            // Figure out how to change pt1
+                            // to accomplish the desired velocity knee dragging.
+
+                            double A0[] = model.A0;
+                            double A1[] = model.A1;
+                            double v0[] = model.v0;
+                            double vt1[] = controller.target_vt1;
+                            double switchTime = -VecMath.dot(A0,VecMath.vmv(A1,A0));
+                            double[] oldKnee = calcVelocity(v0, A0, A1, switchTime, model.twoQuadraticsMode);
+                            double[] newKnee = VecMath.vpv(oldKnee, delta);
+                            double[] newPt1 = VecMath.sxvpsxv(
+                                VecMath.dist(v0,newKnee), VecMath.lerp(v0,newKnee,.5),
+                                VecMath.dist(newKnee,vt1), VecMath.lerp(newKnee,vt1,.5));
+                            controller.target_pt1 = newPt1;
                         }
                         else
                         {
