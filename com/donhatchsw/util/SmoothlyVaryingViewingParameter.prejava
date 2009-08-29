@@ -11172,6 +11172,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 VecMath.vxs(vt1, vt1, 1./multiplier);
                                 VecMath.vxs(pt1, pt1, 1./multiplier);
                                 model.t1 /= multiplier;
+                                if (controller.target_vt1 != null)
+                                    VecMath.vxs(controller.target_vt1, controller.target_vt1, 1./multiplier);
+                                if (controller.target_pt1 != null)
+                                    VecMath.vxs(controller.target_pt1, controller.target_pt1, 1./multiplier);
 
                                 // XXX I think this is common code, maybe make a utility function for it
                                 // solve for A0,At1
@@ -11199,6 +11203,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                             model.t1 *= -1.;
                             VecMath.vxs(model.v0, model.v0, -1.);
+                            if (controller.target_vt1 != null)
+                                VecMath.vxs(controller.target_vt1, controller.target_vt1, -1.);
                             VecMath.sxvpsxv(model.A1,
                                             -1., model.A1,
                                             2., model.A0);
