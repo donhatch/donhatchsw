@@ -10552,7 +10552,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     // not part of the SmoothlyVaryingViewingParameter implementation yet.
     private static void interactiveDemo2()
     {
-        final int eventVerbose = 1; // set to something else to debug
+        final int eventVerbose = 0; // set to something else to debug
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
@@ -11192,33 +11192,16 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 view.scale *= multiplier;
                             repaint();
                         }
-                        else if (c == '-')
+                        else if (c == 't')
                         {
-                            if (controlIsDown)
-                            {
-                                model.accelerationMagnitude /= Math.sqrt(2.);
-                                PRINT(model.accelerationMagnitude);
+                            // toggle between t1 positive and negative,
+                            // adjusting everything so no pop
 
-                                // Adjust everything else so no pop
-                                VecMath.vxs(model.v0, model.v0, Math.sqrt(2.));
-                                VecMath.vxs(model.p0, model.p0, Math.sqrt(2.));
-                                VecMath.vxs(model.A0, model.A0, Math.sqrt(2.));
-                                VecMath.vxs(model.A1, model.A1, Math.sqrt(2.));
-                                model.t1 *= Math.sqrt(2.);
-                            }
-                            else
-                                view.scale /= Math.sqrt(2.);
-                            repaint();
-                        }
-                        else if (c == '+' || c == '=')
-                        {
-                            if (controlIsDown)
-                            {
-                                model.accelerationMagnitude *= Math.sqrt(2.);
-                                PRINT(model.accelerationMagnitude);
-                            }
-                            else
-                                view.scale *= Math.sqrt(2.);
+                            model.t1 *= -1.;
+                            VecMath.vxs(model.v0, model.v0, -1.);
+                            VecMath.sxvpsxv(model.A1,
+                                            -1., model.A1,
+                                            2., model.A0);
                             repaint();
                         }
                         else if (c == 'q' || c == 'Q')
