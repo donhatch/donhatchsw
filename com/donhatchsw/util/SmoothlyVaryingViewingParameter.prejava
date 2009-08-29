@@ -812,10 +812,11 @@ Print["J = ",CForm[J]]
                 double p0[], double v0[], // constant; doesn't take part in derivatives calculation
                 double A0[],
                 double At1[],
+                double sign_t1,
                 boolean twoQuadraticsMode)
             {
                 System.out.println("holy shit!");
-                double t = VecMath.dist(A0, At1);
+                double t = sign_t1*VecMath.dist(A0, At1);
                 double A1[] = VecMath.lerp(A0, At1, 1./t);
                 double dvp_over_dA0A1T[][] = calcVelocityAndPositionJacobianWithRespectToA0A1T(p0,v0,A0,A1,t,twoQuadraticsMode);
 
@@ -10477,18 +10478,20 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 extends NewtonSolver.Fun
             {
                 protected double p0[], v0[];
+                protected double sign_t1;
                 protected boolean twoQuadraticsMode;
-                public MyFun(double p0[], double v0[], boolean twoQuadraticsMode)
+                public MyFun(double p0[], double v0[], double sign_t1, boolean twoQuadraticsMode)
                 {
                     this.p0 = p0;
                     this.v0 = v0;
+                    this.sign_t1 = sign_t1;
                     this.twoQuadraticsMode = twoQuadraticsMode;
                 }
                 public double[] f(double x[])
                 {
                     double A0[] = {x[0],x[1]};
                     double At1[] = {x[2],x[3]};
-                    double t1 = VecMath.dist(A0, At1);
+                    double t1 = sign_t1*VecMath.dist(A0, At1);
                     double A1[] = VecMath.lerp(A0, At1, 1./t1);
                     double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode);
                     double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode);
@@ -10499,20 +10502,20 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private static class MyFunTryingToBeSmart
                 extends MyFun
             {
-                public MyFunTryingToBeSmart(double p0[], double v0[], boolean twoQuadraticsMode)
+                public MyFunTryingToBeSmart(double p0[], double v0[], double sign_t1, boolean twoQuadraticsMode)
                 {
-                    super(p0, v0, twoQuadraticsMode);
+                    super(p0, v0, sign_t1, twoQuadraticsMode);
                 }
 
                 public double[][] J(double x[])
                 {
                     double A0[] = {x[0],x[1]};
                     double At1[] = {x[2],x[3]};
-                    double t1 = VecMath.dist(A0, At1);
+                    double t1 = sign_t1*VecMath.dist(A0, At1);
                     double A1[] = VecMath.lerp(A0, At1, 1./t1);
                     double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode);
                     double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode);
-                    double answer[][] = calcVelocityAndPositionJacobianWithRespectToA0At1(p0,v0,A0,At1, twoQuadraticsMode);
+                    double answer[][] = calcVelocityAndPositionJacobianWithRespectToA0At1(p0,v0,A0,At1,sign_t1, twoQuadraticsMode);
                     return answer;
                 }
             } // class MyFunTryingToBeSmart
@@ -10521,14 +10524,15 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private static double[][] solveA0At1(double p0[], double v0[], // constant
                                                  double v1[],  
                                                  double p1[],
+                                                 double sign_t1,
                                                  boolean twoQuadraticsMode,
                                                  double A0InitialGuess[],
                                                  double At1InitialGuess[])
             {
                 int nIters = 10;
 
-                //NewtonSolver.Fun fun = new MyFunTryingToBeSmart(p0,v0); // bombs :-(
-                NewtonSolver.Fun fun = new MyFun(p0,v0,twoQuadraticsMode);
+                //NewtonSolver.Fun fun = new MyFunTryingToBeSmart(p0,v0,sign_t1,twoQuadraticsMode); // bombs :-(
+                NewtonSolver.Fun fun = new MyFun(p0,v0,sign_t1,twoQuadraticsMode);
 
                 // Newton solve:
                 double y[] = {v1[0],v1[1],p1[0],p1[1]};
@@ -10548,7 +10552,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     // not part of the SmoothlyVaryingViewingParameter implementation yet.
     private static void interactiveDemo2()
     {
-        final int eventVerbose = 0; // set to something else to debug
+        final int eventVerbose = 1; // set to something else to debug
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
@@ -10580,6 +10584,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public double A1[] = {1.5,1}; // will be adjusted to be unit distance away
                 public double t1 = 2.5;
 
+                public double accelerationMagnitude = 1.; // we fake this by simply scaling everything in the view except the unit circle by the inverse of this
                 public boolean twoQuadraticsMode = false;
 
                 //public double A0[] = {.25,-1.25};
@@ -10698,10 +10703,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                 int minSize = Math.min(w,h);
                 com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
-                                               -1.*w/minSize/view.scale,
-                                               1.*w/minSize/view.scale,
-                                               -1.*h/minSize/view.scale,
-                                               1.*h/minSize/view.scale);
+                                               -1.*w/minSize/(view.scale*model.accelerationMagnitude),
+                                               1.*w/minSize/(view.scale*model.accelerationMagnitude),
+                                               -1.*h/minSize/(view.scale*model.accelerationMagnitude),
+                                               1.*h/minSize/(view.scale*model.accelerationMagnitude));
 
 
                 // Clear to black
@@ -10717,6 +10722,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 double A0[] = model.A0;
                 double A1[] = model.A1;
                 double t1 = model.t1;
+                double sign_t1 = t1<0. ? -1. : 1.;
                 boolean twoQuadraticsMode = model.twoQuadraticsMode;
 
                 double At1[] = VecMath.lerp(A0,A1,t1);
@@ -10738,6 +10744,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     PRINTVEC(pt1);
                     double solvedA0At1[][] = solveA0At1(p0,v0,
                                                         vt1,pt1,
+                                                        sign_t1,
                                                         twoQuadraticsMode,
                                                         VecMath.vpsxv(A0, .01, VecMath.random(2)),
                                                         VecMath.vpsxv(At1, .01, VecMath.random(2)));
@@ -10794,9 +10801,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             };
                         };
 
-                        double t1_ = VecMath.dist(A0_, At1_);
-                        if (t1 < 0.)
-                            t1_ = -t1_;
+                        double t1_ = sign_t1*VecMath.dist(A0_, At1_);
                         double A1_[] = VecMath.lerp(A0_, At1_, 1./t1_);
                         double vt1_[] = calcVelocity(v0,A0_, A1_, t1_, twoQuadraticsMode);
                         double pt1_[] = calcPosition(p0,v0,A0_, A1_, t1_, twoQuadraticsMode);
@@ -10911,7 +10916,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                 // Draw a white unit circle around the origin
                 mg.setColor(java.awt.Color.white);
-                mg.drawArc(-1.,-1.,2.,2.,0.,2*Math.PI);
+                mg.drawArc(-1./model.accelerationMagnitude,
+                           -1./model.accelerationMagnitude,
+                           2./model.accelerationMagnitude,
+                           2./model.accelerationMagnitude,
+                           0.,2*Math.PI);
 
                 if (view.showVelocityHandles)
                 {
@@ -10932,7 +10941,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //
                 {
                     int nSubdivs = 10;
-                    double sign_t1 = t1<0. ? -1. : 1.;
                     for (int i = 0; i <= sign_t1*t1 * nSubdivs; ++i)
                     {
                         double t = sign_t1*(double)i/nSubdivs;
@@ -11110,11 +11118,17 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 addKeyListener(new java.awt.event.KeyAdapter() {
                     public void keyPressed(java.awt.event.KeyEvent e)
                     {
+                        boolean controlIsDown = ((e.getModifiers() & java.awt.event.InputEvent.CTRL_MASK) != 0);
                         char c = e.getKeyChar();
                         if (eventVerbose >= 1) System.out.println("    in keyPressed, keyEvent = "+e+" keyChar = (char)"+(int)c+"");
                         if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
                         {
                             // This is the case for control keys
+                        }
+                        else if (c == java.awt.event.KeyEvent.VK_ESCAPE)
+                        {
+                            System.out.println("ciao!");
+                            System.exit(0); // asinine way of doing things
                         }
                         else if (c == 'r' || c == 'R')
                         {
@@ -11139,14 +11153,72 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             view.finalVelocityHandleIsNegative ^= true;
                             repaint();
                         }
+                        else if (c == '-' || c == '+' || c == '=')
+                        {
+                            double multiplier = c=='-' ? Math.sqrt(.5) : Math.sqrt(2.);
+                            if (controlIsDown)
+                            {
+                                model.accelerationMagnitude *= multiplier;
+                                PRINT(model.accelerationMagnitude);
+
+                                // Adjust everything else so no pop
+                                // at p0,v0,p1,v1
+
+                                double vt1[] = calcVelocity(model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
+                                double pt1[] = calcPosition(model.p0,model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
+
+                                VecMath.vxs(model.v0, model.v0, 1./multiplier);
+                                VecMath.vxs(model.p0, model.p0, 1./multiplier);
+                                VecMath.vxs(vt1, vt1, 1./multiplier);
+                                VecMath.vxs(pt1, pt1, 1./multiplier);
+                                model.t1 /= multiplier;
+
+                                // XXX I think this is common code, maybe make a utility function for it
+                                // solve for A0,At1
+                                double At1[] = VecMath.lerp(model.A0, model.A1, model.t1);
+                                double sign_t1 = model.t1<0. ? -1. : 1.;
+                                double solvedA0At1[][] = solveA0At1(
+                                         model.p0,model.v0,
+                                         vt1,pt1,
+                                         sign_t1,
+                                         model.twoQuadraticsMode,
+                                         model.A0, At1); // initial guess
+                                model.A0 = solvedA0At1[0];
+                                At1 = solvedA0At1[1];
+                                model.t1 = sign_t1*VecMath.dist(model.A0,At1);
+                                model.A1 = VecMath.lerp(model.A0,At1,1./model.t1);
+                            }
+                            else
+                                view.scale *= multiplier;
+                            repaint();
+                        }
                         else if (c == '-')
                         {
-                            view.scale /= Math.sqrt(2.);
+                            if (controlIsDown)
+                            {
+                                model.accelerationMagnitude /= Math.sqrt(2.);
+                                PRINT(model.accelerationMagnitude);
+
+                                // Adjust everything else so no pop
+                                VecMath.vxs(model.v0, model.v0, Math.sqrt(2.));
+                                VecMath.vxs(model.p0, model.p0, Math.sqrt(2.));
+                                VecMath.vxs(model.A0, model.A0, Math.sqrt(2.));
+                                VecMath.vxs(model.A1, model.A1, Math.sqrt(2.));
+                                model.t1 *= Math.sqrt(2.);
+                            }
+                            else
+                                view.scale /= Math.sqrt(2.);
                             repaint();
                         }
                         else if (c == '+' || c == '=')
                         {
-                            view.scale *= Math.sqrt(2.);
+                            if (controlIsDown)
+                            {
+                                model.accelerationMagnitude *= Math.sqrt(2.);
+                                PRINT(model.accelerationMagnitude);
+                            }
+                            else
+                                view.scale *= Math.sqrt(2.);
                             repaint();
                         }
                         else if (c == 'q' || c == 'Q')
@@ -11165,14 +11237,16 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                             // solve for A0,At1
                             double At1[] = VecMath.lerp(model.A0, model.A1, model.t1);
+                            double sign_t1 = model.t1<0. ? -1. : 1.;
                             double solvedA0At1[][] = solveA0At1(
                                      model.p0,model.v0,
                                      vt1,pt1,
+                                     sign_t1,
                                      model.twoQuadraticsMode,
                                      model.A0, At1); // initial guess
                             model.A0 = solvedA0At1[0];
                             At1 = solvedA0At1[1];
-                            model.t1 = VecMath.dist(model.A0,At1);
+                            model.t1 = sign_t1*VecMath.dist(model.A0,At1);
                             model.A1 = VecMath.lerp(model.A0,At1,1./model.t1);
 
                             repaint();
@@ -11382,12 +11456,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         }
                         if (controller.target_vt1 != null && controller.target_pt1 != null)
                         {
-                            // attempt to drag vt1
+                            // attempt to drag vt1 or pt1
                             double p0[] = model.p0;
                             double v0[] = model.v0;
                             double A0[] = model.A0;
                             double A1[] = model.A1;
                             double t1 = model.t1;
+                            double sign_t1 = t1<0. ? -1. : 1.;
                             boolean twoQuadraticsMode = model.twoQuadraticsMode;
                             double At1[] = VecMath.lerp(A0,A1,t1);
                             double vt1[] = calcVelocity(v0, A0,A1,t1, twoQuadraticsMode);
@@ -11396,6 +11471,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             double solvedA0At1[][] = solveA0At1(
                                      p0,v0,
                                      controller.target_vt1, controller.target_pt1,
+                                     sign_t1,
                                      twoQuadraticsMode,
                                      A0, At1); // initial guess
 
@@ -11416,7 +11492,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 PRINTVEC(At1);
                             }
 
-                            t1 = VecMath.dist(A0,At1);
+                            t1 = sign_t1*VecMath.dist(A0,At1);
                             A1 = VecMath.lerp(A0,At1,1./t1);
                             model.A0 = A0;
                             model.A1 = A1;
