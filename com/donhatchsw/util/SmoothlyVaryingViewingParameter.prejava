@@ -170,13 +170,15 @@ public class SmoothlyVaryingViewingParameter
     } // evolve
 
     // XXX argh, javadoc things the first sentence ends after the i.e.
-    /** Returns true if we are still moving towards the target (i.e. if an evolve() would actually change anything), false otherwise. */
+    /** Returns true if the parameter has not yet reached the target (i.e. if an evolve() would actually change anything), false otherwise. */
     public boolean isMoving()
     {
         return !VecMath.equalsExactly(position, targetPosition)
              || VecMath.normsqrd(velocity) != 0.;
     }
 
+    // utility function, evolves a single coordinate
+    // towards zero position and velocity
     private static void update_p_and_v(double p_and_v[/*2*/],
                                        double referenceTripDistance,
                                        double referenceTripTime,
@@ -10548,7 +10550,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             } // solveA0At1
 
         /** Calculate twice the area of the given triangle projected into the given work plane. */
-        public static double twiceTriangleArea(double v0[],
+        private static double twiceTriangleArea(double v0[],
                                                double v1[],
                                                double v2[],
                                                int xAxis, int yAxis)
