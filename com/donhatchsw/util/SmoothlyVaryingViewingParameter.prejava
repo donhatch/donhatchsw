@@ -10547,6 +10547,20 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 return new double[][] {A0,At1};
             } // solveA0At1
 
+        /** Calculate twice the area of the given triangle projected into the given work plane. */
+        public static double twiceTriangleArea(double v0[],
+                                               double v1[],
+                                               double v2[],
+                                               int xAxis, int yAxis)
+        {
+            double x1 = v1[xAxis]-v0[xAxis];
+            double y1 = v1[yAxis]-v0[yAxis];
+            double x2 = v2[xAxis]-v0[xAxis];
+            double y2 = v2[yAxis]-v0[yAxis];
+            return x1*y2 - x2*y1;
+        } // twiceTriangleArea
+
+
 
     // Trying to visualize the kinodynamic planning problem.
     // not part of the SmoothlyVaryingViewingParameter implementation yet.
@@ -11437,6 +11451,26 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 VecMath.dist(v0,newKnee), VecMath.lerp(v0,newKnee,.5),
                                 VecMath.dist(newKnee,vt1), VecMath.lerp(newKnee,vt1,.5));
                             controller.target_pt1 = newPt1;
+                            if (VecMath.dot(VecMath.vmv(oldKnee,v0),
+                                            VecMath.vmv(vt1,v0)) > 0
+                             && VecMath.dot(VecMath.vmv(oldKnee,vt1),
+                                            VecMath.vmv(v0,vt1)) > 0
+                             && VecMath.dot(VecMath.vmv(newKnee,v0),
+                                            VecMath.vmv(vt1,v0)) > 0
+                             && VecMath.dot(VecMath.vmv(newKnee,vt1),
+                                            VecMath.vmv(v0,vt1)) > 0
+                             && twiceTriangleArea(v0,vt1,oldKnee,0,1)
+                              * twiceTriangleArea(v0,vt1,newKnee,0,1) < 0)
+                            {
+                                // pretty much guaranteed to fail when
+                                // the knee is dragged across the segment
+                                // between v0 and vt1,
+                                // so try to rig it so it succeeds in that case
+                                double At1[] = VecMath.lerp(A0,A1,model.t1);
+                                model.A1 = VecMath.vpvmv(At1, A0, A1);
+                                model.A0 = At1;
+                                PRINT("YEAH!");
+                            }
                         }
                         else
                         {
@@ -11513,7 +11547,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         frame.show();
     } // interactiveDemo2
 
-    private static void interactiveDemo()
+    private static void interactiveDemo1()
     {
         final int eventVerbose = 0; // set to something else to debug
 
@@ -11826,7 +11860,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         System.out.println("in main");
 
         if (args.length == 1 && args[0].equals("demo1"))
-            interactiveDemo();
+            interactiveDemo1();
         else if (args.length == 1 && args[0].equals("demo2"))
             interactiveDemo2();
         else if (args.length == 1 && args[0].equals("confidenceTests"))
