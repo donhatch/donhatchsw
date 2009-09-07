@@ -82,12 +82,18 @@ public class SmoothlyVaryingViewingParameter
         VecMath.copyvec(position, this.position);
     }
     /** Gets the velocity of this scalar variable now, in case you're interested.  You can't set the velocity directly (except to zero, by calling snap() or the equivalent).  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
-    // XXX needs a vector version
     public double getVelocity()
     {
         if (position.length != 1)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
         return velocity[0];
+    }
+    /** Gets the velocity of this scalar variable now, in case you're interested.  You can't set the velocity directly (except to zero, by calling snap() or the equivalent). */
+    public void getVelocity(double velocity[])
+    {
+        if (velocity.length != this.velocity.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getVelocity: return buffer size is "+velocity.length+", expected "+this.velocity.length+"");
+        VecMath.copyvec(velocity, this.velocity);
     }
 
     // this is PRIVATE. XXX well maybe I shouldn't be so hard-line, if I make it public, change the above comment
@@ -145,31 +151,124 @@ public class SmoothlyVaryingViewingParameter
                        double dt,
                        double bounce)
     {
+        System.out.println("    in evolve");
         if (isMoving())
         {
+            //assert(false); // XXX coverage-- remove when hit
             if (referenceTripTime == 0.)
             {
+                //assert(false); // XXX coverage-- remove when hit
                 if (referenceTripDistance == 0.)
                     throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.evolve: referenceTripDistance/referenceTripTime is 0/0 !?");
                 // Infinite power-- bonk it there.
                 VecMath.copyvec(this.position, targetPosition);
                 VecMath.zerovec(this.velocity);
+                System.out.println("    out evolve (referenceTripTime is 0)");
                 return;
             }
+            //assert(false); // XXX coverage-- remove when hit
 
-            double p_and_v[] = new double[2];
-            for (int i = 0; i < position.length; ++i)
+            boolean separable = false; // XXX do something sensible here depending on dimension
+            if (separable)
             {
-                p_and_v[0] = position[i] - targetPosition[i];
-                p_and_v[1] = velocity[i];
-                update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, bounce);
-                position[i] = p_and_v[0] + targetPosition[i];
-                velocity[i] = p_and_v[1];
+                //assert(false); // XXX coverage-- remove when hit
+                double p_and_v[] = new double[2];
+                for (int i = 0; i < position.length; ++i)
+                {
+                    //assert(false); // XXX coverage-- remove when hit
+                    p_and_v[0] = position[i] - targetPosition[i];
+                    p_and_v[1] = velocity[i];
+                    update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, bounce);
+                    position[i] = p_and_v[0] + targetPosition[i];
+                    velocity[i] = p_and_v[1];
+                }
             }
+            else // !separable
+            {
+                //assert(false); // XXX coverage-- remove when hit
+                double a = 4 * referenceTripDistance
+                             / SQR(referenceTripTime);
+                bounce = MIN(bounce, 1-1e-6); // XXX should try to do something real in that case intead-- always pull directly towards the target
+                double vKnee[] = new double[velocity.length];
+                if (bounce < 1.)
+                {
+                    //assert(false); // XXX coverage-- remove when hit
+                    // A is the overoptimistic acceleration
+                    // such that, if we plan using it,
+                    // we will overshoot by exactly bounce.
+                    // Worked this out on paper...
+                    double A = a * ((1.+bounce)/(1.-bounce));
+                    computeVelocityKnee(vKnee,
+                                        VecMath.vmv(position, targetPosition),
+                                        velocity, A);
+                }
+                else
+                {
+                    assert(false); // XXX coverage-- remove when hit
+                    // A = infinity, vKnee should have infinite magnitude in the direction of the desired position change, I think
+                    assert(false);
+                }
+                PRINTARRAY(vKnee);
+
+                double beforeKneeVelocityDirection[] = VecMath.vmv(vKnee, velocity); 
+                double timeBeforeKnee = VecMath.normalize(beforeKneeVelocityDirection,
+                                                          beforeKneeVelocityDirection) / a;
+                if (dt <= timeBeforeKnee)
+                {
+                    //assert(false); // XXX coverage-- remove when hit
+                    VecMath.vpsxvpsxv(position,
+                                      position,
+                                      dt, velocity,
+                                      .5*a*dt*dt, beforeKneeVelocityDirection);
+                    VecMath.vpsxv(velocity,
+                                  velocity,
+                                  dt*a, beforeKneeVelocityDirection);
+                }
+                else // dt > timeBeforeKnee
+                {
+                    //assert(false); // XXX coverage-- remove when hit
+                    double afterKneeVelocityDirection[] = VecMath.sxv(-1., vKnee);
+                    double timeAfterKnee = VecMath.normalize(afterKneeVelocityDirection,
+                                                             afterKneeVelocityDirection) / a;
+                    if (dt >= timeBeforeKnee + timeAfterKnee)
+                    {
+                        //assert(false); // XXX coverage-- remove when hit
+                        // done   XXX wait, no!  not necessarily done if there was bounce, because in that case when we integrate, we won't get p=0
+                        VecMath.copyvec(position, targetPosition);
+                        VecMath.zerovec(velocity);
+                        System.out.println("    out evolve (dt >= timeBeforeKnee + timeAfterKnee)");
+                        return;
+                    }
+
+                    // Accumulate up to the knee...
+                    VecMath.vpsxvpsxv(position,
+                                      position,
+                                      timeBeforeKnee, velocity,
+                                      .5*a*timeBeforeKnee*timeBeforeKnee, beforeKneeVelocityDirection);
+                    VecMath.vpsxv(velocity,
+                                  velocity,
+                                  timeBeforeKnee*a, beforeKneeVelocityDirection);
+                    // Then the part after the knee...
+                    timeAfterKnee = dt - timeBeforeKnee;
+                    VecMath.vpsxvpsxv(position,
+                                      position,
+                                      timeAfterKnee, velocity,
+                                      .5*a*timeAfterKnee*timeAfterKnee, afterKneeVelocityDirection);
+                    VecMath.vpsxv(velocity,
+                                  velocity,
+                                  timeAfterKnee*a, afterKneeVelocityDirection);
+                }
+                //assert(false); // XXX coverage-- remove when hit
+            } // if !separable
+        } // if isMoving()
+        else
+        {
+            System.out.println("        (not moving)");
         }
+        System.out.println("    out evolve");
     } // evolve
 
-    // XXX argh, javadoc things the first sentence ends after the i.e.
+    // XXX argh, javadoc thinks the first sentence ends after the i.e.
     /** Returns true if the parameter has not yet reached the target (i.e. if an evolve() would actually change anything), false otherwise. */
     public boolean isMoving()
     {
@@ -177,6 +276,410 @@ public class SmoothlyVaryingViewingParameter
              || VecMath.normsqrd(velocity) != 0.;
     }
 
+
+    // utility function to find the velocity switch point
+    // in the two-piece quadratic solution
+    // starting at position p, velocity v and ending at 0,0
+    private static void computeVelocityKnee(double velocityKnee[],
+                                            double p[], double v[], double a)
+    {
+        System.out.println("        in computeVelocityKnee(p="+Arrays.toStringCompact(p)+", v="+Arrays.toStringCompact(v)+", a="+a+")");
+        //assert(false); // XXX coverage-- remove when hit
+        //
+        // Want knee k such that
+        // the integral from v to k to 0 takes p to 0,
+        // i.e. find k such that:
+        //      ||k-v|| (k+v)/2 + ||0-k|| (0+k)/2 == -p*a
+        //
+
+        //
+        // First find a work plane
+        // containing p and v.
+        //
+        double vLength = VecMath.norm(v);
+        PRINT(vLength);
+        if (vLength == 0.)
+        {
+            //assert(false); // XXX coverage-- remove when hit
+            // Starting and ending velocities are zero.
+            //      ||k-v|| (k+v)/2 + ||0-k|| (0+k)/2 == -p*a
+            //      ||k|| k/2 + ||k|| k/2 == -p*a
+            //      ||k|| k == -p*a
+            //      direction = direction of -p = direction of -p*a
+            //      length = sqrt(||p||*a) = sqrt(||p*a||)
+            //      So  k = (-p*a / ||p*a||) sqrt(||p*a||)
+            //            =  -p*a / sqrt(||p*a||)
+            //      
+            VecMath.vxs(velocityKnee,
+                        p, -a);
+            double lengthsqrd = VecMath.normsqrd(velocityKnee); // ||p/a||^2
+            if (lengthsqrd != 0.)
+            {
+                //assert(false); // XXX coverage-- remove when hit
+                double length = Math.sqrt(lengthsqrd);
+                VecMath.vxs(velocityKnee,
+                            velocityKnee, 1./Math.sqrt(length));
+            }
+            System.out.println("        out computeVelocityKnee (vLength was 0), returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
+            return;
+        }
+        //assert(false); // XXX coverage-- remove when hit
+
+        double vDir[] = VecMath.vxs(v,
+                                    1./vLength);
+        PRINTARRAY(vDir);
+
+
+        // Orthonormalize p against vDir to get uDir.
+        // Bleah, why is this so hard?
+        // Had an example:
+        //      v = {0.04761904761904767,0.0}
+        //      vLength = 0.04761904761904767
+        //      vDir = vDir = {0.9999999999999999,0.0}
+        //      p = {-0.0011337868480725821,0.0}
+        //      p - (p dot vDir)*vDir = {-4.3368086899420177E-19,0.0}
+        // so that's all messed up.
+
+        double uDir[] = VecMath.copyvec(p);
+        for (int iIter = 0; ; iIter++)
+        {
+            VecMath.vpsxv(uDir, uDir, -VecMath.dot(uDir,vDir), vDir);
+            double uLength = VecMath.norm(uDir);
+            if (uLength == 0.
+             || iIter == 5) // without this, it actually gets an endless loop after a while
+            {
+                // uDir = arbitrary vector not aligned with vDir
+                VecMath.zerovec(v.length, uDir);
+                uDir[VecMath.minabsi(vDir)] = 1.;
+            }
+            else
+            {
+                VecMath.vxs(uDir, uDir, 1./uLength);
+                // uDir should now be orthogonal to vDir,
+                // but sometimes it's not, in bizarre circumstances
+                // such as that described above.
+                // If not, keep trying.
+                // Don't immediately go to choosing an arbitrary vector
+                // orthogonal to vDir, since we might get enough
+                // leverage in a couple of iterations.
+                if (Math.abs(VecMath.dot(uDir,vDir)) < 1e-15)
+                    break;
+            }
+        }
+        PRINTARRAY(uDir);
+        assert(Math.abs(VecMath.dot(uDir,vDir)) < 1e-15);
+
+        //
+        // In the work plane, p and v have these coordinates...
+        //
+        double vx = vLength;
+        double vy = 0;
+        double px = VecMath.dot(p, vDir);
+        double py = VecMath.dot(p, uDir);
+
+        //
+        // a and vLength are a nuisance.
+        // Transform stuff so that a=1 and vLength=1 (i.e. v = 1,0).
+        // We'll multiply the answer by vLength at the end.
+        //
+        // The effect of a, with a given knee, is to scale the integral by 1/a.
+        // so to compensate for that, we scale the target integral -p by a,
+        // and solve pretending a=1.
+        //
+        // The effect of scaling by 1/vLength is to multiply the integral
+        // by 1/(vLength^2), so that's what we multiply the target integral -p by.
+        //
+        px *= a / (vLength*vLength);
+        py *= a / (vLength*vLength);
+
+
+        double xDesiredIntegral = -px;
+        double yDesiredIntegral = -py;
+
+        PRINT(xDesiredIntegral);
+        PRINT(yDesiredIntegral);
+
+        //
+        // In the work plane, for given v and slack,
+        // the set of all path-length integrals of paths with that v and slack
+        // form an ellipse.  Not sure why, but it's true.
+        // Find the slack such that the ellipse passes through
+        // the desired integral -p.
+        // 
+        double slack;
+        {
+            // TODO: is this really better than newton?  doing it this way for stability since there are regions in which the function isn't invertible, but not sure I'm actually accomplishing anything
+            double slackLowerBound = 0.;
+            double slackUpperBound = Double.POSITIVE_INFINITY;
+            boolean triedZero = false;
+            boolean triedOne = false;
+            int iIteration = 0;
+            for (;; iIteration++)
+            {
+                //assert(false); // XXX coverage-- remove when hit
+                // Try 0, 1, 2, 4, ... keep doubling estimate
+                // until it's an upper bound,
+                // then do binary search between 0 and that upper bound
+                double slackEstimate;
+                if (slackUpperBound == Double.POSITIVE_INFINITY)
+                {
+                    if (!triedZero)
+                    {
+                        slackEstimate = 0.;
+                        triedZero = true;
+                    }
+                    else if (!triedOne)
+                    {
+                        slackEstimate = 1.;
+                        triedOne = true;
+                    }
+                    else
+                        slackEstimate = 2*slackLowerBound;
+                }
+                else
+                {
+                    slackEstimate = (slackLowerBound+slackUpperBound)*.5;
+                    if (slackEstimate <= slackLowerBound
+                     || slackEstimate >= slackUpperBound)
+                    {
+                        //assert(false); // XXX coverage-- remove when hit
+                        System.out.println("        radius is pretty damn good on iteration "+iIteration);
+                        slack = slackEstimate;
+                        break;
+                    }
+                }
+
+                //PRINT(slackEstimate);
+
+                // little (x) and big (y) ellipse radii of the ellipse
+                // on the integral graph...
+                // these were worked out on paper.
+                // XXX so far these assume vx = 1
+                double r = slackEstimate*(2+slackEstimate)*.25;
+                double R = Math.sqrt(r) * .5 * (1+slackEstimate);
+                double xCenter = .5*(1+slackEstimate);
+                // x and y are relative to the ellipse center on the integral graph
+                double x = xDesiredIntegral - xCenter;
+                double y = yDesiredIntegral;
+                if (false)
+                {
+                    PRINT(r);
+                    PRINT(R);
+                    PRINTARRAY(xCenter);
+                    PRINT(x);
+                    PRINT(y);
+                }
+                // if x,y is outside the ellipse...
+                // i.e. if (x/r)^2 + (y/R)^2 > 1
+                // i.e. if (x*R)^2 + (y*r)^2 > (r*R)^2
+                double signedDistanceFromEllipse = r==0. ? SQR(x)+SQR(y)
+                                                 : SQR(x*R) + SQR(y*r) - SQR(r*R);
+                if (signedDistanceFromEllipse > 0.)
+                {
+                    //assert(false); // XXX coverage-- remove when hit
+                    // ellipse is too small, raise lower bound up to estimate
+                    slackLowerBound = slackEstimate;
+                    //System.out.println("        ellipse is too small");
+                }
+                else if (signedDistanceFromEllipse < 0.)
+                {
+                    //assert(false); // XXX coverage-- remove when hit
+                    // shrink upper bound to estimate
+                    slackUpperBound = slackEstimate;
+                    //System.out.println("        ellipse is too big");
+                }
+                else
+                {
+                    //assert(false); // XXX coverage-- remove when hit
+                    System.out.println("        ellipse is just right on iteration "+iIteration);
+                    slack = slackEstimate;
+                    break;
+                }
+            }
+        }
+        PRINT(slack);
+        //assert(false); // XXX coverage-- remove when hit
+
+        //
+        // Okay now we have slack (assuming vLength=1, a=1).
+        // Here is the knee, worked out on paper...
+        //
+        double xKnee, yKnee;
+        if (slack == 0.) // XXX seems dangerous
+        {
+            xKnee = .5;
+            yKnee = 0.;
+        }
+        else
+        {
+            yKnee = 2*yDesiredIntegral/(1+slack);
+            PRINT((-1 + 2*(1 + slack)*xDesiredIntegral - Math.sqrt(SQR(1 + slack - 2*xDesiredIntegral) + slack*(2+slack)*(yKnee*yKnee))));
+            PRINT((slack*(2+slack)));
+
+            xKnee = (-1
+                   + 2*(1 + slack)*xDesiredIntegral
+                   - Math.sqrt(SQR(1 + slack - 2*xDesiredIntegral)
+                             + slack*(2+slack)*(yKnee*yKnee))
+                    )
+                  / (slack*(2+slack));
+
+            //
+            // Kind of ad-hoc rescue for case when slack is very close to 0
+            // and so the numerator and denominator of xKnee are close to zero as well..
+            // in this case all that matters is that the knee be close to the segment.
+            //
+            if (slack < 1e-6)
+                xKnee = CLAMP(xKnee, -slack*.5, slack*.5);
+        }
+        PRINT(xKnee);
+        PRINT(yKnee);
+
+        //
+        // Expand out to the real vLength...
+        //
+        xKnee *= vLength;
+        yKnee *= vLength;
+
+        VecMath.sxvpsxv(velocityKnee,
+                        xKnee, vDir,
+                        yKnee, uDir);
+
+        System.out.println("        out computeVelocityKnee, returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
+
+        //
+        // Check that it does what it's supposed to,
+        // using the original v and a.
+        // namely:
+        //      ||k-v||/a (k+v)/2 + ||0-k||/a (0+k)/2 == -p
+        //
+        {
+            double positionChange[] = VecMath.sxvpsxv(
+                VecMath.dist(v,velocityKnee)/a, VecMath.lerp(v,velocityKnee,.5),
+                VecMath.norm(velocityKnee)/2/a, velocityKnee);
+            PRINTARRAY(positionChange);
+            PRINTARRAY(p);
+            double error = VecMath.norm(VecMath.vpv(positionChange,p));
+            assert(error <= 1e-6); // XXX should be relative
+        }
+
+    } // computeVelocityKnee
+
+
+
+#ifdef NOTYET_MAYBE_NEVER
+    // utility function, evolves p and v
+    // towards zero position and velocity.
+    private static void update_p_and_v(double p[],
+                                       double v[],
+                                       double referenceTripDistance,
+                                       double referenceTripTime,
+                                       double dt,
+                                       double bounce)
+    {
+        boolean debug = false;
+        if (debug) System.out.println("in update_p_and_v");
+        assert(bounce >= 0); // XXX make this a bad param exception or something
+
+        if (referenceTripDistance == 0.)
+        {
+            // no acceleration, don't move
+            return;
+        }
+        if (referenceTripTime == 0.)
+        {
+            // infinite acceleration-- snap to target
+            VecMath.zerovec(p);
+            VecMath.zerovec(v);
+            return;
+        }
+
+        // actual acceleration magnitude...
+        double a = 4 * referenceTripDistance
+                     / SQR(referenceTripTime);
+
+        // Hack to get bounce working, since I don't think I'm going to get
+        // any analytic formula.
+        // The behavior of this hack will vary with dt :-(
+        // The hack is to do the calculations as if we have more power
+        // than we actually have... that will result in us overshooting
+        // every time.
+        // What's the right formula?
+        // Well let's say our actual acceleration magnitude is a=1
+        // (i.e. reference trip .25m/1s or 1m/2s)
+        // If we do calculations as if the magnitude is A=2,
+        // how much will it overshoot?
+        // Well, if we start at velocity 0, at distance 1 from target,
+        // at time 1 we will be at distance .5 with speed 1.
+        // If we knew our acceleration was 1 we would start slowing down,
+        // but we think we are powerful so we keep accelerating instead.
+        // We will keep accelerating until our speed s and distance from target d
+        // satisfy s=A t, d = 1/2 A t^2 for some t, i.e.
+        // (measuring t from end)
+        //      d = 1/2 A (s/A)^2  since t == s/A
+        //        = 1/2 s^2 / A
+        // The acceleration curve we are on is decreasing d and increasing s:
+        // (measuring t from start)
+        //      d = 1 - 1/2 t^2
+        //      s = t
+        //   => d = 1 - 1/2 s^2
+        //
+        // 1st eq:
+        //      s^2 = 2 d A
+        // 2nd eq:
+        //      s^2 == 2 (1-d)
+        // Combining:
+        //      2 d A == 2 (1-d)
+        //        d A == 1-d
+        //        d (A+1) == 1
+        //        d == 1/(A+1)
+        // 1st eq:
+        //        1/2 s^2 / A == 1/(A+1)
+        //        s^2 == 2 A/(A+1)
+        // 2nd eq:
+        //        1 - 1/2 s^2 == 1/(A+1)
+        //        s^2 == 2(1 - 1/(A+1))
+        //            == 2 A/(A+1)
+        //
+        // So:
+        //       d = 1/(A+1)
+        //       s = sqrt(2 A/(A+1))
+        // (A=1 -> d=1/2, s=1 check.)
+        // (A=infinity -> d=0, s=sqrt(2) check.)
+        // That's when we start decelerating.
+        // We'll slow down to zero speed at s seconds later,
+        // after going 1/2 s^2 more distance.
+        // so the amount we overshoot, i.e. the bounce, is:
+        //  bounce = 1/2 s^2 - d
+        //         = 1/2 2 A/(A+1) - 1/(A+1)
+        //         = A/(A+1) - 1/(A+1)
+        //         = (A-1)/(A+1)
+        // bounce = (A-1)/(A+1)
+        // Solving for A in terms of bounce, we get:
+        //     A = (1+bounce)/(1-bounce)
+        // Yay!
+        // So:
+        //     bounce=0 -> A=1
+        //     bounce=1/3 -> A=2
+        //     bounce=1/2 -> A=3
+        //     bounce=3/5 -> A=4
+        //     bounce=2/3 -> A=5
+        //     bounce=5/7 -> A=6
+        //     bounce=3/4 -> A=7
+        //     bounce=7/9 -> A=8
+        //     bounce=4/5 -> A=9
+        //     bounce=9/11 -> A=10
+        // etc.
+        // 
+        bounce = MAX(bounce, 1-1e-6); // XXX do something right in the bounce=1 case instead
+        double A = a * (1.+bounce)/(1.-bounce);
+
+        double knee[] = computeVelocityKnee(A,
+                                            -v,
+                                            -p);
+
+    } // update_p_and_v vector version
+#endif // NOTYET_MAYBE_NEVER
+                                        
     // utility function, evolves a single coordinate
     // towards zero position and velocity
     private static void update_p_and_v(double p_and_v[/*2*/],
@@ -331,7 +834,7 @@ public class SmoothlyVaryingViewingParameter
         p_and_v[0] = p;
         p_and_v[1] = v;
         if (debug) System.out.println("out update_p_and_v");
-    } // private update_p_and_v
+    } // private update_p_and_v single coordinate version
 
 
 
@@ -345,6 +848,177 @@ public class SmoothlyVaryingViewingParameter
 
     private static void confidenceTests()
     {
+        if (true)
+        {
+            //
+            // Test the double-quadratic behavior.
+            //
+            System.out.println("    Testing double-quadratic behavior");
+            SmoothlyVaryingViewingParameter x2 = new SmoothlyVaryingViewingParameter(new double[2]);
+            SmoothlyVaryingViewingParameter x3 = new SmoothlyVaryingViewingParameter(new double[2]);
+            double bounce = 0.; // XXX should write some tests with this
+            double eps = 1e-5;
+            double referenceTripDistances[] = {1, .5, 2.};
+            double referenceTripTimes[] = {2., 0., .5, 1.};
+            double vStartXs[] = {1., -1., -.1, 0., .1,};
+            double vStartYs[] = {0., -.5, 1.};
+            double pStarts[][] = {{0,0},{1,2}};
+            double vKneeYs[] = {0., -1., -.1, .1, 1.};
+            double vKneeXs[] = {0., -.5, -1., .5, 1., 1.5, 2.};
+            double nIncrss[] = {10, .9, 1, 1.1, 1.9, 2, 2.1, 9.9, 10.1};
+            FORI (iReferenceTripDistance, referenceTripDistances.length)
+            FORI (iReferenceTripTime, referenceTripTimes.length)
+            FORI (iVStartX, vStartXs.length)
+            FORI (iVStartY, vStartYs.length)
+            FORI (iPStart, pStarts.length)
+            FORI (iVKneeY, vKneeYs.length)
+            FORI (iVKneeX, vKneeXs.length)
+            FORI (iIncr, nIncrss.length)
+            {
+                System.out.println("    ================================================");
+                double referenceTripDistance = referenceTripDistances[iReferenceTripDistance];
+                double referenceTripTime = referenceTripTimes[iReferenceTripTime];
+                double v[] = {vStartXs[iVStartX], vStartYs[iVStartY]};
+                double p[] = pStarts[iPStart];
+                double vKnee[] = {vKneeXs[iVKneeX], vKneeYs[iVKneeY]};
+                double nIncrs = nIncrss[iIncr];
+                double dt = referenceTripTime / nIncrs;
+
+                PRINT(referenceTripDistance);
+                PRINT(referenceTripTime);
+                PRINTARRAY(v);
+                PRINTARRAY(p);
+                PRINTARRAY(vKnee);
+                PRINT(nIncrs);
+                PRINT(dt);
+
+                //
+                // Figure out how much p changes
+                // as velocity goes from v to vKnee to 0.
+                // We'll set the starting p to minus that.
+                //
+                double a = 4*referenceTripDistance / SQR(referenceTripTime);
+                PRINT(a);
+                double expectedBeforeKneeTime = VecMath.dist(v,vKnee) / a; // from v to vKnee
+                double expectedAfterKneeTime = VecMath.norm(vKnee) / a; // from vKnee to 0
+                double expectedTotalTime = expectedBeforeKneeTime + expectedAfterKneeTime;
+                PRINT(expectedBeforeKneeTime);
+                PRINT(expectedAfterKneeTime);
+                PRINT(expectedTotalTime);
+
+                // totalPositionChange =
+                //       beforeKneeTime * (v+vKnee)/2  + afterKneeTime * (vKnee+0)/2
+                //     = 1/2 *  (beforeKneeTime * v  + totalTime * vKnee)
+
+                double expectedTotalPositionChange[] = VecMath.sxvpsxv(
+                        expectedBeforeKneeTime*.5, v,
+                        expectedTotalTime*.5, vKnee);
+                PRINTARRAY(expectedTotalPositionChange);
+                double pTarget[] = VecMath.vpv(p, expectedTotalPositionChange);
+                PRINTARRAY(pTarget);
+
+                //
+                // Do the trip in 2d
+                //
+                if (true)
+                {
+                    x2.snap(p);
+                    double scratch[] = new double[2];
+                    x2.get(scratch);
+                    assert(VecMath.equalsExactly(scratch, p));
+                    x2.getVelocity(scratch);
+                    assert(VecMath.equalsExactly(scratch, VecMath.zerovec(p.length)));
+                    assert(!x2.isMoving());
+
+                    x2.set(pTarget);
+                    x2.get(scratch);
+                    assert(VecMath.equalsExactly(scratch, p));
+                    x2.getVelocity(scratch);
+                    assert(VecMath.equalsExactly(scratch, VecMath.zerovec(p.length)));
+                    assert(x2.isMoving() == (VecMath.distsqrd(p,pTarget) != 0.));
+
+                    x2.setVelocity(v);
+                    x2.get(scratch);
+                    assert(VecMath.equalsExactly(scratch, p));
+                    x2.getVelocity(scratch);
+                    assert(VecMath.equalsExactly(scratch, v));
+                    assert(x2.isMoving() == (!VecMath.equalsExactly(p,pTarget)
+                                          || VecMath.normsqrd(v) != 0.));
+
+
+                    double p0[] = new double[2];
+                    double v0[] = new double[2];
+                    double p1[] = new double[2];
+                    double v1[] = new double[2];
+                    double t = 0.;
+                    for (int i = 0; i < nIncrs + 5.; ++i)
+                    {
+                        PRINT(i);
+                        PRINT(t);
+                        PRINT(t+dt);
+                        x2.get(p0);
+                        x2.getVelocity(v0);
+                        x2.evolve(referenceTripDistance,referenceTripTime, dt, bounce);
+                        t += dt;
+                        x2.get(p1);
+                        x2.getVelocity(v1);
+
+                        PRINTARRAY(p0);
+                        PRINTARRAY(v0);
+                        PRINTARRAY(p1);
+                        PRINTARRAY(v1);
+
+                        if (LT(t, expectedTotalTime, eps))
+                            assert(x2.isMoving());
+                        else if (GT(t, expectedTotalTime, eps))
+                            assert(!x2.isMoving());
+                        else
+                        {
+                            // should be pretty damn close to stopped
+                            assert(VecMath.norm(v1) <= 1e-6);
+                            assert(VecMath.dist(p1, pTarget) <= 1e-6);
+                        }
+
+                        {
+                            // should also be the same as what we get
+                            // if we make the trip all at once
+                            SmoothlyVaryingViewingParameter allAtOnce = new SmoothlyVaryingViewingParameter(p);
+                            allAtOnce.setVelocity(v);
+                            allAtOnce.set(pTarget);
+                            allAtOnce.evolve(referenceTripDistance,referenceTripTime, t, bounce);
+                            double p1AllAtOnce[] = new double[2];
+                            double v1AllAtOnce[] = new double[2];
+                            allAtOnce.get(p1AllAtOnce);
+                            allAtOnce.getVelocity(v1AllAtOnce);
+                            PRINTARRAY(p1);
+                            PRINTARRAY(p1AllAtOnce);
+                            PRINTARRAY(v1);
+                            PRINTARRAY(v1AllAtOnce);
+
+                            assert(VecMath.dist(p1, p1AllAtOnce) <= 1e-6);
+                            assert(VecMath.dist(v1, v1AllAtOnce) <= 1e-6);
+                        }
+
+                        System.out.println();
+                    }
+                }
+
+                //
+                // Now do the trip in 3d
+                // with some random rotation
+                //
+                if (false)
+                {
+                    assert(false); // XXX DO ME
+                }
+            }
+
+            System.out.println("    double-quadratic behavior test passed.");
+
+            System.out.println("EXITING EARLY");
+            System.exit(0);
+        }
+
         {
             SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
             x.set(1.);
@@ -397,6 +1071,7 @@ public class SmoothlyVaryingViewingParameter
                 System.out.println();
             }
             assert(x.get() == 1.);
+            assert(x.getVelocity() == 0.);
         }
         System.out.println("================================================");
 
@@ -438,6 +1113,7 @@ public class SmoothlyVaryingViewingParameter
             }
             assert(x.get() == 1.);
         }
+
 
         {
             //
@@ -10687,6 +11363,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private com.donhatchsw.awt.MyGraphics mostRecentGraphics = null;
 
 
+            // SIZE
             public java.awt.Dimension getPreferredSize()
             {
                 return new java.awt.Dimension(850,850);
@@ -11315,7 +11992,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         if (controller.mostRecentThingBeingDragged != -1)
                         {
                             // Prevent jarring sudden appearance
-                            // of the grid on re-entry, but turning
+                            // of the grid on re-entry, by turning
                             // it off til someone clicks
                             controller.mostRecentThingBeingDragged = -1;
                             repaint();
@@ -11611,6 +12288,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             double prevPoint[] = null;
             int indexOfThingBeingDragged = -1;
 
+            // SIZE
             public java.awt.Dimension getPreferredSize()
             {
                 //return new java.awt.Dimension(800,800);
@@ -11852,7 +12530,311 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         frame.add(canvas);
         frame.pack();
         frame.show();
-    } // interactiveDemo
+    } // interactiveDemo1
+
+        public static void HSVtoRGB(float h, float s, float v, float rgb[/*3*/])
+        {
+            while (h < 0)
+                h++;
+            while (h >= 1)
+                h--;
+
+            int segment = (int)(h*6);
+
+            float frac = (6*h)-segment;
+            if (segment % 2 == 1)
+                frac = 1 - frac;
+
+            float major = v;
+            float minor = (1-s)*v;
+            float middle = frac * major + (1-frac) * minor;
+
+            rgb[(segment+1)/2 % 3] = major;
+            rgb[(segment+4)/2 % 3] = minor;
+            rgb[(7-segment) % 3] = middle;
+        } // HSVtoRGB
+
+
+    // Several 2d SmoothlyVaryingViewingParameters
+    // that follow the mouse cursor around at different speeds
+    private static void interactiveDemo3()
+    {
+        final int eventVerbose = 1; // set to something else to debug
+
+        java.awt.Canvas canvas = new java.awt.Canvas() {
+
+            // Make it so we get keyboard focus on startup,
+            // without having to click first.  Thanks, Melinda!
+            public boolean isFocusTraversable()
+            {
+                return true;
+            }
+
+            class Model
+            {
+                public SmoothlyVaryingViewingParameter points[];
+                public double referenceTripDistancesInPixels[];
+                public double referenceTripTimesInRepaints[];
+                public java.awt.Color colors[];
+                public double bounce = .9;
+                public Model()
+                {
+                    int n = 10;
+                    points = new SmoothlyVaryingViewingParameter[n];
+                    referenceTripDistancesInPixels = new double[n];
+                    referenceTripTimesInRepaints = new double[n];
+                    colors = new java.awt.Color[n];
+                    FORI (i, n)
+                    {
+                        points[i] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
+
+                        // Uniformly spaced in log space, between 1 and 100.
+                        double frac = i/(n-1.);
+                        referenceTripDistancesInPixels[i] = Math.pow(1., 1-frac) * Math.pow(100., frac);
+                        referenceTripTimesInRepaints[i] = 1.;
+
+                        float hue = i/(n-1.f);
+                        float sat = .4f;
+                        float val = 1.f;
+                        float rgb[] = new float[3];
+                        HSVtoRGB(hue,sat,val,rgb);
+                        colors[i] = new java.awt.Color(rgb[0],rgb[1],rgb[2]);
+                    }
+                } // class Model
+            }
+            class View
+            {
+                // Really viewing params...
+                boolean showAccelerations = false;
+                boolean showVelocities = false;
+            }
+            class Controller
+            {
+            }
+            private Model model = new Model();
+            private View view = new View();
+            private Controller controller = new Controller();
+            private com.donhatchsw.awt.MyGraphics mostRecentGraphics = null;
+
+
+            // SIZE
+            public java.awt.Dimension getPreferredSize()
+            {
+                //return new java.awt.Dimension(850,850);
+                return new java.awt.Dimension(400,400);
+                //return new java.awt.Dimension(200,200);
+            }
+
+
+
+
+            private java.awt.Image backBuffer = null;
+            private java.awt.Dimension backBufferSize = null;
+
+            public void update(java.awt.Graphics g) { paint(g); } // don't flash
+            // PAINT
+            public void paint(java.awt.Graphics frontBufferGraphics)
+            {
+                if (eventVerbose >= 2) System.out.println("    in paint");
+
+                java.awt.Dimension size = size();
+                int w = size.width, h = size.height;
+                if (backBuffer == null
+                 || !size.equals(backBufferSize))
+                {
+                    System.out.println("    creating back buffer of size "+w+"x"+h+"");
+                    backBuffer = this.createImage(w, h);
+                    backBufferSize = size;
+                    FORI (i, model.points.length)
+                        model.points[i].set(new double[]{w*.5, h*.5});
+                }
+                java.awt.Graphics g = backBuffer.getGraphics();
+                if (false)
+                    g = frontBufferGraphics; // make it single buffered
+
+                int minSize = Math.min(w,h);
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
+                                               0,w,
+                                               0,h);
+
+
+                // Clear to black
+                if (g != frontBufferGraphics) // if not single buffered
+                {
+                    mg.setColor(java.awt.Color.black);
+                    mg.fillWindow();
+                }
+
+
+                //
+                // Evolve.
+                //
+                int n = model.points.length;
+                FORI (i, n)
+                {
+                    //PRINTSUB(model.referenceTripDistancesInPixels,i);
+                    //PRINTSUB(model.referenceTripTimesInRepaints,i);
+                    model.points[i].evolve(model.referenceTripDistancesInPixels[i]/10000.,
+                                           model.referenceTripTimesInRepaints[i],
+                                           1., // dt, in repaints
+                                           model.bounce);
+                }
+
+                //
+                // Draw.
+                //
+                double position[] = new double[2];
+                double velocity[] = new double[2];
+                FORI (i, n)
+                {
+                    //int pointSize = 2*i + 1; // 1, 3, 5, ...
+                    int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
+                    model.points[i].get(position);
+                    model.points[i].getVelocity(velocity);
+                    mg.setColor(model.colors[i]);
+                    mg.drawHollowPoint(position[0],
+                                       position[1],
+                                       pointSize);
+                }
+
+                //
+                // If anything's still moving, make paint get called again
+                //
+                FORI (i, n)
+                {
+                    if (model.points[i].isMoving())
+                    {
+                        repaint();
+                        break;
+                    }
+                }
+
+
+
+
+                if (g != frontBufferGraphics)
+                    frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
+                mostRecentGraphics = mg;
+
+                if (eventVerbose >= 2) System.out.println("    out paint");
+            } // paint
+            {
+                addKeyListener(new java.awt.event.KeyAdapter() {
+                    public void keyPressed(java.awt.event.KeyEvent e)
+                    {
+                        boolean controlIsDown = ((e.getModifiers() & java.awt.event.InputEvent.CTRL_MASK) != 0);
+                        char c = e.getKeyChar();
+                        if (eventVerbose >= 1) System.out.println("    in keyPressed, keyEvent = "+e+" keyChar = (char)"+(int)c+"");
+                        if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
+                        {
+                            // This is the case for control keys
+                        }
+                        else if (c == java.awt.event.KeyEvent.VK_ESCAPE)
+                        {
+                            System.out.println("ciao!");
+                            System.exit(0); // asinine way of doing things
+                        }
+                        else if (c == 'a' || c == 'A')
+                        {
+                            view.showAccelerations ^= true;
+                            repaint();
+                        }
+                        else if (c == 'v' || c == 'V')
+                        {
+                            view.showVelocities ^= true;
+                            repaint();
+                        }
+                        else if (c == ' ')
+                        {
+                            repaint();
+                        }
+                        #define CTRL(lowerCaseLetter) ((lowerCaseLetter)-'a'+1)
+                        else
+                        {
+                            System.out.println("Huh?");
+                        }
+                    }
+                });
+                addMouseListener(new java.awt.event.MouseListener() {
+                    public void mouseClicked(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseClicked at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseClicked");
+                    }
+                    public void mousePressed(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mousePressed at "+e.getX()+","+e.getY()+"");
+                        // XXX dup code
+                        if (mostRecentGraphics != null)
+                        {
+                            double thisPoint[] = new double[2];
+                            mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+
+                            FORI (i, model.points.length)
+                                model.points[i].set(thisPoint);
+
+                            repaint();
+                        }
+                        if (eventVerbose >= 1) System.out.println("    out mousePressed");
+                    }
+                    public void mouseReleased(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
+
+                        if (eventVerbose >= 1) System.out.println("    out mouseReleased");
+                    }
+                    public void mouseEntered(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseEntered");
+                    }
+                    public void mouseExited(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseExited at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseExited");
+                    }
+                });
+                addMouseMotionListener(new java.awt.event.MouseMotionListener() {
+                    public void mouseMoved(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 3) System.out.println("    in mouseMoved to "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 3) System.out.println("    out mouseMoved");
+                    }
+                    public void mouseDragged(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseDragged to "+e.getX()+","+e.getY()+"");
+                        // XXX dup code
+                        if (mostRecentGraphics != null)
+                        {
+                            double thisPoint[] = new double[2];
+                            mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+
+                            FORI (i, model.points.length)
+                                model.points[i].set(thisPoint);
+                            repaint();
+                        }
+                        if (eventVerbose >= 1) System.out.println("    out mouseDragged");
+                    }
+                });
+            }
+        }; // canvas
+        canvas.requestFocus(); // seems to be needed initially XXX see whether this is true
+
+        final java.awt.Frame frame = new java.awt.Frame("Optimal (I think) Trajectories");
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent we)
+            {
+                frame.dispose();
+                System.out.println("ciao!");
+                System.exit(0); // asinine way of doing things
+            }
+        });
+        frame.setForeground(java.awt.Color.white);
+        frame.setBackground(java.awt.Color.black);
+        frame.add(canvas);
+        frame.pack();
+        frame.show();
+    } // interactiveDemo3
 
 
 
@@ -11865,13 +12847,15 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             interactiveDemo1();
         else if (args.length == 1 && args[0].equals("demo2"))
             interactiveDemo2();
+        else if (args.length == 1 && args[0].equals("demo3"))
+            interactiveDemo3();
         else if (args.length == 1 && args[0].equals("confidenceTests"))
             confidenceTests();
         else if (args.length == 1 && args[0].equals("NewtonSolver"))
             NewtonSolver.main(new String[]{});
         else
         {
-            System.err.println("Usage: SmoothlyVaryingViewingParameter [demo1|demo2|confidenceTests|NewtonSolver]\n");
+            System.err.println("Usage: SmoothlyVaryingViewingParameter [demo1|demo2|demo3|confidenceTests|NewtonSolver]\n");
             System.exit(1);
         }
 
