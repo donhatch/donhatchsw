@@ -313,6 +313,15 @@ public final class VecMath
             result[i] = s0*v0[i] + s1*v1[i];
     }
 
+    /** vector plus (scalar times vector) plus (scalar times vector) */
+    public static void vpsxvpsxv(double result[],            double v0[],
+                                                  double s1, double v1[],
+                                                  double s2, double v2[])
+    {
+        FORIDOWN (i, v0.length)
+            result[i] = v0[i] + s1*v1[i] + s2*v2[i];
+    }
+
     /** (scalar times vector) plus (scalar times vector) plus (scalar times vector) */
     public static void sxvpsxvpsxv(double result[], double s0, double v0[],
                                                     double s1, double v1[],
@@ -1107,6 +1116,22 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return (float)Math.sqrt(dot(v,v)); // XXX is there a sqrtf?
     }
 
+    /** returns index of least magnitude element */
+    public static int minabsi(double v[])
+    {
+        int mini = -1;
+        double min = Double.POSITIVE_INFINITY;
+        FORI (i, v.length) // not FORIDOWN, so smallest index will be chosen
+        {
+            double thisabs = ABS(v[i]);
+            if (thisabs < min)
+            {
+                min = thisabs;
+                mini = i;
+            }
+        }
+        return mini;
+    }
     /** returns index of least element */
     public static int mini(double v[])
     {
@@ -1121,6 +1146,22 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             }
         }
         return mini;
+    }
+    /** returns index of greatest magnitude element */
+    public static int maxabsi(double v[])
+    {
+        int maxi = -1;
+        double max = Double.NEGATIVE_INFINITY;
+        FORI (i, v.length) // not FORIDOWN, so smallest index will be chosen
+        {
+            double thisabs = ABS(v[i]);
+            if (thisabs > max)
+            {
+                max = thisabs;
+                maxi = i;
+            }
+        }
+        return maxi;
     }
     /** returns index of greatest element */
     public static int maxi(double v[])
@@ -1945,6 +1986,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             FORI (i, n)
             {
                 //assert(1. + SQR(bb[i] - b[i]) == 1.);
+                /*
                 if (1. + SQR(bb[i] - b[i]) != 1.)
                 {
                     PRINT("WARNING!"); // XXX lame behavior!
@@ -1953,7 +1995,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     PRINT(SQR(bb[i] - b[i]));
                     PRINT(1. + SQR(bb[i] - b[i]));
                 }
-                assert((float)(1. + SQR(bb[i] - b[i])) == (float)1.);
+                */
+                if (ABS(b[i]) > 1. && ABS(bb[i]) > 1.)
+                    assert((float)(bb[i]/b[i]) == (float)1.);
+                else
+                    assert((float)(1. + SQR(bb[i] - b[i])) == (float)1.);
             }
         }
     } // invmxv
@@ -2669,8 +2715,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             normalize(result[i], M[i]);
     }
 
-    /** Normalize a vector. */
-    public static void normalize(double result[], double v[])
+    /** Normalize a vector, returning the previous length. */
+    public static double normalize(double result[], double v[])
     {
         double len = norm(v);
         if (len == 0)
@@ -2681,9 +2727,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
         else
             vxs(result, v, (double)1/len);
+        return len;
     }
-    /** Normalize a vector. */
-    public static void normalize(float result[], float v[])
+    /** Normalize a vector, returning the previous length. */
+    public static float normalize(float result[], float v[])
     {
         float len = norm(v);
         if (len == 0)
@@ -2694,6 +2741,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
         else
             vxs(result, v, (float)1/len);
+        return len;
     }
 
     /** Extend the k vectors to l vectors and gramschmidt.  If the result is a square matrix and the original wasn't, make sure the result's determinant is +1, not -1. */
@@ -3461,6 +3509,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             double[] result = new double[v0.length];
             sxvpsxv(result, s0, v0, s1, v1);
+            return result;
+        }
+        /** vector plus (scalar times vector) plus (scalar times vector), returning newly allocated result */
+        public static double[] vpsxvpsxv(           double v0[],
+                                         double s1, double v1[],
+                                         double s2, double v2[])
+        {
+            double[] result = new double[v0.length];
+            vpsxvpsxv(result, v0, s1, v1, s2, v2);
             return result;
         }
         /** (scalar times vector) plus (scalar times vector), returning newly allocated result */
