@@ -784,6 +784,10 @@ public final class Arrays
     {
         return (int[])fill(n, new Integer(item));
     }
+    public static double[] fill(int n, double item)
+    {
+        return (double[])fill(n, new Double(item));
+    }
 
     public static void reverse(int to[], int from[])
     {
