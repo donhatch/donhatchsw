@@ -151,7 +151,7 @@ public class SmoothlyVaryingViewingParameter
                        double dt,
                        double bounce)
     {
-        System.out.println("    in evolve");
+        //System.out.println("    in evolve");
         if (isMoving())
         {
             //assert(false); // XXX coverage-- remove when hit
@@ -163,7 +163,7 @@ public class SmoothlyVaryingViewingParameter
                 // Infinite power-- bonk it there.
                 VecMath.copyvec(this.position, targetPosition);
                 VecMath.zerovec(this.velocity);
-                System.out.println("    out evolve (referenceTripTime is 0)");
+                //System.out.println("    out evolve (referenceTripTime is 0)");
                 return;
             }
             //assert(false); // XXX coverage-- remove when hit
@@ -208,7 +208,6 @@ public class SmoothlyVaryingViewingParameter
                     // A = infinity, vKnee should have infinite magnitude in the direction of the desired position change, I think
                     assert(false);
                 }
-                PRINTARRAY(vKnee);
 
                 double beforeKneeVelocityDirection[] = VecMath.vmv(vKnee, velocity); 
                 double timeBeforeKnee = VecMath.normalize(beforeKneeVelocityDirection,
@@ -236,7 +235,7 @@ public class SmoothlyVaryingViewingParameter
                         // done   XXX wait, no!  not necessarily done if there was bounce, because in that case when we integrate, we won't get p=0
                         VecMath.copyvec(position, targetPosition);
                         VecMath.zerovec(velocity);
-                        System.out.println("    out evolve (dt >= timeBeforeKnee + timeAfterKnee)");
+                        //System.out.println("    out evolve (dt >= timeBeforeKnee + timeAfterKnee)");
                         return;
                     }
 
@@ -263,9 +262,9 @@ public class SmoothlyVaryingViewingParameter
         } // if isMoving()
         else
         {
-            System.out.println("        (not moving)");
+            //System.out.println("        (not moving)");
         }
-        System.out.println("    out evolve");
+        //System.out.println("    out evolve");
     } // evolve
 
     // XXX argh, javadoc thinks the first sentence ends after the i.e.
@@ -283,7 +282,7 @@ public class SmoothlyVaryingViewingParameter
     private static void computeVelocityKnee(double velocityKnee[],
                                             double p[], double v[], double a)
     {
-        System.out.println("        in computeVelocityKnee(p="+Arrays.toStringCompact(p)+", v="+Arrays.toStringCompact(v)+", a="+a+")");
+        //System.out.println("        in computeVelocityKnee(p="+Arrays.toStringCompact(p)+", v="+Arrays.toStringCompact(v)+", a="+a+")");
         //assert(false); // XXX coverage-- remove when hit
         //
         // Want knee k such that
@@ -297,7 +296,6 @@ public class SmoothlyVaryingViewingParameter
         // containing p and v.
         //
         double vLength = VecMath.norm(v);
-        PRINT(vLength);
         if (vLength == 0.)
         {
             //assert(false); // XXX coverage-- remove when hit
@@ -320,14 +318,13 @@ public class SmoothlyVaryingViewingParameter
                 VecMath.vxs(velocityKnee,
                             velocityKnee, 1./Math.sqrt(length));
             }
-            System.out.println("        out computeVelocityKnee (vLength was 0), returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
+            //System.out.println("        out computeVelocityKnee (vLength was 0), returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
             return;
         }
         //assert(false); // XXX coverage-- remove when hit
 
         double vDir[] = VecMath.vxs(v,
                                     1./vLength);
-        PRINTARRAY(vDir);
 
 
         // Orthonormalize p against vDir to get uDir.
@@ -366,7 +363,6 @@ public class SmoothlyVaryingViewingParameter
                     break;
             }
         }
-        PRINTARRAY(uDir);
         assert(Math.abs(VecMath.dot(uDir,vDir)) < 1e-15);
 
         //
@@ -395,9 +391,6 @@ public class SmoothlyVaryingViewingParameter
 
         double xDesiredIntegral = -px;
         double yDesiredIntegral = -py;
-
-        PRINT(xDesiredIntegral);
-        PRINT(yDesiredIntegral);
 
         //
         // In the work plane, for given v and slack,
@@ -443,13 +436,11 @@ public class SmoothlyVaryingViewingParameter
                      || slackEstimate >= slackUpperBound)
                     {
                         //assert(false); // XXX coverage-- remove when hit
-                        System.out.println("        radius is pretty damn good on iteration "+iIteration);
+                        //System.out.println("        ellipse is pretty damn good on iteration "+iIteration);
                         slack = slackEstimate;
                         break;
                     }
                 }
-
-                //PRINT(slackEstimate);
 
                 // little (x) and big (y) ellipse radii of the ellipse
                 // on the integral graph...
@@ -461,14 +452,6 @@ public class SmoothlyVaryingViewingParameter
                 // x and y are relative to the ellipse center on the integral graph
                 double x = xDesiredIntegral - xCenter;
                 double y = yDesiredIntegral;
-                if (false)
-                {
-                    PRINT(r);
-                    PRINT(R);
-                    PRINTARRAY(xCenter);
-                    PRINT(x);
-                    PRINT(y);
-                }
                 // if x,y is outside the ellipse...
                 // i.e. if (x/r)^2 + (y/R)^2 > 1
                 // i.e. if (x*R)^2 + (y*r)^2 > (r*R)^2
@@ -491,13 +474,12 @@ public class SmoothlyVaryingViewingParameter
                 else
                 {
                     //assert(false); // XXX coverage-- remove when hit
-                    System.out.println("        ellipse is just right on iteration "+iIteration);
+                    //System.out.println("        ellipse is just right on iteration "+iIteration);
                     slack = slackEstimate;
                     break;
                 }
             }
         }
-        PRINT(slack);
         //assert(false); // XXX coverage-- remove when hit
 
         //
@@ -512,27 +494,48 @@ public class SmoothlyVaryingViewingParameter
         }
         else
         {
-            yKnee = 2*yDesiredIntegral/(1+slack);
-            PRINT((-1 + 2*(1 + slack)*xDesiredIntegral - Math.sqrt(SQR(1 + slack - 2*xDesiredIntegral) + slack*(2+slack)*(yKnee*yKnee))));
-            PRINT((slack*(2+slack)));
+            if (false)
+            {
+                yKnee = 2*yDesiredIntegral/(1+slack);
+                xKnee = (-1
+                       + 2*(1 + slack)*xDesiredIntegral
+                       - Math.sqrt(SQR(1 + slack - 2*xDesiredIntegral)
+                                 + slack*(2+slack)*(yKnee*yKnee))
+                        )
+                      / (slack*(2+slack));
 
-            xKnee = (-1
-                   + 2*(1 + slack)*xDesiredIntegral
-                   - Math.sqrt(SQR(1 + slack - 2*xDesiredIntegral)
-                             + slack*(2+slack)*(yKnee*yKnee))
-                    )
-                  / (slack*(2+slack));
+                //
+                // Kind of ad-hoc rescue for case when slack is very close to 0
+                // and so the numerator and denominator of xKnee are close to zero as well..
+                // in this case all that matters is that the knee be close to the segment.
+                //
+                if (slack < 1e-6)
+                    xKnee = CLAMP(xKnee, -slack*.5, slack*.5);
+            }
+            else
+            {
+                // That worked, but let's see if we can get something more robust,
+                // using the fact that the knees with given slack
+                // form an ellipse, with the following radii:
+                //     xRadius = (1+s)/2
+                //     yRadius = sqrt(((1+s)/2)^2 - (1/2)^2)
+                //            ...
+                //             = sqrt(s*(s+2)) / 2
+                yKnee = 2*yDesiredIntegral/(1+slack);
 
-            //
-            // Kind of ad-hoc rescue for case when slack is very close to 0
-            // and so the numerator and denominator of xKnee are close to zero as well..
-            // in this case all that matters is that the knee be close to the segment.
-            //
-            if (slack < 1e-6)
-                xKnee = CLAMP(xKnee, -slack*.5, slack*.5);
+                double xRadius = (1+slack) * .5;
+                double yRadius = Math.sqrt(slack*(slack+2)) * .5;
+                assert(yRadius != 0.); // since slack != 0.
+                double temp = (yKnee / yRadius);
+                temp = 1 - SQR(temp);
+                temp = MAX(0, temp);
+                temp = xRadius * Math.sqrt(temp);
+                if (xDesiredIntegral < (1+slack) * .5)
+                    xKnee = .5 - temp;
+                else
+                    xKnee = .5 + temp;
+            }
         }
-        PRINT(xKnee);
-        PRINT(yKnee);
 
         //
         // Expand out to the real vLength...
@@ -544,7 +547,7 @@ public class SmoothlyVaryingViewingParameter
                         xKnee, vDir,
                         yKnee, uDir);
 
-        System.out.println("        out computeVelocityKnee, returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
+        //System.out.println("        out computeVelocityKnee, returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
 
         //
         // Check that it does what it's supposed to,
@@ -556,8 +559,6 @@ public class SmoothlyVaryingViewingParameter
             double positionChange[] = VecMath.sxvpsxv(
                 VecMath.dist(v,velocityKnee)/a, VecMath.lerp(v,velocityKnee,.5),
                 VecMath.norm(velocityKnee)/2/a, velocityKnee);
-            PRINTARRAY(positionChange);
-            PRINTARRAY(p);
             double error = VecMath.norm(VecMath.vpv(positionChange,p));
             assert(error <= 1e-6); // XXX should be relative
         }
@@ -12576,7 +12577,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public double referenceTripDistancesInPixels[];
                 public double referenceTripTimesInRepaints[];
                 public java.awt.Color colors[];
-                public double bounce = .9;
+                public double bounce = .53; // zeroing in on threshold of whether it does or doesn't settle
                 public Model()
                 {
                     int n = 10;
@@ -12688,7 +12689,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 FORI (i, n)
                 {
                     //int pointSize = 2*i + 1; // 1, 3, 5, ...
-                    int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
+                    //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
+                    int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
                     model.points[i].get(position);
                     model.points[i].getVelocity(velocity);
                     mg.setColor(model.colors[i]);
@@ -12742,6 +12744,18 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         else if (c == 'v' || c == 'V')
                         {
                             view.showVelocities ^= true;
+                            repaint();
+                        }
+                        else if (c == 'b')
+                        {
+                            model.bounce += .05;
+                            PRINT(model.bounce);
+                            repaint();
+                        }
+                        else if (c == 'B')
+                        {
+                            model.bounce -= .05;
+                            PRINT(model.bounce);
                             repaint();
                         }
                         else if (c == ' ')
