@@ -168,7 +168,7 @@ public class SmoothlyVaryingViewingParameter
             }
             //assert(false); // XXX coverage-- remove when hit
 
-            boolean separable = false; // XXX do something sensible here depending on dimension
+            boolean separable = true; // XXX do something sensible here depending on dimension
             if (separable)
             {
                 //assert(false); // XXX coverage-- remove when hit
@@ -398,8 +398,95 @@ public class SmoothlyVaryingViewingParameter
         // form an ellipse.  Not sure why, but it's true.
         // Find the slack such that the ellipse passes through
         // the desired integral -p.
+        //
+        // The little (x) and big (y) ellipse radii of the ellipse
+        // for a given slack are (worked out on paper):
+        //      r = slack * (2+slack) / 4
+        //      R = sqrt(r) / 2 * (1+slack)
+        //      center = <(1+slack)/2, 0>
+        // It works out a little easier if we think in terms of the length L = 1+slack instead:
+        //      r = (L-1)*(L+1)/4
+        //      R = sqrt(r) / 2 * L
+        //      center = <L/2, 0>
+        // So a point x,y is inside the ellipse iff:
+        //      ((x-L/2)/r)^2 + (y/R)^2 <= 1
+        //      (x-L/2)^2 / r^2  + y^2 / R^2 <= 1
+        //      (x-L/2)^2 / r^2  + y^2 / (r/4 * L^2) <= 1
+        //      (x-L/2)^2 / r  + y^2 / (1/4 * L^2) <= r
+        //      (x-L/2)^2 / r  + 4 * y^2 / L^2 <= r
+        //      (x-L/2)^2 * L^2 + 4 * y^2 * r <= L^2 * r^2
+        //      (x-L/2)^2 * L^2 + 4 * y^2 * r - L^2 * r^2 <= 0
+        // Simplifying:
+        //      L^6 - 6*L^4 + 16*x*L^3 + (1-16*x^2-16*y^2)*L^2 + 16*y^2 >= 0
+        // that polynomial is increasing with L, in the vicinity of the zero
+        // (though it's not increasing everywhere, of course).
         // 
         double slack;
+        if (true)
+        {
+            double c0 = 16*SQR(yDesiredIntegral);
+            double c2 = 1 - 16*SQR(xDesiredIntegral) - c0;
+            double c3 = 16*xDesiredIntegral;
+            double c4 = -6;
+            // Then the polynomial, in L, is: (((L2 + c4)*L + c3)*L + c2)*L2 + c0  where L2 = L*L
+            // TODO: is this really better than newton?  doing it this way for stability since there are regions in which the function isn't invertible or isn't even increasing, although it might make sense to switch to newton when we know we've restricted down to a region in which it converges fast
+            double LlowerBound = 1.;
+            double LupperBound = Double.POSITIVE_INFINITY;
+            boolean triedOne = false;
+            int iIteration = 0;
+            for (;; iIteration++)
+            {
+                // Try 1, 2, 4, ... keep doubling estimate until it's an upper bound,
+                // then do binary search between 1 and that upper bound
+                double L; // current estimate
+                if (LupperBound == Double.POSITIVE_INFINITY)
+                {
+                    if (!triedOne)
+                    {
+                        L = 1.;
+                        triedOne = true;
+                    }
+                    L = 2*LlowerBound;
+                }
+                else
+                {
+                    L = (LlowerBound+LupperBound)*.5;
+                    if (L <= LlowerBound
+                     || L >= LupperBound)
+                    {
+                        //System.out.println("        ellipse is pretty damn good on iteration "+iIteration);
+                        //assert(false); // XXX coverage-- remove when hit
+                        slack = L-1.;
+                        break;
+                    }
+                }
+                double L2 = L*L;
+                double f = (((L2 + c4)*L + c3)*L + c2)*L2 + c0;
+
+                if (f < 0.)
+                {
+                    //System.out.println("        ellipse is too small");
+                    //assert(false); // XXX coverage-- remove when hit
+                    // ellipse is too small, raise lower bound up to estimate
+                    LlowerBound = L;
+                }
+                else if (f > 0.)
+                {
+                    //System.out.println("        ellipse is too big");
+                    //assert(false); // XXX coverage-- remove when hit
+                    // shrink upper bound to estimate
+                    LupperBound = L;
+                }
+                else
+                {
+                    //System.out.println("        ellipse is just right on iteration "+iIteration);
+                    //assert(false); // XXX coverage-- remove when hit
+                    slack = L-1.;
+                    break;
+                }
+            }
+        }
+        else // old way
         {
             // TODO: is this really better than newton?  doing it this way for stability since there are regions in which the function isn't invertible, but not sure I'm actually accomplishing anything
             double slackLowerBound = 0.;
@@ -560,7 +647,10 @@ public class SmoothlyVaryingViewingParameter
                 VecMath.dist(v,velocityKnee)/a, VecMath.lerp(v,velocityKnee,.5),
                 VecMath.norm(velocityKnee)/2/a, velocityKnee);
             double error = VecMath.norm(VecMath.vpv(positionChange,p));
-            assert(error <= 1e-6); // XXX should be relative
+            //PRINT(error);
+            //double tol = 4.214684646977385E-8; // that's the largest actually encountered in the confidence test
+            double tol = 1e-6;
+            assert(error <= tol); // XXX should be relative
         }
 
     } // computeVelocityKnee
@@ -1016,8 +1106,8 @@ public class SmoothlyVaryingViewingParameter
 
             System.out.println("    double-quadratic behavior test passed.");
 
-            System.out.println("EXITING EARLY");
-            System.exit(0);
+            //System.out.println("EXITING EARLY");
+            //System.exit(0);
         }
 
         {
@@ -12690,7 +12780,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 {
                     //int pointSize = 2*i + 1; // 1, 3, 5, ...
                     //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
-                    int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
+                    //int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
+                    int pointSize = 2*i + 2; // 2, 4, 6, ...
                     model.points[i].get(position);
                     model.points[i].getVelocity(velocity);
                     mg.setColor(model.colors[i]);
