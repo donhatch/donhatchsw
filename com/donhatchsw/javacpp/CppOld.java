@@ -24,23 +24,88 @@ public class Cpp
         public final static int IDENTIFIER = 0;
         public final static int STRING_LITERAL = 1;
         public final static int CHAR_LITERAL = 2;
-        public final static int FLOAT = 3;
-        public final static int DOUBLE = 4;
+        public final static int FLOAT_LITERAL = 3;
+        public final static int DOUBLE_LITERAL = 4;
         public final static int SYMBOL = 5;
+        public final static int SPACES = 6;
 
         public int type;
-        public String spacesBefore;
         public String text;
-        public String spacesAfter;
+        public String inFile;
+        public int inFileLine; // 1 based
+        public int inFileLineChar; // 1 based
 
-        public Token(int type, String spacesBefore, String text, String spacesAfter)
+        public Token(int type, String text)
         {
             this.type = type;
-            this.spacesBefore = spacesBefore;
             this.text = text;
-            this.spacesAfter = spacesAfter;
         }
     } // private class Token
+
+    // Java has a PushBackReader and a LineNumberReader,
+    // but if I want both capabilities, I seem to be screwed.
+    // So implement it here (just the methods I need,
+    // including getColumnNumber().
+    private class PushBackLineNumberReader()
+    {
+        private java.io.PushBackReader pushBackReader;
+        // To avoid dismal performance, caller should make sure
+        // that reader is either a BufferedReader or has one as an ancestor.
+        public PushBackLineNumberReader(java.io.Reader reader)
+        {
+            this.pushBackReader = new java.io.PushBackReader(reader);
+        }
+        // Get the current line number, starting at 0.
+        // The line number is advanced after each line terminator
+        // ("\n" or "\r" or "\r\n") is read.
+        public int getLineNumber()
+        {
+            ...
+        }
+        // Get the current column within the line, starting at 0
+        public int getColumnNumber()
+        {
+        }
+        // Read a single char, or -1 on EOF.
+        // A line terminator is compressed into a single '\n'.
+        public int read()
+        {
+            int c = pushBackReader.read();
+            if (c == -1)
+                return c;
+            else if (c == '\n')
+            {
+                lineNumber++;
+                columnNumber = 0;
+                return '\n';
+            }
+            else if (c == '\r')
+            {
+                // absorb an optional following '\n'
+                int d = pushBackReader.read();
+                if (d != -1 && d != '\n')
+                    pushBackReader.unread(d);
+                lineNumber++;
+                columnNumber = 0;
+                return '\n';
+            }
+            else
+            {
+                columnNumber++;
+                return c;
+            }
+        }
+        public void unread(int c)
+        {
+            // Make sure c is an actual char, no pushing back EOF
+            if ((int)(char)c != c)
+                throw new Error(); // XXX more specific
+            // And make sure it's something read() could have returned, not '\r'
+            if (c == '\r')
+                throw new Error(); // XXX more specific
+            //XXX argh! how to find out the column???
+        }
+    } // PushBackLineNumberReader
 
     /**
     * This class turns a BufferedReader into a reader
@@ -51,6 +116,7 @@ public class Cpp
         public java.io.BufferedReader reader;
         StringBuffer lookAheadBuffer = new StringBuffer();
 
+        //-----------------------------------------------
         // XXX maybe should make a class to encapsulate a reader with unlimited pushback and lookahead?
         // For internal use
         private char readChar()
@@ -76,6 +142,7 @@ public class Cpp
             pushBackChar(c);
             return c;
         }
+        //-----------------------------------------------------------
 
 
         public TokenReader(java.io.BufferedReader reader)
@@ -84,6 +151,7 @@ public class Cpp
         }
         public Token readToken()
         {
+
             return null;
         } // readToken
     } // private static class TokenReader
