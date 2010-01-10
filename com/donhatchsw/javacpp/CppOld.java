@@ -31,8 +31,6 @@ public class Cpp
             if (c == '\t') return "\\t";
             if (c == '\f') return "\\f";
             if (c == '\b') return "\\b";
-            if (c == '\007') return "\\a";
-            if (c == '\033') return "\\e";
             if (c < 32 || c >= 127)
                 return "\\"+((((int)c)>>6)&7)
                            +((((int)c)>>3)&7)
@@ -203,21 +201,18 @@ public class Cpp
     * except that it flattens out any #includes,
     * resulting in one long token stream.
     */
-    private static class IncludeFlattenningTokenReader
+    private static class IncludeFlatteningTokenReader
     {
         public TokenReader tokenReader;
-        private boolean lookedAhead = false;
-        private Token lookedAheadToken;
-
-        public IncludeFlattenningTokenReader(java.io.Reader in)
+        public IncludeFlatteningTokenReader(java.io.Reader in)
         {
             this.tokenReader = new TokenReader(in);
         }
         public Token readToken()
             throws java.io.IOException // since TokenReader.readToken() does
         {
-            // XXX TODO: do the flattening thing!
-            return tokenReader.readToken();
+            Token token = tokenReader.readToken();
+            return token;
         }
     }
 
@@ -539,8 +534,9 @@ public class Cpp
 
     public static void main(String args[])
     {
-        TokenReader tokenReader = new TokenReader(new java.io.InputStreamReader(
-                                                  System.in));
+        IncludeFlatteningTokenReader tokenReader = new IncludeFlatteningTokenReader(
+                                                   new java.io.InputStreamReader(
+                                                   System.in));
         try
         {
             Token token;
