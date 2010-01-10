@@ -119,7 +119,8 @@ public class Cpp
         public static final int SYMBOL = 6;
         public static final int COMMENT = 7;
         public static final int SPACES = 8;
-        public static final int NUMTYPES = 9;
+        public static final int PREPROCESSOR_DIRECTIVE = 9;
+        public static final int NUMTYPES = 10;
         // TODO: long
         // TODO: absorb backslash-newline into spaces
 
@@ -198,6 +199,30 @@ public class Cpp
     } // private class Token
 
     /**
+    * This class is just like a TokenReader
+    * except that it flattens out any #includes,
+    * resulting in one long token stream.
+    */
+    private static class IncludeFlattenningTokenReader
+    {
+        public TokenReader tokenReader;
+        private boolean lookedAhead = false;
+        private Token lookedAheadToken;
+
+        public IncludeFlattenningTokenReader(java.io.Reader in)
+        {
+            this.tokenReader = new TokenReader(in);
+        }
+        public Token readToken()
+            throws java.io.IOException // since TokenReader.readToken() does
+        {
+            // XXX TODO: do the flattening thing!
+            return tokenReader.readToken();
+        }
+    }
+
+
+    /**
     * This class turns a Reader into a reader
     * that reads a token at a time.
     */
@@ -236,7 +261,7 @@ public class Cpp
             {
                 scratch.append((char)c);
                 while (reader.peek() != -1
-                    && Character.isJavaIdentifierStart((char)reader.peek()))
+                    && Character.isJavaIdentifierPart((char)reader.peek()))
                     scratch.append((char)reader.read());
                 return new Token(Token.IDENTIFIER, scratch.toString(), lineNumber, columnNumber);
             }
@@ -398,6 +423,21 @@ public class Cpp
                     }
                 }
                 return new Token(Token.COMMENT, scratch.toString(), lineNumber, columnNumber);
+            }
+            else if (c == '#')
+            {
+                // TODO: this should really only be done at the beginning of a line, but # is an illegal token in java anyway so it shouldn't hurt
+                scratch.append((char)c);
+                while (reader.peek() != -1
+                    && Character.isWhitespace((char)reader.peek()))
+                    scratch.append((char)reader.read());
+                // Picks up both identifiers and ints (line number directives),  
+                // will also pick up something like #1foo but whatever.
+                // TODO maybe guard against that
+                while (reader.peek() != -1
+                    && Character.isJavaIdentifierPart((char)reader.peek()))
+                    scratch.append((char)reader.read());
+                return new Token(Token.PREPROCESSOR_DIRECTIVE, scratch.toString(), lineNumber, columnNumber);
             }
             else
             {
