@@ -541,23 +541,44 @@ public class Cpp
                         Token anotherToken = in.readToken();
                         if (anotherToken == null)
                             throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": EOF in middle of arg list for macro "+token.text+"");
+                        // TODO: this isn't quite right for throwing a coherent error if wrong number of args
                         if (parenLevel > 1)
                         {
                             if (anotherToken.type == Token.SYMBOL
                              && anotherToken.text.equals(")"))
                                 parenLevel--;
                         }
-                        else
+                        else // parenLevel == 1
                         {
                             if (anotherToken.type == Token.SYMBOL
                              && anotherToken.text.equals(iArg==macro.numParams-1 ? ")" : ","))
                                 break; // without appending
                         }
+                        if (anotherToken.text.equals("("))
+                            parenLevel++;
                         thisArgTokensVector.add(anotherToken);
                     }
                     args[iArg] = new Token[thisArgTokensVector.size()];
                     for (int j = 0; j < args[iArg].length; ++j)
                         args[iArg][j] = (Token)thisArgTokensVector.get(j);
+                }
+
+                if (true)
+                {
+                    System.out.println("    macro "+token.text+" contents:");
+                    for (int iContent = 0; iContent < macro.contents.length; ++iContent)
+                    {
+                        System.out.println("        "+iContent+": "+macro.contents[iContent]);
+                    }
+
+                    System.out.println("    "+args.length+" args for macro "+token.text);
+                    for (int iArg = 0; iArg < args.length; ++iArg)
+                    {
+                        System.out.println("        "+iArg+": "+args[iArg].length+" tokens");
+                        for (int j = 0; j < args[iArg].length; ++j)
+                            System.out.println("            "+args[iArg][j]);
+
+                    }
                 }
 
                 // Now substitute the args
@@ -823,7 +844,19 @@ public class Cpp
                 "test0.java", ""
                     +"hello from test0.java\n"
                     +"#define REVERSE(A,B) B,A\n"
-                    +"REVERSE(x,y)\n"
+                    +"REVERSE(a,b)\n"
+                    +"REVERSE(\"(\",\")\")\n"
+                    +"REVERSE(\")\",\"(\")\n"
+                    +"REVERSE(\",\",\"(\")\n"
+                    +"REVERSE(\",\",\")\")\n"
+                    +"REVERSE(\"(\",\",\")\n"
+                    +"REVERSE(\")\",\",\")\n"
+                    +"REVERSE((a,b),c)\n"
+                    +"REVERSE(a,(b,c))\n"
+                    +"REVERSE((a,b),(c,d))\n"
+                    +"REVERSE((a,(b,c)),((d,e),f))\n"
+                    //+"REVERSE(a) // should be error\n"
+                    +"REVERSE(a,b,c) // should be error\n"
                     +"goodbye from test0.java\n"
             },
             {
