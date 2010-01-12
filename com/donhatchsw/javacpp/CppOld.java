@@ -19,7 +19,7 @@ package com.donhatchsw.javacpp;
 public class Cpp
 {
     // Logical assertions, always compiled in. Ungracefully bail if violated.
-    private static void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    private static void AssertAlways(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
 
     // From com.donhatchsw.util.Arrays...
         private static String escapify(char c, char quoteChar)
@@ -58,6 +58,28 @@ public class Cpp
         }
     } // private static class FileOpener
 
+    private static class DebugLineNumberReader extends java.io.LineNumberReader
+    {
+        public DebugLineNumberReader(java.io.Reader reader)
+        {
+            super(reader);
+        }
+        public int read()
+            throws java.io.IOException
+        {
+            System.out.println("        before read(): line "+super.getLineNumber());
+            int c = super.read();
+            System.out.println("        read() returning '"+escapify((char)c,'\'')+"'");
+            System.out.println("        after read(): line "+super.getLineNumber());
+            return c;
+        }
+        public int getLineNumber()
+        {
+            System.out.println("        getLineNumber() returning "+super.getLineNumber());
+            return super.getLineNumber();
+        }
+    }
+
     // Line number reader with 1 char of lookahead.
     // Tells the column number as well as the line number.
     // Only implemented the methods I need.
@@ -74,11 +96,15 @@ public class Cpp
         public LineAndColumnNumberReaderWithLookahead(java.io.Reader reader)
         {
             this.lineNumberReader = new java.io.LineNumberReader(reader);
+            //this.lineNumberReader = new DebugLineNumberReader(reader);
+            AssertAlways(this.lineNumberReader.getLineNumber() == 0);
         }
 
         public int read()
             throws java.io.IOException // since lineNumberReader.read() does
         {
+            //System.out.println("            with lookahead before read(): line "+lineNumber);
+            //System.out.println("                ("+(lookedAhead?"":"not ")+"looking ahead)");
             int c = lookedAhead ? lookedAheadChar : lineNumberReader.read();
             lookedAhead = false;
             if (c != -1)
@@ -92,6 +118,8 @@ public class Cpp
                     columnNumber++;
                 lineNumber = newLineNumber;
             }
+            //System.out.println("            with lookahead read() returning '"+escapify((char)c,'\'')+"'");
+            //System.out.println("            with lookahead after read(): line "+lineNumber);
             return c;
         }
         // Return what read() will return next.
@@ -100,13 +128,14 @@ public class Cpp
         {
             if (!lookedAhead)
             {
-                lookedAheadChar = read();
+                lookedAheadChar = lineNumberReader.read();
                 lookedAhead = true;
             }
             return lookedAheadChar;
         }
         public int getLineNumber()
         {
+            //System.out.println("            with lookahead getLineNumber returning "+lineNumber);
             return lineNumber;
         }
         public int getColumnNumber()
@@ -151,7 +180,7 @@ public class Cpp
         private static String typeToNameCache[] = null;
         public static String typeToName(int type)
         {
-            Assert(type >= 0 && type < NUMTYPES);
+            AssertAlways(type >= 0 && type < NUMTYPES);
             if (typeToNameCache == null)
             {
                 typeToNameCache = new String[NUMTYPES];
@@ -179,16 +208,16 @@ public class Cpp
                             int value = valueObject.intValue();
                             if (value >= 0 && value < NUMTYPES)
                             {
-                                Assert(typeToNameCache[value] == null);
+                                AssertAlways(typeToNameCache[value] == null);
                                 typeToNameCache[value] = field.getName();
                             }
                         }
                     }
                 }
                 for (int i = 0; i < NUMTYPES; ++i)
-                    Assert(typeToNameCache[i] != null);
+                    AssertAlways(typeToNameCache[i] != null);
             }
-            Assert(typeToNameCache[type] != null);
+            AssertAlways(typeToNameCache[type] != null);
             return typeToNameCache[type];
         } // typeToName
         // For debug printing
@@ -278,7 +307,7 @@ public class Cpp
                 {
                     scratch.append((char)c);
                     c = reader.read();
-                    Assert(c != -1); // by guard above
+                    AssertAlways(c != -1); // by guard above
                 }
 
                 if (Character.isDigit((char)c))
@@ -298,7 +327,7 @@ public class Cpp
                 }
                 else // c is '.'
                 {
-                    Assert(c == '.'); // by guard above
+                    AssertAlways(c == '.'); // by guard above
                     scratch.append((char)c);
                     if (reader.peek() == -1)
                     {
@@ -466,9 +495,20 @@ public class Cpp
         public Token readToken()
             throws java.io.IOException // since tokenReader.readToken() does
         {
+            Token token;
+            boolean lookedahead;
             if (!lookAheadBuffer.isEmpty())
-                return (Token)lookAheadBuffer.removeFirst();
-            return tokenReader.readToken();
+            {
+                token = (Token)lookAheadBuffer.removeFirst();
+                lookedahead = true;
+            }
+            else
+            {
+                token = tokenReader.readToken();
+                lookedahead = false;
+            }
+            //System.out.println("    TokenReaderWithLookahead returning ("+(lookedahead ? "lookedahead" : "nolookedahead")+"): "+token);
+            return token;
         }
         public Token peekToken(int index)
             throws java.io.IOException // since tokenReader.readToken() does
@@ -533,15 +573,13 @@ public class Cpp
                 for (int iArg = 0; iArg < macro.numParams; ++iArg)
                 {
                     java.util.Vector thisArgTokensVector = new java.util.Vector();
-                    // read tokens up to a comma (if not last arg)
-                    // or right paren (if last arg)
+                    // read tokens up to a comma or right paren.
                     int parenLevel = 1;
                     while (true)
                     {
                         Token anotherToken = in.readToken();
                         if (anotherToken == null)
                             throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": EOF in middle of arg list for macro "+token.text+"");
-                        // TODO: this isn't quite right for throwing a coherent error if wrong number of args
                         if (parenLevel > 1)
                         {
                             if (anotherToken.type == Token.SYMBOL
@@ -551,13 +589,27 @@ public class Cpp
                         else // parenLevel == 1
                         {
                             if (anotherToken.type == Token.SYMBOL
-                             && anotherToken.text.equals(iArg==macro.numParams-1 ? ")" : ","))
+                             && (anotherToken.text.equals(")")
+                              || anotherToken.text.equals(",")))
+                            {
+
+                                if (!anotherToken.text.equals(iArg==macro.numParams-1 ? ")" : ","))
+                                {
+                                    if (iArg < macro.numParams-1)
+                                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro \""+token.text+"\" requires "+macro.numParams+" arguments, but only "+(iArg+1)+" given");
+                                    else
+                                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro \""+token.text+"\" requires "+macro.numParams+" arguments, but more given");
+                                    // cpp's message is "passed 3 arguments, but takes just 2, but whatever... we aren't set up to receive more than that into the array and it's not important enough
+                                }
+
                                 break; // without appending
+                            }
                         }
                         if (anotherToken.text.equals("("))
                             parenLevel++;
                         thisArgTokensVector.add(anotherToken);
                     }
+
                     args[iArg] = new Token[thisArgTokensVector.size()];
                     for (int j = 0; j < args[iArg].length; ++j)
                         args[iArg][j] = (Token)thisArgTokensVector.get(j);
@@ -642,7 +694,7 @@ public class Cpp
 
             if (token.type == Token.PREPROCESSOR_DIRECTIVE)
             {
-                Assert(token.text.startsWith("#"));
+                AssertAlways(token.text.startsWith("#"));
                 if (token.text.equals("#include"))
                 {
                     if (in.peekToken(0) != null
@@ -693,29 +745,29 @@ public class Cpp
                     // #define REVERSE(A,B) B,A\n"
                     {
                         Token nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.SPACES);
+                        AssertAlways(nextToken != null && nextToken.type == Token.SPACES);
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("REVERSE"));
+                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("REVERSE"));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals("("));
+                        AssertAlways(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals("("));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("A"));
+                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("A"));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(","));
+                        AssertAlways(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(","));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("B"));
+                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("B"));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(")"));
+                        AssertAlways(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(")"));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.SPACES);
+                        AssertAlways(nextToken != null && nextToken.type == Token.SPACES);
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("B"));
+                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("B"));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(","));
+                        AssertAlways(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(","));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("A"));
+                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("A"));
                         nextToken = in.readToken();
-                        Assert(nextToken != null && nextToken.type == Token.SPACES);
+                        AssertAlways(nextToken != null && nextToken.type == Token.SPACES);
                     }
                     Macro macro = new Macro();
                     macro.numParams = 2;
@@ -745,211 +797,151 @@ public class Cpp
         out.flush();
     } // filter
 
-    /*
-    // XXX TODO: defunct
-    public static void filter(java.io.LineNumberReader in, java.io.PrintWriter out)
-        throws java.io.IOException
-    {
-        java.util.Stack inStack = new java.util.Stack();
-        java.util.Stack inFileNameStack = new java.util.Stack();
-
-        String inFileName = "<stdin>"; // XXX TODO: what to do here?
-        boolean needToPrintLineNumber = true;
-        while (true)
+    // TODO: make a way to test for the errors too
+    private static final String testFileNamesAndContents[][] = {
         {
-            String line = in.readLine();
-            if (line == null)
-            {
-                if (!inStack.empty())
-                {
-                    in = (java.io.LineNumberReader)inStack.pop();
-                    inFileName = (String)inFileNameStack.pop();
-                    needToPrintLineNumber = true;
-                    continue;
-                }
-                break;
-            }
-            int lineNumber = in.getLineNumber();
-
-            while (line.endsWith("\\"))
-            {
-                String moreLine = in.readLine();
-                if (moreLine == null)
-                {
-                    System.err.println(inFileName+":"+lineNumber+": warning: backslash-newline at end of file");
-                    break;
-                }
-                line += moreLine;
-            }
-
-            if (false)
-            {
-                out.println("    Input line "+lineNumber+": "+line);
-                out.flush();
-            }
-
-            if (needToPrintLineNumber)
-            {
-                out.println("# "+lineNumber+" \""+inFileName+"\"");
-                needToPrintLineNumber = false;
-            }
-
-            if (line.startsWith("#define ")) // XXX TODO: more lenient
-            {
-                // TODO: define the macro
-                out.println(""); // XXX multiple lines if input was multiple lines
-            }
-            else if (line.startsWith("#include \"")
-             && line.endsWith("\"")) // XXX TODO: more lenient
-            {
-                int i0 = 10; // XXX TODO: more lenient
-                int i1 = line.length()-1;
-                String newInFileName = line.substring(i0, i1);
-                java.io.LineNumberReader newIn = null;
-                try
-                {
-                    newIn = new java.io.LineNumberReader(
-                            new java.io.FileReader(newInFileName));
-                }
-                catch (java.io.FileNotFoundException e)
-                {
-
-                    System.err.println(inFileName+":"+lineNumber+": \""+newInFileName+"\": No such file or directory");
-                    System.exit(1);
-                }
-
-                inStack.push(in);
-                inFileNameStack.push(inFileName);
-
-                in = newIn;
-                inFileName = newInFileName;
-
-                needToPrintLineNumber = true;
-            }
-            // TODO: # by itself is allowed
-            else if (line.startsWith("#"))
-            {
-                System.err.println(inFileName+":"+lineNumber+": invalid preprocessing directive "+line);
-            }
-            else
-                out.println(line);
+            "test0.java", ""
+                +"hello from test0.java\n"
+                +"#define REVERSE(A,B) B,A\n"
+                +"REVERSE(a,b)\n"
+                +"REVERSE(\"(\",\")\")\n"
+                +"REVERSE(\")\",\"(\")\n"
+                +"REVERSE(\",\",\"(\")\n"
+                +"REVERSE(\",\",\")\")\n"
+                +"REVERSE(\"(\",\",\")\n"
+                +"REVERSE(\")\",\",\")\n"
+                +"REVERSE((a,b),c)\n"
+                +"REVERSE(a,(b,c))\n"
+                +"REVERSE((a,b),(c,d))\n"
+                +"REVERSE((a,(b,c)),((d,e),f))\n"
+                //+"REVERSE(a) // should be error\n"
+                //+"REVERSE(a,b,c) // should be error\n"
+                +"goodbye from test0.java\n"
+        },
+        {
+            "test1.java", ""
+                +"hello from test1.java\n"
+                +"#include \"macros.h\"\n"
+                +"here is another line\n"
+                +"#define foo \"trivialinclude.h\"\n"
+                +"#include foo\n"
+                +"goodbye from test1.java\n"
+        },
+        {
+            "macros.h", ""
+                 +"hello from macros.h\n"
+                 +"#define foo bar\n"
+                 +"blah blah\n"
+                 +"#include trivialinclude.h\n"
+                 +"blah blah blah\n"
+                 +"goodbye from macros.h\n"
+        },
+        {
+            "trivialinclude.h", ""
+                 +"hello from trivialinclude.h\n"
+                 +"goodbye from trivialinclude.h\n"
+        },
+        {
+            "masqueradeTest.h", ""
+                 +"hello from masqueradeTest.h\n"
+                 +"# 100 \"someoneelse.h\""
+                 +"hello again from masqueradeTest.h\n"
+                 +"#include \"moo.h\"\n"
+                 +"goodbye from masqueradeTest.h\n"
+        },
+        {
+            "/dev/null", ""
+        },
+        {
+            // XXX hmm this doesn't work in real xpp, don't know what I was thinking
+            "tricky.h", ""
+                +"#define COMMA ,"
+                +"#define LPAREN ("
+                +"#define RPAREN )"
+                +"#define REVERSE(A,B) B A"
+                +"REVERSE LPAREN x COMMA y RPAREN"
+        },
+        {
+            "error0.java", ""
+                +"hello from error0.java\n"
+                +"#include\n"
+                +"goodbye from error0.java\n"
+        },
+        {
+            "error1.java", ""
+                +"hello from error1.java\n"
+                +"#include    \n"
+                +"goodbye from error1.java\n"
+        },
+        {
+            "error2.java", ""
+                +"hello from error2.java\n"
+                +"#include\n"
+        },
+        {
+            "error3.java", ""
+                +"hello from error3.java\n"
+                +"#include \n"
+        },
+        {
+            "error4.java", ""
+                +"hello from error4.java\n"
+                +"#include " // unterminated line
+        },
+        {
+            "error5.java", ""
+                +"hello from error5.java\n"
+                +"#include foo\n"
+        },
+    };
+    private static FileOpener testFileOpener = new FileOpener() {
+        public java.io.Reader newFileReader(String fileName)
+            throws java.io.FileNotFoundException
+        {
+            for (int i = 0; i < testFileNamesAndContents.length; ++i)
+                if (testFileNamesAndContents[i][0].equals(fileName))
+                    return new java.io.StringReader(testFileNamesAndContents[i][1]);
+            throw new java.io.FileNotFoundException("Couldn't find test file string for \""+escapify(fileName)+"\"");
         }
-    } // Cpp ctor
-    */
+    };
 
-    public static void test()
+    public static void test0()
     {
-        final String testFileNamesAndContents[][] = {
-            {
-                "test0.java", ""
-                    +"hello from test0.java\n"
-                    +"#define REVERSE(A,B) B,A\n"
-                    +"REVERSE(a,b)\n"
-                    +"REVERSE(\"(\",\")\")\n"
-                    +"REVERSE(\")\",\"(\")\n"
-                    +"REVERSE(\",\",\"(\")\n"
-                    +"REVERSE(\",\",\")\")\n"
-                    +"REVERSE(\"(\",\",\")\n"
-                    +"REVERSE(\")\",\",\")\n"
-                    +"REVERSE((a,b),c)\n"
-                    +"REVERSE(a,(b,c))\n"
-                    +"REVERSE((a,b),(c,d))\n"
-                    +"REVERSE((a,(b,c)),((d,e),f))\n"
-                    //+"REVERSE(a) // should be error\n"
-                    +"REVERSE(a,b,c) // should be error\n"
-                    +"goodbye from test0.java\n"
-            },
-            {
-                "test1.java", ""
-                    +"hello from test1.java\n"
-                    +"#include \"macros.h\"\n"
-                    +"here is another line\n"
-                    +"#define foo \"trivialinclude.h\"\n"
-                    +"#include foo\n"
-                    +"goodbye from test1.java\n"
-            },
-            {
-                "macros.h", ""
-                     +"hello from macros.h\n"
-                     +"#define foo bar\n"
-                     +"blah blah\n"
-                     +"#include trivialinclude.h\n"
-                     +"blah blah blah\n"
-                     +"goodbye from macros.h\n"
-            },
-            {
-                "trivialinclude.h", ""
-                     +"hello from trivialinclude.h\n"
-                     +"goodbye from trivialinclude.h\n"
-            },
-            {
-                "masqueradeTest.h", ""
-                     +"hello from masqueradeTest.h\n"
-                     +"# 100 \"someoneelse.h\""
-                     +"hello again from masqueradeTest.h\n"
-                     +"#include \"moo.h\"\n"
-                     +"goodbye from masqueradeTest.h\n"
-            },
-            {
-                "/dev/null", ""
-            },
-            {
-                // XXX hmm this doesn't work in real xpp, don't know what I was thinking
-                "tricky.h", ""
-                    +"#define COMMA ,"
-                    +"#define LPAREN ("
-                    +"#define RPAREN )"
-                    +"#define REVERSE(A,B) B A"
-                    +"REVERSE LPAREN x COMMA y RPAREN"
-            },
-            {
-                "error0.java", ""
-                    +"hello from error0.java\n"
-                    +"#include\n"
-                    +"goodbye from error0.java\n"
-            },
-            {
-                "error1.java", ""
-                    +"hello from error1.java\n"
-                    +"#include    \n"
-                    +"goodbye from error1.java\n"
-            },
-            {
-                "error2.java", ""
-                    +"hello from error2.java\n"
-                    +"#include\n"
-            },
-            {
-                "error3.java", ""
-                    +"hello from error3.java\n"
-                    +"#include \n"
-            },
-            {
-                "error4.java", ""
-                    +"hello from error4.java\n"
-                    +"#include " // unterminated line
-            },
-            {
-                "error5.java", ""
-                    +"hello from error5.java\n"
-                    +"#include foo\n"
-            },
-        };
-        FileOpener fileOpener = new FileOpener() {
-            public java.io.Reader newFileReader(String fileName)
-                throws java.io.FileNotFoundException
-            {
-                for (int i = 0; i < testFileNamesAndContents.length; ++i)
-                    if (testFileNamesAndContents[i][0].equals(fileName))
-                        return new java.io.StringReader(testFileNamesAndContents[i][1]);
-                throw new java.io.FileNotFoundException("Couldn't find test file string for \""+escapify(fileName)+"\"");
-            }
-        };
         String inFileName = "test0.java";
         java.io.Reader in = null;
         try
         {
-            in = fileOpener.newFileReader(inFileName);
+            in = testFileOpener.newFileReader(inFileName);
+        }
+        catch (java.io.FileNotFoundException e)
+        {
+
+            System.err.println("woops! "+e);
+            System.exit(1);
+        }
+        TokenReader tokenReader = new TokenReader(in);
+        try
+        {
+            Token token;
+            while ((token = tokenReader.readToken()) != null)
+            {
+                System.out.println("    "+token);
+            }
+        }
+        catch (java.io.IOException e)
+        {
+            System.err.println("Well damn: "+e);
+            System.exit(1);
+        }
+    } // test0
+
+    public static void test1()
+    {
+        String inFileName = "test0.java";
+        java.io.Reader in = null;
+        try
+        {
+            in = testFileOpener.newFileReader(inFileName);
         }
         catch (java.io.FileNotFoundException e)
         {
@@ -962,7 +954,7 @@ public class Cpp
         {
             filter(new TokenReaderWithLookahead(in),
                    inFileName,
-                   fileOpener,
+                   testFileOpener,
                    new java.io.PrintWriter(System.out),
                    macros);
         }
@@ -971,13 +963,14 @@ public class Cpp
             System.err.println("Well damn: "+e);
             System.exit(1);
         }
-    }
+    } // test1()
 
     public static void main(String args[])
     {
-        test();
+        test0();
+        test1();
 
-        if (false)
+        if (false) // real program might look like this
         {
             java.util.Hashtable macros = new java.util.Hashtable();
             try
