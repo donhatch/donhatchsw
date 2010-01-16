@@ -844,7 +844,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
 #define SOON_TO_BE_DEFUNCT_I_HOPE
 #ifdef SOON_TO_BE_DEFUNCT_I_HOPE
-        if (ROWLENGTH(m0) == m1.length)
+        if (m0.length == 0 || ROWLENGTH(m0) == m1.length)
         {
             assumpt(result != m0 && result != m1);
             FORIDOWN (i, result.length) // == m0.length
@@ -2764,7 +2764,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     * Important: this function does NOT fill in the 1 into
     * the first entry of h.
     */
-    private double house(
+    private static double house(
         int n, // dimension of subvector of interest in v and in destination h
         double h[], int hStart, // destination h, and starting index
         double v[], int vStart) // source v, and starting index
@@ -2807,12 +2807,84 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     * but we do RQ decomposition instead since we like to think
     * in terms of row vectors instead of column vectors.
     */
-    public void RQdecompositionCompressed(int nRows, int nCols, // use only first nRows and nCols of A
-                                double A[/*nRows*/][/*nCols*/], // gets overwritten with the essential parts of R and Q as in the book, but transposed
-                                double beta[/*nRows*/]) // gets filled with the corresponding betas, as in the book
+    public static void uncompressRQdecomposition(int nRows, int nCols, // in compressed and in R... Q can have more (or fewer) rows than this
+                                                 double compressed[/*nRows*/][/*nCols*/],
+                                                 double betas[/*nRows*/],
+                                                 double det, // -1 iff the composition of the householder reflections amount to a reflection rather than a rotation
+                                                 double R[/*nRows*/][/*nCols*/],
+                                                 double Q[/*<=nCols*/][/*nCols*/])
     {
-        if (nRows > nCols)
+        if (R != null)
+            FORI (iRow, nRows)
+            FORI (iCol, nCols)
+                R[iRow][iCol] = (iCol <= iRow ? compressed[iRow][iCol]
+                                              : 0.);
+        if (Q != null)
+        {
+            FORI (iRowInQ, MIN(Q.length, nCols))
+            {
+                // Start Q[iRowInQ] to be the iRowInQ'th canonical unit basis vector
+                zerovec(Q[iRowInQ]); Q[iRowInQ][iRowInQ] = 1.;
+
+                // Apply the householder vectors and betas in order
+                // from end to start.
+                // The ones after iRowInQ
+                // are irrelevant since they will just be pushing zeros around.
+                for (int iH = MIN(iRowInQ,nRows-1); iH >= 0; --iH)
+                {
+                    double h[] = compressed[iH];
+                    double beta = betas[iH];
+                    // Q[iRowInQ] -= beta * (Q[iRowInQ] dot h) * h
+                    double dotProduct = Q[iRowInQ][iH]; // times h[iH] which is implicity 1
+                    for (int iCol = iH+1; iCol < nCols; ++iCol)
+                        dotProduct += Q[iRowInQ][iCol] * h[iCol];
+
+                    double betaTimesDotProduct = beta * dotProduct;
+                    Q[iRowInQ][iH] -= betaTimesDotProduct; // times h[iH] which is implicitly 1
+                    for (int iCol = iH+1; iCol < nCols; ++iCol) // all but iH
+                        Q[iRowInQ][iCol] -= betaTimesDotProduct * h[iCol];
+                }
+            }
+            if (det < 0. && Q.length >= nCols)
+            {
+                // Q is square; fix its determinant to be positive if we can,
+                // namely if A is less than full rank.
+                if (nRows < nCols)
+                    vxs(Q[nRows], Q[nRows], -1.); // negate the row of Q
+                else
+                {
+                    // If any diagonal entry of R is zero,
+                    // we can negate that column of R and that row of Q.
+                    // This isn't watertight behavior (since
+                    // something might be very close to zero) but it tries
+                    // to make things a little friendlier
+                    // by not returning a reflection when it's not necessary.
+                    FORI (iDiag, nRows)
+                    {
+                        if (R[iDiag][iDiag] == 0.)
+                        {
+                            // negate the row of Q
+                            vxs(Q[iDiag], Q[iDiag], -1.);
+                            // negate the column of R (above diagonal is zero)
+                            for (int iRow = iDiag; iRow < nRows; ++iRow)
+                                R[iRow][iDiag] *= -1;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    } // uncompressRQdecomposition
+
+    // returns -1 or 1 depending on whether the number of reflections done
+    // odd or even.
+    public static int RQdecompositionCompressed(int nRows, int nCols, // use only first nRows and nCols of A
+                                double A[/*nRows*/][/*nCols*/], // gets overwritten with the essential parts of R and Q as in the book, but transposed
+                                double betas[/*nRows*/]) // gets filled with the corresponding betas, as in the book
+    {
+        if (!(nRows <= nCols))
             throw new IllegalArgumentException("RQdecompositionCompressed called with too many vectors");
+        int determinant = 1;
         FORI (iRow, nRows)
         {
             double AiRow[] = A[iRow];
@@ -2833,10 +2905,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             // namely A[iRow][iRow+1..iCol],
             // to store (all but the first entry of) the householder vector h...
             double h[] = AiRow;
-            double thisBeta = house(nCols-iRow,
-                                    h, iRow,      // into h starting at col iRow
-                                    AiRow, iRow); // from A[iRow] starting at col iRow
-            beta[iRow] = thisBeta;
+            double beta = house(nCols-iRow,
+                                h, iRow,      // into h starting at col iRow
+                                AiRow, iRow); // from A[iRow] starting at col iRow
+            betas[iRow] = beta;
 
             // for row iRow, we put part of the householder vector
             // into indices iRow+1..nCols-1 (replacing the entries
@@ -2855,17 +2927,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 double dotProduct = AjRow[iRow]; // times h[iRow] which is implicitly 1
                 for (int iCol = iRow+1; iCol < nCols; ++iCol) // all but iRow
                     dotProduct += AjRow[iCol] * h[iCol];
-                double betaTimesDotProduct = thisBeta * dotProduct;
+                double betaTimesDotProduct = beta * dotProduct;
 
                 AjRow[iRow] -= betaTimesDotProduct; // times h[iRow] which is implicitly 1
-                for (int iCol = iRow+1; iCol < nCols; ++iCol) // including iRow
+                for (int iCol = iRow+1; iCol < nCols; ++iCol) // all but iRow
                     AjRow[iCol] -= betaTimesDotProduct * h[iCol];
                 // we reuse the part of A[iRow] that we zeroed out,
                 // namely A[iRow][iRow+1..iCol],
                 // to store (all but the first entry of) the householder vector h...
             }
+            if (beta != 0)
+                determinant = -determinant;
         }
-    } // RQdecomposition
+
+        return determinant;
+    } // RQdecompositionCompressed
 
 
 
@@ -3547,7 +3623,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
             {
                 // XXX hack-- fix when I'm awake
-                if (dotLength != ROWLENGTH(m0))
+                if (n != 0 && dotLength != ROWLENGTH(m0))
                 {
                     /*
                     assumpt(dotLength == 4 && m0[0].length == 3);
@@ -4288,6 +4364,179 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /**
      * Test some stuff...
      */
+
+    public static void householderTestOneMatrix(int nRows, int nCols, double A[][])
+    {
+        System.out.println("-----------------");
+        PRINTMAT(A);
+
+        double betas[] = new double[A.length];
+        double RQcompressed[][] = copymat(A);
+        int det = RQdecompositionCompressed(nRows, nCols,
+                                            RQcompressed, // in/out
+                                            betas);       // out
+        PRINTMAT(RQcompressed);
+        PRINTVEC(betas);
+
+        double R[][] = new double[nRows][nCols];
+        // Q can be null, or any number of rows up to nCols. test all options.
+        for (int nRowsInQ = -1; nRowsInQ <= nCols; ++nRowsInQ)
+        {
+            double Q[][] = nRowsInQ==-1 ? null : new double[nRowsInQ][nCols];
+            uncompressRQdecomposition(nRows, nCols,
+                                      RQcompressed, // in
+                                      betas,        // in
+                                      det,          // in
+                                      R, Q);        // out
+            PRINTMAT(R);
+            PRINTMAT(Q);
+
+            // Assert stuff about R and Q
+            {
+                FORI (iRow, nRows)
+                FORI (iCol, nCols)
+                {
+                    if (iCol == iRow)
+                        assert(R[iRow][iCol] >= 0.);
+                    if (iCol > iRow)
+                        assert(R[iRow][iCol] == 0.);
+                }
+                if (nRowsInQ != -1)
+                {
+                    double shouldBeIdentity[][] = mxm(Q, transpose(Q));
+                    PRINTMAT(shouldBeIdentity);
+                    if (nRowsInQ == nCols)
+                    {
+                        double shouldBeA[][] = mxm(R, Q);
+                        PRINTMAT(shouldBeA);
+                        assert(equals(shouldBeIdentity, identitymat(nRowsInQ), 1e-6));
+                        assert(equals(shouldBeA, A, 1e-6));
+                    }
+                    else
+                    {
+                        // should maybe an assertion that the product is rightup to nRowsInQ, or something? although the code is straightforward enough that it probably doesn't matter
+                    }
+                }
+
+                if (nRowsInQ == nCols) // if Q is a square matrix
+                {
+                    double detQ = det(Q);
+                    PRINT(detQ);
+                    double AcontentSquared = det(mxm(transpose(A),A));
+                    double RcontentSquared = det(mxm(transpose(R),R));
+                    PRINTMAT(mxm(transpose(A),A));
+                    PRINTMAT(mxm(transpose(R),R));
+                    PRINT(AcontentSquared);
+                    PRINT(RcontentSquared);
+                    assert(EQ(AcontentSquared, 0., 1e-6)
+                        == EQ(RcontentSquared, 0., 1e-6));
+                    // testing R is safer than testing A here,
+                    // since the algorithm looks at R to decide whether
+                    // to enforce positive determinant of Q.
+                    if (RcontentSquared == 0.) // includes the case nRows < nCols
+                    {
+                        // A has fewer rows than columns,
+                        // or it's square but has less than full rank,
+                        // so it should always be possible to make Q
+                        // a rotation (not a reflection),
+                        // by negating one of the axes if necessary.
+                        // The algorithm should have done that...
+                        assert(Math.abs(detQ-1.) <= 1e-6);
+                    }
+                    else
+                    {
+                        PRINT(det(mxm(transpose(R),R)));
+                        assert(nRows == nCols
+                            || nRows == 0); // transpose wasn't necessarily the right size in that case but whatever
+                    }
+                }
+            }
+        }
+        System.out.println("-----------------");
+    } // householderTestOneMatrix
+
+    public static void householderTest()
+    {
+        System.out.println("============================================");
+        System.out.println("HOUSEHOLDER STUFF TEST");
+
+        {
+            double testMatrices[][][] = {
+                {
+                    {3., 4.},
+                },
+                {
+                    {-3., 4.},
+                },
+                {
+                    {3., -4.},
+                },
+                {
+                    {-3., 4.},
+                },
+                { // case when det(A^T A) comes out slightly nonzero
+                    {50,30,60,80},
+                    {10,40,20,70},
+                },
+            };
+            FORI (iTestMatrix, testMatrices.length)
+            {
+                double A[][] = testMatrices[iTestMatrix];
+                householderTestOneMatrix(A.length, ROWLENGTH(A), A);
+            }
+        }
+
+
+        java.util.Random generator = new java.util.Random();
+        for (int nCols = 0; nCols <= 3; ++nCols)
+            for (int nRows = 0; nRows <= nCols; ++nRows)
+        //for (int nRows = 0; nRows <= 3; ++nRows)
+            //for (int nCols = nRows; nCols <= nRows+2; ++nCols)
+            {
+                System.out.println("    ["+nRows+"]["+nCols+"]");
+                double A[][] = new double[nRows][nCols]; // zeros
+
+                FORIDOWN(nNonzeroEntries, nRows*nCols+1)
+                {
+                    System.out.println("        "+nNonzeroEntries+" nonzero entries");
+                    int entries[] = new int[nRows*nCols]; // zeros
+                    for (int i = 0; i < nNonzeroEntries; ++i)
+                        entries[i] = (i+1) * 3;
+                    // e.g. if nNonZeroEntries is 5, entries will be:
+                    // 3, 6, 9, 12, 15, 0, 0, 0, ...
+                    // (tried multiples of 10 but the determinants got too big
+                    // and error-prone)
+
+                    // simplistic way, instead of enumerating
+                    // all possibilities, just pick permutations
+                    // at random and discard the ones we've already seen
+                    java.util.Hashtable seen = new java.util.Hashtable();
+                    for (int iPerm = 0; iPerm < 1000; ++iPerm)
+                    {
+                        int perm[] = randomperm(nRows*nCols, generator);
+                        int permutedEntries[] = composeluts(entries, perm);
+
+                        if (seen.put(toString(permutedEntries), permutedEntries) != null)
+                        {
+                            //System.out.print("                old: ");
+                            //PRINTVEC(permutedEntries);
+                            continue; // saw it already
+                        }
+                        else
+                        {
+                            //System.out.print("            new: ");
+                            //PRINTVEC(permutedEntries);
+                        }
+                        for (int i = 0; i < nRows*nCols; ++i)
+                            A[i/nCols][i%nCols] = permutedEntries[i];
+
+                        householderTestOneMatrix(nRows, nCols, A);
+                    }
+                }
+            }
+    } // householderTest
+
+
     public static void main(String args[])
     {
         if (args.length < 1)
@@ -4335,6 +4584,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 PRINTMAT(makeRowRotMat(1.f, new float[][]{v}));
             }
         }
+
+        // Test householder stuff
+        householderTest();
     } // main
 
 } // class VecMath
