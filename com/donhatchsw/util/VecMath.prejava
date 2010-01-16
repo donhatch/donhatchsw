@@ -2744,6 +2744,131 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return len;
     }
 
+    /**
+    * Helper function for RQdecomposition:
+    * Householder Vector algorithm
+    * from Golub&Van Loan page 210, Algorithm 5.1.1.
+    * Computes vector h and returns scalar beta
+    * such that the first entry of h is 1
+    * and P = I - beta h h^T is orthogonal
+    * and P v == (||v||, 0, 0, ...)
+    * i.e. P reflects v to the nonnegative x axis.
+    * beta will 2/||h||^2,
+    * except when v is already a *non-negative* multiple of the x axis,
+    * in which case it will be zero.
+    * (The function in the book returns beta=0
+    * even when v is a *negative* multiple of the x axis;
+    * that doesn't seem right to me since it violates
+    * the principle that P should send v to the non-negative x axis
+    * in every case, which is required by the caller.)
+    * Important: this function does NOT fill in the 1 into
+    * the first entry of h.
+    */
+    private double house(
+        int n, // dimension of subvector of interest in v and in destination h
+        double h[], int hStart, // destination h, and starting index
+        double v[], int vStart) // source v, and starting index
+    {
+        // h is allowed to occupy the same storage as v,
+        // as long as hStart <= vStart (since we'll be computing from v into h
+        // in increasing order)
+        if (h == v)
+            assert(hStart <= vStart);
+        if (n < 1)
+            return 0.;
+        double sigma = 0.; // for starters
+        for (int i = 1; i < n; ++i) // all but 0
+            sigma += SQR(v[vStart+i]);
+        double v0 = v[vStart];
+        double beta;
+        if (sigma == 0.)
+        {
+            for (int i = 1; i < n; ++i) // all but 0
+                h[hStart+i] = 0.;
+            beta = (v0 < 0. ? 2. : 0.);
+        }
+        else
+        {
+            double lenV = Math.sqrt(SQR(v0) + sigma);
+            double h0;
+            if (v0 <= 0.)
+                h0 = v0 - lenV;
+            else
+                h0 = -sigma/(v0 + lenV);
+            beta = 2. * SQR(h0) / (sigma + SQR(h0));
+            for (int i = 1; i < n; ++i) // all but 0
+                h[hStart+i] = v[vStart+i] / h0;
+        }
+        return beta;
+    } // house
+
+    /**
+    * QR decomposition from Golub & Van Loan,
+    * but we do RQ decomposition instead since we like to think
+    * in terms of row vectors instead of column vectors.
+    */
+    public void RQdecompositionCompressed(int nRows, int nCols, // use only first nRows and nCols of A
+                                double A[/*nRows*/][/*nCols*/], // gets overwritten with the essential parts of R and Q as in the book, but transposed
+                                double beta[/*nRows*/]) // gets filled with the corresponding betas, as in the book
+    {
+        if (nRows > nCols)
+            throw new IllegalArgumentException("RQdecompositionCompressed called with too many vectors");
+        FORI (iRow, nRows)
+        {
+            double AiRow[] = A[iRow];
+
+            // Compute the length of A[iRow][iRow..nCols-1],
+            // before we clobber it.
+            // This is duplicating a bit of work that is done inside
+            // the house function, oh well.
+            double lenAiRow;
+            {
+                double len2AiRow = SQR(AiRow[iRow]);
+                for (int iCol = iRow+1; iCol < nCols; ++iCol)
+                    len2AiRow += SQR(AiRow[iCol]);
+                lenAiRow = Math.sqrt(len2AiRow);
+            }
+
+            // we reuse the part of A[iRow] that we're about to zero out,
+            // namely A[iRow][iRow+1..iCol],
+            // to store (all but the first entry of) the householder vector h...
+            double h[] = AiRow;
+            double thisBeta = house(nCols-iRow,
+                                    h, iRow,      // into h starting at col iRow
+                                    AiRow, iRow); // from A[iRow] starting at col iRow
+            beta[iRow] = thisBeta;
+
+            // for row iRow, we put part of the householder vector
+            // into indices iRow+1..nCols-1 (replacing the entries
+            // that were going to zeroed out anyway)
+            // so we just need to set A[iRow][iRow] properly.
+            // The contract of h and beta
+            // is that they send A[iRow][iRow..nCols-1] to
+            // its (non-negative) length times the first axis, so...
+            AiRow[iRow] = lenAiRow;
+
+            // for the remaining rows...
+            for (int jRow = iRow+1; jRow < nRows; ++jRow)
+            {
+                // A[jRow][iRow..nCols-1] -= beta * (... dot h) * h
+                double AjRow[] = A[jRow];
+                double dotProduct = AjRow[iRow]; // times h[iRow] which is implicitly 1
+                for (int iCol = iRow+1; iCol < nCols; ++iCol) // all but iRow
+                    dotProduct += AjRow[iCol] * h[iCol];
+                double betaTimesDotProduct = thisBeta * dotProduct;
+
+                AjRow[iRow] -= betaTimesDotProduct; // times h[iRow] which is implicitly 1
+                for (int iCol = iRow+1; iCol < nCols; ++iCol) // including iRow
+                    AjRow[iCol] -= betaTimesDotProduct * h[iCol];
+                // we reuse the part of A[iRow] that we zeroed out,
+                // namely A[iRow][iRow+1..iCol],
+                // to store (all but the first entry of) the householder vector h...
+            }
+        }
+    } // RQdecomposition
+
+
+
     /** Extend the k vectors to n vectors and gramschmidt.  If the result is a square matrix and the original wasn't, make sure the result's determinant is +1, not -1. */
     public static void extendAndGramSchmidt(int k, int n, double result[][], double vecs[][])
     {
