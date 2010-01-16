@@ -2892,7 +2892,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             // Compute the length of A[iRow][iRow..nCols-1],
             // before we clobber it.
             // This is duplicating a bit of work that is done inside
-            // the house function, oh well.
+            // the house function, oh well, it's not that much.
             double lenAiRow;
             {
                 double len2AiRow = SQR(AiRow[iRow]);
