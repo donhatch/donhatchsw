@@ -2748,44 +2748,58 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     * Helper function for RQdecomposition:
     * Householder Vector algorithm
     * from Golub&Van Loan page 210, Algorithm 5.1.1.
-    * Computes vector h and returns scalar beta
+    * Given vector v, computes vector h and returns scalar beta
     * such that the first entry of h is 1
     * and P = I - beta h h^T is orthogonal
     * and P v == (||v||, 0, 0, ...)
     * i.e. P reflects v to the nonnegative x axis.
-    * beta will 2/||h||^2,
+    * beta will be 2/||h||^2,
     * except when v is already a *non-negative* multiple of the x axis,
-    * in which case it will be zero.
+    * in which case it will be zero,
+    * making P the identity matrix instead of a reflection).
     * (The function in the book returns beta=0
     * even when v is a *negative* multiple of the x axis;
     * that doesn't seem right to me since it violates
     * the principle that P should send v to the non-negative x axis
     * in every case, which is required by the caller.)
-    * Important: this function does NOT fill in the 1 into
-    * the first entry of h.
+    * Important: this function overwrites v with h,
+    * but it does NOT fill in the 1 into the first entry of h.
+    * instead, it puts the original ||v|| there.
     */
     private static double house(
         int n, // dimension of subvector of interest in v and in destination h
-        double h[], int hStart, // destination h, and starting index
-        double v[], int vStart) // source v, and starting index
+        double v[], int i0) // source v, (and dest h) and starting index
     {
-        // h is allowed to occupy the same storage as v,
-        // as long as hStart <= vStart (since we'll be computing from v into h
-        // in increasing order)
-        if (h == v)
-            assert(hStart <= vStart);
         if (n < 1)
             return 0.;
         double sigma = 0.; // for starters
         for (int i = 1; i < n; ++i) // all but 0
-            sigma += SQR(v[vStart+i]);
-        double v0 = v[vStart];
+            sigma += SQR(v[i0+i]);
+        double v0 = v[i0];
+        double h[] = v; // use same storage
         double beta;
         if (sigma == 0.)
         {
+            // Note, the following isn't strictly necessary
+            // since all those entries should be zero already anyway,
+            // since the sum of their squares is zero...
+            // however there might be cases when they hold very tiny values
+            // whose squares turned out to be zero numerically,
+            // so we set them to zero
+            // here to be safe.
             for (int i = 1; i < n; ++i) // all but 0
-                h[hStart+i] = 0.;
-            beta = (v0 < 0. ? 2. : 0.);
+                h[i0+i] = 0.;
+            if (v0 < 0.)
+            {
+                beta = 2.;
+                h[i0] = -v0; // i.e. ||v||
+            }
+            else
+            {
+                // not a reflection, the identity xform instead
+                beta = 0.;
+                // and leave h[0] alone, it's already ||v||
+            }
         }
         else
         {
@@ -2797,7 +2811,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 h0 = -sigma/(v0 + lenV);
             beta = 2. * SQR(h0) / (sigma + SQR(h0));
             for (int i = 1; i < n; ++i) // all but 0
-                h[hStart+i] = v[vStart+i] / h0;
+                h[i0+i] /= h0;
+            // per contract, omit the 1 in h[i0], put ||v|| there instead
+            h[i0] = lenV;
         }
         return beta;
     } // house
@@ -2887,37 +2903,25 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int determinant = 1;
         FORI (iRow, nRows)
         {
-            double AiRow[] = A[iRow];
-
-            // Compute the length of A[iRow][iRow..nCols-1],
-            // before we clobber it.
-            // This is duplicating a bit of work that is done inside
-            // the house function, oh well, it's not that much.
-            double lenAiRow;
-            {
-                double len2AiRow = SQR(AiRow[iRow]);
-                for (int iCol = iRow+1; iCol < nCols; ++iCol)
-                    len2AiRow += SQR(AiRow[iCol]);
-                lenAiRow = Math.sqrt(len2AiRow);
-            }
-
             // we reuse the part of A[iRow] that we're about to zero out,
             // namely A[iRow][iRow+1..iCol],
             // to store (all but the first entry of) the householder vector h...
-            double h[] = AiRow;
             double beta = house(nCols-iRow,
-                                h, iRow,      // into h starting at col iRow
-                                AiRow, iRow); // from A[iRow] starting at col iRow
+                                A[iRow], iRow); // A[iRow] starting at col iRow
+            double h[] = A[iRow]; // that's where h got put
             betas[iRow] = beta;
 
-            // for row iRow, we put part of the householder vector
-            // into indices iRow+1..nCols-1 (replacing the entries
-            // that were going to zeroed out anyway)
-            // so we just need to set A[iRow][iRow] properly.
-            // The contract of h and beta
+            // For row iRow, the "essential part" of the householder vector
+            // got put into indices iRow+1..nCols-1 (replacing the entries
+            // that were going to zeroed out anyway).
+            // As for A[iRow][iRow],
+            // the contract of h and beta
             // is that they send A[iRow][iRow..nCols-1] to
-            // its (non-negative) length times the first axis, so...
-            AiRow[iRow] = lenAiRow;
+            // its (non-negative) length times the first axis,
+            // so A[iRow][iRow] should get set to the original length
+            // of A[iRow][iRow..nCols-1],
+            // and that's exactly what house() already did.
+            // So A[iRow] is exactly right.
 
             // for the remaining rows...
             for (int jRow = iRow+1; jRow < nRows; ++jRow)
@@ -4462,6 +4466,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
         {
             double testMatrices[][][] = {
+                {
+                    {1,1e-9}, // see what it produces... hmm, there's a 1e9 in the compressed R,Q, that's disturbing
+                },
                 {
                     {3., 4.},
                 },
