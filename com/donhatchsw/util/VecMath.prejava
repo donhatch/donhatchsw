@@ -2745,7 +2745,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /**
-    * Helper function for RQdecomposition:
+    * Helper function for LQdecomposition:
     * Householder Vector algorithm
     * from Golub&Van Loan page 210, Algorithm 5.1.1.
     * Given vector v, computes vector h and returns scalar beta
@@ -2820,10 +2820,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
     /**
     * QR decomposition from Golub & Van Loan,
-    * but we do RQ decomposition instead since we like to think
+    * but we do LQ decomposition instead since we like to think
     * in terms of row vectors instead of column vectors.
     */
-    public static void uncompressRQdecomposition(int nRows, int nCols, // in compressed and in R... Q can have more (or fewer) rows than this
+    public static void uncompressLQdecomposition(int nRows, int nCols, // in compressed and in R... Q can have more (or fewer) rows than this
                                                  double compressed[/*nRows*/][/*nCols*/],
                                                  double betas[/*nRows*/],
                                                  double det, // -1 iff the composition of the householder reflections amount to a reflection rather than a rotation
@@ -2890,16 +2890,16 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 }
             }
         }
-    } // uncompressRQdecomposition
+    } // uncompressLQdecomposition
 
     // returns -1 or 1 depending on whether the number of reflections done
     // odd or even.
-    public static int RQdecompositionCompressed(int nRows, int nCols, // use only first nRows and nCols of A
+    public static int LQdecompositionCompressed(int nRows, int nCols, // use only first nRows and nCols of A
                                 double A[/*nRows*/][/*nCols*/], // gets overwritten with the essential parts of R and Q as in the book, but transposed
                                 double betas[/*nRows*/]) // gets filled with the corresponding betas, as in the book
     {
         if (!(nRows <= nCols))
-            throw new IllegalArgumentException("RQdecompositionCompressed called with too many vectors");
+            throw new IllegalArgumentException("LQdecompositionCompressed called with too many vectors");
         int determinant = 1;
         FORI (iRow, nRows)
         {
@@ -2945,7 +2945,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
 
         return determinant;
-    } // RQdecompositionCompressed
+    } // LQdecompositionCompressed
 
 
 
@@ -4375,11 +4375,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         PRINTMAT(A);
 
         double betas[] = new double[A.length];
-        double RQcompressed[][] = copymat(A);
-        int det = RQdecompositionCompressed(nRows, nCols,
-                                            RQcompressed, // in/out
+        double LQcompressed[][] = copymat(A);
+        int det = LQdecompositionCompressed(nRows, nCols,
+                                            LQcompressed, // in/out
                                             betas);       // out
-        PRINTMAT(RQcompressed);
+        PRINTMAT(LQcompressed);
         PRINTVEC(betas);
 
         double R[][] = new double[nRows][nCols];
@@ -4387,8 +4387,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         for (int nRowsInQ = -1; nRowsInQ <= nCols; ++nRowsInQ)
         {
             double Q[][] = nRowsInQ==-1 ? null : new double[nRowsInQ][nCols];
-            uncompressRQdecomposition(nRows, nCols,
-                                      RQcompressed, // in
+            uncompressLQdecomposition(nRows, nCols,
+                                      LQcompressed, // in
                                       betas,        // in
                                       det,          // in
                                       R, Q);        // out
@@ -4467,7 +4467,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             double testMatrices[][][] = {
                 {
-                    {1,1e-9}, // see what it produces... hmm, there's a 1e9 in the compressed R,Q, that's disturbing
+                    {1,1e-9}, // see what it produces... hmm, there's a 1e9 in the compressed R,Q, that's disturbing.  I'm not sure I'm a fan of this normalize-so-first-entry-is-1 stuff.
                 },
                 {
                     {3., 4.},
