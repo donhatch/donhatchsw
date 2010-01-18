@@ -2823,17 +2823,17 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     * but we do LQ decomposition instead since we like to think
     * in terms of row vectors instead of column vectors.
     */
-    public static void uncompressLQdecomposition(int nRows, int nCols, // in compressed and in R... Q can have more (or fewer) rows than this
+    public static void uncompressLQdecomposition(int nRows, int nCols, // in compressed and in L... Q can have more (or fewer) rows than this
                                                  double compressed[/*nRows*/][/*nCols*/],
                                                  double betas[/*nRows*/],
                                                  double det, // -1 iff the composition of the householder reflections amount to a reflection rather than a rotation
-                                                 double R[/*nRows*/][/*nCols*/],
+                                                 double L[/*nRows*/][/*nCols*/],
                                                  double Q[/*<=nCols*/][/*nCols*/])
     {
-        if (R != null)
+        if (L != null)
             FORI (iRow, nRows)
             FORI (iCol, nCols)
-                R[iRow][iCol] = (iCol <= iRow ? compressed[iRow][iCol]
+                L[iRow][iCol] = (iCol <= iRow ? compressed[iRow][iCol]
                                               : 0.);
         if (Q != null)
         {
@@ -2869,21 +2869,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     vxs(Q[nRows], Q[nRows], -1.); // negate the row of Q
                 else
                 {
-                    // If any diagonal entry of R is zero,
-                    // we can negate that column of R and that row of Q.
+                    // If any diagonal entry of L is zero,
+                    // we can negate that column of L and that row of Q.
                     // This isn't watertight behavior (since
                     // something might be very close to zero) but it tries
                     // to make things a little friendlier
                     // by not returning a reflection when it's not necessary.
                     FORI (iDiag, nRows)
                     {
-                        if (R[iDiag][iDiag] == 0.)
+                        if (L[iDiag][iDiag] == 0.)
                         {
                             // negate the row of Q
                             vxs(Q[iDiag], Q[iDiag], -1.);
-                            // negate the column of R (above diagonal is zero)
+                            // negate the column of L (above diagonal is zero)
                             for (int iRow = iDiag; iRow < nRows; ++iRow)
-                                R[iRow][iDiag] *= -1;
+                                L[iRow][iDiag] *= -1;
                             break;
                         }
                     }
@@ -4382,7 +4382,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         PRINTMAT(LQcompressed);
         PRINTVEC(betas);
 
-        double R[][] = new double[nRows][nCols];
+        double L[][] = new double[nRows][nCols];
         // Q can be null, or any number of rows up to nCols. test all options.
         for (int nRowsInQ = -1; nRowsInQ <= nCols; ++nRowsInQ)
         {
@@ -4391,19 +4391,19 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                                       LQcompressed, // in
                                       betas,        // in
                                       det,          // in
-                                      R, Q);        // out
-            PRINTMAT(R);
+                                      L, Q);        // out
+            PRINTMAT(L);
             PRINTMAT(Q);
 
-            // Assert stuff about R and Q
+            // Assert stuff about L and Q
             {
                 FORI (iRow, nRows)
                 FORI (iCol, nCols)
                 {
                     if (iCol == iRow)
-                        assert(R[iRow][iCol] >= 0.);
+                        assert(L[iRow][iCol] >= 0.);
                     if (iCol > iRow)
-                        assert(R[iRow][iCol] == 0.);
+                        assert(L[iRow][iCol] == 0.);
                 }
                 if (nRowsInQ != -1)
                 {
@@ -4411,7 +4411,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     PRINTMAT(shouldBeIdentity);
                     if (nRowsInQ == nCols)
                     {
-                        double shouldBeA[][] = mxm(R, Q);
+                        double shouldBeA[][] = mxm(L, Q);
                         PRINTMAT(shouldBeA);
                         assert(equals(shouldBeIdentity, identitymat(nRowsInQ), 1e-6));
                         assert(equals(shouldBeA, A, 1e-6));
@@ -4427,17 +4427,17 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     double detQ = det(Q);
                     PRINT(detQ);
                     double AcontentSquared = det(mxm(transpose(A),A));
-                    double RcontentSquared = det(mxm(transpose(R),R));
+                    double LcontentSquared = det(mxm(transpose(L),L));
                     PRINTMAT(mxm(transpose(A),A));
-                    PRINTMAT(mxm(transpose(R),R));
+                    PRINTMAT(mxm(transpose(L),L));
                     PRINT(AcontentSquared);
-                    PRINT(RcontentSquared);
+                    PRINT(LcontentSquared);
                     assert(EQ(AcontentSquared, 0., 1e-6)
-                        == EQ(RcontentSquared, 0., 1e-6));
-                    // testing R is safer than testing A here,
-                    // since the algorithm looks at R to decide whether
+                        == EQ(LcontentSquared, 0., 1e-6));
+                    // testing L is safer than testing A here,
+                    // since the algorithm looks at L to decide whether
                     // to enforce positive determinant of Q.
-                    if (RcontentSquared == 0.) // includes the case nRows < nCols
+                    if (LcontentSquared == 0.) // includes the case nRows < nCols
                     {
                         // A has fewer rows than columns,
                         // or it's square but has less than full rank,
@@ -4449,7 +4449,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     }
                     else
                     {
-                        PRINT(det(mxm(transpose(R),R)));
+                        PRINT(det(mxm(transpose(L),L)));
                         assert(nRows == nCols
                             || nRows == 0); // transpose wasn't necessarily the right size in that case but whatever
                     }
@@ -4467,7 +4467,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             double testMatrices[][][] = {
                 {
-                    {1,1e-9}, // see what it produces... hmm, there's a 1e9 in the compressed R,Q, that's disturbing.  I'm not sure I'm a fan of this normalize-so-first-entry-is-1 stuff.
+                    {1,1e-9}, // see what it produces... hmm, there's a 1e9 in the compressed L,Q, that's disturbing.  I'm not sure I'm a fan of this normalize-so-first-entry-is-1 stuff.
                 },
                 {
                     {3., 4.},
