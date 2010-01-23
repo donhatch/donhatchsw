@@ -1,13 +1,17 @@
 /**
 *
-* WARNING: WORK IN PROGRESS, NOTHING WORKS HERE!
+* WARNING: WORK IN PROGRESS!
 *
 * This class implements cpp (the C preprocessor),
 * actually a subset of its functionality.
 *
 * Understands the following directives:
-*       #define
 *       #include "filename"  (not <filename>)
+*       #define
+*       #undef
+*       #ifdef
+*       #if
+#       #endif
 * and the following command-line options:
 *       -I
 *       -D
@@ -16,14 +20,14 @@
 *
 
 TODO:
+    - #ifdef, #ifndef, #if (and endif)
     - -I
     - understand <> around file names as well as ""'s?  maybe not worth the trouble
     - ##
     - omit blank lines at end of files like cpp does
-    - turn more than 8 blank lines in a row into just a line number directive like cpp does
+    - turn more than 7 consecutive blank lines into just a line number directive like cpp does
+    - after return from include, don't emit that blank line (and adjust line number accordingly), like cpp does
     - understand # line numbers and file number on input (masquerade)
-    - emit nesting number (? 1 at beginning of included, 2 on return, nothing elsewhere?) on returns from includes
-    - after return from include, don't emit that blank line (and adjust line number accordingly)
     - put "In file included from whatever:3:" or whatever in warnings and errors
 */
 
@@ -1002,7 +1006,10 @@ public class Cpp
                         paramNames = (String[])paramNamesVector.toArray(new String[0]);
                     }
                     else if (nextToken.type == Token.SPACES
-                          || nextToken.type == Token.NEWLINE_ESCAPED)
+                          || nextToken.type == Token.NEWLINE_ESCAPED
+                          || nextToken.type == Token.COMMENT
+                          || nextToken.type == Token.NEWLINE_UNESCAPED
+                          || nextToken.type == Token.EOF)
                     {
                         if (verboseLevel >= 2)
                             System.err.println("        filter:     and there's no macro param list");
@@ -1375,7 +1382,7 @@ public class Cpp
 
     public static void main(String args[])
     {
-        if (true)
+        if (false)
         {
             // dump the test strings into files in tmp dir
             String tmpDirName = "tmp";
