@@ -147,18 +147,21 @@ public class Cpp
     private static class Token
     {
         // The token types
-        public static final int IDENTIFIER = 0;
-        public static final int STRING_LITERAL = 1;
-        public static final int CHAR_LITERAL = 2;
-        public static final int INT_LITERAL = 3;
+        public static final int IDENTIFIER = 0;     // "_[a-zA-Z0-9][a-zA-Z0-9]*"
+        public static final int STRING_LITERAL = 1; // "\"([^\\"]|\\.)*\""
+        public static final int CHAR_LITERAL = 2;   // "'([^\\']|\\.)*'" // too leniant
+        public static final int INT_LITERAL = 3;    // "-?([0-9]+|0x[0-9a-fA-F]*) // and not followed by x, is there lookahead?
         public static final int FLOAT_LITERAL = 4;
         public static final int DOUBLE_LITERAL = 5;
         public static final int SYMBOL = 6;
         public static final int COMMENT = 7;
         public static final int SPACES = 8;
-        public static final int PREPROCESSOR_DIRECTIVE = 9;
-        public static final int MACRO_ARG = 10;
-        public static final int NUMTYPES = 11;
+        public static final int NEWLINE_UNESCAPED = 9;
+        public static final int NEWLINE_ESCAPED = 10;
+        public static final int PREPROCESSOR_DIRECTIVE = 11;
+        public static final int MACRO_ARG = 12;
+        public static final int EOF = 13;
+        public static final int NUMTYPES = 14; // one more than last value
         // TODO: long
         // TODO: absorb backslash-newline into spaces
 
@@ -181,6 +184,7 @@ public class Cpp
         public static String typeToName(int type)
         {
             AssertAlways(type >= 0 && type < NUMTYPES);
+
             if (typeToNameCache == null)
             {
                 typeToNameCache = new String[NUMTYPES];
@@ -208,15 +212,22 @@ public class Cpp
                             int value = valueObject.intValue();
                             if (value >= 0 && value < NUMTYPES)
                             {
-                                AssertAlways(typeToNameCache[value] == null);
+                                if (typeToNameCache[value] != null)
+                                {
+                                    throw new Error("Token types "+typeToNameCache[value]+" and "+field.getName()+" have the same value "+value+"??");
+                                }
                                 typeToNameCache[value] = field.getName();
                             }
                         }
                     }
                 }
                 for (int i = 0; i < NUMTYPES; ++i)
-                    AssertAlways(typeToNameCache[i] != null);
+                {
+                    if (typeToNameCache[i] == null)
+                        throw new Error("No token with value "+i+"??");
+                }
             }
+
             AssertAlways(typeToNameCache[type] != null);
             return typeToNameCache[type];
         } // typeToName
@@ -236,30 +247,43 @@ public class Cpp
         }
     } // private static class Token
 
-    static class Macro
+    private static class Macro
     {
         // Doesn't include the name
-        int numParams; // -1 means no parens even
-        Token[] contents; // args denoted by token type MACRO_ARG with line number containing the index of the argument to be substituted
-    } // static class Macro
+        public int numParams; // -1 means no parens even
+        public Token[] contents; // args denoted by token type MACRO_ARG with line number containing the index of the argument to be substituted
+        public Macro(int numParams, Token[] contents)
+        {
+            this.numParams = numParams;
+            this.contents = contents;
+        }
+
+    } // private static class Macro
 
 
     /**
     * This class turns a Reader into a reader
     * that reads a token at a time.
+    * It's guaranteed to return an EOF token at the end,
+    * and if the caller reads past that, it's an error.
     */
     private static class TokenReader
     {
-        public LineAndColumnNumberReaderWithLookahead reader;
-        StringBuffer scratch = new StringBuffer();
+        private LineAndColumnNumberReaderWithLookahead reader;
+        private boolean returnedEOF;
+        private StringBuffer scratch = new StringBuffer();
 
         public TokenReader(java.io.Reader in)
         {
             this.reader = new LineAndColumnNumberReaderWithLookahead(in);
+            this.returnedEOF = false;
         }
         public Token readToken()
             throws java.io.IOException // since reader.read() does
         {
+            if (returnedEOF)
+                throw new Error("TokenReader asked to read past EOF");
+
             // clear scratch...
             scratch.delete(0, scratch.length());
 
@@ -269,16 +293,30 @@ public class Cpp
 
             int c = reader.read();
             if (c == -1)
-                return null;
-            if (Character.isWhitespace((char)c))
+            {
+                returnedEOF = true;
+                return new Token(Token.EOF, "", lineNumber, columnNumber);
+            }
+            // TODO: order these in order of likelihood?
+            if (c == '\n')
+            {
+                scratch.append((char)c);
+                return new Token(Token.NEWLINE_UNESCAPED, scratch.toString(), lineNumber, columnNumber);
+            }
+            else if (c == '\\' && reader.peek()  == '\n')
+            {
+                scratch.append((char)c);
+                scratch.append(reader.read());
+                return new Token(Token.NEWLINE_ESCAPED, scratch.toString(), lineNumber, columnNumber);
+            }
+            else if (Character.isWhitespace((char)c))
             {
                 scratch.append((char)c);
                 int d; // TODO: do this for most of the reader.peek()s in here, for speed
                 while ((d = reader.peek()) != -1
+                    && d != '\n'
                     && Character.isWhitespace((char)d))
                     scratch.append((char)reader.read());
-                // XXX uh oh, "\\\n" should be included,
-                // but does it need two chars of lookahead??
                 return new Token(Token.SPACES, scratch.toString(), lineNumber, columnNumber);
             }
             else if (Character.isJavaIdentifierStart((char)c))
@@ -477,6 +515,8 @@ public class Cpp
         } // readToken
     } // private static class TokenReader
 
+    // Guaranteed to return non-null,
+    // but peeking past EOF is an error.
     private static class TokenReaderWithLookahead
     {
         private TokenReader tokenReader;
@@ -516,8 +556,6 @@ public class Cpp
             while (lookAheadBuffer.size() <= index)
             {
                 Token token = tokenReader.readToken();
-                if (token == null)
-                    return null;
                 lookAheadBuffer.add(token);
             }
             return (Token)lookAheadBuffer.get(index);
@@ -545,8 +583,6 @@ public class Cpp
         while (true)
         {
             Token token = in.readToken();
-            if (token == null)
-                return null;
             if (token.type != Token.IDENTIFIER)
                 return token;
             Macro macro = (Macro)macros.get(token.text);
@@ -560,13 +596,11 @@ public class Cpp
             else
             {
                 // discard spaces
-                while (in.peekToken(0) != null
-                    && in.peekToken(0).type == Token.SPACES)
+                while (in.peekToken(0).type == Token.SPACES)
                     in.readToken();
                 Token shouldBeLeftParen = in.readToken();
-                if (shouldBeLeftParen == null
-                 || shouldBeLeftParen.type != Token.SYMBOL
-                 || !shouldBeLeftParen.text.equals("("))
+                if (!(shouldBeLeftParen.type == Token.SYMBOL
+                  && shouldBeLeftParen.text.equals("(")))
                     throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": invocation of macro "+token.text+" not followed by arg list");
                 // each arg will be a list of tokens
                 Token args[][] = new Token[macro.numParams][];
@@ -578,7 +612,7 @@ public class Cpp
                     while (true)
                     {
                         Token anotherToken = in.readToken();
-                        if (anotherToken == null)
+                        if (anotherToken.type == Token.EOF)
                             throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": EOF in middle of arg list for macro "+token.text+"");
                         if (parenLevel > 1)
                         {
@@ -668,22 +702,24 @@ public class Cpp
         while (true)
         {
             // XXX TODO: this will be wrong if the next token is from a macro substitution and/or there is lookahed... get this straight
-            int lineNumber = (in.peekToken(0) != null ? in.peekToken(0).lineNumber : -1);
-            int columnNumber = (in.peekToken(0) != null ? in.peekToken(0).columnNumber : -1);
+            int lineNumber = in.peekToken(0).lineNumber;
+            int columnNumber = in.peekToken(0).columnNumber;
 
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
             Token token = readTokenWithMacroSubstitution(in, inFileName, macros);
-            if (token == null
-             && !tokenReaderStack.isEmpty())
+            if (token.type == Token.EOF)
             {
-                in = (TokenReaderWithLookahead)tokenReaderStack.pop();
-                inFileName = (String)inFileNameStack.pop();
-                needToPrintLineNumber = true;
-                continue; // still need to read a token
+                if (!tokenReaderStack.isEmpty())
+                {
+                    // discard the EOF token, and pop the reader stack
+                    in = (TokenReaderWithLookahead)tokenReaderStack.pop();
+                    inFileName = (String)inFileNameStack.pop();
+                    needToPrintLineNumber = true;
+                    continue; // still need to read a token
+                }
+                else // EOF at top level
+                    break;
             }
-
-            if (token == null)
-                break;
 
             if (false)
             {
@@ -697,8 +733,7 @@ public class Cpp
                 AssertAlways(token.text.startsWith("#"));
                 if (token.text.equals("#include"))
                 {
-                    if (in.peekToken(0) != null
-                     && in.peekToken(0).type == Token.SPACES)
+                    if (in.peekToken(0).type == Token.SPACES)
                     {
                         Token spaces = in.readToken();
                         if (spaces.text.indexOf('\n') != -1)
@@ -707,7 +742,7 @@ public class Cpp
                         }
                     }
                     Token fileNameToken = readTokenWithMacroSubstitution(in, inFileName, macros);
-                    if (fileNameToken == null)
+                    if (fileNameToken.type == Token.EOF)
                         throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
                     if (fileNameToken.type != Token.STRING_LITERAL)
                         throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
@@ -741,42 +776,205 @@ public class Cpp
                 }
                 else if (token.text.equals("#define"))
                 {
-                    // special case for now:
-                    // #define REVERSE(A,B) B,A\n"
+                    Token nextToken = in.readToken();
+                    if (nextToken.type == Token.EOF
+                     || (nextToken.type == Token.SPACES && nextToken.text.indexOf('\n') != -1))
                     {
-                        Token nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.SPACES);
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("REVERSE"));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals("("));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("A"));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(","));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("B"));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(")"));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.SPACES);
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("B"));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.SYMBOL && nextToken.text.equals(","));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.IDENTIFIER && nextToken.text.equals("A"));
-                        nextToken = in.readToken();
-                        AssertAlways(nextToken != null && nextToken.type == Token.SPACES);
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
                     }
-                    Macro macro = new Macro();
-                    macro.numParams = 2;
-                    macro.contents = new Token[] {
-                        new Token(Token.MACRO_ARG, "", 1, -1), // arg 1: B
-                        new Token(Token.SYMBOL, ",", -1, -1), // arg 1: B
-                        new Token(Token.MACRO_ARG, "", 0, -1), // arg 0: A
-                    };
-                    macros.put("REVERSE", macro);
+                    if (nextToken.type != Token.SPACES)
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
+                    nextToken = in.readToken();
+                    if (nextToken.type == Token.EOF)
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
+                    if (nextToken.type != Token.IDENTIFIER)
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
+                    String macroName = nextToken.text;
+
+                    // must be either whitespace or left paren after macro name
+                    nextToken = in.readToken();
+                    if (nextToken.type == Token.EOF)
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
+
+                    if (nextToken.type == Token.SYMBOL
+                     && nextToken.text.equals("("))
+                    {
+                        // There's a macro param list.
+                        java.util.Vector paramNamesVector = new java.util.Vector();
+
+                        // Discard spaces
+                        if (in.peekToken(0).type == Token.SPACES
+                         && in.peekToken(0).text.indexOf('\n') == -1)
+                            in.readToken();
+
+                        if (in.peekToken(0).type == Token.SYMBOL
+                         && in.peekToken(0).text.equals(")"))
+                        {
+                            // zero params
+                            in.readToken();
+                        }
+                        else
+                        {
+                            // must be one or more param names,
+                            // separated by commas,
+                            // followed by close paren
+
+                            nextToken = in.readToken();
+
+                            // move past spaces
+                            if (nextToken.type == Token.SPACES
+                             && nextToken.text.indexOf('\n') == -1)
+                                nextToken = in.readToken();
+
+
+                            if (nextToken.type != Token.IDENTIFIER)
+                                throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+
+                            paramNamesVector.add(nextToken.text);
+
+                            while (true)
+                            {
+                                nextToken = in.readToken();
+
+                                // move past spaces
+                                if (nextToken.type == Token.SPACES
+                                 && nextToken.text.indexOf('\n') == -1)
+                                    nextToken = in.readToken();
+
+                                if (nextToken.type == Token.SYMBOL)
+                                {
+                                    if (nextToken.text.equals(")"))
+                                        break;
+                                    else if (nextToken.text.equals(","))
+                                    {
+                                        nextToken = in.readToken();
+
+                                        // move past spaces
+                                        if (nextToken.type == Token.SPACES
+                                         && nextToken.text.indexOf('\n') == -1)
+                                            nextToken = in.readToken();
+
+                                        if (nextToken.type == Token.IDENTIFIER)
+                                        {
+                                            paramNamesVector.add(nextToken.text);
+                                            continue;
+                                        }
+                                    }
+                                }
+                                throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                            }
+                        }
+
+                        String paramNames[] = (String[])paramNamesVector.toArray(new String[0]);
+
+                        AssertAlways(nextToken.type == Token.SYMBOL
+                                  && nextToken.text.equals(")"));
+
+                        if (in.peekToken(0).type == Token.SPACES
+                         && in.peekToken(0).text.indexOf('\n') == -1)
+                        {
+                            AssertAlways(false);
+                            /*
+                            ...
+                            think think think
+                            */
+                        }
+                    }
+                    else
+                    {
+                        // There's no macro param list.
+                        // Must be spaces.
+                        if (nextToken.type != Token.SPACES)
+                            throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+
+                        AssertAlways(false);
+                        /*
+                        ...
+                        think think think
+                        */
+                    }
+
+
+
+                    if (nextToken.type == Token.SPACES) // XXX needed?  had this before we made the above stuff
+                    {
+                        if (nextToken.text.indexOf('\n') != -1)
+                        {
+                            System.out.println();
+                            System.out.print(nextToken.text.substring(nextToken.text.indexOf('\n')+1)); // TODO: turn \n into println, probably turn it into a separate token, I think
+                            macros.put(macroName,
+                                       new Macro(0, new Token[0]));
+                        }
+                        else
+                        {
+                            nextToken = in.readToken();
+                            if (nextToken.type == Token.EOF)
+                                throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
+                            java.util.Vector contentsVector = new java.util.Vector();
+                            AssertAlways(nextToken.type != Token.SPACES);
+                            contentsVector.add(nextToken);
+                            while (true)
+                            {
+                                nextToken = in.readToken();
+                                if (nextToken.type == Token.EOF)
+                                    throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
+                                if (nextToken.type == Token.COMMENT)
+                                    throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": can't handle comment on line of #define yet"); // XXX TODO: handle it
+                                if (nextToken.type == Token.SPACES
+                                 && nextToken.text.indexOf('\n') != -1)
+                                    break;
+                                contentsVector.add(nextToken);
+                            }
+                            System.out.println();
+                            System.out.print(nextToken.text.substring(nextToken.text.indexOf('\n')+1)); // TODO: turn \n into println, probably turn it into a separate token, I think
+
+                            Token contents[] = new Token[contentsVector.size()];
+                            for (int i = 0; i < contents.length; ++i)
+                                contents[i] = (Token)contentsVector.get(i);
+                            macros.put(macroName,
+                                       new Macro(-1, // numParams
+                                                 contents));
+
+                        }
+                    }
+
+
+                    if (true)
+                    {
+                        // special case for now:
+                        // #define REVERSE(A,B) B,A\n"
+                        /*Token*/ nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.SPACES);
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.IDENTIFIER && nextToken.text.equals("REVERSE"));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.SYMBOL && nextToken.text.equals("("));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.IDENTIFIER && nextToken.text.equals("A"));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.SYMBOL && nextToken.text.equals(","));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.IDENTIFIER && nextToken.text.equals("B"));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.SYMBOL && nextToken.text.equals(")"));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.SPACES);
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.IDENTIFIER && nextToken.text.equals("B"));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.SYMBOL && nextToken.text.equals(","));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.IDENTIFIER && nextToken.text.equals("A"));
+                        nextToken = in.readToken();
+                        AssertAlways(nextToken.type == Token.SPACES);
+                        Macro macro = new Macro(2, // numParams,
+                            new Token[] {
+                                new Token(Token.MACRO_ARG, "", 1, -1), // arg 1: B
+                                new Token(Token.SYMBOL, ",", -1, -1), // arg 1: B
+                                new Token(Token.MACRO_ARG, "", 0, -1), // arg 0: A
+                            });
+                        macros.put("REVERSE", macro);
+                    }
                 }
                 else
                 {
@@ -802,6 +1000,8 @@ public class Cpp
         {
             "test0.java", ""
                 +"hello from test0.java\n"
+                +"#define FOO foo\n"
+                +"#define BAR bar\n"
                 +"#define REVERSE(A,B) B,A\n"
                 +"REVERSE(a,b)\n"
                 +"REVERSE(\"(\",\")\")\n"
@@ -814,8 +1014,9 @@ public class Cpp
                 +"REVERSE(a,(b,c))\n"
                 +"REVERSE((a,b),(c,d))\n"
                 +"REVERSE((a,(b,c)),((d,e),f))\n"
-                //+"REVERSE(a) // should be error\n"
-                //+"REVERSE(a,b,c) // should be error\n"
+                +"REVERSE(FOO,BAR)\n"
+                //+"REVERSE(a) // should be error\n" // TODO: test this
+                //+"REVERSE(a,b,c) // should be error\n" // TODO: test this
                 +"goodbye from test0.java\n"
         },
         {
@@ -832,7 +1033,7 @@ public class Cpp
                  +"hello from macros.h\n"
                  +"#define foo bar\n"
                  +"blah blah\n"
-                 +"#include trivialinclude.h\n"
+                 +"#include \"trivialinclude.h\"\n"
                  +"blah blah blah\n"
                  +"goodbye from macros.h\n"
         },
@@ -923,10 +1124,11 @@ public class Cpp
         try
         {
             Token token;
-            while ((token = tokenReader.readToken()) != null)
+            do
             {
+                token = tokenReader.readToken();
                 System.out.println("    "+token);
-            }
+            } while (token.type != Token.EOF);
         }
         catch (java.io.IOException e)
         {
@@ -987,6 +1189,6 @@ public class Cpp
                 System.exit(1);
             }
         }
-    }
+    } // main
 
 } // Cpp
