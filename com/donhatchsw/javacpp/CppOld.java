@@ -20,7 +20,8 @@
 *
 
 TODO:
-    - #ifdef, #ifndef, #if (and endif)
+    - #ifdef, #ifndef, (and endif)
+    - #if (I guess that means integer expressions, but can start with just 1, 0, and empty)
     - -I
     - understand <> around file names as well as ""'s?  maybe not worth the trouble
     - ##
@@ -29,6 +30,8 @@ TODO:
     - after return from include, don't emit that blank line (and adjust line number accordingly), like cpp does
     - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
+    - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
+    - get the right filename in the "unterminated if" message
 */
 
 package com.donhatchsw.javacpp;
@@ -173,7 +176,7 @@ public class Cpp
         public static final int SYMBOL = 6;
         public static final int COMMENT = 7;
         public static final int SPACES = 8;
-        public static final int NEWLINE_UNESCAPED = 9;
+        public static final int NEWLINE_UNESCAPED = 9; // XXX TODO: not handling these right, these should NOT turn into spaces, cpp uses them as nothing (argh, which ends up putting multiple stuff on a line!)
         public static final int NEWLINE_ESCAPED = 10; // XXX TODO: decide whether this should be included in SPACES, I think it might simplify some things
         public static final int PREPROCESSOR_DIRECTIVE = 11;
         public static final int MACRO_ARG = 12;
@@ -189,19 +192,20 @@ public class Cpp
         public int lineNumber; // 0 based
         public int columnNumber; // 0 based
 
-        public Token(int type, String text, int lineNumber, int columnNumber)
+        public Token(int type, String text, String fileName, int lineNumber, int columnNumber)
         {
             this.type = type;
             this.text = text;
-            this.fileName = null; // XXX ?
+            this.fileName = fileName;
             this.lineNumber = lineNumber;
             this.columnNumber = columnNumber;
         }
-        // copy constructor but changing line number
-        public Token(Token fromToken, int lineNumber)
+        // copy constructor but changing file name ane line number
+        public Token(Token fromToken, String fileName, int lineNumber)
         {
             this(fromToken.type,
                  fromToken.text,
+                 fileName,
                  lineNumber,
                  fromToken.columnNumber);
         }
@@ -266,6 +270,8 @@ public class Cpp
                   +escapify(this.text)
                   +"\", "
                   +"                         "
+                  +this.fileName
+                  +", "
                   +this.lineNumber
                   +", "
                   +this.columnNumber
@@ -326,12 +332,14 @@ public class Cpp
     private static class TokenReader
     {
         private LineAndColumnNumberReaderWithLookahead reader;
+        String fileName;
         private boolean returnedEOF;
         private StringBuffer scratch = new StringBuffer();
 
-        public TokenReader(java.io.Reader in)
+        public TokenReader(java.io.Reader in, String fileName)
         {
             this.reader = new LineAndColumnNumberReaderWithLookahead(in);
+            this.fileName = fileName;
             this.returnedEOF = false;
         }
         public Token readToken()
@@ -352,19 +360,19 @@ public class Cpp
             if (c == -1)
             {
                 returnedEOF = true;
-                token = new Token(Token.EOF, "", lineNumber, columnNumber);
+                token = new Token(Token.EOF, "", fileName, lineNumber, columnNumber);
             }
             // TODO: order these in order of likelihood?
             else if (c == '\n')
             {
                 scratch.append((char)c);
-                token = new Token(Token.NEWLINE_UNESCAPED, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.NEWLINE_UNESCAPED, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else if (c == '\\' && reader.peek()  == '\n')
             {
                 scratch.append((char)c);
                 scratch.append(reader.read());
-                token = new Token(Token.NEWLINE_ESCAPED, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.NEWLINE_ESCAPED, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else if (Character.isWhitespace((char)c))
             {
@@ -374,7 +382,7 @@ public class Cpp
                     && d != '\n'
                     && Character.isWhitespace((char)d))
                     scratch.append((char)reader.read());
-                token = new Token(Token.SPACES, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.SPACES, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else if (Character.isJavaIdentifierStart((char)c))
             {
@@ -382,7 +390,7 @@ public class Cpp
                 while (reader.peek() != -1
                     && Character.isJavaIdentifierPart((char)reader.peek()))
                     scratch.append((char)reader.read());
-                token = new Token(Token.IDENTIFIER, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.IDENTIFIER, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else if (Character.isDigit((char)c)
                   || (c == '.' && reader.peek() != -1
@@ -467,7 +475,7 @@ public class Cpp
                 if (reader.peek() == 'f')
                 {
                     scratch.append((char)reader.read()); // the 'f'
-                    token = new Token(Token.FLOAT_LITERAL, scratch.toString(), lineNumber, columnNumber);
+                    token = new Token(Token.FLOAT_LITERAL, scratch.toString(), fileName, lineNumber, columnNumber);
                 }
                 else
                 {
@@ -476,9 +484,9 @@ public class Cpp
                     if (string.indexOf('.') != -1
                      || string.indexOf('e') != -1
                      || string.indexOf('E') != -1)
-                        token = new Token(Token.DOUBLE_LITERAL, string, lineNumber, columnNumber);
+                        token = new Token(Token.DOUBLE_LITERAL, string, fileName, lineNumber, columnNumber);
                     else
-                        token = new Token(Token.INT_LITERAL, string, lineNumber, columnNumber);
+                        token = new Token(Token.INT_LITERAL, string, fileName, lineNumber, columnNumber);
                 }
             }
             else if (c == '"' || c == '\'')
@@ -505,7 +513,7 @@ public class Cpp
                     else if (c == quoteChar)
                         break;
                 }
-                token = new Token(quoteChar=='"' ? Token.STRING_LITERAL : Token.CHAR_LITERAL, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(quoteChar=='"' ? Token.STRING_LITERAL : Token.CHAR_LITERAL, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else if (c == '/' && reader.peek() == '/')
             {
@@ -517,7 +525,7 @@ public class Cpp
                 {
                     scratch.append((char)reader.read());
                 }
-                token = new Token(Token.COMMENT, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.COMMENT, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else if (c == '/' && reader.peek() == '*')
             {
@@ -536,7 +544,7 @@ public class Cpp
                         break;
                     }
                 }
-                token = new Token(Token.COMMENT, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.COMMENT, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else if (c == '#')
             {
@@ -557,12 +565,12 @@ public class Cpp
                 while (reader.peek() != -1
                     && Character.isJavaIdentifierPart((char)reader.peek()))
                     scratch.append((char)reader.read());
-                token = new Token(Token.PREPROCESSOR_DIRECTIVE, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.PREPROCESSOR_DIRECTIVE, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else
             {
                 scratch.append((char)c);
-                token = new Token(Token.SYMBOL, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.SYMBOL, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             //System.out.println("            TokenReader  returning "+token);
             return token;
@@ -574,6 +582,7 @@ public class Cpp
     private static class TokenReaderWithLookahead
     {
         private TokenReader tokenReader;
+        String inFileName;
         private java.util.LinkedList lookAheadBuffer = new java.util.LinkedList();
 
         public boolean hasLookahead()
@@ -581,9 +590,10 @@ public class Cpp
             return !lookAheadBuffer.isEmpty();
         }
 
-        public TokenReaderWithLookahead(java.io.Reader in)
+        public TokenReaderWithLookahead(java.io.Reader in, String inFileName)
         {
-            this.tokenReader = new TokenReader(in);
+            this.tokenReader = new TokenReader(in, inFileName);
+            this.inFileName = inFileName; // maybe not necessary, just provide an accessor to tokenReader's?
         }
 
         public Token readToken()
@@ -632,7 +642,6 @@ public class Cpp
         }
     } // private static class TokenReaderWithLookahead
 
-    // XXX TODO: substituted line and column numbers aren't right
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
                                                         String inFileName,
                                                         int lineNumber,
@@ -651,9 +660,9 @@ public class Cpp
             {
                 // special cases...
                 if (token.text.equals("__LINE__"))
-                    in.pushBackToken(new Token(Token.INT_LITERAL,  ""+(lineNumber+1), lineNumber, -1));
+                    in.pushBackToken(new Token(Token.INT_LITERAL,  ""+(lineNumber+1), inFileName, lineNumber, -1));
                 else if (token.text.equals("__FILE__"))
-                    in.pushBackToken(new Token(Token.STRING_LITERAL, "\""+escapify(inFileName)+"\"", lineNumber, -1));
+                    in.pushBackToken(new Token(Token.STRING_LITERAL, "\""+escapify(inFileName)+"\"", inFileName, lineNumber, -1));
                 else
                 {
                     /* can't just push back the tokens, we need to change the line numbers too */
@@ -663,7 +672,7 @@ public class Cpp
                     {
                         Token macroContentsCopy[] = new Token[macro.contents.length];
                         for (int i = 0; i < macro.contents.length; ++i)
-                            macroContentsCopy[i] = new Token(macro.contents[i], lineNumber);
+                            macroContentsCopy[i] = new Token(macro.contents[i], inFileName, lineNumber);
                         in.pushBackTokens(macroContentsCopy);
                     }
                 }
@@ -737,7 +746,7 @@ public class Cpp
                     {
                         int iArg = contentToken.lineNumber; // for MACRO_ARG tokens, arg index in is smuggled in through line number
                         for (int j = 0; j < args[iArg].length; ++j)
-                            resultsVector.add(new Token(args[iArg][j], lineNumber));
+                            resultsVector.add(new Token(args[iArg][j], null, lineNumber));
                     }
                     else if (contentToken.type == Token.MACRO_ARG_QUOTED)
                     {
@@ -745,17 +754,16 @@ public class Cpp
                         StringBuffer sb = new StringBuffer();
                         for (int j = 0; j < args[iArg].length; ++j)
                             sb.append(args[iArg][j].text);
-                        resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", -1, -1)); // XXX TODO: do a line and column number make sense here?
+                        resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", null, -1, -1)); // XXX TODO: do a line and column number make sense here?
                     }
                     else
-                        resultsVector.add(new Token(contentToken, lineNumber));
+                        resultsVector.add(new Token(contentToken, inFileName, lineNumber));
                 }
                 in.pushBackTokens(resultsVector);
             }
         }
     } // readTokenWithMacroSubstitution
     public static void filter(TokenReaderWithLookahead in,
-                              String inFileName,
                               FileOpener fileOpener,
                               java.io.PrintWriter out,
                               java.util.Hashtable macros) // gets updated as we go
@@ -767,8 +775,13 @@ public class Cpp
         if (verboseLevel >= 1)
             System.err.println("    in filter");
 
+        String inFileName = in.inFileName; // XXX TODO: I don't think we need this variable any more
+
         java.util.Stack tokenReaderStack = new java.util.Stack();
         java.util.Stack inFileNameStack = new java.util.Stack();
+        java.util.Stack ifStack = new java.util.Stack(); // of #ifwhatever tokens, for the file,line,column information
+        int highestTrueIfStackLevel = 0;
+        
 
         int lineNumber = 0;
         int columnNumber = 0;
@@ -788,6 +801,11 @@ public class Cpp
             Token token = readTokenWithMacroSubstitution(in, inFileName, lineNumber, macros);
             if (token.type == Token.EOF)
             {
+                if (!ifStack.empty())
+                {
+                    Token unterminatedIfToken = (Token)ifStack.peek();
+                    throw new Error(unterminatedIfToken.fileName+":"+(unterminatedIfToken.lineNumber+1)+":"+(unterminatedIfToken.columnNumber+1)+": unterminated "+unterminatedIfToken.text);
+                }
                 if (!tokenReaderStack.isEmpty())
                 {
                     // discard the EOF token, and pop the reader stack
@@ -811,53 +829,28 @@ public class Cpp
                 System.out.flush();
             }
 
-            if (token.type == Token.PREPROCESSOR_DIRECTIVE)
+            // when inside a false #if,
+            // the only preprocessor directives we recognize are #if* and #endif
+            if (token.type == Token.PREPROCESSOR_DIRECTIVE
+             && (ifStack.size() <= highestTrueIfStackLevel || token.text.startsWith("#if")
+                                                           || token.text.equals("#endif")))
             {
                 AssertAlways(token.text.startsWith("#"));
-                if (token.text.equals("#include"))
+                if (token.text.equals("#endif"))
                 {
                     if (verboseLevel >= 2)
-                        System.err.println("        filter: found #include");
-                    while (in.peekToken(0).type == Token.SPACES
-                        || in.peekToken(0).type == Token.NEWLINE_ESCAPED
-                        || in.peekToken(0).type == Token.COMMENT)
-                        in.readToken();
-                    Token fileNameToken = readTokenWithMacroSubstitution(in, inFileName, lineNumber, macros);
-                    if (fileNameToken.type != Token.STRING_LITERAL)
-                        throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
+                        System.err.println("        filter: found #endif");
 
-                    String newInFileName = fileNameToken.text.substring(1, fileNameToken.text.length()-1);
-                    TokenReaderWithLookahead newIn = null;
-                    try
-                    {
-                        newIn = new TokenReaderWithLookahead(
-                                fileOpener.newFileReader(newInFileName));
-                    }
-                    catch (java.io.FileNotFoundException e)
-                    {
-
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
-                    }
-
-                    if (in.hasLookahead()) // uh oh, I'm afraid this will be triggered when the file is a result of simple macro substition like #define FOO "/dev/null" and then #include FOO since 1 char of lookahead was required to detect the end of the FOO token
-                    {
-                        // TODO: test this
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
-                    }
-                    tokenReaderStack.push(in);
-                    inFileNameStack.push(inFileName);
-
-                    in = newIn;
-                    inFileName = newInFileName;
-
-                    lineNumber = in.peekToken(0).lineNumber;
-                    columnNumber = in.peekToken(0).columnNumber;
-                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
+                    if (ifStack.empty())
+                        throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #endif without #if");
+                    ifStack.pop();
                 }
-                else if (token.text.equals("#undef"))
+                else if (token.text.equals("#ifdef")
+                      || token.text.equals("#ifndef")
+                      || token.text.equals("#undef"))
                 {
                     if (verboseLevel >= 2)
-                        System.err.println("        filter: found #undef");
+                        System.err.println("        filter: found "+token.text);
 
                     Token nextToken = in.readToken();
 
@@ -870,7 +863,7 @@ public class Cpp
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
                     {
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no macro name given in "+token.text+" directive");
                     }
 
                     if (nextToken.type != Token.IDENTIFIER)
@@ -884,14 +877,32 @@ public class Cpp
                         || nextToken.type == Token.COMMENT)
                         nextToken = in.readToken();
 
-                    if (macroName == "__LINE__"
-                     || macroName == "__FILE__")
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't undefine \""+macroName+"\"");
-                    macros.remove(macroName);
+
+                    if (token.text.equals("#undef"))
+                    {
+                        if (macroName == "__LINE__"
+                         || macroName == "__FILE__")
+                            throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't undefine \""+macroName+"\"");
+                        macros.remove(macroName);
+                    }
+                    else // #ifdef or #ifndef
+                    {
+                        if (highestTrueIfStackLevel >= ifStack.size()) // if currently true, see if this makes the one we are adding true or false
+                        {
+                            boolean defined = (macros.get(macroName) != null);
+                            boolean answer = (defined == token.text.equals("#ifdef"));
+                            if (answer == true)
+                                highestTrueIfStackLevel = ifStack.size()+1;
+                            else
+                                highestTrueIfStackLevel = ifStack.size();
+                        }
+                        ifStack.push(token);
+                    }
+
 
                     if (nextToken.type != Token.EOF
                      && nextToken.type != Token.NEWLINE_UNESCAPED)
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of #undef directive");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of "+token.text+" directive");
 
                     if (nextToken.type == Token.EOF)
                     {
@@ -1039,7 +1050,7 @@ public class Cpp
                                 for (int i = 0; i < paramNames.length; ++i)
                                     if (nextToken.text.equals(paramNames[i]))
                                     {
-                                        nextToken = new Token(Token.MACRO_ARG, "", i, -1); // smuggle in param index through line number
+                                        nextToken = new Token(Token.MACRO_ARG, "", null, i, -1); // smuggle in param index through line number
                                         break;
                                     }
                                 // if not found, it stays identifier
@@ -1050,7 +1061,7 @@ public class Cpp
                                 for (int i = 0; i < paramNames.length; ++i)
                                     if (paramNameMaybe.equals(paramNames[i]))
                                     {
-                                        nextToken = new Token(Token.MACRO_ARG_QUOTED, "", i, -1); // smuggle in param index through line number
+                                        nextToken = new Token(Token.MACRO_ARG_QUOTED, "", null, i, -1); // smuggle in param index through line number
                                         break;
                                     }
                                 // if not found, it's an error
@@ -1081,7 +1092,7 @@ public class Cpp
                             {
                                 if (nOut != 0
                                  && contents[nOut-1].type != Token.SPACES)
-                                    contents[nOut++] = new Token(Token.SPACES, " ", -1, -1);
+                                    contents[nOut++] = new Token(Token.SPACES, " ", contents[iIn].fileName, contents[iIn].lineNumber, contents[iIn].columnNumber);
                             }
                             else
                                 contents[nOut++] = contents[iIn];
@@ -1126,6 +1137,47 @@ public class Cpp
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
                     out.print(nextToken.text);
                 }
+                else if (token.text.equals("#include"))
+                {
+                    if (verboseLevel >= 2)
+                        System.err.println("        filter: found #include");
+                    while (in.peekToken(0).type == Token.SPACES
+                        || in.peekToken(0).type == Token.NEWLINE_ESCAPED
+                        || in.peekToken(0).type == Token.COMMENT)
+                        in.readToken();
+                    Token fileNameToken = readTokenWithMacroSubstitution(in, inFileName, lineNumber, macros);
+                    if (fileNameToken.type != Token.STRING_LITERAL)
+                        throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
+
+                    String newInFileName = fileNameToken.text.substring(1, fileNameToken.text.length()-1);
+                    TokenReaderWithLookahead newIn = null;
+                    try
+                    {
+                        newIn = new TokenReaderWithLookahead(
+                                fileOpener.newFileReader(newInFileName),
+                                newInFileName);
+                    }
+                    catch (java.io.FileNotFoundException e)
+                    {
+
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
+                    }
+
+                    if (in.hasLookahead()) // uh oh, I'm afraid this will be triggered when the file is a result of simple macro substition like #define FOO "/dev/null" and then #include FOO since 1 char of lookahead was required to detect the end of the FOO token
+                    {
+                        // TODO: test this
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
+                    }
+                    tokenReaderStack.push(in);
+                    inFileNameStack.push(inFileName);
+
+                    in = newIn;
+                    inFileName = newInFileName;
+
+                    lineNumber = in.peekToken(0).lineNumber;
+                    columnNumber = in.peekToken(0).columnNumber;
+                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
+                }
                 else
                 {
                     throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": invalid preprocessor directive "+token.text);
@@ -1135,10 +1187,15 @@ public class Cpp
             {
                 if (token.type == Token.NEWLINE_UNESCAPED)
                 {
+                    // print newlines whether or not inside a false #if
                     out.println();
                 }
                 else
-                    out.print(token.text);
+                {
+                    // other tokens get suppressed if inside a false #if
+                    if (highestTrueIfStackLevel >= ifStack.size())
+                        out.print(token.text);
+                }
             }
         }
         out.flush();
@@ -1311,7 +1368,7 @@ public class Cpp
             System.err.println("woops! "+e);
             System.exit(1);
         }
-        TokenReader tokenReader = new TokenReader(in);
+        TokenReader tokenReader = new TokenReader(in, inFileName);
         try
         {
             Token token;
@@ -1350,10 +1407,10 @@ public class Cpp
         try
         {
             String builtinInput = "#define __LINE__ __LINE__\n" // stub, handled specially
-                                + "#define __FILE__ __FILE__\n"; // stub, handled specially
+                                + "#define __FILE__ __FILE__\n" // stub, handled specially
+                                + "#define __java 1\n";
             java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
-            filter(new TokenReaderWithLookahead(builtinFakeInputReader),
-                   "<built-in>",
+            filter(new TokenReaderWithLookahead(builtinFakeInputReader,"<built-in>"),
                    new FileOpener(),
                    writer,
                    macros);
@@ -1365,8 +1422,7 @@ public class Cpp
         }
         try
         {
-            filter(new TokenReaderWithLookahead(in),
-                   inFileName,
+            filter(new TokenReaderWithLookahead(in, inFileName),
                    testFileOpener,
                    writer,
                    macros);
@@ -1507,10 +1563,10 @@ public class Cpp
             try
             {
                 String builtinInput = "#define __LINE__ __LINE__\n" // stub, handled specially
-                                    + "#define __FILE__ __FILE__\n"; // stub, handled specially
+                                    + "#define __FILE__ __FILE__\n" // stub, handled specially
+                                    + "#define __java 1\n";
                 java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
-                filter(new TokenReaderWithLookahead(builtinFakeInputReader),
-                       "<built-in>",
+                filter(new TokenReaderWithLookahead(builtinFakeInputReader, "<built-in>"),
                        new FileOpener(),
                        writer,
                        macros);
@@ -1523,8 +1579,7 @@ public class Cpp
             try
             {
                 java.io.Reader commandLineFakeInputReader = new java.io.StringReader(commandLineFakeInput.toString());
-                filter(new TokenReaderWithLookahead(commandLineFakeInputReader),
-                       "<command line>",
+                filter(new TokenReaderWithLookahead(commandLineFakeInputReader, "<command line>"),
                        new FileOpener(),
                        writer,
                        macros);
@@ -1554,8 +1609,7 @@ public class Cpp
                 reader = new java.io.InputStreamReader(System.in);
             try
             {
-                filter(new TokenReaderWithLookahead(reader),
-                       "<stdin>",
+                filter(new TokenReaderWithLookahead(reader, "<stdin>"),
                        new FileOpener(),
                        writer,
                        macros);
