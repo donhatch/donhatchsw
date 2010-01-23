@@ -1389,7 +1389,7 @@ public class Cpp
             System.exit(0);
         }
 
-        if (true)
+        if (false)
         {
             test0("assertTest.prejava");
             test1("assertTest.prejava");
