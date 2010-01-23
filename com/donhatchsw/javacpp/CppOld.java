@@ -261,10 +261,17 @@ public class Cpp
         // Doesn't include the name
         public int numParams; // -1 means no parens even
         public Token[] contents; // args denoted by token type MACRO_ARG with line number containing the index of the argument to be substituted
-        public Macro(int numParams, Token[] contents)
+        public String inFileName;
+        public int lineNumber;
+        public int columnNumber;
+        public Macro(int numParams, Token[] contents,
+                     String inFileName, int lineNumber, int columnNumber)
         {
             this.numParams = numParams;
             this.contents = contents;
+            this.inFileName = inFileName;
+            this.lineNumber = lineNumber;
+            this.columnNumber = columnNumber;
         }
 
         // For debug printing
@@ -761,7 +768,7 @@ public class Cpp
         int verboseLevel = 0; // 0: nothing, 1: print enter and exit function, 2: print more
 
         if (verboseLevel >= 1)
-            System.out.println("    in filter");
+            System.err.println("    in filter");
 
         java.util.Stack tokenReaderStack = new java.util.Stack();
         java.util.Stack inFileNameStack = new java.util.Stack();
@@ -813,7 +820,7 @@ public class Cpp
                 if (token.text.equals("#include"))
                 {
                     if (verboseLevel >= 2)
-                        System.out.println("        filter: found #include");
+                        System.err.println("        filter: found #include");
                     while (in.peekToken(0).type == Token.SPACES
                         || in.peekToken(0).type == Token.NEWLINE_ESCAPED
                         || in.peekToken(0).type == Token.COMMENT)
@@ -853,7 +860,7 @@ public class Cpp
                 else if (token.text.equals("#undef"))
                 {
                     if (verboseLevel >= 2)
-                        System.out.println("        filter: found #undef");
+                        System.err.println("        filter: found #undef");
 
                     Token nextToken = in.readToken();
 
@@ -880,20 +887,27 @@ public class Cpp
                         || nextToken.type == Token.COMMENT)
                         nextToken = in.readToken();
 
+                    if (macroName == "__LINE__"
+                     || macroName == "__FILE__")
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": can't undefine \""+macroName+"\"");
+                    macros.remove(macroName);
+
+                    if (nextToken.type != Token.EOF
+                     && nextToken.type != Token.NEWLINE_UNESCAPED)
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of #undef directive");
+
                     if (nextToken.type == Token.EOF)
                     {
                         in.pushBackToken(nextToken);
                         continue;
                     }
-                    else if (nextToken.type == Token.NEWLINE_UNESCAPED)
-                        out.print(nextToken.text);
-                    else
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of #undef directive");
+                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    out.print(nextToken.text);
                 }
                 else if (token.text.equals("#define"))
                 {
                     if (verboseLevel >= 2)
-                        System.out.println("        filter: found #define");
+                        System.err.println("        filter: found #define");
 
                     // we'll be doing a lot of lookahead of one token,
                     // so use a local variable nextToken
@@ -925,7 +939,7 @@ public class Cpp
                      && nextToken.text.equals("("))
                     {
                         if (verboseLevel >= 2)
-                            System.out.println("        filter:     and there's a macro param list");
+                            System.err.println("        filter:     and there's a macro param list");
                         // There's a macro param list.
                         java.util.Vector paramNamesVector = new java.util.Vector();
 
@@ -998,7 +1012,7 @@ public class Cpp
                           || nextToken.type == Token.NEWLINE_ESCAPED)
                     {
                         if (verboseLevel >= 2)
-                            System.out.println("        filter:     and there's no macro param list");
+                            System.err.println("        filter:     and there's no macro param list");
                         ;
                     }
                     else
@@ -1060,9 +1074,22 @@ public class Cpp
                         }
                     }
                     Macro macro = new Macro(paramNames==null ? -1 : paramNames.length,
-                                            contents);
+                                            contents,
+                                            inFileName,
+                                            token.lineNumber,
+                                            token.columnNumber);
                     if (verboseLevel >= 2)
-                        System.out.println("        filter:     defining macro \""+macroName+"\": "+macro);
+                        System.err.println("        filter:     defining macro \""+macroName+"\": "+macro);
+                    Macro previousMacro = (Macro)macros.get(macroName);
+                    if (previousMacro != null)
+                    {
+                        if (macroName == "__LINE__"
+                         || macroName == "__FILE__")
+                            throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": can't redefine \""+macroName+"\"");
+                        System.err.println(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": warning: \""+macroName+"\" redefined");
+                        System.err.println(previousMacro.inFileName+":"+(previousMacro.lineNumber+1)+":"+(previousMacro.columnNumber+1)+": warning: this is the location of the previous definition");
+                    }
+
                     macros.put(macroName, macro);
 
                     if (nextToken.type == Token.EOF)
@@ -1090,7 +1117,7 @@ public class Cpp
         }
         out.flush();
         if (verboseLevel >= 1)
-            System.out.println("    out filter");
+            System.err.println("    out filter");
     } // filter
 
     // TODO: make a way to test for the errors too
@@ -1283,8 +1310,8 @@ public class Cpp
         String includePath[] = {};
         java.util.Hashtable macros = new java.util.Hashtable();
         // stub entries for __LINE__ and __FILE__; they are handled separately when found
-        macros.put("__LINE__", new Macro(-1, null));
-        macros.put("__FILE__", new Macro(-1, null));
+        macros.put("__LINE__", new Macro(-1, null, "<built-in>", -1, -1));
+        macros.put("__FILE__", new Macro(-1, null, "<built-in>", -1, -1));
         try
         {
             filter(new TokenReaderWithLookahead(in),
@@ -1352,8 +1379,8 @@ public class Cpp
             String includePath[] = {};
             java.util.Hashtable macros = new java.util.Hashtable();
             // stub entries for __LINE__ and __FILE__; they are handled separately when found
-            macros.put("__LINE__", new Macro(-1, null));
-            macros.put("__FILE__", new Macro(-1, null));
+            macros.put("__LINE__", new Macro(-1, null, "<built-in>", -1, -1));
+            macros.put("__FILE__", new Macro(-1, null, "<built-in>", -1, -1));
 
             for (int iArg = 0; iArg < args.length; ++iArg)
             {
