@@ -24,7 +24,6 @@ TODO:
     - understand # line numbers and file number on input (masquerade)
     - emit nesting number (? 1 at beginning of included, 2 on return, nothing elsewhere?) on returns from includes
     - after return from include, don't emit that blank line (and adjust line number accordingly)
-    - the warnings about undefineds have wrong line numbers
     - put "In file included from whatever:3:" or whatever in warnings and errors
 */
 
