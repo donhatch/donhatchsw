@@ -168,7 +168,7 @@ public class SmoothlyVaryingViewingParameter
             }
             //assert(false); // XXX coverage-- remove when hit
 
-            boolean separable = true; // XXX do something sensible here depending on dimension
+            boolean separable = true; // XXX do something sensible here depending on dimension. WARNING: setting this to false makes mc4d hang, currently
             if (separable)
             {
                 //assert(false); // XXX coverage-- remove when hit
