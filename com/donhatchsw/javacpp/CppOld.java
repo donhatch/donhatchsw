@@ -13,6 +13,19 @@
 *       -D
 *       -U
 *       -C (ignores this option, never strips comments anyway)
+*
+
+TODO:
+    - -I
+    - understand <> around file names as well as ""'s?  maybe not worth the trouble
+    - ##
+    - omit blank lines at end of files like cpp does
+    - turn more than 8 blank lines in a row into just a line number directive like cpp does
+    - understand # line numbers and file number on input (masquerade)
+    - emit nesting number (? 1 at beginning of included, 2 on return, nothing elsewhere?) on returns from includes
+    - after return from include, don't emit that blank line (and adjust line number accordingly)
+    - the warnings about undefineds have wrong line numbers
+    - put "In file included from whatever:3:" or whatever in warnings and errors
 */
 
 package com.donhatchsw.javacpp;
@@ -635,19 +648,11 @@ public class Cpp
                 return token;
             if (macro.numParams == -1) // if it's an invocation of a simple macro without an arg list
             {
-                if (macro.contents == null)
-                {
-                    // special cases
-                    if (token.text.equals("__LINE__"))
-                        in.pushBackToken(new Token(Token.INT_LITERAL,  ""+(lineNumber+1), lineNumber, -1));
-                    else if (token.text.equals("__FILE__"))
-                    {
-                        // hmm, need this be a special case?
-                        // we could redefine the macro every time we change files...
-                        // come to think of it, we could change the macro for __LINE__ every time we change lines too, but that would be expensive
-                        in.pushBackToken(new Token(Token.STRING_LITERAL, "\""+escapify(inFileName)+"\"", lineNumber, -1));
-                    }
-                }
+                // special cases...
+                if (token.text.equals("__LINE__"))
+                    in.pushBackToken(new Token(Token.INT_LITERAL,  ""+(lineNumber+1), lineNumber, -1));
+                else if (token.text.equals("__FILE__"))
+                    in.pushBackToken(new Token(Token.STRING_LITERAL, "\""+escapify(inFileName)+"\"", lineNumber, -1));
                 else
                 {
                     /* can't just push back the tokens, we need to change the line numbers too */
@@ -790,7 +795,7 @@ public class Cpp
 
                     lineNumber = in.peekToken(0).lineNumber;
                     columnNumber = in.peekToken(0).columnNumber;
-                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\"");
+                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\" 2"); // cpp puts a 2 there, don't know why but imitating it
 
                     continue; // still need to read a token
                 }
@@ -846,7 +851,7 @@ public class Cpp
 
                     lineNumber = in.peekToken(0).lineNumber;
                     columnNumber = in.peekToken(0).columnNumber;
-                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\"");
+                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
                 }
                 else if (token.text.equals("#undef"))
                 {
@@ -1188,12 +1193,14 @@ public class Cpp
                  +"#define foo bar\n"
                  +"blah blah\n"
                  +"#include \"trivialinclude.h\"\n"
-                 +"blah blah blah\n"
+                 +"#include \"trivialinclude.h\"\n"
+                 +"blah blah blah blah\n"
                 +"    file __FILE__ line __LINE__\n"
                  +"goodbye from macros.h\n"
         },
         {
             "trivialinclude.h", ""
+                 +"\n"
                  +"hello from trivialinclude.h\n"
                 +"    file __FILE__ line __LINE__\n"
                  +"goodbye from trivialinclude.h\n"
@@ -1332,15 +1339,29 @@ public class Cpp
         }
         String includePath[] = {};
         java.util.Hashtable macros = new java.util.Hashtable();
-        // stub entries for __LINE__ and __FILE__; they are handled separately when found
-        macros.put("__LINE__", new Macro(-1, null, "<built-in>", -1, -1));
-        macros.put("__FILE__", new Macro(-1, null, "<built-in>", -1, -1));
+        java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
+        try
+        {
+            String builtinInput = "#define __LINE__ __LINE__\n" // stub, handled specially
+                                + "#define __FILE__ __FILE__\n"; // stub, handled specially
+            java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
+            filter(new TokenReaderWithLookahead(builtinFakeInputReader),
+                   "<built-in>",
+                   new FileOpener(),
+                   writer,
+                   macros);
+        }
+        catch (java.io.IOException e)
+        {
+            System.err.println("Well damn: "+e);
+            System.exit(1);
+        }
         try
         {
             filter(new TokenReaderWithLookahead(in),
                    inFileName,
                    testFileOpener,
-                   new java.io.PrintWriter(System.out),
+                   writer,
                    macros);
         }
         catch (java.io.IOException e)
@@ -1354,7 +1375,7 @@ public class Cpp
 
     public static void main(String args[])
     {
-        if (false)
+        if (true)
         {
             // dump the test strings into files in tmp dir
             String tmpDirName = "tmp";
@@ -1386,7 +1407,6 @@ public class Cpp
                 writer.print(contents);
                 writer.flush();
             }
-            System.exit(0);
         }
 
         if (false)
@@ -1401,9 +1421,6 @@ public class Cpp
             StringBuffer commandLineFakeInput = new StringBuffer();
             String includePath[] = {};
             java.util.Hashtable macros = new java.util.Hashtable();
-            // stub entries for __LINE__ and __FILE__; they are handled separately when found
-            macros.put("__LINE__", new Macro(-1, null, "<built-in>", -1, -1));
-            macros.put("__FILE__", new Macro(-1, null, "<built-in>", -1, -1));
 
             for (int iArg = 0; iArg < args.length; ++iArg)
             {
@@ -1479,21 +1496,36 @@ public class Cpp
 
             java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
 
+
+            try
+            {
+                String builtinInput = "#define __LINE__ __LINE__\n" // stub, handled specially
+                                    + "#define __FILE__ __FILE__\n"; // stub, handled specially
+                java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
+                filter(new TokenReaderWithLookahead(builtinFakeInputReader),
+                       "<built-in>",
+                       new FileOpener(),
+                       writer,
+                       macros);
+            }
+            catch (java.io.IOException e)
+            {
+                System.err.println("Well damn: "+e);
+                System.exit(1);
+            }
+            try
             {
                 java.io.Reader commandLineFakeInputReader = new java.io.StringReader(commandLineFakeInput.toString());
-                try
-                {
-                    filter(new TokenReaderWithLookahead(commandLineFakeInputReader),
-                           "<command line>",
-                           new FileOpener(),
-                           writer,
-                           macros);
-                }
-                catch (java.io.IOException e)
-                {
-                    System.err.println("Well damn: "+e);
-                    System.exit(1);
-                }
+                filter(new TokenReaderWithLookahead(commandLineFakeInputReader),
+                       "<command line>",
+                       new FileOpener(),
+                       writer,
+                       macros);
+            }
+            catch (java.io.IOException e)
+            {
+                System.err.println("Well damn: "+e);
+                System.exit(1);
             }
 
 
