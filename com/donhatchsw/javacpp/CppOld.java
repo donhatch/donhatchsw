@@ -9,8 +9,9 @@
 *       #define
 *       #include "filename"  (not <filename>)
 * and the following command-line options:
-*       -D
 *       -I
+*       -D
+*       -U
 *       -C (ignores this option, never strips comments anyway)
 */
 
@@ -578,7 +579,7 @@ public class Cpp
                 token = tokenReader.readToken();
                 lookedahead = false;
             }
-            System.out.println("            TokenReaderWithLookahead returning ("+(lookedahead ? "lookedahead" : "nolookedahead")+"): "+token);
+            //System.out.println("            TokenReaderWithLookahead returning ("+(lookedahead ? "lookedahead" : "nolookedahead")+"): "+token);
             return token;
         }
         public Token peekToken(int index)
@@ -757,14 +758,17 @@ public class Cpp
 
         throws java.io.IOException
     {
-        int verboseLevel = 2;
+        int verboseLevel = 0; // 0: nothing, 1: print enter and exit function, 2: print more
 
         if (verboseLevel >= 1)
             System.out.println("    in filter");
 
         java.util.Stack tokenReaderStack = new java.util.Stack();
         java.util.Stack inFileNameStack = new java.util.Stack();
-        boolean needToPrintLineNumber = true;
+
+        int lineNumber = 0;
+        int columnNumber = 0;
+        out.println("# "+(lineNumber+1)+" \""+inFileName+"\"");
 
         while (true)
         {
@@ -773,8 +777,8 @@ public class Cpp
             // that produced it, before macro substitution.
             // That requires making a lot of new tokens on the fly whenever macros
             // are expanded, just for the line numbers, but that's how it's currently done.
-            int lineNumber = in.peekToken(0).lineNumber;
-            int columnNumber = in.peekToken(0).columnNumber;
+            lineNumber = in.peekToken(0).lineNumber;
+            columnNumber = in.peekToken(0).columnNumber;
 
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
             Token token = readTokenWithMacroSubstitution(in, inFileName, lineNumber, macros);
@@ -785,7 +789,11 @@ public class Cpp
                     // discard the EOF token, and pop the reader stack
                     in = (TokenReaderWithLookahead)tokenReaderStack.pop();
                     inFileName = (String)inFileNameStack.pop();
-                    needToPrintLineNumber = true;
+
+                    lineNumber = in.peekToken(0).lineNumber;
+                    columnNumber = in.peekToken(0).columnNumber;
+                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\"");
+
                     continue; // still need to read a token
                 }
                 else // EOF at top level
@@ -804,6 +812,8 @@ public class Cpp
                 AssertAlways(token.text.startsWith("#"));
                 if (token.text.equals("#include"))
                 {
+                    if (verboseLevel >= 2)
+                        System.out.println("        filter: found #include");
                     while (in.peekToken(0).type == Token.SPACES
                         || in.peekToken(0).type == Token.NEWLINE_ESCAPED
                         || in.peekToken(0).type == Token.COMMENT)
@@ -836,8 +846,49 @@ public class Cpp
                     in = newIn;
                     inFileName = newInFileName;
 
-                    needToPrintLineNumber = true;
+                    lineNumber = in.peekToken(0).lineNumber;
+                    columnNumber = in.peekToken(0).columnNumber;
+                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\"");
+                }
+                else if (token.text.equals("#undef"))
+                {
+                    if (verboseLevel >= 2)
+                        System.out.println("        filter: found #undef");
 
+                    Token nextToken = in.readToken();
+
+                    // move past spaces
+                    while (nextToken.type == Token.SPACES
+                        || nextToken.type == Token.NEWLINE_ESCAPED
+                        || nextToken.type == Token.COMMENT)
+                        nextToken = in.readToken();
+
+                    if (nextToken.type == Token.EOF
+                     || nextToken.type == Token.NEWLINE_UNESCAPED)
+                    {
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
+                    }
+
+                    if (nextToken.type != Token.IDENTIFIER)
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
+                    String macroName = nextToken.text;
+                    nextToken = in.readToken();
+
+                    // move past spaces
+                    while (nextToken.type == Token.SPACES
+                        || nextToken.type == Token.NEWLINE_ESCAPED
+                        || nextToken.type == Token.COMMENT)
+                        nextToken = in.readToken();
+
+                    if (nextToken.type == Token.EOF)
+                    {
+                        in.pushBackToken(nextToken);
+                        continue;
+                    }
+                    else if (nextToken.type == Token.NEWLINE_UNESCAPED)
+                        out.print(nextToken.text);
+                    else
+                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of #undef directive");
                 }
                 else if (token.text.equals("#define"))
                 {
@@ -997,11 +1048,9 @@ public class Cpp
                                 contents[nOut++] = contents[iIn];
                         }
                         // and discard spaces and comments at the end too
-                        System.out.println("nOut = "+nOut);
                         if (nOut > 0
                          && contents[nOut-1].type == Token.SPACES)
                             nOut--;
-                        System.out.println("nOut = "+nOut);
                         if (nOut != contents.length)
                         {
                             Token smallerContents[] = new Token[nOut];
@@ -1031,13 +1080,12 @@ public class Cpp
             }
             else
             {
-                if (needToPrintLineNumber)
+                if (token.type == Token.NEWLINE_UNESCAPED)
                 {
-                    // XXX TODO: is the line number right, or should it be +1 or what?
-                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\"");
-                    needToPrintLineNumber = false;
+                    out.println();
                 }
-                out.print(token.text); // XXX TODO: turn \n into println... probably make \n be a separate token, I think
+                else
+                    out.print(token.text);
             }
         }
         out.flush();
@@ -1050,9 +1098,10 @@ public class Cpp
         {
             "test00.java", ""
                 +"hello from test00.java\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"#define REVERSE(a,b) b,a\n"
                 +"REVERSE(x,y)\n"
-                +"#define REVERSE(a,b) b,a\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"goodbye from test00.java\n"
         },
         {
@@ -1231,6 +1280,7 @@ public class Cpp
             System.err.println("woops! "+e);
             System.exit(1);
         }
+        String includePath[] = {};
         java.util.Hashtable macros = new java.util.Hashtable();
         // stub entries for __LINE__ and __FILE__; they are handled separately when found
         macros.put("__LINE__", new Macro(-1, null));
@@ -1254,31 +1304,171 @@ public class Cpp
 
     public static void main(String args[])
     {
-        if (true)
+        if (false)
         {
             // dump the test strings into files in tmp dir
             String tmpDirName = "tmp";
             System.out.println("WARNING: creating directory "+tmpDirName+"");
-            new java.io.File(tmpDirName).mkdir();
+            boolean created = new java.io.File(tmpDirName).mkdir();
+            for (int iTestFile = 0; iTestFile < testFileNamesAndContents.length; ++iTestFile)
+            {
+                String fileName = testFileNamesAndContents[iTestFile][0];
+                String contents = testFileNamesAndContents[iTestFile][1];
+                if (fileName.startsWith("/"))
+                {
+                    AssertAlways(fileName.equals("/dev/null"));
+                    AssertAlways(contents.equals(""));
+                    continue;
+                }
+                String filePath = tmpDirName+'/'+fileName;
+                System.out.println("    WARNING: creating file "+filePath+"");
+                java.io.PrintWriter writer = null;
+                try
+                {
+                    writer = new java.io.PrintWriter(
+                             new java.io.BufferedWriter(
+                             new java.io.FileWriter(filePath)));
+                }
+                catch (java.io.IOException e)
+                {
+                    System.err.println("Couldn't open "+fileName+" for writing: "+e);
+                }
+                writer.print(contents);
+                writer.flush();
+            }
             System.exit(0);
         }
 
-        test0();
-        test1();
-
-        if (false) // real program might look like this
+        if (false)
         {
+            test0();
+            test1();
+        }
+
+        if (true)
+        {
+            String inFileName = null;
+            StringBuffer commandLineFakeInput = new StringBuffer();
+            String includePath[] = {};
             java.util.Hashtable macros = new java.util.Hashtable();
             // stub entries for __LINE__ and __FILE__; they are handled separately when found
             macros.put("__LINE__", new Macro(-1, null));
             macros.put("__FILE__", new Macro(-1, null));
 
+            for (int iArg = 0; iArg < args.length; ++iArg)
+            {
+                String arg = args[iArg];
+                if (arg.startsWith("-I"))
+                {
+                    AssertAlways(false); // XXX implement me
+                }
+                else if (arg.startsWith("-D"))
+                {
+                    String nameAndValue;
+                    if (arg.equals("-D"))
+                    {
+                        if (iArg+1 == args.length)
+                        {
+                            System.err.println("javacpp: argument to `-D' is missing");
+                            System.exit(1);
+                        }
+                        nameAndValue = args[++iArg];
+                    }
+                    else
+                        nameAndValue = arg.substring(2);
+                    int indexOfFirstEqualsSign = nameAndValue.indexOf('=');
+                    String name, value;
+                    if (indexOfFirstEqualsSign != -1)
+                    {
+                        if (indexOfFirstEqualsSign == 0)
+                        {
+                            System.err.println("javacpp: `-D' is missing macro name");
+                            System.exit(1);
+                        }
+                        name = nameAndValue.substring(0, indexOfFirstEqualsSign);
+                        value = nameAndValue.substring(indexOfFirstEqualsSign+1);
+                    }
+                    else
+                    {
+                        name = nameAndValue;
+                        value = "1";
+                    }
+                    commandLineFakeInput.append("#define "+name+" "+value+"\n");
+                }
+                else if (arg.startsWith("-U"))
+                {
+                    String name;
+                    if (arg.equals("-U"))
+                    {
+                        if (iArg+1 == args.length)
+                        {
+                            System.err.println("javacpp: argument to `-U' is missing");
+                            System.exit(1);
+                        }
+                        name = args[++iArg];
+                    }
+                    else
+                        name = arg.substring(2);
+                    commandLineFakeInput.append("#undef "+name+"\n");
+                }
+                else if (arg.startsWith("-"))
+                {
+                    System.err.println("javacpp: unrecognized option \""+args[iArg]+"\"");
+                    System.exit(1);
+                }
+                else
+                {
+                    if (inFileName != null)
+                    {
+                        System.err.println("javacpp: too many input files");
+                        System.exit(1);
+                    }
+                    inFileName = arg;
+                }
+            }
+
+            java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
+
+            {
+                java.io.Reader commandLineFakeInputReader = new java.io.StringReader(commandLineFakeInput.toString());
+                try
+                {
+                    filter(new TokenReaderWithLookahead(commandLineFakeInputReader),
+                           "<command line>",
+                           new FileOpener(),
+                           writer,
+                           macros);
+                }
+                catch (java.io.IOException e)
+                {
+                    System.err.println("Well damn: "+e);
+                    System.exit(1);
+                }
+            }
+
+
+            java.io.Reader reader = null;
+            if (inFileName != null)
+            {
+                try
+                {
+                    reader = new java.io.BufferedReader(
+                             new java.io.FileReader(inFileName));
+                }
+                catch (java.io.FileNotFoundException e)
+                {
+                    System.err.println("javacpp: "+inFileName+": No such file or directory");
+                    System.exit(1);
+                }
+            }
+            else
+                reader = new java.io.InputStreamReader(System.in);
             try
             {
-                filter(new TokenReaderWithLookahead(new java.io.InputStreamReader(System.in)),
+                filter(new TokenReaderWithLookahead(reader),
                        "<stdin>",
                        new FileOpener(),
-                       new java.io.PrintWriter(System.out),
+                       writer,
                        macros);
             }
             catch (java.io.IOException e)
@@ -1287,6 +1477,7 @@ public class Cpp
                 System.exit(1);
             }
         }
+
         System.exit(0);
     } // main
 
