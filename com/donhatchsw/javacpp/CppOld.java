@@ -20,7 +20,6 @@
 *
 
 TODO:
-    - #ifdef, #ifndef, (and endif)
     - #if (I guess that means integer expressions, but can start with just 1, 0, and empty)
     - -I
     - understand <> around file names as well as ""'s?  maybe not worth the trouble
@@ -643,7 +642,6 @@ public class Cpp
     } // private static class TokenReaderWithLookahead
 
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
-                                                        String inFileName,
                                                         int lineNumber,
                                                         java.util.Hashtable macros)
         throws java.io.IOException
@@ -660,9 +658,9 @@ public class Cpp
             {
                 // special cases...
                 if (token.text.equals("__LINE__"))
-                    in.pushBackToken(new Token(Token.INT_LITERAL,  ""+(lineNumber+1), inFileName, lineNumber, -1));
+                    in.pushBackToken(new Token(Token.INT_LITERAL,  ""+(lineNumber+1), in.inFileName, lineNumber, -1));
                 else if (token.text.equals("__FILE__"))
-                    in.pushBackToken(new Token(Token.STRING_LITERAL, "\""+escapify(inFileName)+"\"", inFileName, lineNumber, -1));
+                    in.pushBackToken(new Token(Token.STRING_LITERAL, "\""+escapify(in.inFileName)+"\"", in.inFileName, lineNumber, -1));
                 else
                 {
                     /* can't just push back the tokens, we need to change the line numbers too */
@@ -672,7 +670,7 @@ public class Cpp
                     {
                         Token macroContentsCopy[] = new Token[macro.contents.length];
                         for (int i = 0; i < macro.contents.length; ++i)
-                            macroContentsCopy[i] = new Token(macro.contents[i], inFileName, lineNumber);
+                            macroContentsCopy[i] = new Token(macro.contents[i], in.inFileName, lineNumber);
                         in.pushBackTokens(macroContentsCopy);
                     }
                 }
@@ -688,7 +686,7 @@ public class Cpp
                 Token shouldBeLeftParen = in.readToken();
                 if (!(shouldBeLeftParen.type == Token.SYMBOL
                   && shouldBeLeftParen.text.equals("(")))
-                    throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": invocation of macro "+token.text+" not followed by arg list");
+                    throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": invocation of macro "+token.text+" not followed by arg list");
                 // each arg will be a list of tokens
                 Token args[][] = new Token[macro.numParams][];
                 for (int iArg = 0; iArg < macro.numParams; ++iArg)
@@ -700,7 +698,7 @@ public class Cpp
                     {
                         Token anotherToken = in.readToken();
                         if (anotherToken.type == Token.EOF)
-                            throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": EOF in middle of arg list for macro "+token.text+"");
+                            throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": EOF in middle of arg list for macro "+token.text+"");
                         if (parenLevel > 1)
                         {
                             if (anotherToken.type == Token.SYMBOL
@@ -717,9 +715,9 @@ public class Cpp
                                 if (!anotherToken.text.equals(iArg==macro.numParams-1 ? ")" : ","))
                                 {
                                     if (iArg < macro.numParams-1)
-                                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro \""+token.text+"\" requires "+macro.numParams+" arguments, but only "+(iArg+1)+" given");
+                                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro \""+token.text+"\" requires "+macro.numParams+" arguments, but only "+(iArg+1)+" given");
                                     else
-                                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro \""+token.text+"\" requires "+macro.numParams+" arguments, but more given");
+                                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro \""+token.text+"\" requires "+macro.numParams+" arguments, but more given");
                                     // cpp's message is "passed 3 arguments, but takes just 2, but whatever... we aren't set up to receive more than that into the array and it's not important enough
                                 }
 
@@ -757,7 +755,7 @@ public class Cpp
                         resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", null, -1, -1)); // XXX TODO: do a line and column number make sense here?
                     }
                     else
-                        resultsVector.add(new Token(contentToken, inFileName, lineNumber));
+                        resultsVector.add(new Token(contentToken, in.inFileName, lineNumber));
                 }
                 in.pushBackTokens(resultsVector);
             }
@@ -775,17 +773,14 @@ public class Cpp
         if (verboseLevel >= 1)
             System.err.println("    in filter");
 
-        String inFileName = in.inFileName; // XXX TODO: I don't think we need this variable any more
-
         java.util.Stack tokenReaderStack = new java.util.Stack();
-        java.util.Stack inFileNameStack = new java.util.Stack();
         java.util.Stack ifStack = new java.util.Stack(); // of #ifwhatever tokens, for the file,line,column information
         int highestTrueIfStackLevel = 0;
         
 
         int lineNumber = 0;
         int columnNumber = 0;
-        out.println("# "+(lineNumber+1)+" \""+inFileName+"\"");
+        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
 
         while (true)
         {
@@ -798,7 +793,7 @@ public class Cpp
             columnNumber = in.peekToken(0).columnNumber;
 
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
-            Token token = readTokenWithMacroSubstitution(in, inFileName, lineNumber, macros);
+            Token token = readTokenWithMacroSubstitution(in, lineNumber, macros);
             if (token.type == Token.EOF)
             {
                 if (!ifStack.empty())
@@ -810,11 +805,10 @@ public class Cpp
                 {
                     // discard the EOF token, and pop the reader stack
                     in = (TokenReaderWithLookahead)tokenReaderStack.pop();
-                    inFileName = (String)inFileNameStack.pop();
 
                     lineNumber = in.peekToken(0).lineNumber;
                     columnNumber = in.peekToken(0).columnNumber;
-                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\" 2"); // cpp puts a 2 there, don't know why but imitating it
+                    out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 2"); // cpp puts a 2 there, don't know why but imitating it
 
                     continue; // still need to read a token
                 }
@@ -842,7 +836,7 @@ public class Cpp
                         System.err.println("        filter: found #endif");
 
                     if (ifStack.empty())
-                        throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #endif without #if");
+                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #endif without #if");
                     ifStack.pop();
                 }
                 else if (token.text.equals("#ifdef")
@@ -863,11 +857,11 @@ public class Cpp
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
                     {
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no macro name given in "+token.text+" directive");
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no macro name given in "+token.text+" directive");
                     }
 
                     if (nextToken.type != Token.IDENTIFIER)
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
                     String macroName = nextToken.text;
                     nextToken = in.readToken();
 
@@ -882,7 +876,7 @@ public class Cpp
                     {
                         if (macroName == "__LINE__"
                          || macroName == "__FILE__")
-                            throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't undefine \""+macroName+"\"");
+                            throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't undefine \""+macroName+"\"");
                         macros.remove(macroName);
                     }
                     else // #ifdef or #ifndef
@@ -902,7 +896,7 @@ public class Cpp
 
                     if (nextToken.type != Token.EOF
                      && nextToken.type != Token.NEWLINE_UNESCAPED)
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of "+token.text+" directive");
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of "+token.text+" directive");
 
                     if (nextToken.type == Token.EOF)
                     {
@@ -930,17 +924,17 @@ public class Cpp
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
                     {
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
                     }
 
                     if (nextToken.type != Token.IDENTIFIER)
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
                     String macroName = nextToken.text;
 
                     // must be either whitespace or left paren after macro name... it makes a difference
                     nextToken = in.readToken();
                     if (nextToken.type == Token.EOF)
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
 
                     String paramNames[] = null;
                     if (nextToken.type == Token.SYMBOL
@@ -971,7 +965,7 @@ public class Cpp
                             // followed by close paren
 
                             if (nextToken.type != Token.IDENTIFIER)
-                                throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                                throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
 
                             paramNamesVector.add(nextToken.text);
                             nextToken = in.readToken();
@@ -1007,7 +1001,7 @@ public class Cpp
                                         // otherwise drop into error case
                                     }
                                 }
-                                throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                                throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
                             }
                         }
                         AssertAlways(nextToken.type == Token.SYMBOL
@@ -1030,7 +1024,7 @@ public class Cpp
                     {
                         // macro name was not followed by a macro param list
                         // nor spaces
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
                     }
 
                     // we are now in the #define, past the macro name and optional arg list.
@@ -1068,7 +1062,7 @@ public class Cpp
                                 if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
                                 {
                                     System.out.println(nextToken);
-                                    throw new Error(inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '#' is not followed by a macro parameter");
+                                    throw new Error(in.inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '#' is not followed by a macro parameter");
                                 }
                             }
                         }
@@ -1111,7 +1105,7 @@ public class Cpp
                     }
                     Macro macro = new Macro(paramNames==null ? -1 : paramNames.length,
                                             contents,
-                                            inFileName,
+                                            in.inFileName,
                                             token.lineNumber,
                                             token.columnNumber);
                     if (verboseLevel >= 2)
@@ -1121,9 +1115,9 @@ public class Cpp
                     {
                         if (macroName == "__LINE__"
                          || macroName == "__FILE__")
-                            throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't redefine \""+macroName+"\"");
+                            throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't redefine \""+macroName+"\"");
                         // TODO: The real cpp doesn't complain if the new definition is exactly the same as the old one.  do we care?? it's sloppy programming anyway
-                        System.err.println(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: \""+macroName+"\" redefined");
+                        System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: \""+macroName+"\" redefined");
                         System.err.println(previousMacro.inFileName+":"+(previousMacro.lineNumber+1)+":"+(previousMacro.columnNumber+1)+": warning: this is the location of the previous definition");
                     }
 
@@ -1145,9 +1139,9 @@ public class Cpp
                         || in.peekToken(0).type == Token.NEWLINE_ESCAPED
                         || in.peekToken(0).type == Token.COMMENT)
                         in.readToken();
-                    Token fileNameToken = readTokenWithMacroSubstitution(in, inFileName, lineNumber, macros);
+                    Token fileNameToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
                     if (fileNameToken.type != Token.STRING_LITERAL)
-                        throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
+                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
 
                     String newInFileName = fileNameToken.text.substring(1, fileNameToken.text.length()-1);
                     TokenReaderWithLookahead newIn = null;
@@ -1160,27 +1154,25 @@ public class Cpp
                     catch (java.io.FileNotFoundException e)
                     {
 
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
                     }
 
                     if (in.hasLookahead()) // uh oh, I'm afraid this will be triggered when the file is a result of simple macro substition like #define FOO "/dev/null" and then #include FOO since 1 char of lookahead was required to detect the end of the FOO token
                     {
                         // TODO: test this
-                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
                     }
                     tokenReaderStack.push(in);
-                    inFileNameStack.push(inFileName);
 
                     in = newIn;
-                    inFileName = newInFileName;
 
                     lineNumber = in.peekToken(0).lineNumber;
                     columnNumber = in.peekToken(0).columnNumber;
-                    out.println("# "+(lineNumber+1)+" \""+inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
+                    out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
                 }
                 else
                 {
-                    throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": invalid preprocessor directive "+token.text);
+                    throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": invalid preprocessor directive "+token.text);
                 }
             }
             else
