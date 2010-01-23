@@ -79,13 +79,14 @@
                (still doesn't always work though)
                (only works for generic puzzles currently)
                (and only 4d generic puzzles, doesn't work for 3d ones at all)
-            - Lots of new puzzle types available from the Puzzle menu.
+            - Lots of new puzzle types available from the Puzzle menu,
+               of dimension 2,3, and 4.
                These are called "generic puzzles" and they are a work
                in progress.
         Generic puzzles have the following limitations in this release:
             - no save/load (menus are probably misleading)
             - no macros (menus are probably misleading)
-            - only 8 colors still, even when more than 8 faces
+            - color choosing is very primitive
             - some of the even-length puzzles have spurious extra
               very thin stickers at the halfway planes
             - sometimes the highlighted sticker fails to get updated correctly
