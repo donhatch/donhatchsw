@@ -10,8 +10,11 @@
 *       #define
 *       #undef
 *       #ifdef
-*       #if
-#       #endif
+*       #ifndef
+*       #if     (evaluates C integer expressions, including defined())
+*       #elif   (evaluates C integer expressions, including defined())
+*       #else
+*       #endif
 * and the following command-line options:
 *       -I
 *       -D
@@ -828,20 +831,65 @@ public class Cpp
             }
 
             // when inside a false #if,
-            // the only preprocessor directives we recognize are #if* and #endif
+            // the only preprocessor directives we recognize are:
+            //     #if*
+            //     #endif
+            //     #elif
+            //     #else
+            // (argh, I guess the only ones we *don't* recognize
+            // are #define, #undef, #include)
             if (token.type == Token.PREPROCESSOR_DIRECTIVE
              && (ifStack.size() <= highestTrueIfStackLevel || token.text.startsWith("#if")
-                                                           || token.text.equals("#endif")))
+                                                           || token.text.equals("#endif")
+                                                           || token.text.equals("#elif")
+                                                           || token.text.equals("#else")
+            ))
             {
                 AssertAlways(token.text.startsWith("#"));
-                if (token.text.equals("#endif"))
+                if (token.text.equals("#else")
+                 || token.text.equals("#endif"))
                 {
                     if (verboseLevel >= 2)
-                        System.err.println("        filter: found #endif");
+                        System.err.println("        filter: found "+token.text);
+
 
                     if (ifStack.empty())
-                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #endif without #if");
-                    ifStack.pop();
+                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+token.text+" without #if");
+                    if (token.text.equals("#else"))
+                    {
+                        if (highestTrueIfStackLevel >= ifStack.size()-1) // if not suppressing at the moment
+                        {
+                            if (highestTrueIfStackLevel == ifStack.size()-1)
+                                highestTrueIfStackLevel = ifStack.size(); // false to true
+                            else
+                                highestTrueIfStackLevel = ifStack.size()-1; // true to false
+                        }
+                    }
+                    else // #endif
+                    {
+                        ifStack.pop();
+                    }
+
+
+                    Token nextToken = in.readToken();
+
+                    // move past spaces
+                    while (nextToken.type == Token.SPACES
+                        || nextToken.type == Token.NEWLINE_ESCAPED
+                        || nextToken.type == Token.COMMENT)
+                        nextToken = in.readToken();
+
+                    if (nextToken.type != Token.EOF
+                     && nextToken.type != Token.NEWLINE_UNESCAPED)
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of "+token.text+" directive");
+
+                    if (nextToken.type == Token.EOF)
+                    {
+                        in.pushBackToken(nextToken);
+                        continue;
+                    }
+                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    out.print(nextToken.text);
                 }
                 else if (token.text.equals("#ifdef")
                       || token.text.equals("#ifndef")
