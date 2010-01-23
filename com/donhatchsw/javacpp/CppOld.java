@@ -768,7 +768,7 @@ public class Cpp
 
         throws java.io.IOException
     {
-        int verboseLevel = 0; // 0: nothing, 1: print enter and exit function, 2: print more
+        int verboseLevel = 2; // 0: nothing, 1: print enter and exit function, 2: print more
 
         if (verboseLevel >= 1)
             System.err.println("    in filter");
@@ -776,6 +776,9 @@ public class Cpp
         java.util.Stack tokenReaderStack = new java.util.Stack();
         java.util.Stack ifStack = new java.util.Stack(); // of #ifwhatever tokens, for the file,line,column information
         int highestTrueIfStackLevel = 0;
+        java.util.Stack ifStackStack = new java.util.Stack(); // different stack for each ...
+        java.util.Stack highestTrueIfStackLevelStack = new java.util.Stack();
+
         
 
         int lineNumber = 0;
@@ -805,6 +808,8 @@ public class Cpp
                 {
                     // discard the EOF token, and pop the reader stack
                     in = (TokenReaderWithLookahead)tokenReaderStack.pop();
+                    ifStack = (java.util.Stack)ifStackStack.pop();
+                    highestTrueIfStackLevel = ((Integer)highestTrueIfStackLevelStack.pop()).intValue();
 
                     lineNumber = in.peekToken(0).lineNumber;
                     columnNumber = in.peekToken(0).columnNumber;
@@ -886,9 +891,17 @@ public class Cpp
                             boolean defined = (macros.get(macroName) != null);
                             boolean answer = (defined == token.text.equals("#ifdef"));
                             if (answer == true)
+                            {
+                                if (verboseLevel >= 2)
+                                    System.err.println("    condition evaluated to true");
                                 highestTrueIfStackLevel = ifStack.size()+1;
+                            }
                             else
+                            {
+                                if (verboseLevel >= 2)
+                                    System.err.println("    condition evaluated to false");
                                 highestTrueIfStackLevel = ifStack.size();
+                            }
                         }
                         ifStack.push(token);
                     }
@@ -1163,6 +1176,11 @@ public class Cpp
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
                     }
                     tokenReaderStack.push(in);
+                    ifStackStack.push(ifStack);
+                    highestTrueIfStackLevelStack.push(new Integer(highestTrueIfStackLevel));
+
+                    ifStack = new java.util.Stack();
+                    highestTrueIfStackLevel = 0;
 
                     in = newIn;
 
