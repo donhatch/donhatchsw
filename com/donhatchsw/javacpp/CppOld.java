@@ -835,13 +835,13 @@ public class Cpp
                     catch (java.io.FileNotFoundException e)
                     {
 
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
                     }
 
                     if (in.hasLookahead()) // uh oh, I'm afraid this will be triggered when the file is a result of simple macro substition like #define FOO "/dev/null" and then #include FOO since 1 char of lookahead was required to detect the end of the FOO token
                     {
                         // TODO: test this
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
                     }
                     tokenReaderStack.push(in);
                     inFileNameStack.push(inFileName);
@@ -869,11 +869,11 @@ public class Cpp
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
                     {
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
                     }
 
                     if (nextToken.type != Token.IDENTIFIER)
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
                     String macroName = nextToken.text;
                     nextToken = in.readToken();
 
@@ -885,12 +885,12 @@ public class Cpp
 
                     if (macroName == "__LINE__"
                      || macroName == "__FILE__")
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": can't undefine \""+macroName+"\"");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't undefine \""+macroName+"\"");
                     macros.remove(macroName);
 
                     if (nextToken.type != Token.EOF
                      && nextToken.type != Token.NEWLINE_UNESCAPED)
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of #undef directive");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra tokens at end of #undef directive");
 
                     if (nextToken.type == Token.EOF)
                     {
@@ -918,17 +918,17 @@ public class Cpp
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
                     {
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no macro name given in #define directive");
                     }
 
                     if (nextToken.type != Token.IDENTIFIER)
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
                     String macroName = nextToken.text;
 
                     // must be either whitespace or left paren after macro name... it makes a difference
                     nextToken = in.readToken();
                     if (nextToken.type == Token.EOF)
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
 
                     String paramNames[] = null;
                     if (nextToken.type == Token.SYMBOL
@@ -959,7 +959,7 @@ public class Cpp
                             // followed by close paren
 
                             if (nextToken.type != Token.IDENTIFIER)
-                                throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                                throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
 
                             paramNamesVector.add(nextToken.text);
                             nextToken = in.readToken();
@@ -995,7 +995,7 @@ public class Cpp
                                         // otherwise drop into error case
                                     }
                                 }
-                                throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                                throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
                             }
                         }
                         AssertAlways(nextToken.type == Token.SYMBOL
@@ -1015,7 +1015,7 @@ public class Cpp
                     {
                         // macro name was not followed by a macro param list
                         // nor spaces
-                        throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                        throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
                     }
 
                     // we are now in the #define, past the macro name and optional arg list.
@@ -1051,7 +1051,7 @@ public class Cpp
                                     }
                                 // if not found, it's an error
                                 if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
-                                    throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": '#' is not followed by a macro parameter");
+                                    throw new Error(inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '#' is not followed by a macro parameter");
                             }
                         }
 
@@ -1103,9 +1103,9 @@ public class Cpp
                     {
                         if (macroName == "__LINE__"
                          || macroName == "__FILE__")
-                            throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": can't redefine \""+macroName+"\"");
+                            throw new Error(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't redefine \""+macroName+"\"");
                         // TODO: The real cpp doesn't complain if the new definition is exactly the same as the old one.  do we care?? it's sloppy programming anyway
-                        System.err.println(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": warning: \""+macroName+"\" redefined");
+                        System.err.println(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: \""+macroName+"\" redefined");
                         System.err.println(previousMacro.inFileName+":"+(previousMacro.lineNumber+1)+":"+(previousMacro.columnNumber+1)+": warning: this is the location of the previous definition");
                     }
 
