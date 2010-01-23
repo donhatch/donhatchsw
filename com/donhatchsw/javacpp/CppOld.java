@@ -179,6 +179,14 @@ public class Cpp
             this.lineNumber = lineNumber;
             this.columnNumber = columnNumber;
         }
+        // copy constructor but changing line number
+        public Token(Token fromToken, int lineNumber)
+        {
+            this(fromToken.type,
+                 fromToken.text,
+                 lineNumber,
+                 fromToken.columnNumber);
+        }
 
         private static String typeToNameCache[] = null;
         public static String typeToName(int type)
@@ -604,6 +612,7 @@ public class Cpp
     // XXX TODO: substituted line and column numbers aren't right
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
                                                         String inFileName,
+                                                        int lineNumber,
                                                         java.util.Hashtable macros)
         throws java.io.IOException
     {
@@ -617,7 +626,32 @@ public class Cpp
                 return token;
             if (macro.numParams == -1) // if it's an invocation of a simple macro without an arg list
             {
-                in.pushBackTokens(macro.contents);
+                if (macro.contents == null)
+                {
+                    // special cases
+                    if (token.text.equals("__LINE__"))
+                        in.pushBackToken(new Token(Token.INT_LITERAL,  ""+(lineNumber+1), lineNumber, -1));
+                    else if (token.text.equals("__FILE__"))
+                    {
+                        // hmm, need this be a special case?
+                        // we could redefine the macro every time we change files...
+                        // come to think of it, we could change the macro for __LINE__ every time we change lines too, but that would be expensive
+                        in.pushBackToken(new Token(Token.STRING_LITERAL, escapify(inFileName), lineNumber, -1));
+                    }
+                }
+                else
+                {
+                    /* can't just push back the tokens, we need to change the line numbers too */
+                    if (false)
+                        in.pushBackTokens(macro.contents);
+                    else
+                    {
+                        Token macroContentsCopy[] = new Token[macro.contents.length];
+                        for (int i = 0; i < macro.contents.length; ++i)
+                            macroContentsCopy[i] = new Token(macro.contents[i], lineNumber);
+                        in.pushBackTokens(macroContentsCopy);
+                    }
+                }
                 continue;
             }
             else // it's an invocation of a macro with an arg list
@@ -706,10 +740,10 @@ public class Cpp
                     {
                         int iArg = contentToken.lineNumber; // for MACRO_ARG tokens, arg index in is smuggled in through line number
                         for (int j = 0; j < args[iArg].length; ++j)
-                            resultsVector.add(args[iArg][j]);
+                            resultsVector.add(new Token(args[iArg][j], lineNumber));
                     }
                     else
-                        resultsVector.add(contentToken);
+                        resultsVector.add(new Token(contentToken, lineNumber));
                 }
                 in.pushBackTokens(resultsVector);
             }
@@ -734,12 +768,16 @@ public class Cpp
 
         while (true)
         {
-            // XXX TODO: this will be wrong if the next token is from a macro substitution and/or there is lookahed... get this straight
+            // The following assumes that every token
+            // is marked with the line number of the top-level token
+            // that produced it, before macro substitution.
+            // That requires making a lot of new tokens on the fly whenever macros
+            // are expanded, just for the line numbers, but that's how it's currently done.
             int lineNumber = in.peekToken(0).lineNumber;
             int columnNumber = in.peekToken(0).columnNumber;
 
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
-            Token token = readTokenWithMacroSubstitution(in, inFileName, macros);
+            Token token = readTokenWithMacroSubstitution(in, inFileName, lineNumber, macros);
             if (token.type == Token.EOF)
             {
                 if (!tokenReaderStack.isEmpty())
@@ -770,7 +808,7 @@ public class Cpp
                         || in.peekToken(0).type == Token.NEWLINE_ESCAPED
                         || in.peekToken(0).type == Token.COMMENT)
                         in.readToken();
-                    Token fileNameToken = readTokenWithMacroSubstitution(in, inFileName, macros);
+                    Token fileNameToken = readTokenWithMacroSubstitution(in, inFileName, lineNumber, macros);
                     if (fileNameToken.type != Token.STRING_LITERAL)
                         throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
 
@@ -1014,11 +1052,13 @@ public class Cpp
                 +"hello from test00.java\n"
                 +"#define REVERSE(a,b) b,a\n"
                 +"REVERSE(x,y)\n"
+                +"#define REVERSE(a,b) b,a\n"
                 +"goodbye from test00.java\n"
         },
         {
             "test0.java", ""
                 +"hello from test0.java\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"#define FOO foo\n"
                 +"#define BAR bar\n"
                 +"#define REVERSE(A,B) B,A\n"
@@ -1037,37 +1077,45 @@ public class Cpp
                 +"REVERSE(REVERSE(a,b),REVERSE(c,d))\n"
                 //+"REVERSE(a) // should be error\n" // TODO: test this
                 //+"REVERSE(a,b,c) // should be error\n" // TODO: test this
+                +"    file __FILE__ line __LINE__\n"
                 +"goodbye from test0.java\n"
         },
         {
             "test1.java", ""
                 +"hello from test1.java\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"#include \"macros.h\"\n"
                 +"here is another line\n"
                 +"#define foo \"trivialinclude.h\"\n"
                 +"#include foo\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"goodbye from test1.java\n"
         },
         {
             "macros.h", ""
                  +"hello from macros.h\n"
+                +"    file __FILE__ line __LINE__\n"
                  +"#define foo bar\n"
                  +"blah blah\n"
                  +"#include \"trivialinclude.h\"\n"
                  +"blah blah blah\n"
+                +"    file __FILE__ line __LINE__\n"
                  +"goodbye from macros.h\n"
         },
         {
             "trivialinclude.h", ""
                  +"hello from trivialinclude.h\n"
+                +"    file __FILE__ line __LINE__\n"
                  +"goodbye from trivialinclude.h\n"
         },
         {
             "masqueradeTest.h", ""
                  +"hello from masqueradeTest.h\n"
+                +"    file __FILE__ line __LINE__\n"
                  +"# 100 \"someoneelse.h\""
                  +"hello again from masqueradeTest.h\n"
                  +"#include \"moo.h\"\n"
+                +"    file __FILE__ line __LINE__\n"
                  +"goodbye from masqueradeTest.h\n"
         },
         {
@@ -1076,22 +1124,30 @@ public class Cpp
         {
             // XXX hmm this doesn't work in real xpp, don't know what I was thinking
             "tricky.h", ""
+                +"hello from tricky.h\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"#define COMMA ,"
                 +"#define LPAREN ("
                 +"#define RPAREN )"
                 +"#define REVERSE(A,B) B A"
                 +"REVERSE LPAREN x COMMA y RPAREN"
+                +"    file __FILE__ line __LINE__\n"
+                +"goodbye from tricky.h\n"
         },
         {
             "error0.java", ""
                 +"hello from error0.java\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"#include\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"goodbye from error0.java\n"
         },
         {
             "error1.java", ""
                 +"hello from error1.java\n"
+                +"    file __FILE__ line __LINE__\n"
                 +"#include    \n"
+                +"    file __FILE__ line __LINE__\n"
                 +"goodbye from error1.java\n"
         },
         {
@@ -1129,7 +1185,7 @@ public class Cpp
     public static void test0()
     {
         System.out.println("in test0");
-        String inFileName = "test0.java";
+        String inFileName = "test1.java";
         java.io.Reader in = null;
         try
         {
@@ -1163,7 +1219,7 @@ public class Cpp
     {
         System.out.println("in test1");
         System.out.println("===========================================");
-        String inFileName = "test0.java";
+        String inFileName = "test1.java";
         java.io.Reader in = null;
         try
         {
@@ -1176,6 +1232,9 @@ public class Cpp
             System.exit(1);
         }
         java.util.Hashtable macros = new java.util.Hashtable();
+        // stub entries for __LINE__ and __FILE__; they are handled separately when found
+        macros.put("__LINE__", new Macro(-1, null));
+        macros.put("__FILE__", new Macro(-1, null));
         try
         {
             filter(new TokenReaderWithLookahead(in),
@@ -1195,12 +1254,25 @@ public class Cpp
 
     public static void main(String args[])
     {
+        if (true)
+        {
+            // dump the test strings into files in tmp dir
+            String tmpDirName = "tmp";
+            System.out.println("WARNING: creating directory "+tmpDirName+"");
+            new java.io.File(tmpDirName).mkdir();
+            System.exit(0);
+        }
+
         test0();
         test1();
 
         if (false) // real program might look like this
         {
             java.util.Hashtable macros = new java.util.Hashtable();
+            // stub entries for __LINE__ and __FILE__; they are handled separately when found
+            macros.put("__LINE__", new Macro(-1, null));
+            macros.put("__FILE__", new Macro(-1, null));
+
             try
             {
                 filter(new TokenReaderWithLookahead(new java.io.InputStreamReader(System.in)),
@@ -1215,6 +1287,7 @@ public class Cpp
                 System.exit(1);
             }
         }
+        System.exit(0);
     } // main
 
 } // Cpp
