@@ -161,8 +161,9 @@ public class Cpp
         public static final int NEWLINE_ESCAPED = 10; // XXX TODO: decide whether this should be included in SPACES, I think it might simplify some things
         public static final int PREPROCESSOR_DIRECTIVE = 11;
         public static final int MACRO_ARG = 12;
-        public static final int EOF = 13;
-        public static final int NUMTYPES = 14; // one more than last value
+        public static final int MACRO_ARG_QUOTED = 13;
+        public static final int EOF = 14;
+        public static final int NUMTYPES = 15; // one more than last value
         // TODO: long
         // TODO: absorb backslash-newline into spaces
 
@@ -527,7 +528,7 @@ public class Cpp
             }
             else if (c == '#')
             {
-                // TODO: this should really only be done at the beginning of a line, but I think # is an illegal token in java anyway so it shouldn't hurt to do it anywhere
+                // do this anywhere in a line, since it also is part of handling #arg in part of a macro definition
                 scratch.append((char)c);
                 while (reader.peek() != -1
                     && Character.isWhitespace((char)reader.peek()))
@@ -644,7 +645,7 @@ public class Cpp
                         // hmm, need this be a special case?
                         // we could redefine the macro every time we change files...
                         // come to think of it, we could change the macro for __LINE__ every time we change lines too, but that would be expensive
-                        in.pushBackToken(new Token(Token.STRING_LITERAL, escapify(inFileName), lineNumber, -1));
+                        in.pushBackToken(new Token(Token.STRING_LITERAL, "\""+escapify(inFileName)+"\"", lineNumber, -1));
                     }
                 }
                 else
@@ -720,24 +721,6 @@ public class Cpp
                         args[iArg][j] = (Token)thisArgTokensVector.get(j);
                 }
 
-                if (true)
-                {
-                    System.out.println("    macro "+token.text+" contents:");
-                    for (int iContent = 0; iContent < macro.contents.length; ++iContent)
-                    {
-                        System.out.println("        "+iContent+": "+macro.contents[iContent]);
-                    }
-
-                    System.out.println("    "+args.length+" args for macro "+token.text);
-                    for (int iArg = 0; iArg < args.length; ++iArg)
-                    {
-                        System.out.println("        "+iArg+": "+args[iArg].length+" tokens");
-                        for (int j = 0; j < args[iArg].length; ++j)
-                            System.out.println("            "+args[iArg][j]);
-
-                    }
-                }
-
                 // Now substitute the args
                 // into the macro contents
                 java.util.Vector resultsVector = new java.util.Vector();
@@ -749,6 +732,14 @@ public class Cpp
                         int iArg = contentToken.lineNumber; // for MACRO_ARG tokens, arg index in is smuggled in through line number
                         for (int j = 0; j < args[iArg].length; ++j)
                             resultsVector.add(new Token(args[iArg][j], lineNumber));
+                    }
+                    else if (contentToken.type == Token.MACRO_ARG_QUOTED)
+                    {
+                        int iArg = contentToken.lineNumber; // for MACRO_ARG tokens, arg index in is smuggled in through line number
+                        StringBuffer sb = new StringBuffer();
+                        for (int j = 0; j < args[iArg].length; ++j)
+                            sb.append(args[iArg][j].text);
+                        resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", -1, -1)); // XXX TODO: do a line and column number make sense here?
                     }
                     else
                         resultsVector.add(new Token(contentToken, lineNumber));
@@ -1032,11 +1023,33 @@ public class Cpp
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
                     {
-                        if (paramNames != null
-                         && nextToken.type == Token.IDENTIFIER)
-                            for (int i = 0; i < paramNames.length; ++i)
-                                if (nextToken.text.equals(paramNames[i]))
-                                    nextToken = new Token(Token.MACRO_ARG, "", i, -1); // smuggle in param index through line number
+                        if (paramNames != null)
+                        {
+                            if (nextToken.type == Token.IDENTIFIER)
+                            {
+                                for (int i = 0; i < paramNames.length; ++i)
+                                    if (nextToken.text.equals(paramNames[i]))
+                                    {
+                                        nextToken = new Token(Token.MACRO_ARG, "", i, -1); // smuggle in param index through line number
+                                        break;
+                                    }
+                                // if not found, it stays identifier
+                            }
+                            else if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
+                            {
+                                String paramNameMaybe = nextToken.text.substring(1); // spaces got crunched out already during token lexical scanning
+                                for (int i = 0; i < paramNames.length; ++i)
+                                    if (paramNameMaybe.equals(paramNames[i]))
+                                    {
+                                        nextToken = new Token(Token.MACRO_ARG_QUOTED, "", i, -1); // smuggle in param index through line number
+                                        break;
+                                    }
+                                // if not found, it's an error
+                                if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
+                                    throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": '#' is not followed by a macro parameter");
+                            }
+                        }
+
                         contentsVector.add(nextToken);
                         nextToken = in.readToken();
                     }
@@ -1086,6 +1099,7 @@ public class Cpp
                         if (macroName == "__LINE__"
                          || macroName == "__FILE__")
                             throw new Error(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": can't redefine \""+macroName+"\"");
+                        // TODO: The real cpp doesn't complain if the new definition is exactly the same as the old one.  do we care?? it's sloppy programming anyway
                         System.err.println(inFileName+":"+(token.columnNumber+1)+":"+(token.columnNumber+1)+": warning: \""+macroName+"\" redefined");
                         System.err.println(previousMacro.inFileName+":"+(previousMacro.lineNumber+1)+":"+(previousMacro.columnNumber+1)+": warning: this is the location of the previous definition");
                     }
@@ -1123,17 +1137,17 @@ public class Cpp
     // TODO: make a way to test for the errors too
     private static final String testFileNamesAndContents[][] = {
         {
-            "test00.java", ""
-                +"hello from test00.java\n"
+            "test00.prejava", ""
+                +"hello from test00.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"#define REVERSE(a,b) b,a\n"
                 +"REVERSE(x,y)\n"
                 +"    file __FILE__ line __LINE__\n"
-                +"goodbye from test00.java\n"
+                +"goodbye from test00.prejava\n"
         },
         {
-            "test0.java", ""
-                +"hello from test0.java\n"
+            "test0.prejava", ""
+                +"hello from test0.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"#define FOO foo\n"
                 +"#define BAR bar\n"
@@ -1154,18 +1168,18 @@ public class Cpp
                 //+"REVERSE(a) // should be error\n" // TODO: test this
                 //+"REVERSE(a,b,c) // should be error\n" // TODO: test this
                 +"    file __FILE__ line __LINE__\n"
-                +"goodbye from test0.java\n"
+                +"goodbye from test0.prejava\n"
         },
         {
-            "test1.java", ""
-                +"hello from test1.java\n"
+            "test1.prejava", ""
+                +"hello from test1.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"#include \"macros.h\"\n"
                 +"here is another line\n"
                 +"#define foo \"trivialinclude.h\"\n"
                 +"#include foo\n"
                 +"    file __FILE__ line __LINE__\n"
-                +"goodbye from test1.java\n"
+                +"goodbye from test1.prejava\n"
         },
         {
             "macros.h", ""
@@ -1198,6 +1212,17 @@ public class Cpp
             "/dev/null", ""
         },
         {
+            "assertTest.prejava", ""
+                 +"hello from assertTest.prejava\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"#define assert(expr) do { if (!(expr)) throw new Error(\"Assertion failed at \"+__FILE__+\"(\"+__LINE__+\"): \" + #expr + \"\"); } while (false)\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"    assert(1+1 == 2);\n"
+                +"    assert(1+1 == 1);\n"
+                +"    file __FILE__ line __LINE__\n"
+                 +"goodbye from assertTest.prejava\n"
+        },
+        {
             // XXX hmm this doesn't work in real xpp, don't know what I was thinking
             "tricky.h", ""
                 +"hello from tricky.h\n"
@@ -1211,39 +1236,39 @@ public class Cpp
                 +"goodbye from tricky.h\n"
         },
         {
-            "error0.java", ""
-                +"hello from error0.java\n"
+            "error0.prejava", ""
+                +"hello from error0.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"#include\n"
                 +"    file __FILE__ line __LINE__\n"
-                +"goodbye from error0.java\n"
+                +"goodbye from error0.prejava\n"
         },
         {
-            "error1.java", ""
-                +"hello from error1.java\n"
+            "error1.prejava", ""
+                +"hello from error1.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"#include    \n"
                 +"    file __FILE__ line __LINE__\n"
-                +"goodbye from error1.java\n"
+                +"goodbye from error1.prejava\n"
         },
         {
-            "error2.java", ""
-                +"hello from error2.java\n"
+            "error2.prejava", ""
+                +"hello from error2.prejava\n"
                 +"#include\n"
         },
         {
-            "error3.java", ""
-                +"hello from error3.java\n"
+            "error3.prejava", ""
+                +"hello from error3.prejava\n"
                 +"#include \n"
         },
         {
-            "error4.java", ""
-                +"hello from error4.java\n"
+            "error4.prejava", ""
+                +"hello from error4.prejava\n"
                 +"#include " // unterminated line
         },
         {
-            "error5.java", ""
-                +"hello from error5.java\n"
+            "error5.prejava", ""
+                +"hello from error5.prejava\n"
                 +"#include foo\n"
         },
     };
@@ -1258,10 +1283,9 @@ public class Cpp
         }
     };
 
-    public static void test0()
+    public static void test0(String inFileName)
     {
-        System.out.println("in test0");
-        String inFileName = "test1.java";
+        System.out.println("in test0(\""+inFileName+"\")");
         java.io.Reader in = null;
         try
         {
@@ -1291,11 +1315,10 @@ public class Cpp
         System.out.println("out test0");
     } // test0
 
-    public static void test1()
+    public static void test1(String inFileName)
     {
-        System.out.println("in test1");
+        System.out.println("in test1(\""+inFileName+"\")");
         System.out.println("===========================================");
-        String inFileName = "test1.java";
         java.io.Reader in = null;
         try
         {
@@ -1366,10 +1389,10 @@ public class Cpp
             System.exit(0);
         }
 
-        if (false)
+        if (true)
         {
-            test0();
-            test1();
+            test0("assertTest.prejava");
+            test1("assertTest.prejava");
         }
 
         if (true)
