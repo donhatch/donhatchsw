@@ -345,22 +345,23 @@ public class Cpp
             int columnNumber = reader.getColumnNumber();
 
             int c = reader.read();
+            Token token;
             if (c == -1)
             {
                 returnedEOF = true;
-                return new Token(Token.EOF, "", lineNumber, columnNumber);
+                token = new Token(Token.EOF, "", lineNumber, columnNumber);
             }
             // TODO: order these in order of likelihood?
-            if (c == '\n')
+            else if (c == '\n')
             {
                 scratch.append((char)c);
-                return new Token(Token.NEWLINE_UNESCAPED, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.NEWLINE_UNESCAPED, scratch.toString(), lineNumber, columnNumber);
             }
             else if (c == '\\' && reader.peek()  == '\n')
             {
                 scratch.append((char)c);
                 scratch.append(reader.read());
-                return new Token(Token.NEWLINE_ESCAPED, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.NEWLINE_ESCAPED, scratch.toString(), lineNumber, columnNumber);
             }
             else if (Character.isWhitespace((char)c))
             {
@@ -370,7 +371,7 @@ public class Cpp
                     && d != '\n'
                     && Character.isWhitespace((char)d))
                     scratch.append((char)reader.read());
-                return new Token(Token.SPACES, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.SPACES, scratch.toString(), lineNumber, columnNumber);
             }
             else if (Character.isJavaIdentifierStart((char)c))
             {
@@ -378,7 +379,7 @@ public class Cpp
                 while (reader.peek() != -1
                     && Character.isJavaIdentifierPart((char)reader.peek()))
                     scratch.append((char)reader.read());
-                return new Token(Token.IDENTIFIER, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.IDENTIFIER, scratch.toString(), lineNumber, columnNumber);
             }
             else if (Character.isDigit((char)c)
                   || (c == '.' && reader.peek() != -1
@@ -463,17 +464,19 @@ public class Cpp
                 if (reader.peek() == 'f')
                 {
                     scratch.append((char)reader.read()); // the 'f'
-                    return new Token(Token.FLOAT_LITERAL, scratch.toString(), lineNumber, columnNumber);
+                    token = new Token(Token.FLOAT_LITERAL, scratch.toString(), lineNumber, columnNumber);
                 }
-
-                // Okay, what have we got?
-                String string = scratch.toString();
-                if (string.indexOf('.') != -1
-                 || string.indexOf('e') != -1
-                 || string.indexOf('E') != -1)
-                    return new Token(Token.DOUBLE_LITERAL, string, lineNumber, columnNumber);
                 else
-                    return new Token(Token.INT_LITERAL, string, lineNumber, columnNumber);
+                {
+                    // Okay, what have we got?
+                    String string = scratch.toString();
+                    if (string.indexOf('.') != -1
+                     || string.indexOf('e') != -1
+                     || string.indexOf('E') != -1)
+                        token = new Token(Token.DOUBLE_LITERAL, string, lineNumber, columnNumber);
+                    else
+                        token = new Token(Token.INT_LITERAL, string, lineNumber, columnNumber);
+                }
             }
             else if (c == '"' || c == '\'')
             {
@@ -499,26 +502,19 @@ public class Cpp
                     else if (c == quoteChar)
                         break;
                 }
-                return new Token(quoteChar=='"' ? Token.STRING_LITERAL : Token.CHAR_LITERAL, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(quoteChar=='"' ? Token.STRING_LITERAL : Token.CHAR_LITERAL, scratch.toString(), lineNumber, columnNumber);
             }
             else if (c == '/' && reader.peek() == '/')
             {
                 scratch.append((char)c);             // the first '/'
                 scratch.append((char)reader.read()); // the second '/'
-                // Read rest of line, including end of line
-                while (true)
+                // Read rest of line, NOT including newline or EOF
+                while (reader.peek() != -1
+                    && reader.peek() != '\n')
                 {
-                    c = reader.read();
-                    if (c == -1)
-                    {
-                        // XXX warn unterminated line?
-                        break;
-                    }
-                    scratch.append((char)c);
-                    if (c == '\n')
-                        break;
+                    scratch.append((char)reader.read());
                 }
-                return new Token(Token.COMMENT, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.COMMENT, scratch.toString(), lineNumber, columnNumber);
             }
             else if (c == '/' && reader.peek() == '*')
             {
@@ -537,7 +533,7 @@ public class Cpp
                         break;
                     }
                 }
-                return new Token(Token.COMMENT, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.COMMENT, scratch.toString(), lineNumber, columnNumber);
             }
             else if (c == '#')
             {
@@ -558,13 +554,15 @@ public class Cpp
                 while (reader.peek() != -1
                     && Character.isJavaIdentifierPart((char)reader.peek()))
                     scratch.append((char)reader.read());
-                return new Token(Token.PREPROCESSOR_DIRECTIVE, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.PREPROCESSOR_DIRECTIVE, scratch.toString(), lineNumber, columnNumber);
             }
             else
             {
                 scratch.append((char)c);
-                return new Token(Token.SYMBOL, scratch.toString(), lineNumber, columnNumber);
+                token = new Token(Token.SYMBOL, scratch.toString(), lineNumber, columnNumber);
             }
+            //System.out.println("            TokenReader  returning "+token);
+            return token;
         } // readToken
     } // private static class TokenReader
 
@@ -1051,7 +1049,10 @@ public class Cpp
                                     }
                                 // if not found, it's an error
                                 if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
+                                {
+                                    System.out.println(nextToken);
                                     throw new Error(inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '#' is not followed by a macro parameter");
+                                }
                             }
                         }
 
