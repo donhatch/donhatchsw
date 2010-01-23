@@ -30,7 +30,6 @@ TODO:
     - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
-    - get the right filename in the "unterminated if" message
 */
 
 package com.donhatchsw.javacpp;
