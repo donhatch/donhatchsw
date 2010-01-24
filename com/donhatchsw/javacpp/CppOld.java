@@ -23,10 +23,10 @@
 *
 
 TODO:
-    - #if (I guess that means integer expressions, but can start with just 1, 0, and empty)
+    - #if, #elif, defined() (I guess that means integer expressions, but can start with just 1, 0, and empty)
     - -I
     - understand <> around file names as well as ""'s?  maybe not worth the trouble
-    - ##
+    - ##  (concatenates tokens)
     - omit blank lines at end of files like cpp does
     - turn more than 7 consecutive blank lines into just a line number directive like cpp does
     - after return from include, don't emit that blank line (and adjust line number accordingly), like cpp does
@@ -66,6 +66,64 @@ public class Cpp
                 sb.append(escapify(s.charAt(i), '"'));
             return sb.toString();
         }
+
+    private static int evaluateIntExpression(String expr, String inFileName, int lineNumber, int columnNumber)
+    {
+        System.err.println("    in evaluateExpression(\""+escapify(expr)+"\")");
+        // for now, only handle really trivial things
+
+        StringBuffer sb = new StringBuffer();
+
+        // get rid of any whitespace...
+        {
+            sb.delete(0, sb.length());
+            for (int i = 0; i < expr.length(); ++i)
+                if (!Character.isWhitespace(expr.charAt(i)))
+                    sb.append(expr.charAt(i));
+            expr = sb.toString();
+        }
+
+        // get rid of any parens, making sure they match
+        {
+            sb.delete(0, sb.length());
+            int parenLevel = 0;
+            for (int i = 0; i < expr.length(); ++i)
+            {
+                char c = expr.charAt(i);
+                if (c == '(')
+                    parenLevel++;
+                else if (c == ')')
+                {
+                    parenLevel--;
+                    if (parenLevel < 0)
+                        break; // turns into error
+                }
+                else
+                    sb.append(expr.charAt(i));
+            }
+            if (parenLevel != 0)
+                throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": expression has unmatched parentheses");
+            expr = sb.toString();
+        }
+
+        {
+            boolean negate = false;
+            while (expr.startsWith("!"))
+            {
+                negate = !negate;
+                expr = expr.substring(1);
+            }
+            int value;
+            if (expr.equals("0"))
+                value = 0;
+            else if (expr.equals("1"))
+                value = 1;
+            else throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": expressions unimplemented except for 0 and 1");
+            if (negate)
+                value = (value==0 ? 1 : 0);
+            return value;
+        }
+    } // evaluateIntExpression
 
     // Wrapper around new FileReader,
     // whose behavior can be overridden in subclasses
@@ -201,7 +259,7 @@ public class Cpp
             this.lineNumber = lineNumber;
             this.columnNumber = columnNumber;
         }
-        // copy constructor but changing file name ane line number
+        // copy constructor but changing file name and line number XXX shouldn't we be changing column number too if we do this?  or is this just so __LINE__ and __FILE__ will come out right?
         public Token(Token fromToken, String fileName, int lineNumber)
         {
             this(fromToken.type,
@@ -644,7 +702,7 @@ public class Cpp
     } // private static class TokenReaderWithLookahead
 
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
-                                                        int lineNumber,
+                                                        int lineNumber, // XXX TODO: is this needed any more?  I think it's stored in the token itself now, should check to make sure
                                                         java.util.Hashtable macros)
         throws java.io.IOException
     {
@@ -770,7 +828,7 @@ public class Cpp
 
         throws java.io.IOException
     {
-        int verboseLevel = 2; // 0: nothing, 1: print enter and exit function, 2: print more
+        int verboseLevel = 0; // 0: nothing, 1: print enter and exit function, 2: print more
 
         if (verboseLevel >= 1)
             System.err.println("    in filter");
@@ -794,8 +852,8 @@ public class Cpp
             // that produced it, before macro substitution.
             // That requires making a lot of new tokens on the fly whenever macros
             // are expanded, just for the line numbers, but that's how it's currently done.
-            lineNumber = in.peekToken(0).lineNumber;
-            columnNumber = in.peekToken(0).columnNumber;
+            lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
+            columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
 
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
             Token token = readTokenWithMacroSubstitution(in, lineNumber, macros);
@@ -813,8 +871,8 @@ public class Cpp
                     ifStack = (java.util.Stack)ifStackStack.pop();
                     highestTrueIfStackLevel = ((Integer)highestTrueIfStackLevelStack.pop()).intValue();
 
-                    lineNumber = in.peekToken(0).lineNumber;
-                    columnNumber = in.peekToken(0).columnNumber;
+                    lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
+                    columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
                     out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 2"); // cpp puts a 2 there, don't know why but imitating it
 
                     continue; // still need to read a token
@@ -846,8 +904,86 @@ public class Cpp
             ))
             {
                 AssertAlways(token.text.startsWith("#"));
-                if (token.text.equals("#else")
-                 || token.text.equals("#endif"))
+
+                if (false) ;
+                // ones that take an integer expression
+                else if (token.text.equals("#if")
+                      || token.text.equals("#elif"))
+                {
+                    if (verboseLevel >= 2)
+                        System.err.println("        filter: found "+token.text);
+
+                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+
+                    // move past spaces
+                    while (nextToken.type == Token.SPACES
+                        || nextToken.type == Token.NEWLINE_ESCAPED
+                        || nextToken.type == Token.COMMENT)
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+
+                    Token expressionStartToken = nextToken;
+
+                    // gather rest of line into a string...
+                    StringBuffer sb = new StringBuffer();
+                    while (nextToken.type != Token.NEWLINE_UNESCAPED
+                        && nextToken.type != Token.EOF)
+                    {
+                        if (nextToken.type == Token.NEWLINE_ESCAPED)
+                            ; // really nothing
+                        else if (nextToken.type == Token.COMMENT)
+                            sb.append(" ");
+                        else
+                            sb.append(nextToken.text);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                    }
+
+
+                    boolean needToEvaluate = (highestTrueIfStackLevel >= ifStack.size());
+                    if (token.text.equals("#elif"))
+                    {
+                        if (ifStack.empty())
+                            throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+token.text+" without #if");
+                    }
+                    else // #if
+                    {
+                        ifStack.push(token);
+                    }
+
+                    if (needToEvaluate)
+                    {
+                        out.flush(); // TODO: get rid!
+                        int expressionValue = evaluateIntExpression(sb.toString(),
+                                                                    expressionStartToken.fileName,
+                                                                    expressionStartToken.lineNumber,
+                                                                    expressionStartToken.columnNumber);
+                        boolean answer = (expressionValue != 0);
+
+                        if (answer == true)
+                        {
+                            if (verboseLevel >= 2)
+                                System.err.println("    condition evaluated to true");
+                            highestTrueIfStackLevel = ifStack.size();
+                        }
+                        else
+                        {
+                            if (verboseLevel >= 2)
+                                System.err.println("    condition evaluated to false");
+                            highestTrueIfStackLevel = ifStack.size()-1;
+                        }
+                    }
+
+
+                    if (nextToken.type == Token.EOF)
+                    {
+                        in.pushBackToken(nextToken);
+                        continue;
+                    }
+                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    out.print(nextToken.text);
+                }
+                // ones that take no args...
+                else if (token.text.equals("#else")
+                      || token.text.equals("#endif"))
                 {
                     if (verboseLevel >= 2)
                         System.err.println("        filter: found "+token.text);
@@ -871,13 +1007,13 @@ public class Cpp
                     }
 
 
-                    Token nextToken = in.readToken();
+                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
-                        nextToken = in.readToken();
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                     if (nextToken.type != Token.EOF
                      && nextToken.type != Token.NEWLINE_UNESCAPED)
@@ -891,6 +1027,7 @@ public class Cpp
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
                     out.print(nextToken.text);
                 }
+                // ones that take one macro name arg and that's all
                 else if (token.text.equals("#ifdef")
                       || token.text.equals("#ifndef")
                       || token.text.equals("#undef"))
@@ -898,13 +1035,13 @@ public class Cpp
                     if (verboseLevel >= 2)
                         System.err.println("        filter: found "+token.text);
 
-                    Token nextToken = in.readToken();
+                    Token nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
-                        nextToken = in.readToken();
+                        nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
@@ -915,13 +1052,13 @@ public class Cpp
                     if (nextToken.type != Token.IDENTIFIER)
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
                     String macroName = nextToken.text;
-                    nextToken = in.readToken();
+                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
-                        nextToken = in.readToken();
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
 
                     if (token.text.equals("#undef"))
@@ -973,13 +1110,13 @@ public class Cpp
 
                     // we'll be doing a lot of lookahead of one token,
                     // so use a local variable nextToken
-                    Token nextToken = in.readToken();
+                    Token nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
-                        nextToken = in.readToken();
+                        nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
@@ -992,7 +1129,7 @@ public class Cpp
                     String macroName = nextToken.text;
 
                     // must be either whitespace or left paren after macro name... it makes a difference
-                    nextToken = in.readToken();
+                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
                     if (nextToken.type == Token.EOF)
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
 
@@ -1005,13 +1142,13 @@ public class Cpp
                         // There's a macro param list.
                         java.util.Vector paramNamesVector = new java.util.Vector();
 
-                        nextToken = in.readToken();
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                         // move past spaces
                         while (nextToken.type == Token.SPACES
                             || nextToken.type == Token.NEWLINE_ESCAPED
                             || nextToken.type == Token.COMMENT)
-                            nextToken = in.readToken();
+                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                         if (nextToken.type == Token.SYMBOL
                          && nextToken.text.equals(")"))
@@ -1028,7 +1165,7 @@ public class Cpp
                                 throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
 
                             paramNamesVector.add(nextToken.text);
-                            nextToken = in.readToken();
+                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                             while (true)
                             {
@@ -1037,7 +1174,7 @@ public class Cpp
                                     || nextToken.type == Token.NEWLINE_ESCAPED
                                     || nextToken.type == Token.COMMENT)
 
-                                    nextToken = in.readToken();
+                                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                                 if (nextToken.type == Token.SYMBOL)
                                 {
@@ -1045,17 +1182,17 @@ public class Cpp
                                         break;
                                     else if (nextToken.text.equals(","))
                                     {
-                                        nextToken = in.readToken();
+                                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                                         // move past spaces
                                         while (nextToken.type == Token.SPACES
                                             || nextToken.type == Token.NEWLINE_ESCAPED)
-                                            nextToken = in.readToken();
+                                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                                         if (nextToken.type == Token.IDENTIFIER)
                                         {
                                             paramNamesVector.add(nextToken.text);
-                                            nextToken = in.readToken();
+                                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
                                             continue;
                                         }
                                         // otherwise drop into error case
@@ -1066,7 +1203,7 @@ public class Cpp
                         }
                         AssertAlways(nextToken.type == Token.SYMBOL
                                   && nextToken.text.equals(")"));
-                        nextToken = in.readToken();
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
 
                         paramNames = (String[])paramNamesVector.toArray(new String[0]);
                     }
@@ -1128,7 +1265,7 @@ public class Cpp
                         }
 
                         contentsVector.add(nextToken);
-                        nextToken = in.readToken();
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
                     }
                     Token contents[] = new Token[contentsVector.size()];
                     for (int i = 0; i < contents.length; ++i)
@@ -1195,11 +1332,14 @@ public class Cpp
                 {
                     if (verboseLevel >= 2)
                         System.err.println("        filter: found #include");
-                    while (in.peekToken(0).type == Token.SPACES
-                        || in.peekToken(0).type == Token.NEWLINE_ESCAPED
-                        || in.peekToken(0).type == Token.COMMENT)
-                        in.readToken();
-                    Token fileNameToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+
+                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                    while (nextToken.type == Token.SPACES
+                        || nextToken.type == Token.NEWLINE_ESCAPED
+                        || nextToken.type == Token.COMMENT)
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+
+                    Token fileNameToken = nextToken;
                     if (fileNameToken.type != Token.STRING_LITERAL)
                         throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
 
@@ -1231,8 +1371,8 @@ public class Cpp
 
                     in = newIn;
 
-                    lineNumber = in.peekToken(0).lineNumber;
-                    columnNumber = in.peekToken(0).columnNumber;
+                    lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
+                    columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
                     out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
                 }
                 else
@@ -1351,7 +1491,7 @@ public class Cpp
                  +"goodbye from assertTest.prejava\n"
         },
         {
-            // XXX hmm this doesn't work in real xpp, don't know what I was thinking
+            // XXX hmm this doesn't work in real cpp, don't know what I was thinking
             "tricky.h", ""
                 +"hello from tricky.h\n"
                 +"    file __FILE__ line __LINE__\n"
@@ -1362,6 +1502,866 @@ public class Cpp
                 +"REVERSE LPAREN x COMMA y RPAREN"
                 +"    file __FILE__ line __LINE__\n"
                 +"goodbye from tricky.h\n"
+        },
+        {
+            // just isolate what I'm debugging
+            "ifTest0.prejava", ""
+                +"hello from ifTest0.prejava\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"#elif 1\n"
+                +"    good output\n"
+                +"#endif\n"
+                +"goodbye from ifTest0.prejava\n"
+        },
+        {
+            // stress test the conditionals
+            "ifTest.prejava", ""
+                +"hello from ifTest.prejava\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"\n"
+                +"\n"
+                +"#ifdef __LINE__\n"
+                +"    output 0\n"
+                +"#endif // comment should be fine\n"
+                +"\n"
+                +"#ifndef __LINE__\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"#ifdef NOT_DEFINED\n"
+                +"    this should not be output\n"
+                +"#endif // comment should be fine\n"
+                +"\n"
+                +"#ifndef NOT_DEFINED\n"
+                +"    output 1\n"
+                +"#endif\n"
+                +"\n"
+                +"\n"
+                +"#ifndef FOO\n"
+                +"        output 2\n"
+                +"    #define FOO(bar) something\n"
+                +"        output 3\n"
+                +"    #ifndef FOO\n"
+                +"        this should not be output\n"
+                +"    #endif\n"
+                +"        output 4\n"
+                +"    #ifdef FOO\n"
+                +"        output 5\n"
+                +"    #endif\n"
+                +"        output 6\n"
+                +"    #undef FOO\n"
+                +"        output 7\n"
+                +"    #ifndef FOO\n"
+                +"        output 8\n"
+                +"    #endif\n"
+                +"        output 9\n"
+                +"    #ifdef FOO\n"
+                +"        this should not be output\n"
+                +"    #endif\n"
+                +"        output 10\n"
+                +"#endif\n"
+                +"\n"
+                +"\n"
+                +"#define FOO 1\n"
+                +"#ifdef FOO\n"
+                +"        output 11\n"
+                +"#endif\n"
+                +"#ifndef FOO\n"
+                +"        this should not be output\n"
+                +"#endif\n"
+                +"#if FOO\n"
+                +"        output 12\n"
+                +"#endif\n"
+                +"#if !FOO\n"
+                +"        this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"#undef FOO\n"
+                +"#undef FOO\n"
+                +"#define FOO 0\n"
+                +"#ifdef FOO\n"
+                +"        output 13\n"
+                +"#endif\n"
+                +"#ifndef FOO\n"
+                +"        this should not be output\n"
+                +"#endif\n"
+                +"#if FOO\n"
+                +"        this should not be output\n"
+                +"#endif\n"
+                +"#if !FOO\n"
+                +"        output 14\n"
+                +"#endif\n"
+                +"\n"
+                +"#define NOT(x) !(x)\n"
+                +"#ifdef NOT\n"
+                +"        output 15\n"
+                +"#endif\n"
+                +"#ifndef NOT\n"
+                +"        this should not be output\n"
+                +"#endif\n"
+                +"#if NOT(0)\n"
+                +"        output 16\n"
+                +"#endif\n"
+                +"#if NOT(1)\n"
+                +"        this should not be output\n"
+                +"#endif\n"
+                +"#if !NOT(0)\n"
+                +"        this should not be output\n"
+                +"#endif\n"
+                +"#if !NOT(1)\n"
+                +"        output 17\n"
+                +"#endif\n"
+                +"#if NOT(FOO) // FOO should still be 0\n"
+                +"        output 18\n"
+                +"#endif\n"
+                +"#undef FOO\n"
+                +"#define FOO (!!(1)) // should evaluate to 1\n"
+                +"#if !NOT(FOO)\n"
+                +"        output 19\n"
+                +"#endif\n"
+                +"#if NOT(FOO)\n"
+                +"        this should not be output\n"
+                +"#endif\n"
+                +"#if !NOT(!(!FOO))\n"
+                +"        output 20\n"
+                +"#endif\n"
+                +"\n"
+                +"\n"
+                +"#if 1\n"
+                +"    output 21\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"#else\n"
+                +"    output 22\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 1\n"
+                +"    output 23\n"
+                +"#else\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"#elif 0\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"#elif 1\n"
+                +"    output 24\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 1\n"
+                +"    output 25\n"
+                +"#elif 0\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 1\n"
+                +"    output 26\n"
+                +"#elif 1\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"#elif 0\n"
+                +"    this should not be output\n"
+                +"#else\n"
+                +"    output 27\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"#elif 1\n"
+                +"    output 28\n"
+                +"#else\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 1\n"
+                +"    output 29\n"
+                +"#elif 0\n"
+                +"    this should not be output\n"
+                +"#else\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 1\n"
+                +"    output 30\n"
+                +"#elif 1\n"
+                +"    this should not be output\n"
+                +"#else\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"    #if 0\n"
+                +"        this should not be output\n"
+                +"    #endif\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 0\n"
+                +"    this should not be output\n"
+                +"    #if 1\n"
+                +"        this should not be output\n"
+                +"    #endif\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 1\n"
+                +"    output 31\n"
+                +"    #if 0\n"
+                +"        this should not be output\n"
+                +"    #endif\n"
+                +"    output 32\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 1\n"
+                +"    output 33\n"
+                +"    #if 1\n"
+                +"        output 34\n"
+                +"    #endif\n"
+                +"    output 35\n"
+                +"#endif\n"
+                +"\n"
+                +"#if 0\n"
+                +"                   this should not be output\n"
+                +"    #if 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #else\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #endif\n"
+                +"                   this should not be output\n"
+                +"#elif 0\n"
+                +"                   this should not be output\n"
+                +"    #if 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #else\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #endif\n"
+                +"                   this should not be output\n"
+                +"#elif 1\n"
+                +"                   this should not be output\n"
+                +"    #if 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   output 36\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #else\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #endif\n"
+                +"                   this should not be output\n"
+                +"#elif 0\n"
+                +"                   this should not be output\n"
+                +"    #if 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #else\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #endif\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"#elif 1\n"
+                +"                   this should not be output\n"
+                +"    #if 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #else\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #endif\n"
+                +"                   this should not be output\n"
+                +"#else\n"
+                +"                   this should not be output\n"
+                +"    #if 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #else\n"
+                +"                   this should not be output\n"
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
+                +"                   this should not be output\n"
+                +"    #endif\n"
+                +"                   this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                +"output 37\n"
+                +"there should have been outputs 0 through 37\n"
+                +"\n"
+                +"\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"goodbye from ifTest.prejava\n"
         },
         {
             "error0.prejava", ""
@@ -1529,10 +2529,13 @@ public class Cpp
             }
         }
 
-        if (false)
+        if (true)
         {
-            test0("assertTest.prejava");
-            test1("assertTest.prejava");
+            //test0("assertTest.prejava");
+            //test1("assertTest.prejava");
+
+            //test0("ifTest.prejava");
+            test1("ifTest0.prejava");
         }
 
         if (true)
