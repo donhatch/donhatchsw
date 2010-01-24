@@ -69,7 +69,7 @@ public class Cpp
 
     private static int evaluateIntExpression(String expr, String inFileName, int lineNumber, int columnNumber)
     {
-        System.err.println("    in evaluateExpression(\""+escapify(expr)+"\")");
+        //System.err.println("    in evaluateExpression(\""+escapify(expr)+"\")");
         // for now, only handle really trivial things
 
         StringBuffer sb = new StringBuffer();
@@ -836,8 +836,11 @@ public class Cpp
         java.util.Stack tokenReaderStack = new java.util.Stack();
         java.util.Stack ifStack = new java.util.Stack(); // of #ifwhatever tokens, for the file,line,column information
         int highestTrueIfStackLevel = 0;
-        java.util.Stack ifStackStack = new java.util.Stack(); // different stack for each ...
-        java.util.Stack highestTrueIfStackLevelStack = new java.util.Stack();
+        java.util.Stack endifMultiplierStack = new java.util.Stack();
+
+        java.util.Stack ifStackStack = new java.util.Stack(); // different stack for each level of #include
+        java.util.Stack highestTrueIfStackLevelStack = new java.util.Stack(); // different stacks for each level of #include
+        java.util.Stack endifMultiplierStackStack = new java.util.Stack(); // different stacks for each level of #include
 
         /*
             Logic for #if/#elif/#else/#endif
@@ -985,12 +988,16 @@ public class Cpp
                     Token unterminatedIfToken = (Token)ifStack.peek();
                     throw new Error(unterminatedIfToken.fileName+":"+(unterminatedIfToken.lineNumber+1)+":"+(unterminatedIfToken.columnNumber+1)+": unterminated "+unterminatedIfToken.text);
                 }
+                AssertAlways(endifMultiplierStack.empty()); // always in sync with ifStack
+
                 if (!tokenReaderStack.isEmpty())
                 {
                     // discard the EOF token, and pop the reader stack
+
                     in = (TokenReaderWithLookahead)tokenReaderStack.pop();
                     ifStack = (java.util.Stack)ifStackStack.pop();
                     highestTrueIfStackLevel = ((Integer)highestTrueIfStackLevelStack.pop()).intValue();
+                    endifMultiplierStack = (java.util.Stack)endifMultiplierStackStack.pop();
 
                     lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
                     columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
@@ -1045,6 +1052,7 @@ public class Cpp
                     Token expressionStartToken = nextToken;
 
                     // gather rest of line (with macro substitution) into a string...
+                    // XXX TODO: need to treat defined() specially here... as a temporary macro?  but its args don't get expanded, so it's truly special
                     StringBuffer sb = new StringBuffer();
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
@@ -1062,19 +1070,39 @@ public class Cpp
                     boolean needToEvaluate;
                     if (token.text.equals("#elif"))
                     {
-                        needToEvaluate = (highestTrueIfStackLevel == ifStack.size()-1);
+                        // Treat this as #else followed by #if.
+                        // First do the #else thing...
                         if (ifStack.empty())
                             throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+token.text+" without #if");
-                    }
-                    else // #if
-                    {
-                        needToEvaluate = (highestTrueIfStackLevel >= ifStack.size());
+                        if (highestTrueIfStackLevel >= ifStack.size()-1) // if not suppressing at the moment
+                        {
+                            if (highestTrueIfStackLevel == ifStack.size()-1)
+                                highestTrueIfStackLevel = ifStack.size(); // false to true
+                            else
+                                highestTrueIfStackLevel = ifStack.size()-1; // true to false
+                        }
+
                         ifStack.push(token);
+                        // Increment the prevailing #endif multiplier...
+                        endifMultiplierStack.push(new Integer((((Integer)endifMultiplierStack.pop()).intValue()+1)));
+                    }
+                    else
+                    {
+                        ifStack.push(token);
+                        // Just do the #if thing, pushing a multiplier of 1.
+                        endifMultiplierStack.push(new Integer(1));
                     }
 
-                    if (needToEvaluate)
+                    if (ifStack.size()-1 <= highestTrueIfStackLevel)
                     {
-                        out.flush(); // TODO: get rid!
+                        // we're not suppressing at the parent level,
+                        // so we do in fact need to evaluate the expression
+                        // to find out whether to suppress at this level
+                        if (false)
+                        {
+                            out.print("(flush)"); // so I don't leave this in the shipped version
+                            out.flush();
+                        }
                         int expressionValue = evaluateIntExpression(sb.toString(),
                                                                     expressionStartToken.fileName,
                                                                     expressionStartToken.lineNumber,
@@ -1097,18 +1125,7 @@ public class Cpp
                     else
                     {
                         if (verboseLevel >= 2)
-                            System.err.println("    didn't need to evaluate condition");
-                        // there's a case when we didn't need to evaluate,
-                        // but we still need to change something.
-                        // that's when it's an #elif when we weren't suppressing,
-                        // we need to start suppressing.
-                        if (token.text.equals("#elif")
-                         && highestTrueIfStackLevel >= ifStack.size())
-                        {
-                            if (verboseLevel >= 2)
-                                System.err.println("        and changing prevailing output from true to false anyway");
-                            highestTrueIfStackLevel = ifStack.size()-1;
-                        }
+                            System.err.println("    didn't need to evaluate condition since we're already suppressing at a shallower level");
                     }
 
 
@@ -1142,7 +1159,9 @@ public class Cpp
                     }
                     else // #endif
                     {
-                        ifStack.pop();
+                        int endifMultiplier = ((Integer)endifMultiplierStack.pop()).intValue();
+                        for (int i = 0; i < endifMultiplier; ++i)
+                            ifStack.pop();
                     }
 
 
@@ -1226,7 +1245,9 @@ public class Cpp
                                 highestTrueIfStackLevel = ifStack.size();
                             }
                         }
+
                         ifStack.push(token);
+                        endifMultiplierStack.push(new Integer(1));
                     }
 
 
@@ -1504,9 +1525,11 @@ public class Cpp
                     tokenReaderStack.push(in);
                     ifStackStack.push(ifStack);
                     highestTrueIfStackLevelStack.push(new Integer(highestTrueIfStackLevel));
+                    endifMultiplierStackStack.push(endifMultiplierStack);
 
                     ifStack = new java.util.Stack();
                     highestTrueIfStackLevel = 0;
+                    endifMultiplierStack = new java.util.Stack();
 
                     in = newIn;
 
@@ -1534,6 +1557,15 @@ public class Cpp
                 }
             }
         }
+
+        AssertAlways(ifStack.empty());
+        AssertAlways(endifMultiplierStack.empty());
+
+        AssertAlways(tokenReaderStack.empty());
+        AssertAlways(ifStackStack.empty());
+        AssertAlways(highestTrueIfStackLevelStack.empty());
+        AssertAlways(endifMultiplierStackStack.empty());
+
         out.flush();
         if (verboseLevel >= 1)
             System.err.println("    out filter");
@@ -1658,7 +1690,6 @@ public class Cpp
                 +"    this should not be output\n"
                 +"#endif\n"
                 +"\n"
-                */
                 +"#if 1\n"
                 +"    output 29\n"
                 +"#elif 0\n"
@@ -1666,6 +1697,35 @@ public class Cpp
                 +"#else\n"
                 +"    this should not be output\n"
                 +"#endif\n"
+                +"\n"
+                */
+                +"        #if 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   output 1\n"
+                +"            #if 0\n"
+                +"                   this should not be output\n"
+                +"            #elif 0\n"
+                +"                   this should not be output\n"
+                +"            #elif 1\n"
+                +"                   output 2\n"
+                +"            #elif 0\n"
+                +"                   this should not be output\n"
+                +"            #elif 1\n"
+                +"                   this should not be output\n"
+                +"            #else\n"
+                +"                   this should not be output\n"
+                +"            #endif\n"
+                +"                   output 3\n"
+                +"        #elif 0\n"
+                +"                   this should not be output\n"
+                +"        #elif 1\n"
+                +"                   this should not be output\n"
+                +"        #else\n"
+                +"                   this should not be output\n"
+                +"        #endif\n"
                 +"goodbye from ifTest0.prejava\n"
         },
         {
@@ -2095,7 +2155,7 @@ public class Cpp
                 +"    #endif\n"
                 +"                   this should not be output\n"
                 +"#elif 1\n"
-                +"                   this should not be output\n"
+                +"                   output 36\n"
                 +"    #if 0\n"
                 +"                   this should not be output\n"
                 +"        #if 0\n"
@@ -2129,13 +2189,13 @@ public class Cpp
                 +"        #endif\n"
                 +"                   this should not be output\n"
                 +"    #elif 1\n"
-                +"                   this should not be output\n"
+                +"                   output 37\n"
                 +"        #if 0\n"
                 +"                   this should not be output\n"
                 +"        #elif 0\n"
                 +"                   this should not be output\n"
                 +"        #elif 1\n"
-                +"                   output 36\n"
+                +"                   output 38\n"
                 +"        #elif 0\n"
                 +"                   this should not be output\n"
                 +"        #elif 1\n"
@@ -2143,7 +2203,7 @@ public class Cpp
                 +"        #else\n"
                 +"                   this should not be output\n"
                 +"        #endif\n"
-                +"                   this should not be output\n"
+                +"                   output 39\n"
                 +"    #elif 0\n"
                 +"                   this should not be output\n"
                 +"        #if 0\n"
@@ -2193,7 +2253,7 @@ public class Cpp
                 +"        #endif\n"
                 +"                   this should not be output\n"
                 +"    #endif\n"
-                +"                   this should not be output\n"
+                +"                   output 40\n"
                 +"#elif 0\n"
                 +"                   this should not be output\n"
                 +"    #if 0\n"
@@ -2510,8 +2570,8 @@ public class Cpp
                 +"                   this should not be output\n"
                 +"#endif\n"
                 +"\n"
-                +"output 37\n"
-                +"there should have been outputs 0 through 37\n"
+                +"output 41\n"
+                +"there should have been outputs 0 through 41\n"
                 +"\n"
                 +"\n"
                 +"    file __FILE__ line __LINE__\n"
@@ -2689,7 +2749,7 @@ public class Cpp
             //test1("assertTest.prejava");
 
             //test0("ifTest.prejava");
-            test1("ifTest0.prejava");
+            test1("ifTest.prejava");
         }
 
         if (true)
