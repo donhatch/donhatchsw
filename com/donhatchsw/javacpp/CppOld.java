@@ -839,6 +839,127 @@ public class Cpp
         java.util.Stack ifStackStack = new java.util.Stack(); // different stack for each ...
         java.util.Stack highestTrueIfStackLevelStack = new java.util.Stack();
 
+        /*
+            Logic for #if/#elif/#else/#endif
+
+            States:
+                TRUE_UNCHANGEABLE (initial state)
+                TRUE_CHANGEABLE
+                FALSE_CHANGEABLE
+                FALSE_UNCHANGEABLE
+            Transitions:
+                TRUE_UNCHANGEABLE
+                    #if 1:
+                        push state and the #if
+                        -> TRUE_CHANGEABLE
+                    #if 0:
+                        push state and the #if
+                        -> FALSE_CHANGEABLE
+                    #elif/#else/#endif:
+                        error (since TRUE_UNCHANGEABLE only happens when no stack)
+                TRUE_CHANGEABLE
+                    #if 1:
+                        push state and the #if
+                        -> TRUE_CHANGEABLE
+                    #if 0:
+                        push state and the #if
+                        -> FALSE_CHANGEABLE
+                    #elif 1:
+                        change top to the #elif
+                        -> FALSE_UNCHANGEABLE
+                    #elif 0:
+                        change top to the #elif
+                        -> FALSE_UNCHANGEABLE
+                    #else:
+                        change top to the #else
+                        -> FALSE_UNCHANGEABLE
+                    #endif:
+                        pop token and state
+                FALSE_CHANGEABLE
+                    #if 1:
+                        push state and the #if
+                        -> FALSE_UNCHANGEABLE
+                    #if 0:
+                        push state and the #if
+                        -> FALSE_UNCHANGEABLE
+                    #elif 1:
+                        change top to the #elif
+                        -> TRUE_CHANGEABLE
+                    #elif 0:
+                        change top to the #elif
+                        state stays FALSE_CHANGEABLE
+                    #else:
+                        change top to the #else
+                        -> TRUE_CHANGEABLE
+                    #endif:
+                        pop token and state
+                FALSE_UNCHANGEABLE
+                    #if 1:
+                        push state and the #if
+                        stay FALSE_UNCHANGEABLE
+                    #if 0:
+                        push state and the #if
+                        stay FALSE_UNCHANGEABLE
+                    #elif 1:
+                        change top to the #elif
+                        stay FALSE_UNCHANGEABLE
+                    #elif 0:
+                        change top to the #elif
+                        stay FALSE_UNCHANGEABLE
+                    #else:
+                        change top to the #else
+                        -> FALSE_CHANGEABLE
+                    #endif:
+                        pop token and state
+
+            also note, after an else has been seen, further elifs are illegal.
+
+            Is there a more understandable description of the states?
+                - outside all ifs
+                - outputting because in #if true, or #elif true with no prior true clause
+                - outputting because in #else with no prior true clause
+                - not outputting because in #if false, or #elif false with no prior true clause
+                - not outputting because in #if or #elif (t or f) with prior true clause or parent not outputting
+                - not outputting because in #else (t or f) with prior true clause or parent not outputting
+            these are all distinct (well except the first one maybe can be deduced from stack depth),
+            so clearly 3 bits are needed if we do it that way.
+            Bits:
+                - prior true clause on this level?
+                - currently in true clause on this level?
+                - in #else at this level?
+                - parent outputting?
+            fuckin complicated
+
+            another way to approach it is to make #elifs be implicitly #else #if...
+                #if a
+                #elif b
+                #elif c
+                #else
+                #endif
+            is really:
+                #if a
+                #else
+                    #if b
+                    #else
+                        #if c
+                        #else
+                        #endif
+                    #endif
+                #endif
+            so every time we get an #elif, treat it as an #else #if, but increase the #endif multiplier (starts at 1).
+
+            int endifMultiplier
+            java.util.Stack endifMultiplierStack
+            actually just keep a stack of levels!
+            syntactic stack: what it looks like
+            semantic stack: deeper, we pop off multiple levels at a time to match the syntactic stack
+                syntactic stack tells where semantic stack should pop to
+            just a stack of stack depths?
+            first pop a depth off that,
+            then pop the other stack to that depth.
+        */
+        
+
         
 
         int lineNumber = 0;
@@ -1525,6 +1646,7 @@ public class Cpp
             // just isolate what I'm debugging
             "ifTest0.prejava", ""
                 +"hello from ifTest0.prejava\n"
+                /*
                 +"#if 0\n"
                 +"    this should not be output\n"
                 +"#elif 1\n"
@@ -1533,6 +1655,15 @@ public class Cpp
                 +"#if 1\n"
                 +"    output 25\n"
                 +"#elif 0\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"\n"
+                */
+                +"#if 1\n"
+                +"    output 29\n"
+                +"#elif 0\n"
+                +"    this should not be output\n"
+                +"#else\n"
                 +"    this should not be output\n"
                 +"#endif\n"
                 +"goodbye from ifTest0.prejava\n"
@@ -2558,7 +2689,7 @@ public class Cpp
             //test1("assertTest.prejava");
 
             //test0("ifTest.prejava");
-            test1("ifTest.prejava");
+            test1("ifTest0.prejava");
         }
 
         if (true)
