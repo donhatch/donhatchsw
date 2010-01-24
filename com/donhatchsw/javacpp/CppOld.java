@@ -23,7 +23,8 @@
 *
 
 TODO:
-    - #if, #elif, defined() (I guess that means integer expressions, but can start with just 1, 0, and empty)
+    - integer expressions (currently does trivial ones)
+    - make it not endless loop on #define foo foo and that sort of thing?
     - -I
     - understand <> around file names as well as ""'s?  maybe not worth the trouble
     - ##  (concatenates tokens)
@@ -69,7 +70,9 @@ public class Cpp
 
     private static int evaluateIntExpression(String expr, String inFileName, int lineNumber, int columnNumber)
     {
-        //System.err.println("    in evaluateExpression(\""+escapify(expr)+"\")");
+        String originalExpr = expr;
+        //System.err.println("    in evaluateIntExpression(\""+escapify(originalExpr)+"\")");
+
         // for now, only handle really trivial things
 
         StringBuffer sb = new StringBuffer();
@@ -118,9 +121,10 @@ public class Cpp
                 value = 0;
             else if (expr.equals("1"))
                 value = 1;
-            else throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": expressions unimplemented except for 0 and 1");
+            else throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": can't understand expression \""+escapify(originalExpr)+"\"; I only understand trivial things like 0 and 1");
             if (negate)
                 value = (value==0 ? 1 : 0);
+            //System.err.println("    out evaluateIntExpression(\""+escapify(originalExpr)+"\"), returning "+value);
             return value;
         }
     } // evaluateIntExpression
@@ -703,7 +707,8 @@ public class Cpp
 
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
                                                         int lineNumber, // XXX TODO: is this needed any more?  I think it's stored in the token itself now, should check to make sure
-                                                        java.util.Hashtable macros)
+                                                        java.util.Hashtable macros,
+                                                        boolean evaluateDefineds)
         throws java.io.IOException
     {
         while (true)
@@ -711,6 +716,30 @@ public class Cpp
             Token token = in.readToken();
             if (token.type != Token.IDENTIFIER)
                 return token;
+
+            if (evaluateDefineds
+             && token.text.equals("defined"))
+            {
+                // must be followed by exactly the following:
+                // '(', identifier, ')'.
+                Token nextToken = in.readToken();
+                if (nextToken.type != Token.SYMBOL
+                 || !nextToken.text.equals("("))
+                    throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": defined not followed by (identifier)");
+                nextToken = in.readToken();
+                if (nextToken.type != Token.IDENTIFIER)
+                    throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": defined not followed by (identifier)");
+                String macroName = nextToken.text;
+                nextToken = in.readToken();
+                if (nextToken.type != Token.SYMBOL
+                 || !nextToken.text.equals(")"))
+                    throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": defined not followed by (identifier)");
+                if (macros.get(macroName) != null)
+                    return new Token(Token.INT_LITERAL, "1", token.fileName, token.lineNumber, token.columnNumber);
+                else
+                    return new Token(Token.INT_LITERAL, "0", token.fileName, token.lineNumber, token.columnNumber);
+            }
+
             Macro macro = (Macro)macros.get(token.text);
             if (macro == null)
                 return token;
@@ -980,7 +1009,7 @@ public class Cpp
             columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
 
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
-            Token token = readTokenWithMacroSubstitution(in, lineNumber, macros);
+            Token token = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
             if (token.type == Token.EOF)
             {
                 if (!ifStack.empty())
@@ -1041,18 +1070,18 @@ public class Cpp
                     if (verboseLevel >= 2)
                         System.err.println("        filter: found "+token.text);
 
-                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, true);
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, true);
 
                     Token expressionStartToken = nextToken;
 
-                    // gather rest of line (with macro substitution) into a string...
-                    // XXX TODO: need to treat defined() specially here... as a temporary macro?  but its args don't get expanded, so it's truly special
+                    // gather rest of line (with macro substitution and defined() evaluation)
+                    // into a string...
                     StringBuffer sb = new StringBuffer();
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
@@ -1063,7 +1092,7 @@ public class Cpp
                             sb.append(" ");
                         else
                             sb.append(nextToken.text);
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, true);
                     }
 
 
@@ -1165,13 +1194,13 @@ public class Cpp
                     }
 
 
-                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                     if (nextToken.type != Token.EOF
                      && nextToken.type != Token.NEWLINE_UNESCAPED)
@@ -1210,13 +1239,13 @@ public class Cpp
                     if (nextToken.type != Token.IDENTIFIER)
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": macro names must be identifiers");
                     String macroName = nextToken.text;
-                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
 
                     if (token.text.equals("#undef"))
@@ -1289,7 +1318,7 @@ public class Cpp
                     String macroName = nextToken.text;
 
                     // must be either whitespace or left paren after macro name... it makes a difference
-                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                     if (nextToken.type == Token.EOF)
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
 
@@ -1302,13 +1331,13 @@ public class Cpp
                         // There's a macro param list.
                         java.util.Vector paramNamesVector = new java.util.Vector();
 
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                         // move past spaces
                         while (nextToken.type == Token.SPACES
                             || nextToken.type == Token.NEWLINE_ESCAPED
                             || nextToken.type == Token.COMMENT)
-                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                         if (nextToken.type == Token.SYMBOL
                          && nextToken.text.equals(")"))
@@ -1325,7 +1354,7 @@ public class Cpp
                                 throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
 
                             paramNamesVector.add(nextToken.text);
-                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                             while (true)
                             {
@@ -1334,7 +1363,7 @@ public class Cpp
                                     || nextToken.type == Token.NEWLINE_ESCAPED
                                     || nextToken.type == Token.COMMENT)
 
-                                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                                 if (nextToken.type == Token.SYMBOL)
                                 {
@@ -1342,17 +1371,17 @@ public class Cpp
                                         break;
                                     else if (nextToken.text.equals(","))
                                     {
-                                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                                         // move past spaces
                                         while (nextToken.type == Token.SPACES
                                             || nextToken.type == Token.NEWLINE_ESCAPED)
-                                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                                         if (nextToken.type == Token.IDENTIFIER)
                                         {
                                             paramNamesVector.add(nextToken.text);
-                                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                                             continue;
                                         }
                                         // otherwise drop into error case
@@ -1363,7 +1392,7 @@ public class Cpp
                         }
                         AssertAlways(nextToken.type == Token.SYMBOL
                                   && nextToken.text.equals(")"));
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                         paramNames = (String[])paramNamesVector.toArray(new String[0]);
                     }
@@ -1425,7 +1454,7 @@ public class Cpp
                         }
 
                         contentsVector.add(nextToken);
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                     }
                     Token contents[] = new Token[contentsVector.size()];
                     for (int i = 0; i < contents.length; ++i)
@@ -1493,11 +1522,11 @@ public class Cpp
                     if (verboseLevel >= 2)
                         System.err.println("        filter: found #include");
 
-                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros);
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
                     Token fileNameToken = nextToken;
                     if (fileNameToken.type != Token.STRING_LITERAL)
@@ -2569,10 +2598,23 @@ public class Cpp
                 +"    #endif\n"
                 +"                   this should not be output\n"
                 +"#endif\n"
+                +"#define DEF0 defined\n"
+                +"#if DEF0(__LINE__)\n"
+                +"    output 41\n"
+                +"#endif\n"
+                +"#if !DEF0(__LINE__)\n"
+                +"    this should not be output\n"
+                +"#endif\n"
+                +"#define DEF1(x) defined(x)\n"
+                +"#if DEF1(__LINE__)\n"
+                +"    output 42\n"
+                +"#endif\n"
+                +"#if !DEF1(__LINE__)\n"
+                +"    this should not be output\n"
+                +"#endif\n"
                 +"\n"
-                +"output 41\n"
-                +"there should have been outputs 0 through 41\n"
-                +"\n"
+                +"output 43\n"
+                +"there should have been outputs 0 through 43\n"
                 +"\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"goodbye from ifTest.prejava\n"
