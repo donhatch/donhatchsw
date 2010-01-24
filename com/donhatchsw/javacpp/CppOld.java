@@ -23,6 +23,8 @@
 *
 
 TODO:
+    - filter would be cleaner as a recursive function
+      rather than using all those local stacks which aren't really saving anything I don't think
     - integer expressions (currently does trivial ones)
     - make it not endless loop on #define foo foo and that sort of thing?
     - -I
@@ -34,6 +36,7 @@ TODO:
     - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
+    - make sure line numbers in sync in all cases
 */
 
 package com.donhatchsw.javacpp;
@@ -2620,6 +2623,125 @@ public class Cpp
                 +"goodbye from ifTest.prejava\n"
         },
         {
+            "nonRecursionTest.prejava", ""
+                +"hello from nonRecursionTest.prejava\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"\n"
+                +"//\n"
+                +"// Non-recursive things to make sure they still work\n"
+                +"//\n"
+                +"#define SWAP(x,y) y,x\n"
+                +" SWAP(a,b)\n"
+                +"\"b,a\" expected\n"
+                +" SWAP(SWAP(a,b),SWAP(c,d))\n"
+                +"\"d,c,b,a\" expected\n"
+                +"#undef SWAP\n"
+                +"\n"
+                +"//\n"
+                +"// Simple recursion that endless loops if implemented naively\n"
+                +"//\n"
+                +"#define FOO FOO\n"
+                +" FOO\n"
+                +"\"FOO\" expected\n"
+                +"#undef FOO\n"
+                +"\n"
+                +"#define FOO BAR\n"
+                +"#define BAR BAR\n"
+                +" FOO\n"
+                +"\"BAR\" expected\n"
+                +"#undef FOO\n"
+                +"#undef BAR\n"
+                +"\n"
+                +"#define FOO BAR\n"
+                +"#define BAR FOO\n"
+                +" FOO\n"
+                +"\"FOO\" expected\n"
+                +"#undef FOO\n"
+                +"#undef BAR\n"
+                +"\n"
+                +"#define FOO BAR\n"
+                +"#define BAR BAZ\n"
+                +"#define BAZ FOO\n"
+                +" FOO\n"
+                +"\"FOO\" expected\n"
+                +"#undef FOO\n"
+                +"#undef BAR\n"
+                +"#undef BAZ\n"
+                +"\n"
+                +"#define FOO BAR\n"
+                +"#define BAR BAZ\n"
+                +"#define BAZ BAR\n"
+                +" FOO\n"
+                +"\"BAR\" expected\n"
+                +"#undef FOO\n"
+                +"#undef BAR\n"
+                +"#undef BAZ\n"
+                +"\n"
+                +"#define SWAP(x,y) SWAP(y,x)\n"
+                +" SWAP(a,b)\n"
+                +"\"SWAP(b,a)\" expected\n"
+                +"#undef SWAP\n"
+                +"//\n"
+                +"// Recursive things that expand and crash if implemented naively\n"
+                +"//\n"
+                +"#define FOO FOO FOO\n"
+                +" FOO\n"
+                +"\"FOO FOO\" expected\n"
+                +"#undef FOO\n"
+                +"\n"
+                +"#define FOO FOO BAR\n"
+                +" FOO\n"
+                +"\"FOO BAR\" expected\n"
+                +"#undef FOO\n"
+                +"\n"
+                +"#define FOO BAR FOO\n"
+                +" FOO\n"
+                +"\"BAR FOO\" expected\n"
+                +"#undef FOO\n"
+                +"\n"
+                +"#define FOO BAR FOO BAR\n"
+                +" FOO\n"
+                +"\"BAR FOO BAR\" expected\n"
+                +"#undef FOO\n"
+                +"\n"
+                +"#define FOO BAR\n"
+                +"#define BAR(x) BAR((x))\n"
+                +" FOO(a)\n"
+                +"\"BAR((a))\" expected\n"
+                +"#undef FOO\n"
+                +"#undef BAR\n"
+                +"\n"
+                +"#define SWAP0(x,y) SWAP1((y),(x))\n"
+                +"#define SWAP1(x,y) SWAP0((y),(x))\n"
+                +" SWAP0(a,b)\n"
+                +"\"SWAP0(((a)),((b)))\" expected\n"
+                +"#undef SWAP0\n"
+                +"#undef SWAP1\n"
+                +"\n"
+                +"#define SWAP0(x,y) SWAP1((x),(y))\n"
+                +"#define SWAP1(x,y) SWAP0((y),(x))\n"
+                +" SWAP0(a,b)\n"
+                +"\"SWAP0(((b)),((a)))\" expected\n"
+                +"#undef SWAP0\n"
+                +"#undef SWAP1\n"
+                +"//\n"
+                +"#define SWAP(x,y) SWAP(SWAP(y,x),SWAP((y)(x))\n"
+                +" SWAP(a,b)\n"
+                +"\"SWAP(SWAP(a,b),SWAP((a),(b))\" expected\n"
+                +"#undef SWAP\n"
+                +"//\n"
+                +"#define S(x,y) S1(S1(y,x),(S1((y),(x))))\n"
+                +"#define S1(x,y) S1(S1([y],[x]),[S1([[y]],[[x]]])\n"
+                +" S(a,b)\n"
+                +" S1(S1(b,a),(S1((b),(a))))\n"
+                +"\"S1((b),(a)),S1([[(b)]],[[(a)]])),S1(S1([a],[b]),S1([[a]],[[b]])\" expected\n"
+                +"#undef SWAP0\n"
+                +"#undef SWAP1\n"
+                +"//\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"goodbye from nonRecursionTest.prejava\n"
+        },
+        {
             "error0.prejava", ""
                 +"hello from error0.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
@@ -2751,7 +2873,7 @@ public class Cpp
 
     public static void main(String args[])
     {
-        if (false)
+        if (true)
         {
             // dump the test strings into files in tmp dir
             String tmpDirName = "tmp";
