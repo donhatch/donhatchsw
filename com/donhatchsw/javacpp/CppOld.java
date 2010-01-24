@@ -923,7 +923,7 @@ public class Cpp
 
                     Token expressionStartToken = nextToken;
 
-                    // gather rest of line into a string...
+                    // gather rest of line (with macro substitution) into a string...
                     StringBuffer sb = new StringBuffer();
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
@@ -938,14 +938,16 @@ public class Cpp
                     }
 
 
-                    boolean needToEvaluate = (highestTrueIfStackLevel >= ifStack.size());
+                    boolean needToEvaluate;
                     if (token.text.equals("#elif"))
                     {
+                        needToEvaluate = (highestTrueIfStackLevel == ifStack.size()-1);
                         if (ifStack.empty())
                             throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+token.text+" without #if");
                     }
                     else // #if
                     {
+                        needToEvaluate = (highestTrueIfStackLevel >= ifStack.size());
                         ifStack.push(token);
                     }
 
@@ -968,6 +970,22 @@ public class Cpp
                         {
                             if (verboseLevel >= 2)
                                 System.err.println("    condition evaluated to false");
+                            highestTrueIfStackLevel = ifStack.size()-1;
+                        }
+                    }
+                    else
+                    {
+                        if (verboseLevel >= 2)
+                            System.err.println("    didn't need to evaluate condition");
+                        // there's a case when we didn't need to evaluate,
+                        // but we still need to change something.
+                        // that's when it's an #elif when we weren't suppressing,
+                        // we need to start suppressing.
+                        if (token.text.equals("#elif")
+                         && highestTrueIfStackLevel >= ifStack.size())
+                        {
+                            if (verboseLevel >= 2)
+                                System.err.println("        and changing prevailing output from true to false anyway");
                             highestTrueIfStackLevel = ifStack.size()-1;
                         }
                     }
@@ -1510,7 +1528,12 @@ public class Cpp
                 +"#if 0\n"
                 +"    this should not be output\n"
                 +"#elif 1\n"
-                +"    good output\n"
+                +"    output 24\n"
+                +"#endif\n"
+                +"#if 1\n"
+                +"    output 25\n"
+                +"#elif 0\n"
+                +"    this should not be output\n"
                 +"#endif\n"
                 +"goodbye from ifTest0.prejava\n"
         },
@@ -2535,7 +2558,7 @@ public class Cpp
             //test1("assertTest.prejava");
 
             //test0("ifTest.prejava");
-            test1("ifTest0.prejava");
+            test1("ifTest.prejava");
         }
 
         if (true)
