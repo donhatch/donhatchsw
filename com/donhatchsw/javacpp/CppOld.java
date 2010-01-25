@@ -23,8 +23,6 @@
 *
 
 TODO:
-    - filter would be cleaner as a recursive function
-      rather than using all those local stacks which aren't really saving anything I don't think
     - integer expressions (currently does trivial ones)
     - make it not endless loop on #define foo foo and that sort of thing?
     - -I
@@ -856,12 +854,11 @@ public class Cpp
     public static void filter(TokenReaderWithLookahead in,
                               FileOpener fileOpener,
                               java.io.PrintWriter out,
-                              java.util.Hashtable macros) // gets updated as we go
+                              java.util.Hashtable macros, // gets updated as we go
+                              int recursionLevel)
 
         throws java.io.IOException
     {
-        boolean useRecursion = true;
-
         int verboseLevel = 0; // 0: nothing, 1: print enter and exit function, 2: print more
 
         if (verboseLevel >= 1)
@@ -871,21 +868,12 @@ public class Cpp
         int highestTrueIfStackLevel = 0;
         java.util.Stack endifMultiplierStack = new java.util.Stack();
 
-        java.util.Stack tokenReaderStack = null;
-        java.util.Stack ifStackStack = null;
-        java.util.Stack highestTrueIfStackLevelStack = null;
-        java.util.Stack endifMultiplierStackStack = null;
-        if (!useRecursion)
-        {
-            tokenReaderStack = new java.util.Stack();
-            ifStackStack = new java.util.Stack(); // different stack for each level of #include
-            highestTrueIfStackLevelStack = new java.util.Stack(); // different stacks for each level of #include
-            endifMultiplierStackStack = new java.util.Stack(); // different stacks for each level of #include
-        }
-
         int lineNumber = 0;
         int columnNumber = 0;
-        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
+        if (recursionLevel >= 1)
+            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
+        else
+            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
 
         while (true)
         {
@@ -900,38 +888,8 @@ public class Cpp
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
             Token token = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
             if (token.type == Token.EOF)
-            {
-                if (!ifStack.empty())
-                {
-                    Token unterminatedIfToken = (Token)ifStack.peek();
-                    throw new Error(unterminatedIfToken.fileName+":"+(unterminatedIfToken.lineNumber+1)+":"+(unterminatedIfToken.columnNumber+1)+": unterminated "+unterminatedIfToken.text);
-                }
-                AssertAlways(endifMultiplierStack.empty()); // always in sync with ifStack
+                break;
 
-                if (useRecursion)
-                    break;
-                else
-                {
-                    System.err.println("        filter:     not returning from recursion, popping stacks ");
-                    if (!tokenReaderStack.isEmpty())
-                    {
-                        // discard the EOF token, and pop the reader stack
-
-                        in = (TokenReaderWithLookahead)tokenReaderStack.pop();
-                        ifStack = (java.util.Stack)ifStackStack.pop();
-                        highestTrueIfStackLevel = ((Integer)highestTrueIfStackLevelStack.pop()).intValue();
-                        endifMultiplierStack = (java.util.Stack)endifMultiplierStackStack.pop();
-
-                        lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
-                        columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
-                        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 2"); // cpp puts a 2 there, don't know why but imitating it
-
-                        continue; // still need to read a token
-                    }
-                    else // EOF at top level
-                        break;
-                }
-            }
 
             if (false)
             {
@@ -1448,32 +1406,12 @@ public class Cpp
                     }
 
 
-                    if (useRecursion)
-                    {
-                        filter(newIn,
-                               fileOpener,
-                               out,
-                               macros);
-                    }
-                    else
-                    {
-                        if (verboseLevel >= 2)
-                            System.err.println("        filter:     not recursing, pushing stacks");
-                        tokenReaderStack.push(in);
-                        ifStackStack.push(ifStack);
-                        highestTrueIfStackLevelStack.push(new Integer(highestTrueIfStackLevel));
-                        endifMultiplierStackStack.push(endifMultiplierStack);
-
-                        ifStack = new java.util.Stack();
-                        highestTrueIfStackLevel = 0;
-                        endifMultiplierStack = new java.util.Stack();
-
-                        in = newIn;
-
-                        lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
-                        columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
-                        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
-                    }
+                    filter(newIn,
+                           fileOpener,
+                           out,
+                           macros,
+                           recursionLevel+1);
+                    out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"); // cpp puts a 1 there, don't know why but imitating it
                 }
                 else
                 {
@@ -1494,20 +1432,17 @@ public class Cpp
                         out.print(token.text);
                 }
             }
-        }
+        } // while next token != EOF
 
-        AssertAlways(ifStack.empty());
-        AssertAlways(endifMultiplierStack.empty());
-
-        if (!useRecursion)
+        if (!ifStack.empty())
         {
-            AssertAlways(tokenReaderStack.empty());
-            AssertAlways(ifStackStack.empty());
-            AssertAlways(highestTrueIfStackLevelStack.empty());
-            AssertAlways(endifMultiplierStackStack.empty());
+            Token unterminatedIfToken = (Token)ifStack.peek();
+            throw new Error(unterminatedIfToken.fileName+":"+(unterminatedIfToken.lineNumber+1)+":"+(unterminatedIfToken.columnNumber+1)+": unterminated "+unterminatedIfToken.text);
         }
+        AssertAlways(endifMultiplierStack.empty()); // always in sync with ifStack
 
-        out.flush();
+        if (recursionLevel == 0)
+            out.flush(); // do we want this?
         if (verboseLevel >= 1)
             System.err.println("    out filter");
     } // filter
@@ -2757,7 +2692,8 @@ public class Cpp
             filter(new TokenReaderWithLookahead(builtinFakeInputReader,"<built-in>"),
                    new FileOpener(),
                    writer,
-                   macros);
+                   macros,
+                   0); // recursionLevel
         }
         catch (java.io.IOException e)
         {
@@ -2769,7 +2705,8 @@ public class Cpp
             filter(new TokenReaderWithLookahead(in, inFileName),
                    testFileOpener,
                    writer,
-                   macros);
+                   macros,
+                   0); // recursionLevel
         }
         catch (java.io.IOException e)
         {
@@ -2916,7 +2853,8 @@ public class Cpp
                 filter(new TokenReaderWithLookahead(builtinFakeInputReader, "<built-in>"),
                        new FileOpener(),
                        writer,
-                       macros);
+                       macros,
+                       0); // recursionLevel
             }
             catch (java.io.IOException e)
             {
@@ -2929,7 +2867,8 @@ public class Cpp
                 filter(new TokenReaderWithLookahead(commandLineFakeInputReader, "<command line>"),
                        new FileOpener(),
                        writer,
-                       macros);
+                       macros,
+                       0); // recursionLevel
             }
             catch (java.io.IOException e)
             {
@@ -2959,7 +2898,8 @@ public class Cpp
                 filter(new TokenReaderWithLookahead(reader, "<stdin>"),
                        new FileOpener(),
                        writer,
-                       macros);
+                       macros,
+                       0); // recursionLevel
             }
             catch (java.io.IOException e)
             {
