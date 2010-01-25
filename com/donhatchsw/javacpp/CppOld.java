@@ -28,9 +28,6 @@ TODO:
     - -I
     - understand <> around file names as well as ""'s?  maybe not worth the trouble
     - ##  (concatenates tokens)
-    - omit blank lines at end of files like cpp does
-    - turn more than 7 consecutive blank lines into just a line number directive like cpp does
-    - after return from include, don't emit that blank line (and adjust line number accordingly), like cpp does
     - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
@@ -875,6 +872,10 @@ public class Cpp
         else
             out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
 
+        int nOutputNewlinesSavedUp = 0;
+        boolean thereWasOutput = false;
+
+        Token token = null;
         while (true)
         {
             // The following assumes that every token
@@ -886,7 +887,7 @@ public class Cpp
             columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
 
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
-            Token token = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+            token = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
             if (token.type == Token.EOF)
                 break;
 
@@ -1017,7 +1018,7 @@ public class Cpp
                         continue;
                     }
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
-                    out.print(nextToken.text);
+                    nOutputNewlinesSavedUp++;
                 }
                 // ones that take no args...
                 else if (token.text.equals("#else")
@@ -1065,7 +1066,7 @@ public class Cpp
                         continue;
                     }
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
-                    out.print(nextToken.text);
+                    nOutputNewlinesSavedUp++;
                 }
                 // ones that take one macro name arg and that's all
                 else if (token.text.equals("#ifdef")
@@ -1143,7 +1144,7 @@ public class Cpp
                         continue;
                     }
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
-                    out.print(nextToken.text);
+                    nOutputNewlinesSavedUp++;
                 }
                 else if (token.text.equals("#define"))
                 {
@@ -1300,7 +1301,6 @@ public class Cpp
                                 // if not found, it's an error
                                 if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
                                 {
-                                    System.out.println(nextToken);
                                     throw new Error(in.inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '#' is not followed by a macro parameter");
                                 }
                             }
@@ -1368,7 +1368,7 @@ public class Cpp
                         continue;
                     }
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
-                    out.print(nextToken.text);
+                    nOutputNewlinesSavedUp++;
                 }
                 else if (token.text.equals("#include"))
                 {
@@ -1405,12 +1405,37 @@ public class Cpp
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
                     }
 
+                    // Have to get output newlines in sync,
+                    // I guess so anyone reading the output
+                    // will know which line the included file was included from.
+                    if (thereWasOutput && nOutputNewlinesSavedUp >= 1)
+                    {
+                        out.println();
+                        --nOutputNewlinesSavedUp;
+                        thereWasOutput = false;
+                    }
+                    if (nOutputNewlinesSavedUp <= 7)
+                    {
+                        while (nOutputNewlinesSavedUp > 0)
+                        {
+                            out.println();
+                            --nOutputNewlinesSavedUp;
+                        }
+                    }
+                    else
+                    {
+                        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
+                        nOutputNewlinesSavedUp = 0;
+                    }
+
                     filter(newIn,
                            fileOpener,
                            out,
                            macros,
                            recursionLevel+1);
                     out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"); // cpp puts a 1 there, don't know why but imitating it
+                    nOutputNewlinesSavedUp = 0;
+                    thereWasOutput = false;
                 }
                 else
                 {
@@ -1422,16 +1447,48 @@ public class Cpp
                 if (token.type == Token.NEWLINE_UNESCAPED)
                 {
                     // print newlines whether or not inside a false #if
-                    out.println();
+                    nOutputNewlinesSavedUp++;
                 }
                 else
                 {
                     // other tokens get suppressed if inside a false #if
                     if (highestTrueIfStackLevel >= ifStack.size())
+                    {
+                        if (thereWasOutput && nOutputNewlinesSavedUp >= 1)
+                        {
+                            out.println();
+                            --nOutputNewlinesSavedUp;
+                            thereWasOutput = false;
+                        }
+                        if (nOutputNewlinesSavedUp <= 7)
+                        {
+                            while (nOutputNewlinesSavedUp > 0)
+                            {
+                                out.println();
+                                --nOutputNewlinesSavedUp;
+                            }
+                        }
+                        else
+                        {
+                            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
+                            nOutputNewlinesSavedUp = 0;
+                        }
+
                         out.print(token.text);
+                        thereWasOutput = true;
+                    }
                 }
             }
         } // while next token != EOF
+
+        // Discard pending newlines,
+        // except if there was any output, print a newline.
+        if (thereWasOutput)
+        {
+            if (nOutputNewlinesSavedUp == 0)
+                System.err.println(token.fileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: no newline at end of file");
+            out.println();
+        }
 
         if (!ifStack.empty())
         {
