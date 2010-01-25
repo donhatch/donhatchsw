@@ -860,142 +860,28 @@ public class Cpp
 
         throws java.io.IOException
     {
+        boolean useRecursion = true;
+
         int verboseLevel = 0; // 0: nothing, 1: print enter and exit function, 2: print more
 
         if (verboseLevel >= 1)
             System.err.println("    in filter");
 
-        java.util.Stack tokenReaderStack = new java.util.Stack();
         java.util.Stack ifStack = new java.util.Stack(); // of #ifwhatever tokens, for the file,line,column information
         int highestTrueIfStackLevel = 0;
         java.util.Stack endifMultiplierStack = new java.util.Stack();
 
-        java.util.Stack ifStackStack = new java.util.Stack(); // different stack for each level of #include
-        java.util.Stack highestTrueIfStackLevelStack = new java.util.Stack(); // different stacks for each level of #include
-        java.util.Stack endifMultiplierStackStack = new java.util.Stack(); // different stacks for each level of #include
-
-        /*
-            Logic for #if/#elif/#else/#endif
-
-            States:
-                TRUE_UNCHANGEABLE (initial state)
-                TRUE_CHANGEABLE
-                FALSE_CHANGEABLE
-                FALSE_UNCHANGEABLE
-            Transitions:
-                TRUE_UNCHANGEABLE
-                    #if 1:
-                        push state and the #if
-                        -> TRUE_CHANGEABLE
-                    #if 0:
-                        push state and the #if
-                        -> FALSE_CHANGEABLE
-                    #elif/#else/#endif:
-                        error (since TRUE_UNCHANGEABLE only happens when no stack)
-                TRUE_CHANGEABLE
-                    #if 1:
-                        push state and the #if
-                        -> TRUE_CHANGEABLE
-                    #if 0:
-                        push state and the #if
-                        -> FALSE_CHANGEABLE
-                    #elif 1:
-                        change top to the #elif
-                        -> FALSE_UNCHANGEABLE
-                    #elif 0:
-                        change top to the #elif
-                        -> FALSE_UNCHANGEABLE
-                    #else:
-                        change top to the #else
-                        -> FALSE_UNCHANGEABLE
-                    #endif:
-                        pop token and state
-                FALSE_CHANGEABLE
-                    #if 1:
-                        push state and the #if
-                        -> FALSE_UNCHANGEABLE
-                    #if 0:
-                        push state and the #if
-                        -> FALSE_UNCHANGEABLE
-                    #elif 1:
-                        change top to the #elif
-                        -> TRUE_CHANGEABLE
-                    #elif 0:
-                        change top to the #elif
-                        state stays FALSE_CHANGEABLE
-                    #else:
-                        change top to the #else
-                        -> TRUE_CHANGEABLE
-                    #endif:
-                        pop token and state
-                FALSE_UNCHANGEABLE
-                    #if 1:
-                        push state and the #if
-                        stay FALSE_UNCHANGEABLE
-                    #if 0:
-                        push state and the #if
-                        stay FALSE_UNCHANGEABLE
-                    #elif 1:
-                        change top to the #elif
-                        stay FALSE_UNCHANGEABLE
-                    #elif 0:
-                        change top to the #elif
-                        stay FALSE_UNCHANGEABLE
-                    #else:
-                        change top to the #else
-                        -> FALSE_CHANGEABLE
-                    #endif:
-                        pop token and state
-
-            also note, after an else has been seen, further elifs are illegal.
-
-            Is there a more understandable description of the states?
-                - outside all ifs
-                - outputting because in #if true, or #elif true with no prior true clause
-                - outputting because in #else with no prior true clause
-                - not outputting because in #if false, or #elif false with no prior true clause
-                - not outputting because in #if or #elif (t or f) with prior true clause or parent not outputting
-                - not outputting because in #else (t or f) with prior true clause or parent not outputting
-            these are all distinct (well except the first one maybe can be deduced from stack depth),
-            so clearly 3 bits are needed if we do it that way.
-            Bits:
-                - prior true clause on this level?
-                - currently in true clause on this level?
-                - in #else at this level?
-                - parent outputting?
-            fuckin complicated
-
-            another way to approach it is to make #elifs be implicitly #else #if...
-                #if a
-                #elif b
-                #elif c
-                #else
-                #endif
-            is really:
-                #if a
-                #else
-                    #if b
-                    #else
-                        #if c
-                        #else
-                        #endif
-                    #endif
-                #endif
-            so every time we get an #elif, treat it as an #else #if, but increase the #endif multiplier (starts at 1).
-
-            int endifMultiplier
-            java.util.Stack endifMultiplierStack
-            actually just keep a stack of levels!
-            syntactic stack: what it looks like
-            semantic stack: deeper, we pop off multiple levels at a time to match the syntactic stack
-                syntactic stack tells where semantic stack should pop to
-            just a stack of stack depths?
-            first pop a depth off that,
-            then pop the other stack to that depth.
-        */
-        
-
-        
+        java.util.Stack tokenReaderStack = null;
+        java.util.Stack ifStackStack = null;
+        java.util.Stack highestTrueIfStackLevelStack = null;
+        java.util.Stack endifMultiplierStackStack = null;
+        if (!useRecursion)
+        {
+            tokenReaderStack = new java.util.Stack();
+            ifStackStack = new java.util.Stack(); // different stack for each level of #include
+            highestTrueIfStackLevelStack = new java.util.Stack(); // different stacks for each level of #include
+            endifMultiplierStackStack = new java.util.Stack(); // different stacks for each level of #include
+        }
 
         int lineNumber = 0;
         int columnNumber = 0;
@@ -1022,23 +908,29 @@ public class Cpp
                 }
                 AssertAlways(endifMultiplierStack.empty()); // always in sync with ifStack
 
-                if (!tokenReaderStack.isEmpty())
-                {
-                    // discard the EOF token, and pop the reader stack
-
-                    in = (TokenReaderWithLookahead)tokenReaderStack.pop();
-                    ifStack = (java.util.Stack)ifStackStack.pop();
-                    highestTrueIfStackLevel = ((Integer)highestTrueIfStackLevelStack.pop()).intValue();
-                    endifMultiplierStack = (java.util.Stack)endifMultiplierStackStack.pop();
-
-                    lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
-                    columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
-                    out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 2"); // cpp puts a 2 there, don't know why but imitating it
-
-                    continue; // still need to read a token
-                }
-                else // EOF at top level
+                if (useRecursion)
                     break;
+                else
+                {
+                    System.err.println("        filter:     not returning from recursion, popping stacks ");
+                    if (!tokenReaderStack.isEmpty())
+                    {
+                        // discard the EOF token, and pop the reader stack
+
+                        in = (TokenReaderWithLookahead)tokenReaderStack.pop();
+                        ifStack = (java.util.Stack)ifStackStack.pop();
+                        highestTrueIfStackLevel = ((Integer)highestTrueIfStackLevelStack.pop()).intValue();
+                        endifMultiplierStack = (java.util.Stack)endifMultiplierStackStack.pop();
+
+                        lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
+                        columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
+                        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 2"); // cpp puts a 2 there, don't know why but imitating it
+
+                        continue; // still need to read a token
+                    }
+                    else // EOF at top level
+                        break;
+                }
             }
 
             if (false)
@@ -1554,20 +1446,34 @@ public class Cpp
                         // TODO: test this
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
                     }
-                    tokenReaderStack.push(in);
-                    ifStackStack.push(ifStack);
-                    highestTrueIfStackLevelStack.push(new Integer(highestTrueIfStackLevel));
-                    endifMultiplierStackStack.push(endifMultiplierStack);
 
-                    ifStack = new java.util.Stack();
-                    highestTrueIfStackLevel = 0;
-                    endifMultiplierStack = new java.util.Stack();
 
-                    in = newIn;
+                    if (useRecursion)
+                    {
+                        filter(newIn,
+                               fileOpener,
+                               out,
+                               macros);
+                    }
+                    else
+                    {
+                        if (verboseLevel >= 2)
+                            System.err.println("        filter:     not recursing, pushing stacks");
+                        tokenReaderStack.push(in);
+                        ifStackStack.push(ifStack);
+                        highestTrueIfStackLevelStack.push(new Integer(highestTrueIfStackLevel));
+                        endifMultiplierStackStack.push(endifMultiplierStack);
 
-                    lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
-                    columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
-                    out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
+                        ifStack = new java.util.Stack();
+                        highestTrueIfStackLevel = 0;
+                        endifMultiplierStack = new java.util.Stack();
+
+                        in = newIn;
+
+                        lineNumber = in.peekToken(0).lineNumber; // don't worry about macro expansion
+                        columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
+                        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
+                    }
                 }
                 else
                 {
@@ -1593,10 +1499,13 @@ public class Cpp
         AssertAlways(ifStack.empty());
         AssertAlways(endifMultiplierStack.empty());
 
-        AssertAlways(tokenReaderStack.empty());
-        AssertAlways(ifStackStack.empty());
-        AssertAlways(highestTrueIfStackLevelStack.empty());
-        AssertAlways(endifMultiplierStackStack.empty());
+        if (!useRecursion)
+        {
+            AssertAlways(tokenReaderStack.empty());
+            AssertAlways(ifStackStack.empty());
+            AssertAlways(highestTrueIfStackLevelStack.empty());
+            AssertAlways(endifMultiplierStackStack.empty());
+        }
 
         out.flush();
         if (verboseLevel >= 1)
