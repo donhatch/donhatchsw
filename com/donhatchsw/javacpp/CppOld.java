@@ -871,7 +871,7 @@ public class Cpp
         int lineNumber = 0;
         int columnNumber = 0;
         if (recursionLevel >= 1)
-            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there, don't know why but imitating it
+            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there when entering recursive levels, don't know why but imitating it
         else
             out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
 
@@ -1405,7 +1405,6 @@ public class Cpp
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
                     }
 
-
                     filter(newIn,
                            fileOpener,
                            out,
@@ -1441,8 +1440,6 @@ public class Cpp
         }
         AssertAlways(endifMultiplierStack.empty()); // always in sync with ifStack
 
-        if (recursionLevel == 0)
-            out.flush(); // do we want this?
         if (verboseLevel >= 1)
             System.err.println("    out filter");
     } // filter
@@ -2843,6 +2840,29 @@ public class Cpp
 
             java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
 
+            java.io.Reader reader = null;
+            if (inFileName != null)
+            {
+                try
+                {
+                    reader = new java.io.BufferedReader(
+                             new java.io.FileReader(inFileName));
+                }
+                catch (java.io.FileNotFoundException e)
+                {
+                    System.err.println("javacpp: "+inFileName+": No such file or directory");
+                    System.exit(1);
+                }
+            }
+            else
+            {
+                reader = new java.io.InputStreamReader(System.in);
+                inFileName = "<stdin>";
+            }
+
+            // For some reason the real cpp does this at the beginning
+            // before the built-ins and command line... so we do it too
+            writer.println("# 1 \""+inFileName+"\"");
 
             try
             {
@@ -2861,6 +2881,7 @@ public class Cpp
                 System.err.println("Well damn: "+e);
                 System.exit(1);
             }
+
             try
             {
                 java.io.Reader commandLineFakeInputReader = new java.io.StringReader(commandLineFakeInput.toString());
@@ -2876,26 +2897,9 @@ public class Cpp
                 System.exit(1);
             }
 
-
-            java.io.Reader reader = null;
-            if (inFileName != null)
-            {
-                try
-                {
-                    reader = new java.io.BufferedReader(
-                             new java.io.FileReader(inFileName));
-                }
-                catch (java.io.FileNotFoundException e)
-                {
-                    System.err.println("javacpp: "+inFileName+": No such file or directory");
-                    System.exit(1);
-                }
-            }
-            else
-                reader = new java.io.InputStreamReader(System.in);
             try
             {
-                filter(new TokenReaderWithLookahead(reader, "<stdin>"),
+                filter(new TokenReaderWithLookahead(reader, inFileName),
                        new FileOpener(),
                        writer,
                        macros,
@@ -2906,6 +2910,8 @@ public class Cpp
                 System.err.println("Well damn: "+e);
                 System.exit(1);
             }
+
+            writer.flush();
         }
 
         System.exit(0);
