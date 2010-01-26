@@ -23,15 +23,15 @@
 *
 
 TODO:
+    - hmm, if test output is a bit different... OH it discards spaces at the end of each line!  argh!!
+    - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
+    - make sure line numbers in sync in all cases
     - integer expressions (currently does trivial ones)
-    - make it not endless loop on #define foo foo and that sort of thing?
     - -I
     - understand <> around file names as well as ""'s?  maybe not worth the trouble
     - ##  (concatenates tokens)
     - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
-    - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
-    - make sure line numbers in sync in all cases
 */
 
 package com.donhatchsw.javacpp;
@@ -252,6 +252,7 @@ public class Cpp
         public String fileName;
         public int lineNumber; // 0 based
         public int columnNumber; // 0 based
+        public Token parentInMacroInvocation = null; // used when expanding macros to stop recursion
 
         public Token(int type, String text, String fileName, int lineNumber, int columnNumber)
         {
@@ -741,6 +742,23 @@ public class Cpp
             Macro macro = (Macro)macros.get(token.text);
             if (macro == null)
                 return token;
+
+            if (true)
+            {
+                //System.err.println("Checking for recursion to decide whether to expand macro "+token.text+"");
+                for (Token ancestorToken = token.parentInMacroInvocation;
+                     ancestorToken != null;
+                     ancestorToken = ancestorToken.parentInMacroInvocation)
+                {
+                    //System.err.println("    -> "+ancestorToken.text);
+                    if (ancestorToken.text.equals(token.text))
+                    {
+                        //System.err.println("HEY! suppressing macro recursion on token "+token.text+"");
+                        return token;
+                    }
+                }
+            }
+
             if (macro.numParams == -1) // if it's an invocation of a simple macro without an arg list
             {
                 // special cases...
@@ -750,14 +768,17 @@ public class Cpp
                     in.pushBackToken(new Token(Token.STRING_LITERAL, "\""+escapify(in.inFileName)+"\"", in.inFileName, lineNumber, -1));
                 else
                 {
-                    /* can't just push back the tokens, we need to change the line numbers too */
+                    /* can't just push back the tokens, we need to change the line numbers too... and also set parent for recursion avoidance check */
                     if (false)
                         in.pushBackTokens(macro.contents);
                     else
                     {
                         Token macroContentsCopy[] = new Token[macro.contents.length];
                         for (int i = 0; i < macro.contents.length; ++i)
+                        {
                             macroContentsCopy[i] = new Token(macro.contents[i], in.inFileName, lineNumber);
+                            macroContentsCopy[i].parentInMacroInvocation = token;
+                        }
                         in.pushBackTokens(macroContentsCopy);
                     }
                 }
@@ -842,7 +863,11 @@ public class Cpp
                         resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", null, -1, -1)); // XXX TODO: do a line and column number make sense here?
                     }
                     else
-                        resultsVector.add(new Token(contentToken, in.inFileName, lineNumber));
+                    {
+                        Token newToken = new Token(contentToken, in.inFileName, lineNumber);
+                        newToken.parentInMacroInvocation = token;
+                        resultsVector.add(newToken);
+                    }
                 }
                 in.pushBackTokens(resultsVector);
             }
@@ -1153,7 +1178,7 @@ public class Cpp
 
                     // we'll be doing a lot of lookahead of one token,
                     // so use a local variable nextToken
-                    Token nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
+                    Token nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
@@ -1172,7 +1197,7 @@ public class Cpp
                     String macroName = nextToken.text;
 
                     // must be either whitespace or left paren after macro name... it makes a difference
-                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                    nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
                     if (nextToken.type == Token.EOF)
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
 
@@ -1185,13 +1210,13 @@ public class Cpp
                         // There's a macro param list.
                         java.util.Vector paramNamesVector = new java.util.Vector();
 
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                        nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                         // move past spaces
                         while (nextToken.type == Token.SPACES
                             || nextToken.type == Token.NEWLINE_ESCAPED
                             || nextToken.type == Token.COMMENT)
-                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                            nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                         if (nextToken.type == Token.SYMBOL
                          && nextToken.text.equals(")"))
@@ -1208,7 +1233,7 @@ public class Cpp
                                 throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
 
                             paramNamesVector.add(nextToken.text);
-                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                            nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                             while (true)
                             {
@@ -1217,7 +1242,7 @@ public class Cpp
                                     || nextToken.type == Token.NEWLINE_ESCAPED
                                     || nextToken.type == Token.COMMENT)
 
-                                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                                    nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                                 if (nextToken.type == Token.SYMBOL)
                                 {
@@ -1225,17 +1250,17 @@ public class Cpp
                                         break;
                                     else if (nextToken.text.equals(","))
                                     {
-                                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                                        nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                                         // move past spaces
                                         while (nextToken.type == Token.SPACES
                                             || nextToken.type == Token.NEWLINE_ESCAPED)
-                                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                                            nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                                         if (nextToken.type == Token.IDENTIFIER)
                                         {
                                             paramNamesVector.add(nextToken.text);
-                                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                                            nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
                                             continue;
                                         }
                                         // otherwise drop into error case
@@ -1246,7 +1271,7 @@ public class Cpp
                         }
                         AssertAlways(nextToken.type == Token.SYMBOL
                                   && nextToken.text.equals(")"));
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                        nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                         paramNames = (String[])paramNamesVector.toArray(new String[0]);
                     }
@@ -1307,7 +1332,7 @@ public class Cpp
                         }
 
                         contentsVector.add(nextToken);
-                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                        nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
                     }
                     Token contents[] = new Token[contentsVector.size()];
                     for (int i = 0; i < contents.length; ++i)
@@ -2526,6 +2551,16 @@ public class Cpp
                 +"    file __FILE__ line __LINE__\n"
                 +"\n"
                 +"//\n"
+                +"// Make sure macros are expanded lazily\n"
+                +"//\n"
+                +"#define BAR BAZ\n"
+                +"#define FOO BAR\n"
+                +"#undef BAR\n"
+                +" FOO\n"
+                +"\"BAR\" expected\n"
+                +"#undef FOO\n"
+                +"\n"
+                +"//\n"
                 +"// Non-recursive things to make sure they still work\n"
                 +"//\n"
                 +"#define SWAP(x,y) y,x\n"
@@ -2632,7 +2667,7 @@ public class Cpp
                 +"#define S1(x,y) S1(S1([y],[x]),[S1([[y]],[[x]]])\n"
                 +" S(a,b)\n"
                 +" S1(S1(b,a),(S1((b),(a))))\n"
-                +"\"S1((b),(a)),S1([[(b)]],[[(a)]])),S1(S1([a],[b]),S1([[a]],[[b]])\" expected\n"
+                +"\"S1(S1([(S1(S1([(a)],[(b)]),[S1([[(a)]],[[(b)]]]))],[S1(S1([a],[b]),[S1([[a]],[[b]]])]),[S1([[(S1(S1([(a)],[(b)]),[S1([[(a)]],[[(b)]]]))]],[[S1(S1([a],[b]),[S1([[a]],[[b]]])]]])\" expected\n" // actually I didn't do this by thinking very hard about it, it's just what cpp produces
                 +"#undef SWAP0\n"
                 +"#undef SWAP1\n"
                 +"//\n"
@@ -2773,7 +2808,7 @@ public class Cpp
 
     public static void main(String args[])
     {
-        if (true)
+        if (false)
         {
             // dump the test strings into files in tmp dir
             String tmpDirName = "tmp";
@@ -2807,7 +2842,7 @@ public class Cpp
             }
         }
 
-        if (true)
+        if (false)
         {
             //test0("assertTest.prejava");
             //test1("assertTest.prejava");
