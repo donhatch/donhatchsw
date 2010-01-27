@@ -160,12 +160,13 @@ public class ExpressionParser
             || (c >= 'a' && c <= 'z')
             || (c >= 'A' && c <= 'Z');
     }
-    /* ascii hex character to value */
+    // ascii hex character to value
+    // XXX eek, this was buggy in the original source
     private static int ctoa(char c)
     {
-        if ('0' < c && c <= '9') return c - '0';
-        if ('a' < c && c <= 'z') return 10 + c - 'a';
-        if ('A' < c && c <= 'Z') return 10 + c - 'A';
+        if ('0' <= c && c <= '9') return c - '0';
+        if ('a' <= c && c <= 'z') return 10 + c - 'a';
+        if ('A' <= c && c <= 'Z') return 10 + c - 'A';
         return 0;
     }
 
@@ -205,7 +206,7 @@ public class ExpressionParser
             {
                 if (c == 'x')
                     base = 16;
-                else if (c == 'b')
+                else if (c == 'b' && base != 16)
                     base = 2;
                 else
                     returnVal = returnVal * base + ctoa((char)c);
@@ -342,7 +343,7 @@ public class ExpressionParser
     /** little test program */
     public static void main(String args[])
     {
-        if (args.length <= 1)
+        if (args.length < 1)
         {
             System.err.println("Usage: ExpressionParser \"<expression>\"");
             System.exit(1);
