@@ -23,12 +23,11 @@
 *
 
 TODO:
+    - -I
+    - understand <> around file names as well as ""'s -- needed for comparing against cpp on include files in /usr/include which will be the ultimate test I guess
     - hmm, if test output is a bit different... OH it discards spaces at the end of each line!  argh!!
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
     - make sure line numbers in sync in all cases
-    - integer expressions (currently does trivial ones)
-    - -I
-    - understand <> around file names as well as ""'s?  maybe not worth the trouble
     - ##  (concatenates tokens)
     - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
@@ -65,67 +64,6 @@ public class Cpp
                 sb.append(escapify(s.charAt(i), '"'));
             return sb.toString();
         }
-
-    private static int evaluateIntExpression(String expr, String inFileName, int lineNumber, int columnNumber)
-    {
-        String originalExpr = expr;
-        //System.err.println("    in evaluateIntExpression(\""+escapify(originalExpr)+"\")");
-
-        // for now, only handle really trivial things
-
-        StringBuffer sb = new StringBuffer();
-
-        // get rid of any whitespace...
-        {
-            sb.delete(0, sb.length());
-            for (int i = 0; i < expr.length(); ++i)
-                if (!Character.isWhitespace(expr.charAt(i)))
-                    sb.append(expr.charAt(i));
-            expr = sb.toString();
-        }
-
-        // get rid of any parens, making sure they match
-        {
-            sb.delete(0, sb.length());
-            int parenLevel = 0;
-            for (int i = 0; i < expr.length(); ++i)
-            {
-                char c = expr.charAt(i);
-                if (c == '(')
-                    parenLevel++;
-                else if (c == ')')
-                {
-                    parenLevel--;
-                    if (parenLevel < 0)
-                        break; // turns into error
-                }
-                else
-                    sb.append(expr.charAt(i));
-            }
-            if (parenLevel != 0)
-                throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": expression has unmatched parentheses");
-            expr = sb.toString();
-        }
-
-        {
-            boolean negate = false;
-            while (expr.startsWith("!"))
-            {
-                negate = !negate;
-                expr = expr.substring(1);
-            }
-            int value;
-            if (expr.equals("0"))
-                value = 0;
-            else if (expr.equals("1"))
-                value = 1;
-            else throw new Error(inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": can't understand expression \""+escapify(originalExpr)+"\"; I only understand trivial things like 0 and 1");
-            if (negate)
-                value = (value==0 ? 1 : 0);
-            //System.err.println("    out evaluateIntExpression(\""+escapify(originalExpr)+"\"), returning "+value);
-            return value;
-        }
-    } // evaluateIntExpression
 
     // Wrapper around new FileReader,
     // whose behavior can be overridden in subclasses
@@ -877,6 +815,7 @@ public class Cpp
                               FileOpener fileOpener,
                               java.io.PrintWriter out,
                               java.util.Hashtable macros, // gets updated as we go
+                              ExpressionParser expressionParser,
                               int recursionLevel)
 
         throws java.io.IOException
@@ -994,7 +933,7 @@ public class Cpp
                         // Increment the prevailing #endif multiplier...
                         endifMultiplierStack.push(new Integer((((Integer)endifMultiplierStack.pop()).intValue()+1)));
                     }
-                    else
+                    else // #if
                     {
                         ifStack.push(token);
                         // Just do the #if thing, pushing a multiplier of 1.
@@ -1011,10 +950,15 @@ public class Cpp
                             out.print("(flush)"); // so I don't leave this in the shipped version
                             out.flush();
                         }
-                        int expressionValue = evaluateIntExpression(sb.toString(),
-                                                                    expressionStartToken.fileName,
-                                                                    expressionStartToken.lineNumber,
-                                                                    expressionStartToken.columnNumber);
+                        int expressionValue = 0;
+                        try
+                        {
+                            expressionValue = expressionParser.evaluateIntExpression(sb.toString());
+                        }
+                        catch (Exception e)
+                        {
+                            throw new Error(expressionStartToken.fileName+":"+(expressionStartToken.lineNumber+1)+":"+(expressionStartToken.columnNumber+1)+": "+e.getMessage()+" in "+token.text);
+                        }
                         boolean answer = (expressionValue != 0);
 
                         if (answer == true)
@@ -1457,6 +1401,7 @@ public class Cpp
                            fileOpener,
                            out,
                            macros,
+                           expressionParser,
                            recursionLevel+1);
                     out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"); // cpp puts a 1 there, don't know why but imitating it
                     nOutputNewlinesSavedUp = 0;
@@ -2782,6 +2727,7 @@ public class Cpp
                    new FileOpener(),
                    writer,
                    macros,
+                   new ExpressionParser(),
                    0); // recursionLevel
         }
         catch (java.io.IOException e)
@@ -2795,6 +2741,7 @@ public class Cpp
                    testFileOpener,
                    writer,
                    macros,
+                   new ExpressionParser(),
                    0); // recursionLevel
         }
         catch (java.io.IOException e)
@@ -2808,6 +2755,7 @@ public class Cpp
 
     public static void main(String args[])
     {
+        ExpressionParser expressionParser = new ExpressionParser();
         if (false)
         {
             // dump the test strings into files in tmp dir
@@ -2966,6 +2914,7 @@ public class Cpp
                        new FileOpener(),
                        writer,
                        macros,
+                       expressionParser,
                        0); // recursionLevel
             }
             catch (java.io.IOException e)
@@ -2981,6 +2930,7 @@ public class Cpp
                        new FileOpener(),
                        writer,
                        macros,
+                       expressionParser,
                        0); // recursionLevel
             }
             catch (java.io.IOException e)
@@ -2995,6 +2945,7 @@ public class Cpp
                        new FileOpener(),
                        writer,
                        macros,
+                       expressionParser,
                        0); // recursionLevel
             }
             catch (java.io.IOException e)
