@@ -24,6 +24,7 @@
 
 TODO:
     - -I
+    - make #include "filename" look in same directory as current file (I think it's implemented but logic might not be right, it uses File.getParent which is probably retarded)
     - understand <> around file names as well as ""'s -- needed for comparing against cpp on include files in /usr/include which will be the ultimate test I guess
     - hmm, if test output is a bit different... OH it discards spaces at the end of each line!  argh!!
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
@@ -65,6 +66,7 @@ public class Cpp
             return sb.toString();
         }
 
+
     // Wrapper around new FileReader,
     // whose behavior can be overridden in subclasses
     // to, say, open an in-memory string instead, for testing.
@@ -74,6 +76,27 @@ public class Cpp
             throws java.io.FileNotFoundException
         {
             return new java.io.FileReader(fileName);
+        }
+        public String findFile(String fileName, String searchPath[])
+            throws java.io.FileNotFoundException
+        {
+            if (fileName.startsWith("/"))
+                return fileName;
+            for (int i = 0; i < searchPath.length; ++i)
+            {
+                String pathName = searchPath[i]+"/"+fileName;
+                //System.err.println("checking for existance of "+pathNameMaybe);
+                if (new java.io.File(pathName).exists())
+                {
+                    // TODO: this cosmetic adjustment isn't always how cpp behaves, it's a stopgap to imititate it in most cases
+                    if (searchPath[i].equals("."))
+                        return fileName;
+                    else
+                        return pathName;
+                }
+            }
+            // can't just return fileName, since "." might not be in searchPath
+            throw new java.io.FileNotFoundException("No such file or directory");
         }
     } // private static class FileOpener
 
@@ -791,6 +814,7 @@ public class Cpp
     } // readTokenWithMacroSubstitution
     public static void filter(TokenReaderWithLookahead in,
                               FileOpener fileOpener,
+                              String includePath[],
                               java.io.PrintWriter out,
                               java.util.Hashtable macros, // gets updated as we go
                               ExpressionParser expressionParser,
@@ -1332,7 +1356,7 @@ public class Cpp
 
                     char delimiter = '"';
                     Token fileNameToken = nextToken;
-                    if (fileNameToken.type == IDENTIFIER
+                    if (fileNameToken.type == Token.SYMBOL
                      && fileNameToken.text.equals("<"))
                     {
                         delimiter = '<';
@@ -1344,12 +1368,13 @@ public class Cpp
                             nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                             if (nextToken.type == Token.EOF
                              || nextToken.type == Token.NEWLINE_UNESCAPED)
-                                throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
-                            sb.append(token.text);
-                            if (nextToken.type == Token.IDENTIFIER
+                                throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\" or <FILENAME>");
+                            sb.append(nextToken.text);
+                            if (nextToken.type == Token.SYMBOL
                              && nextToken.text.equals(">"))
                                 break;
                         }
+                        fileNameToken = new Token(Token.STRING_LITERAL, sb.toString(), fileNameToken.fileName, fileNameToken.lineNumber, fileNameToken.columnNumber); // XXX this is a bit weird, we've made a string literal that's not delimited by quotes and that doesn't follow usual backslash stuff, maybe it's misnamed... but actually we shouldn't be parsing as string_literal at all, just use a StringBuffer even when delimited by quotes?
                     }
                     if (fileNameToken.type != Token.STRING_LITERAL)
                         throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\" or <FILENAME>");
@@ -1358,9 +1383,29 @@ public class Cpp
                     TokenReaderWithLookahead newIn = null;
                     try
                     {
+                        String tweakedIncludePath[];
+                        if (delimiter == '<')
+                            tweakedIncludePath = includePath;
+                        else
+                        {
+                            // prepend the directory containing the current file name, or "." if no slashes in the current name
+                            tweakedIncludePath = new String[includePath.length+1];
+                            if (in.inFileName.indexOf('/') != -1)
+                            {
+                                tweakedIncludePath[0] = new java.io.File(in.inFileName).getParent();
+                                System.err.println("file parent of \""+in.inFileName+"\" is \""+tweakedIncludePath[0]+"\"");
+                            }
+                            else
+                            {
+                                tweakedIncludePath[0] = ".";
+                            }
+                            for (int i = 0; i < includePath.length; ++i)
+                                tweakedIncludePath[i+1] = includePath[i];
+                        }
+                        String newInPathName = fileOpener.findFile(newInFileName, tweakedIncludePath);
                         newIn = new TokenReaderWithLookahead(
-                                fileOpener.newFileReader(newInFileName),
-                                newInFileName);
+                                fileOpener.newFileReader(newInPathName),
+                                newInPathName);
                     }
                     catch (java.io.FileNotFoundException e)
                     {
@@ -1368,7 +1413,8 @@ public class Cpp
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
                     }
 
-                    if (in.hasLookahead()) // uh oh, I'm afraid this will be triggered when the file is a result of simple macro substition like #define FOO "/dev/null" and then #include FOO since 1 char of lookahead was required to detect the end of the FOO token
+                    // TODO: this isn't working yet... want to say "extra tokens at end of #include directive" if there is any
+                    if (in.hasLookahead())
                     {
                         // TODO: test this
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
@@ -1399,6 +1445,7 @@ public class Cpp
 
                     filter(newIn,
                            fileOpener,
+                           includePath,
                            out,
                            macros,
                            expressionParser,
@@ -2657,9 +2704,10 @@ public class Cpp
         },
     };
     private static FileOpener testFileOpener = new FileOpener() {
-        public java.io.Reader newFileReader(String fileName)
+        public java.io.Reader newFileReader(String fileName, String includePath[])
             throws java.io.FileNotFoundException
         {
+            // XXX TODO: use includePath
             for (int i = 0; i < testFileNamesAndContents.length; ++i)
                 if (testFileNamesAndContents[i][0].equals(fileName))
                     return new java.io.StringReader(testFileNamesAndContents[i][1]);
@@ -2725,6 +2773,7 @@ public class Cpp
             java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
             filter(new TokenReaderWithLookahead(builtinFakeInputReader,"<built-in>"),
                    new FileOpener(),
+                   includePath,
                    writer,
                    macros,
                    new ExpressionParser(),
@@ -2739,6 +2788,7 @@ public class Cpp
         {
             filter(new TokenReaderWithLookahead(in, inFileName),
                    testFileOpener,
+                   includePath,
                    writer,
                    macros,
                    new ExpressionParser(),
@@ -2803,7 +2853,7 @@ public class Cpp
         {
             String inFileName = null;
             StringBuffer commandLineFakeInput = new StringBuffer();
-            String includePath[] = {};
+            java.util.Vector includePathVector = new java.util.Vector();
             java.util.Hashtable macros = new java.util.Hashtable();
 
             for (int iArg = 0; iArg < args.length; ++iArg)
@@ -2811,7 +2861,19 @@ public class Cpp
                 String arg = args[iArg];
                 if (arg.startsWith("-I"))
                 {
-                    AssertAlways(false); // XXX implement me
+                    String dir;
+                    if (arg.equals("-I"))
+                    {
+                        if (iArg+1 == args.length)
+                        {
+                            System.err.println("javacpp: argument to `-I' is missing");
+                            System.exit(1);
+                        }
+                        dir = args[++iArg];
+                    }
+                    else
+                        dir = arg.substring(2);
+                    includePathVector.add(dir);
                 }
                 else if (arg.startsWith("-D"))
                 {
@@ -2877,6 +2939,7 @@ public class Cpp
                     inFileName = arg;
                 }
             }
+            String includePath[] = (String[])includePathVector.toArray(new String[0]);
 
             java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
 
@@ -2912,6 +2975,7 @@ public class Cpp
                 java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
                 filter(new TokenReaderWithLookahead(builtinFakeInputReader, "<built-in>"),
                        new FileOpener(),
+                       includePath,
                        writer,
                        macros,
                        expressionParser,
@@ -2928,6 +2992,7 @@ public class Cpp
                 java.io.Reader commandLineFakeInputReader = new java.io.StringReader(commandLineFakeInput.toString());
                 filter(new TokenReaderWithLookahead(commandLineFakeInputReader, "<command line>"),
                        new FileOpener(),
+                       includePath,
                        writer,
                        macros,
                        expressionParser,
@@ -2943,6 +3008,7 @@ public class Cpp
             {
                 filter(new TokenReaderWithLookahead(reader, inFileName),
                        new FileOpener(),
+                       includePath,
                        writer,
                        macros,
                        expressionParser,
