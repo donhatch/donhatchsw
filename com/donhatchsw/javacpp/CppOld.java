@@ -550,23 +550,31 @@ public class Cpp
             else if (c == '#')
             {
                 // do this anywhere in a line, since it also is part of handling #arg in part of a macro definition
-                scratch.append((char)c);
-                while (reader.peek() != -1
-                    && Character.isWhitespace((char)reader.peek()))
+                if (reader.peek() == '#')
                 {
-                    // Discard spaces between the '#' and the rest
-                    // of the directive; do NOT put them in the scratch
-                    // buffer.  This will make it easier to identify
-                    // the directive later.
                     reader.read();
+                    token = new Token(Token.PREPROCESSOR_DIRECTIVE, "##", fileName, lineNumber, columnNumber);
                 }
-                // Picks up both identifiers and ints (line number directives),
-                // will also pick up something like #1foo but whatever.
-                // TODO maybe guard against that
-                while (reader.peek() != -1
-                    && Character.isJavaIdentifierPart((char)reader.peek()))
-                    scratch.append((char)reader.read());
-                token = new Token(Token.PREPROCESSOR_DIRECTIVE, scratch.toString(), fileName, lineNumber, columnNumber);
+                else
+                {
+                    scratch.append((char)c);
+                    while (reader.peek() != -1
+                        && Character.isWhitespace((char)reader.peek()))
+                    {
+                        // Discard spaces between the '#' and the rest
+                        // of the directive; do NOT put them in the scratch
+                        // buffer.  This will make it easier to identify
+                        // the directive later.
+                        reader.read();
+                    }
+                    // Picks up both identifiers and ints (line number directives),
+                    // will also pick up something like #1foo but whatever.
+                    // TODO maybe guard against that
+                    while (reader.peek() != -1
+                        && Character.isJavaIdentifierPart((char)reader.peek()))
+                        scratch.append((char)reader.read());
+                    token = new Token(Token.PREPROCESSOR_DIRECTIVE, scratch.toString(), fileName, lineNumber, columnNumber);
+                }
             }
             else
             {
@@ -658,20 +666,32 @@ public class Cpp
             if (evaluateDefineds
              && token.text.equals("defined"))
             {
-                // must be followed by exactly the following:
+                // must be followed by an identifier or exactly the following:
                 // '(', identifier, ')'.
                 Token nextToken = in.readToken();
-                if (nextToken.type != Token.SYMBOL
-                 || !nextToken.text.equals("("))
-                    throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": defined not followed by (identifier)");
-                nextToken = in.readToken();
-                if (nextToken.type != Token.IDENTIFIER)
-                    throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": defined not followed by (identifier)");
-                String macroName = nextToken.text;
-                nextToken = in.readToken();
-                if (nextToken.type != Token.SYMBOL
-                 || !nextToken.text.equals(")"))
-                    throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": defined not followed by (identifier)");
+                while (nextToken.type == Token.SPACES
+                    || nextToken.type == Token.NEWLINE_ESCAPED
+                    || nextToken.type == Token.COMMENT)
+                    nextToken = in.readToken();
+
+                String macroName;
+                if (nextToken.type == Token.SYMBOL
+                 && nextToken.text.equals("("))
+                {
+                    nextToken = in.readToken();
+                    if (nextToken.type != Token.IDENTIFIER)
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": operator \"defined\" requires an identifier");
+                    macroName = nextToken.text;
+                    nextToken = in.readToken();
+                    if (nextToken.type != Token.SYMBOL
+                     || !nextToken.text.equals(")"))
+                        throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": missing ')' after \"defined\"");
+                }
+                else if (nextToken.type == Token.IDENTIFIER)
+                    macroName = nextToken.text;
+                else
+                    throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": operator \"defined\" requires an identifier");
+
                 if (macros.get(macroName) != null)
                     return new Token(Token.INT_LITERAL, "1", token.fileName, token.lineNumber, token.columnNumber);
                 else
@@ -680,7 +700,13 @@ public class Cpp
 
             Macro macro = (Macro)macros.get(token.text);
             if (macro == null)
+            {
+                if (evaluateDefineds) // XXX assume if we are evaluating defineds, then we are in an #if or #elif which means we also want to turn unrecognized identifiers into 0.  evaluateDefineds may not be a good name for this any more
+                {
+                    return new Token(Token.INT_LITERAL, "0", token.fileName, token.lineNumber, token.columnNumber);
+                }
                 return token;
+            }
 
             if (true)
             {
@@ -959,7 +985,7 @@ public class Cpp
                         }
                         catch (Exception e)
                         {
-                            throw new Error(expressionStartToken.fileName+":"+(expressionStartToken.lineNumber+1)+":"+(expressionStartToken.columnNumber+1)+": "+e.getMessage()+" in "+token.text);
+                            throw new Error(expressionStartToken.fileName+":"+(expressionStartToken.lineNumber+1)+":"+(expressionStartToken.columnNumber+1)+": "+e.getMessage()+" in "+token.text+" expression was "+sb.toString()+"");
                         }
                         boolean answer = (expressionValue != 0);
 
@@ -1263,16 +1289,24 @@ public class Cpp
                             else if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
                             {
                                 String paramNameMaybe = nextToken.text.substring(1); // spaces got crunched out already during token lexical scanning
-                                for (int i = 0; i < paramNames.length; ++i)
-                                    if (paramNameMaybe.equals(paramNames[i]))
-                                    {
-                                        nextToken = new Token(Token.MACRO_ARG_QUOTED, "", null, i, -1); // smuggle in param index through line number
-                                        break;
-                                    }
-                                // if not found, it's an error
-                                if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
+                                if (paramNameMaybe.equals("#"))
                                 {
-                                    throw new Error(in.inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '#' is not followed by a macro parameter");
+                                    throw new Error(in.inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '##' token pasting not implemented yet");
+                                }
+                                else
+                                {
+                                    for (int i = 0; i < paramNames.length; ++i)
+                                        if (paramNameMaybe.equals(paramNames[i]))
+                                        {
+                                            nextToken = new Token(Token.MACRO_ARG_QUOTED, "", null, i, -1); // smuggle in param index through line number
+                                            break;
+                                        }
+                                    // if not found, it's an error
+                                    if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
+                                    {
+                                        System.err.println(nextToken);
+                                        throw new Error(in.inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '#' is not followed by a macro parameter");
+                                    }
                                 }
                             }
                         }
