@@ -5,9 +5,6 @@ package com.donhatchsw.javacpp;
 
 public class ExpressionParser
 {
-    // Logical assertions, always compiled in. Ungracefully bail if violated.
-    private static void AssertAlways(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
-
     private static final int LEFT = 0;
     private static final int RIGHT = 1;
     abstract static class Operator
@@ -40,7 +37,7 @@ public class ExpressionParser
     }
 
     private static UnaryOperator unops[] = {
-        new UnaryOperator(RIGHT, 15, "~") {public double fun(double x) { return ~(long)x; }},
+        new UnaryOperator(RIGHT, 15, "~") {public double fun(double x) { return ~(int)x; }},
         new UnaryOperator(RIGHT, 15, "!") {public double fun(double x) { return (x==0 ? 1 : 0); }},
         new UnaryOperator(RIGHT, 15, "-") {public double fun(double x) { return -x; }},
     };
@@ -51,8 +48,8 @@ public class ExpressionParser
         new BinaryOperator(LEFT,  13, "%")  {public double fun(double x, double y) { return x % y; }},
         new BinaryOperator(LEFT,  12, "+")  {public double fun(double x, double y) { return x + y; }},
         new BinaryOperator(LEFT,  12, "-")  {public double fun(double x, double y) { return x - y; }},
-        new BinaryOperator(LEFT,  11, "<<") {public double fun(double x, double y) { return (long)x << (long)y; }},
-        new BinaryOperator(LEFT,  11, ">>") {public double fun(double x, double y) { return (long)x >> (long)y; }},
+        new BinaryOperator(LEFT,  11, "<<") {public double fun(double x, double y) { return (int)x << (int)y; }},
+        new BinaryOperator(LEFT,  11, ">>") {public double fun(double x, double y) { return (int)x >> (int)y; }},
         new BinaryOperator(LEFT,  10, "<=") {public double fun(double x, double y) { return (x <= y) ? 1 : 0; }},
         new BinaryOperator(LEFT,  10, ">=") {public double fun(double x, double y) { return (x >= y) ? 1 : 0; }},
         new BinaryOperator(LEFT,  10, "<")  {public double fun(double x, double y) { return (x < y) ? 1 : 0; }},
@@ -61,9 +58,9 @@ public class ExpressionParser
         new BinaryOperator(LEFT,   9, "!=") {public double fun(double x, double y) { return x == y? 1 : 0; }}, // must come before factorial "!"
         new BinaryOperator(LEFT,   5, "&&") {public double fun(double x, double y) { return x!=0 && y!=0 ? 1 : 0; }},       // must come before "&"
         new BinaryOperator(LEFT,   4, "||") {public double fun(double x, double y) { return x!=0 || y!=0 ? 1 : 0; }},        // must come before "|"
-        new BinaryOperator(LEFT,   8, "&")  {public double fun(double x, double y) { return (long)x & (long)y; }},
-        new BinaryOperator(LEFT,   7, "^")  {public double fun(double x, double y) { return (long)x ^ (long)y; }},
-        new BinaryOperator(LEFT,   6, "|")  {public double fun(double x, double y) { return (long)x | (long)y; }},
+        new BinaryOperator(LEFT,   8, "&")  {public double fun(double x, double y) { return (int)x & (int)y; }},
+        new BinaryOperator(LEFT,   7, "^")  {public double fun(double x, double y) { return (int)x ^ (int)y; }},
+        new BinaryOperator(LEFT,   6, "|")  {public double fun(double x, double y) { return (int)x | (int)y; }},
         new BinaryOperator(RIGHT,  3, "?")  {public double fun(double x, double y) { throw new Error(); }},    // special case in parse(), the function never gets called
         new BinaryOperator(LEFT,   1, ",")  {public double fun(double x, double y) { return y; }},
         new BinaryOperator(LEFT,  16, "!")  {public double fun(double x, double dummy) { return x>0 ? x*fun(x-1,0) : 1; }},     // factorial-- special case in expr_parse(), there's no RHS
@@ -173,7 +170,7 @@ public class ExpressionParser
     }
 
     // throws on failure
-    private static double getConstant(ZeroOverheadStringReader reader)
+    private static double getConstant(ZeroOverheadStringReader reader, boolean intsOnly)
     {
         int base = 10;
         boolean negate = false;
@@ -214,18 +211,21 @@ public class ExpressionParser
                     returnVal = returnVal * base + ctoa((char)c);
                 reader.advance();
             }
-            if (reader.peek() == '.')
+            if (!intsOnly)
             {
-                reader.advance();
-                double scale = 1;
-                while ((c = reader.peek()) != -1 && Character.isDigit((char)c))
+                if (reader.peek() == '.')
                 {
-                    scale /= base;
-                    returnVal += scale * ctoa((char)c);
                     reader.advance();
+                    double scale = 1;
+                    while ((c = reader.peek()) != -1 && Character.isDigit((char)c))
+                    {
+                        scale /= base;
+                        returnVal += scale * ctoa((char)c);
+                        reader.advance();
+                    }
                 }
+                // TODO if I ever care: exponent!
             }
-            // TODO if I ever care: exponent!
             if (negate)
                 returnVal = -returnVal;
             return returnVal;
@@ -238,7 +238,8 @@ public class ExpressionParser
     // throws on failure
     private double parse(ZeroOverheadStringReader reader,
                          int lowestPrecAllowed,
-                         boolean evaluate)
+                         boolean evaluate,
+                         boolean intsOnly)
 
     {
         double returnVal = 0.;
@@ -247,24 +248,24 @@ public class ExpressionParser
         if ((unop = (UnaryOperator)getOp(reader, unops, lowestPrecAllowed)) != null)
         {
             // expr -> unop expr
-            returnVal = parse(reader, unop.prec, evaluate);
+            returnVal = parse(reader, unop.prec, evaluate, intsOnly);
             if (evaluate)
                 returnVal = unop.fun(returnVal);
         }
         else if (getLiteral(reader, "("))
         {
             // expr -> '(' expr ')'
-            returnVal = parse(reader, 0, evaluate);
+            returnVal = parse(reader, 0, evaluate, intsOnly);
             if (!getLiteral(reader, ")"))
             {
-                // XXX TODO: define the kind of exception we're going to throw, be able to return the index in it
+                // XXX TODO: define the kind of exception we're going to throw, be able to return the index in it?
                 throw new RuntimeException(reader.peek() == -1
                     ? "unexpected end-of-expression"
                     : "syntax error near '"+(char)reader.peek()+"'");
             }
         }
         else
-            returnVal = getConstant(reader); // throws on failure
+            returnVal = getConstant(reader, intsOnly); // throws on failure
 
         BinaryOperator binop;
         while ((binop = (BinaryOperator)getOp(reader, binops, lowestPrecAllowed)) != null)
@@ -278,49 +279,83 @@ public class ExpressionParser
             else if (binop.name.equals("?"))
             {
                 double ifTrue = parse(reader, binop.prec,
-                                      evaluate && returnVal!=0);
+                                      evaluate && returnVal!=0,
+                                      intsOnly);
                 if (!getLiteral(reader, ":"))
                     throw new RuntimeException(reader.peek() == -1
                         ? "unexpected end-of-expression"
                         : "syntax error near '"+(char)reader.peek()+"'");
                 double ifFalse = parse(reader, binop.prec,
-                                       evaluate && returnVal==0);
+                                       evaluate && returnVal==0,
+                                       intsOnly);
                 RHS = (returnVal!=0) ? ifTrue : ifFalse;
             }
             else
             {
                 RHS = parse(reader, binop.assoc == RIGHT ? binop.prec
                                                          : binop.prec+1,
-                        evaluate
-                     && !binop.name.equals(returnVal!=0 ? "||" : "&&"));
+                            evaluate
+                         && !binop.name.equals(returnVal!=0 ? "||" : "&&"),
+                            intsOnly);
             }
             if (evaluate)
             {
                 if (binop.name.equals("/") && RHS == 0)
-                    throw new RuntimeException("divide by zero");
+                    throw new RuntimeException("division by zero");
                 if (binop.name.equals("%") && RHS == 0)
                     throw new RuntimeException("mod by zero");
-                returnVal = binop.fun(returnVal, RHS);
+                if (intsOnly && binop.name.equals("/"))
+                    returnVal = (double)((int)returnVal / (int)RHS);
+                else
+                    returnVal = binop.fun(returnVal, RHS);
             }
         }
         return returnVal;
     } // parse
 
-    public double evaluate(String s)
+    public double evaluateDoubleExpression(String s)
     {
         reader.init(s);
-        return parse(reader, 0, true);
+        double returnVal = parse(reader,
+                                 0, // recursionLevel
+                                 true, // evaluate
+                                 false); // intsOnly
+        reader.discardSpaces();
+        if (reader.peek() != -1)
+            throw new RuntimeException("extra stuff at end of double expression");
+        return returnVal;
+    }
+
+    public int evaluateIntExpression(String s)
+    {
+        reader.init(s);
+        int returnVal = (int)parse(reader,
+                                   0, // recursionLevel
+                                   true, // evaluate
+                                   true); // intsOnly
+        reader.discardSpaces();
+        if (reader.peek() != -1)
+            throw new RuntimeException("extra stuff at end of int expression");
+        return returnVal;
     }
 
     /** little test program */
     public static void main(String args[])
     {
-        if (args.length != 1)
+        if (args.length <= 1)
+        {
             System.err.println("Usage: ExpressionParser \"<expression>\"");
+            System.exit(1);
+        }
         String s = args[0];
+        for (int i = 1; i < args.length; ++i) // starting at 1
+            s += " " + args[i];
+
         ExpressionParser parser = new ExpressionParser();
-        double value = parser.evaluate(s);
-        System.out.println(value);
+        double d = parser.evaluateDoubleExpression(s);
+        System.out.println(d);
+        int i = parser.evaluateIntExpression(s);
+        System.out.println(i);
     } // main
 
 
