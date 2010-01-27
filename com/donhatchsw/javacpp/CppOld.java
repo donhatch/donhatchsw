@@ -77,27 +77,6 @@ public class Cpp
         }
     } // private static class FileOpener
 
-    private static class DebugLineNumberReader extends java.io.LineNumberReader
-    {
-        public DebugLineNumberReader(java.io.Reader reader)
-        {
-            super(reader);
-        }
-        public int read()
-            throws java.io.IOException
-        {
-            System.out.println("        before read(): line "+super.getLineNumber());
-            int c = super.read();
-            System.out.println("        read() returning '"+escapify((char)c,'\'')+"'");
-            System.out.println("        after read(): line "+super.getLineNumber());
-            return c;
-        }
-        public int getLineNumber()
-        {
-            System.out.println("        getLineNumber() returning "+super.getLineNumber());
-            return super.getLineNumber();
-        }
-    }
 
     // Line number reader with 1 char of lookahead.
     // Tells the column number as well as the line number.
@@ -115,7 +94,6 @@ public class Cpp
         public LineAndColumnNumberReaderWithLookahead(java.io.Reader reader)
         {
             this.lineNumberReader = new java.io.LineNumberReader(reader);
-            //this.lineNumberReader = new DebugLineNumberReader(reader);
             AssertAlways(this.lineNumberReader.getLineNumber() == 0);
         }
 
