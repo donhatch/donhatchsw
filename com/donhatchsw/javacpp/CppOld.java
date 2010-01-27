@@ -1322,15 +1322,37 @@ public class Cpp
                     if (verboseLevel >= 2)
                         System.err.println("        filter: found #include");
 
+                    // XXX TODO: the real cpp doesn't really parse the filename as a string, e.g. it doesn't recognize backslash as special
+
                     Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
                         nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
+                    char delimiter = '"';
                     Token fileNameToken = nextToken;
+                    if (fileNameToken.type == IDENTIFIER
+                     && fileNameToken.text.equals("<"))
+                    {
+                        delimiter = '<';
+                        // turn it into a string
+                        StringBuffer sb = new StringBuffer();
+                        sb.append(nextToken.text);
+                        while (true)
+                        {
+                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                            if (nextToken.type == Token.EOF
+                             || nextToken.type == Token.NEWLINE_UNESCAPED)
+                                throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
+                            sb.append(token.text);
+                            if (nextToken.type == Token.IDENTIFIER
+                             && nextToken.text.equals(">"))
+                                break;
+                        }
+                    }
                     if (fileNameToken.type != Token.STRING_LITERAL)
-                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\"");
+                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include expects \"FILENAME\" or <FILENAME>");
 
                     String newInFileName = fileNameToken.text.substring(1, fileNameToken.text.length()-1);
                     TokenReaderWithLookahead newIn = null;
