@@ -21,15 +21,23 @@
 *       -U
 *       -C (ignores this option, never strips comments anyway)
 *
+*
+* To imitate cpp -C from gcc version 3.4.6 on redhat 3.4.6-9,
+* Run it with these args:
+*       -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__STDC__=1
+
 
 TODO:
-    - -I
+    - what the hell is this from cpp -C /usr/include/math.h:
+        # 1 "/usr/include/features.h" 1 3 4
+        ...
+        # 111 "/usr/include/features.h" 1 3 4
+    - ##  (concatenates tokens)
     - make #include "filename" look in same directory as current file (I think it's implemented but logic might not be right, it uses File.getParent which is probably retarded)
     - understand <> around file names as well as ""'s -- needed for comparing against cpp on include files in /usr/include which will be the ultimate test I guess
     - hmm, if test output is a bit different... OH it discards spaces at the end of each line!  argh!!
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
     - make sure line numbers in sync in all cases
-    - ##  (concatenates tokens)
     - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
 */
@@ -1291,7 +1299,16 @@ public class Cpp
                                 String paramNameMaybe = nextToken.text.substring(1); // spaces got crunched out already during token lexical scanning
                                 if (paramNameMaybe.equals("#"))
                                 {
-                                    throw new Error(in.inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '##' token pasting not implemented yet");
+                                    if (false)
+                                    {
+                                        throw new Error(in.inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '##' token pasting not implemented yet");
+                                    }
+                                    else
+                                    {
+                                        // just get something working, for now
+                                        System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: '##' token pasting not implemented yet");
+                                        nextToken = new Token(Token.SYMBOL, "##", nextToken.fileName, nextToken.lineNumber, nextToken.columnNumber);
+                                    }
                                 }
                                 else
                                 {
@@ -1487,6 +1504,26 @@ public class Cpp
                     out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"); // cpp puts a 1 there, don't know why but imitating it
                     nOutputNewlinesSavedUp = 0;
                     thereWasOutput = false;
+                }
+                else if (token.text.equals("#error"))
+                {
+                    // gather rest of line (WITHOUT macro substitution)
+                    // into a string...
+                    Token nextToken = in.readToken();
+                    StringBuffer sb = new StringBuffer();
+                    sb.append(token.text);
+                    while (nextToken.type != Token.NEWLINE_UNESCAPED
+                        && nextToken.type != Token.EOF)
+                    {
+                        if (nextToken.type == Token.NEWLINE_ESCAPED)
+                            ; // really nothing
+                        else if (nextToken.type == Token.COMMENT)
+                            sb.append(" ");
+                        else
+                            sb.append(nextToken.text);
+                        nextToken = in.readToken();
+                    }
+                    throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+sb.toString());
                 }
                 else
                 {
