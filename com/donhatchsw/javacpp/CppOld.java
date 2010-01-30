@@ -1031,7 +1031,7 @@ public class Cpp
             out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
 
         int nOutputNewlinesSavedUp = 0;
-        boolean thereWasOutput = false;
+        boolean outputNeedsNewline = false;
 
         Token token = null;
         while (true)
@@ -1647,11 +1647,11 @@ public class Cpp
                     // Have to get output newlines in sync,
                     // I guess so anyone reading the output
                     // will know which line the included file was included from.
-                    if (thereWasOutput && nOutputNewlinesSavedUp >= 1)
+                    if (outputNeedsNewline && nOutputNewlinesSavedUp >= 1)
                     {
                         out.println();
                         --nOutputNewlinesSavedUp;
-                        thereWasOutput = false;
+                        outputNeedsNewline = false;
                     }
                     if (nOutputNewlinesSavedUp <= 7)
                     {
@@ -1680,7 +1680,7 @@ public class Cpp
                            recursionLevel+1);
                     out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"+in.extraCrap); // cpp puts a 2 there when leaving recursive levels, imitating it
                     nOutputNewlinesSavedUp = 0;
-                    thereWasOutput = false;
+                    outputNeedsNewline = false;
                 }
                 else if (token.text.equals("#error")
                       || token.text.equals("#warning")
@@ -1718,10 +1718,10 @@ public class Cpp
                                 //else
                                     in.extraCrap = " 3";
                             }
-                            if (thereWasOutput)
+                            if (outputNeedsNewline)
                             {
                                 out.println();
-                                thereWasOutput = false;
+                                outputNeedsNewline = false;
                             }
                             out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                         }
@@ -1750,11 +1750,11 @@ public class Cpp
                     // other tokens get suppressed if inside a false #if
                     if (highestTrueIfStackLevel >= ifStack.size())
                     {
-                        if (thereWasOutput && nOutputNewlinesSavedUp >= 1)
+                        if (outputNeedsNewline && nOutputNewlinesSavedUp >= 1)
                         {
                             out.println();
                             --nOutputNewlinesSavedUp;
-                            thereWasOutput = false;
+                            outputNeedsNewline = false;
                         }
                         if (nOutputNewlinesSavedUp <= 7)
                         {
@@ -1771,7 +1771,7 @@ public class Cpp
                         }
 
                         out.print(token.text);
-                        thereWasOutput = true;
+                        outputNeedsNewline = true;
 
                         if (false)
                         {
@@ -1784,7 +1784,7 @@ public class Cpp
 
         // Discard pending newlines,
         // except if there was any output, print a newline.
-        if (thereWasOutput)
+        if (outputNeedsNewline)
         {
             if (nOutputNewlinesSavedUp == 0)
                 System.err.println(token.fileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: no newline at end of file");
