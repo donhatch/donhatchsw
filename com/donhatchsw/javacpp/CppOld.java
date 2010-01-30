@@ -1708,22 +1708,36 @@ public class Cpp
                         // just try to imitate what cpp does, on the include files in /usr/include... okay if it's not fully general or robust
                         if (sb.toString().equals("#pragma GCC system_header"))
                         {
-                            // gcc ignores this when not in included file but whatever
-                            if (!in.extraCrap.startsWith(" 3"))
+                            // imitate screwy logic of cpp
+                            if (recursionLevel == 0)
                             {
-                                AssertAlways(in.extraCrap.equals(""));
-                                // apparently gcc doesn't add the 4 even if it's a .h file
-                                //if (in.inFileName.endsWith(".h"))
-                                //    in.extraCrap = " 3 4";
-                                //else
-                                    in.extraCrap = " 3";
+                                if (outputNeedsNewline)
+                                {
+                                    out.println();
+                                    outputNeedsNewline = false;
+                                }
+                                out.flush(); // XXX TODO: ad-hoc, should put these everywhere maybe
+                                System.err.println(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: #pragma system_header ignored outside include file");
                             }
-                            if (outputNeedsNewline)
+                            else
                             {
-                                out.println();
-                                outputNeedsNewline = false;
+                                if (!in.extraCrap.startsWith(" 3"))
+                                {
+                                    AssertAlways(in.extraCrap.equals(""));
+                                    // apparently gcc doesn't add the 4 even if it's a .h file
+                                    //if (in.inFileName.endsWith(".h"))
+                                    //    in.extraCrap = " 3 4";
+                                    //else
+                                        in.extraCrap = " 3";
+                                    // TODO: argh! if it's top level, doesn't do it
+                                }
+                                if (outputNeedsNewline)
+                                {
+                                    out.println();
+                                    outputNeedsNewline = false;
+                                }
+                                out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                             }
-                            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                         }
                         else
                             System.err.println(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: I don't understand pragma: "+sb.toString()); // TODO: cpp gives column number where "warning" begins, not where "#warning" begins
