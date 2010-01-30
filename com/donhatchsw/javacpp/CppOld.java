@@ -23,12 +23,21 @@
 *
 *
 * To imitate cpp -C from gcc version 3.4.6 on redhat 3.4.6-9,
-* Run it with these args:
+* Run it with these args (found using cpp -v):
 *       -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1
-* oh no, there's a ton more, to see them all, try: cpp -dM 
+* For c++ (found using cpp -x c++ -v):
+*       -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6 -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/i386-redhat-linux -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/backward -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1
+
+* oh no, there's a ton more defines, to see them all, try: cpp -dM 
 
 
 TODO:
+    - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
+    - #include_next, sigh
+    - make sure line numbers in sync in all cases
+    - understand # line numbers and file number on input (masquerade)
+
+    - secret command line option for dumping the test files
     - test that every file in /usr/include gives the same output as cpp -C -D...
         -   cpp -C /usr/include/math.h
         -   cpp -C < /usr/include/math.h
@@ -36,6 +45,7 @@ TODO:
         -   (cd /usr/include; cpp -C < math.h)
         -   (cd /usr; cpp -C include/math.h)
         -   (cd /usr; cpp -C < include/math.h)
+        - all of the above without c++ defines/includes and then with
         - all of the above twice:
             cpp -C /usr/include/math.h | cpp -C
             cpp -C < /usr/include/math.h | cpp -C
@@ -44,9 +54,6 @@ TODO:
     - make #include "filename" look in same directory as current file (I think it's implemented but logic might not be right, it uses File.getParent which is probably retarded)
     - understand <> around file names as well as ""'s -- needed for comparing against cpp on include files in /usr/include which will be the ultimate test I guess
     - hmm, if test output is a bit different... OH it discards spaces at the end of each line!  argh!!
-    - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
-    - make sure line numbers in sync in all cases
-    - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
     - named operators?  ARGH! http://gcc.gnu.org/onlinedocs/cpp/C_002b_002b-Named-Operators.html   I think I'll blow this off.  wait, the real cpp doesn't even do it?? "#if 1 and 1" gives same syntax error as "#if 1 andddd 1".  ohh it only happens if processing c++ code I think?  whatever.
     - variadic macros?  ARGH, no don't bother
@@ -668,7 +675,7 @@ public class Cpp
             {
                 if (token.type == Token.TOKEN_PASTE)
                 {
-                    //System.err.println("HEY! discarding ## since LHS is empty, I think");
+                    System.err.println("==========HEY! discarding ## since LHS is empty, I think");
                     continue;
                 }
                 else if (in.peekToken(0).type == Token.TOKEN_PASTE)
@@ -682,7 +689,7 @@ public class Cpp
                                                     token.fileName,
                                                     token.lineNumber,
                                                     token.columnNumber);
-                    //System.err.println("HEY! pasting tokens \""+token.text+"\" and \""+anotherToken.text+"\" to get \""+combinedToken.text+"\"");
+                    System.err.println("==========HEY! pasting tokens \""+token.text+"\" and \""+anotherToken.text+"\" to get \""+combinedToken.text+"\"");
                     in.pushBackToken(combinedToken);
                     continue;
                 }
@@ -3016,6 +3023,13 @@ public class Cpp
                 +"#define FOOBAR (x,y) moose\n"
                 +" CAT(CAT(A,B)FOO,BAR(C,D))\n"
                 +"\"CAT(a,b)(x,y) moose(c,d)\" expected\n"
+                +" CAT(A,B)CAT(C,D)\n"
+                +" CAT(A,)CAT(C,D)\n"
+                +" CAT(A,B)CAT(,D)\n"
+                +" CAT(,)CAT(C,D)\n"
+                +" CAT(A,B)CAT(,)\n"
+                +" CAT(,)CAT(,)\n"
+                +" CAT(CAT(,),CAT(,))\n"
                 //+"#define WEIRD(a,b) a####b\n" // should give error when used: "pasting "x" and "##" does not give a valid preprocing token
                 +"    file __FILE__ line __LINE__\n"
                 +"goodbye from tokenPastingTest.prejava\n"
@@ -3160,7 +3174,7 @@ public class Cpp
     public static void main(String args[])
     {
         ExpressionParser expressionParser = new ExpressionParser();
-        if (true)
+        if (false) // XXX TODO: make command line option for this
         {
             // dump the test strings into files in tmp dir
             String tmpDirName = "tmp";
@@ -3337,6 +3351,7 @@ public class Cpp
             }
             catch (java.io.IOException e)
             {
+                writer.flush();
                 System.err.println("Well damn: "+e);
                 System.exit(1);
             }
@@ -3354,6 +3369,7 @@ public class Cpp
             }
             catch (java.io.IOException e)
             {
+                writer.flush();
                 System.err.println("Well damn: "+e);
                 System.exit(1);
             }
