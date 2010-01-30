@@ -24,14 +24,46 @@
 *
 * To imitate cpp -C from gcc version 3.4.6 on redhat 3.4.6-9,
 * Run it with these args:
-*       -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__STDC__=1
+*       -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1
+* oh no, there's a ton more, to see them all, try: cpp -dM 
 
 
 TODO:
+    - test that every file in /usr/include gives the same output as cpp -C -D...
+        -   cpp -C /usr/include/math.h
+        -   cpp -C < /usr/include/math.h
+        -   (cd /usr/include; cpp -C math.h)
+        -   (cd /usr/include; cpp -C < math.h)
+        -   (cd /usr; cpp -C include/math.h)
+        -   (cd /usr; cpp -C < include/math.h)
+        - all of the above twice:
+            cpp -C /usr/include/math.h | cpp -C
+            cpp -C < /usr/include/math.h | cpp -C
+            etc., also doing it from a temporary file
+
     - what the hell is this from cpp -C /usr/include/math.h:
         # 1 "/usr/include/features.h" 1 3 4
         ...
         # 111 "/usr/include/features.h" 1 3 4
+
+        #include <math.h>
+        oh does it occur whenever <> are expanded?
+        oh jeez this does it too:
+        #include "math.h"
+        it does it when getting stuff from /usr/include ...
+        but it doesn't do it if I say:
+           cpp -I /dev
+           #include "null"
+        what triggers it?  what does it mean?
+
+        Okay the deal is this:
+            3 -> sysp=1
+            3 4 -> sysp=2
+        And in the cpp source, in internal.h, it says this about sysp:
+            // One for a system header, two for a C system header file that therefore
+            // needs to be extern "C" protected in C++, and zero otherwise.
+
+
     - ##  (concatenates tokens)
     - make #include "filename" look in same directory as current file (I think it's implemented but logic might not be right, it uses File.getParent which is probably retarded)
     - understand <> around file names as well as ""'s -- needed for comparing against cpp on include files in /usr/include which will be the ultimate test I guess
@@ -40,6 +72,11 @@ TODO:
     - make sure line numbers in sync in all cases
     - understand # line numbers and file number on input (masquerade)
     - put "In file included from whatever:3:" or whatever in warnings and errors
+    - named operators?  ARGH! http://gcc.gnu.org/onlinedocs/cpp/C_002b_002b-Named-Operators.html   I think I'll blow this off.  wait, the real cpp doesn't even do it?? "#if 1 and 1" gives same syntax error as "#if 1 andddd 1".  ohh it only happens if processing c++ code I think?  whatever.
+    - variadic macros?  ARGH, no don't bother
+    - hmm, cpp doc says macro args are macro-expanded before they
+      get subtituted in, that might be simpler than what I did
+
 */
 
 package com.donhatchsw.javacpp;
@@ -85,25 +122,32 @@ public class Cpp
         {
             return new java.io.FileReader(fileName);
         }
-        public String findFile(String fileName, String searchPath[])
+        // XXX TODO: this doesn't belong in this class
+        // Returns a {name, Reader} pair.
+        public Object[/*2*/] findAndNewFileReader(String fileName, String searchPath[])
             throws java.io.FileNotFoundException
         {
             if (fileName.startsWith("/"))
-                return fileName;
+            {
+                java.io.Reader reader = newFileReader(fileName);
+                return new Object[] {fileName, reader};
+            }
             for (int i = 0; i < searchPath.length; ++i)
             {
                 String pathName = searchPath[i]+"/"+fileName;
-                //System.err.println("checking for existance of "+pathNameMaybe);
-                if (new java.io.File(pathName).exists())
+                try
                 {
+                    java.io.Reader reader = newFileReader(pathName);
                     // TODO: this cosmetic adjustment isn't always how cpp behaves, it's a stopgap to imititate it in most cases
                     if (searchPath[i].equals("."))
-                        return fileName;
+                        return new Object[] {fileName, reader};
                     else
-                        return pathName;
+                        return new Object[] {pathName, reader};
                 }
+                catch (java.io.FileNotFoundException e)
+                {}
             }
-            // can't just return fileName, since "." might not be in searchPath
+            // can't just return fileName, even if it exists, since "." might not be in searchPath
             throw new java.io.FileNotFoundException("No such file or directory");
         }
     } // private static class FileOpener
@@ -1339,23 +1383,33 @@ public class Cpp
                         // into a single space, and
                         // discard spaces and comments at the beginning.
                         int nOut = 0;
-                        for (int iIn = 0; iIn < contentsVector.size(); ++iIn)
+                        for (int iIn = 0; iIn < contents.length; ++iIn)
                         {
                             if (contents[iIn].type == Token.SPACES
                              || contents[iIn].type == Token.NEWLINE_ESCAPED
                              || contents[iIn].type == Token.COMMENT)
                             {
                                 if (nOut != 0
-                                 && contents[nOut-1].type != Token.SPACES)
+                                 && contents[nOut-1].type != Token.SPACES
+                                 && !contents[nOut-1].text.equals("##")) // spaces after '##' disappear
                                     contents[nOut++] = new Token(Token.SPACES, " ", contents[iIn].fileName, contents[iIn].lineNumber, contents[iIn].columnNumber);
                             }
                             else
+                            {
+                                if (contents[iIn].text.equals("##")
+                                 && nOut > 0
+                                 && contents[nOut-1].type == Token.SPACES)
+                                    nOut--; // spaces before '##' disappear
                                 contents[nOut++] = contents[iIn];
+                            }
                         }
                         // and discard spaces and comments at the end too
                         if (nOut > 0
                          && contents[nOut-1].type == Token.SPACES)
                             nOut--;
+                        AssertAlways(!(nOut > 0
+                                    && contents[nOut-1].type == Token.SPACES));
+
                         if (nOut != contents.length)
                         {
                             Token smallerContents[] = new Token[nOut];
@@ -1453,9 +1507,11 @@ public class Cpp
                             for (int i = 0; i < includePath.length; ++i)
                                 tweakedIncludePath[i+1] = includePath[i];
                         }
-                        String newInPathName = fileOpener.findFile(newInFileName, tweakedIncludePath);
+                        Object newInAndPathName[/*2*/] = fileOpener.findAndNewFileReader(newInFileName, tweakedIncludePath);
+                        String newInPathName = (String)newInAndPathName[0];
+                        java.io.Reader newInReader = (java.io.Reader)newInAndPathName[1];
                         newIn = new TokenReaderWithLookahead(
-                                fileOpener.newFileReader(newInPathName),
+                                newInReader,
                                 newInPathName);
                     }
                     catch (java.io.FileNotFoundException e)
@@ -1505,7 +1561,8 @@ public class Cpp
                     nOutputNewlinesSavedUp = 0;
                     thereWasOutput = false;
                 }
-                else if (token.text.equals("#error"))
+                else if (token.text.equals("#error")
+                      || token.text.equals("#warning"))
                 {
                     // gather rest of line (WITHOUT macro substitution)
                     // into a string...
@@ -1523,7 +1580,10 @@ public class Cpp
                             sb.append(nextToken.text);
                         nextToken = in.readToken();
                     }
-                    throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+sb.toString());
+                    if (token.text.equals("#error"))
+                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+sb.toString());
+                    else
+                        System.err.println(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: "+sb.toString()); // TODO: cpp gives column number where "warning" begins, not where "#warning" begins
                 }
                 else
                 {
@@ -1606,6 +1666,8 @@ public class Cpp
                 +"    file __FILE__ line __LINE__\n"
                 +"#define FOO foo\n"
                 +"#define BAR bar\n"
+                +" /* FOO /* FOO */ FOO\n"
+                +"\"/* FOO /* FOO */ foo\" expected\n"
                 +"#define REVERSE(A,B) B,A\n"
                 +"REVERSE(a,b)\n"
                 +"REVERSE(\"(\",\")\")\n"
@@ -1680,17 +1742,86 @@ public class Cpp
                  +"goodbye from assertTest.prejava\n"
         },
         {
-            // XXX hmm this doesn't work in real cpp, don't know what I was thinking
-            "tricky.h", ""
+            // stuff from cpp docs
+            "tricky0.h", ""
+                +"hello from tricky0.h\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"\n"
+                +"// http://gcc.gnu.org/onlinedocs/gcc-4.4.3/cpp/Misnesting.html#Misnesting\n"
+                +"#define twice(x) (2*(x))\n"
+                +"#define call_with_1(x) x(1)\n"
+                +" call_with_1 (twice)\n"
+                +"\"(2*(1))\" expected\n"
+                +"\n"
+                +"\n"
+                +"#define AFTERX(x) X_ ## x\n"
+                +"#define XAFTERX(x) AFTERX(x)\n"
+                +"#define TABLESIZE 1024\n"
+                +"#define BUFSIZE TABLESIZE\n"
+                +"AFTERX(BUFSIZE)\n"
+                +"\"X_BUFSIZE\" expected\n"
+                +" XAFTERX(BUFSIZE)\n"
+                +"\"X_1024\" expected (not X_TABLESIZE)\n"
+                +"\n"
+                +"// http://gcc.gnu.org/onlinedocs/gcc-4.4.3/cpp/Argument-Prescan.html#Argument-Prescan\n"
+                +"#define foo a,b\n"
+                +"#define bar(x) lose(x)\n"
+                +"#define lose(x) (1 + (x))\n"
+                +"bar(foo)\n"
+                +"\n"
+                +"#define foo(onearg)  #onearg\n"
+                +" foo()\n"
+                +"\"\"\"\" expected\n"
+                +" foo ()\n"
+                +"\"\"\"\" expected\n"
+                +" foo( )\n"
+                +"\"\"\"\" expected (we get this wrong, whatEVER)\n"
+                +" foo ( )\n"
+                +"\"\"\"\" expected (we get this wrong, whatEVER)\n"
+                +"\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"goodbye from tricky0.h\n"
+        },
+        {
+            // stuff from cpp docs
+            "tricky1.h", ""
                 +"hello from tricky.h\n"
                 +"    file __FILE__ line __LINE__\n"
-                +"#define COMMA ,"
-                +"#define LPAREN ("
-                +"#define RPAREN )"
-                +"#define REVERSE(A,B) B A"
-                +"REVERSE LPAREN x COMMA y RPAREN"
+                +"\n"
+                +"//  http://gcc.gnu.org/onlinedocs/gcc-3.0.2/cpp_1.html\n"
+                +"/\\\n"
+                +"*\n"
+                +"*/ # /*\n"
+                +"*/ defi\\\n"
+                +"ne FO\\\n"
+                +"O 10\\\n"
+                +"20\n"
+                +" FOO\n"
+                +"\"1020\" expected (WAIT a minute, it works without -C but not with -C??)\n"
+                +"\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"goodbye from tricky.h\n"
+        },
+        {
+            "stringifyTest.h", ""
+                +"hello from stringifyTest.h\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"//  http://gcc.gnu.org/onlinedocs/gcc-4.4.3/cpp/Stringification.html#Stringification\n"
+                +"#define WARN_IF(EXP) \\\n"
+                +"do { if (EXP) \\\n"
+                +"        fprintf (stderr, \"Warning: \" #EXP \"\\n\"); } \\\n"
+                +"while (0)\n"
+                +" WARN_IF (x == 0);\n"
+                +"\"do { if (x == 0) fprintf (stderr, \"Warning: \" \"x == 0\" \"\\n\"); } while (0);\" expected\n"
+                +"\n"
+                +"#define STRINGIFY(stuff) (#stuff)\n"
+                +"STRINGIFY(p = \"foo\\n\";)\n"
+                +"#undef STRINGIFY\n"
+                +"#define STRINGIFY(stuff) ( # stuff )\n"
+                +"STRINGIFY(p = \"foo\\n\";)\n"
+                +"\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"goodbye from stringifyTest.h\n"
         },
         {
             // just isolate what I'm debugging
@@ -2614,7 +2745,7 @@ public class Cpp
                 +"    file __FILE__ line __LINE__\n"
                 +"\n"
                 +"//\n"
-                +"// Make sure macros are expanded lazily\n"
+                +"// Make sure macros are expanded lazily (i.e. not expanded during definition of a macro)\n"
                 +"//\n"
                 +"#define BAR BAZ\n"
                 +"#define FOO BAR\n"
@@ -2736,6 +2867,42 @@ public class Cpp
                 +"//\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"goodbye from nonRecursionTest.prejava\n"
+        },
+        {
+            "tokenPastingTest.prejava", ""
+                +"hello from tokenPastingTest.prejava\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"#define A a\n"
+                +"#define B b\n"
+                +"#define C c\n"
+                +"#define D d\n"
+                +"#define AB yo!\n"
+                +"#define ABCD yahoo!\n"
+                +"#define CAT(x,y) x ## y\n"
+                +" CAT(A,B)\n"
+                +"\"yo!\" expected\n"
+                +" CAT( A , B )\n"
+                +"\"yo!\" expected\n"
+                +"#undef CAT\n"
+                +"#define CAT(x,y)x##y\n"
+                +" CAT(A,B)\n"
+                +"\"yo!\" expected\n"
+                +" CAT(A B,C D)\n"
+                +"\"a BC d\" expected\n"
+                +" CAT(A B,)\n"
+                +"\"a b\" expected\n"
+                +" CAT(,   C    D   )\n"
+                +"\"c d\" expected\n"
+                +" CAT(,)\n"
+                +"\"\" expected\n"
+                +" CATT(CAT(A,B),CAT(C,D))\n"
+                +"\"CATT(yo!,CD)\" expected\n"
+                +"#define FOOBAR (x,y) moose\n"
+                +" CAT(CAT(A,B)FOO,BAR(C,D))\n"
+                +"\"CAT(a,b)(x,y) moose(c,d)\" expected\n"
+                +"#define WEIRD(a,b) a####b\n" // should give error when used "pasting "x" and "##" does not give a valid preprocing token
+                +"    file __FILE__ line __LINE__\n"
+                +"goodbye from tokenPastingTest.prejava\n"
         },
         {
             "error0.prejava", ""
@@ -2877,7 +3044,7 @@ public class Cpp
     public static void main(String args[])
     {
         ExpressionParser expressionParser = new ExpressionParser();
-        if (false)
+        if (true)
         {
             // dump the test strings into files in tmp dir
             String tmpDirName = "tmp";
