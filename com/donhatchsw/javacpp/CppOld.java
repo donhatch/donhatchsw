@@ -940,7 +940,11 @@ public class Cpp
             columnNumber = in.peekToken(0).columnNumber; // don't worry about macro expansion
 
             // XXX TODO: argh, should NOT honor stuff like #define INCLUDE #include, I mistakenly thought I should honor it. but should be able to substitute for the filename though
-            token = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+            if (ifStack.size() <= highestTrueIfStackLevel)
+                token = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+            else
+                token = in.readToken(); // don't expand macros, so, for example, we don't choke trying to expand FOO when we see #undef FOO inside #if 0
+
             if (token.type == Token.EOF)
                 break;
 
@@ -1705,6 +1709,28 @@ public class Cpp
                 +"#include foo\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"goodbye from test1.prejava\n"
+        },
+        {
+            // this was giving errors before
+            "test3.prejava", ""
+                +"hello from test3.prejava\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"\n"
+                +"#define FOO(a)  [a]\n"
+                +"#if 0\n"
+                +"FOO(x)\n"
+                +"    #undef FOO\n"
+                +"FOO(x)\n"
+                +"#endif\n"
+                +"\n"
+                +" FOO(x)\n"
+                +"\"[x]\" expected\n"
+                +"    #undef FOO\n"
+                +" FOO(x)\n"
+                +"\"FOO(x)\" expected\n"
+                +"\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"goodbye from test3.prejava\n"
         },
         {
             "macros.h", ""
