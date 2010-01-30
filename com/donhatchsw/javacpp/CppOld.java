@@ -660,23 +660,36 @@ public class Cpp
                                                         boolean evaluateDefineds)
         throws java.io.IOException
     {
-        Token token = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
-        while (token.type != Token.EOF
-            && in.peekToken(0).type == Token.TOKEN_PASTE)
+        while (true)
         {
-            Token tokenPasteToken = in.readToken();
-            Token anotherToken = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
-            String combinedText = token.text + anotherToken.text;
-            // XXX TODO: need to re-tokenize the combined text I think?? hmm what's an example where it makes a difference?
-            Token combinedToken = new Token(token.type,
-                                            combinedText,
-                                            token.fileName,
-                                            token.lineNumber,
-                                            token.columnNumber);
-            System.err.println("HEY! pasting tokens \""+token.text+"\" and \""+anotherToken.text+"\" to get \""+combinedToken.text+"\"");
-            token = combinedToken;
+            Token token = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
+
+            if (token.type != Token.EOF)
+            {
+                if (token.type == Token.TOKEN_PASTE)
+                {
+                    //System.err.println("HEY! discarding ## since LHS is empty, I think");
+                    continue;
+                }
+                else if (in.peekToken(0).type == Token.TOKEN_PASTE)
+                {
+                    Token tokenPasteToken = in.readToken();
+                    Token anotherToken = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
+                    String combinedText = token.text + anotherToken.text;
+                    // XXX TODO: need to re-tokenize the combined text I think?? hmm what's an example where it makes a difference?
+                    Token combinedToken = new Token(token.type,
+                                                    combinedText,
+                                                    token.fileName,
+                                                    token.lineNumber,
+                                                    token.columnNumber);
+                    //System.err.println("HEY! pasting tokens \""+token.text+"\" and \""+anotherToken.text+"\" to get \""+combinedToken.text+"\"");
+                    in.pushBackToken(combinedToken);
+                    continue;
+                }
+            }
+            AssertAlways(token.type != Token.TOKEN_PASTE); // those never make it out of this function
+            return token;
         }
-        return token;
     } // readTokenWithMacroSubstitution
 
     // The implementation of readTokenWithMacroSubstitution except for token pasting
@@ -689,12 +702,6 @@ public class Cpp
         while (true)
         {
             Token token = in.readToken();
-
-            if (token.type == Token.TOKEN_PASTE)
-            {
-                AssertAlways(false);
-            }
-
 
             if (token.type != Token.IDENTIFIER)
                 return token;
@@ -783,7 +790,17 @@ public class Cpp
                         in.pushBackTokens(macroContentsCopy);
                     }
                 }
-                continue;
+
+                if (false)
+                {
+                    // argh can't do this, what if it's '##'
+                    continue;
+                }
+                else
+                {
+                    // do this instead, hope it works, it's tail recursion I guess so it should be possible to do this in a while loop if I was really smart
+                    return readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
+                }
             }
             else // it's an invocation of a macro with an arg list
             {
@@ -871,6 +888,26 @@ public class Cpp
                     }
                 }
                 in.pushBackTokens(resultsVector);
+
+                if (false)
+                {
+                    System.err.println("pushed back argumentative macro expansion:");
+                    for (int i = 0; i < resultsVector.size(); ++i)
+                    {
+                        System.err.println("    "+(Token)resultsVector.get(i));
+                    }
+                }
+
+                if (false)
+                {
+                    // argh can't do this, what if it's '##'
+                    continue;
+                }
+                else
+                {
+                    // do this instead, hope it works, it's tail recursion I guess so it should be possible to do this in a while loop if I was really smart
+                    return readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
+                }
             }
         }
     } // _readTokenWithMacroSubstitution
@@ -1390,7 +1427,7 @@ public class Cpp
                                 String paramNameMaybe = nextToken.text.substring(1); // spaces got crunched out already during token lexical scanning
                                 if (paramNameMaybe.equals("#"))
                                 {
-                                    System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: '##' token pasting not implemented yet");
+                                    System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": hey! "+macroName+" is a token pasting macro!");
                                     nextToken = new Token(Token.TOKEN_PASTE, "##", nextToken.fileName, nextToken.lineNumber, nextToken.columnNumber);
                                 }
                                 else
@@ -1662,6 +1699,11 @@ public class Cpp
 
                         out.print(token.text);
                         thereWasOutput = true;
+
+                        if (false)
+                        {
+                            out.flush(); // XXX TODO don't leave this in! maybe should be a debugging param
+                        }
                     }
                 }
             }
@@ -2936,23 +2978,29 @@ public class Cpp
                 +"#define B b\n"
                 +"#define C c\n"
                 +"#define D d\n"
-                +"#define AB yo!\n"
+                +"#define AB YO!\n"
+                +"#define ab yo!\n"
                 +"#define ABCD yahoo!\n"
                 +"#define CAT(x,y) x ## y\n"
                 +" CAT(A,B)\n"
-                +"\"yo!\" expected\n"
+                +"\"yo!\" expected (why does cpp say YO! ?)\n"
                 +" CAT( A , B )\n"
-                +"\"yo!\" expected\n"
+                +"\"yo!\" expected (why does cpp say YO! ?)\n"
                 +"#undef CAT\n"
                 +"#define CAT(x,y)x##y\n"
                 +" CAT(A,B)\n"
-                +"\"yo!\" expected\n"
+                +"\"yo!\" expected (why does cpp say YO! ?)\n"
                 +" CAT(A B,C D)\n"
-                +"\"a BC d\" expected\n"
+                +"\"a bc d\" expected (why does cpp say a BC d?)\n"
                 +" CAT(A B,)\n"
                 +"\"a b\" expected\n"
+                +"    line __LINE__\n"
+                +" CAT(,C D)\n"
+                +"\"c d\" expected\n"
+                +"    line __LINE__\n"
                 +" CAT(,   C    D   )\n"
                 +"\"c d\" expected\n"
+                +"    line __LINE__\n"
                 +" CAT(,)\n"
                 +"\"\" expected\n"
                 +" CATT(CAT(A,B),CAT(C,D))\n"
@@ -2960,7 +3008,7 @@ public class Cpp
                 +"#define FOOBAR (x,y) moose\n"
                 +" CAT(CAT(A,B)FOO,BAR(C,D))\n"
                 +"\"CAT(a,b)(x,y) moose(c,d)\" expected\n"
-                +"#define WEIRD(a,b) a####b\n" // should give error when used "pasting "x" and "##" does not give a valid preprocing token
+                //+"#define WEIRD(a,b) a####b\n" // should give error when used: "pasting "x" and "##" does not give a valid preprocing token
                 +"    file __FILE__ line __LINE__\n"
                 +"goodbye from tokenPastingTest.prejava\n"
         },
