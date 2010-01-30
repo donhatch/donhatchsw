@@ -1032,9 +1032,6 @@ public class Cpp
         int outputLineNumber = lineNumber;
         int outputTokenColumnNumber = 0;
 
-        // TODO: the following should be replaced by just using outputLineNumber and outputTokenColumnNumber
-        int nOutputNewlinesSavedUp = 0;
-
         Token token = null;
         while (true)
         {
@@ -1175,7 +1172,7 @@ public class Cpp
                         continue;
                     }
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
-                    nOutputNewlinesSavedUp++;
+                    // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 // ones that take no args...
                 else if (token.text.equals("#else")
@@ -1223,7 +1220,7 @@ public class Cpp
                         continue;
                     }
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
-                    nOutputNewlinesSavedUp++;
+                    // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 // ones that take one macro name arg and that's all
                 else if (token.text.equals("#ifdef")
@@ -1301,7 +1298,7 @@ public class Cpp
                         continue;
                     }
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
-                    nOutputNewlinesSavedUp++;
+                    // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 else if (token.text.equals("#define"))
                 {
@@ -1549,7 +1546,7 @@ public class Cpp
                         continue;
                     }
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
-                    nOutputNewlinesSavedUp++;
+                    // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 else if (token.text.equals("#include"))
                 {
@@ -1637,32 +1634,26 @@ public class Cpp
                     // Have to get output newlines in sync,
                     // I guess so anyone reading the output
                     // will know which line the included file was included from.
-                    if (outputTokenColumnNumber > 0 && nOutputNewlinesSavedUp >= 1)
                     {
-                        out.println();
-                        --nOutputNewlinesSavedUp;
-
-                        outputLineNumber++;
-                        outputTokenColumnNumber = 0;
-                    }
-                    if (nOutputNewlinesSavedUp <= 7)
-                    {
-                        while (nOutputNewlinesSavedUp > 0)
+                        if (outputTokenColumnNumber > 0)
                         {
                             out.println();
-                            --nOutputNewlinesSavedUp;
-
                             outputLineNumber++;
                             outputTokenColumnNumber = 0;
                         }
-                    }
-                    else
-                    {
-                        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
-                        nOutputNewlinesSavedUp = 0;
-
-                        outputLineNumber = lineNumber;
-                        outputTokenColumnNumber = 0;
+                        while (outputLineNumber < lineNumber
+                            && lineNumber-outputLineNumber <= 7)
+                        {
+                            out.println();
+                            outputLineNumber++;
+                            outputTokenColumnNumber = 0;
+                        }
+                        if (outputLineNumber != lineNumber)
+                        {
+                            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                            outputLineNumber = lineNumber;
+                            outputTokenColumnNumber = 0;
+                        }
                     }
                     if (recursionLevel+1 >= 200) // same limit as cpp, apparently
                     {
@@ -1677,7 +1668,6 @@ public class Cpp
                            expressionParser,
                            recursionLevel+1);
                     out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"+in.extraCrap); // cpp puts a 2 there when leaving recursive levels, imitating it
-                    nOutputNewlinesSavedUp = 0;
 
                     outputLineNumber = lineNumber+1;
                     outputTokenColumnNumber = 0;
@@ -1758,50 +1748,51 @@ public class Cpp
                     throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": invalid preprocessor directive "+token.text);
                 }
             }
-            else
+            else // not a preprocessing directive
             {
                 if (token.type == Token.NEWLINE_UNESCAPED)
                 {
-                    // print newlines whether or not inside a false #if
-                    nOutputNewlinesSavedUp++;
+                    // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 else
                 {
                     // other tokens get suppressed if inside a false #if
-                    if (highestTrueIfStackLevel >= ifStack.size())
+                    if (highestTrueIfStackLevel >= ifStack.size()) // i.e. if not suppressing
                     {
-                        if (outputTokenColumnNumber > 0 && nOutputNewlinesSavedUp >= 1)
+                        // Make sure we're on the right line in the
+                        // output.  If not, correct it
+                        // by spewing newlines and/or a line number
+                        // directive.
+                        if (outputLineNumber != lineNumber)
                         {
-                            out.println();
-                            --nOutputNewlinesSavedUp;
-
-                            outputLineNumber++;
-                            outputTokenColumnNumber = 0;
-                        }
-                        if (nOutputNewlinesSavedUp <= 7)
-                        {
-                            while (nOutputNewlinesSavedUp > 0)
+                            if (outputTokenColumnNumber > 0)
                             {
                                 out.println();
-                                --nOutputNewlinesSavedUp;
-
                                 outputLineNumber++;
                                 outputTokenColumnNumber = 0;
                             }
-                        }
-                        else
-                        {
-                            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
-                            nOutputNewlinesSavedUp = 0;
-
-                            outputLineNumber = lineNumber;
-                            outputTokenColumnNumber = 0;
+                            // if we're close enough, fix by just spewing newlines
+                            if (lineNumber-outputLineNumber <= 7)
+                            {
+                                while (outputLineNumber < lineNumber)
+                                {
+                                    out.println();
+                                    outputLineNumber++;
+                                    outputTokenColumnNumber = 0;
+                                }
+                            }
+                            if (outputLineNumber != lineNumber)
+                            {
+                                out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                                outputLineNumber = lineNumber;
+                                outputTokenColumnNumber = 0;
+                            }
                         }
 
                         out.print(token.text);
                         outputTokenColumnNumber++;
-                    }
-                }
+                    } // if not suppressing
+                } // token isn't a newline
             }
         } // while next token != EOF
 
@@ -1809,11 +1800,15 @@ public class Cpp
         // except if there was any output, print a newline.
         if (outputTokenColumnNumber > 0)
         {
-            if (nOutputNewlinesSavedUp == 0)
-                System.err.println(token.fileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: no newline at end of file");
+            // put a newline at the end of the file anyway.
             out.println();
             outputLineNumber++;
             outputTokenColumnNumber = 0;
+        }
+        if (token.columnNumber > 0)
+        {
+            out.flush();
+            System.err.println(token.fileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: no newline at end of file");
         }
 
         if (!ifStack.empty())
