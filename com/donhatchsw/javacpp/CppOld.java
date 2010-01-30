@@ -687,6 +687,7 @@ public class Cpp
                     continue;
                 }
             }
+            //System.err.println("readTokenWithMacroSubstitution (possibly recursive) returning "+token);
             AssertAlways(token.type != Token.TOKEN_PASTE); // those never make it out of this function
             return token;
         }
@@ -929,12 +930,12 @@ public class Cpp
         // We to imitate that logic, just so that we'll have identical
         // output to cpp,
         // although I don't really know what "system header file" means.
-        // we just assume it means /usr/include.
+        // we just assume it means anything under /usr.
         //
         if (fileName.startsWith("/"))
         {
             java.io.Reader reader = fileOpener.newFileReader(fileName); // if it throws, we throw
-            String extraCrap = !fileName.startsWith("/usr/include/") ? "" :
+            String extraCrap = !fileName.startsWith("/usr/") ? "" :
                                !fileName.endsWith(".h") ? " 3" : " 3 4";
             return new Object[] {fileName, reader, extraCrap};
         }
@@ -960,7 +961,7 @@ public class Cpp
             try
             {
                 java.io.Reader reader = fileOpener.newFileReader(pathName);
-                String extraCrap = !pathName.startsWith("/usr/include/") ? "" :
+                String extraCrap = !pathName.startsWith("/usr/") ? "" :
                                    !pathName.endsWith(".h") ? " 3" : " 3 4";
                 return new Object[] {pathName, reader, extraCrap};
             }
@@ -1595,10 +1596,13 @@ public class Cpp
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
                     }
 
-                    // TODO: this isn't working yet... want to say "extra tokens at end of #include directive" if there is any
-                    if (in.hasLookahead())
+                    while (in.peekToken(0).type == Token.SPACES
+                        || in.peekToken(0).type == Token.NEWLINE_ESCAPED
+                        || in.peekToken(0).type == Token.COMMENT)
+                        in.readToken();
+                    if (in.peekToken(0).type != Token.NEWLINE_UNESCAPED)
                     {
-                        // TODO: test this
+                        // TODO: wrong error message if it's EOF
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
                     }
 
@@ -1623,6 +1627,10 @@ public class Cpp
                     {
                         out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                         nOutputNewlinesSavedUp = 0;
+                    }
+                    if (recursionLevel+1 >= 200) // same limit as cpp, apparently
+                    {
+                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": #include nested too deeply");
                     }
 
                     filter(newIn,
@@ -3360,8 +3368,16 @@ public class Cpp
                        expressionParser,
                        0); // recursionLevel
             }
+            catch (Error e)
+            {
+                //System.err.println("(Caught error, flushing then rethrowing)");
+                writer.flush();
+                //System.err.println("(Caught error, rethrowing after flushing)");
+                throw e;
+            }
             catch (java.io.IOException e)
             {
+                writer.flush();
                 System.err.println("Well damn: "+e);
                 System.exit(1);
             }
