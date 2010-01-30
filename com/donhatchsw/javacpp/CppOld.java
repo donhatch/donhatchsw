@@ -1793,15 +1793,13 @@ public class Cpp
                         {
                             out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                             nOutputNewlinesSavedUp = 0;
+
+                            outputLineNumber = lineNumber;
+                            outputTokenColumnNumber = 0;
                         }
 
                         out.print(token.text);
                         outputTokenColumnNumber++;
-
-                        if (false)
-                        {
-                            out.flush(); // XXX TODO don't leave this in! maybe should be a debugging param
-                        }
                     }
                 }
             }
