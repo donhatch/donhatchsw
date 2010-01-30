@@ -24,9 +24,9 @@
 *
 * To imitate cpp -C from gcc version 3.4.6 on redhat 3.4.6-9,
 * Run it with these args (found using cpp -v):
-*       -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1
+*       -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1 -D__SIZE_TYPE__="unsigned int" -D__PTRDIFF_TYPE__=int
 * For c++ (found using cpp -x c++ -v):
-*       -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6 -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/i386-redhat-linux -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/backward -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1
+*       -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6 -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/i386-redhat-linux -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/backward -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1 -D__SIZE_TYPE__="unsigned int" -D__PTRDIFF_TYPE__=int
 
 * oh no, there's a ton more defines, to see them all, try: cpp -dM 
 
@@ -59,6 +59,7 @@ TODO:
     - variadic macros?  ARGH, no don't bother
     - hmm, cpp doc says macro args are macro-expanded before they
       get subtituted in, that might be simpler than what I did
+    - #pragma?  e.g. #pragma weak, in /usr/include/bits/libc-lock.h
 
 */
 
@@ -328,6 +329,31 @@ public class Cpp
             }
             sb.append(")");
             return sb.toString();
+        }
+
+        // tell whether one macro is the same as another,
+        // for deciding whether to warn about it being redefined.
+        // note this is semantic comparison, it doesn't care
+        // if the param names are different.
+        public boolean sameContents(Macro other)
+        {
+            if (numParams != other.numParams)
+                return false;
+            if ((contents==null) != (other.contents==null))
+                return false;
+            if (contents != null)
+            {
+                if (contents.length != other.contents.length)
+                    return false;
+                for (int i = 0; i < contents.length; ++i)
+                {
+                    if (contents[i].type != other.contents[i].type)
+                        return false;
+                    if (!contents[i].text.equals(other.contents[i].text))
+                        return false;
+                }
+            }
+            return true;
         }
     } // private static class Macro
 
@@ -1515,9 +1541,14 @@ public class Cpp
                         if (macroName == "__LINE__"
                          || macroName == "__FILE__")
                             throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't redefine \""+macroName+"\"");
-                        // TODO: The real cpp doesn't complain if the new definition is exactly the same as the old one.  do we care?? it's sloppy programming anyway
-                        System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: \""+macroName+"\" redefined");
-                        System.err.println(previousMacro.inFileName+":"+(previousMacro.lineNumber+1)+":"+(previousMacro.columnNumber+1)+": warning: this is the location of the previous definition");
+
+
+                        if (!macro.sameContents(previousMacro))
+                        {
+                            // note, cpp's notion of sameness is more strict than ours... for example, we consider #define FOO(a,b) a##b the same as #define FOO(x,y) x##y
+                            System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: \""+macroName+"\" redefined");
+                            System.err.println(previousMacro.inFileName+":"+(previousMacro.lineNumber+1)+":"+(previousMacro.columnNumber+1)+": warning: this is the location of the previous definition");
+                        }
                     }
 
                     macros.put(macroName, macro);
@@ -1652,10 +1683,12 @@ public class Cpp
                     thereWasOutput = false;
                 }
                 else if (token.text.equals("#error")
-                      || token.text.equals("#warning"))
+                      || token.text.equals("#warning")
+                      || token.text.equals("#pragma"))
                 {
                     // gather rest of line (WITHOUT macro substitution)
                     // into a string...
+                    // XXX TODO: comments?
                     Token nextToken = in.readToken();
                     StringBuffer sb = new StringBuffer();
                     sb.append(token.text);
@@ -1670,10 +1703,33 @@ public class Cpp
                             sb.append(nextToken.text);
                         nextToken = in.readToken();
                     }
-                    if (token.text.equals("#error"))
-                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+sb.toString());
-                    else
+                    if (token.text.equals("#pragma"))
+                    {
+                        if (sb.toString().equals("#pragma GCC system_header"))
+                        {
+                            // gcc ignores this when not in included file but whatever
+                            if (!in.extraCrap.startsWith(" 3"))
+                            {
+                                AssertAlways(in.extraCrap.equals(""));
+                                // apparently gcc doesn't add the 4 even if it's a .h file
+                                //if (in.inFileName.endsWith(".h"))
+                                //    in.extraCrap = " 3 4";
+                                //else
+                                    in.extraCrap = " 3";
+                            }
+                            if (thereWasOutput)
+                            {
+                                out.println();
+                                thereWasOutput = false;
+                            }
+                            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                        }
+                        System.err.println(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: I don't understand pragma: "+sb.toString()); // TODO: cpp gives column number where "warning" begins, not where "#warning" begins
+                    }
+                    else if (token.text.equals("#warning"))
                         System.err.println(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: "+sb.toString()); // TODO: cpp gives column number where "warning" begins, not where "#warning" begins
+                    else // token.text.equals("#error")
+                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+sb.toString());
                 }
                 else
                 {
