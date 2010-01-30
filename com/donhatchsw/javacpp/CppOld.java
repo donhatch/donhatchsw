@@ -122,34 +122,6 @@ public class Cpp
         {
             return new java.io.FileReader(fileName);
         }
-        // XXX TODO: this doesn't belong in this class
-        // Returns a {name, Reader} pair.
-        public Object[/*2*/] findAndNewFileReader(String fileName, String searchPath[])
-            throws java.io.FileNotFoundException
-        {
-            if (fileName.startsWith("/"))
-            {
-                java.io.Reader reader = newFileReader(fileName);
-                return new Object[] {fileName, reader};
-            }
-            for (int i = 0; i < searchPath.length; ++i)
-            {
-                String pathName = searchPath[i]+"/"+fileName;
-                try
-                {
-                    java.io.Reader reader = newFileReader(pathName);
-                    // TODO: this cosmetic adjustment isn't always how cpp behaves, it's a stopgap to imititate it in most cases
-                    if (searchPath[i].equals("."))
-                        return new Object[] {fileName, reader};
-                    else
-                        return new Object[] {pathName, reader};
-                }
-                catch (java.io.FileNotFoundException e)
-                {}
-            }
-            // can't just return fileName, even if it exists, since "." might not be in searchPath
-            throw new java.io.FileNotFoundException("No such file or directory");
-        }
     } // private static class FileOpener
 
 
@@ -890,6 +862,35 @@ public class Cpp
             }
         }
     } // readTokenWithMacroSubstitution
+
+    // Returns a {name, Reader} pair.
+    private static Object[/*2*/] findAndNewFileReader(FileOpener fileOpener, String fileName, String searchPath[])
+        throws java.io.FileNotFoundException
+    {
+        if (fileName.startsWith("/"))
+        {
+            java.io.Reader reader = fileOpener.newFileReader(fileName); // if it throws, we throw
+            return new Object[] {fileName, reader};
+        }
+        for (int i = 0; i < searchPath.length; ++i)
+        {
+            String pathName = searchPath[i]+"/"+fileName;
+            try
+            {
+                java.io.Reader reader = fileOpener.newFileReader(pathName);
+                // TODO: this cosmetic adjustment isn't always how cpp behaves, it's a stopgap to imititate it in most cases
+                if (searchPath[i].equals("."))
+                    return new Object[] {fileName, reader};
+                else
+                    return new Object[] {pathName, reader};
+            }
+            catch (java.io.FileNotFoundException e)
+            {}
+        }
+        // can't just return fileName, even if it exists, since "." might not be in searchPath
+        throw new java.io.FileNotFoundException("No such file or directory");
+    } // findAndNewFileReader
+
     public static void filter(TokenReaderWithLookahead in,
                               FileOpener fileOpener,
                               String includePath[],
@@ -1507,7 +1508,7 @@ public class Cpp
                             for (int i = 0; i < includePath.length; ++i)
                                 tweakedIncludePath[i+1] = includePath[i];
                         }
-                        Object newInAndPathName[/*2*/] = fileOpener.findAndNewFileReader(newInFileName, tweakedIncludePath);
+                        Object newInAndPathName[/*2*/] = findAndNewFileReader(fileOpener, newInFileName, tweakedIncludePath);
                         String newInPathName = (String)newInAndPathName[0];
                         java.io.Reader newInReader = (java.io.Reader)newInAndPathName[1];
                         newIn = new TokenReaderWithLookahead(
