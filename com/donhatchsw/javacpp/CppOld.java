@@ -40,30 +40,6 @@ TODO:
             cpp -C /usr/include/math.h | cpp -C
             cpp -C < /usr/include/math.h | cpp -C
             etc., also doing it from a temporary file
-
-    - what the hell is this from cpp -C /usr/include/math.h:
-        # 1 "/usr/include/features.h" 1 3 4
-        ...
-        # 111 "/usr/include/features.h" 1 3 4
-
-        #include <math.h>
-        oh does it occur whenever <> are expanded?
-        oh jeez this does it too:
-        #include "math.h"
-        it does it when getting stuff from /usr/include ...
-        but it doesn't do it if I say:
-           cpp -I /dev
-           #include "null"
-        what triggers it?  what does it mean?
-
-        Okay the deal is this:
-            3 -> sysp=1
-            3 4 -> sysp=2
-        And in the cpp source, in internal.h, it says this about sysp:
-            // One for a system header, two for a C system header file that therefore
-            // needs to be extern "C" protected in C++, and zero otherwise.
-
-
     - ##  (concatenates tokens)
     - make #include "filename" look in same directory as current file (I think it's implemented but logic might not be right, it uses File.getParent which is probably retarded)
     - understand <> around file names as well as ""'s -- needed for comparing against cpp on include files in /usr/include which will be the ultimate test I guess
@@ -616,6 +592,7 @@ public class Cpp
     {
         private TokenReader tokenReader;
         String inFileName;
+        String extraCrap; // gets put at the end of # line directives referring to this file, to imitate the real cpp
         private java.util.LinkedList lookAheadBuffer = new java.util.LinkedList();
 
         public boolean hasLookahead()
@@ -623,10 +600,11 @@ public class Cpp
             return !lookAheadBuffer.isEmpty();
         }
 
-        public TokenReaderWithLookahead(java.io.Reader in, String inFileName)
+        public TokenReaderWithLookahead(java.io.Reader in, String inFileName, String extraCrap)
         {
             this.tokenReader = new TokenReader(in, inFileName);
             this.inFileName = inFileName; // maybe not necessary, just provide an accessor to tokenReader's?
+            this.extraCrap = extraCrap;
         }
 
         public Token readToken()
@@ -863,17 +841,31 @@ public class Cpp
         }
     } // readTokenWithMacroSubstitution
 
-    // Returns a {name, Reader} pair.
-    private static Object[/*2*/] findAndNewFileReader(FileOpener fileOpener,
+    // Returns a triple {name, Reader, extraCrap}.
+    private static Object[/*3*/] findAndNewFileReader(FileOpener fileOpener,
                                                       String fileName,
                                                       String searchPath[],
                                                       String directoryToLookInFirst) // null means don't, "" means "." but don't prepend anything
         throws java.io.FileNotFoundException
     {
+        //
+        // The logic for the extra crap after line directives is:
+        //  3 -> sysp=1
+        //  3 4 -> sysp=2
+        // And in the cpp source, in internal.h, it says this about sysp:
+        //  // One for a system header, two for a C system header file that therefore
+        //  // needs to be extern "C" protected in C++, and zero otherwise.
+        // We to imitate that logic, just so that we'll have identical
+        // output to cpp,
+        // although I don't really know what "system header file" means.
+        // we just assume it means /usr/include.
+        //
         if (fileName.startsWith("/"))
         {
             java.io.Reader reader = fileOpener.newFileReader(fileName); // if it throws, we throw
-            return new Object[] {fileName, reader};
+            String extraCrap = !fileName.startsWith("/usr/include/") ? "" :
+                               !fileName.endsWith(".h") ? " 3" : " 3 4";
+            return new Object[] {fileName, reader, extraCrap};
         }
 
         if (directoryToLookInFirst != null)
@@ -884,7 +876,8 @@ public class Cpp
             try
             {
                 java.io.Reader reader = fileOpener.newFileReader(pathName);
-                return new Object[] {pathName, reader};
+                String extraCrap = ""; // cpp doesn't seem to add extra crap when the pathname is constructed this way
+                return new Object[] {pathName, reader, extraCrap};
             }
             catch (java.io.FileNotFoundException e)
             {}
@@ -896,7 +889,9 @@ public class Cpp
             try
             {
                 java.io.Reader reader = fileOpener.newFileReader(pathName);
-                return new Object[] {pathName, reader};
+                String extraCrap = !pathName.startsWith("/usr/include/") ? "" :
+                                   !pathName.endsWith(".h") ? " 3" : " 3 4";
+                return new Object[] {pathName, reader, extraCrap};
             }
             catch (java.io.FileNotFoundException e)
             {}
@@ -926,9 +921,9 @@ public class Cpp
         int lineNumber = 0;
         int columnNumber = 0;
         if (recursionLevel >= 1)
-            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"); // cpp puts a 1 there when entering recursive levels, don't know why but imitating it
+            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"+in.extraCrap); // cpp puts a 1 there when entering recursive levels, imitating it
         else
-            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
+            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
 
         int nOutputNewlinesSavedUp = 0;
         boolean thereWasOutput = false;
@@ -1518,12 +1513,14 @@ public class Cpp
                             }
                         }
 
-                        Object newInAndPathName[/*2*/] = findAndNewFileReader(fileOpener, newInFileName, includePath, directoryToLookInFirst);
+                        Object newInAndPathName[/*3*/] = findAndNewFileReader(fileOpener, newInFileName, includePath, directoryToLookInFirst);
                         String newInPathName = (String)newInAndPathName[0];
                         java.io.Reader newInReader = (java.io.Reader)newInAndPathName[1];
+                        String newExtraCrap = (String)newInAndPathName[2];
                         newIn = new TokenReaderWithLookahead(
                                 newInReader,
-                                newInPathName);
+                                newInPathName,
+                                newExtraCrap);
                     }
                     catch (java.io.FileNotFoundException e)
                     {
@@ -1557,7 +1554,7 @@ public class Cpp
                     }
                     else
                     {
-                        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
+                        out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                         nOutputNewlinesSavedUp = 0;
                     }
 
@@ -1568,7 +1565,7 @@ public class Cpp
                            macros,
                            expressionParser,
                            recursionLevel+1);
-                    out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"); // cpp puts a 1 there, don't know why but imitating it
+                    out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"+in.extraCrap); // cpp puts a 2 there when leaving recursive levels, imitating it
                     nOutputNewlinesSavedUp = 0;
                     thereWasOutput = false;
                 }
@@ -1629,7 +1626,7 @@ public class Cpp
                         }
                         else
                         {
-                            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\"");
+                            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                             nOutputNewlinesSavedUp = 0;
                         }
 
@@ -3020,7 +3017,7 @@ public class Cpp
                                 + "#define __FILE__ __FILE__\n" // stub, handled specially
                                 + "#define __java 1\n";
             java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
-            filter(new TokenReaderWithLookahead(builtinFakeInputReader,"<built-in>"),
+            filter(new TokenReaderWithLookahead(builtinFakeInputReader,"<built-in>",""),
                    new FileOpener(),
                    includePath,
                    writer,
@@ -3035,7 +3032,7 @@ public class Cpp
         }
         try
         {
-            filter(new TokenReaderWithLookahead(in, inFileName),
+            filter(new TokenReaderWithLookahead(in, inFileName, ""),
                    testFileOpener,
                    includePath,
                    writer,
@@ -3222,7 +3219,7 @@ public class Cpp
                                     + "#define __FILE__ __FILE__\n" // stub, handled specially
                                     + "#define __java 1\n";
                 java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
-                filter(new TokenReaderWithLookahead(builtinFakeInputReader, "<built-in>"),
+                filter(new TokenReaderWithLookahead(builtinFakeInputReader, "<built-in>", ""),
                        new FileOpener(),
                        includePath,
                        writer,
@@ -3239,7 +3236,7 @@ public class Cpp
             try
             {
                 java.io.Reader commandLineFakeInputReader = new java.io.StringReader(commandLineFakeInput.toString());
-                filter(new TokenReaderWithLookahead(commandLineFakeInputReader, "<command line>"),
+                filter(new TokenReaderWithLookahead(commandLineFakeInputReader, "<command line>", ""),
                        new FileOpener(),
                        includePath,
                        writer,
@@ -3255,7 +3252,7 @@ public class Cpp
 
             try
             {
-                filter(new TokenReaderWithLookahead(reader, inFileName),
+                filter(new TokenReaderWithLookahead(reader, inFileName, ""),
                        new FileOpener(),
                        includePath,
                        writer,
