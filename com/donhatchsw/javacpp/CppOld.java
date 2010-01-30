@@ -864,7 +864,10 @@ public class Cpp
     } // readTokenWithMacroSubstitution
 
     // Returns a {name, Reader} pair.
-    private static Object[/*2*/] findAndNewFileReader(FileOpener fileOpener, String fileName, String searchPath[])
+    private static Object[/*2*/] findAndNewFileReader(FileOpener fileOpener,
+                                                      String fileName,
+                                                      String searchPath[],
+                                                      String directoryToLookInFirst) // null means don't, "" means "." but don't prepend anything
         throws java.io.FileNotFoundException
     {
         if (fileName.startsWith("/"))
@@ -872,22 +875,32 @@ public class Cpp
             java.io.Reader reader = fileOpener.newFileReader(fileName); // if it throws, we throw
             return new Object[] {fileName, reader};
         }
+
+        if (directoryToLookInFirst != null)
+        {
+            String pathName = directoryToLookInFirst.equals("")
+                                  ? fileName
+                                  : directoryToLookInFirst+"/"+fileName;
+            try
+            {
+                java.io.Reader reader = fileOpener.newFileReader(pathName);
+                return new Object[] {pathName, reader};
+            }
+            catch (java.io.FileNotFoundException e)
+            {}
+        }
+
         for (int i = 0; i < searchPath.length; ++i)
         {
             String pathName = searchPath[i]+"/"+fileName;
             try
             {
                 java.io.Reader reader = fileOpener.newFileReader(pathName);
-                // TODO: this cosmetic adjustment isn't always how cpp behaves, it's a stopgap to imititate it in most cases
-                if (searchPath[i].equals("."))
-                    return new Object[] {fileName, reader};
-                else
-                    return new Object[] {pathName, reader};
+                return new Object[] {pathName, reader};
             }
             catch (java.io.FileNotFoundException e)
             {}
         }
-        // can't just return fileName, even if it exists, since "." might not be in searchPath
         throw new java.io.FileNotFoundException("No such file or directory");
     } // findAndNewFileReader
 
@@ -1489,26 +1502,23 @@ public class Cpp
                     TokenReaderWithLookahead newIn = null;
                     try
                     {
-                        String tweakedIncludePath[];
+                        String directoryToLookInFirst;
                         if (delimiter == '<')
-                            tweakedIncludePath = includePath;
+                            directoryToLookInFirst = null;
                         else
                         {
-                            // prepend the directory containing the current file name, or "." if no slashes in the current name
-                            tweakedIncludePath = new String[includePath.length+1];
                             if (in.inFileName.indexOf('/') != -1)
                             {
-                                tweakedIncludePath[0] = new java.io.File(in.inFileName).getParent();
-                                System.err.println("file parent of \""+in.inFileName+"\" is \""+tweakedIncludePath[0]+"\"");
+                                directoryToLookInFirst = new java.io.File(in.inFileName).getParent();
+                                System.err.println("file parent of \""+in.inFileName+"\" is \""+directoryToLookInFirst+"\"");
                             }
                             else
                             {
-                                tweakedIncludePath[0] = ".";
+                                directoryToLookInFirst = ""; // means "." except don't actually put that in the filename
                             }
-                            for (int i = 0; i < includePath.length; ++i)
-                                tweakedIncludePath[i+1] = includePath[i];
                         }
-                        Object newInAndPathName[/*2*/] = findAndNewFileReader(fileOpener, newInFileName, tweakedIncludePath);
+
+                        Object newInAndPathName[/*2*/] = findAndNewFileReader(fileOpener, newInFileName, includePath, directoryToLookInFirst);
                         String newInPathName = (String)newInAndPathName[0];
                         java.io.Reader newInReader = (java.io.Reader)newInAndPathName[1];
                         newIn = new TokenReaderWithLookahead(
