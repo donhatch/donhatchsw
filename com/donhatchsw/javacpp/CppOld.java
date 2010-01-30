@@ -709,6 +709,8 @@ public class Cpp
                     Token tokenPasteToken = in.readToken();
                     Token anotherToken = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
                     String combinedText = token.text + anotherToken.text;
+                    if (false)
+                        combinedText = "[" + combinedText + "]";
                     // XXX TODO: need to re-tokenize the combined text I think?? hmm what's an example where it makes a difference?
                     Token combinedToken = new Token(token.type,
                                                     combinedText,
@@ -1634,24 +1636,28 @@ public class Cpp
                     // Have to get output newlines in sync,
                     // I guess so anyone reading the output
                     // will know which line the included file was included from.
+                    AssertAlways(lineNumber == token.lineNumber); // do we even need the lineNumber variable??
+                    int desiredOutputLineNumber = token.lineNumber;
                     {
                         if (outputTokenColumnNumber > 0)
                         {
+                            //out.print("(a)");
                             out.println();
                             outputLineNumber++;
                             outputTokenColumnNumber = 0;
                         }
-                        while (outputLineNumber < lineNumber
-                            && lineNumber-outputLineNumber <= 7)
+                        while (outputLineNumber < desiredOutputLineNumber
+                            && desiredOutputLineNumber-outputLineNumber <= 7)
                         {
+                            ///out.print("(b)");
                             out.println();
                             outputLineNumber++;
                             outputTokenColumnNumber = 0;
                         }
-                        if (outputLineNumber != lineNumber)
+                        if (outputLineNumber != desiredOutputLineNumber)
                         {
-                            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
-                            outputLineNumber = lineNumber;
+                            out.println("# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                            outputLineNumber = desiredOutputLineNumber;
                             outputTokenColumnNumber = 0;
                         }
                     }
@@ -1763,34 +1769,82 @@ public class Cpp
                         // output.  If not, correct it
                         // by spewing newlines and/or a line number
                         // directive.
-                        if (outputLineNumber != lineNumber)
+
+
+
+                        /*
+                            we didn't spew a newline after the preceding comment..., we figured we'd do that lazily.
+                            on that comment, lineNumber was something small
+                            then we got a newline
+                            , lineNumber for that was 17
+
+                            0 based:
+                                lineNumber 0  : preceding comment
+                                ... linenumber 17 : newline
+                                linenumber 18 : newline
+                                linenumber 19 : next comment
+
+                        */
+                        //out.print("(outputLineNumber="+outputLineNumber+")(lineNumber="+lineNumber+")(desired="+desiredOutputLineNumber+"-0)(token.lineNumber="+token.lineNumber+")");
+                        AssertAlways(lineNumber == token.lineNumber);
+                        int desiredOutputLineNumber = token.lineNumber;
+                        if (outputLineNumber != desiredOutputLineNumber)
                         {
                             if (outputTokenColumnNumber > 0)
                             {
+                                //out.print("(c)");
                                 out.println();
                                 outputLineNumber++;
                                 outputTokenColumnNumber = 0;
                             }
                             // if we're close enough, fix by just spewing newlines
-                            if (lineNumber-outputLineNumber <= 7)
+                            if (desiredOutputLineNumber-outputLineNumber <= 7)
                             {
-                                while (outputLineNumber < lineNumber)
+                                while (outputLineNumber < desiredOutputLineNumber)
                                 {
+                                    //out.print("(d)");
                                     out.println();
                                     outputLineNumber++;
                                     outputTokenColumnNumber = 0;
                                 }
                             }
-                            if (outputLineNumber != lineNumber)
+                            if (outputLineNumber != desiredOutputLineNumber)
                             {
-                                out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
-                                outputLineNumber = lineNumber;
+                                out.println("# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                                outputLineNumber = desiredOutputLineNumber;
                                 outputTokenColumnNumber = 0;
                             }
                         }
 
-                        out.print(token.text);
-                        outputTokenColumnNumber++;
+                        if (token.type == Token.COMMENT)
+                        {
+                            // argh! comments can contain embedded newlines
+                            // which are '\n'
+                            // (that's what the Reader gave us).
+                            // need to turn those back into println
+                            // for output.
+                            int i0 = 0;
+                            int i1;
+                            while ((i1 = token.text.indexOf('\n', i0)) != -1)
+                            {
+                                out.println(token.text.substring(i0, i1));
+                                outputLineNumber++;
+                                outputTokenColumnNumber = 0;
+                                i0 = i1+1;
+                            }
+                            AssertAlways(token.text.substring(0) == token.text);
+                            out.print(token.text.substring(i0));
+                            outputTokenColumnNumber++;
+                        }
+                        else
+                        {
+                            // I don't think any other token types can contain embedded newlines. make sure...
+                            // XXX TODO: argh, I can trip this with my not-quite-right token pasting, which gets the type of the LHS but the RHS might be a comment:   "#define CAT(a,b) a##b  \n  CAT(x,/*\n\n*/)" argh!
+                            AssertAlways(token.text.indexOf('\n') == -1);
+
+                            out.print(token.text);
+                            outputTokenColumnNumber++;
+                        }
                     } // if not suppressing
                 } // token isn't a newline
             }
