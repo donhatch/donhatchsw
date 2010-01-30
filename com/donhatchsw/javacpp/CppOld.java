@@ -181,8 +181,9 @@ public class Cpp
         public static final int PREPROCESSOR_DIRECTIVE = 11;
         public static final int MACRO_ARG = 12;
         public static final int MACRO_ARG_QUOTED = 13;
-        public static final int EOF = 14;
-        public static final int NUMTYPES = 15; // one more than last value
+        public static final int TOKEN_PASTE = 14; // temporary form that "##" takes during macro evaluation... NOT during initial tokenizing
+        public static final int EOF = 15;
+        public static final int NUMTYPES = 16; // one more than last value
         // TODO: long
         // TODO: absorb backslash-newline into spaces
 
@@ -553,7 +554,7 @@ public class Cpp
                 if (reader.peek() == '#')
                 {
                     reader.read();
-                    token = new Token(Token.PREPROCESSOR_DIRECTIVE, "##", fileName, lineNumber, columnNumber);
+                    token = new Token(Token.PREPROCESSOR_DIRECTIVE, "##", fileName, lineNumber, columnNumber); // not TOKEN_PASTE, that's only created temporarily during macro expansion
                 }
                 else
                 {
@@ -654,14 +655,47 @@ public class Cpp
     } // private static class TokenReaderWithLookahead
 
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
-                                                        int lineNumber, // XXX TODO: is this needed any more?  I think it's stored in the token itself now, should check to make sure
+                                                        int lineNumber,
                                                         java.util.Hashtable macros,
                                                         boolean evaluateDefineds)
+        throws java.io.IOException
+    {
+        Token token = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
+        while (token.type != Token.EOF
+            && in.peekToken(0).type == Token.TOKEN_PASTE)
+        {
+            Token tokenPasteToken = in.readToken();
+            Token anotherToken = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
+            String combinedText = token.text + anotherToken.text;
+            // XXX TODO: need to re-tokenize the combined text I think?? hmm what's an example where it makes a difference?
+            Token combinedToken = new Token(token.type,
+                                            combinedText,
+                                            token.fileName,
+                                            token.lineNumber,
+                                            token.columnNumber);
+            System.err.println("HEY! pasting tokens \""+token.text+"\" and \""+anotherToken.text+"\" to get \""+combinedToken.text+"\"");
+            token = combinedToken;
+        }
+        return token;
+    } // readTokenWithMacroSubstitution
+
+    // The implementation of readTokenWithMacroSubstitution except for token pasting
+    private static Token _readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
+                                                         int lineNumber, // XXX TODO: is this needed any more?  I think it's stored in the token itself now, should check to make sure
+                                                         java.util.Hashtable macros,
+                                                         boolean evaluateDefineds)
         throws java.io.IOException
     {
         while (true)
         {
             Token token = in.readToken();
+
+            if (token.type == Token.TOKEN_PASTE)
+            {
+                AssertAlways(false);
+            }
+
+
             if (token.type != Token.IDENTIFIER)
                 return token;
 
@@ -839,7 +873,7 @@ public class Cpp
                 in.pushBackTokens(resultsVector);
             }
         }
-    } // readTokenWithMacroSubstitution
+    } // _readTokenWithMacroSubstitution
 
     // Returns a triple {name, Reader, extraCrap}.
     private static Object[/*3*/] findAndNewFileReader(FileOpener fileOpener,
@@ -1356,16 +1390,8 @@ public class Cpp
                                 String paramNameMaybe = nextToken.text.substring(1); // spaces got crunched out already during token lexical scanning
                                 if (paramNameMaybe.equals("#"))
                                 {
-                                    if (false)
-                                    {
-                                        throw new Error(in.inFileName+":"+(nextToken.lineNumber+1)+":"+(nextToken.columnNumber+1)+": '##' token pasting not implemented yet");
-                                    }
-                                    else
-                                    {
-                                        // just get something working, for now
-                                        System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: '##' token pasting not implemented yet");
-                                        nextToken = new Token(Token.SYMBOL, "##", nextToken.fileName, nextToken.lineNumber, nextToken.columnNumber);
-                                    }
+                                    System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: '##' token pasting not implemented yet");
+                                    nextToken = new Token(Token.TOKEN_PASTE, "##", nextToken.fileName, nextToken.lineNumber, nextToken.columnNumber);
                                 }
                                 else
                                 {
@@ -1752,14 +1778,14 @@ public class Cpp
                  +"goodbye from trivialinclude.h\n"
         },
         {
-            "masqueradeTest.h", ""
-                 +"hello from masqueradeTest.h\n"
+            "masqueradeTest.prejava", ""
+                 +"hello from masqueradeTest.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
                  +"# 100 \"someoneelse.h\""
-                 +"hello again from masqueradeTest.h\n"
+                 +"hello again from masqueradeTest.prejava\n"
                  +"#include \"moo.h\"\n"
                 +"    file __FILE__ line __LINE__\n"
-                 +"goodbye from masqueradeTest.h\n"
+                 +"goodbye from masqueradeTest.prejava\n"
         },
         {
             "/dev/null", ""
@@ -1837,8 +1863,8 @@ public class Cpp
                 +"goodbye from tricky.h\n"
         },
         {
-            "stringifyTest.h", ""
-                +"hello from stringifyTest.h\n"
+            "stringifyTest.prejava", ""
+                +"hello from stringifyTest.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"//  http://gcc.gnu.org/onlinedocs/gcc-4.4.3/cpp/Stringification.html#Stringification\n"
                 +"#define WARN_IF(EXP) \\\n"
@@ -1855,7 +1881,7 @@ public class Cpp
                 +"STRINGIFY(p = \"foo\\n\";)\n"
                 +"\n"
                 +"    file __FILE__ line __LINE__\n"
-                +"goodbye from stringifyTest.h\n"
+                +"goodbye from stringifyTest.prejava\n"
         },
         {
             // just isolate what I'm debugging
