@@ -30,6 +30,7 @@
 *
 
 TODO:
+    - test0 and test1 is broken (string file opener I guess)
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
     - #include_next, sigh
     - make sure line numbers in sync in all cases
@@ -107,61 +108,90 @@ public class Cpp
     } // private static class FileOpener
 
 
-    // Line number reader with 1 char of lookahead.
-    // Tells the column number as well as the line number.
+    // Line-and-column number reader with lookahead.
+    // Pushback is NOT supported since it would be impossible to determine column number.
     // Only implemented the methods I need.
+    // Discards escaped newlines.
+    // Only 1 character of lookahead is available externally.
+    // 1 character of lookahead would be sufficient EXCEPT for the pesky fact that we have to
+    // look ahead an arbitrary number of spaces to determine whether we're looking at an escaped newline,
+    // oh well.
     private static class LineAndColumnNumberReaderWithLookahead
     {
-        private java.io.LineNumberReader lineNumberReader;
+        private java.io.LineNumberReader newlineSimplifyingReader; // note we do NOT use the line number feature of this guy, we only use the fact that it compresses each line terminator into a single '\n' during read.
         private int lineNumber = 0;
         private int columnNumber = 0;
-        private boolean lookedAhead = false;
-        private int lookedAheadChar;
+
+        private int nLookedAhead = 0;
+        private int lookaheadBuffer[] = new int[0]; // expands as needed
 
         // To avoid dismal performance, caller should make sure
         // that reader is either a BufferedReader or has one as an ancestor.
         public LineAndColumnNumberReaderWithLookahead(java.io.Reader reader)
         {
-            this.lineNumberReader = new java.io.LineNumberReader(reader);
-            AssertAlways(this.lineNumberReader.getLineNumber() == 0);
+            this.newlineSimplifyingReader = new java.io.LineNumberReader(reader);
+            AssertAlways(this.newlineSimplifyingReader.getLineNumber() == 0);
         }
 
         public int read()
-            throws java.io.IOException // since lineNumberReader.read() does
+            throws java.io.IOException // since newlineSimplifyingReader.read() does
         {
             //System.out.println("            with lookahead before read(): line "+lineNumber);
-            //System.out.println("                ("+(lookedAhead?"":"not ")+"looking ahead)");
-            int c = lookedAhead ? lookedAheadChar : lineNumberReader.read();
-            lookedAhead = false;
+            //System.out.println("                ("+(nLookedAhead>=1?"":"not ")+"looking ahead)");
+            int c;
+            if (nLookedAhead >= 1)
+            {
+                c = lookaheadBuffer[0];
+                for (int i = 0; i < nLookedAhead-1; ++i)
+                    lookaheadBuffer[i] = lookaheadBuffer[i+1];
+                --nLookedAhead;
+            }
+            else
+            {
+                c = newlineSimplifyingReader.read();
+            }
             if (c != -1)
             {
-                // since lookedAhead is false,
-                // lineNumberReader has correct line number
-                int newLineNumber = lineNumberReader.getLineNumber();
-                if (newLineNumber != lineNumber)
+                if (c == '\n')
+                {
+                    lineNumber++;
                     columnNumber = 0;
+                }
                 else
                     columnNumber++;
-                lineNumber = newLineNumber;
             }
-            //System.out.println("            with lookahead read() returning '"+escapify((char)c,'\'')+"'");
-            //System.out.println("            with lookahead after read(): line "+lineNumber);
+            //System.err.println("            with lookahead read() returning '"+escapify((char)c,'\'')+"'");
+            //System.err.println("            with lookahead after read(): line "+lineNumber);
             return c;
-        }
+        } // private read
+
+
         // Return what read() will return next.
         public int peek()
             throws java.io.IOException
         {
-            if (!lookedAhead)
+            int index = 0;
+            while (nLookedAhead <= index)
             {
-                lookedAheadChar = lineNumberReader.read();
-                lookedAhead = true;
+                if (nLookedAhead == lookaheadBuffer.length)
+                {
+                    // grow buffer
+                    int newLookaheadBuffer[] = new int[lookaheadBuffer.length*2+1]; // 0 1 3 7 15 31 63 ...
+                    for (int i = 0; i < nLookedAhead; ++i)
+                        newLookaheadBuffer[i] = lookaheadBuffer[i];
+                    lookaheadBuffer = newLookaheadBuffer;
+                }
+                if (nLookedAhead >= 1)
+                    AssertAlways(lookaheadBuffer[nLookedAhead-1] != -1); // no peeking past eof!
+                lookaheadBuffer[nLookedAhead++] = newlineSimplifyingReader.read();
+                // peeking doesn't do anything to lineNumber and columnNumber
             }
-            return lookedAheadChar;
+            return lookaheadBuffer[index];
         }
+
         public int getLineNumber()
         {
-            //System.out.println("            with lookahead getLineNumber returning "+lineNumber);
+            //System.err.println("            with lookahead getLineNumber returning "+lineNumber);
             return lineNumber;
         }
         public int getColumnNumber()
@@ -171,10 +201,7 @@ public class Cpp
         public void setLineNumber(int lineNumber)
         {
             this.lineNumber = lineNumber;
-            if (lookedAhead && lookedAheadChar == '\n')
-                lineNumberReader.setLineNumber(lineNumber+1);
-            else
-                lineNumberReader.setLineNumber(lineNumber);
+            this.columnNumber = 0;
         }
     } // private static class LineAndColumnNumberReaderWithLookahead
 
@@ -191,13 +218,12 @@ public class Cpp
         public static final int COMMENT = 7;
         public static final int SPACES = 8;
         public static final int NEWLINE_UNESCAPED = 9; // XXX TODO: not handling these right, these should NOT turn into spaces, cpp uses them as nothing (argh, which ends up putting multiple stuff on a line!)
-        public static final int NEWLINE_ESCAPED = 10; // XXX TODO: decide whether this should be included in SPACES, I think it might simplify some things
-        public static final int PREPROCESSOR_DIRECTIVE = 11;
-        public static final int MACRO_ARG = 12;
-        public static final int MACRO_ARG_QUOTED = 13;
-        public static final int TOKEN_PASTE = 14; // temporary form that "##" takes during macro evaluation... NOT during initial tokenizing
-        public static final int EOF = 15;
-        public static final int NUMTYPES = 16; // one more than last value
+        public static final int PREPROCESSOR_DIRECTIVE = 10;
+        public static final int MACRO_ARG = 11;
+        public static final int MACRO_ARG_QUOTED = 12;
+        public static final int TOKEN_PASTE = 13; // temporary form that "##" takes during macro evaluation... NOT during initial tokenizing
+        public static final int EOF = 14;
+        public static final int NUMTYPES = 15; // one more than last value
         // TODO: long
         // TODO: absorb backslash-newline into spaces
 
@@ -398,6 +424,37 @@ public class Cpp
             int columnNumber = reader.getColumnNumber();
 
             int c = reader.read();
+
+            while (c == '\\')
+            {
+                // escaped newlines just disappear,
+                // and it's okay to swallow any intervening spaces too.
+                // TODO: really this should be done in the stream we're reading from, so that, for example, an escaped newline can appear right in the middle of an identifier
+                int d;
+                boolean gotSpace = false;
+                while ((d = reader.peek()) != -1
+                    && d != '\n'
+                    && Character.isWhitespace((char)d))
+                {
+                    gotSpace = true;
+                    reader.read(); // discard the space
+                }
+                if (d == '\n')
+                {
+                    reader.read(); // discard the newline
+                    if (gotSpace)
+                        System.err.println(fileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: backslash and newline separated by space");
+                    c = reader.read();
+                }
+                else
+                {
+                    // TODO: argh! lost the space!  I think this actually requires two characters of lookahead, argh.  but we can fake it by putting a space in the token we return.
+                    if (gotSpace)
+                        System.err.println("ARGH!! handling backslash-space lamely");
+                    return new Token(Token.SYMBOL, "\\"+(gotSpace?" ":""), fileName, lineNumber, columnNumber);
+                }
+            }
+
             Token token;
             if (c == -1)
             {
@@ -409,12 +466,6 @@ public class Cpp
             {
                 scratch.append((char)c);
                 token = new Token(Token.NEWLINE_UNESCAPED, scratch.toString(), fileName, lineNumber, columnNumber);
-            }
-            else if (c == '\\' && reader.peek()  == '\n')
-            {
-                scratch.append((char)c);
-                scratch.append(reader.read());
-                token = new Token(Token.NEWLINE_ESCAPED, scratch.toString(), fileName, lineNumber, columnNumber);
             }
             else if (Character.isWhitespace((char)c))
             {
@@ -622,7 +673,7 @@ public class Cpp
                 scratch.append((char)c);
                 token = new Token(Token.SYMBOL, scratch.toString(), fileName, lineNumber, columnNumber);
             }
-            //System.out.println("            TokenReader  returning "+token);
+            //System.err.println("            TokenReader  returning "+token);
             return token;
         } // readToken
         public void setFileName(String fileName)
@@ -671,7 +722,7 @@ public class Cpp
                 token = tokenReader.readToken();
                 lookedahead = false;
             }
-            //System.out.println("            TokenReaderWithLookahead returning ("+(lookedahead ? "lookedahead" : "nolookedahead")+"): "+token);
+            //System.err.println("            TokenReaderWithLookahead returning ("+(lookedahead ? "lookedahead" : "nolookedahead")+"): "+token);
             return token;
         }
         public Token peekToken(int index)
@@ -803,7 +854,6 @@ public class Cpp
                 // '(', identifier, ')'.
                 Token nextToken = in.readToken();
                 while (nextToken.type == Token.SPACES
-                    || nextToken.type == Token.NEWLINE_ESCAPED
                     || nextToken.type == Token.COMMENT)
                     nextToken = in.readToken();
 
@@ -896,7 +946,6 @@ public class Cpp
             {
                 // move past spaces
                 while (in.peekToken(0).type == Token.SPACES
-                    || in.peekToken(0).type == Token.NEWLINE_ESCAPED
                     || in.peekToken(0).type == Token.COMMENT)
                     in.readToken();
                 Token shouldBeLeftParen = in.readToken();
@@ -1139,7 +1188,6 @@ public class Cpp
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
-                        || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
                         nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, true);
 
@@ -1151,9 +1199,7 @@ public class Cpp
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
                     {
-                        if (nextToken.type == Token.NEWLINE_ESCAPED)
-                            ; // really nothing
-                        else if (nextToken.type == Token.COMMENT)
+                        if (nextToken.type == Token.COMMENT)
                             sb.append(" ");
                         else
                             sb.append(nextToken.text);
@@ -1263,7 +1309,6 @@ public class Cpp
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
-                        || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
                         nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
@@ -1291,7 +1336,6 @@ public class Cpp
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
-                        || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
                         nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
@@ -1308,7 +1352,6 @@ public class Cpp
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
-                        || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
                         nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
@@ -1368,7 +1411,6 @@ public class Cpp
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
-                        || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
                         nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
@@ -1400,7 +1442,6 @@ public class Cpp
 
                         // move past spaces
                         while (nextToken.type == Token.SPACES
-                            || nextToken.type == Token.NEWLINE_ESCAPED
                             || nextToken.type == Token.COMMENT)
                             nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
@@ -1425,7 +1466,6 @@ public class Cpp
                             {
                                 // move past spaces
                                 while (nextToken.type == Token.SPACES
-                                    || nextToken.type == Token.NEWLINE_ESCAPED
                                     || nextToken.type == Token.COMMENT)
 
                                     nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
@@ -1440,7 +1480,7 @@ public class Cpp
 
                                         // move past spaces
                                         while (nextToken.type == Token.SPACES
-                                            || nextToken.type == Token.NEWLINE_ESCAPED)
+                                            || nextToken.type == Token.COMMENT)
                                             nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                                         if (nextToken.type == Token.IDENTIFIER)
@@ -1462,7 +1502,6 @@ public class Cpp
                         paramNames = (String[])paramNamesVector.toArray(new String[0]);
                     }
                     else if (nextToken.type == Token.SPACES
-                          || nextToken.type == Token.NEWLINE_ESCAPED
                           || nextToken.type == Token.COMMENT
                           || nextToken.type == Token.NEWLINE_UNESCAPED
                           || nextToken.type == Token.EOF)
@@ -1540,7 +1579,6 @@ public class Cpp
                         for (int iIn = 0; iIn < contents.length; ++iIn)
                         {
                             if (contents[iIn].type == Token.SPACES
-                             || contents[iIn].type == Token.NEWLINE_ESCAPED
                              || contents[iIn].type == Token.COMMENT)
                             {
                                 if (nOut != 0
@@ -1614,7 +1652,6 @@ public class Cpp
 
                     Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                     while (nextToken.type == Token.SPACES
-                        || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
                         nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
 
@@ -1679,7 +1716,6 @@ public class Cpp
                     }
 
                     while (in.peekToken(0).type == Token.SPACES
-                        || in.peekToken(0).type == Token.NEWLINE_ESCAPED
                         || in.peekToken(0).type == Token.COMMENT)
                         in.readToken();
                     if (in.peekToken(0).type != Token.NEWLINE_UNESCAPED)
@@ -1747,9 +1783,7 @@ public class Cpp
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
                     {
-                        if (nextToken.type == Token.NEWLINE_ESCAPED)
-                            ; // really nothing
-                        else if (nextToken.type == Token.COMMENT)
+                        if (nextToken.type == Token.COMMENT)
                             sb.append(" ");
                         else
                             sb.append(nextToken.text);
@@ -1820,7 +1854,6 @@ public class Cpp
 
                     Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                     while (nextToken.type == Token.SPACES
-                        || nextToken.type == Token.NEWLINE_ESCAPED
                         || nextToken.type == Token.COMMENT)
                         nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                     Token fileNameToken = nextToken;
@@ -1833,7 +1866,6 @@ public class Cpp
                     while (true)
                     {
                         while (nextToken.type == Token.SPACES
-                            || nextToken.type == Token.NEWLINE_ESCAPED
                             || nextToken.type == Token.COMMENT)
                             nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
                         if (nextToken.type == Token.NEWLINE_UNESCAPED)
@@ -3485,7 +3517,7 @@ public class Cpp
 
         if (false)
         {
-            //test0("assertTest.prejava");
+            test0("assertTest.prejava");
             //test1("assertTest.prejava");
 
             //test0("ifTest.prejava");
