@@ -170,6 +170,10 @@ public class Cpp
         {
             return columnNumber;
         }
+        public void setLineNumber(int lineNumber)
+        {
+            this.lineNumber = lineNumber;
+        }
     } // private static class LineAndColumnNumberReaderWithLookahead
 
     private static class Token
@@ -618,6 +622,14 @@ public class Cpp
             //System.out.println("            TokenReader  returning "+token);
             return token;
         } // readToken
+        public void setFileName(String fileName)
+        {
+            this.fileName = fileName;
+        }
+        public void setLineNumber(int lineNumber)
+        {
+            reader.setLineNumber(lineNumber);
+        }
     } // private static class TokenReader
 
     // Guaranteed to return non-null,
@@ -625,13 +637,13 @@ public class Cpp
     private static class TokenReaderWithLookahead
     {
         private TokenReader tokenReader;
-        String inFileName;
-        String extraCrap; // gets put at the end of # line directives referring to this file, to imitate the real cpp
-        private java.util.LinkedList lookAheadBuffer = new java.util.LinkedList();
+        public String inFileName;
+        public String extraCrap; // gets put at the end of # line directives referring to this file, to imitate the real cpp
+        private java.util.LinkedList lookaheadBuffer = new java.util.LinkedList();
 
         public boolean hasLookahead()
         {
-            return !lookAheadBuffer.isEmpty();
+            return !lookaheadBuffer.isEmpty();
         }
 
         public TokenReaderWithLookahead(java.io.Reader in, String inFileName, String extraCrap)
@@ -646,9 +658,9 @@ public class Cpp
         {
             Token token;
             boolean lookedahead;
-            if (!lookAheadBuffer.isEmpty())
+            if (!lookaheadBuffer.isEmpty())
             {
-                token = (Token)lookAheadBuffer.removeFirst();
+                token = (Token)lookaheadBuffer.removeFirst();
                 lookedahead = true;
             }
             else
@@ -662,28 +674,59 @@ public class Cpp
         public Token peekToken(int index)
             throws java.io.IOException // since tokenReader.readToken() does
         {
-            while (lookAheadBuffer.size() <= index)
+            while (lookaheadBuffer.size() <= index)
             {
                 Token token = tokenReader.readToken();
-                lookAheadBuffer.add(token);
+                lookaheadBuffer.add(token);
             }
-            return (Token)lookAheadBuffer.get(index);
+            return (Token)lookaheadBuffer.get(index);
         }
         public void pushBackToken(Token token)
         {
-            lookAheadBuffer.add(0, token);
+            lookaheadBuffer.add(0, token);
         }
         public void pushBackTokens(Token tokens[])
         {
             for (int i = tokens.length-1; i >= 0; --i)
-                lookAheadBuffer.add(0, tokens[i]);
+                lookaheadBuffer.add(0, tokens[i]);
 
         }
         public void pushBackTokens(java.util.Vector tokensVector)
         {
             for (int i = tokensVector.size()-1; i >= 0; --i)
-                lookAheadBuffer.add(0, (Token)tokensVector.get(i));
+                lookaheadBuffer.add(0, (Token)tokensVector.get(i));
 
+        }
+        public void setFileName(String fileName)
+        {
+            inFileName = fileName;
+            tokenReader.setFileName(fileName);
+
+            java.util.ListIterator iter = lookaheadBuffer.listIterator(0);
+            while (iter.hasNext())
+            {
+                Token token = (Token)iter.next();
+                token.fileName = fileName;
+            }
+        }
+        // probably not reliable if there's lookahead, but we only do it in one case, so can empirically adjust
+        public void setLineNumber(int lineNumber)
+        {
+            tokenReader.setLineNumber(lineNumber);
+
+            java.util.ListIterator iter = lookaheadBuffer.listIterator(0);
+            while (iter.hasNext())
+            {
+                Token token = (Token)iter.next();
+                token.lineNumber = lineNumber;
+                // count number of newlines in text, add that to lineNumber
+                int i = 0;
+                while ((i = token.text.indexOf('\n', i)) != -1)
+                {
+                    lineNumber++;
+                    i++;
+                }
+            }
         }
     } // private static class TokenReaderWithLookahead
 
@@ -1748,6 +1791,83 @@ public class Cpp
                         System.err.println(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: "+sb.toString()); // TODO: cpp gives column number where "warning" begins, not where "#warning" begins
                     else // token.text.equals("#error")
                         throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": "+sb.toString());
+                }
+                else if (token.text.length() >= 2
+                      && Character.isDigit(token.text.charAt(1)))
+                {
+                    // Line number directive
+                    int oneBasedLineNumber = token.text.charAt(1) - '0';
+                    for (int i = 2; i < token.text.length(); ++i)
+                    {
+                        char c = token.text.charAt(i);
+                        if (!Character.isDigit(c))
+                            throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": \""+token.text.substring(1)+"\" after # is not a positive integer"); // // TODO: cpp gives column number where "warning" begins, not where "#warning" begins
+                        oneBasedLineNumber = oneBasedLineNumber*10 + (c-'0');
+                    }
+
+                    Token nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                    while (nextToken.type == Token.SPACES
+                        || nextToken.type == Token.NEWLINE_ESCAPED
+                        || nextToken.type == Token.COMMENT)
+                        nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                    Token fileNameToken = nextToken;
+                    if (fileNameToken.type != Token.STRING_LITERAL)
+                    {
+                        throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": \""+escapify(fileNameToken.text)+"\" is not a valid filename");
+                    }
+                    nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                    java.util.Vector flagsVector = new java.util.Vector();
+                    while (true)
+                    {
+                        while (nextToken.type == Token.SPACES
+                            || nextToken.type == Token.NEWLINE_ESCAPED
+                            || nextToken.type == Token.COMMENT)
+                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                        if (nextToken.type == Token.NEWLINE_UNESCAPED)
+                            break;
+                        else if (nextToken.type == Token.INT_LITERAL)
+                        {
+                            flagsVector.add(nextToken.text); // don't bother parsing it into an actual int
+                            nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
+                        }
+                        else
+                            throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": invalid flag \""+escapify(nextToken.text)+"\" in line directive");
+                    }
+                    System.err.println("got "+flagsVector.size()+" int flags");
+                    String flags[] = new String[flagsVector.size()];
+                    for (int i = 0; i < flags.length; ++i)
+                        flags[i] = (String)flagsVector.get(i);
+
+                    // imitate cpp's screwy logic
+                    String reason = "";
+                    String extraCrap = "";
+                    int iFlag = 0;
+                    if (iFlag < flags.length
+                     && (flags[iFlag].equals("1")
+                      || flags[iFlag].equals("2")))
+                        reason = " "+flags[iFlag++];
+                    if (iFlag < flags.length
+                     && flags[iFlag].equals("3"))
+                    {
+                        extraCrap += " " + flags[iFlag++];
+                        if (iFlag < flags.length
+                         && flags[iFlag].equals("4"))
+                            extraCrap += " " + flags[iFlag++];
+                    }
+                    System.err.println("reason = \""+reason+"\"");
+                    System.err.println("extraCrap = \""+extraCrap+"\"");
+
+                    // jam it into in
+                    in.setFileName(fileNameToken.text);
+                    in.setLineNumber(oneBasedLineNumber-1);
+                    in.extraCrap = extraCrap;
+
+                    // make sure no one is under the illusion
+                    // that we are still in sync or that just adding a small number of newlines can fix it
+                    outputLineNumber = -999;
+
+                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 else
                 {
