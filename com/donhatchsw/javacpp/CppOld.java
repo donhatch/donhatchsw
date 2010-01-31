@@ -111,11 +111,11 @@ public class Cpp
     // Line-and-column number reader with lookahead.
     // Pushback is NOT supported since it would be impossible to determine column number.
     // Only implemented the methods I need.
-    // Discards escaped newlines.
     // Only 1 character of lookahead is available externally.
     // 1 character of lookahead would be sufficient EXCEPT for the pesky fact that we have to
     // look ahead an arbitrary number of spaces to determine whether we're looking at an escaped newline,
     // oh well.
+    // TODO: I think discarding of escaped newlines should be on this level? turned out to be a surprisingly hairy problem.
     private static class LineAndColumnNumberReaderWithLookahead
     {
         private java.io.LineNumberReader newlineSimplifyingReader; // note we do NOT use the line number feature of this guy, we only use the fact that it compresses each line terminator into a single '\n' during read.
@@ -616,7 +616,17 @@ public class Cpp
                 while (reader.peek() != -1
                     && reader.peek() != '\n')
                 {
-                    scratch.append((char)reader.read());
+                    c = reader.read();
+                    if (c == '\\')
+                    {
+                        // TODO: naive, in the case of spaces between the backslash and the newline... doesn't recognize that
+                        if (reader.peek() == '\n')
+                        {
+                            reader.read(); // discard the newline
+                            continue;
+                        }
+                    }
+                    scratch.append((char)c);
                 }
                 token = new Token(Token.COMMENT, scratch.toString(), fileName, lineNumber, columnNumber);
             }
@@ -630,6 +640,17 @@ public class Cpp
                     c = reader.read();
                     if (c == -1)
                         throw new Error("EOF in middle of comment");
+
+                    if (c == '\\')
+                    {
+                        // TODO: naive, in the case of spaces between the backslash and the newline... doesn't recognize that
+                        if (reader.peek() == '\n')
+                        {
+                            reader.read(); // discard the newline
+                            continue;
+                        }
+                    }
+
                     scratch.append((char)c);
                     if (c == '*' && reader.peek() == '/')
                     {
@@ -2049,6 +2070,25 @@ public class Cpp
 
     // TODO: make a way to test for the errors too
     private static final String testFileNamesAndContents[][] = {
+        {
+            "testCppGoneMad.prejava", ""
+                +"// wtf? this is excerpted from /usr/include/sys/cdefs.h\n"
+                +"// why is cpp putting that extra right paren there???\n"
+                +"// ohh it's some out of bounds memory read I bet\n"
+                +"hello from testCppGoneMad.prejava\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"/*\n"
+                +"#elif __SOME_OTHER_COMPILER__\n"
+                +"\n"
+                +"# define __REDIRECT(name, proto, alias) name proto; \\\n"
+                +"\\\n"
+                +"\\\n"
+                +"\\\n"
+                +"        _Pragma(\"let \" #name \" = \" #alias)\n"
+                +"*/\n"
+                +"    file __FILE__ line __LINE__\n"
+                +"goodbye from testCppGoneMad.prejava\n"
+        },
         {
             "test00.prejava", ""
                 +"hello from test00.prejava\n"
@@ -3481,7 +3521,7 @@ public class Cpp
     {
         System.err.println("in Cpp.main");
         ExpressionParser expressionParser = new ExpressionParser();
-        if (false) // XXX TODO: make command line option for this
+        if (args.length == 1 && args[0].equals("-dumpTests"))
         {
             // dump the test strings into files in tmp dir
             String tmpDirName = "tmp";
@@ -3513,7 +3553,8 @@ public class Cpp
                 writer.print(contents);
                 writer.flush();
             }
-        }
+            System.exit(0);
+        } // -dumpTests option
 
         if (false)
         {
