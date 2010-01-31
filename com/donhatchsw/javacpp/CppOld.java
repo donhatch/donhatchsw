@@ -3520,6 +3520,7 @@ public class Cpp
     public static void main(String args[])
     {
         System.err.println("in Cpp.main");
+        long t0Millis = System.currentTimeMillis();
         ExpressionParser expressionParser = new ExpressionParser();
         if (args.length == 1 && args[0].equals("-dumpTests"))
         {
@@ -3902,6 +3903,9 @@ public class Cpp
             writer.flush();
         } // behave like actual cpp
 
+        long t1Millis = System.currentTimeMillis();
+        double totalSeconds = (t1Millis-t0Millis)*1e-3;
+        System.err.println("    "+totalSeconds+" seconds");
         System.err.println("out Cpp.main");
         System.exit(0);
     } // main
