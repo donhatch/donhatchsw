@@ -751,7 +751,7 @@ public class Cpp
             {
                 if (token.type == Token.TOKEN_PASTE)
                 {
-                    System.err.println("==========HEY! discarding ## since LHS is empty, I think");
+                    //System.err.println("==========HEY! discarding ## since LHS is empty, I think");
                     continue;
                 }
                 else if (in.peekToken(0).type == Token.TOKEN_PASTE)
@@ -767,7 +767,7 @@ public class Cpp
                                                     token.fileName,
                                                     token.lineNumber,
                                                     token.columnNumber);
-                    System.err.println("==========HEY! pasting tokens \""+token.text+"\" and \""+anotherToken.text+"\" to get \""+combinedToken.text+"\"");
+                    //System.err.println("==========HEY! pasting tokens \""+token.text+"\" and \""+anotherToken.text+"\" to get \""+combinedToken.text+"\"");
                     in.pushBackToken(combinedToken);
                     continue;
                 }
@@ -1199,7 +1199,7 @@ public class Cpp
                         }
                         catch (Exception e)
                         {
-                            throw new Error(expressionStartToken.fileName+":"+(expressionStartToken.lineNumber+1)+":"+(expressionStartToken.columnNumber+1)+": "+e.getMessage()+" in "+token.text+" expression was "+sb.toString()+"");
+                            throw new Error(expressionStartToken.fileName+":"+(expressionStartToken.lineNumber+1)+":"+(expressionStartToken.columnNumber+1)+": "+e.getMessage()+" in "+token.text+", expression was "+sb.toString()+"");
                         }
                         boolean answer = (expressionValue != 0);
 
@@ -1505,7 +1505,7 @@ public class Cpp
                                 String paramNameMaybe = nextToken.text.substring(1); // spaces got crunched out already during token lexical scanning
                                 if (paramNameMaybe.equals("#"))
                                 {
-                                    System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": hey! "+macroName+" is a token pasting macro!");
+                                    //System.err.println(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": hey! "+macroName+" is a token pasting macro!");
                                     nextToken = new Token(Token.TOKEN_PASTE, "##", nextToken.fileName, nextToken.lineNumber, nextToken.columnNumber);
                                 }
                                 else
@@ -3682,7 +3682,7 @@ public class Cpp
                             ;
                     }
                     // cpp -x c -dM /dev/null
-                    builtinInput += "#define __STDC__ 1"; // why the heck is this not in the output of cpp -dM??? it's definitely defined
+                    builtinInput += "#define __STDC__ 1\n"; // why the heck is this not in the output of cpp -dM??? it's definitely defined
                     builtinInput += ""
                         + "#define __DBL_MIN_EXP__ (-1021)\n"
                         + "#define __FLT_MIN__ 1.17549435e-38F\n"
