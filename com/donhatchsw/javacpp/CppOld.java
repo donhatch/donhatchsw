@@ -19,17 +19,15 @@
 *       -I
 *       -D
 *       -U
-*       -C (ignores this option, never strips comments anyway)
+*       -C  (ignores this option, never strips comments anyway)
+*       -x [ java | c++ | c ]  (default language is java)
 *
+* To imitate the builtin include path and defines from
+* cpp -C from gcc version 3.4.6 on redhat 3.4.6-9,
+* run it with -x c or -x c++.
+* When using the default language (-x java),
+* line number directives will be commented out in the output.
 *
-* To imitate cpp -C from gcc version 3.4.6 on redhat 3.4.6-9,
-* Run it with these args (found using cpp -v):
-*       -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1 -D__SIZE_TYPE__="unsigned int" -D__PTRDIFF_TYPE__=int
-* For c++ (found using cpp -x c++ -v):
-*       -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6 -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/i386-redhat-linux -I /usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/backward -I /usr/local/include -I /usr/lib/gcc/i386-redhat-linux/3.4.6/include -I /usr/include -D__GNUC__=3 -D__GNUC_MINOR__=4 -D__GNUC_PATCHLEVEL__=6 -D__STDC__=1 -D__SIZE_TYPE__="unsigned int" -D__PTRDIFF_TYPE__=int
-
-* oh no, there's a ton more defines, to see them all, try: cpp -dM 
-
 
 TODO:
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
@@ -173,6 +171,10 @@ public class Cpp
         public void setLineNumber(int lineNumber)
         {
             this.lineNumber = lineNumber;
+            if (lookedAhead && lookedAheadChar == '\n')
+                lineNumberReader.setLineNumber(lineNumber+1);
+            else
+                lineNumberReader.setLineNumber(lineNumber);
         }
     } // private static class LineAndColumnNumberReaderWithLookahead
 
@@ -284,8 +286,9 @@ public class Cpp
                   +escapify(this.text)
                   +"\", "
                   +"                         "
-                  +this.fileName
-                  +", "
+                  +", \""
+                  +escapify(this.fileName)
+                  +"\", "
                   +this.lineNumber
                   +", "
                   +this.columnNumber
@@ -390,7 +393,7 @@ public class Cpp
             // clear scratch...
             scratch.delete(0, scratch.length());
 
-            // grab the line number and column number at the beginning of the token
+            // grab the (0-based) line number and column number at the beginning of the token
             int lineNumber = reader.getLineNumber();
             int columnNumber = reader.getColumnNumber();
 
@@ -709,15 +712,18 @@ public class Cpp
                 token.fileName = fileName;
             }
         }
-        // probably not reliable if there's lookahead, but we only do it in one case, so can empirically adjust
         public void setLineNumber(int lineNumber)
         {
+            if (hasLookahead())
+                System.err.println("Uh oh, setting line number to "+lineNumber+" but has lookahead");
+
             tokenReader.setLineNumber(lineNumber);
 
             java.util.ListIterator iter = lookaheadBuffer.listIterator(0);
             while (iter.hasNext())
             {
                 Token token = (Token)iter.next();
+                System.err.println("    changing from "+token.lineNumber+" to "+lineNumber+" on a "+Token.typeToName(token.type));
                 token.lineNumber = lineNumber;
                 // count number of newlines in text, add that to lineNumber
                 int i = 0;
@@ -740,7 +746,8 @@ public class Cpp
         {
             Token token = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
 
-            if (token.type != Token.EOF)
+            if (token.type != Token.EOF
+             && token.type != Token.NEWLINE_UNESCAPED) // no need to look for tokenpaste past a newline, this avoids big messiness in setLineNumber
             {
                 if (token.type == Token.TOKEN_PASTE)
                 {
@@ -763,6 +770,10 @@ public class Cpp
                     System.err.println("==========HEY! pasting tokens \""+token.text+"\" and \""+anotherToken.text+"\" to get \""+combinedToken.text+"\"");
                     in.pushBackToken(combinedToken);
                     continue;
+                }
+                else
+                {
+                    //System.err.println("(peeked a "+Token.typeToName(in.peekToken(0).type)+")");
                 }
             }
             //System.err.println("readTokenWithMacroSubstitution (possibly recursive) returning "+token);
@@ -1055,6 +1066,7 @@ public class Cpp
                               java.io.PrintWriter out,
                               java.util.Hashtable macros, // gets updated as we go
                               ExpressionParser expressionParser,
+                              boolean commentOutLineDirectives,
                               int recursionLevel)
 
         throws java.io.IOException
@@ -1071,9 +1083,9 @@ public class Cpp
         int lineNumber = 0;
         int columnNumber = 0;
         if (recursionLevel >= 1)
-            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"+in.extraCrap); // cpp puts a 1 there when entering recursive levels, imitating it
+            out.println((commentOutLineDirectives?"// ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"+in.extraCrap); // cpp puts a 1 there when entering recursive levels, imitating it
         else
-            out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+            out.println((commentOutLineDirectives?"// ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
         int outputLineNumber = lineNumber;
         int outputTokenColumnNumber = 0;
 
@@ -1692,14 +1704,14 @@ public class Cpp
                         while (outputLineNumber < desiredOutputLineNumber
                             && desiredOutputLineNumber-outputLineNumber <= 7)
                         {
-                            ///out.print("(b)");
+                            //out.print("(b)");
                             out.println();
                             outputLineNumber++;
                             outputTokenColumnNumber = 0;
                         }
                         if (outputLineNumber != desiredOutputLineNumber)
                         {
-                            out.println("# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                            out.println((commentOutLineDirectives?"// ":"")+"# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                             outputLineNumber = desiredOutputLineNumber;
                             outputTokenColumnNumber = 0;
                         }
@@ -1715,8 +1727,9 @@ public class Cpp
                            out,
                            macros,
                            expressionParser,
+                           commentOutLineDirectives,
                            recursionLevel+1);
-                    out.println("# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"+in.extraCrap); // cpp puts a 2 there when leaving recursive levels, imitating it
+                    out.println((commentOutLineDirectives?"// ":"")+"# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"+in.extraCrap); // cpp puts a 2 there when leaving recursive levels, imitating it
 
                     outputLineNumber = lineNumber+1;
                     outputTokenColumnNumber = 0;
@@ -1779,7 +1792,7 @@ public class Cpp
                                     outputLineNumber++;
                                     outputTokenColumnNumber = 0;
                                 }
-                                out.println("# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                                out.println((commentOutLineDirectives?"// ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                                 outputLineNumber = lineNumber;
                                 outputTokenColumnNumber = 0;
                             }
@@ -1833,7 +1846,7 @@ public class Cpp
                         else
                             throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": invalid flag \""+escapify(nextToken.text)+"\" in line directive");
                     }
-                    System.err.println("got "+flagsVector.size()+" int flags");
+                    //System.err.println("got "+flagsVector.size()+" int flags");
                     String flags[] = new String[flagsVector.size()];
                     for (int i = 0; i < flags.length; ++i)
                         flags[i] = (String)flagsVector.get(i);
@@ -1854,17 +1867,22 @@ public class Cpp
                          && flags[iFlag].equals("4"))
                             extraCrap += " " + flags[iFlag++];
                     }
-                    System.err.println("reason = \""+reason+"\"");
-                    System.err.println("extraCrap = \""+extraCrap+"\"");
+                    //System.err.println("reason = \""+reason+"\"");
+                    //System.err.println("extraCrap = \""+extraCrap+"\"");
 
                     // jam it into in
-                    in.setFileName(fileNameToken.text);
+                    in.setFileName(fileNameToken.text.substring(1, fileNameToken.text.length()-1));
                     in.setLineNumber(oneBasedLineNumber-1);
                     in.extraCrap = extraCrap;
 
-                    // make sure no one is under the illusion
-                    // that we are still in sync or that just adding a small number of newlines can fix it
-                    outputLineNumber = -999;
+                    if (outputTokenColumnNumber > 0)
+                    {
+                        out.println();
+                        outputTokenColumnNumber = 0;
+                    }
+                    out.println((commentOutLineDirectives?"// ":"")+"# "+oneBasedLineNumber+" \""+in.inFileName+"\""+reason+in.extraCrap);
+                    outputLineNumber = oneBasedLineNumber-1;
+                    outputTokenColumnNumber = 0;
 
                     AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
                     // don't bother outputting it, we'll output it lazily on next non-newline
@@ -1905,9 +1923,10 @@ public class Cpp
                                 linenumber 19 : next comment
 
                         */
-                        //out.print("(outputLineNumber="+outputLineNumber+")(lineNumber="+lineNumber+")(desired="+desiredOutputLineNumber+"-0)(token.lineNumber="+token.lineNumber+")");
                         AssertAlways(lineNumber == token.lineNumber);
                         int desiredOutputLineNumber = token.lineNumber;
+                        //out.print("(outputLineNumber="+outputLineNumber+")(lineNumber="+lineNumber+")(desired="+desiredOutputLineNumber+"-0)(token.lineNumber="+token.lineNumber+")");
+                        //out.print(token);
                         if (outputLineNumber != desiredOutputLineNumber)
                         {
                             if (outputTokenColumnNumber > 0)
@@ -1930,7 +1949,7 @@ public class Cpp
                             }
                             if (outputLineNumber != desiredOutputLineNumber)
                             {
-                                out.println("# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                                out.println((commentOutLineDirectives?"// ":"")+"# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                                 outputLineNumber = desiredOutputLineNumber;
                                 outputTokenColumnNumber = 0;
                             }
@@ -3371,6 +3390,7 @@ public class Cpp
     {
         System.out.println("in test1(\""+inFileName+"\")");
         System.out.println("===========================================");
+        boolean commentOutLineDirectives = false;
         java.io.Reader in = null;
         try
         {
@@ -3397,6 +3417,7 @@ public class Cpp
                    writer,
                    macros,
                    new ExpressionParser(),
+                   commentOutLineDirectives,
                    0); // recursionLevel
         }
         catch (java.io.IOException e)
@@ -3412,6 +3433,7 @@ public class Cpp
                    writer,
                    macros,
                    new ExpressionParser(),
+                   commentOutLineDirectives,
                    0); // recursionLevel
         }
         catch (java.io.IOException e)
@@ -3425,6 +3447,7 @@ public class Cpp
 
     public static void main(String args[])
     {
+        System.err.println("in Cpp.main");
         ExpressionParser expressionParser = new ExpressionParser();
         if (false) // XXX TODO: make command line option for this
         {
@@ -3471,15 +3494,18 @@ public class Cpp
 
         if (true)
         {
+            // behave like actual cpp
             String inFileName = null;
             StringBuffer commandLineFakeInput = new StringBuffer();
             java.util.Vector includePathVector = new java.util.Vector();
             java.util.Hashtable macros = new java.util.Hashtable();
+            String language = "java";
 
             for (int iArg = 0; iArg < args.length; ++iArg)
             {
                 String arg = args[iArg];
-                if (arg.startsWith("-I"))
+                if (false) ;
+                else if (arg.startsWith("-I"))
                 {
                     String dir;
                     if (arg.equals("-I"))
@@ -3544,6 +3570,21 @@ public class Cpp
                         name = arg.substring(2);
                     commandLineFakeInput.append("#undef "+name+"\n");
                 }
+                else if (arg.startsWith("-x"))
+                {
+                    String dir;
+                    if (arg.equals("-x"))
+                    {
+                        if (iArg+1 == args.length)
+                        {
+                            System.err.println("javacpp: argument to `-x' is missing");
+                            System.exit(1);
+                        }
+                        language = args[++iArg];
+                    }
+                    else
+                        language = arg.substring(2);
+                }
                 else if (arg.startsWith("-"))
                 {
                     System.err.println("javacpp: unrecognized option \""+args[iArg]+"\"");
@@ -3559,7 +3600,36 @@ public class Cpp
                     inFileName = arg;
                 }
             }
+
+            boolean commentOutLineDirectives = false;
+
+            if (language.equals("java"))
+            {
+                commentOutLineDirectives = true;
+            }
+            else if (language.equals("c++")
+                  || language.equals("c"))
+            {
+                // just imitate what I have on the machine I'm writing this on...
+
+                if (language.equals("c++"))
+                {
+                    includePathVector.add("/usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6");
+                    includePathVector.add("/usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/i386-redhat-linux");
+                    includePathVector.add("/usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/backward");
+                }
+                includePathVector.add("/usr/local/include");
+                includePathVector.add("/usr/lib/gcc/i386-redhat-linux/3.4.6/include");
+                includePathVector.add("/usr/include");
+            }
+            else
+            {
+                System.err.println("language "+language+" not recognized");
+                System.exit(1);
+            }
+
             String includePath[] = (String[])includePathVector.toArray(new String[0]);
+
 
             java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
 
@@ -3585,13 +3655,116 @@ public class Cpp
 
             // For some reason the real cpp does this at the beginning
             // before the built-ins and command line... so we do it too
-            writer.println("# 1 \""+inFileName+"\"");
+            writer.println((commentOutLineDirectives?"// ":"")+"# 1 \""+inFileName+"\"");
 
             try
             {
                 String builtinInput = "#define __LINE__ __LINE__\n" // stub, handled specially
-                                    + "#define __FILE__ __FILE__\n" // stub, handled specially
-                                    + "#define __java 1\n";
+                                    + "#define __FILE__ __FILE__\n"; // stub, handled specially
+                if (language.equals("java"))
+                {
+                    builtinInput += "#define __java 1\n";
+                }
+                else if (language.equals("c")
+                 || language.equals("c++"))
+                {
+                    if (language.equals("c++"))
+                    {
+                        // cpp -x c++ -dM /dev/null
+                        // and remove what's in the c output
+                        builtinInput += ""
+                            + "#define __GXX_WEAK__ 1\n"
+                            + "#define __cplusplus 1\n"
+                            + "#define __DEPRECATED 1\n"
+                            + "#define __GNUG__ 3\n"
+                            + "#define __EXCEPTIONS 1\n"
+                            + "#define _GNU_SOURCE 1\n"
+                            ;
+                    }
+                    // cpp -x c -dM /dev/null
+                    builtinInput += "#define __STDC__ 1"; // why the heck is this not in the output of cpp -dM??? it's definitely defined
+                    builtinInput += ""
+                        + "#define __DBL_MIN_EXP__ (-1021)\n"
+                        + "#define __FLT_MIN__ 1.17549435e-38F\n"
+                        + "#define __CHAR_BIT__ 8\n"
+                        + "#define __WCHAR_MAX__ 2147483647\n"
+                        + "#define __DBL_DENORM_MIN__ 4.9406564584124654e-324\n"
+                        + "#define __FLT_EVAL_METHOD__ 2\n"
+                        + "#define __DBL_MIN_10_EXP__ (-307)\n"
+                        + "#define __FINITE_MATH_ONLY__ 0\n"
+                        + "#define __GNUC_PATCHLEVEL__ 6\n"
+                        + "#define __SHRT_MAX__ 32767\n"
+                        + "#define __LDBL_MAX__ 1.18973149535723176502e+4932L\n"
+                        + "#define __linux 1\n"
+                        + "#define __unix 1\n"
+                        + "#define __LDBL_MAX_EXP__ 16384\n"
+                        + "#define __linux__ 1\n"
+                        + "#define __SCHAR_MAX__ 127\n"
+                        + "#define __USER_LABEL_PREFIX__ \n"
+                        + "#define __STDC_HOSTED__ 1\n"
+                        + "#define __LDBL_HAS_INFINITY__ 1\n"
+                        + "#define __DBL_DIG__ 15\n"
+                        + "#define __FLT_EPSILON__ 1.19209290e-7F\n"
+                        + "#define __LDBL_MIN__ 3.36210314311209350626e-4932L\n"
+                        + "#define __unix__ 1\n"
+                        + "#define __DECIMAL_DIG__ 21\n"
+                        + "#define __gnu_linux__ 1\n"
+                        + "#define __LDBL_HAS_QUIET_NAN__ 1\n"
+                        + "#define __GNUC__ 3\n"
+                        + "#define __DBL_MAX__ 1.7976931348623157e+308\n"
+                        + "#define __DBL_HAS_INFINITY__ 1\n"
+                        + "#define __DBL_MAX_EXP__ 1024\n"
+                        + "#define __LONG_LONG_MAX__ 9223372036854775807LL\n"
+                        + "#define __GXX_ABI_VERSION 1002\n"
+                        + "#define __FLT_MIN_EXP__ (-125)\n"
+                        + "#define __DBL_MIN__ 2.2250738585072014e-308\n"
+                        + "#define __DBL_HAS_QUIET_NAN__ 1\n"
+                        + "#define __tune_i386__ 1\n"
+                        + "#define __REGISTER_PREFIX__ \n"
+                        + "#define __NO_INLINE__ 1\n"
+                        + "#define __i386 1\n"
+                        + "#define __FLT_MANT_DIG__ 24\n"
+                        + "#define __VERSION__ \"3.4.6 20060404 (Red Hat 3.4.6-9)\"\n"
+                        + "#define i386 1\n"
+                        + "#define unix 1\n"
+                        + "#define __i386__ 1\n"
+                        + "#define __SIZE_TYPE__ unsigned int\n"
+                        + "#define __ELF__ 1\n"
+                        + "#define __FLT_RADIX__ 2\n"
+                        + "#define __LDBL_EPSILON__ 1.08420217248550443401e-19L\n"
+                        + "#define __GNUC_RH_RELEASE__ 9\n"
+                        + "#define __FLT_HAS_QUIET_NAN__ 1\n"
+                        + "#define __FLT_MAX_10_EXP__ 38\n"
+                        + "#define __LONG_MAX__ 2147483647L\n"
+                        + "#define __FLT_HAS_INFINITY__ 1\n"
+                        + "#define linux 1\n"
+                        + "#define __LDBL_MANT_DIG__ 64\n"
+                        + "#define __WCHAR_TYPE__ long int\n"
+                        + "#define __FLT_DIG__ 6\n"
+                        + "#define __INT_MAX__ 2147483647\n"
+                        + "#define __FLT_MAX_EXP__ 128\n"
+                        + "#define __DBL_MANT_DIG__ 53\n"
+                        + "#define __WINT_TYPE__ unsigned int\n"
+                        + "#define __LDBL_MIN_EXP__ (-16381)\n"
+                        + "#define __LDBL_MAX_10_EXP__ 4932\n"
+                        + "#define __DBL_EPSILON__ 2.2204460492503131e-16\n"
+                        + "#define __FLT_DENORM_MIN__ 1.40129846e-45F\n"
+                        + "#define __FLT_MAX__ 3.40282347e+38F\n"
+                        + "#define __FLT_MIN_10_EXP__ (-37)\n"
+                        + "#define __GNUC_MINOR__ 4\n"
+                        + "#define __DBL_MAX_10_EXP__ 308\n"
+                        + "#define __LDBL_DENORM_MIN__ 3.64519953188247460253e-4951L\n"
+                        + "#define __PTRDIFF_TYPE__ int\n"
+                        + "#define __LDBL_MIN_10_EXP__ (-4931)\n"
+                        + "#define __LDBL_DIG__ 18\n"
+                        ;
+                }
+                else 
+                {
+                    System.err.println("language "+language+" not recognized");
+                    System.exit(1);
+                }
+
                 java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
                 filter(new TokenReaderWithLookahead(builtinFakeInputReader, "<built-in>", ""),
                        new FileOpener(),
@@ -3599,6 +3772,7 @@ public class Cpp
                        writer,
                        macros,
                        expressionParser,
+                       commentOutLineDirectives,
                        0); // recursionLevel
             }
             catch (java.io.IOException e)
@@ -3617,6 +3791,7 @@ public class Cpp
                        writer,
                        macros,
                        expressionParser,
+                       commentOutLineDirectives,
                        0); // recursionLevel
             }
             catch (java.io.IOException e)
@@ -3634,6 +3809,7 @@ public class Cpp
                        writer,
                        macros,
                        expressionParser,
+                       commentOutLineDirectives,
                        0); // recursionLevel
             }
             catch (Error e)
@@ -3651,8 +3827,9 @@ public class Cpp
             }
 
             writer.flush();
-        }
+        } // behave like actual cpp
 
+        System.err.println("out Cpp.main");
         System.exit(0);
     } // main
 
