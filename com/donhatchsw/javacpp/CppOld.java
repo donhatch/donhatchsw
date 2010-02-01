@@ -21,6 +21,7 @@
 *       -U
 *       -C  (ignores this option, never strips comments anyway)
 *       -x [ java | c++ | c ]  (default language is java)
+*           if language is java, output line directives get commented out.
 *
 * To imitate the builtin include path and defines from
 * cpp -C from gcc version 3.4.6 on redhat 3.4.6-9,
@@ -1035,10 +1036,29 @@ public class Cpp
                     else if (contentToken.type == Token.MACRO_ARG_QUOTED)
                     {
                         int iArg = contentToken.lineNumber; // for MACRO_ARG tokens, arg index in is smuggled in through line number
+                        Token arg[] = args[iArg];
                         StringBuffer sb = new StringBuffer();
-                        for (int j = 0; j < args[iArg].length; ++j)
-                            sb.append(args[iArg][j].text);
-                        resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", null, -1, -1)); // XXX TODO: do a line and column number make sense here?
+                        for (int j = 0; j < arg.length; ++j)
+                        {
+                            if (arg[j].type == Token.SPACES
+                             || arg[j].type == Token.NEWLINE_UNESCAPED)
+                            {
+                                if (sb.length() > 0
+                                 && sb.charAt(sb.length()-1) != ' ')
+                                    sb.append(" ");
+                            }
+                            else
+                                sb.append(arg[j].text);
+                        }
+                        while (sb.length() > 0
+                           && sb.charAt(sb.length()-1) == ' ')
+                            sb.deleteCharAt(sb.length()-1);
+
+                        resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", null,
+                            token.lineNumber, // of the macro name token
+                            token.columnNumber)); // of the macro name token
+                        // we got the line and column number from the macro name token (even though the column number is wrong... really it might make more sense to get them from the first arg, except that there may be zero args.
+                        // the line number should be right in any case.
                     }
                     else
                     {
@@ -1130,10 +1150,49 @@ public class Cpp
         throw new java.io.FileNotFoundException("No such file or directory");
     } // findAndNewFileReader
 
+    public static class LineCountingPrintWriter extends java.io.PrintWriter
+    {
+        private int lineNumber;
+
+        public LineCountingPrintWriter(java.io.OutputStream out)
+        {
+            super(out);
+            lineNumber = 0;
+        }
+        public LineCountingPrintWriter(java.io.Writer out)
+        {
+            super(out);
+            lineNumber = 0;
+        }
+
+        // only need to override this one, the others call it
+        public void println()
+        {
+            super.println();
+            lineNumber++;
+        }
+        public void println(String s)
+        {
+            super.println(s);
+
+            // note that super.println calls the no-arg println()
+            // so we don't need to increment lineNumber again here.
+            // Just assert that the caller hasn't embedded anything
+            // that will mess us up.
+            AssertAlways(s.indexOf('\n') == -1);
+            AssertAlways(s.indexOf('\r') == -1);
+        }
+
+        public int getLineNumber()
+        {
+            return lineNumber;
+        }
+    } // LineCountingPrintWriter
+
     public static void filter(TokenReaderWithLookahead in,
                               FileOpener fileOpener,
                               String includePath[],
-                              java.io.PrintWriter out,
+                              LineCountingPrintWriter out,
                               java.util.Hashtable macros, // gets updated as we go
                               ExpressionParser expressionParser,
                               boolean commentOutLineDirectives,
@@ -1153,10 +1212,10 @@ public class Cpp
         int lineNumber = 0;
         int columnNumber = 0;
         if (recursionLevel >= 1)
-            out.println((commentOutLineDirectives?"// ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"+in.extraCrap); // cpp puts a 1 there when entering recursive levels, imitating it
+            out.println((commentOutLineDirectives?"// "+(out.getLineNumber()+2)+" ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\" 1"+in.extraCrap); // cpp puts a 1 there when entering recursive levels, imitating it
         else
-            out.println((commentOutLineDirectives?"// ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
-        int outputLineNumber = lineNumber;
+            out.println((commentOutLineDirectives?"// "+(out.getLineNumber()+2)+" ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+        int outputLineNumber = lineNumber; // can be masqueraded using line directives
         int outputTokenColumnNumber = 0;
 
         Token token = null;
@@ -1768,7 +1827,7 @@ public class Cpp
                         }
                         if (outputLineNumber != desiredOutputLineNumber)
                         {
-                            out.println((commentOutLineDirectives?"// ":"")+"# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                            out.println((commentOutLineDirectives?"// "+(out.getLineNumber()+2)+" ":"")+"# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                             outputLineNumber = desiredOutputLineNumber;
                             outputTokenColumnNumber = 0;
                         }
@@ -1786,7 +1845,7 @@ public class Cpp
                            expressionParser,
                            commentOutLineDirectives,
                            recursionLevel+1);
-                    out.println((commentOutLineDirectives?"// ":"")+"# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"+in.extraCrap); // cpp puts a 2 there when leaving recursive levels, imitating it
+                    out.println((commentOutLineDirectives?"// "+(out.getLineNumber()+2)+" ":"")+"# "+(lineNumber+2)+" \""+in.inFileName+"\" 2"+in.extraCrap); // cpp puts a 2 there when leaving recursive levels, imitating it
 
                     outputLineNumber = lineNumber+1;
                     outputTokenColumnNumber = 0;
@@ -1847,7 +1906,7 @@ public class Cpp
                                     outputLineNumber++;
                                     outputTokenColumnNumber = 0;
                                 }
-                                out.println((commentOutLineDirectives?"// ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                                out.println((commentOutLineDirectives?"// "+(out.getLineNumber()+2)+" ":"")+"# "+(lineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                                 outputLineNumber = lineNumber;
                                 outputTokenColumnNumber = 0;
                             }
@@ -1933,7 +1992,7 @@ public class Cpp
                         out.println();
                         outputTokenColumnNumber = 0;
                     }
-                    out.println((commentOutLineDirectives?"// ":"")+"# "+oneBasedLineNumber+" \""+in.inFileName+"\""+reason+in.extraCrap);
+                    out.println((commentOutLineDirectives?"// "+(out.getLineNumber()+2)+" ":"")+"# "+oneBasedLineNumber+" \""+in.inFileName+"\""+reason+in.extraCrap);
                     outputLineNumber = oneBasedLineNumber-1;
                     outputTokenColumnNumber = 0;
 
@@ -2002,7 +2061,7 @@ public class Cpp
                             }
                             if (outputLineNumber != desiredOutputLineNumber)
                             {
-                                out.println((commentOutLineDirectives?"// ":"")+"# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
+                                out.println((commentOutLineDirectives?"// "+(out.getLineNumber()+2)+" ":"")+"# "+(desiredOutputLineNumber+1)+" \""+in.inFileName+"\""+in.extraCrap);
                                 outputLineNumber = desiredOutputLineNumber;
                                 outputTokenColumnNumber = 0;
                             }
@@ -2181,7 +2240,7 @@ public class Cpp
             "masqueradeTest.prejava", ""
                  +"hello from masqueradeTest.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
-                 +"# 100 \"someoneelse.h\""
+                 +"# 100 \"someoneelse.h\"\n"
                  +"hello again from masqueradeTest.prejava\n"
                  +"#include \"moo.h\"\n"
                 +"    file __FILE__ line __LINE__\n"
@@ -3476,7 +3535,7 @@ public class Cpp
         }
         String includePath[] = {};
         java.util.Hashtable macros = new java.util.Hashtable();
-        java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
+        LineCountingPrintWriter writer = new LineCountingPrintWriter(System.out);
         try
         {
             String builtinInput = "#define __LINE__ __LINE__\n" // stub, handled specially
@@ -3543,7 +3602,7 @@ public class Cpp
                 java.io.PrintWriter writer = null;
                 try
                 {
-                    writer = new java.io.PrintWriter(
+                    writer = new LineCountingPrintWriter(
                              new java.io.BufferedWriter(
                              new java.io.FileWriter(filePath)));
                 }
@@ -3705,7 +3764,7 @@ public class Cpp
             String includePath[] = (String[])includePathVector.toArray(new String[0]);
 
 
-            java.io.PrintWriter writer = new java.io.PrintWriter(System.out);
+            LineCountingPrintWriter writer = new LineCountingPrintWriter(System.out);
 
             java.io.Reader reader = null;
             if (inFileName != null)
@@ -3729,7 +3788,7 @@ public class Cpp
 
             // For some reason the real cpp does this at the beginning
             // before the built-ins and command line... so we do it too
-            writer.println((commentOutLineDirectives?"// ":"")+"# 1 \""+inFileName+"\"");
+            writer.println((commentOutLineDirectives?"// "+(writer.getLineNumber()+2)+" ":"")+"# 1 \""+inFileName+"\"");
 
             try
             {
