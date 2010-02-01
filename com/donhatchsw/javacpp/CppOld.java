@@ -61,6 +61,10 @@ TODO:
       get subtituted in, that might be simpler than what I did
     - #pragma?  e.g. #pragma weak, in /usr/include/bits/libc-lock.h
 
+    - reimplement the whole dang thing smarter, line-based
+
+    - why does cpp turn __LINE__+ into __line +?  Hmm maybe it's to guarantee we don't turn it into something that looks like a number? hmm
+
 */
 
 package com.donhatchsw.javacpp;
@@ -426,36 +430,6 @@ public class Cpp
 
             int c = reader.read();
 
-            while (c == '\\')
-            {
-                // escaped newlines just disappear,
-                // and it's okay to swallow any intervening spaces too.
-                // TODO: really this should be done in the stream we're reading from, so that, for example, an escaped newline can appear right in the middle of an identifier
-                int d;
-                boolean gotSpace = false;
-                while ((d = reader.peek()) != -1
-                    && d != '\n'
-                    && Character.isWhitespace((char)d))
-                {
-                    gotSpace = true;
-                    reader.read(); // discard the space
-                }
-                if (d == '\n')
-                {
-                    reader.read(); // discard the newline
-                    if (gotSpace)
-                        System.err.println(fileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: backslash and newline separated by space");
-                    c = reader.read();
-                }
-                else
-                {
-                    // TODO: argh! lost the space!  I think this actually requires two characters of lookahead, argh.  but we can fake it by putting a space in the token we return.
-                    if (gotSpace)
-                        System.err.println("ARGH!! handling backslash-space lamely");
-                    return new Token(Token.SYMBOL, "\\"+(gotSpace?" ":""), fileName, lineNumber, columnNumber);
-                }
-            }
-
             Token token;
             if (c == -1)
             {
@@ -729,7 +703,8 @@ public class Cpp
             this.extraCrap = extraCrap;
         }
 
-        public Token readToken()
+        // private because no one should call it, they should call readTokenDiscardingEscapedNewlines instead
+        private Token _readToken()
             throws java.io.IOException // since tokenReader.readToken() does
         {
             Token token;
@@ -747,6 +722,7 @@ public class Cpp
             //System.err.println("            TokenReaderWithLookahead returning ("+(lookedahead ? "lookedahead" : "nolookedahead")+"): "+token);
             return token;
         }
+
         public Token peekToken(int index)
             throws java.io.IOException // since tokenReader.readToken() does
         {
@@ -807,7 +783,57 @@ public class Cpp
                 }
             }
         }
+
+        // guaranteed to return same thing as in.readToken() and in.peekToken(0)
+        // unless the next token is spaces or backslash, in which might do something different
+        // XXX TODO: note this is the only use of peekToken()!  that's surprising, filter doesn't need any lookahead at all?  I guess it implements it with pushback?
+        private Token readTokenDiscardingEscapedNewlines()
+            throws java.io.IOException
+        {
+            while (true)
+            {
+                Token token = _readToken();
+
+                if (token.type == Token.SPACES)
+                {
+                    // figure out whether we're at the end of a line, in which case discard the spaces
+                    // (except don't discard the whole line)
+                    Token peekedToken = peekToken(0);
+                    if (peekedToken.type == Token.EOF
+                     || peekedToken.type == Token.NEWLINE_UNESCAPED)
+                    {
+                        if (token.columnNumber == 0)
+                            token = new Token(Token.SPACES, " ", token.fileName, token.lineNumber, token.columnNumber);
+                        else
+                            continue; // discard the spaces altogether
+                    }
+                }
+                else if (token.type == Token.SYMBOL
+                      && token.text.equals("\\"))
+                {
+                    // figure out whether we're at the end of a line
+                    Token peekedToken = peekToken(0);
+                    boolean followedBySpaces = (peekedToken.type == Token.SPACES);
+                    if (followedBySpaces)
+                        peekedToken = peekToken(1);
+                    if (peekedToken.type == Token.NEWLINE_UNESCAPED)
+                    {
+                        if (followedBySpaces)
+                        {
+                            // XXX flush out? damn we don't have out here
+                            System.err.println(inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": warning: backslash and newline separated by space");
+                            _readToken(); // discard the spaces
+                        }
+                        _readToken(); // discard the newline
+                        continue;       // discard the backslash
+                    }
+                }
+                return token;
+            }
+        } // readTokenDiscardingEscapedNewlines
+
     } // private static class TokenReaderWithLookahead
+
 
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
                                                         int lineNumber,
@@ -829,7 +855,7 @@ public class Cpp
                 }
                 else if (in.peekToken(0).type == Token.TOKEN_PASTE)
                 {
-                    Token tokenPasteToken = in.readToken();
+                    Token tokenPasteToken = in.readTokenDiscardingEscapedNewlines();
                     Token anotherToken = _readTokenWithMacroSubstitution(in, lineNumber, macros, evaluateDefineds);
                     String combinedText = token.text + anotherToken.text;
                     if (false)
@@ -864,7 +890,7 @@ public class Cpp
     {
         while (true)
         {
-            Token token = in.readToken();
+            Token token = in.readTokenDiscardingEscapedNewlines();
 
             if (token.type != Token.IDENTIFIER)
                 return token;
@@ -874,20 +900,20 @@ public class Cpp
             {
                 // must be followed by an identifier or exactly the following:
                 // '(', identifier, ')'.
-                Token nextToken = in.readToken();
+                Token nextToken = in.readTokenDiscardingEscapedNewlines();
                 while (nextToken.type == Token.SPACES
                     || nextToken.type == Token.COMMENT)
-                    nextToken = in.readToken();
+                    nextToken = in.readTokenDiscardingEscapedNewlines();
 
                 String macroName;
                 if (nextToken.type == Token.SYMBOL
                  && nextToken.text.equals("("))
                 {
-                    nextToken = in.readToken();
+                    nextToken = in.readTokenDiscardingEscapedNewlines();
                     if (nextToken.type != Token.IDENTIFIER)
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": operator \"defined\" requires an identifier");
                     macroName = nextToken.text;
-                    nextToken = in.readToken();
+                    nextToken = in.readTokenDiscardingEscapedNewlines();
                     if (nextToken.type != Token.SYMBOL
                      || !nextToken.text.equals(")"))
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": missing ')' after \"defined\"");
@@ -967,10 +993,10 @@ public class Cpp
             else // it's an invocation of a macro with an arg list
             {
                 // move past spaces
-                while (in.peekToken(0).type == Token.SPACES
-                    || in.peekToken(0).type == Token.COMMENT)
-                    in.readToken();
-                Token shouldBeLeftParen = in.readToken();
+                Token shouldBeLeftParen = in.readTokenDiscardingEscapedNewlines();
+                while (shouldBeLeftParen.type == Token.SPACES
+                    || shouldBeLeftParen.type == Token.COMMENT)
+                    shouldBeLeftParen = in.readTokenDiscardingEscapedNewlines();
                 if (!(shouldBeLeftParen.type == Token.SYMBOL
                   && shouldBeLeftParen.text.equals("(")))
                     throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": invocation of macro "+token.text+" not followed by arg list");
@@ -983,7 +1009,7 @@ public class Cpp
                     int parenLevel = 1;
                     while (true)
                     {
-                        Token anotherToken = in.readToken();
+                        Token anotherToken = in.readTokenDiscardingEscapedNewlines();
                         if (anotherToken.type == Token.EOF)
                             throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": EOF in middle of arg list for macro "+token.text+"");
                         if (parenLevel > 1)
@@ -1245,7 +1271,7 @@ public class Cpp
             if (ifStack.size() <= highestTrueIfStackLevel)
                 token = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
             else
-                token = in.readToken(); // don't expand macros, so, for example, we don't choke trying to expand FOO when we see #undef FOO inside #if 0
+                token = in.readTokenDiscardingEscapedNewlines(); // don't expand macros, so, for example, we don't choke trying to expand FOO when we see #undef FOO inside #if 0
 
             if (token.type == Token.EOF)
                 break;
@@ -1424,12 +1450,12 @@ public class Cpp
                     if (verboseLevel >= 2)
                         System.err.println("        filter: found "+token.text);
 
-                    Token nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
+                    Token nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.COMMENT)
-                        nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
+                        nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
@@ -1499,12 +1525,12 @@ public class Cpp
 
                     // we'll be doing a lot of lookahead of one token,
                     // so use a local variable nextToken
-                    Token nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                    Token nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                     // move past spaces
                     while (nextToken.type == Token.SPACES
                         || nextToken.type == Token.COMMENT)
-                        nextToken = in.readToken(); // WITHOUT macro substitution, so we don't expand the expected macro name
+                        nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so we don't expand the expected macro name
 
                     if (nextToken.type == Token.EOF
                      || nextToken.type == Token.NEWLINE_UNESCAPED)
@@ -1517,7 +1543,7 @@ public class Cpp
                     String macroName = nextToken.text;
 
                     // must be either whitespace or left paren after macro name... it makes a difference
-                    nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                    nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
                     if (nextToken.type == Token.EOF)
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": no newline at end of file"); // in cpp it's a warning but we don't tolerate it
 
@@ -1530,12 +1556,12 @@ public class Cpp
                         // There's a macro param list.
                         java.util.Vector paramNamesVector = new java.util.Vector();
 
-                        nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                        nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                         // move past spaces
                         while (nextToken.type == Token.SPACES
                             || nextToken.type == Token.COMMENT)
-                            nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                            nextToken =in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                         if (nextToken.type == Token.SYMBOL
                          && nextToken.text.equals(")"))
@@ -1552,7 +1578,7 @@ public class Cpp
                                 throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
 
                             paramNamesVector.add(nextToken.text);
-                            nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                            nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                             while (true)
                             {
@@ -1560,7 +1586,7 @@ public class Cpp
                                 while (nextToken.type == Token.SPACES
                                     || nextToken.type == Token.COMMENT)
 
-                                    nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                                    nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                                 if (nextToken.type == Token.SYMBOL)
                                 {
@@ -1568,17 +1594,17 @@ public class Cpp
                                         break;
                                     else if (nextToken.text.equals(","))
                                     {
-                                        nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                                        nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                                         // move past spaces
                                         while (nextToken.type == Token.SPACES
                                             || nextToken.type == Token.COMMENT)
-                                            nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                                            nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                                         if (nextToken.type == Token.IDENTIFIER)
                                         {
                                             paramNamesVector.add(nextToken.text);
-                                            nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                                            nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
                                             continue;
                                         }
                                         // otherwise drop into error case
@@ -1589,7 +1615,7 @@ public class Cpp
                         }
                         AssertAlways(nextToken.type == Token.SYMBOL
                                   && nextToken.text.equals(")"));
-                        nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                        nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
                         paramNames = (String[])paramNamesVector.toArray(new String[0]);
                     }
@@ -1658,7 +1684,7 @@ public class Cpp
                         }
 
                         contentsVector.add(nextToken);
-                        nextToken = in.readToken(); // WITHOUT macro substitution, so that macros get expanded lazily
+                        nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
                     }
                     Token contents[] = new Token[contentsVector.size()];
                     for (int i = 0; i < contents.length; ++i)
@@ -1807,10 +1833,16 @@ public class Cpp
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": \""+newInFileName+"\": No such file or directory");
                     }
 
-                    while (in.peekToken(0).type == Token.SPACES
-                        || in.peekToken(0).type == Token.COMMENT)
-                        in.readToken();
-                    if (in.peekToken(0).type != Token.NEWLINE_UNESCAPED)
+                    {
+                        // XXX hacky
+                        Token temp;
+                        while ((temp = in.readTokenDiscardingEscapedNewlines()).type == Token.SPACES
+                            || temp.type == Token.COMMENT)
+                            ;
+                        in.pushBackToken(temp);
+                    }
+                    nextToken = in.readTokenDiscardingEscapedNewlines();
+                    if (nextToken.type != Token.NEWLINE_UNESCAPED)
                     {
                         // TODO: wrong error message if it's EOF
                         throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": extra stuff confusing the #include "+newInFileName);
@@ -1869,7 +1901,7 @@ public class Cpp
                     // gather rest of line (WITHOUT macro substitution)
                     // into a string...
                     // XXX TODO: comments?
-                    Token nextToken = in.readToken();
+                    Token nextToken = in.readTokenDiscardingEscapedNewlines();
                     StringBuffer sb = new StringBuffer();
                     sb.append(token.text);
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
@@ -1879,7 +1911,7 @@ public class Cpp
                             sb.append(" ");
                         else
                             sb.append(nextToken.text);
-                        nextToken = in.readToken();
+                        nextToken = in.readTokenDiscardingEscapedNewlines();
                     }
                     if (token.text.equals("#pragma"))
                     {
