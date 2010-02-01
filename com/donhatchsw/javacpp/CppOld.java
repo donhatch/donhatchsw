@@ -1027,38 +1027,50 @@ public class Cpp
                 for (int iContent = 0; iContent < macro.contents.length; ++iContent)
                 {
                     Token contentToken = macro.contents[iContent];
-                    if (contentToken.type == Token.MACRO_ARG)
+                    if (contentToken.type == Token.MACRO_ARG
+                     || contentToken.type == Token.MACRO_ARG_QUOTED)
                     {
-                        int iArg = contentToken.lineNumber; // for MACRO_ARG tokens, arg index in is smuggled in through line number
-                        for (int j = 0; j < args[iArg].length; ++j)
-                            resultsVector.add(new Token(args[iArg][j], null, lineNumber));
-                    }
-                    else if (contentToken.type == Token.MACRO_ARG_QUOTED)
-                    {
+                        int resultsVectorSizeBefore = resultsVector.size();
                         int iArg = contentToken.lineNumber; // for MACRO_ARG tokens, arg index in is smuggled in through line number
                         Token arg[] = args[iArg];
-                        StringBuffer sb = new StringBuffer();
                         for (int j = 0; j < arg.length; ++j)
                         {
                             if (arg[j].type == Token.SPACES
                              || arg[j].type == Token.NEWLINE_UNESCAPED)
                             {
-                                if (sb.length() > 0
-                                 && sb.charAt(sb.length()-1) != ' ')
-                                    sb.append(" ");
+                                if (j != 0
+                                 && arg[j-1].type != Token.SPACES
+                                 && arg[j-1].type != Token.NEWLINE_UNESCAPED)
+                                {
+                                    resultsVector.add(new Token(Token.SPACES, " ", arg[j].fileName, lineNumber, arg[j].columnNumber));
+                                }
                             }
                             else
-                                sb.append(arg[j].text);
+                                resultsVector.add(new Token(arg[j], null, lineNumber));
                         }
-                        while (sb.length() > 0
-                           && sb.charAt(sb.length()-1) == ' ')
-                            sb.deleteCharAt(sb.length()-1);
+                        if (resultsVector.size() > resultsVectorSizeBefore
+                         && ((Token)resultsVector.get(resultsVector.size()-1)).type == Token.SPACES)
+                            resultsVector.removeElementAt(resultsVector.size()-1);
+                        AssertAlways(!(resultsVector.size() > resultsVectorSizeBefore && ((Token)resultsVector.get(resultsVector.size()-1)).type == Token.SPACES));
 
-                        resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", null,
-                            token.lineNumber, // of the macro name token
-                            token.columnNumber)); // of the macro name token
-                        // we got the line and column number from the macro name token (even though the column number is wrong... really it might make more sense to get them from the first arg, except that there may be zero args.
-                        // the line number should be right in any case.
+                        if (contentToken.type == Token.MACRO_ARG_QUOTED)
+                        {
+                            // replace what we added to resultsVector
+                            // with a single string token consisting of all the text concatenated together
+                            StringBuffer sb = new StringBuffer();
+                            for (int j = resultsVectorSizeBefore; j < resultsVector.size(); ++j)
+                                sb.append(((Token)resultsVector.get(j)).text);
+                            while (resultsVector.size() > resultsVectorSizeBefore)
+                                resultsVector.removeElementAt(resultsVector.size()-1);
+                            resultsVector.add(new Token(Token.STRING_LITERAL, "\""+escapify(sb.toString())+"\"", null,
+                                token.lineNumber, // of the macro name token
+                                token.columnNumber)); // of the macro name token
+                            // we got the line and column number from the macro name token
+                            // (even though the column number is wrong...
+                            // really it might make more sense to get them from the first arg,
+                            // except that there may be zero args.
+                            // the line number should be right in any case.
+                        }
                     }
                     else
                     {
@@ -2343,60 +2355,6 @@ public class Cpp
                 +"goodbye from stringifyTest.prejava\n"
         },
         {
-            // just isolate what I'm debugging
-            "ifTest0.prejava", ""
-                +"hello from ifTest0.prejava\n"
-                /*
-                +"#if 0\n"
-                +"    this should not be output\n"
-                +"#elif 1\n"
-                +"    output 24\n"
-                +"#endif\n"
-                +"#if 1\n"
-                +"    output 25\n"
-                +"#elif 0\n"
-                +"    this should not be output\n"
-                +"#endif\n"
-                +"\n"
-                +"#if 1\n"
-                +"    output 29\n"
-                +"#elif 0\n"
-                +"    this should not be output\n"
-                +"#else\n"
-                +"    this should not be output\n"
-                +"#endif\n"
-                +"\n"
-                */
-                +"        #if 0\n"
-                +"                   this should not be output\n"
-                +"        #elif 0\n"
-                +"                   this should not be output\n"
-                +"        #elif 1\n"
-                +"                   output 1\n"
-                +"            #if 0\n"
-                +"                   this should not be output\n"
-                +"            #elif 0\n"
-                +"                   this should not be output\n"
-                +"            #elif 1\n"
-                +"                   output 2\n"
-                +"            #elif 0\n"
-                +"                   this should not be output\n"
-                +"            #elif 1\n"
-                +"                   this should not be output\n"
-                +"            #else\n"
-                +"                   this should not be output\n"
-                +"            #endif\n"
-                +"                   output 3\n"
-                +"        #elif 0\n"
-                +"                   this should not be output\n"
-                +"        #elif 1\n"
-                +"                   this should not be output\n"
-                +"        #else\n"
-                +"                   this should not be output\n"
-                +"        #endif\n"
-                +"goodbye from ifTest0.prejava\n"
-        },
-        {
             // stress test the conditionals
             "ifTest.prejava", ""
                 +"hello from ifTest.prejava\n"
@@ -3244,16 +3202,10 @@ public class Cpp
                 +"#if !DEF0(__LINE__)\n"
                 +"    this should not be output\n"
                 +"#endif\n"
-                +"#define DEF1(x) defined(x)\n"
-                +"#if DEF1(__LINE__)\n"
-                +"    output 42\n"
-                +"#endif\n"
-                +"#if !DEF1(__LINE__)\n"
-                +"    this should not be output\n"
-                +"#endif\n"
+                +"// the real cpp bombs trying to use #define DEF1(x) defined(x) so don't bother testing it\n"
                 +"\n"
-                +"output 43\n"
-                +"there should have been outputs 0 through 43\n"
+                +"output 41\n"
+                +"there should have been outputs 0 through 41\n"
                 +"\n"
                 +"    file __FILE__ line __LINE__\n"
                 +"goodbye from ifTest.prejava\n"
