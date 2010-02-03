@@ -341,13 +341,14 @@ public class Cpp1
     {
         private int nInUse = 0;
         private int nFree = 0;
-        private int nActualAllocations = 0;
+        private int nLogicalAllocations = 0; // numbe of times newRefedToken was called
+        private int nPhysicalAllocations = 0; // # of times it called new Token()
         private Token freeListHead = null; // we use the parent member to form a linked list
 
 
         public Token newRefedToken(int type, char textUnderlyingString[], i0, i1, inFileName, inLineNumber, inColumnNumber)
         {
-            AssertAlways(nInUse + nFree == nActuallyAllocated); // logical invariant
+            AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
 
             Token token;
             if (freeListHead != null)
@@ -359,7 +360,7 @@ public class Cpp1
             else
             {
                 token = new Token();
-                nActuallyAllocated++;
+                nPhysicalAllocations++;
             }
 
             token.init(type,
@@ -374,13 +375,15 @@ public class Cpp1
 
             nInUse++;
 
-            AssertAlways(nInUse + nFree == nActuallyAllocated); // logical invariant
+            AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
+            nLogicalAllocations++;
 
             return token;
         } // newRefedToken
 
         public Token refToken(Token token)
         {
+            AssertAlways(token.refCount > 0);
             token.refCount++;
         }
 
@@ -411,21 +414,21 @@ public class Cpp1
             }
         } // unrefToken
 
-        // At all times, nInUse() + nFree() equals nActualAllocations
+        // At all times, nInUse() + nFree() equals nPhysicalAllocations
         // (it's an invariant of all our methods;
         // they always either increment nInUse and decrement nFree, or vice versa,
-        // or they increment both nInUse and nActualAllocations).
+        // or they increment both nInUse and nPhysicalAllocations).
         // And in a well behaved app
         // (if it doesn't throw past cleanup), 
         // nInUse should be zero at the end.
         public int nInUse()
         {
-            AssertAlways(nInUse+nFree == nActualAllocations);
+            AssertAlways(nInUse + nFree == nPhysicalAllocations);
             return nInUse;
         }
         public int nFree()
         {
-            AssertAlways(nInUse+nFree == nActualAllocations);
+            AssertAlways(nInUse + nFree == nPhysicalAllocations);
             return nFree;
         }
     }; // TokenAllocator
