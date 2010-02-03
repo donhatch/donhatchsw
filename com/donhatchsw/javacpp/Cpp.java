@@ -22,22 +22,67 @@ package com.donhatchsw.javacpp;
 
 public class Cpp1
 {
+    // Logical assertions, always compiled in. Ungracefully bail if violated.
+    private static void AssertAlways(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+
+    private static void warning(String fileName, int lineNumber, int columnNumber, String message)
+    {
+        System.err.println(fileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: "+message);
+    }
+
+    // From com.donhatchsw.util.Arrays...
+        private static String escapify(char c, char quoteChar)
+        {
+            if (c == quoteChar) return "\\"+c;
+            if (c == '\\') return "\\\\";
+            if (c == '\n') return "\\n";
+            if (c == '\r') return "\\r";
+            if (c == '\t') return "\\t";
+            if (c == '\f') return "\\f";
+            if (c == '\b') return "\\b";
+            if (c < 32 || c >= 127)
+                return "\\"+((((int)c)>>6)&7)
+                           +((((int)c)>>3)&7)
+                           +((((int)c)>>0)&7);
+            return ""+c;
+        }
+        private static String escapify(String s)
+        {
+            StringBuffer sb = new StringBuffer();
+            int n = s.length();
+            for (int i = 0; i < n; ++i)
+                sb.append(escapify(s.charAt(i), '"'));
+            return sb.toString();
+        }
+
+
+    // Wrapper around new FileReader,
+    // whose behavior can be overridden in subclasses
+    // to, say, open an in-memory string instead, for testing.
+    private static class FileOpener
+    {
+        public java.io.Reader newFileReader(String fileName)
+            throws java.io.FileNotFoundException
+        {
+            return new java.io.FileReader(fileName);
+        }
+    } // private static class FileOpener
+
 
     class LineAndColumnNumberReader
     {
         private java.io.Reader reader;
+        private String fileName;
         private int lineNumber = 0;
         private int columnNumber = 0;
         private int lookedAheadChar = -2; // -2 means not looked ahead, -1 means EOF
 
-        private final bool turnLineSeparatorsIntoSingleNewlines = true; // probably, yeah, simplest way to process things
-
-
         // To avoid dismal performance, caller should make sure
         // that reader is either a BufferedReader or has one as an ancestor.
-        public LineAndColumnNumberReader(java.io.Reader reader)
+        public LineAndColumnNumberReader(java.io.Reader reader, String fileName)
         {
             this.reader = new java.io.LineNumberReader(reader);
+            this.fileName = fileName;
         }
 
         // turns \r\n into \n
@@ -82,6 +127,10 @@ public class Cpp1
             return lookedAheadChar=='\r' ? '\n' : lookedAheadChar;
         }
 
+        public String getFileName()
+        {
+            return fileName;
+        }
         public int getLineNumber()
         {
             //System.err.println("            with lookahead getLineNumber returning "+lineNumber);
@@ -114,7 +163,7 @@ public class Cpp1
             length = 0;
         }
 
-        public void append(char c, int lineNumber, int charNumber)
+        public void append(char c, int lineNumber, int columnNumber)
         {
             // make sure line buffer is big enough to hold another char...
             if (length == chars.length)
@@ -122,12 +171,12 @@ public class Cpp1
                 // expand line buffer and aux arrays
                 char newChars[] = new char[2*chars.length];
                 int newLineNumbers[] = new int[2*chars.length];
-                int newLolumnNumbers[] = new int[2*chars.length];
+                int newColumnNumbers[] = new int[2*chars.length];
                 for (int i = 0; i < chars.length; ++i)
                 {
                     newChars[i] = chars[i];
-                    newLineNumbers[i] = lineBufToInLineNumber[i];
-                    newColumnNumbers[i] = lineBufToInColumnNumber[i];
+                    newLineNumbers[i] = lineNumbers[i];
+                    newColumnNumbers[i] = columnNumbers[i];
                 }
                 chars = newChars;
                 lineNumbers = newLineNumbers;
@@ -145,13 +194,13 @@ public class Cpp1
             {
                 chars[i0] = chars[i1];
                 lineNumbers[i0] = lineNumbers[i1];
-                columnNumber[i0] = columnNumber[i1];
+                columnNumbers[i0] = columnNumbers[i1];
                 i0++;
                 i1++;
             }
             length = i0;
         }
-    }; // class LineBuffer
+    } // class LineBuffer
 
 
     // Gets a line from in into lineBuffer,
@@ -159,8 +208,9 @@ public class Cpp1
     // If there are no more lines, returns a line of length 0.
     // Otherwise, the result is guaranteed to have exactly one '\n',
     // and it's guaranteed to be at the end.
-    private void getNextLogicalLine(LineAndColumnNumberReader in,
-                                    LineBuffer lineBuffer)
+    private static void getNextLogicalLine(LineAndColumnNumberReader in,
+                                           LineBuffer lineBuffer)
+        throws java.io.IOException
     {
         lineBuffer.clear();
         while (true)
@@ -179,7 +229,7 @@ public class Cpp1
                     atEOF = true;
                     break;
                 }
-                lineBuffer.append(c, lineNumber, columnNumber);
+                lineBuffer.append((char)c, lineNumber, columnNumber);
                 if (c == '\n')
                     break;
             }
@@ -190,8 +240,9 @@ public class Cpp1
                 if (lineBuffer.length > 0)
                 {
                     // there was a previous line that asked for termination
-                    warning: backslash-newline at end of file;
-                    artificially terminate it?
+                    warning(in.getFileName(), in.getLineNumber(), in.getColumnNumber(),
+                            "backslash-newline at end of file");
+                    lineBuffer.append('\n', in.getLineNumber(), in.getColumnNumber()); // XXX really should be from before EOF was read, querying anything after EOF should be error I think
                 }
                 // otherwise we are returning empty line which caller knows means EOF
                 break;
@@ -201,8 +252,9 @@ public class Cpp1
             AssertAlways(atEOF == (lineBuffer.chars[lineBuffer.length-1] != '\n'));
             if (atEOF)
             {
-                warning: no newline at end of file
-                lineBuffer.append('\n', in.getLineNumber, in.getColumnNumber); // XXX really should be from before EOF was read, querying anything after EOF should be error I think
+                warning(in.getFileName(), in.getLineNumber(), in.getColumnNumber(),
+                        "no newline at end of file");
+                lineBuffer.append('\n', in.getLineNumber(), in.getColumnNumber()); // XXX really should be from before EOF was read, querying anything after EOF should be error I think
             }
 
             // okay now the line is terminated by \n,
@@ -210,7 +262,7 @@ public class Cpp1
 
             // Analyze the stuff at the end of the line...
             int trailingSpacesIncludingOptionalBackslashStartIndex = lineBuffer.length; // and counting
-            int backSlashIndex = -1;
+            int backslashIndex = -1;
             while (trailingSpacesIncludingOptionalBackslashStartIndex > physicalLineStart
                 && (Character.isWhitespace(lineBuffer.chars[trailingSpacesIncludingOptionalBackslashStartIndex-1])
                  || (backslashIndex==-1 && lineBuffer.chars[trailingSpacesIncludingOptionalBackslashStartIndex-1] == '\\')))
@@ -228,7 +280,7 @@ public class Cpp1
                 // No backslash continuation.
                 // remove trailing whitespace, leaving the terminator if any, and return
                 lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex,
-                                       lineTerminatorIndex);
+                                       lineBuffer.length-1);
                 break;
             }
             else
@@ -237,10 +289,11 @@ public class Cpp1
                 // remove the backslash and any surrounding whitespace and line terminator,
                 // and continue on to the next loop iteration,
                 // to get another physical line
-                lineBuffer.length = trailingSpacesIncludingOptionalBackslashStartIndex;
+                lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex, lineBuffer.length);
                 if (atEOF)
                 {
-                    warning(backslash at end of file)
+                    warning(in.getFileName(), in.getLineNumber(), in.getColumnNumber(),
+                            "backslash at end of file");
                     lineBuffer.append('\n', in.getLineNumber(), in.getColumnNumber());
                     return;
                 }
@@ -261,28 +314,48 @@ public class Cpp1
 
     private static class Token
     {
+        // The token types.
+        // See http://gcc.gnu.org/onlinedocs/cpp/Tokenization.html
+        private static int NUMTYPES = 0;
+        public static final int IDENTIFIER = NUMTYPES++;     // [_a-zA-Z][_a-zA-Z0-9]*
+        public static final int STRING_LITERAL = NUMTYPES++; // "([^\"]|\.)*"
+        public static final int CHAR_LITERAL = NUMTYPES++;   // '([^\']|\.)*'" lenient, that's okay
+        public static final int NUMBER_LITERAL = NUMTYPES++;    // "\\.?[0-9]([0-9a-zA-Z_\\.]|[eEpP][+-])*" note that it doesn't include initial '-'! rather bizarre definition,
+        public static final int SYMBOL = NUMTYPES++;
+        public static final int SPACES = NUMTYPES++;
+        public static final int PREPROCESSOR_DIRECTIVE = NUMTYPES++;
+        public static final int COMMENT = NUMTYPES++;
+        public static final int COMMENT_START = NUMTYPES++; // XXX TODO: do we want this?
+        public static final int COMMENT_MIDDLE = NUMTYPES++; // XXX TODO: do we want this?
+        public static final int COMMENT_END = NUMTYPES++; // XXX TODO: do we want this?
+        public static final int NEWLINE = NUMTYPES++;
+
+        public static final int MACRO_ARG = NUMTYPES++;
+        public static final int MACRO_ARG_QUOTED = NUMTYPES++;
+        public static final int TOKEN_PASTE = NUMTYPES++; // temporary form that "##" takes during macro evaluation... NOT during initial tokenizing
+
+        // NUMTYPES is now one more than the last type value
+
+
         public int type;
         public char textUnderlyingString[]; // can be lineBuf.chars, or can own its own (in case of macro args or synthetic pasted-together tokens
         public int i0, i1; // start and end indices in underlyingString
         public String inFileName;
         public int inLineNumber;
         public int inColumnNumber;
-        public Token* parentInMacroExpansion;
-        public Token* nextInStack; // can only live in one stack at a time
+        public Token parentInMacroExpansion;
+        public Token nextInStack; // can only live in one stack at a time
         public int refCount;
 
         // No constructor, we use an init function instead,
         // to make sure no members are forgotten.
         public void init(int type,
-                         char textUnderlyingString,
+                         char[] textUnderlyingString,
                          int i0,
                          int i1,
                          String inFileName,
                          int inLineNumber,
-                         int inColumnNumber,
-                         Token parentInMacroExpansion,
-                         Token nextInStack,
-                         int refCount)
+                         int inColumnNumber)
         {
             this.type = type;
             this.textUnderlyingString = textUnderlyingString;
@@ -291,9 +364,10 @@ public class Cpp1
             this.inFileName = inFileName;
             this.inLineNumber = inLineNumber;
             this.inColumnNumber = inColumnNumber;
-            this.parentInMacroExpansion = parentInMacroExpansion;
-            this.nextInStack = nextInStack;
-            this.refCount = refCount;
+
+            this.parentInMacroExpansion = null;
+            this.nextInStack = null;
+            this.refCount = 0; // we don't do ref counting, caller does
         }
 
         // should be used sparingly-- maybe in error/warning/debug printing only?
@@ -307,7 +381,7 @@ public class Cpp1
             if (sLength != i1-i0)
                 return false;
             for (int i = 0; i < sLength; ++i)
-                if (underlyingString[i0+i] != s.charAt(i))
+                if (textUnderlyingString[i0+i] != s.charAt(i))
                     return false;
             return true;
         }
@@ -317,7 +391,7 @@ public class Cpp1
             if (sLength > i1-i0)
                 return false;
             for (int i = 0; i < sLength; ++i)
-                if (underlyingString[i0+i] != s.charAt(i))
+                if (textUnderlyingString[i0+i] != s.charAt(i))
                     return false;
             return true;
         }
@@ -327,11 +401,12 @@ public class Cpp1
             if (sLength > i1-i0)
                 return false;
             for (int i = 0; i < sLength; ++i)
-                if (underlyingString[i1-sLength+i] != s.charAt(i))
+                if (textUnderlyingString[i1-sLength+i] != s.charAt(i))
                     return false;
             return true;
         }
-    }; // Token
+    } // class Token
+
 
     // Tokens are the thing we are going to create and destroy
     // zillions of during parsing.
@@ -346,7 +421,10 @@ public class Cpp1
         private Token freeListHead = null; // we use the parent member to form a linked list
 
 
-        public Token newRefedToken(int type, char textUnderlyingString[], i0, i1, inFileName, inLineNumber, inColumnNumber)
+        public Token newRefedToken(int type,
+                                   char textUnderlyingString[],
+                                   int i0, int i1,
+                                   String inFileName, int inLineNumber, int inColumnNumber)
         {
             AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
 
@@ -355,7 +433,8 @@ public class Cpp1
             {
                 nFree--;
                 token = freeListHead;
-                freeListHead = freeListHead->parent;
+                freeListHead = token.nextInStack;
+                token.nextInStack = null;
             }
             else
             {
@@ -364,14 +443,14 @@ public class Cpp1
             }
 
             token.init(type,
-                       underlyingString,
+                       textUnderlyingString,
                        i0,
                        i1,
                        inFileName,
                        inLineNumber,
-                       inColumnNumber,
-                       null, // parent
-                       1); // refCount
+                       inColumnNumber);
+            AssertAlways(token.refCount == 0);
+            token.refCount = 1;
 
             nInUse++;
 
@@ -381,13 +460,15 @@ public class Cpp1
             return token;
         } // newRefedToken
 
+        // XXX TODO: make sure someone uses this, I assume they do
         public Token refToken(Token token)
         {
-            AssertAlways(token.refCount > 0);
+            AssertAlways(token.refCount > 0); // tokens can't exist out in the world with ref count 0
             token.refCount++;
+            return token;
         }
 
-        // best practice is for the caller to set whatever variable
+        // best practice is for the caller to always set whatever variable
         // was holding token to null immediately after calling this function.
         public void unrefToken(Token token)
         {
@@ -398,19 +479,19 @@ public class Cpp1
                 AssertAlways(nInUse > 0);
                 --nInUse;
 
-                unrefToken(token.parent); // recursively
-                token.parent = null;
+                unrefToken(token.parentInMacroExpansion); // recursively
+                token.parentInMacroExpansion = null;
 
                 // We've carefully unrefed and nulled out the Token members.
                 // Make sure token is not holding on to any other pointers...
-                token.underlyingString = null;
+                token.textUnderlyingString = null;
                 token.inFileName = null;
 
                 token.nextInStack = freeListHead;
                 freeListHead = token;
                 nFree++;
 
-                AssertAlways(nInUse + nFree == nActuallyAllocated); // logical invariant
+                AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
             }
         } // unrefToken
 
@@ -431,13 +512,13 @@ public class Cpp1
             AssertAlways(nInUse + nFree == nPhysicalAllocations);
             return nFree;
         }
-    }; // TokenAllocator
+    } // class TokenAllocator
 
 
     private static class TokenStack
     {
         private Token head = null;
-        public bool isEmpty()
+        public boolean isEmpty()
         {
             return head == null;
         }
@@ -475,57 +556,92 @@ public class Cpp1
             tokenAllocator.unrefToken(token);
             token = null;
         }
-    }; // TokenStack
+    } // class TokenStack
 
 
 
     class TokenStreamFromLineBuffer
     {
-        LineBuffer lineBuffer;
-        int endIndex;
-        int currentIndex;
-        public void init(LineBuffer lineBuffer, int startIndex, int endIndex)
+        private LineBuffer lineBuffer;
+        private int endIndex;
+        private int currentIndex;
+        private TokenAllocator tokenAllocator;
+        private boolean returnedEOF;
+        public void init(LineBuffer lineBuffer, int startIndex, int endIndex,
+                         TokenAllocator tokenAllocator)
         {
             this.lineBuffer = lineBuffer;
             this.endIndex = endIndex;
             this.currentIndex = startIndex;
+            this.tokenAllocator = tokenAllocator;
+            this.returnedEOF = false;
         }
         // keeps ref. if you don't want it, use tokenAllocator.unrefToken(readToken());
         public Token readToken()
         {
-            ...
-        }
-    }; // TokenStreamFromLineBuffer
+            AssertAlways(!returnedEOF);
 
-    class TokenStreamWithPushBack extends TokenStream
+            if (currentIndex == endIndex)
+            {
+                returnedEOF = true;
+                return null; // XXX maybe caller should guard all readTokens with isEmpty(), then can have simpler semantics?
+            }
+
+            if (true) // XXX TODO: stopgap, remove this when I get it implemented for real
+            {
+                Token token = tokenAllocator.newRefedToken(Token.SYMBOL,
+                                                           lineBuffer.chars,
+                                                           currentIndex, currentIndex+1,
+                                                           lineBuffer.fileName,
+                                                           lineBuffer.lineNumbers[currentIndex],
+                                                           lineBuffer.columnNumbers[currentIndex]);
+                currentIndex++;
+                return token;
+            }
+            throw new Error("XXX implement me");
+        }
+        public boolean isEmpty()
+        {
+            return returnedEOF;
+        }
+    } // class TokenStreamFromLineBuffer
+
+    class TokenStreamFromLineBufferWithPushBack extends TokenStreamFromLineBuffer
     {
-        private TokenStack stack;
+        private TokenStack stack = new TokenStack();
 
-        public void init(LineBuffer lineBuffer, int startIndex, int endIndex)
+        public void init(LineBuffer lineBuffer, int startIndex, int endIndex,
+                         TokenAllocator tokenAllocator)
         {
-            AssertAlways(stackSize == 0);
-            super.init(lineBuffer, startIndex, endIndex);
+            AssertAlways(stack.isEmpty());
+            super.init(lineBuffer, startIndex, endIndex, tokenAllocator);
         }
 
         // keeps ref. if you don't want it, use tokenAllocator.unrefToken(readToken());
         public Token readToken()
         {
-            return stackSize > 0 ? stack.popAndKeepRef()
-                                 : super.readToken();
+            return !stack.isEmpty() ? stack.popAndKeepRef()
+                                    : super.readToken();
         }
+        // it's an error to push back the terminating null
         public void pushBackToken(Token token)
         {
+            AssertAlways(token != null);
             stack.pushAndRef(token);
         }
-    }; // TokenStreamWithPushBack
+        public boolean isEmpty()
+        {
+            return stack.isEmpty() && super.isEmpty();
+        }
+    } // class TokenStreamFromLineBufferWithPushBack
 
 
 
     // Doesn't actually output newlines unless it has to.
     // And then only outputs at most 7 in a row.
-    class LazyPrintWriter()
+    class LazyPrintWriter
     {
-        private java.io.Writer writer;
+        private java.io.PrintWriter writer;
         private int lineNumberPhysical;
         private int lineNumberLogical;
         private int columnNumber; // just for making sure we don't sync when not at end of line... or does caller need to be able to query it?
@@ -545,7 +661,7 @@ public class Cpp1
             {
                 writer.println();
                 lineNumberPhysical++;
-                columnNumberPhysical = 0;
+                columnNumber = 0;
             }
 
             if (lineNumberLogical >= lineNumberPhysical
@@ -573,13 +689,13 @@ public class Cpp1
         }
         public void print(String s)
         {
-            int n;
-            for (int i = 0; i < n; ++i)
+            int sLength = s.length();
+            for (int i = 0; i < sLength; ++i)
             {
                 char c = s.charAt(i);
                 if (c == '\n')
                 {
-                    println(); // fixes line and column numbers
+                    println(); // above; fixes line and column numbers
                 }
                 else
                 {
@@ -604,22 +720,23 @@ public class Cpp1
                               java.util.Hashtable macros,
                    
                               LineBuffer lineBuffer, // logically local to loop iteration but we only want to allocate it once
+                              TokenStreamFromLineBufferWithPushBack tokenStream, // logically local to loop iteration but we only want to allocate it once
                               TokenAllocator tokenAllocator,
                               ExpressionParser expressionParser,
                    
                               boolean commentOutLineDirectives,
                               int recursionLevel)
+        throws java.io.IOException
     {
-        TokenStreamWithPushBack tokenStream = new tokenStream(); // we re-init it at the beginning of each line.  could share it among recursive invocations, too
-
         while (true)
         {
             getNextLogicalLine(in, lineBuffer);
-            if (lineLength == 0)
+            if (lineBuffer.length == 0)
                 break; // end of file
 
-            tokenStream.init(lineBuf, 0, lineLength);
+            tokenStream.init(lineBuffer, 0, lineBuffer.length, tokenAllocator);
 
+            /*
             if line starts with a preprocessor directive
             {
                 if it's #include
@@ -641,12 +758,14 @@ public class Cpp1
                     do the appropriate thing
                 }
             }
+            */
 
             while (true)
             {
                 Token token = tokenStream.readToken();
                 if (token == null)
                     break;
+                /*
                 if token is name of a macro
                 {
                     read any args if appropriate
@@ -658,12 +777,13 @@ public class Cpp1
                     output any newlines and/or line directives needed to get in sync
                     output the token
                 }
+                */
             }
         }
-        if (outputColumnNumberPhysical != 0)
-        {
-            out.println(); // ARGH should be using same line terminators that were input.  maybe actually keep up to 7 lines of output?
-        }
+
+        AssertAlways(in.columnNumber == 0);
+        AssertAlways(out.columnNumber == 0);
+        AssertAlways(tokenStream.isEmpty());
     }
 } // public class Cpp1
 
