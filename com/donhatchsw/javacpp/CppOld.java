@@ -31,6 +31,7 @@
 *
 
 TODO:
+    - instrument to see where it's spending most time?  I assume it's Token and String allocation and cleanup
     - test0 and test1 is broken (string file opener I guess)
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
     - #include_next, sigh
@@ -213,22 +214,27 @@ public class Cpp
     private static class Token
     {
         // The token types
-        public static final int IDENTIFIER = 0;     // "_[a-zA-Z0-9][a-zA-Z0-9]*"
-        public static final int STRING_LITERAL = 1; // "\"([^\\"]|\\.)*\""
-        public static final int CHAR_LITERAL = 2;   // "'([^\\']|\\.)*'" // too leniant
-        public static final int INT_LITERAL = 3;    // "-?([0-9]+|0x[0-9a-fA-F]*) // and not followed by x, is there lookahead?
-        public static final int FLOAT_LITERAL = 4;
-        public static final int DOUBLE_LITERAL = 5;
-        public static final int SYMBOL = 6;
-        public static final int COMMENT = 7;
-        public static final int SPACES = 8;
-        public static final int NEWLINE_UNESCAPED = 9; // XXX TODO: not handling these right, these should NOT turn into spaces, cpp uses them as nothing (argh, which ends up putting multiple stuff on a line!)
-        public static final int PREPROCESSOR_DIRECTIVE = 10;
-        public static final int MACRO_ARG = 11;
-        public static final int MACRO_ARG_QUOTED = 12;
-        public static final int TOKEN_PASTE = 13; // temporary form that "##" takes during macro evaluation... NOT during initial tokenizing
-        public static final int EOF = 14;
-        public static final int NUMTYPES = 15; // one more than last value
+        public static int NUMTYPES = 0;     // "_[a-zA-Z0-9][a-zA-Z0-9]*"
+        public static final int IDENTIFIER = NUMTYPES++;     // "_[a-zA-Z0-9][a-zA-Z0-9]*"
+        public static final int STRING_LITERAL = NUMTYPES++; // "\"([^\\"]|\\.)*\""
+        public static final int CHAR_LITERAL = NUMTYPES++;   // "'([^\\']|\\.)*'" // too leniant
+        public static final int INT_LITERAL = NUMTYPES++;    // "-?([0-9]+|0x[0-9a-fA-F]*) // and not followed by x, is there lookahead?
+        public static final int FLOAT_LITERAL = NUMTYPES++;
+        public static final int DOUBLE_LITERAL = NUMTYPES++;
+        public static final int SYMBOL = NUMTYPES++;
+        public static final int COMMENT = NUMTYPES++;
+        public static final int COMMENT_START = NUMTYPES++;
+        public static final int COMMENT_MIDDLE = NUMTYPES++;
+        public static final int COMMENT_END = NUMTYPES++;
+        public static final int SPACES = NUMTYPES++;
+        public static final int NEWLINE_UNESCAPED = NUMTYPES++; // XXX TODO: not handling these right, these should NOT turn into spaces, cpp uses them as nothing (argh, which ends up putting multiple stuff on a line!)
+        public static final int PREPROCESSOR_DIRECTIVE = NUMTYPES++;
+        public static final int MACRO_ARG = NUMTYPES++;
+        public static final int MACRO_ARG_QUOTED = NUMTYPES++;
+        public static final int TOKEN_PASTE = NUMTYPES++; // temporary form that "##" takes during macro evaluation... NOT during initial tokenizing
+        public static final int EOF = NUMTYPES++;
+        // NUMTYPES is now one more than the last value
+
         // TODO: long
         // TODO: absorb backslash-newline into spaces
 
@@ -3953,4 +3959,4 @@ public class Cpp
         System.exit(0);
     } // main
 
-} // Cpp
+} // public class Cpp
