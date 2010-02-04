@@ -22,6 +22,9 @@ package com.donhatchsw.javacpp;
 
 public class Cpp1
 {
+    private static int verboseLevel = 3; // maybe 0 = nothing, 1 = overall, 2 = file, 3 = line, 4 = char
+
+
     // Logical assertions, always compiled in. Ungracefully bail if violated.
     private static void AssertAlways(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
 
@@ -46,6 +49,13 @@ public class Cpp1
                            +((((int)c)>>0)&7);
             return ""+c;
         }
+        private static String escapifyCharOrEOF(int c)
+        {
+            if (c < 0)
+                return ""+c;
+            else
+                return escapify((char)c, '\'');
+        }
         private static String escapify(String s)
         {
             StringBuffer sb = new StringBuffer();
@@ -69,9 +79,9 @@ public class Cpp1
     } // private static class FileOpener
 
 
-    class LineAndColumnNumberReader
+    private static class LineAndColumnNumberReader
     {
-        private java.io.Reader reader;
+        private java.io.LineNumberReader reader;
         private String fileName;
         private int lineNumber = 0;
         private int columnNumber = 0;
@@ -89,6 +99,12 @@ public class Cpp1
         public int read()
             throws java.io.IOException // since newlineSimplifyingReader.read() does
         {
+            if (verboseLevel >= 4)
+            {
+                System.err.println("            in LineAndColumnNumberReader.read()");
+                System.err.println("                lineNumber = "+lineNumber);
+                System.err.println("                columnNumber = "+columnNumber);
+            }
             int c;
             if (lookedAheadChar != -2) // if there is a looked ahead char...
             {
@@ -98,21 +114,25 @@ public class Cpp1
             else
                 c = reader.read();
 
-            // turn 
-            if (c == '\r')
+            if (c == -1)
             {
-                if ((lookedAheadChar = reader.read()) == '\n')
-                    lookedAheadChar = -2; // turn \r\n into \n
-                c = '\n';
+                // EOF... no line or column number adjusting, I don't think? not sure. maybe it should be illegal to ask for them?  not sure.
             }
-
-            if (c == '\n')
+            else if (c == '\n')
             {
                 lineNumber++;
                 columnNumber = 0;
             }
             else
                 columnNumber++;
+
+            if (verboseLevel >= 4)
+            {
+                System.err.println("                c = '"+escapifyCharOrEOF(c)+"'");
+                System.err.println("                lineNumber = "+lineNumber);
+                System.err.println("                columnNumber = "+columnNumber);
+                System.err.println("            out LineAndColumnNumberReader.read()");
+            }
             return c;
         } // read
 
@@ -161,6 +181,10 @@ public class Cpp1
         public void clear()
         {
             length = 0;
+        }
+        public void setFileName(String fileName)
+        {
+            this.fileName = fileName;
         }
 
         public void append(char c, int lineNumber, int columnNumber)
@@ -212,12 +236,18 @@ public class Cpp1
                                            LineBuffer lineBuffer)
         throws java.io.IOException
     {
+        if (verboseLevel >= 3)
+            System.err.println("    in getNextLogicalLine");
+
+        lineBuffer.setFileName(in.getFileName());
         lineBuffer.clear();
         while (true)
         {
             int physicalLineStart = lineBuffer.length;
             boolean atEOF = false;
 
+            if (verboseLevel >= 3)
+                System.err.println("        reading a physical line");
             // append next physical line...
             while (true)
             {
@@ -233,6 +263,8 @@ public class Cpp1
                 if (c == '\n')
                     break;
             }
+            if (verboseLevel >= 3)
+                System.err.println("        done reading a physical line");
 
             if (lineBuffer.length == physicalLineStart)
             {
@@ -295,7 +327,7 @@ public class Cpp1
                     warning(in.getFileName(), in.getLineNumber(), in.getColumnNumber(),
                             "backslash at end of file");
                     lineBuffer.append('\n', in.getLineNumber(), in.getColumnNumber());
-                    return;
+                    break;
                 }
                 continue;
             }
@@ -303,6 +335,8 @@ public class Cpp1
 
         // well that was way more frickin complicated than it should have been
 
+        if (verboseLevel >= 3)
+            System.err.println("    out getNextLogicalLine");
     } // getNextLogicalLine
 
 
@@ -404,6 +438,76 @@ public class Cpp1
                 if (textUnderlyingString[i1-sLength+i] != s.charAt(i))
                     return false;
             return true;
+        }
+
+
+        private static String typeToNameCache[] = null;
+        public static String typeToName(int type)
+        {
+            AssertAlways(type >= 0 && type < NUMTYPES);
+
+            if (typeToNameCache == null)
+            {
+                typeToNameCache = new String[NUMTYPES];
+
+                // Introspect looking for all the public final static ints...
+                java.lang.reflect.Field fields[] = Token.class.getDeclaredFields();
+                for (int iField = 0; iField < fields.length; ++iField)
+                {
+                    java.lang.reflect.Field field = fields[iField];
+                    // System.out.println("    "+field+": "+field.getName());
+                    int modifiers = field.getModifiers();
+                    if (java.lang.reflect.Modifier.isPublic(modifiers)
+                     && java.lang.reflect.Modifier.isStatic(modifiers)
+                     && java.lang.reflect.Modifier.isFinal(modifiers))
+                    {
+                        Integer valueObject = null;
+                        try
+                        {
+                            valueObject = (Integer)field.get(null);
+                        }
+                        catch (IllegalArgumentException e) {}
+                        catch (IllegalAccessException e) {}
+                        if (valueObject != null)
+                        {
+                            int value = valueObject.intValue();
+                            if (value >= 0 && value < NUMTYPES)
+                            {
+                                if (typeToNameCache[value] != null)
+                                {
+                                    throw new Error("Token types "+typeToNameCache[value]+" and "+field.getName()+" have the same value "+value+"??");
+                                }
+                                typeToNameCache[value] = field.getName();
+                            }
+                        }
+                    }
+                }
+                for (int i = 0; i < NUMTYPES; ++i)
+                {
+                    if (typeToNameCache[i] == null)
+                        throw new Error("No token with value "+i+"??");
+                }
+            }
+
+            AssertAlways(typeToNameCache[type] != null);
+            return typeToNameCache[type];
+        } // typeToName
+        // For debug printing
+        public String toString()
+        {
+            return "new Token("
+                  +typeToName(this.type)
+                  +", \""
+                  +escapify(this.textToString())
+                  +"\", "
+                  +"                         "
+                  +", \""
+                  +escapify(this.inFileName)
+                  +"\", "
+                  +this.inLineNumber
+                  +", "
+                  +this.inLineNumber
+                  +")";
         }
     } // class Token
 
@@ -560,13 +664,13 @@ public class Cpp1
 
 
 
-    class TokenStreamFromLineBuffer
+    private static class TokenStreamFromLineBuffer
     {
         private LineBuffer lineBuffer;
         private int endIndex;
         private int currentIndex;
         private TokenAllocator tokenAllocator;
-        private boolean returnedEOF;
+        private boolean returnedEOF = true; // XXX maybe bad name for this... really means empty... should we just call it isEmpty? hmm... I'm confused
         public void init(LineBuffer lineBuffer, int startIndex, int endIndex,
                          TokenAllocator tokenAllocator)
         {
@@ -579,26 +683,38 @@ public class Cpp1
         // keeps ref. if you don't want it, use tokenAllocator.unrefToken(readToken());
         public Token readToken()
         {
+            System.err.println("    in tokenStream.readToken");
             AssertAlways(!returnedEOF);
 
+            Token token;
             if (currentIndex == endIndex)
             {
                 returnedEOF = true;
-                return null; // XXX maybe caller should guard all readTokens with isEmpty(), then can have simpler semantics?
+                token = null; // XXX maybe caller should guard all readTokens with isEmpty(), then can have simpler semantics?
             }
-
-            if (true) // XXX TODO: stopgap, remove this when I get it implemented for real
+            else if (lineBuffer.chars[currentIndex] == '\n')
             {
-                Token token = tokenAllocator.newRefedToken(Token.SYMBOL,
-                                                           lineBuffer.chars,
-                                                           currentIndex, currentIndex+1,
-                                                           lineBuffer.fileName,
-                                                           lineBuffer.lineNumbers[currentIndex],
-                                                           lineBuffer.columnNumbers[currentIndex]);
+                token = tokenAllocator.newRefedToken(Token.NEWLINE,
+                                                     lineBuffer.chars,
+                                                     currentIndex, currentIndex+1,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
                 currentIndex++;
-                return token;
             }
-            throw new Error("XXX implement me");
+            else
+            {
+                token = tokenAllocator.newRefedToken(Token.SYMBOL,
+                                                     lineBuffer.chars,
+                                                     currentIndex, currentIndex+1,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
+                currentIndex++;
+            }
+            System.err.println("        token = "+token);
+            System.err.println("    out tokenStream.readToken");
+            return token;
         }
         public boolean isEmpty()
         {
@@ -606,7 +722,7 @@ public class Cpp1
         }
     } // class TokenStreamFromLineBuffer
 
-    class TokenStreamFromLineBufferWithPushBack extends TokenStreamFromLineBuffer
+    private static class TokenStreamFromLineBufferWithPushBack extends TokenStreamFromLineBuffer
     {
         private TokenStack stack = new TokenStack();
 
@@ -639,12 +755,18 @@ public class Cpp1
 
     // Doesn't actually output newlines unless it has to.
     // And then only outputs at most 7 in a row.
-    class LazyPrintWriter
+    private static class LazyPrintWriter extends java.io.PrintWriter
     {
-        private java.io.PrintWriter writer;
-        private int lineNumberPhysical;
-        private int lineNumberLogical;
-        private int columnNumber; // just for making sure we don't sync when not at end of line... or does caller need to be able to query it?
+        private int lineNumberPhysical = 0;
+        private int lineNumberLogical = 0;
+        private int columnNumber =0; // just for making sure we don't sync when not at end of line... or does caller need to be able to query it?
+
+        // To avoid dismal performance, caller should make sure
+        // that reader is either a BufferedWriter  or has one as an ancestor.
+        public LazyPrintWriter(java.io.Writer writer)
+        {
+            super(writer);
+        }
 
         // this may only be called when columnNumber is 0.
         // returns true if successfully synced
@@ -659,7 +781,7 @@ public class Cpp1
             // TODO: remove this if we decide on the assert
             if (columnNumber > 0)
             {
-                writer.println();
+                super.println();
                 lineNumberPhysical++;
                 columnNumber = 0;
             }
@@ -669,7 +791,7 @@ public class Cpp1
             {
                 while (lineNumberPhysical < lineNumberLogical)
                 {
-                    writer.println();
+                    super.println();
                     lineNumberPhysical++;
                 }
                 return true;
@@ -681,7 +803,7 @@ public class Cpp1
         {
             if (columnNumber != 0)
             {
-                writer.println();
+                super.println();
                 columnNumber = 0;
                 lineNumberPhysical++;
             }
@@ -694,13 +816,26 @@ public class Cpp1
             {
                 char c = s.charAt(i);
                 if (c == '\n')
-                {
                     println(); // above; fixes line and column numbers
-                }
                 else
                 {
                     AssertAlways(lineNumberPhysical == lineNumberLogical);
-                    writer.print(c);
+                    super.print(c);
+                    columnNumber++;
+                }
+            }
+        }
+        public void print(char s[], int i0, int i1)
+        {
+            for (int i = i0; i < i1; ++i)
+            {
+                char c = s[i];
+                if (c == '\n')
+                    println(); // above; fixes line and column numbers
+                else
+                {
+                    AssertAlways(lineNumberPhysical == lineNumberLogical);
+                    super.print(c);
                     columnNumber++;
                 }
             }
@@ -765,6 +900,7 @@ public class Cpp1
                 Token token = tokenStream.readToken();
                 if (token == null)
                     break;
+
                 /*
                 if token is name of a macro
                 {
@@ -778,13 +914,107 @@ public class Cpp1
                     output the token
                 }
                 */
+
+                if (token.type == Token.NEWLINE)
+                    out.println();
+                else
+                    out.print(token.textUnderlyingString, token.i0, token.i1);
             }
+
+
+            // Done with the tokens on this line,
+            // including the newline.
         }
 
+        System.err.println("in.columnNumber = "+in.columnNumber);
+        System.err.println("out.columnNumber = "+out.columnNumber);
         AssertAlways(in.columnNumber == 0);
         AssertAlways(out.columnNumber == 0);
         AssertAlways(tokenStream.isEmpty());
-    }
+    } // filter
+
+    public static void main(String args[])
+    {
+        if (verboseLevel >= 1)
+        {
+            System.err.println("in Cpp.main");
+        }
+        long t0Millis = System.currentTimeMillis();
+
+
+        String inFileName = null;
+
+        java.io.Reader reader = null;
+        if (inFileName != null)
+        {
+            try
+            {
+                reader = new java.io.BufferedReader(
+                         new java.io.FileReader(inFileName));
+            }
+            catch (java.io.FileNotFoundException e)
+            {
+                System.err.println("javacpp: "+inFileName+": No such file or directory");
+                System.exit(1);
+            }
+        }
+        else
+        {
+            reader = new java.io.BufferedReader(
+                     new java.io.InputStreamReader(System.in));
+            inFileName = "<stdin>";
+        }
+
+        LazyPrintWriter writer = new LazyPrintWriter(
+                                 new java.io.BufferedWriter( // is this recommended??
+                                 new java.io.OutputStreamWriter(System.out)));
+        String includePath[] = {};
+        java.util.Hashtable macros = new java.util.Hashtable();
+        LineBuffer lineBufferScratch = new LineBuffer();
+        TokenStreamFromLineBufferWithPushBack tokenStreamScratch = new TokenStreamFromLineBufferWithPushBack();
+        TokenAllocator tokenAllocator = new TokenAllocator();
+        ExpressionParser expressionParser = new ExpressionParser();
+        boolean commentOutLineDirectives = true;
+
+        try
+        {
+            filter(new LineAndColumnNumberReader(reader, inFileName),
+                   writer,
+                   new FileOpener(),
+                   includePath,
+                   macros,
+                   lineBufferScratch,
+                   tokenStreamScratch,
+                   tokenAllocator,
+                   expressionParser,
+                   commentOutLineDirectives,
+                   0); // recursionLevel
+        }
+        catch (Error e)
+        {
+            //System.err.println("(Caught error, flushing then rethrowing)");
+            writer.flush();
+            //System.err.println("(Caught error, rethrowing after flushing)");
+            throw e;
+        }
+        catch (java.io.IOException e)
+        {
+            writer.flush();
+            System.err.println("Well damn: "+e);
+            System.exit(1);
+        }
+        writer.flush();
+
+        if (verboseLevel >= 1)
+        {
+            long t1Millis = System.currentTimeMillis();
+            double totalSeconds = (t1Millis-t0Millis)*1e-3;
+            System.err.println("    "+totalSeconds+" seconds");
+            System.err.println("out Cpp.main");
+        }
+        System.exit(0);
+    } // main
+
 } // public class Cpp1
 
 
