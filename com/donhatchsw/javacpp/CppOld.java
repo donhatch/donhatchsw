@@ -214,7 +214,7 @@ public class Cpp
     private static class Token
     {
         // The token types
-        public static int NUMTYPES = 0;     // "_[a-zA-Z0-9][a-zA-Z0-9]*"
+        private static int NUMTYPES = 0;     // "_[a-zA-Z0-9][a-zA-Z0-9]*"
         public static final int IDENTIFIER = NUMTYPES++;     // "_[a-zA-Z0-9][a-zA-Z0-9]*"
         public static final int STRING_LITERAL = NUMTYPES++; // "\"([^\\"]|\\.)*\""
         public static final int CHAR_LITERAL = NUMTYPES++;   // "'([^\\']|\\.)*'" // too leniant
@@ -233,10 +233,9 @@ public class Cpp
         public static final int MACRO_ARG_QUOTED = NUMTYPES++;
         public static final int TOKEN_PASTE = NUMTYPES++; // temporary form that "##" takes during macro evaluation... NOT during initial tokenizing
         public static final int EOF = NUMTYPES++;
-        // NUMTYPES is now one more than the last value
+        // NUMTYPES is now one more than the last type value
 
-        // TODO: long
-        // TODO: absorb backslash-newline into spaces
+        // TODO: long?
 
         public int type;
         public String text;
@@ -1198,11 +1197,6 @@ public class Cpp
     {
         private int lineNumber;
 
-        public LineCountingPrintWriter(java.io.OutputStream out)
-        {
-            super(out);
-            lineNumber = 0;
-        }
         public LineCountingPrintWriter(java.io.Writer out)
         {
             super(out);
@@ -3525,7 +3519,9 @@ public class Cpp
         }
         String includePath[] = {};
         java.util.Hashtable macros = new java.util.Hashtable();
-        LineCountingPrintWriter writer = new LineCountingPrintWriter(System.out);
+        LineCountingPrintWriter writer = new LineCountingPrintWriter(
+                                         new java.io.BufferedWriter( // is this recommended??
+                                         new java.io.OutputStreamWriter(System.out)));
         try
         {
             String builtinInput = "#define __LINE__ __LINE__\n" // stub, handled specially
@@ -3754,7 +3750,9 @@ public class Cpp
             String includePath[] = (String[])includePathVector.toArray(new String[0]);
 
 
-            LineCountingPrintWriter writer = new LineCountingPrintWriter(System.out);
+            LineCountingPrintWriter writer = new LineCountingPrintWriter(
+                                             new java.io.BufferedWriter( // is this recommended??
+                                             new java.io.OutputStreamWriter(System.out)));
 
             java.io.Reader reader = null;
             if (inFileName != null)
@@ -3772,7 +3770,8 @@ public class Cpp
             }
             else
             {
-                reader = new java.io.InputStreamReader(System.in);
+                reader = new java.io.BufferedReader(
+                         new java.io.InputStreamReader(System.in));
                 inFileName = "<stdin>";
             }
 
