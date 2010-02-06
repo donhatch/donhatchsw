@@ -1,21 +1,5 @@
 /*
  maybe another implementation, maybe cleaner
-
-
- Question: how to do line termination?
-     - always the system default?
-     - imitate whatever's in the first line of input?
-     - try to imitate what's on every line? (then use what for lines we create?)
- The simplest is to use the system default (system property line.separator).
- The next simplest, and maybe cleanest, is to imitate whatever's in the
- first line of input.
- Trying to imitate what's on every line seems friendliest, but
- it's hell to maintain, and it's not clear what to do for lines we create
- (imitate nearby lines?  imitate whatever's in first line of input,
- for those only?)
- What about an empty input file?  I guess in that case
- we should output an empty file, with no directives at all? hmm
- DOING IT SIMPLEST WAY
 */
 
 package com.donhatchsw.javacpp;
@@ -28,6 +12,8 @@ public class Cpp1
     private static final int DEBUG_PER_LINE = 3;
     private static final int DEBUG_PER_TOKEN = 4;
     private static final int DEBUG_PER_CHAR = 5;
+    // I set the following to the values rather than the variable names above,
+    // just so they are easy to change instantly
     private static int inputDebugLevel  = 2;
     private static int tokenDebugLevel  = 2;
     private static int outputDebugLevel = 2;
@@ -156,7 +142,6 @@ public class Cpp1
 
         // return what read() will return next.
         // doesn't do anything to lineNumber and columnNumber.
-        // XXX TODO: is this even needed?  maybe not
         public int peek()
             throws java.io.IOException
         {
@@ -325,6 +310,20 @@ public class Cpp1
                 }
             }
 
+            // A bit of a hack... we DO need to keep the spaces
+            // before the backslash... at least one of them, so that the following
+            // doesn't turn into heyyou:
+            //  hey   \
+            //  you
+            // Also we do NOT follow cpp's practice of compressing all space sequences that are not at beginning of line into a single space,
+            // but we'll do it here, just because this will probably come up a lot
+            // (when several continuation lines have backslashes in same column)
+            if (backslashIndex != -1
+             && Character.isWhitespace(lineBuffer.chars[trailingSpacesIncludingOptionalBackslashStartIndex]))
+            {
+                trailingSpacesIncludingOptionalBackslashStartIndex++;
+            }
+
             if (backslashIndex == -1)
             {
                 // No backslash continuation.
@@ -345,6 +344,11 @@ public class Cpp1
                 {
                     lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex, lineBuffer.length-1); // delete except for trailing newline
                     break;
+                }
+                if (backslashIndex != lineBuffer.length-2)
+                {
+                    warning("backslash and newline separated by space",
+                            lineBuffer.fileName, lineBuffer.lineNumbers[backslashIndex], lineBuffer.columnNumbers[backslashIndex]);
                 }
                 lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex, lineBuffer.length); // delete including trailing newline
                 // and continue to get another physical line
@@ -685,7 +689,6 @@ public class Cpp1
     } // class TokenStack
 
 
-
     private static class TokenStreamFromLineBuffer
     {
         private LineBuffer lineBuffer;
@@ -783,8 +786,9 @@ public class Cpp1
     // And then only outputs at most 7 in a row.
     private static class LazyPrintWriter extends java.io.PrintWriter
     {
-        private int lineNumberPhysical = 0;
-        private int lineNumberLogical = 0;
+        private int inLineNumber = 0; // the input line number corresponding to outLineNumberPromised
+        private int outLineNumberDelivered = 0;
+        private int outLineNumberPromised = 0;
         private int columnNumber =0; // just for making sure we don't sync when not at end of line... or does caller need to be able to query it?
 
         // To avoid dismal performance, caller should make sure
@@ -799,42 +803,40 @@ public class Cpp1
         // using spaces and (up to 7) newlines,
         // false if it couldn't do that in which case caller needs to
         // issue a line number directive.
-        public boolean sync(int lineNumber)
+        // TODO: not sure if this is wanted? not sure yet
+        public boolean syncToInLineNumber(int inLineNumber)
         {
-            lineNumberLogical = lineNumber;
+            if (inLineNumber == this.inLineNumber)
+                return true; // success
+            outLineNumberPromised += inLineNumber - this.inLineNumber;
 
             AssertAlways(columnNumber == 0); // TODO: do we want this?
             // TODO: remove this if we decide on the assert
             if (columnNumber > 0)
             {
                 super.println();
-                lineNumberPhysical++;
+                outLineNumberDelivered++;
                 columnNumber = 0;
             }
 
-            if (lineNumberLogical >= lineNumberPhysical
-             && lineNumberLogical <= lineNumberPhysical+7)
+            if (outLineNumberPromised >= outLineNumberDelivered
+             && outLineNumberPromised <= outLineNumberDelivered+7)
             {
-                while (lineNumberPhysical < lineNumberLogical)
+                while (outLineNumberDelivered < outLineNumberPromised)
                 {
                     super.println();
-                    lineNumberPhysical++;
+                    outLineNumberDelivered++;
                 }
-                return true;
+                this.inLineNumber = inLineNumber;
+                return true; // success
             }
             else
-                return false;
+                return false; // failed, caller must issue line number directive
         }
-        public void emitLineDirective(LineAndColumnNumberReader in,
-                                      boolean commentItOut)
+        public void setInLineNumber(int inLineNumber)
         {
-            // XXX TODO: get straight on policy about syncinc
-            AssertAlways(in.columnNumber == 0);
-            AssertAlways(this.columnNumber == 0);
-
-            super.println((commentItOut?"// "+(lineNumberPhysical+1+1)+" ":"")+"# "+(in.lineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments lineNumberPhysical
-            lineNumberPhysical++;
-            lineNumberLogical = lineNumberPhysical;
+            AssertAlways(columnNumber == 0);
+            this.inLineNumber = inLineNumber;
         }
 
         public void println()
@@ -843,9 +845,10 @@ public class Cpp1
             {
                 super.println();
                 columnNumber = 0;
-                lineNumberPhysical++;
+                outLineNumberDelivered++;
             }
-            lineNumberLogical++;
+            outLineNumberPromised++;
+            inLineNumber++;
         }
         public void print(String s)
         {
@@ -857,7 +860,7 @@ public class Cpp1
                     println(); // above; fixes line and column numbers
                 else
                 {
-                    AssertAlways(lineNumberPhysical == lineNumberLogical);
+                    AssertAlways(outLineNumberDelivered == outLineNumberPromised);
                     super.print(c);
                     columnNumber++;
                 }
@@ -872,7 +875,7 @@ public class Cpp1
                     println(); // above; fixes line and column numbers
                 else
                 {
-                    AssertAlways(lineNumberPhysical == lineNumberLogical);
+                    AssertAlways(outLineNumberDelivered == outLineNumberPromised);
                     super.print(c);
                     columnNumber++;
                 }
@@ -883,6 +886,7 @@ public class Cpp1
             print(s);
             println(); // the other one
         }
+
     } // class LazyPrintWriter
 
 
@@ -901,7 +905,13 @@ public class Cpp1
                               int recursionLevel)
         throws java.io.IOException
     {
-        out.emitLineDirective(in, commentOutLineDirectives);
+        if (inputDebugLevel >= DEBUG_PER_FILE)
+            System.err.println("    in Cpp.filter");
+
+        // XXX TODO: should probably be emitLineNumberDirective
+        out.println((commentOutLineDirectives?"// "+(out.outLineNumberDelivered+1+1)+" ":"")+"# "+(in.lineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments outLineNumberDelivered
+        out.setInLineNumber(in.lineNumber);
+
         while (true)
         {
             getNextLogicalLine(in, lineBuffer);
@@ -957,7 +967,18 @@ public class Cpp1
                 if (token.type == Token.NEWLINE)
                     out.println();
                 else
+                {
+                    if (out.columnNumber == 0)
+                    {
+                        if (!out.syncToInLineNumber(token.inLineNumber))
+                        {
+                            out.outLineNumberPromised = out.outLineNumberDelivered; // release from any promises   TODO: this is unclean
+                            out.println((commentOutLineDirectives?"// "+(out.outLineNumberDelivered+1+1)+" ":"")+"# "+(token.inLineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments outLineNumberDelivered
+                            out.setInLineNumber(token.inLineNumber);
+                        }
+                    }
                     out.print(token.textUnderlyingString, token.i0, token.i1);
+                }
             }
 
 
@@ -965,10 +986,9 @@ public class Cpp1
             // including the newline.
         }
 
-        if (inputDebugLevel >= DEBUG_PER_FILE)
-        {
-        }
         AssertAlways(tokenStream.isEmpty());
+        if (inputDebugLevel >= DEBUG_PER_FILE)
+            System.err.println("    out Cpp.filter");
     } // filter
 
     public static void main(String args[])
@@ -981,6 +1001,142 @@ public class Cpp1
 
 
         String inFileName = null;
+        StringBuffer commandLineFakeInput = new StringBuffer();
+        java.util.Vector includePathVector = new java.util.Vector();
+        java.util.Hashtable macros = new java.util.Hashtable();
+        String language = "java";
+
+        for (int iArg = 0; iArg < args.length; ++iArg)
+        {
+            String arg = args[iArg];
+            if (false) ;
+            else if (arg.startsWith("-I"))
+            {
+                String dir;
+                if (arg.equals("-I"))
+                {
+                    if (iArg+1 == args.length)
+                    {
+                        System.err.println("javacpp: argument to `-I' is missing");
+                        System.exit(1);
+                    }
+                    dir = args[++iArg];
+                }
+                else
+                    dir = arg.substring(2);
+                includePathVector.add(dir);
+            }
+            else if (arg.startsWith("-D"))
+            {
+                String nameAndValue;
+                if (arg.equals("-D"))
+                {
+                    if (iArg+1 == args.length)
+                    {
+                        System.err.println("javacpp: argument to `-D' is missing");
+                        System.exit(1);
+                    }
+                    nameAndValue = args[++iArg];
+                }
+                else
+                    nameAndValue = arg.substring(2);
+                int indexOfFirstEqualsSign = nameAndValue.indexOf('=');
+                String name, value;
+                if (indexOfFirstEqualsSign != -1)
+                {
+                    if (indexOfFirstEqualsSign == 0)
+                    {
+                        System.err.println("javacpp: `-D' is missing macro name");
+                        System.exit(1);
+                    }
+                    name = nameAndValue.substring(0, indexOfFirstEqualsSign);
+                    value = nameAndValue.substring(indexOfFirstEqualsSign+1);
+                }
+                else
+                {
+                    name = nameAndValue;
+                    value = "1";
+                }
+                commandLineFakeInput.append("#define "+name+" "+value+"\n");
+            }
+            else if (arg.startsWith("-U"))
+            {
+                String name;
+                if (arg.equals("-U"))
+                {
+                    if (iArg+1 == args.length)
+                    {
+                        System.err.println("javacpp: argument to `-U' is missing");
+                        System.exit(1);
+                    }
+                    name = args[++iArg];
+                }
+                else
+                    name = arg.substring(2);
+                commandLineFakeInput.append("#undef "+name+"\n");
+            }
+            else if (arg.startsWith("-x"))
+            {
+                String dir;
+                if (arg.equals("-x"))
+                {
+                    if (iArg+1 == args.length)
+                    {
+                        System.err.println("javacpp: argument to `-x' is missing");
+                        System.exit(1);
+                    }
+                    language = args[++iArg];
+                }
+                else
+                    language = arg.substring(2);
+            }
+            else if (arg.startsWith("-"))
+            {
+                System.err.println("javacpp: unrecognized option \""+args[iArg]+"\"");
+                System.exit(1);
+            }
+            else
+            {
+                if (inFileName != null)
+                {
+                    System.err.println("javacpp: too many input files");
+                    System.exit(1);
+                }
+                inFileName = arg;
+            }
+        }
+
+        boolean commentOutLineDirectives = false;
+
+        if (language.equals("java"))
+        {
+            commentOutLineDirectives = true;
+        }
+        else if (language.equals("c++")
+              || language.equals("c"))
+        {
+            // just imitate what I have on the machine I'm writing this on...
+
+            if (language.equals("c++"))
+            {
+                includePathVector.add("/usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6");
+                includePathVector.add("/usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/i386-redhat-linux");
+                includePathVector.add("/usr/lib/gcc/i386-redhat-linux/3.4.6/../../../../include/c++/3.4.6/backward");
+            }
+            includePathVector.add("/usr/local/include");
+            includePathVector.add("/usr/lib/gcc/i386-redhat-linux/3.4.6/include");
+            includePathVector.add("/usr/include");
+        }
+        else
+        {
+            System.err.println("language "+language+" not recognized");
+            System.exit(1);
+        }
+
+        String includePath[] = (String[])includePathVector.toArray(new String[0]);
+
+
+
 
         java.io.Reader reader = null;
         if (inFileName != null)
@@ -1006,13 +1162,10 @@ public class Cpp1
         LazyPrintWriter writer = new LazyPrintWriter(
                                  new java.io.BufferedWriter( // is this recommended??
                                  new java.io.OutputStreamWriter(System.out)));
-        String includePath[] = {};
-        java.util.Hashtable macros = new java.util.Hashtable();
         LineBuffer lineBufferScratch = new LineBuffer();
         TokenStreamFromLineBufferWithPushBack tokenStreamScratch = new TokenStreamFromLineBufferWithPushBack();
         TokenAllocator tokenAllocator = new TokenAllocator();
         ExpressionParser expressionParser = new ExpressionParser();
-        boolean commentOutLineDirectives = true;
 
         try
         {
