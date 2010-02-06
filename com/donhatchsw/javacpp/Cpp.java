@@ -100,6 +100,7 @@ public class Cpp1
     {
         private java.io.LineNumberReader reader;
         private String fileName;
+        private String extraCrap = ""; // gets put at end of line number directives
         private int lineNumber = 0;
         private int columnNumber = 0;
         private int lookedAheadChar = -2; // -2 means not looked ahead, -1 means EOF
@@ -824,6 +825,18 @@ public class Cpp1
             else
                 return false;
         }
+        public void emitLineDirective(LineAndColumnNumberReader in,
+                                      boolean commentItOut)
+        {
+            // XXX TODO: get straight on policy about syncinc
+            AssertAlways(in.columnNumber == 0);
+            AssertAlways(this.columnNumber == 0);
+
+            super.println((commentItOut?"// "+(lineNumberPhysical+1+1)+" ":"")+"# "+(in.lineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments lineNumberPhysical
+            lineNumberPhysical++;
+            lineNumberLogical = lineNumberPhysical;
+        }
+
         public void println()
         {
             if (columnNumber != 0)
@@ -888,6 +901,7 @@ public class Cpp1
                               int recursionLevel)
         throws java.io.IOException
     {
+        out.emitLineDirective(in, commentOutLineDirectives);
         while (true)
         {
             getNextLogicalLine(in, lineBuffer);
