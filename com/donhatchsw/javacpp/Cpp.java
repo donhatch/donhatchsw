@@ -22,15 +22,29 @@ package com.donhatchsw.javacpp;
 
 public class Cpp1
 {
-    private static int verboseLevel = 3; // maybe 0 = nothing, 1 = overall, 2 = file, 3 = line, 4 = char
+    private static final int DEBUG_NONE = 0;
+    private static final int DEBUG_OVERALL = 1;
+    private static final int DEBUG_PER_FILE = 2;
+    private static final int DEBUG_PER_LINE = 3;
+    private static final int DEBUG_PER_TOKEN = 4;
+    private static final int DEBUG_PER_CHAR = 5;
+    private static int inputDebugLevel  = 2;
+    private static int tokenDebugLevel  = 2;
+    private static int outputDebugLevel = 2;
 
 
     // Logical assertions, always compiled in. Ungracefully bail if violated.
     private static void AssertAlways(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
 
-    private static void warning(String fileName, int lineNumber, int columnNumber, String message)
+    private static void warning(String message,
+                                String fileName, int lineNumber, int columnNumber)
     {
         System.err.println(fileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": warning: "+message);
+    }
+    private static void error(String message,
+                              String fileName, int lineNumber, int columnNumber)
+    {
+        throw new Error(fileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": error: "+message);
     }
 
     // From com.donhatchsw.util.Arrays...
@@ -79,6 +93,9 @@ public class Cpp1
     } // private static class FileOpener
 
 
+    // Can't push back arbitrary chars (since it's impossible
+    // to determine line and column info in general)
+    // but can push back EOF.
     private static class LineAndColumnNumberReader
     {
         private java.io.LineNumberReader reader;
@@ -99,7 +116,7 @@ public class Cpp1
         public int read()
             throws java.io.IOException // since newlineSimplifyingReader.read() does
         {
-            if (verboseLevel >= 4)
+            if (inputDebugLevel >= DEBUG_PER_CHAR)
             {
                 System.err.println("            in LineAndColumnNumberReader.read()");
                 System.err.println("                lineNumber = "+lineNumber);
@@ -126,7 +143,7 @@ public class Cpp1
             else
                 columnNumber++;
 
-            if (verboseLevel >= 4)
+            if (inputDebugLevel >= DEBUG_PER_CHAR)
             {
                 System.err.println("                c = '"+escapifyCharOrEOF(c)+"'");
                 System.err.println("                lineNumber = "+lineNumber);
@@ -164,6 +181,11 @@ public class Cpp1
         {
             this.lineNumber = lineNumber;
             this.columnNumber = 0; // or just assert it's 0?
+        }
+        public void pushBackEOF()
+        {
+            AssertAlways(lookedAheadChar == -2);
+            lookedAheadChar = -1;
         }
     } // class LineAndColumnNumberReader
 
@@ -236,8 +258,12 @@ public class Cpp1
                                            LineBuffer lineBuffer)
         throws java.io.IOException
     {
-        if (verboseLevel >= 3)
+        if (inputDebugLevel >= DEBUG_PER_LINE)
             System.err.println("    in getNextLogicalLine");
+
+        boolean correctedEOF = false;
+        int lastBackslashLineNumber = -1;
+        int lastBackslashColumnNumber = -1;
 
         lineBuffer.setFileName(in.getFileName());
         lineBuffer.clear();
@@ -246,7 +272,7 @@ public class Cpp1
             int physicalLineStart = lineBuffer.length;
             boolean atEOF = false;
 
-            if (verboseLevel >= 3)
+            if (inputDebugLevel >= DEBUG_PER_LINE)
                 System.err.println("        reading a physical line");
             // append next physical line...
             while (true)
@@ -256,39 +282,30 @@ public class Cpp1
                 int c = in.read();
                 if (c == -1) // EOF
                 {
-                    atEOF = true;
-                    break;
+                    if (lastBackslashLineNumber != -1)
+                        warning("backslash-newline at end of file",
+                                lineBuffer.fileName, lastBackslashLineNumber, lastBackslashColumnNumber);
+                    if (lineBuffer.length == 0)
+                        return; // caller knows this means EOF
+                    if (lastBackslashLineNumber == -1) // i.e. if didn't print other message
+                        warning("no newline at end of file",
+                                lineBuffer.fileName, lineNumber, columnNumber);
+                    c = '\n';
+                    in.pushBackEOF();
+                    correctedEOF = true;
                 }
                 lineBuffer.append((char)c, lineNumber, columnNumber);
                 if (c == '\n')
                     break;
             }
-            if (verboseLevel >= 3)
-                System.err.println("        done reading a physical line");
 
-            if (lineBuffer.length == physicalLineStart)
-            {
-                // woops, there was no physical line
-                if (lineBuffer.length > 0)
-                {
-                    // there was a previous line that asked for termination
-                    warning(in.getFileName(), in.getLineNumber(), in.getColumnNumber(),
-                            "backslash-newline at end of file");
-                    lineBuffer.append('\n', in.getLineNumber(), in.getColumnNumber()); // XXX really should be from before EOF was read, querying anything after EOF should be error I think
-                }
-                // otherwise we are returning empty line which caller knows means EOF
-                break;
-            }
             AssertAlways(lineBuffer.length > physicalLineStart);
-
-            AssertAlways(atEOF == (lineBuffer.chars[lineBuffer.length-1] != '\n'));
-            if (atEOF)
+            AssertAlways(lineBuffer.chars[lineBuffer.length-1] == '\n');
+            if (inputDebugLevel >= DEBUG_PER_LINE)
             {
-                warning(in.getFileName(), in.getLineNumber(), in.getColumnNumber(),
-                        "no newline at end of file");
-                lineBuffer.append('\n', in.getLineNumber(), in.getColumnNumber()); // XXX really should be from before EOF was read, querying anything after EOF should be error I think
+                System.err.println("            physical line = \""+escapify(new String(lineBuffer.chars, physicalLineStart, lineBuffer.length - physicalLineStart))+"\"");
+                System.err.println("        done reading a physical line");
             }
-
             // okay now the line is terminated by \n,
             // which simplifies things
 
@@ -317,26 +334,30 @@ public class Cpp1
             }
             else
             {
+                lastBackslashLineNumber = lineBuffer.lineNumbers[backslashIndex];
+                lastBackslashColumnNumber = lineBuffer.columnNumbers[backslashIndex];
                 // there's a backslash continuation.
                 // remove the backslash and any surrounding whitespace and line terminator,
                 // and continue on to the next loop iteration,
                 // to get another physical line
-                lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex, lineBuffer.length);
-                if (atEOF)
+                if (correctedEOF)
                 {
-                    warning(in.getFileName(), in.getLineNumber(), in.getColumnNumber(),
-                            "backslash at end of file");
-                    lineBuffer.append('\n', in.getLineNumber(), in.getColumnNumber());
+                    lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex, lineBuffer.length-1); // delete except for trailing newline
                     break;
                 }
-                continue;
+                lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex, lineBuffer.length); // delete including trailing newline
+                // and continue to get another physical line
             }
+            AssertAlways(!correctedEOF);
         }
 
         // well that was way more frickin complicated than it should have been
 
-        if (verboseLevel >= 3)
+        if (inputDebugLevel >= DEBUG_PER_LINE)
+        {
+            System.err.println("        logical line = \""+escapify(new String(lineBuffer.chars, 0, lineBuffer.length))+"\"");
             System.err.println("    out getNextLogicalLine");
+        }
     } // getNextLogicalLine
 
 
@@ -683,7 +704,8 @@ public class Cpp1
         // keeps ref. if you don't want it, use tokenAllocator.unrefToken(readToken());
         public Token readToken()
         {
-            System.err.println("    in tokenStream.readToken");
+            if (tokenDebugLevel >= DEBUG_PER_TOKEN)
+                System.err.println("    in tokenStream.readToken");
             AssertAlways(!returnedEOF);
 
             Token token;
@@ -712,8 +734,11 @@ public class Cpp1
                                                      lineBuffer.columnNumbers[currentIndex]);
                 currentIndex++;
             }
-            System.err.println("        token = "+token);
-            System.err.println("    out tokenStream.readToken");
+            if (tokenDebugLevel >= DEBUG_PER_TOKEN)
+            {
+                System.err.println("        token = "+token);
+                System.err.println("    out tokenStream.readToken");
+            }
             return token;
         }
         public boolean isEmpty()
@@ -926,16 +951,15 @@ public class Cpp1
             // including the newline.
         }
 
-        System.err.println("in.columnNumber = "+in.columnNumber);
-        System.err.println("out.columnNumber = "+out.columnNumber);
-        AssertAlways(in.columnNumber == 0);
-        AssertAlways(out.columnNumber == 0);
+        if (inputDebugLevel >= DEBUG_PER_FILE)
+        {
+        }
         AssertAlways(tokenStream.isEmpty());
     } // filter
 
     public static void main(String args[])
     {
-        if (verboseLevel >= 1)
+        if (inputDebugLevel >= DEBUG_OVERALL)
         {
             System.err.println("in Cpp.main");
         }
@@ -1005,7 +1029,7 @@ public class Cpp1
         }
         writer.flush();
 
-        if (verboseLevel >= 1)
+        if (inputDebugLevel >= DEBUG_OVERALL)
         {
             long t1Millis = System.currentTimeMillis();
             double totalSeconds = (t1Millis-t0Millis)*1e-3;
