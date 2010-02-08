@@ -609,8 +609,11 @@ public class Cpp1
                 AssertAlways(nInUse > 0);
                 --nInUse;
 
-                unrefToken(token.parentInMacroExpansion); // recursively
-                token.parentInMacroExpansion = null;
+                if (token.parentInMacroExpansion != null)
+                {
+                    unrefToken(token.parentInMacroExpansion); // recursively
+                    token.parentInMacroExpansion = null;
+                }
 
                 // We've carefully unrefed and nulled out the Token members.
                 // Make sure token is not holding on to any other pointers...
@@ -993,6 +996,9 @@ public class Cpp1
                     }
                     out.print(token.textUnderlyingString, token.i0, token.i1);
                 }
+
+                tokenAllocator.unrefToken(token);
+                token = null;
             }
 
 
