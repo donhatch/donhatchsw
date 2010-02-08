@@ -15,8 +15,8 @@ public class Cpp1
     // I set the following to the values rather than the variable names above,
     // just so they are easy to change instantly
     private static int inputDebugLevel  = 2;
-    private static int tokenDebugLevel  = 2;
-    private static int outputDebugLevel = 2;
+    private static int tokenDebugLevel  = 5;
+    private static int outputDebugLevel = 5;
 
 
     // Logical assertions, always compiled in. Ungracefully bail if violated.
@@ -647,28 +647,47 @@ public class Cpp1
 
     private static class TokenStack
     {
-        private Token head = null;
+        private Token first = null;
+        private Token last = null;
         public boolean isEmpty()
         {
-            return head == null;
+            return first == null;
         }
         public void pushAndRef(Token token)
         {
             AssertAlways(token.nextInStack == null);
-            token.nextInStack = head;
-            head = token;
-            token.refCount++; // since it's now referred to by head member
+            token.nextInStack = first;
+            first = token;
+            if (last == null)
+                last = first;
+            token.refCount++; // since it's now referred to by first member (last doesn't refcount anything)
 
-            // transfered ownership of old head from head member
-            // to new head.nextInStack, so no need to adjust its ref count
+            // transfered ownership of old first from first member
+            // to new first.nextInStack, so no need to adjust its ref count
+        }
+        // TODO: not sure we want this... not sure we want to keep track of last either
+        public void addOnBottomAndRef(Token token)
+        {
+            AssertAlways(token.nextInStack == null);
+            if (last != null)
+            {
+                AssertAlways(last.nextInStack == null);
+                last.nextInStack = token;
+            }
+            else
+                first = token;
+            last = token;
+            token.refCount++; // since it's now referred to by either first or oldLast.nextInStack (last doesn't refcount anything). i.e. it's now referred to by the stack.
         }
 
         public Token popAndKeepRef()
         {
-            Token token = head;
-            head = token.nextInStack;
+            Token token = first;
+            first = token.nextInStack;
             token.nextInStack = null;
-            // transfered ownership of new head from token.nextInStack to head member,
+            if (first == null)
+                last = null;
+            // transfered ownership of new first from token.nextInStack to first member,
             // so no need to adjust its ref count
 
             // transfering ownership of token to the caller,
@@ -677,14 +696,9 @@ public class Cpp1
         }
         public void popAndUnref(TokenAllocator tokenAllocator)
         {
-            Token token = head;
-            head = token.nextInStack;
-            token.nextInStack = null;
-            // transfered ownership of new head from token.nextInStack to head member,
-            // so no need to adjust its ref count
-
+            Token token = popAndKeepRef();
             tokenAllocator.unrefToken(token);
-            token = null;
+            token = null; // following best practice
         }
     } // class TokenStack
 
@@ -1201,6 +1215,13 @@ public class Cpp1
             long t1Millis = System.currentTimeMillis();
             double totalSeconds = (t1Millis-t0Millis)*1e-3;
             System.err.println("    "+totalSeconds+" seconds");
+
+            System.err.println("    "+tokenAllocator.nInUse+" tokens in use");
+            System.err.println("    "+tokenAllocator.nFree+" tokens free");
+            System.err.println("    "+tokenAllocator.nPhysicalAllocations+" physical allocations");
+            System.err.println("    "+tokenAllocator.nLogicalAllocations+" logical allocationa");
+            System.err.println("    line buffer max length = "+lineBufferScratch.chars.length);
+
             System.err.println("out Cpp.main");
         }
         System.exit(0);
