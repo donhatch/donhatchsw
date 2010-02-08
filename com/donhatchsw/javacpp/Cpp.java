@@ -616,7 +616,8 @@ public class Cpp1
                 }
 
                 // We've carefully unrefed and nulled out the Token members.
-                // Make sure token is not holding on to any other pointers...
+                // Make sure token is not holding on to any other pointers
+                // either...
                 token.textUnderlyingString = null;
                 token.inFileName = null;
 
@@ -1011,21 +1012,47 @@ public class Cpp1
             System.err.println("    out Cpp.filter");
     } // filter
 
-    public static void main(String args[])
+    // weird that java.util.Vector doesn't have this...
+    // I think its toArray api is broken
+    private static Object toArray(java.util.Vector vector, Class arrayType)
     {
-        if (inputDebugLevel >= DEBUG_OVERALL)
+        int arrayLength = vector.size();
+        Object array = java.lang.reflect.Array.newInstance(
+            arrayType.getComponentType(), arrayLength);
+        for (int i = 0; i < arrayLength; ++i)
+            java.lang.reflect.Array.set(array, i, vector.get(i));
+        return array;
+    }
+
+    public static class ParsedCommandLineArgs
+    {
+        String inFileNames[];
+        String includePath[]; // -I
+        String commandLineFakeInput; // #defines for -D and #undefs for -U
+        String language; // -x
+        boolean commentOutLineDirectives;
+        public ParsedCommandLineArgs(
+            String inFileNames[],
+            String includePath[],
+            String commandLineFakeInput,
+            String language,
+            boolean commentOutLineDirectives)
         {
-            System.err.println("in Cpp.main");
+            this.inFileNames = inFileNames;
+            this.includePath = includePath;
+            this.commandLineFakeInput = commandLineFakeInput;
+            this.language = language;
+            this.commentOutLineDirectives = commentOutLineDirectives;
         }
-        long t0Millis = System.currentTimeMillis();
+    } // class ParsedCommandLineArgs
 
 
-        String inFileName = null;
-        StringBuffer commandLineFakeInput = new StringBuffer();
+    public static ParsedCommandLineArgs parseCommandLineArgs(String args[])
+    {
+        java.util.Vector inFileNamesVector = new java.util.Vector();
         java.util.Vector includePathVector = new java.util.Vector();
-        java.util.Hashtable macros = new java.util.Hashtable();
+        StringBuffer commandLineFakeInputBuffer = new StringBuffer();
         String language = "java";
-
         for (int iArg = 0; iArg < args.length; ++iArg)
         {
             String arg = args[iArg];
@@ -1077,7 +1104,7 @@ public class Cpp1
                     name = nameAndValue;
                     value = "1";
                 }
-                commandLineFakeInput.append("#define "+name+" "+value+"\n");
+                commandLineFakeInputBuffer.append("#define "+name+" "+value+"\n");
             }
             else if (arg.startsWith("-U"))
             {
@@ -1093,11 +1120,10 @@ public class Cpp1
                 }
                 else
                     name = arg.substring(2);
-                commandLineFakeInput.append("#undef "+name+"\n");
+                commandLineFakeInputBuffer.append("#undef "+name+"\n");
             }
             else if (arg.startsWith("-x"))
             {
-                String dir;
                 if (arg.equals("-x"))
                 {
                     if (iArg+1 == args.length)
@@ -1117,17 +1143,12 @@ public class Cpp1
             }
             else
             {
-                if (inFileName != null)
-                {
-                    System.err.println("javacpp: too many input files");
-                    System.exit(1);
-                }
-                inFileName = arg;
+                String inFileName = arg;
+                inFileNamesVector.add(inFileName);
             }
         }
 
         boolean commentOutLineDirectives = false;
-
         if (language.equals("java"))
         {
             commentOutLineDirectives = true;
@@ -1153,10 +1174,31 @@ public class Cpp1
             System.exit(1);
         }
 
-        String includePath[] = (String[])includePathVector.toArray(new String[0]);
+        return new ParsedCommandLineArgs(
+            (String[])toArray(inFileNamesVector, String[].class),
+            (String[])toArray(includePathVector, String[].class),
+            commandLineFakeInputBuffer.toString(),
+            language,
+            commentOutLineDirectives);
+    } // parseArgs
 
+    public static void main(String args[])
+    {
+        if (inputDebugLevel >= DEBUG_OVERALL)
+        {
+            System.err.println("in Cpp.main");
+        }
+        long t0Millis = System.currentTimeMillis();
 
+        ParsedCommandLineArgs parsedArgs = parseCommandLineArgs(args);
 
+        if (parsedArgs.inFileNames.length > 1)
+        {
+            System.err.println("javacpp: too many input files");
+            System.exit(1);
+        }
+        String inFileName = parsedArgs.inFileNames.length == 0 ? null :
+                            parsedArgs.inFileNames[0];
 
         java.io.Reader reader = null;
         if (inFileName != null)
@@ -1186,19 +1228,20 @@ public class Cpp1
         TokenStreamFromLineBufferWithPushBack tokenStreamScratch = new TokenStreamFromLineBufferWithPushBack();
         TokenAllocator tokenAllocator = new TokenAllocator();
         ExpressionParser expressionParser = new ExpressionParser();
+        java.util.Hashtable macros = new java.util.Hashtable();
 
         try
         {
             filter(new LineAndColumnNumberReader(reader, inFileName),
                    writer,
                    new FileOpener(),
-                   includePath,
+                   parsedArgs.includePath,
                    macros,
                    lineBufferScratch,
                    tokenStreamScratch,
                    tokenAllocator,
                    expressionParser,
-                   commentOutLineDirectives,
+                   parsedArgs.commentOutLineDirectives,
                    0); // recursionLevel
         }
         catch (Error e)

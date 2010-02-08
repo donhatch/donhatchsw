@@ -3617,7 +3617,6 @@ public class Cpp
             String inFileName = null;
             StringBuffer commandLineFakeInput = new StringBuffer();
             java.util.Vector includePathVector = new java.util.Vector();
-            java.util.Hashtable macros = new java.util.Hashtable();
             String language = "java";
 
             for (int iArg = 0; iArg < args.length; ++iArg)
@@ -3691,7 +3690,6 @@ public class Cpp
                 }
                 else if (arg.startsWith("-x"))
                 {
-                    String dir;
                     if (arg.equals("-x"))
                     {
                         if (iArg+1 == args.length)
@@ -3748,6 +3746,7 @@ public class Cpp
             }
 
             String includePath[] = (String[])includePathVector.toArray(new String[0]);
+            java.util.Hashtable macros = new java.util.Hashtable();
 
 
             LineCountingPrintWriter writer = new LineCountingPrintWriter(
