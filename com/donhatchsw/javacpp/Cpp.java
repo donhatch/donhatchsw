@@ -4,7 +4,7 @@
 
 package com.donhatchsw.javacpp;
 
-public class Cpp1
+public class Cpp
 {
     private static final int DEBUG_NONE = 0;
     private static final int DEBUG_OVERALL = 1;
@@ -185,6 +185,7 @@ public class Cpp1
         public int lineNumbers[] = new int[1];   // these arrays are same size
         public int columnNumbers[] = new int[1]; // these arrays are same size
         public String fileName = null; // XXX TODO: do we want this?
+        public int nTokensReferringToMe = 0;
 
         public void clear()
         {
@@ -295,54 +296,25 @@ public class Cpp1
             // okay now the line is terminated by \n,
             // which simplifies things
 
-            // Analyze the stuff at the end of the line...
-            int trailingSpacesIncludingOptionalBackslashStartIndex = lineBuffer.length; // and counting
-            int backslashIndex = -1;
-            while (trailingSpacesIncludingOptionalBackslashStartIndex > physicalLineStart
-                && (Character.isWhitespace(lineBuffer.chars[trailingSpacesIncludingOptionalBackslashStartIndex-1])
-                 || (backslashIndex==-1 && lineBuffer.chars[trailingSpacesIncludingOptionalBackslashStartIndex-1] == '\\')))
+            // See if the physical line we just added ends in
+            // a backslash, optional spaces, and a newline
+            int index = lineBuffer.length-1; // index of trailing '\n' for starters
+            while (index > physicalLineStart
+               && Character.isWhitespace(lineBuffer.chars[index-1]))
+                index--;
+            if (index > physicalLineStart
+             && lineBuffer.chars[index-1] == '\\')
             {
-                trailingSpacesIncludingOptionalBackslashStartIndex--;
-                if (lineBuffer.chars[trailingSpacesIncludingOptionalBackslashStartIndex] == '\\')
-                {
-                    AssertAlways(backslashIndex == -1); // by above test
-                    backslashIndex = trailingSpacesIncludingOptionalBackslashStartIndex;
-                }
-            }
-
-            // A bit of a hack... we DO need to keep the spaces
-            // before the backslash... at least one of them, so that the following
-            // doesn't turn into heyyou:
-            //  hey   \
-            //  you
-            // Also we do NOT follow cpp's practice of compressing all space sequences that are not at beginning of line into a single space,
-            // but we'll do it here, just because this will probably come up a lot
-            // (when several continuation lines have backslashes in same column)
-            if (backslashIndex != -1
-             && Character.isWhitespace(lineBuffer.chars[trailingSpacesIncludingOptionalBackslashStartIndex]))
-            {
-                trailingSpacesIncludingOptionalBackslashStartIndex++;
-            }
-
-            if (backslashIndex == -1)
-            {
-                // No backslash continuation.
-                // remove trailing whitespace, leaving the terminator if any, and return
-                lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex,
-                                       lineBuffer.length-1);
-                break;
-            }
-            else
-            {
+                // there's a backslash continuation.
+                int backslashIndex = index-1;
                 lastBackslashLineNumber = lineBuffer.lineNumbers[backslashIndex];
                 lastBackslashColumnNumber = lineBuffer.columnNumbers[backslashIndex];
-                // there's a backslash continuation.
                 // remove the backslash and any surrounding whitespace and line terminator,
                 // and continue on to the next loop iteration,
                 // to get another physical line
                 if (correctedEOF)
                 {
-                    lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex, lineBuffer.length-1); // delete except for trailing newline
+                    lineBuffer.deleteRange(backslashIndex, lineBuffer.length-1); // delete except for trailing newline
                     break;
                 }
                 if (backslashIndex != lineBuffer.length-2)
@@ -350,9 +322,18 @@ public class Cpp1
                     warning("backslash and newline separated by space",
                             lineBuffer.fileName, lineBuffer.lineNumbers[backslashIndex], lineBuffer.columnNumbers[backslashIndex]);
                 }
-                lineBuffer.deleteRange(trailingSpacesIncludingOptionalBackslashStartIndex, lineBuffer.length); // delete including trailing newline
+                lineBuffer.deleteRange(backslashIndex, lineBuffer.length); // delete including trailing newline
                 // and continue to get another physical line
             }
+            else
+            {
+                // No backslash continuation.
+                // remove trailing whitespace, leaving the terminator, and return
+                lineBuffer.deleteRange(index,
+                                       lineBuffer.length-1);
+                break;
+            }
+
             AssertAlways(!correctedEOF);
         }
 
@@ -406,6 +387,7 @@ public class Cpp1
         public Token parentInMacroExpansion;
         public Token nextInStack; // can only live in one stack at a time
         public int refCount;
+        public LineBuffer lineBufferOwningTextUnderlyingString;
 
         // No constructor, we use an init function instead,
         // to make sure no members are forgotten.
@@ -427,10 +409,24 @@ public class Cpp1
 
             this.parentInMacroExpansion = null;
             this.nextInStack = null;
-            this.refCount = 0; // we don't do ref counting, caller does
+            this.refCount = 0; // we don't do ref counting, caller does, optionally
+            this.lineBufferOwningTextUnderlyingString = null;
+        }
+        public void init(int type,
+                         LineBuffer lineBuffer,
+                         int i0,
+                         int i1,
+                         String inFileName,
+                         int inLineNumber,
+                         int inColumnNumber)
+        {
+            init(type,
+                 lineBuffer.chars,
+                 i0, i1, inFileName, inLineNumber, inColumnNumber);
+            this.lineBufferOwningTextUnderlyingString = lineBuffer;
         }
 
-        // should be used sparingly-- maybe in error/warning/debug printing only?
+        // should be used sparingly-- in error/warning/debug printing only
         public String textToString()
         {
             return new String(textUnderlyingString, i0, i1-i0);
@@ -590,6 +586,20 @@ public class Cpp1
             return token;
         } // newRefedToken
 
+        public Token newRefedToken(int type,
+                                   LineBuffer lineBuffer,
+                                   int i0, int i1,
+                                   String inFileName, int inLineNumber, int inColumnNumber)
+        {
+            Token token = newRefedToken(type,
+                                        lineBuffer.chars,
+                                        i0, i1, inFileName, inLineNumber, inColumnNumber);
+            AssertAlways(token.lineBufferOwningTextUnderlyingString == null);
+            token.lineBufferOwningTextUnderlyingString = lineBuffer;
+            lineBuffer.nTokensReferringToMe++;
+            return token;
+        }
+
         // XXX TODO: make sure someone uses this, I assume they do
         public Token refToken(Token token)
         {
@@ -614,6 +624,14 @@ public class Cpp1
                     unrefToken(token.parentInMacroExpansion); // recursively
                     token.parentInMacroExpansion = null;
                 }
+
+                if (token.lineBufferOwningTextUnderlyingString != null)
+                {
+                    --token.lineBufferOwningTextUnderlyingString.nTokensReferringToMe;
+                    token.lineBufferOwningTextUnderlyingString = null;
+                }
+
+
 
                 // We've carefully unrefed and nulled out the Token members.
                 // Make sure token is not holding on to any other pointers
@@ -1221,6 +1239,22 @@ public class Cpp1
             inFileName = "<stdin>";
         }
 
+
+        /*
+        doIt(java.io.Reader in,
+             java.io.Writer out,
+
+        }
+
+    static void doIt(java.io.Reader in,
+                     java.io.Writer out,
+        */
+
+
+
+
+
+
         LazyPrintWriter writer = new LazyPrintWriter(
                                  new java.io.BufferedWriter( // is this recommended??
                                  new java.io.OutputStreamWriter(System.out)));
@@ -1276,7 +1310,7 @@ public class Cpp1
         System.exit(0);
     } // main
 
-} // public class Cpp1
+} // public class Cpp
 
 
 
