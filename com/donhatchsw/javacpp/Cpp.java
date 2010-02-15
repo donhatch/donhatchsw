@@ -757,7 +757,7 @@ public class Cpp
             else if (lineBuffer.chars[currentIndex] == '\n')
             {
                 token = tokenAllocator.newRefedToken(Token.NEWLINE,
-                                                     lineBuffer.chars,
+                                                     lineBuffer,
                                                      currentIndex, currentIndex+1,
                                                      lineBuffer.fileName,
                                                      lineBuffer.lineNumbers[currentIndex],
@@ -767,7 +767,7 @@ public class Cpp
             else
             {
                 token = tokenAllocator.newRefedToken(Token.SYMBOL,
-                                                     lineBuffer.chars,
+                                                     lineBuffer,
                                                      currentIndex, currentIndex+1,
                                                      lineBuffer.fileName,
                                                      lineBuffer.lineNumbers[currentIndex],
@@ -1299,6 +1299,7 @@ public class Cpp
             double totalSeconds = (t1Millis-t0Millis)*1e-3;
             System.err.println("    "+totalSeconds+" seconds");
 
+            System.err.println("    "+lineBufferScratch.nTokensReferringToMe+" tokens referring to lineBufferScratch");
             System.err.println("    "+tokenAllocator.nInUse+" tokens in use");
             System.err.println("    "+tokenAllocator.nFree+" tokens free");
             System.err.println("    "+tokenAllocator.nPhysicalAllocations+" physical allocations");
