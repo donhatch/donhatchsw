@@ -128,6 +128,15 @@ public class SmoothlyVaryingViewingParameter
     public static int verboseLevel = 0;
 
     /**
+    * If true, handle each coordinate separately,
+    * using the exact algorithm for 1 dimension.
+    * If false, get a general two-piece quadratic solution.
+    * (this is not the optimal solution!).
+    * WARNING: setting this to false makes mc4d hang, currently.
+    */
+    public static boolean separable = true;
+
+    /**
     * Evolves dt seconds towards the target,
     * always pushing with constant-magnitude force
     * (possibly with a mid-trip thrust reversal).
@@ -168,7 +177,6 @@ public class SmoothlyVaryingViewingParameter
             }
             //assert(false); // XXX coverage-- remove when hit
 
-            boolean separable = true; // XXX do something sensible here depending on dimension. WARNING: setting this to false makes mc4d hang, currently
             if (separable)
             {
                 //assert(false); // XXX coverage-- remove when hit
@@ -12651,6 +12659,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     private static void interactiveDemo3()
     {
         final int eventVerbose = 1; // set to something else to debug
+        separable = false; // user can toggle it with 's' key
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
@@ -12667,7 +12676,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public double referenceTripDistancesInPixels[];
                 public double referenceTripTimesInRepaints[];
                 public java.awt.Color colors[];
-                public double bounce = .53; // zeroing in on threshold of whether it does or doesn't settle
+                //public double bounce = .53; // zeroing in on threshold of whether it does or doesn't settle
+                //public double bounce = 1.;
+                public double bounce = 0.;
                 public Model()
                 {
                     int n = 10;
@@ -12680,9 +12691,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         points[i] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
 
                         // Uniformly spaced in log space, between 1 and 100.
-                        double frac = i/(n-1.);
-                        referenceTripDistancesInPixels[i] = Math.pow(1., 1-frac) * Math.pow(100., frac);
+                        double frac = i/(n-1.); // uniform from 0 to 1 inclusive
+                        referenceTripDistancesInPixels[i] = Math.pow(1., 1-frac)
+                                                          * Math.pow(100., frac);
                         referenceTripTimesInRepaints[i] = 1.;
+                        points[i].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
+                        points[i].setVelocity(new double[]{0,.25});
 
                         float hue = i/(n-1.f);
                         float sat = .4f;
@@ -12736,6 +12750,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     System.out.println("    creating back buffer of size "+w+"x"+h+"");
                     backBuffer = this.createImage(w, h);
                     backBufferSize = size;
+                    // After window resize, set target to window center
                     FORI (i, model.points.length)
                         model.points[i].set(new double[]{w*.5, h*.5});
                 }
@@ -12848,6 +12863,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             model.bounce -= .05;
                             PRINT(model.bounce);
                             repaint();
+                        }
+                        else if (c == 's')
+                        {
+                            separable = !separable;
+                            System.out.println("changing separable to "+separable);
                         }
                         else if (c == ' ')
                         {
