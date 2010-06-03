@@ -2822,6 +2822,18 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     * QR decomposition from Golub & Van Loan,
     * but we do LQ decomposition instead since we like to think
     * in terms of row vectors instead of column vectors.
+    *
+    * The LQ decomposition of a matrix A (nCols >= nRows)
+    * is a decomposition A = L*Q
+    * where L is lower triangular and Q is orthogonal.
+    * L has the same dimensionality as A (nRows x nCols)
+    * and Q is square with the larger dimension (nCols x nCols).
+    * One use of this is to orthogonalize a set of vectors:
+    * the first nRows rows of Q will be an orthogonal basis
+    * for the row space of A, and the remaining rows of Q
+    * will extend that basis orthogonally.
+    *
+    * This function is to be used on the result of LQdecompositionCompressed.
     */
     public static void uncompressLQdecomposition(int nRows, int nCols, // in compressed and in L... Q can have more (or fewer) rows than this
                                                  double compressed[/*nRows*/][/*nCols*/],
@@ -2877,13 +2889,16 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     // by not returning a reflection when it's not necessary.
                     FORI (iDiag, nRows)
                     {
-                        if (L[iDiag][iDiag] == 0.)
+                        if (compressed[iDiag][iDiag] == 0.) // compressed[iDiag][iDiag] is L[iDiag][iDiag], except L might be NULL
                         {
                             // negate the row of Q
                             vxs(Q[iDiag], Q[iDiag], -1.);
-                            // negate the column of L (above diagonal is zero)
-                            for (int iRow = iDiag; iRow < nRows; ++iRow)
-                                L[iRow][iDiag] *= -1;
+                            if (L != null)
+                            {
+                                // negate the column of L (above diagonal is zero)
+                                for (int iRow = iDiag; iRow < nRows; ++iRow)
+                                    L[iRow][iDiag] *= -1;
+                            }
                             break;
                         }
                     }
@@ -2892,8 +2907,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // uncompressLQdecomposition
 
-    // returns -1 or 1 depending on whether the number of reflections done
-    // odd or even.
+    /**
+    * returns -1 or 1 depending on whether the number of reflections done
+    * odd or even.
+    */
     public static int LQdecompositionCompressed(int nRows, int nCols, // use only first nRows and nCols of A
                                 double A[/*nRows*/][/*nCols*/], // gets overwritten with the essential parts of R and Q as in the book, but transposed
                                 double betas[/*nRows*/]) // gets filled with the corresponding betas, as in the book
@@ -2949,7 +2966,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
 
 
-    /** Extend the k vectors to n vectors and gramschmidt.  If the result is a square matrix and the original wasn't, make sure the result's determinant is +1, not -1. */
+    /**
+    * Extend the k vectors to n vectors and gramschmidt.
+    * If the result is a square matrix and the original wasn't
+    * (or was less than full rank),
+    * make sure the result's determinant is +1, not -1.
+    */
     public static void extendAndGramSchmidt(int k, int n, double result[][], double vecs[][])
     {
         copymat(k, result, vecs);
@@ -2967,6 +2989,45 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         //if (result.length > 0 && result[0].length == n) PRINT(det(result));
     } // extendAndGramSchmidt
 
+    /**
+    * Extend the k vectors to n vectors and orthogonalize
+    * (by Householder orthogonalization, which is more robust than gram-schmidt).
+    * If the result is a square matrix and the original wasn't
+    * (or was less than full rank),
+    * make sure the result's determinant is +1, not -1.
+    */
+    public static void extendAndOrthogonalize(int k, int n, double result[][], double vecs[][])
+    {
+        //System.out.println("    in extendAndOrthogonalize(k="+k+", n="+n+", dim="+(result.length==0 ? -1 : result[0].length)+"");
+        if (n < 1)
+            return; // we have no idea what dimension is and don't care
+        assert(0 <= k && k <= n && n <= result[0].length);
+        double scratch[][] = new double[k][result[0].length];
+        copymat(k, scratch, vecs);
+        double betas[] = new double[k];
+        int det = LQdecompositionCompressed(k,
+                                            result[0].length,
+                                            scratch,
+                                            betas);
+        // result may have more than n rows, but uncompressLQdecomposition requires its result to have exactly the number of desired rows.  so make a scratch Q
+        double Q[][] = new double[n][result[0].length];
+        uncompressLQdecomposition(k, vecs[0].length,
+                                  scratch,
+                                  betas,
+                                  det,
+                                  null, // don't need L
+                                  Q);
+        copymat(n, result, Q);
+        //System.out.println("    out extendAndOrthogonalize");
+    } // extendAndOrthogonalize
+    public static double[][] extendAndOrthogonalize(int k, int n, double vecs[][])
+    {
+        double result[][] = new double[n][vecs[0].length];
+        extendAndOrthogonalize(k, n, result, vecs);
+        return result;
+    }
+                                  
+                                  
     /** Find the axis that is most orthogonal to the given k vectors. */
     public static int mostOrthogonalAxis(int k, double vecs[][])
     {
