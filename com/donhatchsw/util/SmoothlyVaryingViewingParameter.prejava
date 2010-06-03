@@ -212,22 +212,27 @@ public class SmoothlyVaryingViewingParameter
                 // Worked this out on paper...
                 double A = a * ((1.+bounce)/(1.-bounce));
 
+                System.out.println("================================");
+                PRINTVEC(velocity);
+                PRINTVEC(position);
                 // We want to work in 2 dimensions.
                 // So find two orthogonal vectors spanning the space
                 // containing 0, velocity, and position.
                 double basis[][] = VecMath.extendAndOrthogonalize(2, 2, new double[][]{velocity,position});
+                PRINTMAT(basis);
                 VecMath.sxv(basis[1], -1., basis[1]);
                 PRINT(VecMath.dot(velocity, basis[0]));
                 assert(VecMath.dot(velocity, basis[0]) >= 0);
                 assert(VecMath.dot(position, basis[1]) <= 0);
                 double v[/*2*/] = VecMath.mxv(basis, velocity);
                 double p[/*2*/] = VecMath.mxv(basis, position);
+                double pTarget[/*2*/] = VecMath.mxv(basis, targetPosition);
                 // v should be on non-negative x axis,
                 // p should be in the 3rd or 4th quadrant
                 PRINTVEC(v);
                 PRINTVEC(p);
                 assert(v[0] >= 0);
-                assert(v[1] == 0);
+                assert(EQ(v[1], 0., 1e-6)); // XXX need to make this relative
                 assert(p[1] <= 0);
 
                 // We want the down-angle and scale
@@ -255,6 +260,35 @@ public class SmoothlyVaryingViewingParameter
 
 
                 // ...
+                final double v0[] = v;
+                final double v1[] = {0,0};
+                final double desiredIntegral[] = VecMath.vxs(VecMath.vmv(pTarget, p),
+                                                             A);
+                NewtonSolver.Fun fun = new NewtonSolver.Fun() {
+                    public double[] f(double x[])
+                    {
+                        double integral[] = new double[2];
+                        double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1,
+                                                                                      x[0], x[1],
+                                                                                      Double.POSITIVE_INFINITY,
+                                                                                      integral,
+                                                                                      null);
+                        return integral;
+                    }
+                };
+                double answer[] = {0,
+                                   p[1] < 0. ? -1. : 1.};
+                NewtonSolver.solve(answer,
+                                   desiredIntegral,
+                                   fun, 1000);
+                double integral[] = new double[2];
+                double vFinal[] = new double[2];
+                double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, answer[0], answer[1],
+                                                                              dt*A,
+                                                                              integral,
+                                                                              vFinal);
+                PRINTVEC(desiredIntegral);
+                PRINTVEC(integral);
 
                 // Convert new position and velocity from 2d back to original space
                 VecMath.vxm(velocity, v, basis);
@@ -346,6 +380,7 @@ public class SmoothlyVaryingViewingParameter
             } // if strategy == STRATEGY_TWO_PIECE_QUADRATIC
             else
             {
+                // strategy isn't one of the possible strategies
                 assert(false);
             }
 
@@ -365,8 +400,12 @@ public class SmoothlyVaryingViewingParameter
              || VecMath.normsqrd(velocity) != 0.;
     }
 
-    private static double[] integralOfTranslatedCoshGraphWithEndpoints(double v0[/*2*/],
-                                                                       double v1[/*2*/])
+    // answer gets put into answer. The function return value is the arc length.
+    private static double integralOfTranslatedCoshGraphWithEndpoints(double v0[/*2*/],
+                                                                     double v1[/*2*/],
+                                                                     double maxLengthToIntegrate,
+                                                                     double answer[/*2*/],
+                                                                     double vFinal[/*2*/]) // optional
     {
         double a = v1[0]-v0[0];
         double b = v1[1]-v0[1];
@@ -383,9 +422,21 @@ public class SmoothlyVaryingViewingParameter
             // (Note, the case b==0 could use any point on the catenary,
             // but the answer is zero in that case regardless,
             // so it doesn't need to be a special case.)
-            double halfLength = ABS(b)*.5;
-            return new double[]{(v0[0]+v1[0])*halfLength,
-                                (v0[1]+v1[1])*halfLength};
+            double length = ABS(b);
+            if (maxLengthToIntegrate < length)
+            {
+                double wayPoint[] = VecMath.lerp(v0, v1, maxLengthToIntegrate/length);
+                VecMath.sxvpsxv(answer,
+                                maxLengthToIntegrate*.5, v0,
+                                maxLengthToIntegrate*.5, wayPoint);
+            }
+            else
+            {
+                VecMath.sxvpsxv(answer,
+                                length*.5, v0,
+                                length*.5, v1);
+            }
+            return length;
         }
 
         // Ask mathematica for the points x-a/2, x+a/2
@@ -426,30 +477,61 @@ public class SmoothlyVaryingViewingParameter
         double sinhx0 = MyMath.sinh(x0);
         double coshx1 = MyMath.cosh(x1);
         double sinhx1 = MyMath.sinh(x1);
-        double arcLength = sinhx1 - sinhx0;
-        double integral[] = {
-            (sinhx1*x1 - coshx1) - (sinhx0*x0 - coshx0)  + (v0[0]-x0) * arcLength,
-            ((sinhx1*coshx1 + x1) - (sinhx0*coshx0 + x0))*.5 + (v0[1]-coshx0) * arcLength,
-        };
+        double wholeArcLength = sinhx1 - sinhx0;
+        double partialArcLength = wholeArcLength;
+        if (maxLengthToIntegrate < wholeArcLength)
+        {
+            partialArcLength = maxLengthToIntegrate;
+            sinhx1 = sinhx0 + partialArcLength;
+            x1 = MyMath.asinh(sinhx1);
+            coshx1 = MyMath.cosh(x1);
+        }
+        answer[0] = (sinhx1*x1 - coshx1) - (sinhx0*x0 - coshx0)  + (v0[0]-x0) * partialArcLength;
+        answer[1] = ((sinhx1*coshx1 + x1) - (sinhx0*coshx0 + x0))*.5 + (v0[1]-coshx0) * partialArcLength;
         // XXX TODO: there has got to be some clever cancellation here that will save us from subtracting huge values that are close to each other
-        return integral;
+        if (vFinal != null)
+        {
+            vFinal[0] = x1     + (v0[0]-x0);
+            vFinal[1] = coshx1 + (v0[1]-coshx0);
+        }
+        return wholeArcLength;
     } // integralOfTranslatedCoshGraphWithEndpoints
 
     // A catenary is a scaled rotated translated cosh.
+    // Answer gets put into answer. The function return value is the arc length.
     // XXX do this in rectangular coordinates! should be no need to do the trig
-    private static double[] integralOfCatenaryWithEndpoints(double v0[/*2*/],
-                                                            double v1[/*2*/],
-                                                            double invCatenaryScale,
-                                                            double downAngle)
+    private static double integralOfCatenaryWithEndpointsPolar(double v0[/*2*/],
+                                                               double v1[/*2*/],
+                                                               double invCatenaryScale,
+                                                               double downAngle,
+                                                               double maxLengthToIntegrate,
+                                                               double answer[/*2*/],
+                                                               double vFinal[/*2*/]) // optional
     {
         // invCatenaryScale^2 is what we're going to divide by,
         // so test that instead of invCatenaryScale itself
         if (invCatenaryScale*invCatenaryScale == 0.)
         {
             // It's just a segment; return its integral
-            double halfLength = MyMath.hypot(v1[0]-v0[0], v1[1]-v0[1])*.5;
-            return new double[]{(v0[0]+v1[0])*halfLength,
-                                (v0[1]+v1[1])*halfLength};
+            double length = VecMath.dist(v0, v1);
+            if (maxLengthToIntegrate < length)
+            {
+                double wayPoint[] = VecMath.lerp(v0, v1, maxLengthToIntegrate/length);
+                VecMath.sxvpsxv(answer,
+                                maxLengthToIntegrate*.5, v0,
+                                maxLengthToIntegrate*.5, wayPoint);
+                if (vFinal != null)
+                    VecMath.copyvec(vFinal, wayPoint);
+            }
+            else
+            {
+                VecMath.sxvpsxv(answer,
+                                length*.5, v0,
+                                length*.5, v1);
+                if (vFinal != null)
+                    VecMath.copyvec(vFinal, v1);
+            }
+            return length;
         }
         double downRotation = downAngle - (-Math.PI/2);
         double c = Math.cos(downRotation);
@@ -465,15 +547,38 @@ public class SmoothlyVaryingViewingParameter
         // and scale them into scale of canonical catenary
         VecMath.vxs(invTransformedV0, invTransformedV0, invCatenaryScale);
         VecMath.vxs(invTransformedV1, invTransformedV1, invCatenaryScale);
-        double integral[] = integralOfTranslatedCoshGraphWithEndpoints(invTransformedV0,
-                                                                       invTransformedV1);
+        double integral[] = new double[2];
+        double arcLength = integralOfTranslatedCoshGraphWithEndpoints(invTransformedV0,
+                                                                      invTransformedV1,
+                                                                      maxLengthToIntegrate*invCatenaryScale,
+                                                                      integral,
+                                                                      vFinal);
         // Transform integral back into original space.
         // The integral is in units squared.
-        double transformedIntegral[] = VecMath.vxm(integral, downRotationMatrix);
-        VecMath.vxs(transformedIntegral,
-                    transformedIntegral, 1./(invCatenaryScale*invCatenaryScale));
-        return transformedIntegral;
+        VecMath.vxm(answer, integral, downRotationMatrix);
+        VecMath.vxs(answer,
+                    answer, 1./(invCatenaryScale*invCatenaryScale));
+        if (vFinal != null)
+        {
+            double temp[] = integral; // we're not using that any more
+            VecMath.vxm(temp, vFinal, downRotationMatrix);
+            VecMath.vxs(vFinal, temp, 1./invCatenaryScale);
+        }
+        return arcLength / invCatenaryScale;
     } // integralOfCatenaryWithEndpoints
+
+    // TODO: implement this directly, there's no need for the trig
+    private static double integralOfCatenaryWithEndpointsRectangular(double v0[/*2*/],
+                                                                     double v1[/*2*/],
+                                                                     double x, double y, // invScale,downAngle in rectangular coords
+                                                                     double maxLengthToIntegrate,
+                                                                     double answer[/*2*/],
+                                                                     double vFinal[/*2*/])
+    {
+        double invCatenaryScale = MyMath.hypot(x, y);
+        double downAngle = Math.atan2(y, x);
+        return integralOfCatenaryWithEndpointsPolar(v0, v1, invCatenaryScale, downAngle, maxLengthToIntegrate, answer, vFinal);
+    } // integralOfCatenaryWithEndpointsRectangular
 
 
     // utility function to find the velocity switch point
@@ -1141,6 +1246,108 @@ public class SmoothlyVaryingViewingParameter
     {
         if (true)
         {
+            // TODO: put this stuff in MyMath
+            assert(Math.exp(Double.NEGATIVE_INFINITY) == 0.);
+            assert(MyMath.expm1(Double.NEGATIVE_INFINITY) == -1.);
+            assert(MyMath.sinh(Double.NEGATIVE_INFINITY) == Double.NEGATIVE_INFINITY);
+            assert(MyMath.cosh(Double.NEGATIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.coshm1(Double.NEGATIVE_INFINITY) == Double.POSITIVE_INFINITY);
+
+            assert(Math.exp(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.expm1(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.sinh(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.cosh(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.coshm1(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+
+            PRINT(MyMath.sin_over_x(Double.NEGATIVE_INFINITY));
+            PRINT(MyMath.sin_over_x(Double.POSITIVE_INFINITY));
+
+            assert(MyMath.sin_over_x(Double.NEGATIVE_INFINITY) == 0.);
+            assert(MyMath.sinh_over_x(Double.NEGATIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(Double.isNaN(MyMath.asin_over_x(Double.NEGATIVE_INFINITY)));
+            assert(MyMath.asinh_over_x(Double.NEGATIVE_INFINITY) == 0.);
+            assert(MyMath.cosf1_over_x(Double.NEGATIVE_INFINITY) == 0.);
+            assert(MyMath.coshm1_over_x(Double.NEGATIVE_INFINITY) == Double.NEGATIVE_INFINITY);
+
+            assert(MyMath.sin_over_x(Double.POSITIVE_INFINITY) == 0.);
+            assert(MyMath.sinh_over_x(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(Double.isNaN(MyMath.asin_over_x(Double.POSITIVE_INFINITY)));
+            assert(MyMath.asinh_over_x(Double.POSITIVE_INFINITY) == 0.);
+            assert(MyMath.cosf1_over_x(Double.POSITIVE_INFINITY) == 0.);
+            assert(MyMath.coshm1_over_x(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+
+
+            // TODO: all of the following is missing testing of all the *_over_x functions
+
+            // first and last entries are big enough to overflow all the exp and hyperbolic trig functions
+            double xs[] = {-1000, -100, -10, -1, -.1, 0, .1, 1, 10, 100, 1000};
+            for (int i = 0; i < xs.length; ++i)
+            {
+                double x = xs[i];
+
+                System.out.println("    exp("+x+") = "+Math.exp(x)+"");
+                System.out.println("    expm1("+x+") = "+MyMath.expm1(x)+"");
+                System.out.println("    sinh("+x+") = "+MyMath.sinh(x)+"");
+                System.out.println("    cosh("+x+") = "+MyMath.cosh(x)+"");
+                System.out.println("    coshm1("+x+") = "+MyMath.coshm1(x)+"");
+
+                assert(MyMath.expm1(x) + 1. == Math.exp(x) - 1. + 1.);
+                assert(MyMath.expm1(x) + 1. - 1. == Math.exp(x) - 1.);
+                if (false)
+                {
+                    // hmm, not quite exact, apparently
+                    PRINT(MyMath.coshm1(x) + 1.);
+                    PRINT(MyMath.cosh(x) - 1. + 1.);
+                    assert(MyMath.coshm1(x) + 1. == MyMath.cosh(x) - 1. + 1.);
+                    PRINT(MyMath.coshm1(x) + 1. - 1.);
+                    PRINT(MyMath.cosh(x) - 1.);
+                    assert(MyMath.coshm1(x) + 1. - 1. == MyMath.cosh(x) - 1.);
+                }
+
+                if (x >= 0.)
+                {
+                    assert(MyMath.sinh(-x) == -MyMath.sinh(x));
+                    assert(MyMath.cosh(-x) == MyMath.cosh(x));
+                }
+
+                if (i == 0)
+                {
+                    assert(Math.exp(x) == 0.);
+                    assert(MyMath.expm1(x) == -1.);
+                    assert(MyMath.sinh(x) == Double.NEGATIVE_INFINITY);
+                    assert(MyMath.cosh(x) == Double.POSITIVE_INFINITY);
+                }
+                if (i == xs.length-1)
+                {
+                    assert(Math.exp(x) == Double.POSITIVE_INFINITY);
+                    assert(MyMath.expm1(x) == Double.POSITIVE_INFINITY);
+                    assert(MyMath.sinh(x) == Double.POSITIVE_INFINITY);
+                    assert(MyMath.cosh(x) == Double.POSITIVE_INFINITY);
+                }
+
+                if (i > 0.)
+                {
+                    assert(Math.exp(xs[i-1]) < Math.exp(xs[i]));
+                    assert(MyMath.expm1(xs[i-1]) <= MyMath.expm1(xs[i])); // not strict < for some
+                    assert(MyMath.sinh(xs[i-1]) < MyMath.sinh(xs[i]));
+                    if (ABS(xs[i-1]) < ABS(xs[i]))
+                    {
+                        assert(MyMath.cosh(xs[i-1]) < MyMath.cosh(xs[i]));
+                        assert(MyMath.coshm1(xs[i-1]) < MyMath.coshm1(xs[i]));
+                    }
+                    else
+                    {
+                        assert(MyMath.cosh(xs[i-1]) > MyMath.cosh(xs[i]));
+                        assert(MyMath.coshm1(xs[i-1]) > MyMath.coshm1(xs[i]));
+                    }
+                }
+            }
+            System.out.println("MyMath functions all good!");
+            //return;
+        }
+
+        if (true)
+        {
             // Test utilities for integrals
             double downAngles[] = {-Math.PI/2., -Math.PI/4, 0., Math.PI/2, Math.PI};
             double invScales[] = {1., .5, 2., 0.};
@@ -1161,7 +1368,7 @@ public class SmoothlyVaryingViewingParameter
                 double coshx1 = MyMath.cosh(x1);
                 double v0[] = {x0, coshx0};
                 double v1[] = {x1, coshx1};
-                double arcLength = sinhx1 - sinhx0;
+                double expectedArcLength = sinhx1 - sinhx0;
 
                 // Parametrizing cosh by arc length between those endpoints,
                 // this part of the cosh curve is:
@@ -1176,17 +1383,21 @@ public class SmoothlyVaryingViewingParameter
                     (sinhx1*x1-coshx1)-(sinhx0*x0-coshx0),
                     ((sinhx1*coshx1+x1)-(sinhx0*coshx0+x0))*.5,
                 };
-                double integral[] = integralOfCatenaryWithEndpoints(v0, v1, 1., -Math.PI/2.);
+                double integral[] = new double[2];
+                double arcLength = integralOfCatenaryWithEndpointsPolar(v0, v1, 1., -Math.PI/2., Double.POSITIVE_INFINITY, integral, null);
                 System.out.println("======================");
                 PRINT(x0);
                 PRINT(x1);
                 PRINTVEC(integral);
                 PRINTVEC(expectedIntegral);
                 assert(VecMath.dist(integral, expectedIntegral) < 1e-6);
+                assert(EQ(arcLength, expectedArcLength, 1e-6));
                 double halfLength = VecMath.dist(v0,v1)*.5;
                 double expectedIntegralOfSegment[] = VecMath.vxs(VecMath.vpv(v0,v1),halfLength);
-                double integralOfSegment[] = integralOfCatenaryWithEndpoints(v0, v1, 0., -Math.PI/2.);
+                double integralOfSegment[] = new double[2];
+                double arcLengthOfSegment = integralOfCatenaryWithEndpointsPolar(v0, v1, 0., -Math.PI/2., Double.POSITIVE_INFINITY, integralOfSegment, null);
                 assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
+                assert(EQ(arcLengthOfSegment, VecMath.dist(v0,v1), 1e-6));
 
                 for (int iDownAngle = 0; iDownAngle < downAngles.length; ++iDownAngle)
                 for (int iInvScale = 0; iInvScale < invScales.length; ++iInvScale)
@@ -1226,13 +1437,15 @@ public class SmoothlyVaryingViewingParameter
                     VecMath.vpsxv(expectedIntegralTransformed, expectedIntegralTransformed,
                                   invScale==0. ? VecMath.dist(v0,v1) : arcLength/invScale,
                                   translate);
+                    double expectedArcLengthTransformed = invScale==0. ? arcLengthOfSegment : arcLength/invScale;
 
-                    double integralTransformed[] = integralOfCatenaryWithEndpoints(v0Transformed, v1Transformed, invScale, downAngle);
+                    double integralTransformed[] = new double[2];
+                    double arcLengthTransformed = integralOfCatenaryWithEndpointsPolar(v0Transformed, v1Transformed, invScale, downAngle, Double.POSITIVE_INFINITY, integralTransformed, null);
 
                     assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
                 }
             } // for x0,x1
-            return;
+            // return;
         }
 
         if (true)
@@ -11473,7 +11686,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         if (iIter >= minIterations
                          && !(errorLengthSqrd < prevErrorLengthSqrd))
                         {
-                            System.out.println("    stopped improving after "+iIter+" iterations");
+                            //System.out.println("    stopped improving after "+iIter+" iterations");
                             return;
                         }
                         prevErrorLengthSqrd = errorLengthSqrd;
@@ -11802,6 +12015,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 double A0[] = model.A0;
                 double A1[] = model.A1;
                 double t1 = model.t1;
+                if (Double.isNaN(t1))
+                {
+                    System.out.println("WARNING: t1 is NaN, wtf?"); // TODO: track down source of badness
+                    return;
+                }
                 double sign_t1 = t1<0. ? -1. : 1.;
                 boolean twoQuadraticsMode = model.twoQuadraticsMode;
 
@@ -12021,7 +12239,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //
                 {
                     int nSubdivs = 10;
-                    for (int i = 0; i <= sign_t1*t1 * nSubdivs; ++i)
+                    double max = sign_t1*t1 * nSubdivs;
+                    if (max > 10000)
+                    {
+                        System.out.println("WARNING: clamping max from "+max+" to 10000");
+                        max = 10000;
+                    }
+                    for (int i = 0; i <= max; ++i)
                     {
                         double t = sign_t1*(double)i/nSubdivs;
                         double A[] = VecMath.lerp(A0, A1, t);
@@ -12040,6 +12264,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         mg.setColor(java.awt.Color.green);
                         mg.drawPoint(v[0],v[1], thisPointSize);
                         mg.setColor(lightBlue);
+                        //System.out.print("["+i+"/("+t1+"*"+nSubdivs+")]");
+                        //System.out.flush();
                         mg.drawPoint(p[0],p[1], thisPointSize);
                     }
                     if (view.showAccelerationLines)
@@ -13256,7 +13482,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     public static void main(String args[])
     {
         System.out.println("in main");
-
         if (args.length == 1 && args[0].equals("demo1"))
             interactiveDemo1();
         else if (args.length == 1 && args[0].equals("demo2"))
