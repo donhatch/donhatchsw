@@ -8,7 +8,7 @@ package com.donhatchsw.util;
 * and expm1 and log1p,
 * and hypot; all stuff that should be in the standard math library.
 * <br>
-* For explanations of the robust algorithms used, see:
+* For explanations of some of the robust algorithms used, see:
 * <a href="http://plunk.org/~hatch/rightway.php">http://plunk.org/~hatch/rightway.php</a>
 */
 //#ifdef __java
@@ -51,7 +51,11 @@ public class MyMath
     public static double
     log1p(double x)
     {
+        if (x == Double.POSITIVE_INFINITY)
+            return Double.POSITIVE_INFINITY;
         double u = 1.+x;
+        if (u == Double.POSITIVE_INFINITY) // grr, special case for max double
+            return Math.log(x);
         return Math.log(u) - ((u-1.)-x)/u; // cancels errors with IEEE arithmetic
     }
     /* 
@@ -155,7 +159,16 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             //             = (expm1(x) + expm1(-x)) / 2
             return .5 * (expm1(x) + expm1(-x));
         }
+        // TODO: 2*sinh(.5*x)^2 ? yeah I think so.  inverse of what we do with acosh1p below.
     }
+
+    /** acosh(1+x), accurate even when x is small. */
+    public static double
+    acosh1p(double x)
+    {
+        return 2 * Math.sqrt(asinh(Math.sqrt(x/2)));
+    }
+
 
     /** hyperbolic tangent function */
     public static double
@@ -187,6 +200,10 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //          = log1p(x + (x^2+1 - 1)/(sqrt(x^2+1)+1))
         //          = log1p(x + x^2 / (sqrt(x^2+1)+1))
         //          = log1p(x * (1 + x / (sqrt(x^2+1)+1) ))
+        if (x == Double.NEGATIVE_INFINITY)
+            return Double.NEGATIVE_INFINITY;
+        if (x == Double.POSITIVE_INFINITY)
+            return Double.POSITIVE_INFINITY;
         return log1p(x * (1. + x / (Math.sqrt(x*x+1.)+1.)));
     }
 
