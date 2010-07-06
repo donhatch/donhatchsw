@@ -1248,19 +1248,36 @@ public class SmoothlyVaryingViewingParameter
         {
             // TODO: put this stuff in MyMath
             assert(Math.exp(Double.NEGATIVE_INFINITY) == 0.);
+            assert(Double.isNaN(Math.log(Double.NEGATIVE_INFINITY)));
             assert(MyMath.expm1(Double.NEGATIVE_INFINITY) == -1.);
             assert(MyMath.sinh(Double.NEGATIVE_INFINITY) == Double.NEGATIVE_INFINITY);
             assert(MyMath.cosh(Double.NEGATIVE_INFINITY) == Double.POSITIVE_INFINITY);
             assert(MyMath.coshm1(Double.NEGATIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(Double.isNaN(MyMath.log1p(Double.NEGATIVE_INFINITY)));
+            assert(MyMath.asinh(Double.NEGATIVE_INFINITY) == Double.NEGATIVE_INFINITY);
+            assert(Double.isNaN(MyMath.acosh1p(Double.NEGATIVE_INFINITY)));
+
+            assert(Math.exp(0.) == 1.);
+            assert(Math.log(0.) == Double.NEGATIVE_INFINITY);
+            assert(MyMath.expm1(0.) == 0.);
+            assert(MyMath.sinh(0.) == 0.);
+            assert(MyMath.cosh(0.) == 1.);
+            assert(MyMath.coshm1(0.) == 0.);
+            assert(MyMath.log1p(0.) == 0.);
+            assert(MyMath.asinh(0.) == 0.);
+            assert(MyMath.acosh1p(0.) == 0.);
 
             assert(Math.exp(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(Math.log(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
             assert(MyMath.expm1(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
             assert(MyMath.sinh(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
             assert(MyMath.cosh(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
             assert(MyMath.coshm1(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.log1p(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.asinh(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.acosh1p(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
 
-            PRINT(MyMath.sin_over_x(Double.NEGATIVE_INFINITY));
-            PRINT(MyMath.sin_over_x(Double.POSITIVE_INFINITY));
+
 
             assert(MyMath.sin_over_x(Double.NEGATIVE_INFINITY) == 0.);
             assert(MyMath.sinh_over_x(Double.NEGATIVE_INFINITY) == Double.POSITIVE_INFINITY);
@@ -1268,6 +1285,13 @@ public class SmoothlyVaryingViewingParameter
             assert(MyMath.asinh_over_x(Double.NEGATIVE_INFINITY) == 0.);
             assert(MyMath.cosf1_over_x(Double.NEGATIVE_INFINITY) == 0.);
             assert(MyMath.coshm1_over_x(Double.NEGATIVE_INFINITY) == Double.NEGATIVE_INFINITY);
+
+            assert(MyMath.sin_over_x(0.) == 1.);
+            assert(MyMath.sinh_over_x(0.) == 1.);
+            assert(MyMath.asin_over_x(0.) == 1.);
+            assert(MyMath.asinh_over_x(0.) == 1.);
+            assert(MyMath.cosf1_over_x(0.) == 0.); // XXX hmm, should there be a cosf1_over_xx instead?
+            assert(MyMath.coshm1_over_x(0.) == 0.); // XXX hmm, should there be a coshm1_over_xx instead?
 
             assert(MyMath.sin_over_x(Double.POSITIVE_INFINITY) == 0.);
             assert(MyMath.sinh_over_x(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
@@ -1278,6 +1302,7 @@ public class SmoothlyVaryingViewingParameter
 
 
             // TODO: all of the following is missing testing of all the *_over_x functions
+            // TODO: all of the following is missing testing of asinh, acoshm1, probably others
 
             // first and last entries are big enough to overflow all the exp and hyperbolic trig functions
             double xs[] = {-1000, -100, -10, -1, -.1, 0, .1, 1, 10, 100, 1000};
