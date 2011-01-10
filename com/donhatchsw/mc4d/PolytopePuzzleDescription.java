@@ -476,7 +476,22 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         String doubleLengthString = matcher.group(4);
 
         int intLength = Integer.parseInt(intLengthString);
-        double doubleLength = doubleLengthString != null ? Double.valueOf(doubleLengthString).doubleValue() : (double)intLength; // XXX should catch parse error and throw illegal arg exception
+        double doubleLength = (double)intLength; // but overridded by doubleLengthString if there is one
+        if (doubleLengthString != null)
+        {
+            // Allow fractions
+            // XXX TODO: allow arbitrary arithmetic expressions, with sqrt,sin,cos,etc.
+            int slashIndex = doubleLengthString.lastIndexOf('/');
+            if (slashIndex != -1)
+            {
+                String numeratorString = doubleLengthString.substring(0, slashIndex);
+                String denominatorString = doubleLengthString.substring(slashIndex+1);
+                doubleLength = Double.valueOf(numeratorString).doubleValue()
+                             / Double.valueOf(denominatorString).doubleValue();
+            }
+            else
+                doubleLength = Double.valueOf(doubleLengthString).doubleValue(); //  XXX should catch parse error and throw illegal arg exception
+        }
 
         init(schlafliProductString, intLength, doubleLength, progressWriter);
         this.prescription = prescription;
@@ -653,16 +668,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
 
-                // If even length and *not* a prism of this face,
-                // then the middle-most cuts will meet,
-                // but the slice function can't handle that.
-                // So back off a little so they don't meet,
-                // so we'll get tiny invisible sliver faces there instead.
-                if (intLength == doubleLength
-                 && intLength % 2 == 0
-                 && !isPrismOfThisFace)
-                    sliceThickness *= .99;
-
                 /*
                    Think about what's appropriate for simplex...
                         thickness = 1/3 of full to get upside down tet in middle, 
@@ -725,6 +730,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.print("    Slicing");
                 progressWriter.flush();
             }
+            long startTimeMillis = System.currentTimeMillis();
             int maxCuts = -1; // unlimited
             //maxCuts = 6; // set to some desired number for debugging
 
@@ -784,10 +790,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
             }
             Assert(iTotalCut == nTotalCuts);
+            long endTimeMillis = System.currentTimeMillis();
 
             if (progressWriter != null)
             {
-                progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers).");
+                progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers) ("+((endTimeMillis-startTimeMillis)*.001)+" seconds)");
                 progressWriter.flush();
             }
 
