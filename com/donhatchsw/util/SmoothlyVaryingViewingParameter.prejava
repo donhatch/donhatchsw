@@ -1283,22 +1283,22 @@ public class SmoothlyVaryingViewingParameter
             assert(MyMath.sinh_over_x(Double.NEGATIVE_INFINITY) == Double.POSITIVE_INFINITY);
             assert(Double.isNaN(MyMath.asin_over_x(Double.NEGATIVE_INFINITY)));
             assert(MyMath.asinh_over_x(Double.NEGATIVE_INFINITY) == 0.);
-            assert(MyMath.cosf1_over_x(Double.NEGATIVE_INFINITY) == 0.);
-            assert(MyMath.coshm1_over_x(Double.NEGATIVE_INFINITY) == Double.NEGATIVE_INFINITY);
+            assert(MyMath.cosf1_over_xx(Double.NEGATIVE_INFINITY) == 0.);
+            assert(MyMath.coshm1_over_xx(Double.NEGATIVE_INFINITY) == Double.POSITIVE_INFINITY);
 
             assert(MyMath.sin_over_x(0.) == 1.);
             assert(MyMath.sinh_over_x(0.) == 1.);
             assert(MyMath.asin_over_x(0.) == 1.);
             assert(MyMath.asinh_over_x(0.) == 1.);
-            assert(MyMath.cosf1_over_x(0.) == 0.); // XXX hmm, should there be a cosf1_over_xx instead?
-            assert(MyMath.coshm1_over_x(0.) == 0.); // XXX hmm, should there be a coshm1_over_xx instead?
+            assert(MyMath.cosf1_over_xx(0.) == .5);
+            assert(MyMath.coshm1_over_xx(0.) == .5);
 
             assert(MyMath.sin_over_x(Double.POSITIVE_INFINITY) == 0.);
             assert(MyMath.sinh_over_x(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
             assert(Double.isNaN(MyMath.asin_over_x(Double.POSITIVE_INFINITY)));
             assert(MyMath.asinh_over_x(Double.POSITIVE_INFINITY) == 0.);
-            assert(MyMath.cosf1_over_x(Double.POSITIVE_INFINITY) == 0.);
-            assert(MyMath.coshm1_over_x(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
+            assert(MyMath.cosf1_over_xx(Double.POSITIVE_INFINITY) == 0.);
+            assert(MyMath.coshm1_over_xx(Double.POSITIVE_INFINITY) == Double.POSITIVE_INFINITY);
 
 
             // TODO: all of the following is missing testing of all the *_over_x functions
