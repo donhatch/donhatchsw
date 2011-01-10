@@ -321,54 +321,20 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             return sinh(x)/x;
     }
 
-
-    /** (1-cos(x))/x, but stable when small */
+    /** (cosh(x)-1)/x^2, but stable when small */
     public static double
-    cosf1_over_x(double x)
+    cosf1_over_xx(double x)
     {
-        //
-        // It's x/2! - x^3/4! + x^5/6! - x^7/8! + ...
-        // So if x is so small that x/2 - x^3/24
-        // is indistinguishable from x/2,
-        // then the result will be indistinguishable from .5*x.
-        // This is pretty much the same as .5 - x^2/24
-        // being indistinguishable from .5,
-        // but maybe off by as much as 1 in the least-significant bit
-        // (if x is just on the wrong side of a power of 2, I think)
-        // so be conservative and test whether
-        // .5 - x^2/12 is indistinguishable from .5 instead.
-        // This is exactly the same as whether 1 - x^2/6
-        // is indistingishable from 1.
-        //
-        if (1. - x*x*(1/6.) == 1.)
-        {
-            //System.out.println("Ha! (1-cos(x))/x("+x+") returning "+(.5*x)+"instead of "+cosf1(x)+"/"+x+" = "+(cosf1(x) / x)+"");
-            return .5*x;
-        }
-        else if (x == Double.NEGATIVE_INFINITY
-              || x == Double.POSITIVE_INFINITY)
-            return 0.;
-        else
-            return cosf1(x) / x;
+        double temp = sin_over_x(x*.5);
+        return .5 * temp * temp;
     }
 
-    /** (cosh(x)-1)/x, but stable when small */
+    /** (cosh(x)-1)/x^2, but stable when small */
     public static double
-    coshm1_over_x(double x)
+    coshm1_over_xx(double x)
     {
-        // x/2! + x^3/4! + x^5/6! + ...
-        // Same logic as above, the conservatism should cover
-        // the fact that it's + instead of -, too
-        if (1. - x*x*(1/6.) == 1.)
-        {
-            //System.out.println("Ha! (cosh(x)-1)/x("+x+") returning "+(.5*x)+"instead of "+coshm1(x)+"/"+x+" = "+(cosm1(x) / x)+"");
-            return .5*x;
-        }
-        else if (x == Double.NEGATIVE_INFINITY
-              || x == Double.POSITIVE_INFINITY)
-            return x;
-        else
-            return coshm1(x) / x;
+        double temp = sinh_over_x(x*.5);
+        return .5 * temp * temp;
     }
 
     /** sqrt(x*x + y*y) but overflow/underflow proof. */
