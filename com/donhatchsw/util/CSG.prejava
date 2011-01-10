@@ -219,14 +219,15 @@ public final class CSG
 
                 if (verboseLevel >= 3)
                 {
-                    System.out.print("    making "+this.id+": [");
+                    System.out.print("    making "+dimToPrefix(dim)+this.id+": [");
                     if (facets == null)
                         System.out.println("(null)");
                     else
                         FORI (iFacet, facets.length)
                         {
                             System.out.print(" "
-                                           + (facets[iFacet].sign==1?"+":facets[iFacet].sign==-1?"-":facets[iFacet].sign==0?"!":"?")
+                                           + signToString(facets[iFacet].sign)
+                                           + dimToPrefix(facets[iFacet].p.dim)
                                            + facets[iFacet].p.id);
                         }
                     System.out.println(" ]");
@@ -4713,7 +4714,8 @@ public final class CSG
          *        otherwise it will be set to null.
          *    if slicee lies partly strictly above and partly strictly below
          *        the hyperplane, then returnOn[0] will be set to
-         *        the cross-section polytope, of dimension slicee.dim-1;
+         *        the cross-section polytope, of dimension slicee.dim-1
+         *        (or slicee.dim, if slicee lies in the hyperplane);
          *        otherwise it will be set to null.
          * You can pass null in as any or all of returnAbove, returnOn,
          * or returnBelow, if you are not interested in them.
@@ -4721,27 +4723,26 @@ public final class CSG
         private static void slice(SPolytope slicee,
                                   Hyperplane hyperplane,
                                   Object aux, // to be put in the aux field of all new elements
-                                  SPolytope returnAbove[/*1*/],
-                                  SPolytope returnBelow[/*1*/],
-                                  SPolytope returnOn[/*1*/])
+                                  SPolytope returnBelow[/*1*/], int returnBelowIndex,
+                                  SPolytope returnBelowCapFacet[/*1*/], int returnBelowCapFacetIndex,
+                                  SPolytope returnAboveCapFacet[/*1*/], int returnAboveCapFacetIndex,
+                                  SPolytope returnAbove[/*1*/], int returnAboveIndex)
         {
-            SPolytope aboveBelowOn[/*3*/] = _slice(slicee,
-                                                   hyperplane,
-                                                   aux,
-                                                   new java.util.Hashtable(),
-                                                   "");
-            assert(aboveBelowOn != null);
-            if (returnAbove != null)
-                returnAbove[0] = aboveBelowOn[0];
-            if (returnBelow != null)
-                returnBelow[0] = aboveBelowOn[1];
-            if (returnOn != null)
-                returnOn[0] = aboveBelowOn[2];
+            _slice(slicee,
+                   hyperplane,
+                   aux,
+                   returnBelow,         returnBelowIndex,
+                   returnBelowCapFacet, returnBelowCapFacetIndex,
+                   returnAboveCapFacet, returnAboveCapFacetIndex,
+                   returnAbove,         returnAboveIndex,
+                   new java.util.Hashtable(),
+                   "");
         } // slice
 
         /**
-        * Convenience method for when there is only one slicee
-        * and we know there will be only one sliced result
+        * Slice up the eltDim-dimensional elements of the given signed polytope
+        * of signed polytopes using a single hyperplane,
+        * returning a new signed polytope of the same dimension as the original.
         * XXX this is actually not a great way to do this,
         * XXX since often we make a bunch of parallel cuts
         * XXX and we know the stuff on a particular side of the first cut
@@ -4752,100 +4753,178 @@ public final class CSG
                                               Hyperplane hyperplane,
                                               Object aux)
         {
-            SPolytope slicees[] = {slicee};
-            SPolytope results[] = sliceElements(slicees,
-                                                eltDim,
-                                                hyperplane,
-                                                aux);
-            assert(results.length == 1); // XXX this is more of an illegal argument thing that we should throw legitimately
-            return results[0];
-        }
-        /**
-        * Slice up the eltDim-dimensional elements of the given list
-        * of signed polytopes using a single hyperplane,
-        * returning a new list of signed polytopes
-        * (at most twice the size of the original list).
-        */
-        public static SPolytope[] sliceElements(SPolytope slicees[],
+            SPolytope answer = _sliceElements(slicee,
+                                              eltDim,
+                                              hyperplane,
+                                              aux,
+                                              new java.util.Hashtable(),
+                                              "");
+            return answer;
+        } // sliceElements
+
+        private static SPolytope _sliceElements(SPolytope slicee,
                                                 int eltDim,
                                                 Hyperplane hyperplane,
-                                                Object aux)
-        {
-            return _sliceElements(slicees, eltDim, hyperplane, aux,
-                                  new java.util.Hashtable());
-        } // sliceElements
-
-        private static SPolytope[] _sliceElements(SPolytope slicees[],
-                                                  int eltDim,
-                                                  Hyperplane hyperplane,
-                                                  Object aux,
-                                                  java.util.Hashtable ocean)
-        {
-            SPolytope result[] = new SPolytope[2*slicees.length]; // at most XXX could be smarter about this, if all slicees have dim > eltDim then we only need slicees.length
-            int nResult = 0;
-            FORI (iSlicee, slicees.length)
-            {
-                SPolytope slicee = slicees[iSlicee];
-                if (slicee.p.dim <= eltDim)
-                {
-                    // Carve slicee up, replacing slicee with multiple sliceds
-                    SPolytope[] aboveBelowOn = _slice(slicee, hyperplane, aux, ocean, "        ");
-                    if (aboveBelowOn[0] != null)
-                        result[nResult++] = aboveBelowOn[0];
-                    if (aboveBelowOn[1] != null)
-                        result[nResult++] = aboveBelowOn[1];
-                    // can ignore On
-                }
-                else // slicee.p.dim > eltDim
-                {
-                    // Carve up facets, replacing slicee with a single sliced
-                    SPolytope newFacets[] = _sliceElements(slicee.p.facets, eltDim, hyperplane, aux, ocean);
-                    SPolytope sliced = new SPolytope(
-                                         slicee.initialDensity,
-                                         slicee.sign,
-                                         new Polytope(slicee.p.dim,
-                                                      slicee.p.fullDim,
-                                                      newFacets,
-                                                      slicee.p.contributingHyperplanes,
-                                                      slicee.p.aux)); // not aux, since this one is a full-dimensional piece of slicee
-                    result[nResult++] = sliced;
-                }
-            }
-            result = (SPolytope[])Arrays.subarray(result, 0, nResult);
-            return result;
-        } // sliceElements
-
-        // recursive work function used by slice() and sliceFacets().
-        // returns an array {above,below,on},
-        // of dimensions slicee.dim, slicee.dim-1, slicee.dim.
-        private static SPolytope[/*3*/] _slice(SPolytope slicee,
-                                               Hyperplane hyperplane,
-                                               Object aux,
-                                               java.util.Hashtable ocean, // hashtable of slicings already done
-                                               String indentString) // for debugging
+                                                Object aux,
+                                                java.util.Hashtable ocean,
+                                                String indentString)
         {
             String subIndentString = null;
             if (verboseLevel >= 1)
             {
-                System.out.println(indentString+"in CSG._slice (slicee dim = "+slicee.p.dim+")");
+                System.out.println(indentString+"in CSG._sliceElements (slicee = "+signToString(slicee.sign)+dimToPrefix(slicee.p.dim)+slicee.p.id+")");
+                subIndentString = indentString + "        ";
+                System.out.println(indentString+"");
+            }
+            assert(eltDim < slicee.p.dim); // otherwise answer could have more than one SPolytope... caller should just use slice directly in that case
+            SPolytope newFacets[] = null;
+
+            if (eltDim == slicee.p.dim-1)
+            {
+                newFacets = new SPolytope[2*slicee.p.facets.length]; // worst case
+                int nNewFacets = 0;
+                FORI (iFacet, slicee.p.facets.length)
+                {
+                    _slice(slicee.p.facets[iFacet],
+                           hyperplane,
+                           aux,
+                           newFacets, nNewFacets, // below part of this facet
+                           null, -1, // ignore cap
+                           null, -1, // ignore cap
+                           newFacets, nNewFacets+1, // above part of this facet
+                           ocean,
+                           subIndentString);
+
+                    // If we got an above part and/or below part,
+                    // move them into the next position(s) in newFacets.
+                    // (this seems more complicated than necessary)
+                    if (newFacets[nNewFacets] != null)
+                    {
+                        nNewFacets++;
+                        if (newFacets[nNewFacets] != null)
+                            nNewFacets++;
+                    }
+                    else if (newFacets[nNewFacets+1] != null)
+                    {
+                        newFacets[nNewFacets] = newFacets[nNewFacets+1];
+                        newFacets[nNewFacets+1] = null;
+                        nNewFacets++;
+                    }
+                }
+                if (nNewFacets < newFacets.length)
+                    newFacets = (SPolytope[])Arrays.subarray(newFacets, 0, nNewFacets);
+            }
+            else // eltDim < slicee.dim-1
+            {
+                // Recurse
+                newFacets = new SPolytope[slicee.p.facets.length];
+                FORI (iFacet, slicee.p.facets.length)
+                    newFacets[iFacet] = _sliceElements(slicee.p.facets[iFacet],
+                                                       eltDim,
+                                                       hyperplane,
+                                                       aux,
+                                                       ocean,
+                                                       subIndentString);
+            }
+            SPolytope answer = new SPolytope(
+                slicee.initialDensity,
+                slicee.sign,
+                new Polytope(slicee.p.dim,
+                             slicee.p.fullDim,
+                             newFacets,
+                             slicee.p.contributingHyperplanes,
+                             slicee.p.aux)); // not aux, since this one is a full-dimensional piece of slicee
+            if (verboseLevel >= 1)
+            {
+                System.out.println(indentString+"out CSG._sliceElements (slicee = "+signToString(slicee.sign)+dimToPrefix(slicee.p.dim)+slicee.p.id+")");
+            }
+            return answer;
+        } // _sliceElements
+
+            // Little utility SPolytope comparator used within _slice
+            private static SortStuff.Comparator SPolytopeCompareIdAndSign = new SortStuff.Comparator() {
+                public int compare(Object _a, Object _b)
+                {
+                    SPolytope A = (SPolytope)_a;
+                    SPolytope B = (SPolytope)_b;
+                    return A.p.id < B.p.id ? -1 :
+                           A.p.id > B.p.id ? 1 :
+                           A.sign < B.sign ? -1 :
+                           A.sign > B.sign ? 1 :
+                           0;
+                }
+            }; // SPolytopeCompareIdAndSign
+
+            // Assumes splist is disposable/reusable
+            static private int sortAndCombineSPolytopes(int nsps, SPolytope sps[])
+            {
+                SortStuff.sort(sps, 0, nsps, SPolytopeCompareIdAndSign);
+                int nFinal = 0;
+                FORI (i, nsps)
+                {
+                    if (nFinal > 0
+                     && sps[i].p.id == sps[nFinal-1].p.id)
+                    {
+                        if (sps[i].sign + sps[nFinal-1].sign == 0)
+                            nFinal--;
+                        else
+                        {
+                            // any other case would require replacing sps[nFinal-1] with a new SPolytope with the summed sign.  I'm not prepared to test this...
+                            assumpt(false);
+                        }
+                    }
+                    else
+                        sps[nFinal++] = sps[i];
+                }
+                return nFinal;
+            } // sortAndCombineSPolytopes
+
+
+
+        // recursive work function used by slice() and sliceElements().
+        // returns below,belowCapFacet,aboveCapFacet,above
+        // of dimensions slicee.dim, slicee.dim-1, slicee.dim-1, slicee.dim.
+        // belowCapFacet is either null, or a facet of below.
+        // aboveCapFacet is either null, or a facet of above.
+        private static void _slice(SPolytope slicee,
+                                   Hyperplane hyperplane,
+                                   Object aux,
+                                   SPolytope returnBelow[],         int returnBelowIndex,
+                                   SPolytope returnBelowCapFacet[], int returnBelowCapFacetIndex,
+                                   SPolytope returnAboveCapFacet[], int returnAboveCapFacetIndex,
+                                   SPolytope returnAbove[],         int returnAboveIndex,
+                                   java.util.Hashtable ocean, // hashtable of slicings already done
+                                   String indentString) // for debugging
+        {
+            String subIndentString = null;
+            if (verboseLevel >= 1)
+            {
+                System.out.println(indentString+"in CSG._slice (slicee = "+signToString(slicee.sign)+dimToPrefix(slicee.p.dim)+slicee.p.id+")");
                 subIndentString = indentString + "        ";
             }
-            SPolytope aboveBelowOn[/*3*/] = (SPolytope[])ocean.get(slicee.p);
-            if (aboveBelowOn == null)
+            Object answer[/*4*/] = (Object[])ocean.get(slicee.p);
+            if (answer == null)
             {
-                // Not already in the ocean... need to calculate it
-                SPolytope above = null, below = null, on = null;
+                Polytope below = null;
+                SPolytope aboveCapFacet = null;
+                SPolytope belowCapFacet = null;
+                Polytope above = null;
+
                 if (slicee.p.dim == 0)
                 {
                     double coords[] = slicee.p.getCoords();
                     double height = VecMath.dot(coords, hyperplane.normal) - hyperplane.offset;
-                    if (height > 0.) // XXX need to make this fuzzy
-                        above = slicee;
-                    else if (height < 0.) // XXX need to make this fuzzy
-                        below = slicee;
+                    double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                    if (GT(height, 0., eps))
+                        above = slicee.p;
+                    else if (LT(height, 0., eps))
+                        below = slicee.p;
                     else
-                        unimplemented(); // vertices on the plane mess everything up later
-                }
+                    {
+                        // it's on the hyperplane.
+                        // do nothing... the vertex simply doesn't get included.
+                    }
+                } // slicee.p.dim == 0
                 else if (slicee.p.dim == 1)
                 {
                     //
@@ -4859,355 +4938,408 @@ public final class CSG
                     // (with signs -, +, -, + in order).
                     //
 
-                    //
-                    // Calculate the cumulative sign
-                    // of all vertices lying above and below the plane...
-                    //
-                    SPolytope facetStuffs[][] = new SPolytope[slicee.p.facets.length][];
-                    int nAbove = 0, nBelow = 0;
-                    int totalSignAbove = 0;
+                    SPolytope vertsBelow[] = new SPolytope[slicee.p.facets.length];
+                    SPolytope vertsAbove[] = new SPolytope[slicee.p.facets.length];
+                    int nVertsBelow = 0;
+                    int nVertsAbove = 0;
+                    int nVertsOn = 0;
                     int totalSignBelow = 0;
-                    FORI (iFacet, slicee.p.facets.length)
+                    int totalSignAbove = 0;
+                    int totalSignOn = 0;
+                    SPolytope someVertexOnHyperplane = null; // if we find one, save it
+                    FORI (iVert, slicee.p.facets.length)
                     {
-                        facetStuffs[iFacet] = _slice(slicee.p.facets[iFacet], hyperplane, aux, ocean, subIndentString);
-                        if (facetStuffs[iFacet][0] != null)
+                        // Add the vertex to vertsBelow if it's below,
+                        // or to vertsAbove if it's above.
+                        _slice(slicee.p.facets[iVert],
+                               hyperplane,
+                               aux,
+                               vertsBelow, nVertsBelow,
+                               null, -1,
+                               null, -1,
+                               vertsAbove, nVertsAbove,
+                               ocean,
+                               subIndentString);
+                        if (vertsBelow[nVertsBelow] != null)
+                            totalSignBelow += vertsBelow[nVertsBelow++].sign;
+                        else if (vertsAbove[nVertsAbove] != null)
+                            totalSignAbove += vertsAbove[nVertsAbove++].sign;
+                        else
                         {
-                            nAbove++;
-                            totalSignAbove += slicee.p.facets[iFacet].sign;
-                        }
-                        if (facetStuffs[iFacet][1] != null)
-                        {
-                            nBelow++;
-                            totalSignBelow += slicee.p.facets[iFacet].sign;
-                        }
-                        if (facetStuffs[iFacet][2] != null)
-                        {
-                            unimplemented();
+                            someVertexOnHyperplane = slicee.p.facets[iVert];
+                            totalSignOn += slicee.p.facets[iVert].sign;
+                            nVertsOn++;
                         }
                     }
-                    totalSignAbove = 1; // XXX FUDGE
-                    totalSignBelow = -1; // XXX FUDGE
-                    assumpt(totalSignAbove + totalSignBelow == 0);
-
-                    if (nAbove != 0 && nBelow != 0)
+                    if (verboseLevel >= 1)
                     {
-                        SPolytope facetsAbove[] = new SPolytope[nAbove + (totalSignAbove!=0 ? 1 : 0)];
-                        SPolytope facetsBelow[] = new SPolytope[nBelow + (totalSignBelow!=0 ? 1 : 0)];
+                        PRINT(nVertsBelow);
+                        PRINT(nVertsOn);
+                        PRINT(nVertsAbove);
+                        PRINT(totalSignBelow);
+                        PRINT(totalSignOn);
+                        PRINT(totalSignAbove);
+                    }
+                    assert(totalSignBelow + totalSignOn + totalSignAbove == 0);
+
+                    if (nVertsAbove > 0 && nVertsBelow == 0)
+                    {
+                        above = slicee.p;
+                        if (nVertsOn > 0)
                         {
-                            int iAbove = 0, iBelow = 0;
-                            FORI (iFacet, slicee.p.facets.length)
+                            assert(nVertsOn == 1);
+                            aboveCapFacet = someVertexOnHyperplane;
+                        }
+                    }
+                    else if (nVertsBelow > 0 && nVertsAbove == 0)
+                    {
+                        below = slicee.p;
+                        if (nVertsOn > 0)
+                        {
+                            assert(nVertsOn == 1);
+                            belowCapFacet = someVertexOnHyperplane;
+                        }
+                    }
+                    else if (nVertsAbove > 0 || nVertsBelow > 0)
+                    {
+                        // For the cut point, either use the existing vertex that's on the plane,
+                        // or make a new cut point.
+                        // If we make a new one, note that we don't need to set the coords on it,
+                        // that will be computed lazily from its hyperplanes
+                        // the first time anywone calls getCoords() on it.
+                        Polytope unsignedCutPoint = nVertsOn > 0 ? someVertexOnHyperplane.p
+                                                                 : new Polytope(slicee.p.dim-1,
+                                                                                slicee.p.fullDim,
+                                                                                new SPolytope[0], // result vertex has no facets
+                                                                                addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
+                                                                                aux);
+                        if (totalSignBelow != 0)
+                        {
+                            // Need a cap for the below part.
+                            if (totalSignBelow + totalSignOn == 0)
                             {
-                                if (facetStuffs[iFacet][0] != null)
-                                    facetsAbove[iAbove++] = facetStuffs[iFacet][0];
-                                if (facetStuffs[iFacet][1] != null)
-                                    facetsBelow[iBelow++] = facetStuffs[iFacet][1];
+                                // The existing signed vertex on the plane is the cap for the below part
+                                belowCapFacet = someVertexOnHyperplane;
                             }
-                            assert(iAbove == nAbove);
-                            assert(iBelow == nBelow);
-                            if (totalSignAbove != 0) // i.e. if totalSignBelow != 0
+                            else
                             {
-                                // Need to make a new cutpoint.
-                                // Note that we don't need to set the coords on it,
-                                // that will be computed lazily
-                                // from its hyperplanes
-                                // the first time anyone calls getCoords() on it.
-                                Polytope cutPoint = new Polytope(slicee.p.dim-1,
-                                                                 slicee.p.fullDim,
-                                                                 new SPolytope[0], // result vertex has no facets
-                                                                 addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
-                                                                 aux);
-                                facetsAbove[iAbove++] = new SPolytope(0, // initialDensity always 0 for vertices, I think
-                                                                      -totalSignAbove,
-                                                                      cutPoint);
-                                facetsBelow[iBelow++] = new SPolytope(0, // initialDensity always 0 for vertices, I think
-                                                                      -totalSignBelow,
-                                                                      cutPoint);
-                                on = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initialDensity?  maybe initialDensity isn't meaningful except for top-level polytopes?
-                                                   1, // XXX arbitrary-- I think signs are completely messed up, will fix later
-                                                   cutPoint);
+                                // If there's already a vertex on the plane, it's the wrong sign.
+                                // Use the unsigned vertex (or the new cutpoint), with the desired sign.
+                                belowCapFacet = new SPolytope(0, // initialDensity is always 0 for vertices, I think
+                                                              -totalSignBelow,
+                                                              unsignedCutPoint);
                             }
-                            assert(iAbove == facetsAbove.length);
-                            assert(iBelow == facetsBelow.length);
+                            vertsBelow[nVertsBelow++] = belowCapFacet;
+                        }
+                        if (totalSignAbove != 0)
+                        {
+                            // Need a cap for the above part.
+                            if (totalSignAbove + totalSignOn == 0)
+                            {
+                                // The existing signed vertex on the plane is the cap for the above part
+                                aboveCapFacet = someVertexOnHyperplane;
+                            }
+                            else
+                            {
+                                // If there's already a vertex on the plane, it's the wrong sign.
+                                // Use the unsigned vertex (or the new cutpoint), with the desired sign.
+                                aboveCapFacet = new SPolytope(0, // initialDensity is always 0 for vertices, I think
+                                                              -totalSignAbove,
+                                                              unsignedCutPoint);
+                            }
+                            vertsAbove[nVertsAbove++] = aboveCapFacet;
                         }
 
-                        above = new SPolytope(slicee.initialDensity,
-                                              slicee.sign,
-                                              new Polytope(slicee.p.dim,
-                                                           slicee.p.fullDim,
-                                                           facetsAbove,
-                                                           slicee.p.contributingHyperplanes,
-                                                           slicee.p.aux));
-                        below = new SPolytope(slicee.initialDensity,
-                                              slicee.sign,
-                                              new Polytope(slicee.p.dim,
-                                                           slicee.p.fullDim,
-                                                           facetsBelow,
-                                                           slicee.p.contributingHyperplanes,
-                                                           slicee.p.aux));
+                        // XXX think about this... are nVertsBelow and nVertsAbove guaranteed... no they aren't...
+                        // XXX BUT, if one of them is zero, then we could have just used slicee for the other, right? hmm
+                        if (nVertsBelow != 0)
+                        {
+                            if (vertsBelow.length != nVertsBelow)
+                                vertsBelow = (SPolytope[])Arrays.subarray(vertsBelow, 0, nVertsBelow);
+                            below = new Polytope(slicee.p.dim,
+                                                 slicee.p.fullDim,
+                                                 vertsBelow,
+                                                 slicee.p.contributingHyperplanes,
+                                                 slicee.p.aux);
+                        }
+                        if (nVertsAbove != 0)
+                        {
+                            if (vertsAbove.length != nVertsAbove)
+                                vertsAbove = (SPolytope[])Arrays.subarray(vertsAbove, 0, nVertsAbove);
+                            above = new Polytope(slicee.p.dim,
+                                                 slicee.p.fullDim,
+                                                 vertsAbove,
+                                                 slicee.p.contributingHyperplanes,
+                                                 slicee.p.aux);
+                        }
                     }
-                    else if (nAbove != 0)
-                        above = slicee;
-                    else if (nBelow != 0)
-                        below = slicee;
                     else
-                        assumpt(false);
-                } // slicee.p.dim == 1
+                    {
+                        // all On... do nothing
+                    }
+                }
                 else // slicee.p.dim >= 2
                 {
                     assert(slicee.p.dim >= 2);
-
-                    SPolytope facetStuffs[][] = new SPolytope[slicee.p.facets.length][];
-                    int nAbove = 0, nBelow = 0, nOn = 0;
+                    SPolytope facetsBelow[]    = new SPolytope[slicee.p.facets.length+1]; // worst case
+                    SPolytope boundaryRidgesBelow[] = new SPolytope[slicee.p.facets.length];
+                    SPolytope boundaryRidgesAbove[] = new SPolytope[slicee.p.facets.length];
+                    SPolytope facetsAbove[] = new SPolytope[slicee.p.facets.length+1]; // worst case
+                    SPolytope someFacetOnHyperplane = null; // if some facet is on the hyperplane, save it in this
+                    int nFacetsBelow = 0;
+                    int nBoundaryRidgesBelow = 0;
+                    int nBoundaryRidgesAbove = 0;
+                    int nFacetsAbove = 0;
+                    int nFacetsOn = 0;
                     FORI (iFacet, slicee.p.facets.length)
                     {
-                        facetStuffs[iFacet] = _slice(slicee.p.facets[iFacet], hyperplane, aux, ocean, subIndentString);
-                        if (facetStuffs[iFacet][0] != null)
-                            nAbove++;
-                        if (facetStuffs[iFacet][1] != null)
-                            nBelow++;
-                        if (facetStuffs[iFacet][2] != null)
-                            nOn++;
-                    }
-                    if (nAbove != 0 && nBelow != 0)
-                    {
-                        SPolytope facetsAbove[] = new SPolytope[nAbove + (nOn!=0 ? 1 : 0)];
-                        SPolytope facetsBelow[] = new SPolytope[nBelow + (nOn!=0 ? 1 : 0)];
-                        SPolytope ridgesOn[] = new SPolytope[nOn];
+                        _slice(slicee.p.facets[iFacet],
+                               hyperplane,
+                               aux,
+                               facetsBelow, nFacetsBelow,
+                               boundaryRidgesBelow, nBoundaryRidgesBelow,
+                               boundaryRidgesAbove, nBoundaryRidgesAbove,
+                               facetsAbove, nFacetsAbove,
+                               ocean,
+                               subIndentString);
+                        if (facetsBelow[nFacetsBelow] == null
+                         && facetsAbove[nFacetsAbove] == null)
                         {
-                            int iAbove = 0, iBelow = 0, iOn = 0;
-                            FORI (iFacet, slicee.p.facets.length)
-                            {
-                                if (facetStuffs[iFacet][0] != null)
-                                    facetsAbove[iAbove++] = facetStuffs[iFacet][0];
-                                if (facetStuffs[iFacet][1] != null)
-                                    facetsBelow[iBelow++] = facetStuffs[iFacet][1];
-                                if (facetStuffs[iFacet][2] != null)
-                                    ridgesOn[iOn++] = facetStuffs[iFacet][2];
-                            }
-                            assert(iAbove == nAbove);
-                            assert(iBelow == nBelow);
-                            assert(iOn == nOn);
-                            // XXX can some ridges occur multiple times?
-                            // XXX I don't think so, since On is only *new* stuff... but if I'm wrong, will need to sort ridgesOn and combine
+                            nFacetsOn++;
+                            someFacetOnHyperplane = slicee.p.facets[iFacet];
+                            // TODO: currently we don't actually do anything with it... should we?
+                        }
+                        if (facetsBelow[nFacetsBelow]                 != null) nFacetsBelow++;
+                        if (boundaryRidgesBelow[nBoundaryRidgesBelow] != null) nBoundaryRidgesBelow++;
+                        if (boundaryRidgesAbove[nBoundaryRidgesAbove] != null) nBoundaryRidgesAbove++;
+                        if (facetsAbove[nFacetsAbove]                 != null) nFacetsAbove++;
+                    }
 
-                            if (nOn != 0)
+                    assumpt(nFacetsOn == 0
+                         || nFacetsOn == 1
+                         || nFacetsOn == slicee.p.facets.length);
+
+                    if (nFacetsOn == 1)
+                    {
+                        assert(nFacetsAbove==0 || nFacetsBelow==0);
+                        if (nFacetsAbove == 0)
+                        {
+                            below = slicee.p;
+                            belowCapFacet = someFacetOnHyperplane;
+                        }
+                        else // nFacetsBelow == 0
+                        {
+                            above = slicee.p;
+                            aboveCapFacet = someFacetOnHyperplane;
+                        }
+                    }
+                    else if (nFacetsBelow == 0 && nBoundaryRidgesBelow == 0 && nBoundaryRidgesAbove == 0 && nFacetsAbove > 0)
+                    {
+                        // Nothing below or on... return whole thing as above
+                        above = slicee.p;
+                    }
+                    else if (nFacetsAbove == 0 && nBoundaryRidgesAbove == 0 && nBoundaryRidgesBelow == 0 && nFacetsBelow > 0)
+                    {
+                        // Nothing above or on... return whole thing as below
+                        below = slicee.p;
+                    }
+                    else if (nFacetsAbove > 0 || nFacetsBelow > 0)
+                    {
+                        // POSSIBLE IMPROVEMENT:
+                        // if the slicing plane includes a facet, that facet polytope will be lost
+                        // and replaced by an identical one... that's not ideal, should try to retain it.
+
+                        //
+                        // Sort the boundaries, and combine SPolytopes
+                        // that have the same Polytope.
+                        // 
+                        nBoundaryRidgesBelow = sortAndCombineSPolytopes(nBoundaryRidgesBelow, boundaryRidgesBelow);
+                        nBoundaryRidgesAbove = sortAndCombineSPolytopes(nBoundaryRidgesAbove, boundaryRidgesAbove);
+
+                        // Check whether the two caps match (opposite) each other.
+                        // If they do, then we only need to make one polytope
+                        // for both of them.
+                        boolean boundariesMatch = true; // until proven false
+                        {
+                            if (nBoundaryRidgesBelow != nBoundaryRidgesAbove)
+                                boundariesMatch = false;
+                            else
                             {
-                                Polytope cutPoint = new Polytope(slicee.p.dim-1,
-                                                                 slicee.p.fullDim,
-                                                                 ridgesOn,
-                                                                 addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
-                                                                 aux);
-                                facetsAbove[iAbove++] = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initial density? maybe initialDensity isn't meaningful except for top-level polytopes?
-                                                                      +1,
-                                                                      cutPoint);
-                                facetsBelow[iBelow++] = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initialDensity?  maybe initialDensity isn't meaningful except for top-level polytopes?
-                                                                      -1,
-                                                                      cutPoint);
-                                on = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initialDensity?  maybe initialDensity isn't meaningful except for top-level polytopes?
-                                                   1, // XXX arbitrary-- I think signs are completely messed up, will fix later
-                                                   cutPoint);
+                                FORI (iBoundaryRidge, nBoundaryRidgesBelow)
+                                {
+                                    SPolytope ridgeBelow = boundaryRidgesBelow[iBoundaryRidge];
+                                    SPolytope ridgeAbove = boundaryRidgesAbove[iBoundaryRidge];
+                                    if (ridgeBelow.p != ridgeAbove.p
+                                     || ridgeBelow.sign != -ridgeAbove.sign)
+                                    {
+                                        boundariesMatch = false;
+                                        break;
+                                    }
+                                }
                             }
-                            assert(iAbove == facetsAbove.length);
-                            assert(iBelow == facetsBelow.length);
-                            assert(iOn == ridgesOn.length);
                         }
 
-                        above = new SPolytope(slicee.initialDensity,
-                                              slicee.sign,
-                                              new Polytope(slicee.p.dim,
-                                                           slicee.p.fullDim,
-                                                           facetsAbove,
-                                                           slicee.p.contributingHyperplanes,
-                                                           slicee.p.aux));
-                        below = new SPolytope(slicee.initialDensity,
-                                              slicee.sign,
-                                              new Polytope(slicee.p.dim,
-                                                           slicee.p.fullDim,
-                                                           facetsBelow,
-                                                           slicee.p.contributingHyperplanes,
-                                                           slicee.p.aux));
-                                              
+                        if (nBoundaryRidgesBelow != 0)
+                        {
+                            // XXX should check whether facetOnHyperplane matches, and if so, use that
+                            if (boundaryRidgesBelow.length != nBoundaryRidgesBelow)
+                                boundaryRidgesBelow = (SPolytope[])Arrays.subarray(boundaryRidgesBelow, 0, nBoundaryRidgesBelow);
+                            Polytope unsignedCutFacet = new Polytope(slicee.p.dim-1,
+                                                                     slicee.p.fullDim,
+                                                                     boundaryRidgesBelow,
+                                                                     addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
+                                                                     aux);
+
+                            belowCapFacet = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initial density? maybe initialDensity isn't meaningful except for top-level polytopes?
+                                                          -1, // to cancel the boundary ridges below
+                                                          unsignedCutFacet);
+                            facetsBelow[nFacetsBelow++] = belowCapFacet;
+                        }
+                        if (nBoundaryRidgesAbove != 0)
+                        {
+                            if (boundariesMatch)
+                            {
+                                // Use same underlying polytope as aboveCapFacet, with opposite sign
+                                aboveCapFacet = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initial density? maybe initialDensity isn't meaningful except for top-level polytopes?
+                                                              -belowCapFacet.sign,
+                                                              belowCapFacet.p);
+                                if (verboseLevel >= 1)
+                                {
+                                    System.out.println(subIndentString+"boundaries match, using "+signToString(belowCapFacet.sign)+dimToPrefix(belowCapFacet.p.dim)+belowCapFacet.p.id+" for below and "+signToString(aboveCapFacet.sign)+dimToPrefix(aboveCapFacet.p.dim)+aboveCapFacet.p.id+" for above");
+                                }
+                            }
+                            else
+                            {
+                                if (boundaryRidgesAbove.length != nBoundaryRidgesAbove)
+                                    boundaryRidgesAbove = (SPolytope[])Arrays.subarray(boundaryRidgesAbove, 0, nBoundaryRidgesAbove);
+                                Polytope unsignedCutFacet = new Polytope(slicee.p.dim-1,
+                                                                         slicee.p.fullDim,
+                                                                         boundaryRidgesAbove,
+                                                                         addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
+                                                                         aux);
+
+                                aboveCapFacet = new SPolytope(slicee.initialDensity, // XXX I think this is wrong-- how the hell are we supposed to get an initial density? maybe initialDensity isn't meaningful except for top-level polytopes?
+                                                              -1, // to cancel the boundary ridges above
+                                                              unsignedCutFacet);
+                                if (verboseLevel >= 1)
+                                {
+                                    System.out.println(subIndentString+"boundaries do NOT match, using "+signToString(aboveCapFacet.sign)+dimToPrefix(aboveCapFacet.p.dim)+aboveCapFacet.p.id+" for above");
+                                }
+                            }
+                            facetsAbove[nFacetsAbove++] = aboveCapFacet;
+                        }
+
+                        if (nFacetsAbove != 0)
+                        {
+                            if (facetsAbove.length != nFacetsAbove)
+                                facetsAbove = (SPolytope[])Arrays.subarray(facetsAbove, 0, nFacetsAbove);
+                            above = new Polytope(slicee.p.dim,
+                                                 slicee.p.fullDim,
+                                                 facetsAbove,
+                                                 slicee.p.contributingHyperplanes,
+                                                 slicee.p.aux);
+                        }
+                        if (nFacetsBelow != 0)
+                        {
+                            if (facetsBelow.length != nFacetsBelow)
+                                facetsBelow = (SPolytope[])Arrays.subarray(facetsBelow, 0, nFacetsBelow);
+                            below = new Polytope(slicee.p.dim,
+                                                 slicee.p.fullDim,
+                                                 facetsBelow,
+                                                 slicee.p.contributingHyperplanes,
+                                                 slicee.p.aux);
+                        }
                     }
-                    else if (nAbove != 0)
-                        above = slicee;
-                    else if (nBelow != 0)
-                        below = slicee;
                     else
-                        assumpt(false);
+                    {
+                        // All zero-- return nothing
+                        assert(nBoundaryRidgesBelow == 0);
+                        assert(nBoundaryRidgesAbove == 0);
+                    }
                 } // slicee.p.dim >= 2
-                aboveBelowOn = new SPolytope[] {above, below, on};
-                ocean.put(slicee.p, aboveBelowOn);
+                answer = new Object[] {below, belowCapFacet, aboveCapFacet, above};
+                ocean.put(slicee.p, answer);
             }
             else
             {
                 if (verboseLevel >= 1)
                     System.out.println(indentString+"    (found it in the ocean)");
             }
+
+            Polytope belowUnsigned = (Polytope)answer[0];
+            SPolytope belowCapFacet = (SPolytope)answer[1];
+            SPolytope aboveCapFacet = (SPolytope)answer[2];
+            Polytope aboveUnsigned = (Polytope)answer[3];
+
+            if (returnBelow != null)
+                returnBelow[returnBelowIndex] = belowUnsigned == null ? null :
+                                                aboveUnsigned == null ? slicee :
+                                                new SPolytope(slicee.initialDensity,
+                                                              slicee.sign,
+                                                              belowUnsigned);
+            if (returnBelowCapFacet != null)
+                returnBelowCapFacet[returnBelowCapFacetIndex] = belowCapFacet==null ? null :
+                                                                slicee.sign==1 ? belowCapFacet :
+                                                                new SPolytope(belowCapFacet.initialDensity,
+                                                                              slicee.sign * belowCapFacet.sign,
+                                                                              belowCapFacet.p);
+                                                        
+            if (returnAboveCapFacet != null)
+                returnAboveCapFacet[returnAboveCapFacetIndex] = aboveCapFacet==null ? null :
+                                                                slicee.sign==1 ? aboveCapFacet :
+                                                                new SPolytope(aboveCapFacet.initialDensity,
+                                                                              slicee.sign * aboveCapFacet.sign,
+                                                                              aboveCapFacet.p);
+            if (returnAbove != null)
+                returnAbove[returnAboveIndex] = aboveUnsigned == null ? null :
+                                                belowUnsigned == null ? slicee :
+                                                new SPolytope(slicee.initialDensity,
+                                                              slicee.sign,
+                                                              aboveUnsigned);
+
             if (true)
             {
-                // XXX make sure we are not sharing!
-                // XXX I think maybe we should be just working unsigned
-                // XXX and then orient afterwards.
-                // XXX bleah, unfortunately this doesn't seem to make any difference, the bugs must be elsewhere.
-                FORI(i,3)
-                {
-                    if (aboveBelowOn[i] != null)
-                        aboveBelowOn[i] = new SPolytope(aboveBelowOn[i].initialDensity,
-                                                        aboveBelowOn[i].sign,
-                                                        aboveBelowOn[i].p);
-                }
+                // Make sure we are not sharing--
+                // e.g. if we had this:
+                //      +f1
+                //          +e2
+                //      -f2
+                //          +e2
+                // and the +e2's were actually the same SPolytope,
+                // then orientDeep can do something nasty, changing the sign of both of them
+                // when it only intended to change the sign of one of them.
+                // XXX this seems to be undoing a lot of optimizations we did... lame.
+                if (returnBelow != null && returnBelow[returnBelowIndex] != null)
+                    returnBelow[returnBelowIndex] = new SPolytope(returnBelow[returnBelowIndex].initialDensity,
+                                                                  returnBelow[returnBelowIndex].sign,
+                                                                  returnBelow[returnBelowIndex].p);
+                if (returnBelowCapFacet != null && returnBelowCapFacet[returnBelowCapFacetIndex] != null)
+                    returnBelowCapFacet[returnBelowCapFacetIndex] = new SPolytope(returnBelowCapFacet[returnBelowCapFacetIndex].initialDensity,
+                                                                  returnBelowCapFacet[returnBelowCapFacetIndex].sign,
+                                                                  returnBelowCapFacet[returnBelowCapFacetIndex].p);
+                if (returnAboveCapFacet != null && returnAboveCapFacet[returnAboveCapFacetIndex] != null)
+                    returnAboveCapFacet[returnAboveCapFacetIndex] = new SPolytope(returnAboveCapFacet[returnAboveCapFacetIndex].initialDensity,
+                                                                  returnAboveCapFacet[returnAboveCapFacetIndex].sign,
+                                                                  returnAboveCapFacet[returnAboveCapFacetIndex].p);
+
+                if (returnAbove != null && returnAbove[returnAboveIndex] != null)
+                    returnAbove[returnAboveIndex] = new SPolytope(returnAbove[returnAboveIndex].initialDensity,
+                                                                  returnAbove[returnAboveIndex].sign,
+                                                                  returnAbove[returnAboveIndex].p);
             }
+
+
             if (verboseLevel >= 1)
             {
-                PRINTARRAY(slicee);
-                PRINTARRAY(aboveBelowOn);
-                System.out.println(indentString+"out CSG._slice (slicee dim = "+slicee.p.dim+")");
+                PRINT(slicee);
+                if (returnBelow         != null) PRINTSUB(returnBelow,         returnBelowIndex);
+                if (returnBelowCapFacet != null) PRINTSUB(returnBelowCapFacet, returnBelowCapFacetIndex);
+                if (returnAboveCapFacet != null) PRINTSUB(returnAboveCapFacet, returnAboveCapFacetIndex);
+                if (returnAbove         != null) PRINTSUB(returnAbove,         returnAboveIndex);
+                System.out.println(indentString+"out CSG._slice (slicee = "+signToString(slicee.sign)+dimToPrefix(slicee.p.dim)+slicee.p.id+")");
             }
-            return aboveBelowOn;
         } // _slice
 
-        //
-        // XXX OLD-- look through for signs of intelligence and then delete
-        // Slice a signed polytope by a plane.
-        // Returns a slicee.dim-1 dimensional signed polytope.
-        //
-        private static SPolytope oldSlice(SPolytope slicee,
-                                          Hyperplane hyperplane,
-                                          Object aux,
-                                          String indentString) // for debugging
-        {
-            String subIndentString = null;
-            if (verboseLevel >= 1)
-            {
-                System.out.println(indentString+"in CSG.oldSlice");
-                subIndentString = indentString + "    ";
-            }
-            if (verboseLevel >= 2)
-                System.out.println(subIndentString + "slicee = " + slicee.toString(subIndentString+"         ", false, false, null));
-            if (verboseLevel >= 3)
-                System.out.println(subIndentString + "slicee = " + slicee.toString(subIndentString, true, true, null));
-            if (verboseLevel >= 2)
-            {
-                System.out.println(subIndentString + "hyperplane: " + hyperplane);
-            }
-
-            assert(slicee.p.dim >= 1);
-            assert(Arrays.indexOfUsingEqualsSymbol(slicee.p.contributingHyperplanes, hyperplane) == -1);
-
-            SPolytope result;
-            if (slicee.p.dim == 1)
-            {
-                //
-                // Slicee is a 1-dimensional polytope,
-                // i.e. a (multi-)segment.  Note that
-                // it may have more than two vertices:
-                // e.g. when a hatchet-chop is taken out of the
-                // edge of a regular polyhedron, the resulting pieces of the
-                // chopped edge are still considered to be part
-                // of a single edge, which now has 4 vertices
-                // (with signs -, +, -, + in order).
-                //
-
-                //
-                // Calculate the cumulative sign
-                // of all vertices lying above the plane...
-                //
-
-                int minNumVertsAbovePlane = 0;
-                int maxNumVertsAbovePlane = 0;
-
-                int signOfVertsStrictlyAbovePlane = 0;
-                int signOfVertsOnOrAbovePlane = 0;
-                SPolytope vertices[] = slicee.p.facets;
-                int iVertex, nVertices = vertices.length;
-                FOR (iVertex, nVertices)
-                {
-                    SPolytope vertex = vertices[iVertex];
-                    double vertexCoords[] = vertex.p.getCoords();
-                    double heightOfVertexAbovePlane = VecMath.dot(hyperplane.normal, vertexCoords) - hyperplane.offset;
-                    // XXX need to use an epsilon test!
-                    if (heightOfVertexAbovePlane >= 0.)
-                    {
-                        maxNumVertsAbovePlane++;
-                        if (heightOfVertexAbovePlane > 0.)
-                            minNumVertsAbovePlane++;
-                    }
-                }
-                // XXX use even-odd rule since I don't seem to be smart enough for anything else
-                if (minNumVertsAbovePlane != maxNumVertsAbovePlane
-                 || slicee.initialDensity == (minNumVertsAbovePlane & 1))
-                {
-                    // Plane doesn't cross this segment
-                    // (or crosses it just barely, so we can say it doesn't).
-                    result = null;
-                }
-                else
-                {
-                    result = new SPolytope(0, // XXX initialDensity always 0 for vertices, I think-- think about it.  could just follow example of >1 case and set it to slicee.initialDensity, but I'd like to understand what I'm doing
-                                           1, // XXX using even-odd rule, anything nonzero is 1.  top-level caller will fix.
-                                           new Polytope(slicee.p.dim-1, // == 0
-                                                        slicee.p.fullDim,
-                                                        new SPolytope[0], // result vertex has no facets
-                                                        addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
-                                                        aux));
-                }
-            } // slicee.p.dim == 1
-            else
-            {
-                assert(slicee.p.dim > 1);
-
-                //
-                // The facets of (slicee sliced)
-                // are (facets of slicee) sliced.
-                //
-                int iFacet, nFacets = slicee.p.facets.length;
-
-                int maxSlicedFacets = nFacets;
-                SPolytope slicedFacets[] = new SPolytope[maxSlicedFacets];
-                int nSlicedFacets = 0;
-
-                FOR (iFacet, nFacets)
-                {
-                    SPolytope slicedFacet = oldSlice(slicee.p.facets[iFacet],
-                                                  hyperplane,
-                                                  aux,
-                                                  subIndentString);
-                    if (slicedFacet != null)
-                        slicedFacets[nSlicedFacets++] = slicedFacet;
-                }
-                if (nSlicedFacets == 0
-                 && slicee.initialDensity == 0)
-                {
-                    // No facets and initialDensity == 0
-                    // and dim != 0
-                    // and  so we are nothing.
-                    assert(slicee.initialDensity == 0); // XXX bad, should go off
-                    result = null;
-                }
-                else
-                {
-                    slicedFacets = (SPolytope[])Arrays.subarray(slicedFacets, 0, nSlicedFacets); // resize
-
-                    result = new SPolytope(slicee.initialDensity,
-                                           1, // XXX assuming even-odd rule; will fix later
-                                           new Polytope(slicee.p.dim-1,
-                                                        slicee.p.fullDim,
-                                                        slicedFacets,
-                                                        addOneHyperplaneAndSort(slicee.p.contributingHyperplanes, hyperplane),
-                                                        slicee.p.aux));
-                }
-            } // slicee.p.dim > 1
-
-            if (verboseLevel >= 2)
-                System.out.println(subIndentString + "result = " + (result==null?"(null)":result.toString(subIndentString+"         ", false, false, null)));
-            if (verboseLevel >= 3)
-                System.out.println(subIndentString + "result = " + (result==null?"(null)":result.toString(subIndentString, true, true, null)));
-
-            if (verboseLevel >= 1)
-                System.out.println(indentString+"out CSG.oldSlice");
-
-            return result;
-        } // oldSlice
 
         // recursive work function used by intersect()
         private static SPolytope _intersect(SPolytope A,
@@ -5669,6 +5801,13 @@ public final class CSG
 
         public static void orientDeep(SPolytope sp) // XXX should not be public!  change back to private after PolytopePuzzleDescription doesn't need it any more!
         {
+            boolean heavySanityChecksThroughout = false; // can turn this on for debugging
+            if (heavySanityChecksThroughout)
+            {
+                // make sure we're noisy, since this is time consuming
+                System.out.println("    in orientDeep with heavy sanity checks throughout ");
+            }
+
             if (verboseLevel >= 1)
                 System.out.println("in orientDeep");
             if (verboseLevel >= 2)
@@ -5697,6 +5836,9 @@ public final class CSG
                     System.out.println("        "+sp.toString("        "));
                 }
             }
+
+            if (heavySanityChecksThroughout)
+                assert(isOrientedDeep(sp.p));
 
             if (false)
             {
@@ -5769,6 +5911,10 @@ public final class CSG
                 }
             }
 
+            if (heavySanityChecksThroughout)
+                assert(isOrientedDeep(sp.p));
+
+
             //
             // Edge cosmetic tweak:
             // for each edge, put the - vertex first and the + one second.
@@ -5802,6 +5948,8 @@ public final class CSG
                 }
             }
 
+            if (heavySanityChecksThroughout)
+                assert(isOrientedDeep(sp.p));
 
             //
             // Face cosmetic tweak:
@@ -5821,6 +5969,11 @@ public final class CSG
                     FORI (iFace, nFaces)
                     {
                         Polytope p = faces[iFace];
+                        if (verboseLevel >= 2)
+                        {
+                            System.out.println("    Doing face tweak on "+dimToPrefix(p.dim)+p.id);
+                            PRINT(p);
+                        }
                         SPolytope edges[] = p.facets;
                         int nEdges = edges.length;
 
@@ -5904,12 +6057,18 @@ public final class CSG
                 }
             } // face cosmetic tweak
 
+            if (heavySanityChecksThroughout)
+                assert(isOrientedDeep(sp.p));
+
             //
             // XXX One more potential nice cosmetic tweak:
             // XXX prefer nice orderings for earlier facets.
             //
             {
             }
+
+            if (heavySanityChecksThroughout)
+                assert(isOrientedDeep(sp.p));
 
             if (verboseLevel >= 1)
                 System.out.println("out orientDeep");
@@ -6880,6 +7039,148 @@ public final class CSG
             PRINT(makeSimplex(dim));
             return;
         }
+
+        if (true)
+        {
+            Object testCases[][] = new Object[0][];
+            if (true)
+            {
+                // Make a cross polytope {3,3,...,3,4}
+                // and slice it on the equator.
+                // This is a minimal test of when vertices lie on the cutting plane.
+                assert(dim >= 2);
+                String schlafli = "{";
+                FORI (i, dim-2)
+                    schlafli += "3,";
+                schlafli += "4}";
+                SPolytope sp = makeRegularStarPolytopeProductFromString(schlafli);
+                PRINT(schlafli);
+
+                // Cutting plane passes through origin,
+                // with normal pointing in direction of first vertex.
+                Polytope v0 = sp.p.getAllElements()[0][0];
+                double v0coords[] = v0.getCoords();
+                PRINTVEC(v0coords);
+                Hyperplane hyperplane = new Hyperplane(v0coords, 0.);
+                String description = "cross polytope sliced on its equator";
+
+                testCases = (Object[][])Arrays.append(testCases, new Object[]{sp,hyperplane,description});
+            }
+            if (true)
+            {
+                // Make a hypercube {4,3,3,...,3}
+                assert(dim >= 2);
+                SPolytope sp = makeHypercube(dim);
+                if (true)
+                {
+                    // and slice it by a plane with normal pointing at a facet
+                    // (i.e. side of square, or face of cube, or cell of hypercube, etc.)
+                    Polytope firstFacet = sp.p.facets[0].p;
+                    double firstFacetCenter[] = cgOfVerts(firstFacet);
+                    PRINTVEC(firstFacetCenter);
+                    Hyperplane hyperplane = new Hyperplane(firstFacetCenter, 0.);
+                    String description = "hypercube sliced by plane through origin with normal pointing at a facet";
+
+                    testCases = (Object[][])Arrays.append(testCases, new Object[]{sp,hyperplane,description});
+                }
+                if (true)
+                {
+                    // and slice it by a plane with normal pointing at a ridge
+                    // (i.e. vertex of square, or edge of cube, or face of hypercube, etc.)
+                    Polytope firstRidge = sp.p.facets[0].p.facets[0].p;
+                    double firstRidgeCenter[] = cgOfVerts(firstRidge);
+                    PRINTVEC(firstRidgeCenter);
+                    Hyperplane hyperplane = new Hyperplane(firstRidgeCenter, 0.);
+                    String description = "hypercube sliced by plane through origin with normal pointing at a ridge";
+
+                    testCases = (Object[][])Arrays.append(testCases, new Object[]{sp,hyperplane,description});
+                }
+                if (true)
+                {
+                    // slice it by a plane with normal pointing at a vertex,
+                    // passing through that vertex's adjacent vertices
+                    Polytope e0 = sp.p.getAllElements()[1][0];
+                    Polytope v0 = e0.facets[0].p;
+                    Polytope v1 = e0.facets[1].p;
+                    double v0coords[] = v0.getCoords();
+                    double v1coords[] = v1.getCoords();
+                    double offset = VecMath.dot(v0coords, v1coords);
+                    Hyperplane hyperplane = new Hyperplane(v0coords, offset);
+                    String description = "hypercube sliced by plane with normal pointing at a vertex, through that vertex's adjacent vertices";
+
+                    testCases = (Object[][])Arrays.append(testCases, new Object[]{sp,hyperplane,description});
+                }
+            }
+
+            FORI (iTestCase, testCases.length)
+            {
+                SPolytope sp =           (SPolytope)testCases[iTestCase][0];
+                Hyperplane hyperplane = (Hyperplane)testCases[iTestCase][1];
+                String description =        (String)testCases[iTestCase][2];
+
+                System.out.println("=============================================");
+                System.out.println("starting: "+description);
+                System.out.println("=============================================");
+
+                PRINT(sp);
+                PRINT(hyperplane);
+
+                verboseLevel = 3; // gory details
+                if (true)
+                {
+                    SPolytope below[] = new SPolytope[1];
+                    SPolytope belowCapFacet[] = new SPolytope[1];
+                    SPolytope aboveCapFacet[] = new SPolytope[1];
+                    SPolytope above[] = new SPolytope[1];
+                    slice(sp, hyperplane, null, below,0, belowCapFacet,0, aboveCapFacet,0, above,0);
+                    PRINT(below[0]);
+                    PRINT(belowCapFacet[0]);
+                    PRINT(aboveCapFacet[0]);
+                    PRINT(above[0]);
+
+                    PRINT(below[0].p.getAllElements().length);
+                    FORI (i, below[0].p.getAllElements().length)
+                        System.out.println("    below[0].p.getAllElements()["+i+"] = "+below[0].p.getAllElements()[i].length);
+
+                    PRINT(belowCapFacet[0].p.getAllElements().length);
+                    FORI (i, belowCapFacet[0].p.getAllElements().length)
+                        System.out.println("    belowCapFacet[0].p.getAllElements()["+i+"] = "+belowCapFacet[0].p.getAllElements()[i].length);
+
+                    PRINT(aboveCapFacet[0].p.getAllElements().length);
+                    FORI (i, aboveCapFacet[0].p.getAllElements().length)
+                        System.out.println("    aboveCapFacet[0].p.getAllElements()["+i+"] = "+aboveCapFacet[0].p.getAllElements()[i].length);
+
+                    PRINT(above[0].p.getAllElements().length);
+                    FORI (i, above[0].p.getAllElements().length)
+                        System.out.println("    above[0].p.getAllElements()["+i+"] = "+above[0].p.getAllElements()[i].length);
+                }
+
+                if (true)
+                {
+                    SPolytope sliced = sliceElements(sp, dim-1, hyperplane, null);
+                    PRINT(sliced);
+                    PRINT(sliced.p.getAllElements().length);
+                    FORI (i, sliced.p.getAllElements().length)
+                        System.out.println("    sliced.p.getAllElements()["+i+"] = "+sliced.p.getAllElements()[i].length);
+                    assert(isOrientedDeep(sliced.p));
+                    if (true)
+                    {
+                        System.out.println("calling orientDeep...");
+                        orientDeep(sliced); // actually does some more cosmetic stuff in addition to slicing, currently
+                        PRINT(sliced);
+                    }
+                    assert(isOrientedDeep(sliced.p));
+                }
+                System.out.println("=============================================");
+                System.out.println("finished: "+description);
+                System.out.println("=============================================");
+
+            } // for iTestCase
+            System.out.println("Did "+testCases.length+" test case"+(testCases.length==1?"":"s"));
+
+            return;
+        }
+
 
         SPolytope A = makeHypercube(VecMath.fillvec(dim, -1.), 2.);
         SPolytope B = makeHypercube(VecMath.fillvec(dim,  1.), 2.);
