@@ -878,16 +878,21 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             }
 
-            if (progressWriter != null)
+            if (false)
             {
-                progressWriter.print("    Fixing orientations (argh!)... ");
-                progressWriter.flush();
-            }
-            com.donhatchsw.util.CSG.orientDeep(slicedPolytope); // XXX shouldn't be necessary!!!!
-            if (progressWriter != null)
-            {
-                progressWriter.println(" done.");
-                progressWriter.flush();
+                if (progressWriter != null)
+                {
+                    progressWriter.print("    Fixing orientations (argh!)... ");
+                    progressWriter.flush();
+                }
+                startTimeMillis = System.currentTimeMillis();
+                com.donhatchsw.util.CSG.orientDeep(slicedPolytope); // XXX shouldn't be necessary!!!!
+                endTimeMillis = System.currentTimeMillis();
+                if (progressWriter != null)
+                {
+                    progressWriter.println(" done ("+((endTimeMillis-startTimeMillis)*.001)+" seconds)");
+                    progressWriter.flush();
+                }
             }
         }
 
@@ -1268,6 +1273,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 progressWriter.print("    Thinking about possible twists...");
                 progressWriter.flush();
             }
+            long startTimeMillis = System.currentTimeMillis();
             if (nDims <= 4)
             {
                 boolean doTheOddFaceIn3dThing = true;
@@ -1417,10 +1423,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // not thinking very hard
                 this.grip2face = new int[0];
             }
+            long endTimeMillis = System.currentTimeMillis();
             if (progressWriter != null)
             {
                 progressWriter.print(" ("+this.grip2face.length+" grips)");
-                progressWriter.println(" done.");
+                progressWriter.println(" done ("+((endTimeMillis-startTimeMillis)*.001)+" seconds)");
                 progressWriter.flush();
             }
         } // intLength > 1
