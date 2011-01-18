@@ -873,12 +873,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         newStickerAltCentersF[iSticker] = oldStickerAltCentersF[((Integer)stickers[iSticker].popAux()).intValue()];
                     this.stickerAltCentersF = newStickerAltCentersF;
                 }
+            } // if doFurtherCuts
 
-
-
-            }
-
-            if (false)
+            if (true)
             {
                 if (progressWriter != null)
                 {
@@ -894,7 +891,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.flush();
                 }
             }
-        }
+        } // slice
 
 
         CSG.Polytope stickers[] = slicedPolytope.p.getAllElements()[nDims-1];
