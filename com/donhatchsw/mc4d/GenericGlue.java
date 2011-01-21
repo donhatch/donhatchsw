@@ -77,7 +77,7 @@ public class GenericGlue
     public int MagicCube_NFRAMES_90 = 15; // XXX should be a param that whoever initiates a rotation passes in, we should not need to know this
     public int MagicCube_FULL_SCRAMBLE = 15; // XXX should be a param that whoever initiates a scramble passes in, we should not need to know this
 
-    public static int verboseLevel = 0; // set to something else to debug
+    public static int verboseLevel = 0; // set to >= 1 to debug
 
     //
     // State.
@@ -240,14 +240,15 @@ public class GenericGlue
           {"    {12} Dodecagon",      "1,2,3,4,5"},
           {"3d puzzles"},
           {"    3d regular"},
-          {"        {3,3} Tetrahedron (Meier-Halpern Pyramid (tm))",             "1,3(4.0),5(7.0),7(10.0),9(13.0),11(16.0)"},
-          {"        {4,3} Cube (Rubik's Cube (tm))",                    "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"},
-          {"        {5,3} Dodecahedron (Megaminx)", "1,2,3(2.5),3,5,7,9"},
+          {"        {3,3} Tetrahedron (Meier-Halpern Pyramid (tm))",  "1,3(4.0),5(7.0),7(10.0),9(13.0),11(16.0)"},
+          {"        {4,3} Cube (Rubik's Cube (tm))",                  "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21"},
+          {"        {3,4} Octahedron",                                "1,2,3,4,5"},
+          {"        {5,3} Dodecahedron (Megaminx)",                   "1,2,3(2.5),3,5,7,9"},
           {"    3d wythoff"},
           {"        Tetrahedron based"},
           {"            (1)---(0)---(0) Tetrahedron",                       "1,3(4.0)"},
           {"            (1)---(1)---(0) Truncated tetrahedron",             "1,3(4.0)"},
-          {"            (0)---(1)---(0) Octahedron",                        "1"}, // vertex figure not simplex
+          {"            (0)---(1)---(0) Octahedron",                        "1,2,3,4,5"}, // vertex figure not simplex but it works anyway
           {"            (0)---(1)---(1) Truncated tetrahedron (dual)",      "1,3(4.0)"},
           {"            (0)---(0)---(1) Tetrahedron(dual)",                 "1,3(4.0)"},
           {"            (1)---(0)---(1) Cuboctahedron",                     "1"}, // vertex figure not simplex
@@ -257,7 +258,7 @@ public class GenericGlue
           {"            (1)-4-(1)---(0) Truncated cube",                    "1,3(4.0)"},
           {"            (0)-4-(1)---(0) Cuboctahedron",                     "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(1) Truncated octahedron",              "1,3"},
-          {"            (0)-4-(0)---(1) Octahedron",                        "1"}, // vertex figure not simplex
+          {"            (0)-4-(0)---(1) Octahedron",                        "1,2,3,4,5"}, // vertex figure not simplex but it works anyway
           {"            (1)-4-(0)---(1) Rhombicuboctahedron",               "1"}, // vertex figure not simplex
           {"            (1)-4-(1)---(1) Omnitruncated cuboctahedron",       "1,3"},
           {"        Dodecahedron/Icosahedron based"},
@@ -283,8 +284,8 @@ public class GenericGlue
           {"    4d regular"},
           {"        {3,3,3} Simplex (5-cell)",          "1,3(5.0),5(9.0),7(13.0)"},
           {"        {4,3,3} Hypercube (8-cell)",        "1,2,3,4,5,6,7,8,9,3(2.1),3(10.0)"},
-          {"        {3,3,4} Cross (16-cell)",           "1"}, // vertex figure not simplex
-          {"        {3,4,3} 24-cell",                   "1"}, // vertex figure not simplex
+          {"        {3,3,4} Cross (16-cell)",           "1,2,3,4,5"}, // vertex figure not simplex... but it works beautifully... closest incident cells get face cuts, next closest get edge cuts, farthest get vertex cuts
+          {"        {3,4,3} 24-cell",                   "1,2,3,4,5"}, // vertex figure not simplex... but it works fine anyway, the far incident one gets a vertex cut
           {"        {5,3,3} 120-cell (hypermegaminx)",  "1,2,3(2.5),3"},
           {"        {3,3,5} 600-cell",                  "1"}, // vertex figure not simplex
           {"    4d uniform wythoff"}, // XXX should be at bottom of menu, so when someone is shooting for the moon they always go to the bottom of each cascading menu?
@@ -355,7 +356,11 @@ public class GenericGlue
           {"            (1)-5-(0)---(0)---(1) Runcinated 120/600-cell",         "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
           {"            (1)-5-(0)---(1)---(0) Cantellated 120-cell",            "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(0)---(1) Cantellated 600-cell",            "1"},  // vertex figure not simplex
-          {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1,3(4)"},
+
+          //{"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1,3(4)"}, // XXX commented out for now, the 3(4) is assert-failing
+          {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1"},
+
+
           {"            (1)-5-(1)---(0)---(1) Runcitruncated 120-cell",         "1"}, // vertex figure not simplex
           {"            (1)-5-(0)---(1)---(1) Runcitruncated 600-cell",         "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1)---(1) Cantitruncated 600-cell",         "1,3"},
@@ -406,18 +411,18 @@ public class GenericGlue
           {"        {100}x{4} Onehundredagonal prism prism",    "1,3"},
           {"        {3}x{3}",                                   "1,3(4.0),5(7.0),7(10.0)"},
           {"        {3}x{5}",                                   "1,3(4.0),5(7.0),7(10.0)"},
-          {"        {5}x{5}",                                   "1,2,3(2.5),3,4,5,6,7"}, // XXX 2 is ugly, has slivers
-          {"        {5}x{10}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
-          {"        {10}x{5}",                                  "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
-          {"        {10}x{10}",                                 "1,3(2.5),3"}, // XXX 2 is ugly, has slivers
+          {"        {5}x{5}",                                   "1,2,3(2.5),3,4,5,6,7"},
+          {"        {5}x{10}",                                  "1,3(2.5),3"},
+          {"        {10}x{5}",                                  "1,3(2.5),3"},
+          {"        {10}x{10}",                                 "1,3(2.5),3"},
           {"5d puzzles"},
           {"    {3,3,3,3} Simplex",        "1,3(6.0),5(11.0)"},
           {"    {4,3,3,3} Hypercube",      "1,2,3,4,5"},
-          {"    {3,3,3,4} Cross",          "1"}, // vertex figure not simplex
+          {"    {3,3,3,4} Cross",          "1,2,3"},
           {"6d puzzles"},
           {"    {3,3,3,3,3} Simplex",      "1,3(7.0)"},
           {"    {4,3,3,3,3} Hypercube",    "1,2,3"},
-          {"    {3,3,3,3,4} Cross",        "1"}, // vertex figure not simplex
+          {"    {3,3,3,3,4} Cross",        "1,2,3"},
           {"-"}, // separator
           //{"Invent my own!",}, // XXX currently done by the older code down below-- need to port and get rid of that
         }; // menuScheme
@@ -1742,6 +1747,65 @@ public class GenericGlue
     }
     public static boolean isLeftMouseButton(MouseEvent anEvent) {
          return ((anEvent.getModifiers() & InputEvent.BUTTON1_MASK) != 0);
+    }
+
+
+    //
+    // Little test program that tries every puzzle description in the menu,
+    // and makes sure no exceptions are thrown
+    //
+    public static void main(String args[])
+    {
+        System.out.println("in GenericGlue.main");
+        //GenericGlue.verboseLevel = 1;
+        GenericGlue glue = new GenericGlue(null);
+        java.awt.Menu puzzlemenu = new Menu();
+        Label statusLabel = new Label(); // Label or JLabel
+        Callback initPuzzleCallback = new Callback() { public void call() {} };
+        glue.addMoreItemsToPuzzleMenu(puzzlemenu,
+                                      statusLabel,
+                                      initPuzzleCallback);
+        traverse(puzzlemenu, 0);
+        System.out.println("out GenericGlue.main");
+    } // main
+    private static void traverse(java.awt.Menu menu, int level)
+    {
+        for (int i = 0; i < level; ++i) System.out.print("    ");
+        System.out.println("in traverse, level = "+level);
+
+        for (int i = 0; i < level; ++i) System.out.print("    ");
+        System.out.println("\""+menu.getLabel()+"\"");
+
+        int nItems = menu.getItemCount();
+        for (int iItem = 0; iItem < nItems; ++iItem)
+        {
+            MenuItem child = menu.getItem(iItem);
+            if (child instanceof Menu)
+            {
+                traverse((Menu)child, level+1);
+            }
+            else
+            {
+                for (int i = 0; i < level; ++i) System.out.print("    ");
+                System.out.println("    "+child.getClass().getName()+": \""+child.getLabel()+"\"");
+                ActionListener[] listeners = (ActionListener[])child.getListeners(ActionListener.class);
+                for (int i = 0; i < level; ++i) System.out.print("    ");
+                System.out.println("    "+listeners.length+" action listener");
+                Assert(listeners.length <= 1);
+                for (int iListener = 0; iListener < listeners.length; ++iListener)
+                {
+                    for (int i = 0; i < level; ++i) System.out.print("    ");
+                    System.out.println("    calling the listener action");
+
+                    ActionListener listener = listeners[iListener];
+                    ActionEvent actionEvent = null;
+                    listener.actionPerformed(actionEvent);
+                }
+            }
+        }
+
+        for (int i = 0; i < level; ++i) System.out.print("    ");
+        System.out.println("out traverse, level = "+level);
     }
 
 
