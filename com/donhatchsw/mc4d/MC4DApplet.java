@@ -254,7 +254,7 @@ public class MC4DApplet
             public void add(final String labelText, final PopupMenu menu)
             {
                 add(new Label(labelText) {{
-                    add(menu); // necessary, but doesn't really do anything except make the menu feel loved
+                    this.add(menu); // necessary, but doesn't really do anything except make the menu feel loved
                     addMouseListener(new MouseListener() {
                         public void mouseClicked(MouseEvent me)
                         {
