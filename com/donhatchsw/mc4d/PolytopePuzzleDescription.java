@@ -21,7 +21,7 @@
                 and ctrled mouse actions *will*,
                 and furthermore ctrled mouse actions will not do twists.
                 To summarize:
-                                   default    "Require Ctrl Key To Spin Drag"
+                                default mode  "Require Ctrl Key To Spin Drag"
                              +----------------+------------------+
                    un-ctrled |    twists yes  |    twists yes    |
                              |    3drot yes   |    3drot no      |
@@ -87,14 +87,11 @@
             - no save/load (menus are probably misleading)
             - no macros (menus are probably misleading)
             - color choosing is very primitive
-            - some of the even-length puzzles have spurious extra
-              very thin stickers at the halfway planes
             - sometimes the highlighted sticker fails to get updated correctly
               at the end of a twist (jiggle the mouse to fix it)
             - no real solve
             - scramble only affects outer or 2nd slices (you'll
               only notice this if your puzzle length is >= 6)
-            - contiguous cubies not implemented (even if gui says otherwise)
             - The frame display routines are not optimized for memory use,
               which means they place a heavy load on the garbage collector.
               This can cause short but noticeable pauses during
@@ -421,6 +418,25 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private static void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
     private static void Assumpt(boolean condition) { if (!condition) throw new Error("Assumption failed"); }
+
+    private static String millisToSecsString(long millis)
+    {
+        // argh, %f not implemented
+        //return com.donhatchsw.compat.Format.sprintf("%.3f", millis*.001);
+        String answer = "";
+        if (millis < 0)
+        {
+            answer += "-";
+            millis = -millis;
+        }
+        answer += millis/1000
+                + "."
+                + millis / 100 % 10
+                + millis / 10 % 10
+                + millis % 10;
+        return answer;
+    }
+
     
 
     /**
@@ -522,7 +538,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
             progressWriter.flush();
         }
-        com.donhatchsw.util.CSG.orientDeep(originalPolytope); // XXX shouldn't be necessary!!!!
 
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
 
@@ -794,7 +809,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (progressWriter != null)
             {
-                progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers) ("+((endTimeMillis-startTimeMillis)*.001)+" seconds)");
+                progressWriter.println(" done ("+slicedPolytope.p.facets.length+" stickers) ("+millisToSecsString(endTimeMillis-startTimeMillis)+" seconds)");
                 progressWriter.flush();
             }
 
@@ -879,15 +894,15 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 if (progressWriter != null)
                 {
-                    progressWriter.print("    Fixing orientations (argh!)... ");
+                    progressWriter.print("    Fixing facet orderings... ");
                     progressWriter.flush();
                 }
                 startTimeMillis = System.currentTimeMillis();
-                com.donhatchsw.util.CSG.orientDeep(slicedPolytope); // XXX shouldn't be necessary!!!!
+                com.donhatchsw.util.CSG.orientDeepCosmetic(slicedPolytope);
                 endTimeMillis = System.currentTimeMillis();
                 if (progressWriter != null)
                 {
-                    progressWriter.println(" done ("+((endTimeMillis-startTimeMillis)*.001)+" seconds)");
+                    progressWriter.println(" done ("+millisToSecsString(endTimeMillis-startTimeMillis)+" seconds)");
                     progressWriter.flush();
                 }
             }
@@ -1424,7 +1439,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (progressWriter != null)
             {
                 progressWriter.print(" ("+this.grip2face.length+" grips)");
-                progressWriter.println(" done ("+((endTimeMillis-startTimeMillis)*.001)+" seconds)");
+                progressWriter.println(" done ("+millisToSecsString(endTimeMillis-startTimeMillis)+" seconds)");
                 progressWriter.flush();
             }
         } // intLength > 1
