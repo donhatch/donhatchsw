@@ -1166,7 +1166,6 @@ public class UndoTreeViewer
             // PAINT (the surrounding example)
             public void paintComponent(java.awt.Graphics g)
             {
-                int w = getWidth(), h = getHeight();
                 if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    in paintComponent");
 
                 boolean isAFollower = otherViewThatThisViewShouldFollowAround != null;
@@ -1188,7 +1187,7 @@ public class UndoTreeViewer
                 }
 
                 g.setColor(java.awt.Color.black);
-                g.fillRect(0,0,w,h);
+                g.fillRect(0,0,getWidth(),getHeight());
                 undoTreeViewer.paint(this, g);
 
                 
