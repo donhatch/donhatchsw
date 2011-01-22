@@ -926,7 +926,9 @@ public class GenericPipelineUtils
         }
         else
         {
-            int iGrip = frame.puzzleDescription.getClosestGrip(stickerCenter);
+            int iGrip = frame.puzzleDescription.getClosestGrip(
+                            faceCenter,
+                            VecMath.vmv(stickerCenter, faceCenter));
             //System.out.println("    the closest grip to "+VecMath.toString(stickerCenter)+" is "+iGrip);
             return iGrip;
         }
