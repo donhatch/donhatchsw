@@ -1045,9 +1045,9 @@ public class Cpp
     public static class ParsedCommandLineArgs
     {
         String inFileNames[];
-        String includePath[]; // -I
+        String includePath[]; // from -I flags, and language if c or c++
         String commandLineFakeInput; // #defines for -D and #undefs for -U
-        String language; // -x
+        String language; // from -x flag
         boolean commentOutLineDirectives;
         public ParsedCommandLineArgs(
             String inFileNames[],
@@ -1282,7 +1282,7 @@ public class Cpp
         {
             //System.err.println("(Caught error, flushing then rethrowing)");
             writer.flush();
-            //System.err.println("(Caught error, rethrowing after flushing)");
+            //System.err.println("(Caught error, flushed, rethrowing)");
             throw e;
         }
         catch (java.io.IOException e)
