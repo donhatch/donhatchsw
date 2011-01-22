@@ -44,7 +44,7 @@ public class ExpressionParser
     private static BinaryOperator binops[] = {
         new BinaryOperator(RIGHT, 14, "**") {public double fun(double x, double y) { return Math.pow(x, y); }},
         new BinaryOperator(LEFT,  13, "*")  {public double fun(double x, double y) { return x * y; }},
-        new BinaryOperator(LEFT,  13, "/")  {public double fun(double x, double y) { return x / y; }}, // XXX hmm, this could result in wrong answers if these are supposed to be integer expressions
+        new BinaryOperator(LEFT,  13, "/")  {public double fun(double x, double y) { return x / y; }}, // special case in parse(), does integer division if we're evaluating integer expressions
         new BinaryOperator(LEFT,  13, "%")  {public double fun(double x, double y) { return x % y; }},
         new BinaryOperator(LEFT,  12, "+")  {public double fun(double x, double y) { return x + y; }},
         new BinaryOperator(LEFT,  12, "-")  {public double fun(double x, double y) { return x - y; }},
@@ -141,12 +141,16 @@ public class ExpressionParser
                     return ops[iOp];
                 else
                 {
-                    // Put it back and don't continue;
+                    // Put it back
+                    reader.seek(pos);
+                    // And don't continue;
                     // e.g. if && is on the input
                     // but its precedence is too low to be recognized,
                     // we want to leave the thole thing on the input
-                    // rather than reading the '&'.
-                    reader.seek(pos);
+                    // rather than reading the '&',
+                    // so that the '&&' will be there later
+                    // when the stack has been popped and we are ready
+                    // for the lower precedence.
                     return null;
                 }
             }
@@ -242,7 +246,6 @@ public class ExpressionParser
                          int lowestPrecAllowed,
                          boolean evaluate,
                          boolean intsOnly)
-
     {
         double returnVal = 0.;
 
@@ -263,7 +266,8 @@ public class ExpressionParser
                 // XXX TODO: define the kind of exception we're going to throw, be able to return the index in it?
                 throw new RuntimeException(reader.peek() == -1
                     ? "unexpected end-of-expression"
-                    : "syntax error near '"+(char)reader.peek()+"'");
+                    : ("syntax error near '"+(char)reader.peek()+"'"
+                     + " at index "+reader.tell()));
             }
         }
         else
@@ -324,7 +328,7 @@ public class ExpressionParser
                                  false); // intsOnly
         reader.discardSpaces();
         if (reader.peek() != -1)
-            throw new RuntimeException("extra stuff at end of double expression");
+            throw new RuntimeException("syntax error in double expression at position "+reader.tell());
         return returnVal;
     }
 
@@ -337,7 +341,7 @@ public class ExpressionParser
                                    true); // intsOnly
         reader.discardSpaces();
         if (reader.peek() != -1)
-            throw new RuntimeException("extra stuff at end of int expression");
+            throw new RuntimeException("syntax error in int expression at position "+reader.tell());
         return returnVal;
     }
 
@@ -354,10 +358,15 @@ public class ExpressionParser
             s += " " + args[i];
 
         ExpressionParser parser = new ExpressionParser();
+
+        System.out.println("As double expression:");
         double d = parser.evaluateDoubleExpression(s);
         System.out.println(d);
+
+        System.out.println("As int expression:");
         int i = parser.evaluateIntExpression(s);
         System.out.println(i);
+
     } // main
 
 
