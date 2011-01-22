@@ -1790,7 +1790,38 @@ public class GenericGlue
             {
                 for (int i = 0; i < level; ++i) System.out.print("    ");
                 System.out.println("    "+child.getClass().getName()+": \""+child.getLabel()+"\"");
-                ActionListener[] listeners = (ActionListener[])child.getListeners(ActionListener.class);
+
+
+
+                // Bleah, in >= 1.3 there's getListeners()... what do I do in <= 1.2?  For now, we just use reflection so it will compile, and it will bomb if the runtime is <= 1.2
+                //ActionListener[] listeners = (ActionListener[])child.getListeners(ActionListener.class);
+
+                ActionListener[] listeners = null;
+                {
+                    Class childClass = child.getClass();
+                    java.lang.reflect.Method getListenersMethod = null;
+                    try {
+                        getListenersMethod = childClass.getMethod("getListeners", new Class[]{Class.class});
+                    } catch (NoSuchMethodException e) {
+                        System.err.println("NoSuchMethodException trying to get method getListeners on "+childClass);
+                        System.err.println("I think that method was introduced in java 1.3, are you using <= 1.2?");
+
+                        System.err.println("Sorry :-(");
+                        System.exit(1);
+                    };
+                    try {
+                        listeners = (ActionListener[])getListenersMethod.invoke(child, new Object[]{ActionListener.class});
+
+                    } catch (IllegalAccessException e) {
+                        System.err.println("IllegalAccessException trying to invoke getListeners!?");
+                        System.exit(1);
+                    } catch (java.lang.reflect.InvocationTargetException e) {
+                        System.err.println("InvocationTargetException trying to invoke getListeners: "+e.getTargetException());
+                        System.exit(1);
+                    }
+                }
+
+
                 for (int i = 0; i < level; ++i) System.out.print("    ");
                 System.out.println("    "+listeners.length+" action listener");
                 Assert(listeners.length <= 1);
