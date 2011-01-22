@@ -1,13 +1,15 @@
 // From an old reentrant no-memory-allocations
 // C expression parser I had lying around...
 
+// TODO: variables and functions
+
 package com.donhatchsw.javacpp;
 
 public class ExpressionParser
 {
     private static final int LEFT = 0;
     private static final int RIGHT = 1;
-    abstract static class Operator
+    private abstract static class Operator
     {
         public int assoc; // LEFT or RIGHT
         public int prec; // precedence (higher number means higher precedence)
@@ -19,7 +21,7 @@ public class ExpressionParser
             this.name = name;
         }
     }
-    abstract static class UnaryOperator extends Operator
+    private abstract static class UnaryOperator extends Operator
     {
         abstract public double fun(double x);
         public UnaryOperator(int assoc, int prec, String name)
@@ -27,7 +29,7 @@ public class ExpressionParser
             super(assoc, prec, name);
         }
     }
-    abstract static class BinaryOperator extends Operator
+    private abstract static class BinaryOperator extends Operator
     {
         abstract public double fun(double x, double y);
         public BinaryOperator(int assoc, int prec, String name)
