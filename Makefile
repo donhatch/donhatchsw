@@ -26,16 +26,28 @@
 #JAVAC=${JAVAROOT}/bin/javac -source 1.2 -target 1.1 -g
 ##JAVAC=${JAVAROOT}/bin/javac -source 1.4 -target 1.4 -g
 
-#JAVAROOT=/usr/java/jdk1.2.2
-JAVAROOT=/usr/java/jdk1.3.1_18
-#JAVAROOT=/usr/java/j2sdk1.4.2
-# there is no -source 1.2 or -source 1.1 for jikes
-JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
+##JAVAROOT=/usr/java/jdk1.2.2
+#JAVAROOT=/usr/java/jdk1.3.1_18
+##JAVAROOT=/usr/java/j2sdk1.4.2
+## there is no -source 1.2 or -source 1.1 for jikes
+#JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
+
+# cygwin on my laptop
+JAVAC=javac1.3
 
 donhatchsw.jar:
 
 # XXX Poly is a prefix of PolyCSG, so the * thing is not robust.
 # XXX also UndoTree and UndoTreeViewer and UndoTreeSquirrel, same issue
+
+
+com/donhatchsw/javacpp/ExpressionParser.class: com/donhatchsw/javacpp/ExpressionParser.java
+	${JAVAC} com/donhatchsw/javacpp/ExpressionParser.java
+com/donhatchsw/javacpp/Cpp.class: com/donhatchsw/javacpp/Cpp.java
+	${JAVAC} com/donhatchsw/javacpp/Cpp.java
+com/donhatchsw/javacpp/javacpp.class: com/donhatchsw/javacpp/javacpp.java
+	${JAVAC} com/donhatchsw/javacpp/javacpp.java
+
 
 com/donhatchsw/compat/ArrayList.class: com/donhatchsw/compat/ArrayList.prejava
 	javacpp ${JAVAC} com/donhatchsw/compat/ArrayList.prejava
@@ -195,15 +207,8 @@ com/donhatchsw/mc4d/MC4DControlPanel.class: com/donhatchsw/mc4d/MC4DControlPanel
 com/donhatchsw/mc4d/MC4DApplet.class: com/donhatchsw/mc4d/MC4DApplet.java
 	${JAVAC} com/donhatchsw/mc4d/MC4DApplet.java
 
-com/donhatchsw/javacpp/javacpp.class: com/donhatchsw/javacpp/javacpp.java
-	${JAVAC} com/donhatchsw/javacpp/javacpp.java
-com/donhatchsw/javacpp/Cpp.class: com/donhatchsw/javacpp/Cpp.java
-	${JAVAC} com/donhatchsw/javacpp/Cpp.java
-com/donhatchsw/javacpp/ExpressionParser.class: com/donhatchsw/javacpp/ExpressionParser.java
-	${JAVAC} com/donhatchsw/javacpp/ExpressionParser.java
 
-
-donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/compat/ArrayList.class com/donhatchsw/compat/IntArrayList.class com/donhatchsw/compat/DoubleArrayList.class com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/IndexBinaryHeap.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/ConvexHull.class com/donhatchsw/util/Listenable.class com/donhatchsw/util/Arrows.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/awt/MyGraphics.class com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class com/donhatchsw/awt/TableLayout.class com/donhatchsw/awt/RowLayout.class com/donhatchsw/awt/ColLayout.class com/donhatchsw/awt/TablePanel.class com/donhatchsw/awt/Row.class com/donhatchsw/awt/Col.class com/donhatchsw/awt/LayoutExample.class com/donhatchsw/awt/MainWindowCount.class com/donhatchsw/util/SmoothlyVaryingViewingParameter.class com/donhatchsw/util/UndoTreeSquirrel.class com/donhatchsw/util/UndoTreeViewer.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/GenericPuzzleFactory.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DControlPanel.class com/donhatchsw/mc4d/MC4DApplet.class com/donhatchsw/javacpp/javacpp.class com/donhatchsw/javacpp/Cpp.class com/donhatchsw/javacpp/ExpressionParser.class
+donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/javacpp/ExpressionParser.class com/donhatchsw/javacpp/Cpp.class com/donhatchsw/javacpp/javacpp.class com/donhatchsw/compat/ArrayList.class com/donhatchsw/compat/IntArrayList.class com/donhatchsw/compat/DoubleArrayList.class com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/IndexBinaryHeap.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/ConvexHull.class com/donhatchsw/util/Listenable.class com/donhatchsw/util/Arrows.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/awt/MyGraphics.class com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class com/donhatchsw/awt/TableLayout.class com/donhatchsw/awt/RowLayout.class com/donhatchsw/awt/ColLayout.class com/donhatchsw/awt/TablePanel.class com/donhatchsw/awt/Row.class com/donhatchsw/awt/Col.class com/donhatchsw/awt/LayoutExample.class com/donhatchsw/awt/MainWindowCount.class com/donhatchsw/util/SmoothlyVaryingViewingParameter.class com/donhatchsw/util/UndoTreeSquirrel.class com/donhatchsw/util/UndoTreeViewer.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/GenericPuzzleFactory.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DControlPanel.class com/donhatchsw/mc4d/MC4DApplet.class
 	/bin/rm -rf scratch
 	mkdir scratch
 	cp -a Makefile RCS com scratch
@@ -268,6 +273,8 @@ doc: donhatchsw.jar
 	done
 
 	${JAVAROOT}/bin/javadoc com/donhatchsw/*/*.java
+sendMinimal: donhatchsw.jar
+	scp donhatchsw.jar hatch@plunk.org:public_html/donhatchsw/.
 send: doc
 	scp donhatchsw.jar hatch@plunk.org:public_html/donhatchsw/.
 	(cd ..; scp -r donhatchsw hatch@plunk.org:public_html/private/.)
