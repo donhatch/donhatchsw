@@ -1,0 +1,4 @@
+Manifest-Version: 1.0
+Created-By: (Don Hatch, Tue May 10 16:02:14 PDT 2005)
+Main-Class: com.donhatchsw.mc4d.MC4DApplet
+
