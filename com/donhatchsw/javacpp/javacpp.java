@@ -6,7 +6,7 @@ public class javacpp
 
     public static void main(String args[])
     {
-        Cpp1.ParsedCommandLineArgs parsedArgs = Cpp1.parseCommandLineArgs(args);
+        Cpp.ParsedCommandLineArgs parsedArgs = Cpp.parseCommandLineArgs(args);
 
         if (parsedArgs.inFileNames.length == 0)
         {
