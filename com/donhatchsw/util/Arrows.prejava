@@ -1846,26 +1846,27 @@ public class Arrows
             javax.swing.JPanel buttonRow2 = new javax.swing.JPanel();
             buttonRow2.setBackground(java.awt.Color.lightGray); // so it stands out
 
-            {
-                buttonRow1.add(new javax.swing.JButton(new javax.swing.AbstractAction("+") {
+            // In 1.3 we could just say new JButton(new AbstractAction("+"){...}) but in 1.2 we have to call addActionListener instead
+            buttonRow1.add(new javax.swing.JButton("+") {{
+                addActionListener(new javax.swing.AbstractAction() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('+');
                         if (allButtonsRelinqushFocusToCanvas)
                             canvas.requestFocus();
                     }
-                }));
-            }
-            {
-                buttonRow1.add(new javax.swing.JButton(new javax.swing.AbstractAction("-") {
+                });
+            }});
+            buttonRow1.add(new javax.swing.JButton("-") {{
+                addActionListener(new javax.swing.AbstractAction() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('-');
                         if (allButtonsRelinqushFocusToCanvas)
                             canvas.requestFocus();
                     }
-                }));
-            }
+                });
+            }});
 
             cleanCircleButton = new javax.swing.JButton("Clean Circle");
             cleanAndCenterButton = new javax.swing.JButton("Clean&Center");
@@ -1894,8 +1895,8 @@ public class Arrows
                 });
                 buttonRow1.add(child);
             }
-            {
-                buttonRow1.add(autoCleanCheckBox = new javax.swing.JCheckBox(new javax.swing.AbstractAction("Auto Clean") {
+            buttonRow1.add(autoCleanCheckBox = new javax.swing.JCheckBox("Auto Clean") {{
+                addActionListener(new javax.swing.AbstractAction() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         //setAutoClean(autoCleanCheckBox.isSelected());
@@ -1903,8 +1904,8 @@ public class Arrows
                         if (allButtonsRelinqushFocusToCanvas)
                             canvas.requestFocus();
                     }
-                }));
-            }
+                });
+            }});
             {
                 final javax.swing.JCheckBox child = new javax.swing.JCheckBox("Labels");
                 child.addActionListener(new java.awt.event.ActionListener() {
@@ -2843,7 +2844,7 @@ public class Arrows
             }
         });
 
-        int w = 800, h = 800;
+        int w = 700, h = 700;
         if (args.length == 2)
         {
             w = Integer.parseInt(args[0]);
