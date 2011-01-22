@@ -132,20 +132,25 @@
               has the effect of regularizing the final 3d shape
               as it gets smaller).
 
-    BUGS / URGENT TODOS:
+    FIXED I think (test cases):
     ===================
-        - with multiple windows, animation doesn't go by itself any more
-        - {5,3} 3(1.0001) "stickers shrink to face boundaries" doesn't work
-        - ""{3,3}x{} 5(9)" twists are wrong and says "can't twist that"
+        - "3x3 3(4)" try to click on square, it says can't twist that
+        - "{3,3}x{} 5(9)" twists are wrong and says "can't twist that"
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
         - "(1)---(1)-4-(0)---(0) 3" twists wrong thing
-        - "(0)---(1)-4-(1)---(1) 3(4.0)" twists wrong thing
         - "(0)---(1)--(1)---(0) 3(4.0)" twists are backwards!!!
         - "(0)4(1)(1)(1) 3" twists wrong thing
         - "(0)---(1)---(1)---(1) 3(4.0)" twists wrong thing
-        - "{3}x{3} 3(4.0)" try to click on square, it says can't twist that
         - "5x5 3" and up, twists wrong thing
         - truncated hypercube, twists mostly right except twists something when left-click on center sticker
+
+    BUGS / URGENT TODOS:
+    ===================
+        - with multiple windows, animation doesn't go by itself any more
+        - 3,3,3 3  won't rotate vertex to center  (but 3(4) will)
+        - 3,3 3(4)  is flaky about rotating some vertices to center
+        - 3x4 2  needs to be carved up like 4,3,3 2, I think... uninteresting as it is since all twists have order 1
+        - {5,3} 3(1.0001) "stickers shrink to face boundaries" doesn't work
 
         - why is the progressWriter.flush() needed when doing sanity checking, to see any output at all??  makes me think something bogus is going on otherwise
         - why no package help in the javadoc any more??
@@ -1353,9 +1358,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                  gripUsefulMats[iGrip],
                                                                  gripUsefulMats[iGrip]);
 
-                                    int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFace[0][iElt][1].length :
+                                    int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFace[0][iElt][1].length : // arity (i.e. number of incident edges) of this vertex on this hyperface
                                                                iDim==1 ? 2 :
-                                                               iDim==2 ? allIncidencesThisFace[2][iElt][1].length :
+                                                               iDim==2 ? elt.facets.length :
                                                                iDim==3 ? 0 : -1 :
                                                     nDims==3 ? originalFaces[iFace].facets.length%2==0 ? originalFaces[iFace].facets.length : 2*originalFaces[iFace].facets.length : // not the proxy face!  it will be either the face gonality or 2... would be more efficient to use lcm for maxOrder, but this is 3d so whatever, the whole thing is small
                                                     nDims==2 ? 4 : -1);
@@ -1366,9 +1371,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                            maxOrder,
                                                                            gripUsefulMats[iGrip]);
                                 }
-                                // Make sure dirs and offs are normalized
+                                // Make sure dirs and offs are normalized (if not zero)
                                 this.gripDirsF[iGrip] = VecMath.normalize(this.gripDirsF[iGrip]);
-                                this.gripOffsF[iGrip] = VecMath.normalize(this.gripOffsF[iGrip]);
+                                if (this.gripSymmetryOrders[iGrip] != 0)
+                                    this.gripOffsF[iGrip] = VecMath.normalize(this.gripOffsF[iGrip]);
                                 grip2face[iGrip] = iFace;
                                 //System.out.println("iGrip = "+iGrip);
                                 //System.out.println("this.gripSymmetryOrders["+iGrip+"] = "+VecMath.toString(gripUsefulMats[iGrip]));
@@ -1415,9 +1421,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             float stickerCenter[] = VecMath.doubleToFloat(stickerCentersD[iSticker]);
                             float polyCenter[] = VecMath.doubleToFloat(VecMath.averageIndexed(stickerInds[iSticker][iPolyThisSticker], restVerts));
                             // So that it doesn't get confused and get
-                            // the wrong face...
+                            // the wrong face, bump it a little bit towards sticker center
                             VecMath.lerp(polyCenter, polyCenter, stickerCenter, .01f);
-                            int iGrip = getClosestGrip(polyCenter);
+
+                            int iGrip = getClosestGripDEPRECATED(polyCenter);
+                            // TODO: want to do the following instead, but how do we get at the face center from here?
+                            //int iGrip = getClosestGrip(faceCenter,
+                            //                           VecMath.vmv(polyCenter-faceCenter));
+
                             // Don't highlight the one that's going to say "Can't twist that"...
                             // XXX actually we should, if rotate-arbitrary-elements-to-center is on... maybe
                             if (iGrip != -1 && gripSymmetryOrders[iGrip] == 0)
@@ -1846,7 +1857,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return faceCutOffsets;
         }
 
-        public int getClosestGrip(float pickCoords[/*4*/])
+        // XXX KILL THIS VERSION, MAKE EVERYONE USE THE OTHER ONE
+        public int getClosestGripDEPRECATED(float pickCoords[/*4*/])
         {
             int bestIndex = -1;
             float bestDistSqrd = Float.MAX_VALUE;
@@ -1855,7 +1867,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 VecMath.vpsxv(gripDirPlusGripOffF,
                               gripDirsF[i],
-                              .99f,
+                              //.99f,
+                              .001f, // XXX fudge
                               gripOffsF[i]);
                 float thisDistSqrd = VecMath.distsqrd(gripDirPlusGripOffF,
                                                       pickCoords);
@@ -1869,17 +1882,17 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         // XXX lame, this should be precomputed and looked up by
         // XXX poly and sticker index.
-        // XXX This only seems to be called
-        // XXX for 3d puzzles, and it's called using
-        // XXX faceCenter, polyCenter-stickerCenter.
+        // This is called using
+        // faceCenter, polyCenter-stickerCenter.
         public int getClosestGrip(float unNormalizedDir[/*4*/],
                                   float unNormalizedOff[/*4*/])
         {
-            float mat[][] = {VecMath.copyvec(unNormalizedDir),
-                             VecMath.copyvec(unNormalizedOff)};
-            VecMath.gramschmidt(mat, mat);
-            float dir[] = mat[0];
-            float off[] = mat[1];
+            // should already be orthogonal
+            float dir[] = VecMath.normalizeOrZero(unNormalizedDir, 1e-6f);
+            float off[] = VecMath.normalizeOrZero(unNormalizedOff, 1e-6f);
+
+
+
             //System.out.println("    unNormalizedDir = "+com.donhatchsw.util.Arrays.toStringCompact(unNormalizedDir));
             //System.out.println("    unNormalizedOff = "+com.donhatchsw.util.Arrays.toStringCompact(unNormalizedOff));
             //System.out.println("        dir= "+com.donhatchsw.util.Arrays.toStringCompact(dir));
@@ -1890,12 +1903,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             float bestDistSqrd = Float.MAX_VALUE;
             float bestOffDistSqrd = Float.MAX_VALUE;
             // Primary criterion is closeness to grip dir.
-            // Secondary criterion is closeness to off dir (in case of a tie
+            // Secondary criterion is closeness to grip off dir (in case of a tie
             // in closeness to grip dir).
             for (int iGrip = 0; iGrip < gripDirsF.length; ++iGrip)
             {
-                //if (iGrip < 68) System.out.println("    gripDirsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripDirsF[iGrip]));
-                //if (iGrip < 68) System.out.println("    gripOffsF["+iGrip+"] = "+com.donhatchsw.util.Arrays.toStringCompact(gripOffsF[iGrip]));
                 float thisDistSqrd = VecMath.distsqrd(gripDirsF[iGrip],
                                                       dir);
                 if (thisDistSqrd > bestDistSqrd + eps)
