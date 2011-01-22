@@ -155,7 +155,7 @@ public class FuzzyPointHashTable
 
                 double diff = Math.abs(coord - gridLine);
                 if (littleEps < diff && diff <= bigEps)
-                    throw new FuzzyException("FuzzyPoint.hashCode: coord "+coord+" is neither equal nor unequal to grid line "+gridLine+", using littleEps="+littleEps+", bigEps="+bigEps+", bucketSize="+bucketSize+"");
+                    throw new FuzzyException("FuzzyPoint.hashCode: coord "+coord+" is neither equal nor unequal to grid line "+gridLine+", using littleEps="+littleEps+", bigEps="+bigEps+", bucketSize="+bucketSize+"    diff="+diff);
                 hash = hash*3 + gridIndex;
             }
             return hash;
