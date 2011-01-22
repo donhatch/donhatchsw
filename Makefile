@@ -5,7 +5,6 @@
 
 
 # Sticking points:
-#    - Arrows uses javax.swing.AbstractAction or something, doesn't exist in 1.2, can omit Arrows to compile with 1.2 JAVAROOT if desired
 #    - weak reference doesn't exist in 1.1... is it of any use to me then??
 #    - something's going funny with jikes and renumbering, it's looking for .prejava.lines which is wrong
 
@@ -32,8 +31,19 @@
 ## there is no -source 1.2 or -source 1.1 for jikes
 #JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
 
+
 # cygwin on my laptop
-JAVAC=javac1.3
+# with fake renumbering (so it's not quite fair):
+#     javac1.2: 1:08
+#     javac1.6: 1:42
+#     jikes with 1.2: 53 seconds
+#JAVAC=javac1.3
+#JAVAROOT=c:/jdk1.3.1_20
+#JAVAC=javac1.2
+JAVAROOT=c:/jdk1.2.2
+# there is no -source 1.2 or -source 1.1 for jikes
+JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
+
 
 donhatchsw.jar:
 
