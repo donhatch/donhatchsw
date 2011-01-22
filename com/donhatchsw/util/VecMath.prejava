@@ -1221,6 +1221,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return sum;
     }
     /** sum of elements */
+    public static float sum(float v[])
+    {
+        float sum = 0.f;
+        FORIDOWN (i, v.length)
+            sum += v[i];
+        return sum;
+    }
+    /** sum of elements */
     public static double sum(double v[])
     {
         double sum = 0.;
@@ -1266,6 +1274,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return Math.exp(logProd / array.length);
     }
 
+    /** vector sum of vectors (array rows) */
+    public static void sum(float result[], float array[][])
+    {
+        zerovec(result);
+        FORIDOWN (i, array.length)
+            vpv(result, result, array[i]);
+    }
     /** vector sum of vectors (array rows) */
     public static void sum(double result[], double array[][])
     {
@@ -2729,15 +2744,41 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             vxs(result, v, (double)1/len);
         return len;
     }
+    /** Normalize a vector, returning the previous length. In case previous length was <= eps, zero the vector and return zero. */
+    public static double normalizeOrZero(double result[], double v[], double eps)
+    {
+        double len = norm(v);
+        if (len <= eps)
+        {
+            zerovec(result);
+            len = 0;
+        }
+        else
+            vxs(result, v, (double)1/len);
+        return len;
+    }
     /** Normalize a vector, returning the previous length. */
     public static float normalize(float result[], float v[])
     {
         float len = norm(v);
-        if (len == 0)
+        if (len == 0.f)
         {
             zerovec(result);
             if (result.length >= 1)
                 result[0] = (float)1;
+        }
+        else
+            vxs(result, v, (float)1/len);
+        return len;
+    }
+    /** Normalize a vector, returning the previous length. In case previous length was <= eps, zero the vector and return zero. */
+    public static float normalizeOrZero(float result[], float v[], float eps)
+    {
+        float len = norm(v);
+        if (len <= eps)
+        {
+            zerovec(result);
+            len = 0;
         }
         else
             vxs(result, v, (float)1/len);
@@ -3296,11 +3337,23 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             normalize(result, v);
             return result; // XXX should return NULL on failure?  Not sure
         }
+        public static double[] normalizeOrZero(double v[], double eps)
+        {
+            double result[] = new double[v.length];
+            normalizeOrZero(result, v, eps);
+            return result;
+        }
         public static float[] normalize(float v[])
         {
             float result[] = new float[v.length];
             normalize(result, v);
             return result; // XXX should return NULL on failure?  Not sure
+        }
+        public static float[] normalizeOrZero(float v[], float eps)
+        {
+            float result[] = new float[v.length];
+            normalizeOrZero(result, v, eps);
+            return result;
         }
 
         /** v0 as a single-column matrix times v1 as a single-row matrix,
@@ -3446,6 +3499,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             boolean result[][] = new boolean[dim0][dim1];
             fillmat(result,s);
+            return result;
+        }
+        /** vector sum, returning newly allocated result */
+        public static float[] sum(float array[][])
+        {
+            if (array.length == 0)
+                return null;
+            float result[] = new float[array[0].length];
+            sum(result, array);
             return result;
         }
         /** vector sum, returning newly allocated result */
