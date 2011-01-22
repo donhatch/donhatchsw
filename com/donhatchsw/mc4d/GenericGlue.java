@@ -1762,14 +1762,15 @@ public class GenericGlue
         java.awt.Menu puzzlemenu = new Menu();
         Label statusLabel = new Label(); // Label or JLabel
         Callback initPuzzleCallback = new Callback() { public void call() {} };
+        int skip = (args.length > 0 ? Integer.parseInt(args[0]) : 0);
         glue.addMoreItemsToPuzzleMenu(puzzlemenu,
                                       statusLabel,
                                       initPuzzleCallback);
-        int nDone = traverse(puzzlemenu, 0, 0);
+        int nDone = traverse(puzzlemenu, 0, 0, skip);
         System.out.println("nDone = "+nDone);
         System.out.println("out GenericGlue.main");
     } // main
-    private static int traverse(java.awt.Menu menu, int level, int nDone)
+    private static int traverse(java.awt.Menu menu, int level, int nDone, int skip)
     {
         for (int i = 0; i < level; ++i) System.out.print("    ");
         System.out.println("in traverse, level = "+level+", nDone="+nDone);
@@ -1783,7 +1784,7 @@ public class GenericGlue
             MenuItem child = menu.getItem(iItem);
             if (child instanceof Menu)
             {
-                nDone = traverse((Menu)child, level+1, nDone);
+                nDone = traverse((Menu)child, level+1, nDone, skip);
             }
             else
             {
@@ -1795,8 +1796,6 @@ public class GenericGlue
                 Assert(listeners.length <= 1);
                 for (int iListener = 0; iListener < listeners.length; ++iListener)
                 {
-                    int skip = 0; // can change this to something else to skip
-                    //int skip = 328; // can change this to something else to skip
                     if (nDone >= skip)
                     {
                         for (int i = 0; i < level; ++i) System.out.print("    ");
