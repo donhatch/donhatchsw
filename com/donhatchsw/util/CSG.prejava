@@ -980,7 +980,11 @@ public final class CSG
                 {
                     answer.sign *= -1;
                     // XXX should do the push-down-sign thing? yes
-                    orientDeep(answer); // XXX really only want push-down-sign thing
+
+                    orientDeepFunctional(answer);
+                    orientDeepCosmetic(answer);
+
+                    // XXX really only want push-down-sign thing
                     // XXX and it's not even implemented!!! grrr
                 }
                 //PRINT(volume(answer));
@@ -2083,7 +2087,8 @@ public final class CSG
                         e.contributingHyperplanes = unionOfHyperplanesAndSort(e.contributingHyperplanes, hyperplanes);
                     }
                 }
-                orientDeep(sp);
+                orientDeepFunctional(sp);
+                orientDeepCosmetic(sp);
             }
         } // bootstrapHyperplanes
 
@@ -4229,8 +4234,12 @@ public final class CSG
                               VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, 2*Math.PI/maxPossibleOrder),
                               usefulMat);
 
-            FuzzyPointHashTable hashTable = new FuzzyPointHashTable(1e-9,
-                                                                    1e-8,
+            //double littleEps = 1e-9, bigEps = 1e-8; // gives this: FuzzyException: FuzzyPoint.hashCode: coord -16.34765624446268 is neither equal nor unequal to grid line -16.34765625, using littleEps=1.0E-9, bigEps=1.0E-8, bucketSize=0.001953125
+            //double littleEps = 1e-8, bigEps = 1e-7; // another similar error
+            double littleEps = 1e-10, bigEps = 1e-9;
+
+            FuzzyPointHashTable hashTable = new FuzzyPointHashTable(littleEps,
+                                                                    bigEps,
                                                                     1./512);
             Polytope verts[] = p.getAllElements()[0];
             int nVerts = verts.length;
@@ -4620,7 +4629,10 @@ public final class CSG
             // So, just orient after the fact.  Sigh.
             //
             if (true)
-                orientDeep(AB);
+            {
+                orientDeepFunctional(AB);
+                orientDeepCosmetic(AB);
+            }
 
             return AB;
         } // cross
@@ -5081,6 +5093,120 @@ public final class CSG
                 else // slicee.p.dim >= 2
                 {
                     assert(slicee.p.dim >= 2);
+
+
+                    // The following is a huge time savings--
+                    // "{5,3,3} 3" went down from 12 seconds to 2.176 seconds
+                    // from the verts test, and down to 1.836 seconds
+                    // with the bbox test too.
+                    // Hmm, with the bbox test only, it actually went down
+                    // to 1.524 seconds... so maybe the verts test isn't worthwhile
+                    if (true)
+                    {
+                        boolean allVertsAreKnownToBeBelow = false;
+                        boolean allVertsAreKnownToBeAbove = false;
+                        if (true)
+                        {
+                            // not sure if the bbox test will be a savings
+                            double bbox[][] = slicee.p.getBBox();
+                            int fullDim = slicee.p.fullDim;
+                            double minHeight = -hyperplane.offset;
+                            double maxHeight = -hyperplane.offset;
+                            FORI (iDim, fullDim)
+                            {
+                                double a = hyperplane.normal[iDim] * bbox[0][iDim];
+                                double b = hyperplane.normal[iDim] * bbox[1][iDim];
+                                if (a <= b)
+                                {
+                                    minHeight += a;
+                                    maxHeight += b;
+                                }
+                                else
+                                {
+                                    minHeight += b;
+                                    maxHeight += a;
+                                }
+                            }
+                            double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                            if (LT(maxHeight, 0., eps))
+                                allVertsAreKnownToBeBelow = true;
+                            else if (GT(minHeight, 0., eps))
+                                allVertsAreKnownToBeAbove = true;
+                        }
+
+                        // theoretically the following is a good idea,
+                        // but it actually seems to slow things down a bit
+                        if (true
+                         && !allVertsAreKnownToBeBelow
+                         && !allVertsAreKnownToBeAbove)
+                        {
+                            boolean allVertsAreBelowSoFar = true; // until proven false
+                            boolean allVertsAreAboveSoFar = true; // until proven false
+                            Polytope allVerts[] = slicee.p.getAllElements()[0];
+                            FORI (iVert, allVerts.length)
+                            {
+                                double coords[] = allVerts[iVert].getCoords();
+                                double height = VecMath.dot(coords, hyperplane.normal) - hyperplane.offset;
+                                double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                                if (GT(height, 0., eps))
+                                {
+                                    allVertsAreBelowSoFar = false;
+                                    if (!allVertsAreAboveSoFar)
+                                        break;
+                                }
+                                else if (LT(height, 0., eps))
+                                {
+                                    allVertsAreAboveSoFar = false;
+                                    if (!allVertsAreBelowSoFar)
+                                        break;
+                                }
+                                else
+                                {
+                                    allVertsAreAboveSoFar = false;
+                                    allVertsAreBelowSoFar = false;
+                                    break;
+                                }
+                            }
+                            if (allVertsAreBelowSoFar)
+                            {
+                                allVertsAreKnownToBeBelow = true;
+                                //System.out.println("hey! below after all");
+                            }
+                            else if (allVertsAreAboveSoFar)
+                            {
+                                allVertsAreKnownToBeAbove = true;
+                                //System.out.println("hey! above after all");
+                            }
+                        }
+
+                        if (allVertsAreKnownToBeBelow)
+                        {
+                            ocean.put(slicee.p, new Object[]{slicee.p, null, null, null});
+                            if (returnBelow != null)
+                                returnBelow[returnBelowIndex] = slicee; // XXX do we need to separate?
+                            if (returnBelowCapFacet != null)
+                                returnBelowCapFacet[returnBelowCapFacetIndex] = null;
+                            if (returnAboveCapFacet != null)
+                                returnAboveCapFacet[returnAboveCapFacetIndex] = null;
+                            if (returnAbove != null)
+                                returnAbove[returnAboveIndex] = null;
+                            return;
+                        }
+                        else if (allVertsAreKnownToBeAbove)
+                        {
+                            ocean.put(slicee.p, new Object[]{null, null, null, slicee.p});
+                            if (returnBelow != null)
+                                returnBelow[returnBelowIndex] = null;
+                            if (returnBelowCapFacet != null)
+                                returnBelowCapFacet[returnBelowCapFacetIndex] = null;
+                            if (returnAboveCapFacet != null)
+                                returnAboveCapFacet[returnAboveCapFacetIndex] = null;
+                            if (returnAbove != null)
+                                returnAbove[returnAboveIndex] = slicee; // XXX do we need to separate?
+                            return;
+                        }
+                    }
+
                     SPolytope facetsBelow[]    = new SPolytope[slicee.p.facets.length+1]; // worst case
                     SPolytope boundaryRidgesBelow[] = new SPolytope[slicee.p.facets.length];
                     SPolytope boundaryRidgesAbove[] = new SPolytope[slicee.p.facets.length];
@@ -5257,6 +5383,7 @@ public final class CSG
                         assert(nBoundaryRidgesAbove == 0);
                     }
                 } // slicee.p.dim >= 2
+
                 answer = new Object[] {below, belowCapFacet, aboveCapFacet, above};
                 ocean.put(slicee.p, answer);
             }
@@ -5740,7 +5867,8 @@ public final class CSG
                                                     null));
             }
 
-            orientDeep(result); // XXX get rid of this when I get intersect to not fuck up the orientations to begin with
+            orientDeepFunctional(result); // XXX get rid of this when I get intersect to not fuck up the orientations to begin with
+            orientDeepCosmetic(result); // XXX get rid of this when I get intersect to not fuck up the orientations to begin with
             return result;
         } // intersect
 
@@ -5766,7 +5894,7 @@ public final class CSG
 
 
         //
-        // Assign signs to a (non-yet-finished)
+        // Assign signs to a (not-yet-finished)
         // n-dimensional polytope P,
         // its facets, and the facets of the facets, etc., recursively
         // in such a way that, for every flag:
@@ -5797,22 +5925,17 @@ public final class CSG
         // XXX and cosmetic stuff,
         // XXX and cosmetic stuff should be applied even to hypercubes
         // XXX and stuff.
+        // XXX Actually I've done that, but haven't analyzed when it's appropriate to calll which, so callers generally still do both
         //
-
-        public static void orientDeep(SPolytope sp) // XXX should not be public!  change back to private after PolytopePuzzleDescription doesn't need it any more!
+        public static void orientDeepFunctional(SPolytope sp)
         {
             boolean heavySanityChecksThroughout = false; // can turn this on for debugging
-            if (heavySanityChecksThroughout)
-            {
-                // make sure we're noisy, since this is time consuming
-                System.out.println("    in orientDeep with heavy sanity checks throughout ");
-            }
 
             if (verboseLevel >= 1)
-                System.out.println("in orientDeep");
+                System.out.println("    in orientDeepFunctional");
             if (verboseLevel >= 2)
             {
-                System.out.println("    Before anything:");
+                System.out.println("        Before anything:");
                 System.out.println("        "+sp.toString("        "));
             }
 
@@ -5830,15 +5953,11 @@ public final class CSG
                         orientFacetsConsistently(ofDim[iOfDim]);
                 }
 
+                if (verboseLevel >= 1)
+                    System.out.println("        After recursively orienting everyone consistently:");
                 if (verboseLevel >= 2)
-                {
-                    System.out.println("    After recursively orienting everyone consistently:");
                     System.out.println("        "+sp.toString("        "));
-                }
             }
-
-            if (heavySanityChecksThroughout)
-                assert(isOrientedDeep(sp.p));
 
             if (false)
             {
@@ -5847,15 +5966,20 @@ public final class CSG
                 // (along some arbitrary flag),
                 // then reverse the sign of sp so it becomes right.
                 //
-                System.out.println("WARNING: orientDeep global orientation not implemented yet"); // XXX
-                if (verboseLevel >= 2)
-                {
+                System.out.println("WARNING: orientDeepFunctional global orientation not implemented yet"); // XXX
+                if (verboseLevel >= 1)
                     System.out.println("    After fixing global sign if it was wrong:");
+                if (verboseLevel >= 2)
                     System.out.println("        "+sp.toString("        "));
-                }
             }
-
-
+            if (verboseLevel >= 1)
+                System.out.println("out orientDeepFunctional");
+        } // orientDeepFunctional
+        public static void orientDeepCosmetic(SPolytope sp)
+        {
+            if (verboseLevel >= 1)
+                System.out.println("    in orientDeepCosmetic");
+            int dim = sp.p.dim;
             if (true)
             {
                 if (dim >= 1)
@@ -5871,11 +5995,10 @@ public final class CSG
                         facets[iFacet].sign *= mySign;
                     sp.sign = 1;
 
+                    if (verboseLevel >=1)
+                        System.out.println("        After pushing sign down into facets:");
                     if (verboseLevel >=2)
-                    {
-                        System.out.println("    After pushing sign down into facets:");
                         System.out.println("        "+sp.toString("        "));
-                    }
 
                     //
                     // Push sign of facet down into ridges,
@@ -5902,17 +6025,13 @@ public final class CSG
                             }
                         }
 
+                        if (verboseLevel >= 1)
+                            System.out.println("        After pushing facet signs down into ridges:");
                         if (verboseLevel >= 2)
-                        {
-                            System.out.println("    After pushing facet signs down into ridges:");
                             System.out.println("        "+sp.toString("        "));
-                        }
                     }
                 }
             }
-
-            if (heavySanityChecksThroughout)
-                assert(isOrientedDeep(sp.p));
 
 
             //
@@ -5941,15 +6060,11 @@ public final class CSG
                     }
                 }
 
+                if (verboseLevel >= 1)
+                    System.out.println("        After edge cosmetic tweak:");
                 if (verboseLevel >= 2)
-                {
-                    System.out.println("    After edge cosmetic tweak:");
                     System.out.println("        "+sp.toString("        "));
-                }
             }
-
-            if (heavySanityChecksThroughout)
-                assert(isOrientedDeep(sp.p));
 
             //
             // Face cosmetic tweak:
@@ -6050,15 +6165,11 @@ public final class CSG
                         }
                     }
                 }
+                if (verboseLevel >= 1)
+                    System.out.println("        After face cosmetic tweak:");
                 if (verboseLevel >= 2)
-                {
-                    System.out.println("    After face cosmetic tweak:");
                     System.out.println("        "+sp.toString("        "));
-                }
             } // face cosmetic tweak
-
-            if (heavySanityChecksThroughout)
-                assert(isOrientedDeep(sp.p));
 
             //
             // XXX One more potential nice cosmetic tweak:
@@ -6067,12 +6178,9 @@ public final class CSG
             {
             }
 
-            if (heavySanityChecksThroughout)
-                assert(isOrientedDeep(sp.p));
-
             if (verboseLevel >= 1)
-                System.out.println("out orientDeep");
-        } // orientDeep
+                System.out.println("    out orientDeepCosmetic");
+        } // orientDeepCosmetic
 
 
 
@@ -6285,7 +6393,7 @@ public final class CSG
 
             //
             // Make temporary SPolytopes out of the contours...
-            // XXX should avoid this if only one contour
+            // XXX should avoid this if only one contour, maybe
             //
             SPolytope contourSPolytopes[] = new SPolytope[nContours];
             {
@@ -7163,10 +7271,11 @@ public final class CSG
                     FORI (i, sliced.p.getAllElements().length)
                         System.out.println("    sliced.p.getAllElements()["+i+"] = "+sliced.p.getAllElements()[i].length);
                     assert(isOrientedDeep(sliced.p));
-                    if (true)
+                    if (true) // XXX probably no longer needed
                     {
                         System.out.println("calling orientDeep...");
-                        orientDeep(sliced); // actually does some more cosmetic stuff in addition to slicing, currently
+                        orientDeepFunctional(sliced);
+                        orientDeepCosmetic(sliced);
                         PRINT(sliced);
                     }
                     assert(isOrientedDeep(sliced.p));
