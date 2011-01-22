@@ -251,12 +251,12 @@ public class GenericGlue
           {"            (0)---(1)---(0) Octahedron",                        "1,2,3,4,5"}, // vertex figure not simplex but it works anyway
           {"            (0)---(1)---(1) Truncated tetrahedron (dual)",      "1,3(4.0)"},
           {"            (0)---(0)---(1) Tetrahedron(dual)",                 "1,3(4.0)"},
-          {"            (1)---(0)---(1) Cuboctahedron",                     "1"}, // vertex figure not simplex
+          {"            (1)---(0)---(1) Cuboctahedron",                     "1,3(4.0)"}, // vertex figure not simplex but it's fine
           {"            (1)---(1)---(1) Omnitruncated tetrahedron (truncated octahedron)",         "1,3"}, 
           {"        Cube/Octahedron based"},
           {"            (1)-4-(0)---(0) Cube",                              "1,3"},
           {"            (1)-4-(1)---(0) Truncated cube",                    "1,3(4.0)"},
-          {"            (0)-4-(1)---(0) Cuboctahedron",                     "1"}, // vertex figure not simplex
+          {"            (0)-4-(1)---(0) Cuboctahedron",                     "1,3"}, // vertex figure not simplex but it's fine
           {"            (0)-4-(1)---(1) Truncated octahedron",              "1,3"},
           {"            (0)-4-(0)---(1) Octahedron",                        "1,2,3,4,5"}, // vertex figure not simplex but it works anyway
           {"            (1)-4-(0)---(1) Rhombicuboctahedron",               "1"}, // vertex figure not simplex
@@ -264,7 +264,7 @@ public class GenericGlue
           {"        Dodecahedron/Icosahedron based"},
           {"            (1)-5-(0)---(0) Dodecahedron",                      "1,2,3(2.5),3,5,7,9"},
           {"            (1)-5-(1)---(0) Truncated dodecahedron",            "1,3(4.0)"},
-          {"            (0)-5-(1)---(0) Icosidodecahedron",                 "1"}, // vertex figure not simplex
+          {"            (0)-5-(1)---(0) Icosidodecahedron",                 "1,3(4.0)"}, // vertex figure not simplex but it's fine
           {"            (0)-5-(1)---(1) Truncated icosahedron (soccer ball)", "1,3"},
           {"            (0)-5-(0)---(1) Icosahedron",                       "1"}, // vertex figure not simplex
           {"            (1)-5-(0)---(1) Rhombicosidodecahedron",            "1"}, // vertex figure not simplex
