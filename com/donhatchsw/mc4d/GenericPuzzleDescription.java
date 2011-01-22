@@ -88,8 +88,9 @@ public interface GenericPuzzleDescription {
 
     /**
     * XXX floundering here... closest in what sense? normalized vectors on a sphere?
+    * XXX to get something robust, I had to do something pretty specific to polytopes, bleah
     */
-    public int getClosestGrip(float pickCoords[/*4*/]); // XXX maybe should go away?  still trying to figure out the cleanest way
+    public int getClosestGripDEPRECATED(float pickCoords[/*4*/]); // XXX should go away I think... see where it's called, only in the 2x2x2x2 case I think
     public int getClosestGrip(float polyCenter[/*4*/],
                               float stickerCenter[/*4*/]);
 
