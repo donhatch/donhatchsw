@@ -50,12 +50,12 @@ public class ExpressionParser
         new BinaryOperator(LEFT,  12, "-")  {public double fun(double x, double y) { return x - y; }},
         new BinaryOperator(LEFT,  11, "<<") {public double fun(double x, double y) { return (int)x << (int)y; }},
         new BinaryOperator(LEFT,  11, ">>") {public double fun(double x, double y) { return (int)x >> (int)y; }},
-        new BinaryOperator(LEFT,  10, "<=") {public double fun(double x, double y) { return (x <= y) ? 1 : 0; }},
-        new BinaryOperator(LEFT,  10, ">=") {public double fun(double x, double y) { return (x >= y) ? 1 : 0; }},
-        new BinaryOperator(LEFT,  10, "<")  {public double fun(double x, double y) { return (x < y) ? 1 : 0; }},
-        new BinaryOperator(LEFT,  10, ">")  {public double fun(double x, double y) { return (x > y) ? 1 : 0; }},
-        new BinaryOperator(LEFT,   9, "==") {public double fun(double x, double y) { return x == y? 1 : 0; }},
-        new BinaryOperator(LEFT,   9, "!=") {public double fun(double x, double y) { return x == y? 1 : 0; }}, // must come before factorial "!"
+        new BinaryOperator(LEFT,  10, "<=") {public double fun(double x, double y) { return x <= y ? 1 : 0; }},
+        new BinaryOperator(LEFT,  10, ">=") {public double fun(double x, double y) { return x >= y ? 1 : 0; }},
+        new BinaryOperator(LEFT,  10, "<")  {public double fun(double x, double y) { return x < y ? 1 : 0; }},
+        new BinaryOperator(LEFT,  10, ">")  {public double fun(double x, double y) { return x > y ? 1 : 0; }},
+        new BinaryOperator(LEFT,   9, "==") {public double fun(double x, double y) { return x == y ? 1 : 0; }},
+        new BinaryOperator(LEFT,   9, "!=") {public double fun(double x, double y) { return x != y ? 1 : 0; }}, // must come before factorial "!"
         new BinaryOperator(LEFT,   5, "&&") {public double fun(double x, double y) { return x!=0 && y!=0 ? 1 : 0; }},       // must come before "&"
         new BinaryOperator(LEFT,   4, "||") {public double fun(double x, double y) { return x!=0 || y!=0 ? 1 : 0; }},        // must come before "|"
         new BinaryOperator(LEFT,   8, "&")  {public double fun(double x, double y) { return (int)x & (int)y; }},
@@ -129,8 +129,8 @@ public class ExpressionParser
     }
 
     private static Operator getOp(ZeroOverheadStringReader reader,
-                                 Operator ops[],
-                                 int lowestPrecAllowed)
+                                  Operator ops[],
+                                  int lowestPrecAllowed)
     {
         int pos = reader.tell();
         for (int iOp = 0; iOp < ops.length; ++iOp)
@@ -171,7 +171,8 @@ public class ExpressionParser
     }
 
     // throws on failure
-    private static double getConstant(ZeroOverheadStringReader reader, boolean intsOnly)
+    private static double getConstant(ZeroOverheadStringReader reader,
+                                      boolean intsOnly)
     {
         int base = 10;
         boolean negate = false;
