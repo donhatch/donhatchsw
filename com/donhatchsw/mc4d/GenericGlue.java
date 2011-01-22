@@ -299,7 +299,7 @@ public class GenericGlue
           {"            (0)---(0)---(1)---(1) Truncated simplex (dual)",        "1,3(5.0),3(9.0)"},
           {"            (0)---(0)---(.5)---(1) Barely truncated simplex (dual)","1,3(5.0),3(9.0)"},
           {"            (0)---(0)---(0)---(1) Simplex (dual)",                  "1,3(5.0),3(9.0)"},
-          {"            (1)---(0)---(0)---(1)   (tets and triprisms)",          "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)---(0)---(0)---(1)   (tets and triprisms)",          "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
           {"            (1)---(0)---(1)---(0)",                                 "1"}, // vertex figure not simplex
           {"            (0)---(1)---(0)---(1)",                                 "1"}, // vertex figure not simplex
           {"            (1)---(1)---(1)---(0)",                                 "1,3(4.0),3(9.0)"},
@@ -317,7 +317,7 @@ public class GenericGlue
           {"            (0)-4-(0)---(1)---(1) Truncated cross",                 "1"}, // vertex figure not simplex
           {"            (0)-4-(0)---(.5)---(1) Barely truncated cross",         "1"}, // vertex figure not simplex
           {"            (0)-4-(0)---(0)---(1) Cross",                           "1"}, // vertex figure not simplex
-          {"            (1)-4-(0)---(0)---(1) Runcinated hypercube/cross (cubes, tets, and tri prisms)", "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)-4-(0)---(0)---(1) Runcinated hypercube/cross (cubes, tets, and tri prisms)", "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
           {"            (1)-4-(0)---(1)---(0) Cantellated hypercube",           "1"}, // vertex figure not simplex
           {"            (0)-4-(1)---(0)---(1)   (cuboctas and cubes)",          "1"},  // vertex figure not simplex
           {"            (1)-4-(1)---(1)---(0)",                                 "1,3(4.0)"},
@@ -326,7 +326,7 @@ public class GenericGlue
           {"            (0)-4-(1)---(1)---(1)   (truncated octas and cubes)",   "1,3"},
           {"            (1)-4-(1)---(1)---(1) Omnitruncated hypercube/cross",   "1,3"},
           {"        24-cell based"},
-          {"            (1)---(0)-4-(0)---(0) 24-cell",                         "1"}, // vertex figure not a simplex
+          {"            (1)---(0)-4-(0)---(0) 24-cell",                         "1,2,3,4,5"}, // vertex figure not a simplex, but it works anyway
           {"            (1)---(.5)-4-(0)---(0) Barely truncated 24-cell",       "1,3"},
           {"            (1)---(1)-4-(0)---(0) Truncated 24-cell",               "1,3"},
           {"            (0)---(1)-4-(0)---(0)   (cuboctas and cubes)",          "1"}, // vertex figure not simplex
@@ -335,7 +335,7 @@ public class GenericGlue
           {"            (0)---(0)-4-(1)---(1) Truncated 24-cell (dual)",        "1,3"},
           {"            (0)---(0)-4-(.5)---(1) Barely truncated 24-cell (dual)","1,3"},
           {"            (0)---(0)-4-(0)---(1) 24-cell (dual)",                  "1"}, // vertex figure not simplex
-          {"            (1)---(0)-4-(0)---(1)",                                 "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)---(0)-4-(0)---(1)",                                 "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
           {"            (1)---(0)-4-(1)---(0)",                                 "1"}, // vertex figure not simplex
           {"            (0)---(1)-4-(0)---(1)",                                 "1"},  // vertex figure not simplex
           {"            (1)---(1)-4-(1)---(0)",                                 "1,3(4.0)"},
@@ -353,11 +353,11 @@ public class GenericGlue
           {"            (0)-5-(0)---(1)---(1) Truncated 600-cell",              "1"}, // vertex figure not simplex
           {"            (0)-5-(0)---(.5)---(1) Barely truncated 600-cell",      "1"}, // vertex figure not simplex
           {"            (0)-5-(0)---(0)---(1) 600-cell",                        "1"},
-          {"            (1)-5-(0)---(0)---(1) Runcinated 120/600-cell",         "1"}, // vertex figure not simplex, it's an octahedron! so all cells look okay but it's still not good
+          {"            (1)-5-(0)---(0)---(1) Runcinated 120/600-cell",         "1,2,3"}, // vertex figure not simplex, it's an octahedron! still sort of okay, maybe
           {"            (1)-5-(0)---(1)---(0) Cantellated 120-cell",            "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(0)---(1) Cantellated 600-cell",            "1"},  // vertex figure not simplex
 
-          //{"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1,3(4)"}, // XXX commented out for now, the 3(4) is assert-failing
+          {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1,3(4)"},
           {"            (1)-5-(1)---(1)---(0) Cantitruncated 120-cell",         "1"},
 
 
@@ -1765,13 +1765,14 @@ public class GenericGlue
         glue.addMoreItemsToPuzzleMenu(puzzlemenu,
                                       statusLabel,
                                       initPuzzleCallback);
-        traverse(puzzlemenu, 0);
+        int nDone = traverse(puzzlemenu, 0, 0);
+        System.out.println("nDone = "+nDone);
         System.out.println("out GenericGlue.main");
     } // main
-    private static void traverse(java.awt.Menu menu, int level)
+    private static int traverse(java.awt.Menu menu, int level, int nDone)
     {
         for (int i = 0; i < level; ++i) System.out.print("    ");
-        System.out.println("in traverse, level = "+level);
+        System.out.println("in traverse, level = "+level+", nDone="+nDone);
 
         for (int i = 0; i < level; ++i) System.out.print("    ");
         System.out.println("\""+menu.getLabel()+"\"");
@@ -1782,7 +1783,7 @@ public class GenericGlue
             MenuItem child = menu.getItem(iItem);
             if (child instanceof Menu)
             {
-                traverse((Menu)child, level+1);
+                nDone = traverse((Menu)child, level+1, nDone);
             }
             else
             {
@@ -1794,18 +1795,26 @@ public class GenericGlue
                 Assert(listeners.length <= 1);
                 for (int iListener = 0; iListener < listeners.length; ++iListener)
                 {
-                    for (int i = 0; i < level; ++i) System.out.print("    ");
-                    System.out.println("    calling the listener action");
+                    int skip = 0; // can change this to something else to skip
+                    //int skip = 328; // can change this to something else to skip
+                    if (nDone >= skip)
+                    {
+                        for (int i = 0; i < level; ++i) System.out.print("    ");
+                        System.out.println("    calling the listener action");
+                        System.out.println("nDone = "+nDone);
 
-                    ActionListener listener = listeners[iListener];
-                    ActionEvent actionEvent = null;
-                    listener.actionPerformed(actionEvent);
+                        ActionListener listener = listeners[iListener];
+                        ActionEvent actionEvent = null;
+                        listener.actionPerformed(actionEvent);
+                    }
+                    nDone++;
                 }
             }
         }
 
         for (int i = 0; i < level; ++i) System.out.print("    ");
-        System.out.println("out traverse, level = "+level);
+        System.out.println("out traverse, level = "+level+", nDone="+nDone);
+        return nDone;
     }
 
 
