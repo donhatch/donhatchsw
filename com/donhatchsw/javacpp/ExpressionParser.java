@@ -42,6 +42,24 @@ public class ExpressionParser
         new UnaryOperator(RIGHT, 15, "~") {public double fun(double x) { return ~(int)x; }},
         new UnaryOperator(RIGHT, 15, "!") {public double fun(double x) { return (x==0 ? 1 : 0); }},
         new UnaryOperator(RIGHT, 15, "-") {public double fun(double x) { return -x; }},
+
+        // Hack to get unary math functions in quickly:
+        // treat them exactly like unary ops.
+        // So, "sqrt 4" and "cos 1" will be allowed.
+        // This actually isn't so bad.
+        new UnaryOperator(RIGHT, 15, "sqrt") {public double fun(double x) { return Math.sqrt(x); }},
+        new UnaryOperator(RIGHT, 15, "sin") {public double fun(double x) { return Math.sin(x); }},
+        new UnaryOperator(RIGHT, 15, "cos") {public double fun(double x) { return Math.cos(x); }},
+        new UnaryOperator(RIGHT, 15, "tan") {public double fun(double x) { return Math.tan(x); }},
+        new UnaryOperator(RIGHT, 15, "asin") {public double fun(double x) { return Math.asin(x); }},
+        new UnaryOperator(RIGHT, 15, "acos") {public double fun(double x) { return Math.acos(x); }},
+        new UnaryOperator(RIGHT, 15, "atan") {public double fun(double x) { return Math.atan(x); }},
+        new UnaryOperator(RIGHT, 15, "exp") {public double fun(double x) { return Math.exp(x); }},
+        new UnaryOperator(RIGHT, 15, "log") {public double fun(double x) { return Math.log(x); }},
+        new UnaryOperator(RIGHT, 15, "ceil") {public double fun(double x) { return Math.ceil(x); }},
+        new UnaryOperator(RIGHT, 15, "floor") {public double fun(double x) { return Math.floor(x); }},
+        new UnaryOperator(RIGHT, 15, "abs") {public double fun(double x) { return Math.abs(x); }},
+
     };
     private static BinaryOperator binops[] = {
         new BinaryOperator(RIGHT, 14, "**") {public double fun(double x, double y) { return Math.pow(x, y); }},
@@ -272,6 +290,10 @@ public class ExpressionParser
                      + " at index "+reader.tell()));
             }
         }
+        else if (getLiteral(reader, "pi"))
+            returnVal = Math.PI;
+        else if (getLiteral(reader, "e"))
+            returnVal = Math.E;
         else
             returnVal = getConstant(reader, intsOnly); // throws on failure
 
