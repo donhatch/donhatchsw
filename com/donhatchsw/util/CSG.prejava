@@ -4763,12 +4763,14 @@ public final class CSG
         public static SPolytope sliceElements(SPolytope slicee,
                                               int eltDim,
                                               Hyperplane hyperplane,
-                                              Object aux)
+                                              Object aux,
+                                              int sizes[]) // if not null, only slice elements with specified number of facets
         {
             SPolytope answer = _sliceElements(slicee,
                                               eltDim,
                                               hyperplane,
                                               aux,
+                                              sizes,
                                               new java.util.Hashtable(),
                                               "");
             return answer;
@@ -4778,6 +4780,7 @@ public final class CSG
                                                 int eltDim,
                                                 Hyperplane hyperplane,
                                                 Object aux,
+                                                int sizes[],
                                                 java.util.Hashtable ocean,
                                                 String indentString)
         {
@@ -4797,6 +4800,13 @@ public final class CSG
                 int nNewFacets = 0;
                 FORI (iFacet, slicee.p.facets.length)
                 {
+                    if (sizes != null
+                     && Arrays.indexOf(sizes, slicee.p.facets[iFacet].p.facets.length) == -1)
+                    {
+                        newFacets[nNewFacets++] = slicee.p.facets[iFacet];
+                        continue;
+                    }
+
                     _slice(slicee.p.facets[iFacet],
                            hyperplane,
                            aux,
@@ -4835,6 +4845,7 @@ public final class CSG
                                                        eltDim,
                                                        hyperplane,
                                                        aux,
+                                                       sizes,
                                                        ocean,
                                                        subIndentString);
             }
@@ -7265,7 +7276,7 @@ public final class CSG
 
                 if (true)
                 {
-                    SPolytope sliced = sliceElements(sp, dim-1, hyperplane, null);
+                    SPolytope sliced = sliceElements(sp, dim-1, hyperplane, null, null);
                     PRINT(sliced);
                     PRINT(sliced.p.getAllElements().length);
                     FORI (i, sliced.p.getAllElements().length)
