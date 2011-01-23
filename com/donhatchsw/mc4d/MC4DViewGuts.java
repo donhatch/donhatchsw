@@ -385,7 +385,8 @@ public class MC4DViewGuts
                     else
                     {
                         // Anything with ctrl-alt in it is undetectable
-                        // using keyTyped, at least on some platforms...
+                        // using keyTyped, at least on some platforms
+                        // (e.g. HP pavilion laptop running windows vista)
                         // so we have to detect those here in keyPressed instead
 
                         char c = ke.getKeyChar();
@@ -444,6 +445,20 @@ public class MC4DViewGuts
                             System.out.println(" -> "+viewParams.eventVerboseLevel.get());
                             ke.consume(); // XXX does this make it so subsequent handlers don't see it? dammit, no it doesn't. damn damn damn fuck fuck fuck. what does it mean?
                         }
+                        else if (c == 'h'-'a'+1
+                         && ke.isAltDown()) // ctrl-alt-h -- help on the secret ctrl-alt things
+                        {
+                            System.out.println("======================");
+                            System.out.println("Secret ctrl-alt key combinations:");
+                            System.out.println("    ctrl-alt-h -- show this help message");
+                            System.out.println("    ctrl-alt-t -- toggle useTopSort");
+                            System.out.println("    ctrl-alt-j -- cycle jitterRadius");
+                            System.out.println("    ctrl-alt-l -- toggle drawLabels");
+                            System.out.println("    ctrl-alt-p -- toggle showPartialOrder");
+                            System.out.println("    ctrl-alt-v -- cycle eventVerboseLevel");
+                            System.out.println("    ctrl-alt-space -- toggle frozenForDebugging");
+                            System.out.println("======================");
+                        }
                         else if (ke.isControlDown()
                               && ke.isAltDown()
                               && keyCode != KeyEvent.VK_ALT
@@ -464,7 +479,7 @@ public class MC4DViewGuts
                         viewState.slicemask &= ~(1<<(numkey-1)); // turn off the specified bit
                 } // keyReleased
 
-                // NOTE-- on my HP laptop running vista, keyTyped can't be used to detect things like ctrl-alt-v: once ctrl-alt is down, v no longer generates a keyTyped at all (only a key pressed and key released).  So, I moved all the ctrl-alt stuff to the keyPressed section.
+                // NOTE-- on my HP pavilion laptop running vista, keyTyped can't be used to detect things like ctrl-alt-v: once ctrl-alt is down, v no longer generates a keyTyped at all (only a key pressed and key released).  So, I moved all the ctrl-alt stuff to the keyPressed section.
                 public void keyTyped(KeyEvent ke)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("keyTyped");
