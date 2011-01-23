@@ -153,12 +153,25 @@ public class MC4DApplet
         canvas.addKeyListener(new java.awt.event.KeyListener() {
             public void keyPressed(KeyEvent ke)
             {
+                if (ke.isAltDown())
+                {
+                    // ViewGuts has a lot of secret key combinations
+                    // involving ctrl-alt, e.g. ctrl-alt-t,
+                    // so we need to be careful not to think it's ctrl-t,
+                    // which we will if we don't make sure alt isn't down.
+                    // In fact we don't want to do any of the stuff below
+                    // if alt is down, so instead of checking that everywhere,
+                    // just return early without doing anything if it's down.
+                    return;
+                }
+
                 char c = ke.getKeyChar();
 
                 // In java 1.6, apparently ctrl-letter
                 // started coming out as just the letter
                 // (with ke.isControlDown() true).
                 // Detect this and change it to the old behavior...
+                // (actually I think it was just some early 1.6's, maybe)
                 // XXX need to do something else, or nothing at all here, for old javas (1.1) in which isControlDown doesn't exist... or else just stop trying to support 1.1 at all
                 if (c >= 'a' && c <= 'z' && ke.isControlDown())
                 {
