@@ -100,7 +100,7 @@ public class GenericGlue
     public int nTwist = 0; // total number of twist frames in progress
     public int iTwist = 0; // number of twist frames done so far
      public int iTwistGrip;     // of twist in progress, if any
-     public int twistDir;      // of twist in progress, if any
+     public int twistDir_field;      // of twist in progress, if any  (called _field because a local was shadowing it and it was confusing me)
      public int twistSliceMask; // of twist in progress, if any
      public int twistIsUndo; // of twist in progress, if any-- when finished, don't put on undo stack
     //
@@ -987,7 +987,7 @@ public class GenericGlue
             if (glue.nTwist == 0) glue.nTwist = 1;
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
-            glue.twistDir = -node.dir;
+            glue.twistDir_field = -node.dir;
             glue.twistSliceMask = node.slicemask;
 
             view.repaint();
@@ -1025,7 +1025,7 @@ public class GenericGlue
             if (glue.nTwist == 0) glue.nTwist = 1;
             glue.iTwist = 0;
             glue.iTwistGrip = node.iGrip;
-            glue.twistDir = node.dir;
+            glue.twistDir_field = node.dir;
             glue.twistSliceMask = node.slicemask;
 
             view.repaint();
@@ -1286,7 +1286,7 @@ public class GenericGlue
                 if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = iGrip;
-                genericGlue.twistDir = dir;
+                genericGlue.twistDir_field = dir;
                 genericGlue.twistSliceMask = slicemask;
 
                 //
@@ -1318,7 +1318,7 @@ public class GenericGlue
 
                 genericGlue.undoq.add(new GenericGlue.HistoryNode(
                                                     genericGlue.iTwistGrip,
-                                                    genericGlue.twistDir,
+                                                    genericGlue.twistDir_field,
                                                     genericGlue.twistSliceMask));
                 genericGlue.undoPartSize++;
 
@@ -1416,7 +1416,7 @@ public class GenericGlue
         }
 
         int iGripOfTwist = -1;
-        int twistDir = 0; // yes, it shadows a field... this will all go away soon anyway I think
+        int twistDir_local = 0; // called _local because it was shadowing a field... this will all go away soon anyway I think
         int slicemask = 0;
         float fracIntoTwist = 0.f;
         GenericPipelineUtils.Frame glueFrameToDrawInto = genericGlue.untwistedFrame;
@@ -1429,7 +1429,7 @@ public class GenericGlue
             glueFrameToDrawInto = genericGlue.twistingFrame;
 
             iGripOfTwist = genericGlue.iTwistGrip;
-            twistDir = genericGlue.twistDir;
+            twistDir_local = genericGlue.twistDir_field;
             slicemask = genericGlue.twistSliceMask;
 
             fracIntoTwist = (float)interp.func((genericGlue.iTwist+1)/(float)genericGlue.nTwist);
@@ -1465,7 +1465,7 @@ public class GenericGlue
             stickersShrinkTowardFaceBoundaries,
 
             iGripOfTwist,
-              twistDir,
+              twistDir_local,
               slicemask,
               fracIntoTwist,
 
@@ -1535,7 +1535,7 @@ public class GenericGlue
                 model.genericPuzzleDescription.applyTwistToState(
                             model.genericPuzzleState,
                             genericGlue.iTwistGrip,
-                            genericGlue.twistDir,
+                            genericGlue.twistDir_field,
                             genericGlue.twistSliceMask);
                 // XXX need to update the hovered-over sticker! I think.
                 // XXX it would suffice to just call the mouseMoved callback... but maybe we don't want to do that after every frame in the cheat
@@ -1566,7 +1566,7 @@ public class GenericGlue
                 if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;
                 genericGlue.iTwist = 0;
                 genericGlue.iTwistGrip = node.iGrip;
-                genericGlue.twistDir = -node.dir;
+                genericGlue.twistDir_field = -node.dir;
                 genericGlue.twistSliceMask = node.slicemask;
 
                 view.repaint();
