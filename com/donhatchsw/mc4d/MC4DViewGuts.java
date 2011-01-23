@@ -382,6 +382,77 @@ public class MC4DViewGuts
                     int numkey = keyCode - KeyEvent.VK_0;
                     if(1 <= numkey && numkey <= 9)
                         viewState.slicemask |= 1<<(numkey-1); // turn on the specified bit
+                    else
+                    {
+                        // Anything with ctrl-alt in it is undetectable
+                        // using keyTyped, at least on some platforms...
+                        // so we have to detect those here in keyPressed instead
+
+                        char c = ke.getKeyChar();
+                        //System.out.println("============generic keyPressed listener got key '"+c+"'("+(int)c+")"); // XXX escapify!
+                        if (false) {}
+                        else if (c == 't'-'a'+1
+                         && ke.isAltDown()) // ctrl-alt-t
+                        {
+                            System.out.println("useTopsort "+viewParams.useTopsort.get()+" -> "+!viewParams.useTopsort.get()+"");
+                            viewParams.useTopsort.set(!viewParams.useTopsort.get());
+                            if (viewComponent != null)
+                                viewComponent.repaint();
+                        }
+                        else if (c == 'j'-'a'+1
+                         && ke.isAltDown()) // ctrl-alt-j
+                        {
+                            int jitterRadius = viewParams.jitterRadius.get();
+                            jitterRadius++;
+                            if (jitterRadius > viewParams.jitterRadius.max())
+                                jitterRadius = viewParams.jitterRadius.min();
+                            System.out.println("jitterRadius "+viewParams.jitterRadius.get()+" -> "+jitterRadius+"");
+                            viewParams.jitterRadius.set(jitterRadius);
+                            if (viewComponent != null)
+                                viewComponent.repaint();
+                        }
+                        else if (c == 'l'-'a'+1
+                         && ke.isAltDown()) // ctrl-alt-l
+                        {
+                            System.out.println("drawLabels "+viewParams.drawLabels.get()+" -> "+!viewParams.drawLabels.get()+"");
+                            viewParams.drawLabels.set(!viewParams.drawLabels.get());
+                            if (viewComponent != null)
+                                viewComponent.repaint();
+                        }
+                        else if (c == 'p'-'a'+1
+                         && ke.isAltDown()) // ctrl-alt-p
+                        {
+                            System.out.println("showPartialOrder "+viewParams.showPartialOrder.get()+" -> "+!viewParams.showPartialOrder.get()+"");
+                            viewParams.showPartialOrder.set(!viewParams.showPartialOrder.get());
+                            if (viewComponent != null)
+                                viewComponent.repaint();
+                        }
+                        else if (c == ' ' && ke.isControlDown()
+                         && ke.isAltDown()) // ctrl-alt-space
+                        {
+                            System.out.println("frozenForDebugging "+viewParams.frozenForDebugging.get()+" -> "+!viewParams.frozenForDebugging.get()+"");
+                            viewParams.frozenForDebugging.set(!viewParams.frozenForDebugging.get());
+                            viewParams.frozenPartialOrderForDebugging = null;
+                            if (viewComponent != null)
+                                viewComponent.repaint();
+                        }
+                        else if (c == 'v'-'a'+1
+                         && ke.isAltDown()) // ctrl-alt-v -- cycle eventVerboseLevel
+                        {
+                            System.out.print("eventVerboseLevel "+viewParams.eventVerboseLevel.get());
+                            viewParams.eventVerboseLevel.set((viewParams.eventVerboseLevel.get()+1) % (viewParams.eventVerboseLevel.max()-viewParams.eventVerboseLevel.min()) + viewParams.eventVerboseLevel.min());
+                            System.out.println(" -> "+viewParams.eventVerboseLevel.get());
+                            ke.consume(); // XXX does this make it so subsequent handlers don't see it? dammit, no it doesn't. damn damn damn fuck fuck fuck. what does it mean?
+                        }
+                        else if (ke.isControlDown()
+                              && ke.isAltDown()
+                              && keyCode != KeyEvent.VK_ALT
+                              && keyCode != KeyEvent.VK_CONTROL
+                              && keyCode != KeyEvent.VK_SHIFT)
+                        {
+                            System.out.println("Unrecognized key sequence ctrl-alt-"+(char)(c|64)+"");
+                        }
+                    }
                 } // keyPressed
                 public void keyReleased(KeyEvent ke)
                 {
@@ -392,11 +463,13 @@ public class MC4DViewGuts
                     if(1 <= numkey && numkey <= 9)
                         viewState.slicemask &= ~(1<<(numkey-1)); // turn off the specified bit
                 } // keyReleased
+
+                // NOTE-- on my HP laptop running vista, keyTyped can't be used to detect things like ctrl-alt-v: once ctrl-alt is down, v no longer generates a keyTyped at all (only a key pressed and key released).  So, I moved all the ctrl-alt stuff to the keyPressed section.
                 public void keyTyped(KeyEvent ke)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("keyTyped");
                     char c = ke.getKeyChar();
-                    //System.out.println("generic key listener got key '"+c+"'("+(int)c+")"); // XXX escapify!
+                    //System.out.println("============generic keyTyped listener got key '"+c+"'("+(int)c+")"); // XXX escapify!
 
                     if (false) {}
                     else if (c == 's'-'a'+1) // ctrl-s -- save
@@ -405,64 +478,9 @@ public class MC4DViewGuts
                         System.out.println("The model is...");
                         System.out.println(model);
                     }
-                    else if (c == 't'-'a'+1
-                     && ke.isAltDown()) // ctrl-alt-t
-                    {
-                        System.out.println("useTopsort "+viewParams.useTopsort.get()+" -> "+!viewParams.useTopsort.get()+"");
-                        viewParams.useTopsort.set(!viewParams.useTopsort.get());
-                        if (viewComponent != null)
-                            viewComponent.repaint();
-                    }
-                    else if (c == 'j'-'a'+1
-                     && ke.isAltDown()) // ctrl-alt-j
-                    {
-                        int jitterRadius = viewParams.jitterRadius.get();
-                        jitterRadius++;
-                        if (jitterRadius > viewParams.jitterRadius.max())
-                            jitterRadius = viewParams.jitterRadius.min();
-                        System.out.println("jitterRadius "+viewParams.jitterRadius.get()+" -> "+jitterRadius+"");
-                        viewParams.jitterRadius.set(jitterRadius);
-                        if (viewComponent != null)
-                            viewComponent.repaint();
-                    }
-                    else if (c == 'l'-'a'+1
-                     && ke.isAltDown()) // ctrl-alt-l
-                    {
-                        System.out.println("drawLabels "+viewParams.drawLabels.get()+" -> "+!viewParams.drawLabels.get()+"");
-                        viewParams.drawLabels.set(!viewParams.drawLabels.get());
-                        if (viewComponent != null)
-                            viewComponent.repaint();
-                    }
-                    else if (c == 'p'-'a'+1
-                     && ke.isAltDown()) // ctrl-alt-p
-                    {
-                        System.out.println("showPartialOrder "+viewParams.showPartialOrder.get()+" -> "+!viewParams.showPartialOrder.get()+"");
-                        viewParams.showPartialOrder.set(!viewParams.showPartialOrder.get());
-                        if (viewComponent != null)
-                            viewComponent.repaint();
-                    }
-                    else if (c == ' ' && ke.isControlDown()
-                     && ke.isAltDown()) // ctrl-alt-space
-                    {
-                        System.out.println("frozenForDebugging "+viewParams.frozenForDebugging.get()+" -> "+!viewParams.frozenForDebugging.get()+"");
-                        viewParams.frozenForDebugging.set(!viewParams.frozenForDebugging.get());
-                        viewParams.frozenPartialOrderForDebugging = null;
-                        if (viewComponent != null)
-                            viewComponent.repaint();
-                    }
-                    else if (c == 'v'-'a'+1
-                     && ke.isAltDown()) // ctrl-alt-v -- cycle eventVerboseLevel
-                    {
-                        System.out.print("eventVerboseLevel "+viewParams.eventVerboseLevel.get());
-                        viewParams.eventVerboseLevel.set((viewParams.eventVerboseLevel.get()+1) % (viewParams.eventVerboseLevel.max()-viewParams.eventVerboseLevel.min()) + viewParams.eventVerboseLevel.min());
-                        System.out.println(" -> "+viewParams.eventVerboseLevel.get());
-                        ke.consume(); // XXX does this make it so subsequent handlers don't see it? dammit, no it doesn't. damn damn damn fuck fuck fuck. what does it mean?
-                    }
-                    else if (ke.isControlDown()
-                          && ke.isAltDown())
-                    {
-                        System.out.println("Unrecognized key sequence ctrl-alt-"+(char)(c|64)+"");
-                    }
+
+
+
                 } // keyTyped
             }); // key listener
             controllerComponent.addMouseListener(this.mouseListener = new MouseListener() {
