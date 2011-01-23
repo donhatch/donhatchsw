@@ -149,7 +149,13 @@
         - with multiple windows, animation doesn't go by itself any more
         - 3,3,3 3  won't rotate vertex to center  (but 3(4) will)
         - 3,3 3(4)  is flaky about rotating some vertices to center
-        - 3x4 2  needs to be carved up like 4,3,3 2, I think... uninteresting as it is since all twists have order 1
+        - doFurtherCuts issues:
+            - 5x5 2  some stickers flicker on and off... thinks they are sort of inside out I guess, damn   (this was true when I was doFurtherCut'sing triangles as well as squares... turn that on to debug this)
+            - 3x4 2  still using old closestGrip method, so gets wrong thing when clicking on outer square
+            - maybe doFurtherCuts needs to be on if there's a triangle too (not just if there's a square), e.g. 3,3,3 2  or 3,3,4 2   or 3,4,3 2
+            - and maybe triangles need a separate scheme?  think about it
+            - maybe only further-cut only the polygons that need it? (squares, maybe triangles)
+
         - {5,3} 3(1.0001) "stickers shrink to face boundaries" doesn't work
 
         - why is the progressWriter.flush() needed when doing sanity checking, to see any output at all??  makes me think something bogus is going on otherwise
@@ -164,7 +170,9 @@
         - need to get javacpp fixed and usable before I ship this  (partially fixed now, still lame on jikes output)
         - update date of MANIFEST.INF automatically
         - need simple robust way of guaranteeing loading latest donhatchsw.jar,
-             and showing the timestamp within a program I think
+             and showing the version/timestamp within a program--
+             definitely the help menu, maybe the web page itself too
+        - need About menu before shipping
         - hotkeys don't work from java 1.6??  e.g. ctrl-c only gives what c gives
         - clicking on the < or > on side of the scrollbars only take about every other time
         - twist speed of generic 2x in melinda's is way too fast
@@ -213,13 +221,6 @@
         - side of prefs menu cut off XXX wtf was I talking about... melinda's?
         - truncated tet is picking inconsistent slices!
         - progress meter on the slice-- just notice when it's taking a long time, and start spewing percentage  (started doing this, need to make it nicer)
-        - {5}x{5} 2 has sliver polygons-- I think the isPrismOfThisFace
-          hack isn't adequate.  Also it doesnt work for {5}x{} (but that's 3d).
-          I think I need to remove the slivers after the fact instead.
-          OH hmm... the slivers are kinda cool because they are
-          rotation handles!  Think about this... maybe draw them smaller
-          and white, or something!
-
         - scale doesn't quite match original
            - oh! and the effect of viewScale2d is getting squared! see "Frame Picture" code
         - need more colors!
@@ -733,6 +734,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //System.out.println("face inward normals = "+com.donhatchsw.util.Arrays.toStringCompact(faceInwardNormals));
         //System.out.println("cut offsets = "+com.donhatchsw.util.Arrays.toStringCompact(faceCutOffsets));
 
+/* not sure why I wasn't doing it for other 2's... oh I see, the inside-out test seems to be totally screwed, although it's robust for the 2x2x2x2 for some reason.  need to fix that if we really want to allow this for everything
         // There are many different inputs that produce the 2x2x2x2,
         // so take a guess based on cut depth and element counts
         boolean itsProbablyThe2 = nDims==4
@@ -740,8 +742,22 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                && originalElements[0].length == 16
                                && originalElements[1].length == 32
                                && originalElements[2].length == 24
-                               && originalElements[3].length == 8;
-        boolean doFurtherCuts = itsProbablyThe2;
+                               && originalElements[2][0].facets.length == 4
+                               && originalElements[3].length == 8
+                               && originalElements[3][0].facets.length == 6;
+*/
+        // only need further cuts if there's a square, e.g. {5,3,3} 2 doesn't need it
+        // (hmm, do triangles need it?  separate scheme?)
+        boolean theresASquare = false;
+        for (int i = 0; i < originalElements[2].length; ++i)
+            if (originalElements[2][i].facets.length == 4)
+            {
+                theresASquare = true;
+                break;
+            }
+        boolean doFurtherCuts = nDims==4
+                             && theresASquare
+                             && doubleLength == 2.; // XXX make fuzzy?
 
         //
         // Slice!
@@ -794,7 +810,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         faceInwardNormals[iFace],
                         faceCutOffsets[iFace][iCut]);
                     Object auxOfCut = new CutInfo(iFace,iCut);
-                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut);
+                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut, null);
                     iTotalCut++;
                     if (progressWriter != null)
                     {
@@ -872,7 +888,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         faceInwardNormals[iFace],
                         (faceOffsets[iFace]+faceCutOffsets[iFace][0])/2.);
                     Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual case) that will get nulls for auxes, and that's fine
-                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut);
+                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut,
+                        new int[]{4}); // sizes (only further-cut squares) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* faces were squares
                     if (progressWriter != null)
                     {
                         progressWriter.print("."); // one dot per cut
