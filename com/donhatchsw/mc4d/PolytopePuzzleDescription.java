@@ -146,8 +146,12 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - >=5 dimensional puzzles on command line non-gracefully excepts
+        - ctrl-alt-space for debugging... doesn't stop things any more??
         - with multiple windows, animation doesn't go by itself any more
         - 3,3,3 3  won't rotate vertex to center  (but 3(4) will)
+            with normalization, now there's a problem with 4,3,3 2
+                                and with 3,3 3(4)
         - 3,3 3(4)  is flaky about rotating some vertices to center
         - doFurtherCuts issues:
             - 5x5 2  some stickers flicker on and off... thinks they are sort of inside out I guess, damn   (this was true when I was doFurtherCut'sing triangles as well as squares... turn that on to debug this)
@@ -173,7 +177,9 @@
              and showing the version/timestamp within a program--
              definitely the help menu, maybe the web page itself too
         - need About menu before shipping
+        - make sure our methods for detecting shift/alt/ctrl work in all versions (was it 1.1 -> 1.2 in which things changed?) (also maybe something in different 1.6 versions too?)
         - hotkeys don't work from java 1.6??  e.g. ctrl-c only gives what c gives
+           (seems to be okay now... was it just an early release of 1.6?)
         - clicking on the < or > on side of the scrollbars only take about every other time
         - twist speed of generic 2x in melinda's is way too fast
         - gratuitous undo tree animation is really slow and postpones puzzle animation!?
@@ -1489,8 +1495,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iElt = 0; iElt < originalElements[iDim].length; ++iElt)
             {
                 com.donhatchsw.util.CSG.cgOfVerts(eltCenter, originalElements[iDim][iElt]);
-                VecMath.copyvec(nicePointsToRotateToCenter[iNicePoint++],
-                                VecMath.doubleToFloat(eltCenter)); // XXX lame way to do this
+                // all nice points will be on unit sphere...
+                VecMath.normalize(eltCenter, eltCenter);
+                VecMath.doubleToFloat(nicePointsToRotateToCenter[iNicePoint++],
+                                      eltCenter);
             }
             Assert(iNicePoint == nNicePoints);
         }
@@ -1947,12 +1955,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return bestGrip;
         } // getClosestGrip
 
+        // no need to normalize pickCoords, since all the nice points are normalized-- closest will be same in either case
         public float[/*nDims*/] getClosestNicePointToRotateToCenter(float pickCoords[])
         {
             int bestIndex = -1;
             float bestDistSqrd = Float.MAX_VALUE;
             for (int i = 0; i < nicePointsToRotateToCenter.length; ++i)
             {
+
                 float thisDistSqrd = VecMath.distsqrd(nicePointsToRotateToCenter[i],
                                                       pickCoords);
                 if (thisDistSqrd < bestDistSqrd)
