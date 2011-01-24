@@ -631,6 +631,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** copy vector */ public static void copyvec(int n,     int result[],     int v[]) { FORI (i, n) result[i] = v[i]; }
     /** copy vector */ public static void copyvec(int n, boolean result[], boolean v[]) { FORI (i, n) result[i] = v[i]; }
 
+    /** convert double vector to float vector */ public static void doubleToFloat(float result[],  double v[]) { doubleToFloat(MIN(result.length,v.length), result, v); }
+    /** convert double vector to float vector */ public static void floatToDouble(double result[],   float v[]) { floatToDouble(MIN(result.length,v.length), result, v); }
+    /** convert double vector to float vector */ public static void doubleToFloat(int n,  float result[],  double v[]) { FORI (i, n) result[i] = (float)v[i]; }
+    /** convert double vector to float vector */ public static void floatToDouble(int n,   double result[],   float v[]) { FORI (i, n) result[i] = (double)v[i]; }
 
 
     /** set column of a matrix */
@@ -3699,12 +3703,28 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
-        /** convert float to double vector, returning newly allocated result */
+        /** convert double to float vector, returning newly allocated result */
         public static double[] floatToDouble(float v[])
         {
-            double result[] = new double[v.length];
-            FORIDOWN(i, v.length)
-                result[i] = (double)v[i];
+            return floatToDouble(v.length, v);
+        }
+        /** convert double to float vector, returning newly allocated result */
+        public static float[] doubleToFloat(double v[])
+        {
+            return doubleToFloat(v.length, v);
+        }
+        /** convert float to double vector, returning newly allocated result */
+        public static double[] floatToDouble(int n, float v[])
+        {
+            double result[] = new double[n];
+            floatToDouble(n, result, v);
+            return result;
+        }
+        /** convert double to float vector, returning newly allocated result */
+        public static float[] doubleToFloat(int n, double v[])
+        {
+            float result[] = new float[n];
+            doubleToFloat(n, result, v);
             return result;
         }
         /** convert float to double matrix, returning newly allocated result */
@@ -3713,14 +3733,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             double result[][] = new double[m.length][];
             FORIDOWN(i, m.length)
                 result[i] = floatToDouble(m[i]);
-            return result;
-        }
-        /** convert double to float vector, returning newly allocated result */
-        public static float[] doubleToFloat(double v[])
-        {
-            float result[] = new float[v.length];
-            FORIDOWN(i, v.length)
-                result[i] = (float)v[i];
             return result;
         }
         /** convert double to float matrix, returning newly allocated result */
