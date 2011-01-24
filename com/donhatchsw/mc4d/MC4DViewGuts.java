@@ -70,6 +70,16 @@ public class MC4DViewGuts
         public static InterpFunc linear_interp = new InterpFunc() {
             public float func(float x) { return x; }
         };
+        public static InterpFunc quad_interp = new InterpFunc() {
+            public float func(float x)
+            {
+                if (x <= .5f)
+                    return x*x*2.f;
+                else
+                    //return 1-func(1-x);
+                    return 1 - (1-x)*(1-x)*2.f;
+            }
+        };
 
     //
     // Puzzle description and state...
@@ -152,9 +162,11 @@ public class MC4DViewGuts
         public Listenable.Double nFrames90 = new Listenable.Double(0., 100., 30.);
         public Listenable.Double bounce = new Listenable.Double(0., 1., 0.);
 
-        // XXX I think this is used for rot to center, but not for twists (which are smoothed by the undo tree?)  work this out
-        public InterpFunc interp = sine_interp;
-        //InterpFunc interp = linear_interp;
+        // Currently this is used for rot to center, but not for twists (which are smoothed by the undo tree, which effectively uses a quadratic interpolator).
+        // I think I still like the sine one better than the quad one, which is aggravating because it's the quad for twists no matter what, I thought that was the uber solution
+        public InterpFunc interp = quad_interp;
+        //public InterpFunc interp = sine_interp;
+        //public InterpFunc interp = linear_interp;
         public Listenable.Boolean requireCtrlTo3dRotate = new Listenable.Boolean(false);
         public Listenable.Boolean restrictRoll = new Listenable.Boolean(false);
             public boolean getRestrictRoll() { return restrictRoll.get(); }
@@ -921,10 +933,10 @@ public class MC4DViewGuts
             float incmat[][] = com.donhatchsw.util.VecMath.makeRowRotMatThatSlerps(viewState.rotationFrom, viewState.rotationTo, incFrac);
             float newViewMat4d[][] = com.donhatchsw.util.VecMath.mxm(viewParams.viewMat4d.get(), incmat);
             com.donhatchsw.util.VecMath.gramschmidt(newViewMat4d, newViewMat4d);
-            viewParams.viewMat4d.set(newViewMat4d);
-            //System.out.println("    "+viewState.iRotation+"/"+viewState.nRotation+" -> "+(viewState.iRotation+1)+"/"+viewState.nRotation+"");
             if (!viewParams.frozenForDebugging.get())
             {
+                viewParams.viewMat4d.set(newViewMat4d);
+                //System.out.println("    "+viewState.iRotation+"/"+viewState.nRotation+" -> "+(viewState.iRotation+1)+"/"+viewState.nRotation+"");
                 viewState.iRotation++;
                 view.repaint(); // make sure we keep drawing while there's more to do
 
@@ -1005,7 +1017,7 @@ public class MC4DViewGuts
             viewParams.showPartialOrder.get());
 
         /*
-        if (frozenForDebugging)
+        if (viewParams.frozenForDebugging.get())
         {
             if (frozenPartialOrderForDebugging != null)
                 glueFrameToDrawInto.partialOrder = frozenPartialOrderForDebugging;
