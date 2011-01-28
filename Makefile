@@ -37,15 +37,19 @@
 #     javac1.2: 1:08
 #     javac1.6: 1:42
 #     jikes with 1.2: 53 seconds
-#JAVAC=javac1.3
+#JAVAC=javac1.6
 #JAVAROOT=c:/jdk1.3.1_20
-#JAVAC=javac1.2
-JAVAROOT=c:/jdk1.2.2
+JAVAC=javac1.2
+#JAVAROOT=c:/jdk1.2.2
 # there is no -source 1.2 or -source 1.1 for jikes
-JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
+#JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
+# hmm, if I do it that way, with jikes 1.22, and run it using java1.2, I get a "monitor is in illegal state" error in the jikes-compiled code... specifically, on exiting from any synchronized(someObject) {...} block.  So it seems I have to use javac1.2 instead of jikes.
 
 
 donhatchsw.jar:
+
+# XXX make a rule! why didn't I to begin with??
+
 
 # XXX Poly is a prefix of PolyCSG, so the * thing is not robust.
 # XXX also UndoTree and UndoTreeViewer and UndoTreeSquirrel, same issue
@@ -218,7 +222,63 @@ com/donhatchsw/mc4d/MC4DApplet.class: com/donhatchsw/mc4d/MC4DApplet.java
 	${JAVAC} com/donhatchsw/mc4d/MC4DApplet.java
 
 
-donhatchsw.jar: Makefile META-INF/MANIFEST.MF com/donhatchsw/javacpp/ExpressionParser.class com/donhatchsw/javacpp/Cpp.class com/donhatchsw/javacpp/javacpp.class com/donhatchsw/compat/ArrayList.class com/donhatchsw/compat/IntArrayList.class com/donhatchsw/compat/DoubleArrayList.class com/donhatchsw/util/MyMath.class com/donhatchsw/util/Arrays.class com/donhatchsw/util/VecMath.class com/donhatchsw/util/LinearProgramming.class com/donhatchsw/compat/regex.class com/donhatchsw/compat/Format.class com/donhatchsw/util/SortStuff.class com/donhatchsw/util/Minimizer.class com/donhatchsw/util/FuzzyPointHashTable.class com/donhatchsw/util/MergeFind.class com/donhatchsw/util/IndexBinaryHeap.class com/donhatchsw/util/TopSorter.class com/donhatchsw/util/ConvexHull.class com/donhatchsw/util/Listenable.class com/donhatchsw/util/Arrows.class com/donhatchsw/util/TriangulationOptimizer.class com/donhatchsw/util/Triangulator.class com/donhatchsw/util/Poly.class com/donhatchsw/util/CSG.class com/donhatchsw/util/PolyCSG.class com/donhatchsw/awt/MyGraphics.class com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class com/donhatchsw/awt/TableLayout.class com/donhatchsw/awt/RowLayout.class com/donhatchsw/awt/ColLayout.class com/donhatchsw/awt/TablePanel.class com/donhatchsw/awt/Row.class com/donhatchsw/awt/Col.class com/donhatchsw/awt/LayoutExample.class com/donhatchsw/awt/MainWindowCount.class com/donhatchsw/util/SmoothlyVaryingViewingParameter.class com/donhatchsw/util/UndoTreeSquirrel.class com/donhatchsw/util/UndoTreeViewer.class com/donhatchsw/applet/DoubleBufferedCanvas.class com/donhatchsw/applet/AppletUtils.class com/donhatchsw/applet/AppletViewer.class com/donhatchsw/applet/CookieUtils.class com/donhatchsw/applet/ExampleApplet.class com/donhatchsw/mc4d/GenericPuzzleDescription.class com/donhatchsw/mc4d/GenericPuzzleFactory.class com/donhatchsw/mc4d/PolytopePuzzleDescription.class com/donhatchsw/mc4d/GenericPipelineUtils.class com/donhatchsw/mc4d/MC4DModel.class com/donhatchsw/mc4d/GenericGlue.class com/donhatchsw/mc4d/MC4DViewGuts.class com/donhatchsw/mc4d/MC4DControlPanel.class com/donhatchsw/mc4d/MC4DApplet.class
+donhatchsw.jar: \
+    Makefile \
+    META-INF/MANIFEST.MF \
+    com/donhatchsw/javacpp/ExpressionParser.class \
+    com/donhatchsw/javacpp/Cpp.class \
+    com/donhatchsw/javacpp/javacpp.class \
+    com/donhatchsw/compat/ArrayList.class \
+    com/donhatchsw/compat/IntArrayList.class \
+    com/donhatchsw/compat/DoubleArrayList.class \
+    com/donhatchsw/util/MyMath.class \
+    com/donhatchsw/util/Arrays.class \
+    com/donhatchsw/util/VecMath.class \
+    com/donhatchsw/util/LinearProgramming.class \
+    com/donhatchsw/compat/regex.class \
+    com/donhatchsw/compat/Format.class \
+    com/donhatchsw/util/SortStuff.class \
+    com/donhatchsw/util/Minimizer.class \
+    com/donhatchsw/util/FuzzyPointHashTable.class \
+    com/donhatchsw/util/MergeFind.class \
+    com/donhatchsw/util/IndexBinaryHeap.class \
+    com/donhatchsw/util/TopSorter.class \
+    com/donhatchsw/util/ConvexHull.class \
+    com/donhatchsw/util/Listenable.class \
+    com/donhatchsw/util/Arrows.class \
+    com/donhatchsw/util/TriangulationOptimizer.class \
+    com/donhatchsw/util/Triangulator.class \
+    com/donhatchsw/util/Poly.class \
+    com/donhatchsw/util/CSG.class \
+    com/donhatchsw/util/PolyCSG.class \
+    com/donhatchsw/awt/MyGraphics.class \
+    com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class \
+    com/donhatchsw/awt/TableLayout.class \
+    com/donhatchsw/awt/RowLayout.class \
+    com/donhatchsw/awt/ColLayout.class \
+    com/donhatchsw/awt/TablePanel.class \
+    com/donhatchsw/awt/Row.class \
+    com/donhatchsw/awt/Col.class \
+    com/donhatchsw/awt/LayoutExample.class \
+    com/donhatchsw/awt/MainWindowCount.class \
+    com/donhatchsw/util/SmoothlyVaryingViewingParameter.class \
+    com/donhatchsw/util/UndoTreeSquirrel.class \
+    com/donhatchsw/util/UndoTreeViewer.class \
+    com/donhatchsw/applet/DoubleBufferedCanvas.class \
+    com/donhatchsw/applet/AppletUtils.class \
+    com/donhatchsw/applet/AppletViewer.class \
+    com/donhatchsw/applet/CookieUtils.class \
+    com/donhatchsw/applet/ExampleApplet.class \
+    com/donhatchsw/mc4d/GenericPuzzleDescription.class \
+    com/donhatchsw/mc4d/GenericPuzzleFactory.class \
+    com/donhatchsw/mc4d/PolytopePuzzleDescription.class \
+    com/donhatchsw/mc4d/GenericPipelineUtils.class \
+    com/donhatchsw/mc4d/MC4DModel.class \
+    com/donhatchsw/mc4d/GenericGlue.class \
+    com/donhatchsw/mc4d/MC4DViewGuts.class \
+    com/donhatchsw/mc4d/MC4DControlPanel.class \
+    com/donhatchsw/mc4d/MC4DApplet.class \
+    ${NULL}
 	/bin/rm -rf scratch
 	mkdir scratch
 	cp -a Makefile RCS com scratch
