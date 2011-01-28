@@ -48,49 +48,19 @@ JAVAC=javac1.2
 
 donhatchsw.jar:
 
-# XXX make a rule! why didn't I to begin with??
-# XXX but, in a rule, if the .prejava exists then I want to ignore the .java. how?
-
-
-# XXX Poly is a prefix of PolyCSG, so the * thing is not robust.
-# XXX also UndoTree and UndoTreeViewer and UndoTreeSquirrel, same issue
-
 
 # Pattern rule for making a .class file out of a .prejava file
 %.class : %.prejava
+	rm -f $*[.$$]class
 	javacpp ${JAVAC} $<
 	javarenumber -v 0 $*[.$$]class
 
-com/donhatchsw/javacpp/ExpressionParser.class: com/donhatchsw/javacpp/ExpressionParser.java
-	${JAVAC} com/donhatchsw/javacpp/ExpressionParser.java
-com/donhatchsw/javacpp/Cpp.class: com/donhatchsw/javacpp/Cpp.java
-	${JAVAC} com/donhatchsw/javacpp/Cpp.java
-com/donhatchsw/javacpp/javacpp.class: com/donhatchsw/javacpp/javacpp.java
-	${JAVAC} com/donhatchsw/javacpp/javacpp.java
+# Pattern rule for making a .class file out of a .java file
+%.class : %.java
+	${JAVAC} $<
 
 
-
-
-com/donhatchsw/mc4d/GenericPuzzleDescription.class: com/donhatchsw/mc4d/GenericPuzzleDescription.java
-	${JAVAC} com/donhatchsw/mc4d/GenericPuzzleDescription.java
-com/donhatchsw/mc4d/GenericPuzzleFactory.class: com/donhatchsw/mc4d/GenericPuzzleFactory.java
-	${JAVAC} com/donhatchsw/mc4d/GenericPuzzleFactory.java
-com/donhatchsw/mc4d/PolytopePuzzleDescription.class: com/donhatchsw/mc4d/PolytopePuzzleDescription.java
-	${JAVAC} com/donhatchsw/mc4d/PolytopePuzzleDescription.java
-com/donhatchsw/mc4d/GenericPipelineUtils.class: com/donhatchsw/mc4d/GenericPipelineUtils.java
-	${JAVAC} com/donhatchsw/mc4d/GenericPipelineUtils.java
-com/donhatchsw/mc4d/MC4DModel.class: com/donhatchsw/mc4d/MC4DModel.java
-	${JAVAC} com/donhatchsw/mc4d/MC4DModel.java
-com/donhatchsw/mc4d/GenericGlue.class: com/donhatchsw/mc4d/GenericGlue.java
-	${JAVAC} com/donhatchsw/mc4d/GenericGlue.java
-com/donhatchsw/mc4d/MC4DViewGuts.class: com/donhatchsw/mc4d/MC4DViewGuts.java
-	${JAVAC} com/donhatchsw/mc4d/MC4DViewGuts.java
-com/donhatchsw/mc4d/MC4DControlPanel.class: com/donhatchsw/mc4d/MC4DControlPanel.java
-	${JAVAC} com/donhatchsw/mc4d/MC4DControlPanel.java
-com/donhatchsw/mc4d/MC4DApplet.class: com/donhatchsw/mc4d/MC4DApplet.java
-	${JAVAC} com/donhatchsw/mc4d/MC4DApplet.java
-
-# XXX currently must come before UndoTreeViewer but I should get rid of this dependency, it's for the justified labels
+# Arrows currently must come before UndoTreeViewer but I should get rid of this dependency, it's for the justified labels
 # SmoothlyVaryingViewingParameter demo depends on MyGraphics
 # And UndoTreeViewer depends on SmoothlyVaryingViewingParameter
 
