@@ -46,9 +46,6 @@ JAVAC=javac1.2
 # hmm, if I do it that way, with jikes 1.22, and run it using java1.2, I get a "monitor is in illegal state" error in the jikes-compiled code... specifically, on exiting from any synchronized(someObject) {...} block.  So it seems I have to use javac1.2 instead of jikes.
 
 
-donhatchsw.jar:
-
-
 # Pattern rule for making a .class file out of a .prejava file
 %.class : %.prejava
 	rm -f $*[.$$]class
@@ -64,6 +61,7 @@ donhatchsw.jar:
 # SmoothlyVaryingViewingParameter demo depends on MyGraphics
 # And UndoTreeViewer depends on SmoothlyVaryingViewingParameter
 
+# default target
 donhatchsw.jar: \
     Makefile \
     META-INF/MANIFEST.MF \
@@ -155,19 +153,16 @@ donhatchsw.jar: \
 
 clean:
 	# do NOT remove the .java files in javacpp or mc4d !!!
+        # ASSUMPTION: everything named .html or .css is automatically generated
 	/bin/rm -rf \
             *.jar \
             com/donhatchsw/*/*.class \
             com/donhatchsw/*/*.html \
             scratch \
-            com/donhatchsw/util/*.java \
-            com/donhatchsw/util/*.java.lines \
-            com/donhatchsw/compat/*.java \
-            com/donhatchsw/compat/*.java.lines \
-            com/donhatchsw/applet/*.java \
-            com/donhatchsw/applet/*.java.lines \
-            com/donhatchsw/awt/*.java \
-            com/donhatchsw/awt/*.java.lines \
+            com/donhatchsw/util/*.java{,.lines} \
+            com/donhatchsw/compat/*.java{,.lines} \
+            com/donhatchsw/applet/*.java{,.lines} \
+            com/donhatchsw/awt/*.java{,.lines} \
             *.html \
             *.css
 
