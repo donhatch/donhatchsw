@@ -49,11 +49,17 @@ JAVAC=javac1.2
 donhatchsw.jar:
 
 # XXX make a rule! why didn't I to begin with??
+# XXX but, in a rule, if the .prejava exists then I want to ignore the .java. how?
 
 
 # XXX Poly is a prefix of PolyCSG, so the * thing is not robust.
 # XXX also UndoTree and UndoTreeViewer and UndoTreeSquirrel, same issue
 
+
+# Pattern rule for making a .class file out of a .prejava file
+%.class : %.prejava
+	javacpp ${JAVAC} $<
+	javarenumber -v 0 $*[.$$]class
 
 com/donhatchsw/javacpp/ExpressionParser.class: com/donhatchsw/javacpp/ExpressionParser.java
 	${JAVAC} com/donhatchsw/javacpp/ExpressionParser.java
@@ -63,143 +69,6 @@ com/donhatchsw/javacpp/javacpp.class: com/donhatchsw/javacpp/javacpp.java
 	${JAVAC} com/donhatchsw/javacpp/javacpp.java
 
 
-com/donhatchsw/compat/ArrayList.class: com/donhatchsw/compat/ArrayList.prejava
-	javacpp ${JAVAC} com/donhatchsw/compat/ArrayList.prejava
-	javarenumber -v 0 com/donhatchsw/compat/ArrayList*.class
-com/donhatchsw/compat/IntArrayList.class: com/donhatchsw/compat/IntArrayList.prejava
-	javacpp ${JAVAC} com/donhatchsw/compat/IntArrayList.prejava
-	javarenumber -v 0 com/donhatchsw/compat/IntArrayList*.class
-com/donhatchsw/compat/DoubleArrayList.class: com/donhatchsw/compat/DoubleArrayList.prejava
-	javacpp ${JAVAC} com/donhatchsw/compat/DoubleArrayList.prejava
-	javarenumber -v 0 com/donhatchsw/compat/DoubleArrayList*.class
-
-com/donhatchsw/util/MyMath.class: com/donhatchsw/util/MyMath.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/MyMath.prejava
-	javarenumber -v 0 com/donhatchsw/util/MyMath*.class
-com/donhatchsw/util/Arrays.class: com/donhatchsw/util/Arrays.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/Arrays.prejava
-	javarenumber -v 0 com/donhatchsw/util/Arrays*.class
-com/donhatchsw/util/VecMath.class: com/donhatchsw/util/VecMath.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/VecMath.prejava
-	javarenumber -v 0 com/donhatchsw/util/VecMath*.class
-com/donhatchsw/util/LinearProgramming.class: com/donhatchsw/util/LinearProgramming.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/LinearProgramming.prejava
-	javarenumber -v 0 com/donhatchsw/util/LinearProgramming*.class
-com/donhatchsw/compat/regex.class: com/donhatchsw/compat/regex.prejava
-	javacpp ${JAVAC} com/donhatchsw/compat/regex.prejava
-	javarenumber -v 0 com/donhatchsw/compat/regex*.class
-com/donhatchsw/compat/Format.class: com/donhatchsw/compat/Format.prejava
-	javacpp ${JAVAC} com/donhatchsw/compat/Format.prejava
-	javarenumber -v 0 com/donhatchsw/compat/Format*.class
-
-com/donhatchsw/util/SortStuff.class: com/donhatchsw/util/SortStuff.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/SortStuff.prejava
-	javarenumber -v 0 com/donhatchsw/util/SortStuff*.class
-com/donhatchsw/util/Minimizer.class: com/donhatchsw/util/Minimizer.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/Minimizer.prejava
-	javarenumber -v 0 com/donhatchsw/util/Minimizer*.class
-com/donhatchsw/util/FuzzyPointHashTable.class: com/donhatchsw/util/FuzzyPointHashTable.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/FuzzyPointHashTable.prejava
-	javarenumber -v 0 com/donhatchsw/util/FuzzyPointHashTable*.class
-com/donhatchsw/util/MergeFind.class: com/donhatchsw/util/MergeFind.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/MergeFind.prejava
-	javarenumber -v 0 com/donhatchsw/util/MergeFind*.class
-com/donhatchsw/util/IndexBinaryHeap.class: com/donhatchsw/util/IndexBinaryHeap.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/IndexBinaryHeap.prejava
-	javarenumber -v 0 com/donhatchsw/util/IndexBinaryHeap*.class
-com/donhatchsw/util/TopSorter.class: com/donhatchsw/util/TopSorter.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/TopSorter.prejava
-	javarenumber -v 0 com/donhatchsw/util/TopSorter*.class
-com/donhatchsw/util/Listenable.class: com/donhatchsw/util/Listenable.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/Listenable.prejava
-	javarenumber -v 0 com/donhatchsw/util/Listenable*.class
-com/donhatchsw/util/ConvexHull.class: com/donhatchsw/util/ConvexHull.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/ConvexHull.prejava
-	javarenumber -v 0 com/donhatchsw/util/ConvexHull*.class
-
-
-
-
-# XXX currently must come before UndoTreeViewer but I should get rid of this dependency, it's for the justified labels
-com/donhatchsw/util/Arrows.class: com/donhatchsw/util/Arrows.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/Arrows.prejava
-	javarenumber -v 0 com/donhatchsw/util/Arrows*.class
-
-com/donhatchsw/util/TriangulationOptimizer.class: com/donhatchsw/util/TriangulationOptimizer.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/TriangulationOptimizer.prejava
-	javarenumber -v 0 com/donhatchsw/util/TriangulationOptimizer*.class
-com/donhatchsw/util/Triangulator.class: com/donhatchsw/util/Triangulator.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/Triangulator.prejava
-	javarenumber -v 0 com/donhatchsw/util/Triangulator*.class
-com/donhatchsw/util/Poly.class: com/donhatchsw/util/Poly.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/Poly.prejava
-	javarenumber -v 0 com/donhatchsw/util/Poly*.class
-com/donhatchsw/util/CSG.class: com/donhatchsw/util/CSG.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/CSG.prejava
-	javarenumber -v 0 com/donhatchsw/util/CSG*.class
-com/donhatchsw/util/PolyCSG.class: com/donhatchsw/util/PolyCSG.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/PolyCSG.prejava
-	javarenumber -v 0 com/donhatchsw/util/PolyCSG*.class
-
-com/donhatchsw/awt/MyGraphics.class: com/donhatchsw/awt/MyGraphics.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/MyGraphics.prejava
-	javarenumber -v 0 com/donhatchsw/awt/MyGraphics*.class
-com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class: com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.prejava
-	javarenumber -v 0 com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful*.class
-com/donhatchsw/awt/TableLayout.class: com/donhatchsw/awt/TableLayout.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/TableLayout.prejava
-	javarenumber -v 0 com/donhatchsw/awt/TableLayout*.class
-com/donhatchsw/awt/RowLayout.class: com/donhatchsw/awt/RowLayout.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/RowLayout.prejava
-	javarenumber -v 0 com/donhatchsw/awt/RowLayout*.class
-com/donhatchsw/awt/ColLayout.class: com/donhatchsw/awt/ColLayout.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/ColLayout.prejava
-	javarenumber -v 0 com/donhatchsw/awt/ColLayout*.class
-com/donhatchsw/awt/TablePanel.class: com/donhatchsw/awt/TablePanel.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/TablePanel.prejava
-	javarenumber -v 0 com/donhatchsw/awt/TablePanel*.class
-com/donhatchsw/awt/Row.class: com/donhatchsw/awt/Row.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/Row.prejava
-	javarenumber -v 0 com/donhatchsw/awt/Row.class # no auxiliary classes so it's safe to not use * so we don't mess up RowLayout
-com/donhatchsw/awt/Col.class: com/donhatchsw/awt/Col.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/Col.prejava
-	javarenumber -v 0 com/donhatchsw/awt/Col.class # no auxiliary classes so it's safe to not use * so we don't mess up ColLayout
-com/donhatchsw/awt/LayoutExample.class: com/donhatchsw/awt/LayoutExample.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/LayoutExample.prejava
-	javarenumber -v 0 com/donhatchsw/awt/LayoutExample*.class
-com/donhatchsw/awt/MainWindowCount.class: com/donhatchsw/awt/MainWindowCount.prejava
-	javacpp ${JAVAC} com/donhatchsw/awt/MainWindowCount.prejava
-	javarenumber -v 0 com/donhatchsw/awt/MainWindowCount*.class
-
-# SmoothlyVaryingViewingParameter demo depends on MyGraphics
-com/donhatchsw/util/SmoothlyVaryingViewingParameter.class: com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/SmoothlyVaryingViewingParameter.prejava
-	javarenumber -v 0 com/donhatchsw/util/SmoothlyVaryingViewingParameter*.class
-# And UndoTreeViewer depends on SmoothlyVaryingViewingParameter
-com/donhatchsw/util/UndoTreeSquirrel.class: com/donhatchsw/util/UndoTreeSquirrel.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/UndoTreeSquirrel.prejava
-	javarenumber -v 0 com/donhatchsw/util/UndoTreeSquirrel*.class
-com/donhatchsw/util/UndoTreeViewer.class: com/donhatchsw/util/UndoTreeViewer.prejava
-	javacpp ${JAVAC} com/donhatchsw/util/UndoTreeViewer.prejava
-	javarenumber -v 0 com/donhatchsw/util/UndoTreeViewer*.class
-
-
-com/donhatchsw/applet/DoubleBufferedCanvas.class: com/donhatchsw/applet/DoubleBufferedCanvas.prejava
-	javacpp ${JAVAC} com/donhatchsw/applet/DoubleBufferedCanvas.prejava
-	javarenumber -v 0 com/donhatchsw/applet/DoubleBufferedCanvas*.class
-com/donhatchsw/applet/AppletUtils.class: com/donhatchsw/applet/AppletUtils.prejava
-	javacpp ${JAVAC} com/donhatchsw/applet/AppletUtils.prejava
-	javarenumber -v 0 com/donhatchsw/applet/AppletUtils*.class
-com/donhatchsw/applet/AppletViewer.class: com/donhatchsw/applet/AppletViewer.prejava
-	javacpp ${JAVAC} com/donhatchsw/applet/AppletViewer.prejava
-	javarenumber -v 0 com/donhatchsw/applet/AppletViewer*.class
-com/donhatchsw/applet/CookieUtils.class: com/donhatchsw/applet/CookieUtils.prejava
-	javacpp ${JAVAC} com/donhatchsw/applet/CookieUtils.prejava
-	javarenumber -v 0 com/donhatchsw/applet/CookieUtils*.class
-com/donhatchsw/applet/ExampleApplet.class: com/donhatchsw/applet/ExampleApplet.prejava
-	javacpp ${JAVAC} com/donhatchsw/applet/ExampleApplet.prejava
-	javarenumber -v 0 com/donhatchsw/applet/ExampleApplet*.class
 
 
 com/donhatchsw/mc4d/GenericPuzzleDescription.class: com/donhatchsw/mc4d/GenericPuzzleDescription.java
@@ -221,6 +90,9 @@ com/donhatchsw/mc4d/MC4DControlPanel.class: com/donhatchsw/mc4d/MC4DControlPanel
 com/donhatchsw/mc4d/MC4DApplet.class: com/donhatchsw/mc4d/MC4DApplet.java
 	${JAVAC} com/donhatchsw/mc4d/MC4DApplet.java
 
+# XXX currently must come before UndoTreeViewer but I should get rid of this dependency, it's for the justified labels
+# SmoothlyVaryingViewingParameter demo depends on MyGraphics
+# And UndoTreeViewer depends on SmoothlyVaryingViewingParameter
 
 donhatchsw.jar: \
     Makefile \
@@ -312,7 +184,7 @@ donhatchsw.jar: \
             Makefile RCS)
 
 clean:
-	# do NOT remove the .java files in mc4d or javacpp!!!
+	# do NOT remove the .java files in javacpp or mc4d !!!
 	/bin/rm -rf \
             *.jar \
             com/donhatchsw/*/*.class \
