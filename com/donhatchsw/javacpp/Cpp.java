@@ -369,15 +369,15 @@ public class Cpp
         public static final int IDENTIFIER = NUMTYPES++;     // [_a-zA-Z][_a-zA-Z0-9]*
         public static final int STRING_LITERAL = NUMTYPES++; // "([^\"]|\.)*"
         public static final int CHAR_LITERAL = NUMTYPES++;   // '([^\']|\.)*'" lenient, that's okay
-        public static final int NUMBER_LITERAL = NUMTYPES++;    // "\\.?[0-9]([0-9a-zA-Z_\\.]|[eEpP][+-])*" note that it doesn't include initial '-'! rather bizarre definition,
+        public static final int NUMBER_LITERAL = NUMTYPES++;    // "\\.?[0-9]([0-9a-zA-Z_\\.]|[eEpP][+-])*" note that it doesn't include initial '-'! rather bizarre definition, see http://gcc.gnu.org/onlinedocs/cpp/Tokenization.html
         public static final int SYMBOL = NUMTYPES++;
         public static final int SPACES = NUMTYPES++;
-        public static final int PREPROCESSOR_DIRECTIVE = NUMTYPES++;
         public static final int COMMENT = NUMTYPES++;
         public static final int COMMENT_START = NUMTYPES++; // XXX TODO: do we want this?
         public static final int COMMENT_MIDDLE = NUMTYPES++; // XXX TODO: do we want this?
         public static final int COMMENT_END = NUMTYPES++; // XXX TODO: do we want this?
         public static final int NEWLINE = NUMTYPES++;
+        public static final int PREPROCESSOR_DIRECTIVE = NUMTYPES++;
 
         public static final int MACRO_ARG = NUMTYPES++;
         public static final int MACRO_ARG_QUOTED = NUMTYPES++;
@@ -927,6 +927,11 @@ public class Cpp
             }
             else
             {
+                // At this point we should recognize symbols
+                // used by the C compiler,
+                // but it's fine to just assume they are all single chars.
+                // (For example, "&&" should be a token,
+                // but we just treat it as two tokens "&" "&" instead.)
                 token = tokenAllocator.newRefedToken(Token.SYMBOL,
                                                      lineBuffer,
                                                      currentIndex, currentIndex+1,
