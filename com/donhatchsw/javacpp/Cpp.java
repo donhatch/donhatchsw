@@ -736,7 +736,7 @@ public class Cpp
     private static class TokenStreamFromLineBuffer
     {
         private LineBuffer lineBuffer;
-        private int endIndex;
+        private int endIndex; // XXX not sure this is needed... it's always the end of the line buffer, and the line buffer always ends with '\n' which we use as the terminator when parsing it
         private int currentIndex;
         private TokenAllocator tokenAllocator;
         private boolean returnedEOF = true; // XXX maybe bad name for this... really means empty... should we just call it isEmpty? hmm... I'm confused
@@ -757,11 +757,12 @@ public class Cpp
             AssertAlways(!returnedEOF);
 
             char chars[] = lineBuffer.chars;
-            AssertAlways(chars[endIndex-1] == '\n'); // so don't need to check endIndex all the time  XXX TODO: well then get rid of all the extra checks
+            AssertAlways(chars[endIndex-1] == '\n'); // so don't need to check endIndex all the time, can just use '\n' as a terminator
 
             Token token;
             if (currentIndex == endIndex)
             {
+                // XXX should we even be here? caller should stop at the newline, maybe
                 returnedEOF = true;
                 token = null; // XXX maybe caller should guard all readTokens with isEmpty(), then can have simpler semantics?
             }
@@ -810,13 +811,11 @@ public class Cpp
                 currentIndex = tokenEndIndex;
             }
             else if (chars[currentIndex] == '/'
-                  && currentIndex+1 < endIndex
                   && chars[currentIndex+1] == '/')
             {
                 // find index of end of line (the newline or EOF)
                 int tokenEndIndex = currentIndex + 2;
-                while (tokenEndIndex < endIndex
-                    && chars[tokenEndIndex] != '\n')
+                while (chars[tokenEndIndex] != '\n')
                     tokenEndIndex++;
                 token = tokenAllocator.newRefedToken(Token.COMMENT,
                                                      lineBuffer,
@@ -830,8 +829,7 @@ public class Cpp
             {
                 // find whitespace end
                 int tokenEndIndex = currentIndex+1;
-                while (tokenEndIndex < endIndex
-                    && chars[tokenEndIndex] != '\n'
+                while (chars[tokenEndIndex] != '\n'
                     && Character.isWhitespace(chars[tokenEndIndex]))
                     tokenEndIndex++;
                 token = tokenAllocator.newRefedToken(Token.SPACES,
@@ -846,8 +844,7 @@ public class Cpp
             {
                 // find identifier end
                 int tokenEndIndex = currentIndex+1;
-                while (tokenEndIndex < endIndex
-                    && Character.isJavaIdentifierPart(chars[tokenEndIndex]))
+                while (Character.isJavaIdentifierPart(chars[tokenEndIndex]))
                     tokenEndIndex++;
                 token = tokenAllocator.newRefedToken(Token.IDENTIFIER,
                                                      lineBuffer,
@@ -858,29 +855,28 @@ public class Cpp
                 currentIndex = tokenEndIndex;
             }
             else if (Character.isDigit(chars[currentIndex])
-                  || (currentIndex < endIndex && chars[currentIndex] == '.'
-                                              && Character.isDigit(chars[currentIndex+1])))
+                  || (chars[currentIndex] == '.'
+                   && Character.isDigit(chars[currentIndex+1])))
             {
                 // From http://gcc.gnu.org/onlinedocs/cpp/Tokenization.html
                 // "A preprocessing number has a rather bizarre definition. The category includes all the normal integer and floating point constants one expects of C, but also a number of other things one might not initially recognize as a number. Formally, preprocessing numbers begin with an optional period, a required decimal digit, and then continue with any sequence of letters, digits, underscores, periods, and exponents. Exponents are the two-character sequences `e+', `e-', `E+', `E-', `p+', `p-', `P+', and `P-'. (The exponents that begin with `p' or `P' are new to C99. They are used for hexadecimal floating-point constants.)"
 
                 // find "number" end
                 int tokenEndIndex = currentIndex+1;
-                while (tokenEndIndex < endIndex)
+                while (true)
                 {
-                    if (tokenEndIndex+1 < endIndex
-                     && (chars[tokenEndIndex] == 'e'
-                      || chars[tokenEndIndex] == 'E'
-                      || chars[tokenEndIndex] == 'p'
-                      || chars[tokenEndIndex] == 'P')
-                     && (chars[tokenEndIndex+1] == '+'
-                      || chars[tokenEndIndex+1] == '-'))
+                   if ((chars[tokenEndIndex] == 'e'
+                     || chars[tokenEndIndex] == 'E'
+                     || chars[tokenEndIndex] == 'p'
+                     || chars[tokenEndIndex] == 'P')
+                    && (chars[tokenEndIndex+1] == '+'
+                     || chars[tokenEndIndex+1] == '-'))
                         tokenEndIndex += 2;
-                    else if (chars[tokenEndIndex] == '.'
-                          || chars[tokenEndIndex] == '_'
-                          || Character.isLetterOrDigit(chars[tokenEndIndex]))
+                   else if (chars[tokenEndIndex] == '.'
+                         || chars[tokenEndIndex] == '_'
+                         || Character.isLetterOrDigit(chars[tokenEndIndex]))
                         tokenEndIndex++;
-                    else
+                   else
                         break;
                 }
                 token = tokenAllocator.newRefedToken(Token.NUMBER_LITERAL,
@@ -899,14 +895,17 @@ public class Cpp
                 char quoteChar = chars[currentIndex];
                 while (true)
                 {
-                    if (tokenEndIndex >= endIndex)
-                        throw new Error("unterminated string or char literal"); // TODO: cpp doesn't do this I don't think
                     char c = chars[tokenEndIndex++];
+                    if (c == '\n')
+                        throw new Error("unterminated string or char literal"); // TODO: cpp doesn't do this I don't think
                     if (c == '\\')
                     {
-                        if (tokenEndIndex >= endIndex)
-                            throw new Error("unterminated string or char literal"); // TODO: cpp doesn't do this I don't think
-                        tokenEndIndex++; // no matter what it is.. no wait, does that include newlines?
+                        // It's impossible for us to see a backslash
+                        // followed by a newline at this point,
+                        // because the line-getting would have joined
+                        // such a line to the next line.
+                        AssertAlways(chars[tokenEndIndex] != '\n');
+                        tokenEndIndex++; // no matter what it is.
                         // backslash can be followed by up to 3 digits,
                         // or various other things, but we don't have to worry
                         // about that, we handled the necessary case
