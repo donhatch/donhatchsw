@@ -1,7 +1,7 @@
 // From an old reentrant no-memory-allocations
 // C expression parser I had lying around...
 
-// TODO: variables and functions
+// TODO: support variables and functions
 
 package com.donhatchsw.javacpp;
 
