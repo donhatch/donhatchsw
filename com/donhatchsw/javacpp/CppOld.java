@@ -1153,6 +1153,7 @@ public class CppOld
         // output to cpp,
         // although I don't really know what "system header file" means.
         // we just assume it means anything under /usr.
+        // TODO: more information at: http://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html#Preprocessor-Output
         //
         if (fileName.startsWith("/"))
         {
