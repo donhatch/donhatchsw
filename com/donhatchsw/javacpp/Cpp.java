@@ -759,6 +759,13 @@ public class Cpp
             char chars[] = lineBuffer.chars;
             AssertAlways(chars[endIndex-1] == '\n'); // so don't need to check endIndex all the time, can just use '\n' as a terminator
 
+            int spacesEndIndex = currentIndex;
+            while (spacesEndIndex < endIndex // XXX TODO: can remove this if caller stops calling us after newline
+                && chars[spacesEndIndex] != '\n'
+                && Character.isWhitespace(chars[spacesEndIndex]))
+                spacesEndIndex++;
+
+
             Token token;
             if (currentIndex == endIndex)
             {
@@ -825,13 +832,28 @@ public class Cpp
                                                      lineBuffer.columnNumbers[currentIndex]);
                 currentIndex = tokenEndIndex;
             }
-            else if (Character.isWhitespace(chars[currentIndex]))
+            else if (currentIndex == 0
+                  && chars[spacesEndIndex] == '#')
             {
-                // find whitespace end
-                int tokenEndIndex = currentIndex+1;
-                while (chars[tokenEndIndex] != '\n'
-                    && Character.isWhitespace(chars[tokenEndIndex]))
+                int tokenStartIndex = spacesEndIndex + 1;
+                while (chars[tokenStartIndex] != '\n'
+                    && Character.isWhitespace(chars[tokenStartIndex]))
+                    tokenStartIndex++;
+                int tokenEndIndex = tokenStartIndex;
+                while (Character.isJavaIdentifierPart(chars[tokenEndIndex]))
                     tokenEndIndex++;
+                currentIndex = tokenStartIndex; // so we get line and col right below
+                token = tokenAllocator.newRefedToken(Token.PREPROCESSOR_DIRECTIVE,
+                                                     lineBuffer,
+                                                     tokenStartIndex, tokenEndIndex,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
+                currentIndex = tokenEndIndex;
+            }
+            else if (spacesEndIndex != currentIndex) // this test must come after the one for PREPROCESSOR_DIRECTIVE
+            {
+                int tokenEndIndex = spacesEndIndex;
                 token = tokenAllocator.newRefedToken(Token.SPACES,
                                                      lineBuffer,
                                                      currentIndex, tokenEndIndex,
