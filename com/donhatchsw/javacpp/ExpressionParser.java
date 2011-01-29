@@ -5,6 +5,31 @@
 
 package com.donhatchsw.javacpp;
 
+/**
+* This class defines a recursive C-like numeric expression parser
+* with minimal overhead.
+* <p>
+* All C arithmetic, boolean, and conditional operators are recognized,
+* as is binary ** (power) and post-unary ! (factorial).
+* <p>
+* The constants e and pi are recognized,
+* as are the following unary functions from java.lang.Math:
+* sin, cos, tan, asin, acos, atan, exp, log, sqrt, ceil, floor, abs.
+* <p>
+* Short-circuit evaluation is done properly in conditional and boolean operations.
+* <p>
+* On syntax error, a RuntimeException will be thrown, containing the index at which the error occurred in the input string.
+* <p>
+* Integer expressions will throw an ArithmeticException
+* if an overflow, divide-by-zero, mod-by-zero, NaN, or Inf is encountered.
+* <p>
+* Limitations:
+* <ul>
+*     <li> only unary math functions are supported, no binary ones
+*          (note however that pow can be expressed using the ** operator)
+*     <li> caller-supplied functions and variables would be useful, but are not supported
+* </ul>
+*/
 public class ExpressionParser
 {
     private static final int LEFT = 0;
@@ -47,7 +72,6 @@ public class ExpressionParser
         // treat them exactly like unary ops.
         // So, "sqrt 4" and "cos 1" and "log cos 2" will be allowed.
         // This actually isn't so bad.
-        new UnaryOperator(RIGHT, 15, "sqrt")  {public double fun(double x) { return Math.sqrt(x); }},
         new UnaryOperator(RIGHT, 15, "sin")   {public double fun(double x) { return Math.sin(x); }},
         new UnaryOperator(RIGHT, 15, "cos")   {public double fun(double x) { return Math.cos(x); }},
         new UnaryOperator(RIGHT, 15, "tan")   {public double fun(double x) { return Math.tan(x); }},
@@ -56,6 +80,7 @@ public class ExpressionParser
         new UnaryOperator(RIGHT, 15, "atan")  {public double fun(double x) { return Math.atan(x); }},
         new UnaryOperator(RIGHT, 15, "exp")   {public double fun(double x) { return Math.exp(x); }},
         new UnaryOperator(RIGHT, 15, "log")   {public double fun(double x) { return Math.log(x); }},
+        new UnaryOperator(RIGHT, 15, "sqrt")  {public double fun(double x) { return Math.sqrt(x); }},
         new UnaryOperator(RIGHT, 15, "ceil")  {public double fun(double x) { return Math.ceil(x); }},
         new UnaryOperator(RIGHT, 15, "floor") {public double fun(double x) { return Math.floor(x); }},
         new UnaryOperator(RIGHT, 15, "abs")   {public double fun(double x) { return Math.abs(x); }},
@@ -271,7 +296,21 @@ public class ExpressionParser
             // expr -> unop expr
             returnVal = parse(unop.prec, evaluate, intsOnly);
             if (evaluate)
-                returnVal = unop.fun(returnVal);
+            {
+                double newReturnVal = unop.fun(returnVal);
+
+                if (intsOnly)
+                {
+                    if ((double)(int)newReturnVal != newReturnVal)
+                    {
+                        // on overflow or NaN or Inf, throw instead of letting it get clamped or turned into 0
+                        throw new ArithmeticException(""+unop.name+"("+returnVal+") returned "+newReturnVal+" which is not expressible as an int");
+                    }
+                    newReturnVal = (double)(int)newReturnVal;
+                }
+
+                returnVal = newReturnVal;
+            }
         }
         else if (getLiteral("("))
         {
@@ -310,7 +349,8 @@ public class ExpressionParser
                 if (!getLiteral(":"))
                     throw new RuntimeException(this.peekChar() == -1
                         ? "unexpected end-of-expression"
-                        : "syntax error near '"+(char)this.peekChar()+"'");
+                        : ("syntax error near '"+(char)this.peekChar()+"'"
+                         + " at index "+this.tell()));
                 double ifFalse = parse(binop.prec,
                                        evaluate && returnVal==0,
                                        intsOnly);
@@ -326,19 +366,46 @@ public class ExpressionParser
             }
             if (evaluate)
             {
-                if (binop.name.equals("/") && RHS == 0)
-                    throw new RuntimeException("division by zero");
-                if (binop.name.equals("%") && RHS == 0)
-                    throw new RuntimeException("mod by zero");
+                double newReturnVal;
                 if (intsOnly && binop.name.equals("/"))
-                    returnVal = (double)((int)returnVal / (int)RHS);
+                    newReturnVal = (double)((int)returnVal / (int)RHS); // throws ArithmeticException if RHS is zero
+                else if (intsOnly && binop.name.equals("%"))
+                    newReturnVal = (double)((int)returnVal % (int)RHS); // throws ArithmeticException if RHS is zero
                 else
-                    returnVal = binop.fun(returnVal, RHS);
+                    newReturnVal = binop.fun(returnVal, RHS);
+
+                if (intsOnly)
+                {
+                    if ((double)(int)newReturnVal != newReturnVal)
+                    {
+                        // on overflow or NaN or Inf, throw instead of letting it get clamped or turned into 0
+                        if (binop.name.equals("!"))
+                            throw new ArithmeticException(""+returnVal+binop.name+" returned "+newReturnVal+" which is not expressible as an int");
+                        else
+                            throw new ArithmeticException(""+returnVal+" "+binop.name+" "+RHS+" returned "+newReturnVal+" which is not expressible as an int");
+                    }
+                    newReturnVal = (double)(int)newReturnVal;
+                }
+
+                returnVal = newReturnVal;
             }
         }
         return returnVal;
     } // parse
 
+    /**
+    * Constructor; the purpose of the class object is simply to hold
+    * the state variables needed during parsing;
+    * no memory allocations are made during parsing.
+    */
+    public ExpressionParser()
+    {}
+
+    /**
+    * Evaluate an expression, using double-precision floating-point numbers
+    * for the return value and all intermediate expressions,
+    * so that, for example, "3/2" evaluates to 1.5.
+    */
     public double evaluateDoubleExpression(String s)
     {
         this.init(s);
@@ -351,6 +418,11 @@ public class ExpressionParser
         return returnVal;
     }
 
+    /**
+    * Evaluate an expression, using integers
+    * for the return value and all intermediate expressions,
+    * so that, for example, "3/2" evaluates to 1.
+    */
     public int evaluateIntExpression(String s)
     {
         this.init(s);
