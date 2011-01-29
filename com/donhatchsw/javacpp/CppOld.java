@@ -34,7 +34,7 @@ TODO:
     - instrument to see where it's spending most time?  I assume it's Token and String allocation and cleanup
     - test0 and test1 is broken (string file opener I guess)
     - handle escaped newlines like cpp does -- really as nothing, i.e. can be in the middle of a token or string-- it omits it.  also need to emit proper number of newlines to sync up
-    - #include_next, sigh
+    - #include_next, sigh.  need it to verify same behavior as cpp on system headers
     - make sure line numbers in sync in all cases
     - understand # line numbers and file number on input (masquerade)
 
@@ -1193,6 +1193,7 @@ public class CppOld
         throw new java.io.FileNotFoundException("No such file or directory");
     } // findAndNewFileReader
 
+    // javacpp will need to use this probably
     public static class LineCountingPrintWriter extends java.io.PrintWriter
     {
         private int lineNumber;
