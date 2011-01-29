@@ -40,10 +40,15 @@
 #JAVAC=javac1.6
 #JAVAROOT=c:/jdk1.3.1_20
 JAVAC=javac1.2
-#JAVAROOT=c:/jdk1.2.2
+JAVAROOT=c:/jdk1.2.2
+# use 1.6 javadoc, since it produces nicer package summaries from the package.html files
+JAVADOCROOT="c:/Program Files (x86)/Java/jdk1.6.0_17"
 # there is no -source 1.2 or -source 1.1 for jikes
 #JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
 # hmm, if I do it that way, with jikes 1.22, and run it using java1.2, I get a "monitor is in illegal state" error in the jikes-compiled code... specifically, on exiting from any synchronized(someObject) {...} block.  So it seems I have to use javac1.2 instead of jikes.
+
+moo:
+	${JAVADOCROOT}/bin/javadoc
 
 
 # Pattern rule for making a .class file out of a .prejava file
@@ -153,7 +158,8 @@ donhatchsw.jar: \
 
 clean:
 	# do NOT remove the .java files in javacpp or mc4d !!!
-        # ASSUMPTION: everything named .html or .css is automatically generated
+        # ASSUMPTION: everything named .html or .css is automatically generated.
+        # If you have a real .html file, put it into a .prehtml file to get around this.
 	/bin/rm -rf \
             *.jar \
             com/donhatchsw/*/*.class \
@@ -168,7 +174,7 @@ clean:
 
 doc: donhatchsw.jar
 	# Copy .prehtml files to .html files
-	# (they are in .prehtml files so that make clean won't remove them)
+	# (they are in .prehtml files just so that make clean won't remove them)
 	# XXX should check for writability of the .html file before clobbering! only clobber a read-only one!
 	for f in `find . -name package.prehtml -print`; do \
 	    echo "    found $$f"; \
@@ -179,7 +185,7 @@ doc: donhatchsw.jar
 	    chmod a-w $$g; \
 	done
 
-	${JAVAROOT}/bin/javadoc com/donhatchsw/*/*.java
+	${JAVADOCROOT}/bin/javadoc com/donhatchsw/*/*.java
 sendMinimal: donhatchsw.jar
 	scp donhatchsw.jar hatch@plunk.org:public_html/donhatchsw/.
 send: doc
