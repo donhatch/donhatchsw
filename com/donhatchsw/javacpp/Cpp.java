@@ -13,7 +13,8 @@ public class Cpp
     private static final int DEBUG_PER_TOKEN = 4;
     private static final int DEBUG_PER_CHAR = 5;
     // I set the following to the values rather than the variable names above,
-    // just so they are easy to change instantly
+    // just so they are easy to change instantly.
+    // TokenDebugLevel is separate from inputDebugLevel, because sometimes you want to see token debugging but don't care about line debugging.
     private static int inputDebugLevel  = 2;
     private static int tokenDebugLevel  = 5;
     private static int outputDebugLevel = 5;
@@ -179,13 +180,12 @@ public class Cpp
 
     private static class LineBuffer
     {
-        // anyone outside this class should consider the members read-only
-        public int length = 0;
-        public char chars[] = new char[1];       // these arrays are same size
-        public int lineNumbers[] = new int[1];   // these arrays are same size
-        public int columnNumbers[] = new int[1]; // these arrays are same size
-        public String fileName = null; // XXX TODO: do we want this?
-        public int nTokensReferringToMe = 0;
+        private int length = 0;
+        private char chars[] = new char[1];       // these arrays are same size
+        private int lineNumbers[] = new int[1];   // these arrays are same size
+        private int columnNumbers[] = new int[1]; // these arrays are same size
+        private String fileName = null; // XXX TODO: do we want this?
+        private int nTokensReferringToMe = 0;
 
         public void clear()
         {
@@ -1244,7 +1244,6 @@ public class Cpp
         doIt(java.io.Reader in,
              java.io.Writer out,
 
-        }
 
     static void doIt(java.io.Reader in,
                      java.io.Writer out,
