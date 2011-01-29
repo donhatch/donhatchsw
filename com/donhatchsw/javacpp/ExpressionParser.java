@@ -86,83 +86,81 @@ public class ExpressionParser
         new BinaryOperator(LEFT,  16, "!")  {public double fun(double x, double dummy) { return x>0 ? x*fun(x-1,0) : 1; }},     // factorial-- special case in expr_parse(), there's no RHS
     };
 
-    private ZeroOverheadStringReader reader = new ZeroOverheadStringReader();
-    private static class ZeroOverheadStringReader
-    {
-        private String s = null;
-        private int sLength = 0;
-        private int pos = -1;
-        public ZeroOverheadStringReader()
+    //
+    // Primitive string reader operations, with no memory allocation overhead.
+    // This encapsulates all state.
+    // Member functions other than these shouldn't access these very-private
+    // variables.
+    //
+        private String _s = null;
+        private int _sLength = 0;
+        private int _pos = -1;
+
+        private final void init(String s)
         {
-            // nothing
+            _s = s;
+            _sLength = s.length();
+            _pos = 0;
         }
-        public final void init(String s)
+        private final int tell()
         {
-            this.s = s;
-            this.sLength = s.length();
-            this.pos = 0;
+            return _pos;
         }
-        public final int tell()
+        private final void seek(int pos)
         {
-            return pos;
+            _pos = pos;
         }
-        public final void seek(int pos)
+        private final int peekChar()
         {
-            this.pos = pos;
+            return _pos == _sLength ? -1 : _s.charAt(_pos); // throws indexing error if out of bounds or reading past EOF
         }
-        public final int peek()
+        private final void advanceChar()
         {
-            return pos == sLength ? -1 : s.charAt(pos); // throws indexing error if out of bounds or reading past EOF
+            _pos++;
         }
-        public final void advance()
+
+        private final int getChar()
         {
-            pos++;
-        }
-        public final int getchar()
-        {
-            int c = peek();
-            advance();
+            int c = peekChar();
+            advanceChar();
             return c;
         }
-        public final void discardSpaces()
+        private final void discardSpaces()
         {
             int c;
-            while ((c = peek()) != -1 && Character.isWhitespace((char)c))
-                advance();
+            while ((c = peekChar()) != -1 && Character.isWhitespace((char)c))
+                advanceChar();
         }
-    } // ZeroOverheadStringReader
 
 
-    private static boolean getLiteral(ZeroOverheadStringReader reader,
-                                      String s)
+    private boolean getLiteral(String s)
     {
-        int pos = reader.tell();
-        reader.discardSpaces();
+        int pos = this.tell();
+        this.discardSpaces();
         int sLength = s.length();
         for (int i = 0; i < sLength; ++i)
-            if (reader.getchar() != s.charAt(i))
+            if (this.getChar() != s.charAt(i))
             {
-                reader.seek(pos);
+                this.seek(pos);
                 return false; // failure
             }
         return true; // success
     }
 
-    private static Operator getOp(ZeroOverheadStringReader reader,
-                                  Operator ops[],
-                                  int lowestPrecAllowed)
+    private Operator getOp(Operator ops[],
+                           int lowestPrecAllowed)
     {
-        int pos = reader.tell();
+        int pos = this.tell();
         for (int iOp = 0; iOp < ops.length; ++iOp)
         {
-            if (getLiteral(reader, ops[iOp].name))
+            if (getLiteral(ops[iOp].name))
             {
                 if (ops[iOp].prec >= lowestPrecAllowed)
                     return ops[iOp];
                 else
                 {
                     // Put it back
-                    reader.seek(pos);
+                    this.seek(pos);
                     // And don't continue;
                     // e.g. if && is on the input
                     // but its precedence is too low to be recognized,
@@ -195,18 +193,17 @@ public class ExpressionParser
     }
 
     // throws on failure
-    private static double getConstant(ZeroOverheadStringReader reader,
-                                      boolean intsOnly)
+    private double getConstant(boolean intsOnly)
     {
         int base = 10;
         boolean negate = false;
 
-        int pos = reader.tell();
+        int pos = this.tell();
 
-        reader.discardSpaces();
+        this.discardSpaces();
 
         int c;
-        if ((c = reader.peek()) == -1)
+        if ((c = this.peekChar()) == -1)
         {
             throw new RuntimeException("unexpected end-of-expression trying to read constant");
         }
@@ -214,9 +211,9 @@ public class ExpressionParser
         if (c == '-')
         {
             negate = true;
-            if ((c = reader.peek()) == -1)
+            if ((c = this.peekChar()) == -1)
             {
-                reader.seek(pos);
+                this.seek(pos);
                 throw new RuntimeException("unexpected end-of-expression trying to read constant");
             }
         }
@@ -226,7 +223,7 @@ public class ExpressionParser
             if (c == '0')
                 base = 8;
             double returnVal = 0;
-            while ((c = reader.peek()) != -1
+            while ((c = this.peekChar()) != -1
                 && (isHexDigit((char)c) || c == 'x' || c == 'b'))
             {
                 if (c == 'x')
@@ -235,19 +232,19 @@ public class ExpressionParser
                     base = 2;
                 else
                     returnVal = returnVal * base + ctoa((char)c);
-                reader.advance();
+                this.advanceChar();
             }
             if (!intsOnly)
             {
-                if (reader.peek() == '.')
+                if (this.peekChar() == '.')
                 {
-                    reader.advance();
+                    this.advanceChar();
                     double scale = 1;
-                    while ((c = reader.peek()) != -1 && Character.isDigit((char)c))
+                    while ((c = this.peekChar()) != -1 && Character.isDigit((char)c))
                     {
                         scale /= base;
                         returnVal += scale * ctoa((char)c);
-                        reader.advance();
+                        this.advanceChar();
                     }
                 }
                 // TODO if I ever care: exponent!
@@ -257,48 +254,47 @@ public class ExpressionParser
             return returnVal;
         }
         else
-            throw new RuntimeException("expression parse error trying to read constant at position "+reader.tell());
+            throw new RuntimeException("expression parse error trying to read constant at position "+this.tell());
     } // getConstant
 
 
     // throws on failure
-    private double parse(ZeroOverheadStringReader reader,
-                         int lowestPrecAllowed,
+    private double parse(int lowestPrecAllowed,
                          boolean evaluate,
                          boolean intsOnly)
     {
         double returnVal = 0.;
 
         UnaryOperator unop;
-        if ((unop = (UnaryOperator)getOp(reader, unops, lowestPrecAllowed)) != null)
+        if ((unop = (UnaryOperator)getOp(unops, lowestPrecAllowed)) != null)
         {
             // expr -> unop expr
-            returnVal = parse(reader, unop.prec, evaluate, intsOnly);
+            returnVal = parse(unop.prec, evaluate, intsOnly);
             if (evaluate)
                 returnVal = unop.fun(returnVal);
         }
-        else if (getLiteral(reader, "("))
+        else if (getLiteral("("))
         {
             // expr -> '(' expr ')'
-            returnVal = parse(reader, 0, evaluate, intsOnly);
-            if (!getLiteral(reader, ")"))
+            returnVal = parse(0, evaluate, intsOnly);
+            if (!getLiteral(")"))
             {
                 // XXX TODO: define the kind of exception we're going to throw, be able to return the index in it?
-                throw new RuntimeException(reader.peek() == -1
+                throw new RuntimeException(this.peekChar() == -1
                     ? "unexpected end-of-expression"
-                    : ("syntax error near '"+(char)reader.peek()+"'"
-                     + " at index "+reader.tell()));
+                    : ("syntax error near '"+(char)this.peekChar()+"'"
+                     + " at index "+this.tell()));
             }
         }
-        else if (getLiteral(reader, "pi"))
+        else if (getLiteral("pi"))
             returnVal = Math.PI;
-        else if (getLiteral(reader, "e"))
+        else if (getLiteral("e"))
             returnVal = Math.E;
         else
-            returnVal = getConstant(reader, intsOnly); // throws on failure
+            returnVal = getConstant(intsOnly); // throws on failure
 
         BinaryOperator binop;
-        while ((binop = (BinaryOperator)getOp(reader, binops, lowestPrecAllowed)) != null)
+        while ((binop = (BinaryOperator)getOp(binops, lowestPrecAllowed)) != null)
         {
             double RHS = Double.NaN;
             if (binop.name.equals("!"))
@@ -308,21 +304,21 @@ public class ExpressionParser
             }
             else if (binop.name.equals("?"))
             {
-                double ifTrue = parse(reader, binop.prec,
+                double ifTrue = parse(binop.prec,
                                       evaluate && returnVal!=0,
                                       intsOnly);
-                if (!getLiteral(reader, ":"))
-                    throw new RuntimeException(reader.peek() == -1
+                if (!getLiteral(":"))
+                    throw new RuntimeException(this.peekChar() == -1
                         ? "unexpected end-of-expression"
-                        : "syntax error near '"+(char)reader.peek()+"'");
-                double ifFalse = parse(reader, binop.prec,
+                        : "syntax error near '"+(char)this.peekChar()+"'");
+                double ifFalse = parse(binop.prec,
                                        evaluate && returnVal==0,
                                        intsOnly);
                 RHS = (returnVal!=0) ? ifTrue : ifFalse;
             }
             else
             {
-                RHS = parse(reader, binop.assoc == RIGHT ? binop.prec
+                RHS = parse(binop.assoc == RIGHT ? binop.prec
                                                          : binop.prec+1,
                             evaluate
                          && !binop.name.equals(returnVal!=0 ? "||" : "&&"),
@@ -345,27 +341,25 @@ public class ExpressionParser
 
     public double evaluateDoubleExpression(String s)
     {
-        reader.init(s);
-        double returnVal = parse(reader,
-                                 0, // recursionLevel
+        this.init(s);
+        double returnVal = parse(0, // recursionLevel
                                  true, // evaluate
                                  false); // intsOnly
-        reader.discardSpaces();
-        if (reader.peek() != -1)
-            throw new RuntimeException("syntax error in double expression at position "+reader.tell());
+        this.discardSpaces();
+        if (this.peekChar() != -1)
+            throw new RuntimeException("syntax error in double expression at position "+this.tell());
         return returnVal;
     }
 
     public int evaluateIntExpression(String s)
     {
-        reader.init(s);
-        int returnVal = (int)parse(reader,
-                                   0, // recursionLevel
+        this.init(s);
+        int returnVal = (int)parse(0, // recursionLevel
                                    true, // evaluate
                                    true); // intsOnly
-        reader.discardSpaces();
-        if (reader.peek() != -1)
-            throw new RuntimeException("syntax error in int expression at position "+reader.tell());
+        this.discardSpaces();
+        if (this.peekChar() != -1)
+            throw new RuntimeException("syntax error in int expression at position "+this.tell());
         return returnVal;
     }
 
