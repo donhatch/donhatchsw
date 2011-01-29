@@ -254,6 +254,8 @@ public class Cpp
         if (inputDebugLevel >= DEBUG_PER_LINE)
             System.err.println("    in getNextLogicalLine");
 
+        AssertAlways(lineBuffer.nTokensReferringToMe == 0); // otherwise not safe to clear!
+
         boolean correctedEOF = false;
         int lastBackslashLineNumber = -1;
         int lastBackslashColumnNumber = -1;
@@ -385,7 +387,7 @@ public class Cpp
 
 
         public int type;
-        public char textUnderlyingString[]; // can be lineBuf.chars, or can own its own (in case of macro args or synthetic pasted-together tokens
+        public char textUnderlyingString[]; // can be lineBuf.chars, or can own its own (in case of macro args or synthetic pasted-together tokens)
         public int i0, i1; // start and end indices in underlyingString
         public String inFileName;
         public int inLineNumber;
@@ -393,7 +395,7 @@ public class Cpp
         public Token parentInMacroExpansion;
         public Token nextInStack; // can only live in one stack at a time
         public int refCount;
-        public LineBuffer lineBufferOwningTextUnderlyingString;
+        public LineBuffer lineBufferOwningTextUnderlyingString; // null if we own our own textUnderlyingString
 
         // No constructor, we use an init function instead,
         // to make sure no members are forgotten.
@@ -534,7 +536,7 @@ public class Cpp
                   +"\", "
                   +this.inLineNumber
                   +", "
-                  +this.inLineNumber
+                  +this.inColumnNumber
                   +")";
         }
     } // class Token
@@ -748,11 +750,14 @@ public class Cpp
             this.returnedEOF = false;
         }
         // keeps ref. if you don't want it, use tokenAllocator.unrefToken(readToken());
-        public Token readToken()
+        public Token readToken(boolean inComment)
         {
             if (tokenDebugLevel >= DEBUG_PER_TOKEN)
                 System.err.println("    in tokenStream.readToken");
             AssertAlways(!returnedEOF);
+
+            char chars[] = lineBuffer.chars;
+            AssertAlways(chars[endIndex-1] == '\n'); // so don't need to check endIndex all the time  XXX TODO: well then get rid of all the extra checks
 
             Token token;
             if (currentIndex == endIndex)
@@ -760,7 +765,7 @@ public class Cpp
                 returnedEOF = true;
                 token = null; // XXX maybe caller should guard all readTokens with isEmpty(), then can have simpler semantics?
             }
-            else if (lineBuffer.chars[currentIndex] == '\n')
+            else if (chars[currentIndex] == '\n')
             {
                 token = tokenAllocator.newRefedToken(Token.NEWLINE,
                                                      lineBuffer,
@@ -769,6 +774,157 @@ public class Cpp
                                                      lineBuffer.lineNumbers[currentIndex],
                                                      lineBuffer.columnNumbers[currentIndex]);
                 currentIndex++;
+            }
+            else if (inComment
+                  || (chars[currentIndex] == '/'
+                   && chars[currentIndex+1] == '*'))
+            {
+                // find index of end of comment or end of line
+                int tokenEndIndex = inComment ? currentIndex
+                                              : currentIndex + 2;
+                int tokenType;
+                while (true)
+                {
+                    if (chars[tokenEndIndex] == '\n')
+                    {
+                        tokenType = inComment ? Token.COMMENT_MIDDLE
+                                              : Token.COMMENT_START;
+                        break;
+                    }
+                    if (chars[tokenEndIndex] == '*'
+                     && chars[tokenEndIndex+1] == '/')
+                    {
+                        tokenEndIndex += 2;
+                        tokenType = inComment ? Token.COMMENT_END
+                                              : Token.COMMENT;
+                        break;
+                    }
+                    tokenEndIndex++;
+                }
+                token = tokenAllocator.newRefedToken(tokenType,
+                                                     lineBuffer,
+                                                     currentIndex, tokenEndIndex,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
+                currentIndex = tokenEndIndex;
+            }
+            else if (chars[currentIndex] == '/'
+                  && currentIndex+1 < endIndex
+                  && chars[currentIndex+1] == '/')
+            {
+                // find index of end of line (the newline or EOF)
+                int tokenEndIndex = currentIndex + 2;
+                while (tokenEndIndex < endIndex
+                    && chars[tokenEndIndex] != '\n')
+                    tokenEndIndex++;
+                token = tokenAllocator.newRefedToken(Token.COMMENT,
+                                                     lineBuffer,
+                                                     currentIndex, tokenEndIndex,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
+                currentIndex = tokenEndIndex;
+            }
+            else if (Character.isWhitespace(chars[currentIndex]))
+            {
+                // find whitespace end
+                int tokenEndIndex = currentIndex+1;
+                while (tokenEndIndex < endIndex
+                    && chars[tokenEndIndex] != '\n'
+                    && Character.isWhitespace(chars[tokenEndIndex]))
+                    tokenEndIndex++;
+                token = tokenAllocator.newRefedToken(Token.SPACES,
+                                                     lineBuffer,
+                                                     currentIndex, tokenEndIndex,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
+                currentIndex = tokenEndIndex;
+            }
+            else if (Character.isJavaIdentifierStart(chars[currentIndex]))
+            {
+                // find identifier end
+                int tokenEndIndex = currentIndex+1;
+                while (tokenEndIndex < endIndex
+                    && Character.isJavaIdentifierPart(chars[tokenEndIndex]))
+                    tokenEndIndex++;
+                token = tokenAllocator.newRefedToken(Token.IDENTIFIER,
+                                                     lineBuffer,
+                                                     currentIndex, tokenEndIndex,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
+                currentIndex = tokenEndIndex;
+            }
+            else if (Character.isDigit(chars[currentIndex])
+                  || (currentIndex < endIndex && chars[currentIndex] == '.'
+                                              && Character.isDigit(chars[currentIndex+1])))
+            {
+                // From http://gcc.gnu.org/onlinedocs/cpp/Tokenization.html
+                // "A preprocessing number has a rather bizarre definition. The category includes all the normal integer and floating point constants one expects of C, but also a number of other things one might not initially recognize as a number. Formally, preprocessing numbers begin with an optional period, a required decimal digit, and then continue with any sequence of letters, digits, underscores, periods, and exponents. Exponents are the two-character sequences `e+', `e-', `E+', `E-', `p+', `p-', `P+', and `P-'. (The exponents that begin with `p' or `P' are new to C99. They are used for hexadecimal floating-point constants.)"
+
+                // find "number" end
+                int tokenEndIndex = currentIndex+1;
+                while (tokenEndIndex < endIndex)
+                {
+                    if (tokenEndIndex+1 < endIndex
+                     && (chars[tokenEndIndex] == 'e'
+                      || chars[tokenEndIndex] == 'E'
+                      || chars[tokenEndIndex] == 'p'
+                      || chars[tokenEndIndex] == 'P')
+                     && (chars[tokenEndIndex+1] == '+'
+                      || chars[tokenEndIndex+1] == '-'))
+                        tokenEndIndex += 2;
+                    else if (chars[tokenEndIndex] == '.'
+                          || chars[tokenEndIndex] == '_'
+                          || Character.isLetterOrDigit(chars[tokenEndIndex]))
+                        tokenEndIndex++;
+                    else
+                        break;
+                }
+                token = tokenAllocator.newRefedToken(Token.NUMBER_LITERAL,
+                                                     lineBuffer,
+                                                     currentIndex, tokenEndIndex,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
+                currentIndex = tokenEndIndex;
+            }
+            else if (chars[currentIndex] == '"'
+                  || chars[currentIndex] == '\'')
+            {
+                // find char or string end
+                int tokenEndIndex = currentIndex+1;
+                char quoteChar = chars[currentIndex];
+                while (true)
+                {
+                    if (tokenEndIndex >= endIndex)
+                        throw new Error("unterminated string or char literal"); // TODO: cpp doesn't do this I don't think
+                    char c = chars[tokenEndIndex++];
+                    if (c == '\\')
+                    {
+                        if (tokenEndIndex >= endIndex)
+                            throw new Error("unterminated string or char literal"); // TODO: cpp doesn't do this I don't think
+                        tokenEndIndex++; // no matter what it is.. no wait, does that include newlines?
+                        // backslash can be followed by up to 3 digits,
+                        // or various other things, but we don't have to worry
+                        // about that, we handled the necessary case
+                        // which is an escaped quote or escaped backslash
+                    }
+                    else if (c == quoteChar)
+                    {
+                        break;
+                    }
+                }
+                token = tokenAllocator.newRefedToken(quoteChar=='"' ? Token.STRING_LITERAL
+                                                                    : Token.CHAR_LITERAL,
+                                                     lineBuffer,
+                                                     currentIndex, tokenEndIndex,
+                                                     lineBuffer.fileName,
+                                                     lineBuffer.lineNumbers[currentIndex],
+                                                     lineBuffer.columnNumbers[currentIndex]);
+                currentIndex = tokenEndIndex;
             }
             else
             {
@@ -805,10 +961,10 @@ public class Cpp
         }
 
         // keeps ref. if you don't want it, use tokenAllocator.unrefToken(readToken());
-        public Token readToken()
+        public Token readToken(boolean inComment)
         {
             return !stack.isEmpty() ? stack.popAndKeepRef()
-                                    : super.readToken();
+                                    : super.readToken(inComment);
         }
         // it's an error to push back the terminating null
         public void pushBackToken(Token token)
@@ -936,7 +1092,7 @@ public class Cpp
                               LazyPrintWriter out,
                               FileOpener fileOpener,
                               String includePath[],
-                              java.util.Hashtable macros,
+                              java.util.Hashtable macros, // gets updated as we go
                    
                               LineBuffer lineBuffer, // logically local to loop iteration but we only want to allocate it once
                               TokenStreamFromLineBufferWithPushBack tokenStream, // logically local to loop iteration but we only want to allocate it once
@@ -953,6 +1109,8 @@ public class Cpp
         // XXX TODO: should probably be emitLineNumberDirective
         out.println((commentOutLineDirectives?"// "+(out.outLineNumberDelivered+1+1)+" ":"")+"# "+(in.lineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments outLineNumberDelivered
         out.setInLineNumber(in.lineNumber);
+
+        boolean inComment = false;
 
         while (true)
         {
@@ -988,9 +1146,13 @@ public class Cpp
 
             while (true)
             {
-                Token token = tokenStream.readToken();
+                Token token = tokenStream.readToken(inComment);
                 if (token == null)
                     break;
+
+                if (token.type == (inComment ? Token.COMMENT_END
+                                             : Token.COMMENT_START))
+                    inComment = !inComment;
 
                 /*
                 if token is name of a macro
@@ -1313,6 +1475,8 @@ public class Cpp
 
             System.err.println("out Cpp.main");
         }
+        AssertAlways(lineBufferScratch.nTokensReferringToMe == 0);
+        AssertAlways(tokenAllocator.nInUse == 0);
         System.exit(0);
     } // main
 
