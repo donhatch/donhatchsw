@@ -1,12 +1,13 @@
 // From an old reentrant no-memory-allocations
 // C expression parser I had lying around...
 
-// TODO: support variables and functions
+// TODO: support caller-supplied variables and functions
+// TODO: support binary math functions (pow, atan2)
 
 package com.donhatchsw.javacpp;
 
 /**
-* This class defines a recursive C-like numeric expression parser
+* This class defines a recursive-descent C-like numeric expression parser
 * with minimal overhead.
 * <p>
 * All C arithmetic, boolean, and conditional operators are recognized,
