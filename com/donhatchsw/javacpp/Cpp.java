@@ -813,7 +813,7 @@ public class Cpp
         public Token readToken(boolean inComment)
         {
             if (tokenDebugLevel >= DEBUG_PER_TOKEN)
-                System.err.println("    in tokenStream.readToken");
+                System.err.println("        in tokenStream.readToken");
             AssertAlways(!returnedEOF);
 
             char chars[] = lineBuffer.chars;
@@ -1024,8 +1024,8 @@ public class Cpp
             }
             if (tokenDebugLevel >= DEBUG_PER_TOKEN)
             {
-                System.err.println("        token = "+token);
-                System.err.println("    out tokenStream.readToken");
+                System.err.println("            token = "+token);
+                System.err.println("        out tokenStream.readToken");
             }
             return token;
         }
@@ -1228,7 +1228,9 @@ public class Cpp
         throws java.io.IOException
     {
         if (inputDebugLevel >= DEBUG_PER_FILE)
-            System.err.println("    in Cpp.filter");
+        {
+            System.err.println("    in Cpp.filter(\""+escapify(in.fileName)+"\")");
+        }
 
         // Stack of #ifwhatever tokens whose scope we are in,
         // for the file,line,column information
@@ -1494,14 +1496,18 @@ public class Cpp
                             }
                             ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
                             //
-                            // do the #if thing...
+                            // fall through to the #if thing.
+                            // it's the same token we just pushed,
+                            // and the char buffer is considered immutable,
+                            // so theoretically we could just push a ref to it
+                            // instead of cloning another one,
+                            // however in the current implementation,
+                            // a given token can't appear twice on ifStack.
                             //
-                            ifStack.pushAndRef(ifStack.top()); // push same token again, as if it were an #if
                         }
-                        else // #if
-                        {
-                            ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
-                        }
+
+                        // do the #if thing...
+                        ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
 
                         // we need to evaluate the expression
                         // iff, before the #if was pushed,
@@ -1729,7 +1735,7 @@ public class Cpp
 
 
         if (inputDebugLevel >= DEBUG_PER_FILE)
-            System.err.println("    out Cpp.filter");
+            System.err.println("    out Cpp.filter(\""+escapify(in.fileName)+"\")");
     } // filter
 
     // weird that java.util.Vector doesn't have this...
@@ -1964,6 +1970,42 @@ public class Cpp
         TokenAllocator tokenAllocator = new TokenAllocator();
         ExpressionParser expressionParser = new ExpressionParser();
         java.util.Hashtable macros = new java.util.Hashtable();
+
+        if (true) // XXX GET RID
+        {
+            // hack to get something in macros, so I can test #ifdef before I get #define working
+            System.err.println("XXX GET RID");
+            macros.put("__LINE__", new Object());
+        }
+
+        try
+        {
+            java.io.Reader commandLineFakeInputReader = new java.io.StringReader(parsedArgs.commandLineFakeInput.toString());
+            filter(new LineAndColumnNumberReader(commandLineFakeInputReader, "<command line>"),
+                   writer,
+                   new FileOpener(),
+                   parsedArgs.includePath,
+                   macros,
+                   lineBufferScratch,
+                   tokenStreamScratch,
+                   tokenAllocator,
+                   expressionParser,
+                   parsedArgs.commentOutLineDirectives,
+                   0); // recursionLevel
+        }
+        catch (Error e)
+        {
+            //System.err.println("(Caught error, flushing then rethrowing)");
+            writer.flush();
+            //System.err.println("(Caught error, flushed, rethrowing)");
+            throw e;
+        }
+        catch (java.io.IOException e)
+        {
+            writer.flush();
+            System.err.println("Well damn: "+e);
+            System.exit(1);
+        }
 
         try
         {
