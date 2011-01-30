@@ -23,7 +23,7 @@ public class Cpp
     // TokenDebugLevel is separate from inputDebugLevel, because sometimes you want to see token debugging but don't care about line debugging.
     private static int inputDebugLevel  = 2;
     private static int tokenDebugLevel  = 5;
-    private static int outputDebugLevel = 5;
+    private static int outputDebugLevel = 2;
 
 
     // Logical assertions, always compiled in. Ungracefully bail if violated.
@@ -470,6 +470,31 @@ public class Cpp
             return true;
         }
 
+        public boolean textIsEmpty()
+        {
+            return i1 == i0;
+        }
+        public boolean textStartsWithDigit()
+        {
+            if (i1-i0 == 0)
+                return false;
+            char c = textUnderlyingString[i0];
+            return c >= '0' && c <= '9';
+        }
+        // returns 0 on empty, -1 if not all digits
+        public int textToNonNegativeInt()
+        {
+            int n = 0;
+            for (int i = i0; i < i1; ++i)
+            {
+                char c = textUnderlyingString[i];
+                if (c < '0' || c > '9')
+                    return -1;
+                n = n*10 + (c-'0');
+            }
+            return n;
+        }
+
 
         private static String typeToNameCache[] = null;
         public static String typeToName(int type)
@@ -606,6 +631,23 @@ public class Cpp
             token.lineBufferOwningTextUnderlyingString = lineBuffer;
             lineBuffer.nTokensReferringToMe++;
             return token;
+        }
+
+        // clone existing token so that we own our own memory
+        public Token newRefedTokenCloned(Token token)
+        {
+            AssertAlways(token.lineBufferOwningTextUnderlyingString != null); // shouldn't be calling this otherwise
+            int i0 = token.i0, i1 = token.i1;
+            char textUnderlyingString[] = new char[i1-i0];
+            for (int i = 0; i < textUnderlyingString.length; ++i)
+                textUnderlyingString[i] = token.textUnderlyingString[i0+i];
+            return newRefedToken(token.type,
+                                 textUnderlyingString,
+                                 0,
+                                 textUnderlyingString.length,
+                                 token.inFileName,
+                                 token.inLineNumber,
+                                 token.inColumnNumber);
         }
 
         // XXX TODO: make sure someone uses this, I assume they do
@@ -1028,11 +1070,14 @@ public class Cpp
         // false if it couldn't do that in which case caller needs to
         // issue a line number directive.
         // TODO: not sure if this is wanted? not sure yet
-        public boolean syncToInLineNumber(int inLineNumber)
+        public boolean softSyncToInLineNumber(int inLineNumber)
         {
-            if (inLineNumber == this.inLineNumber)
-                return true; // success
             outLineNumberPromised += inLineNumber - this.inLineNumber;
+            if (outLineNumberPromised == outLineNumberDelivered)
+            {
+                this.inLineNumber = inLineNumber;
+                return true; // success
+            }
 
             AssertAlways(columnNumber == 0); // TODO: do we want this?
             // TODO: remove this if we decide on the assert
@@ -1055,7 +1100,21 @@ public class Cpp
                 return true; // success
             }
             else
-                return false; // failed, caller must issue line number directive
+            {
+                // failed, caller must issue line number directive.
+                // It's okay that we messed up outLineNumberPromised,
+                // it's about to be reset anyway.
+                return false;
+            }
+        }
+        public void hardSyncToInLineNumber(int inLineNumber,
+                                           String inFileName,
+                                           boolean commentOutLineDirectives,
+                                           String extraCrap)
+        {
+            outLineNumberPromised = outLineNumberDelivered; // release from any promises
+            println((commentOutLineDirectives?"// "+(outLineNumberDelivered+1+1)+" ":"")+"# "+(inLineNumber+1)+" \""+inFileName+"\""+extraCrap); // increments outLineNumberPromised and outLineNumberDelivered
+            setInLineNumber(inLineNumber);
         }
         public void setInLineNumber(int inLineNumber)
         {
@@ -1063,8 +1122,11 @@ public class Cpp
             this.inLineNumber = inLineNumber;
         }
 
+
         public void println()
         {
+            if (outputDebugLevel >= DEBUG_PER_LINE)
+                System.err.println("                in LazyPrintWriter.println()");
             if (columnNumber != 0)
             {
                 super.println();
@@ -1073,9 +1135,13 @@ public class Cpp
             }
             outLineNumberPromised++;
             inLineNumber++;
+            if (outputDebugLevel >= DEBUG_PER_LINE)
+                System.err.println("                out LazyPrintWriter.println()");
         }
         public void print(String s)
         {
+            if (outputDebugLevel >= DEBUG_PER_TOKEN)
+                System.err.println("            in LazyPrintWriter.print(s=\""+escapify(s)+"\")");
             int sLength = s.length();
             for (int i = 0; i < sLength; ++i)
             {
@@ -1089,9 +1155,13 @@ public class Cpp
                     columnNumber++;
                 }
             }
+            if (outputDebugLevel >= DEBUG_PER_TOKEN)
+                System.err.println("            out LazyPrintWriter.print(s=\""+escapify(s)+"\")");
         }
         public void print(char s[], int i0, int i1)
         {
+            if (outputDebugLevel >= DEBUG_PER_TOKEN)
+                System.err.println("            in LazyPrintWriter.print(char[])");
             for (int i = i0; i < i1; ++i)
             {
                 char c = s[i];
@@ -1099,16 +1169,26 @@ public class Cpp
                     println(); // above; fixes line and column numbers
                 else
                 {
+                    if (outLineNumberDelivered != outLineNumberPromised)
+                    {
+                        throw new Error("INTERNAL ERROR: delivered line number "+outLineNumberDelivered+", promised line number "+outLineNumberPromised+"");
+                    }
                     AssertAlways(outLineNumberDelivered == outLineNumberPromised);
                     super.print(c);
                     columnNumber++;
                 }
             }
+            if (outputDebugLevel >= DEBUG_PER_TOKEN)
+                System.err.println("            out LazyPrintWriter.print(char[])");
         }
         public void println(String s)
         {
-            print(s);
+            if (outputDebugLevel >= DEBUG_PER_TOKEN)
+                System.err.println("                in LazyPrintWriter.println(s=\""+escapify(s)+"\")");
+            print(s); // above
             println(); // the other one
+            if (outputDebugLevel >= DEBUG_PER_TOKEN)
+                System.err.println("                out LazyPrintWriter.println(s=\""+escapify(s)+"\")");
         }
 
     } // class LazyPrintWriter
@@ -1132,6 +1212,15 @@ public class Cpp
         if (inputDebugLevel >= DEBUG_PER_FILE)
             System.err.println("    in Cpp.filter");
 
+        // stack of #ifwhatever tokens, for the file,line,column information.
+        // each frame consists of two tokens: the original #ifwhatever token,
+        // and the most recent #elif or #else that it changed into.
+        // (both are needed in order to emulate cpp's somewhat strange behavior:
+        // the line number from the original, and the token text of
+        // what it most recently changed into)
+        java.util.Stack ifStack = new java.util.Stack(); // of #ifwhatever tokens, for the file,line,column information.  Actually 
+        int highestTrueIfStackLevel = 0;
+
         // XXX TODO: should probably be emitLineNumberDirective
         out.println((commentOutLineDirectives?"// "+(out.outLineNumberDelivered+1+1)+" ":"")+"# "+(in.lineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments outLineNumberDelivered
         out.setInLineNumber(in.lineNumber);
@@ -1143,6 +1232,9 @@ public class Cpp
             getNextLogicalLine(in, lineBuffer);
             if (lineBuffer.length == 0)
                 break; // end of file
+
+            // TODO: also assert it's the only one
+            AssertAlways(lineBuffer.chars[lineBuffer.length-1] == '\n');
 
             tokenStream.init(lineBuffer, 0, lineBuffer.length, tokenAllocator);
 
@@ -1196,16 +1288,177 @@ public class Cpp
 
                 if (token.type == Token.NEWLINE)
                     out.println();
+                else if (token.type == Token.PREPROCESSOR_DIRECTIVE)
+                {
+                    // when inside a false #if,
+                    // the only preprocessor directives we recognize are:
+                    //     #if*
+                    //     #endif
+                    //     #elif
+                    //     #else
+                    // I.e. we do not recognize:
+                    //     #define
+                    //     #undef
+                    //     #include
+                    boolean inFalseIf = ifStack.size() > highestTrueIfStackLevel;
+                    if (token.textEquals("include")) // #include
+                    {
+                        if (!inFalseIf)
+                        {
+                            /*
+                            get the file name and stuff, including end of line
+                            output any newlines and/or line directives needed to get in sync
+                            recurse
+                            output any newlines and/or line directives needed to get in sync
+                            */
+                        }
+                    }
+                    else if (token.textEquals("define")) // #define
+                    {
+                        if (!inFalseIf)
+                        {
+                            //do the appropriate thing
+                        }
+                    }
+                    else if (token.textEquals("undef")) // #undef
+                    {
+                        if (!inFalseIf)
+                        {
+                            //do the appropriate thing
+                        }
+                    }
+
+                    // ones that take one macro name arg and that's all
+                    else if (token.textEquals("ifdef")  // #ifdef
+                          || token.textEquals("ifndef") // #ifndef
+                          || token.textEquals("undef"))  // #undef
+                    {
+                        Token nextToken = tokenStream.readToken(inComment); // WITHOUT macro substitution, so we don't expand the expected macro name
+
+                        // move past spaces between directive and macro name
+                        while (nextToken.type == Token.SPACES
+                            || nextToken.type == Token.COMMENT)
+                        {
+                            tokenAllocator.unrefToken(nextToken);
+                            nextToken = tokenStream.readToken(inComment); // WITHOUT macro substitution, so we don't expand the expected macro name
+                        }
+
+                        if (nextToken.type == Token.NEWLINE)
+                        {
+                            throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": no macro name given in #"+token.textToString()+" directive");
+                        }
+
+                        if (nextToken.type == Token.COMMENT_START)
+                        {
+                            // Got something like "#ifdef /*\n*/ foo"
+                            // Could try to implement this, but it's not that important.
+                            throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": unimplemented: macro name given in "+token.textToString()+" directive");
+                        }
+
+                        if (nextToken.type != Token.IDENTIFIER)
+                            throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": macro names must be identifiers");
+                        String macroName = nextToken.textToString();
+                        tokenAllocator.unrefToken(nextToken);
+                        nextToken = tokenStream.readToken(inComment);
+
+                        // move past spaces between macro name and newline.
+                        // It's okay to start a c-style comment here.
+                        while (nextToken.type == Token.SPACES
+                            || nextToken.type == Token.COMMENT
+                            || nextToken.type == Token.COMMENT_START)
+                        {
+                            if (nextToken.type == Token.COMMENT_START)
+                            {
+                                AssertAlways(inComment == false);
+                                inComment = true;
+                                // next token is guaranteed to be a NEWLINE
+                            }
+                            tokenAllocator.unrefToken(nextToken);
+                            nextToken = tokenStream.readToken(inComment);
+                        }
+
+                        if (nextToken.type != Token.NEWLINE)
+                        {
+                            throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": warning: extra tokens at end of "+token.textToString()+" directive");
+                        }
+                        tokenAllocator.unrefToken(nextToken);
+                        nextToken = null;
+
+                        if (token.textEquals("undef")) // #undef
+                        {
+                            if (!inFalseIf)
+                            {
+                                if (macroName == "__LINE__"
+                                 || macroName == "__FILE__")
+                                    throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": can't undefine \""+macroName+"\""); // gcc just gives a warning
+                                macros.remove(macroName);
+                            }
+                        }
+                        else // #ifdef or #ifndef
+                        {
+                            ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // original
+                            ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // current
+                        }
+
+                        if (true) // XXX this may be temporary, til I get all cases implemented
+                        {
+                            out.println();
+                            continue;
+                        }
+                    }
+
+                    else if (token.textEquals("if")) // #if
+                    {
+                        ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // original
+                        ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // current
+                    }
+                    else if (token.textEquals("elif")) // #elif
+                    {
+                        tokenAllocator.unrefToken((Token)ifStack.pop());       // current
+                        ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // current
+                    }
+                    else if (token.textEquals("else")) // #else
+                    {
+                        tokenAllocator.unrefToken((Token)ifStack.pop());       // current
+                        ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // current
+                    }
+                    else if (token.textEquals("endif")) // #endif
+                    {
+                        tokenAllocator.unrefToken((Token)ifStack.pop());       // current
+                        tokenAllocator.unrefToken((Token)ifStack.pop());       // original
+                    }
+
+                    else if (token.textStartsWithDigit())
+                    {
+                        int theInt = token.textToNonNegativeInt();
+                        if (theInt == -1)
+                            throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": \""+token.textToString()+"\" after # is not a positive integer"); // really should say "not a non-negative integer" but we imitate cpp's misnomer
+                        //set the input file and line number 
+                        AssertAlways(false); // IMPLEMENT ME
+                    }
+                    else if (token.textIsEmpty())
+                    {
+                        // nothing!
+                    }
+                    else
+                    {
+                        throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": invalid preprocessor directive #"+token.textToString());
+                    }
+
+                } // preprocessor directive
                 else
                 {
+                    // Actually output something.
+                    // First make sure the output line number is synced up...
                     if (out.columnNumber == 0)
                     {
-                        if (!out.syncToInLineNumber(token.inLineNumber))
-                        {
-                            out.outLineNumberPromised = out.outLineNumberDelivered; // release from any promises   TODO: this is unclean
-                            out.println((commentOutLineDirectives?"// "+(out.outLineNumberDelivered+1+1)+" ":"")+"# "+(token.inLineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments outLineNumberDelivered
-                            out.setInLineNumber(token.inLineNumber);
-                        }
+                        if (!out.softSyncToInLineNumber(token.inLineNumber))
+                            out.hardSyncToInLineNumber(token.inLineNumber,
+                                                       token.inFileName,
+                                                       commentOutLineDirectives,
+                                                       in.extraCrap);
+                        AssertAlways(out.inLineNumber == token.inLineNumber);
+                        AssertAlways(out.outLineNumberDelivered == out.outLineNumberPromised);
                     }
                     out.print(token.textUnderlyingString, token.i0, token.i1);
                 }
@@ -1220,6 +1473,16 @@ public class Cpp
         }
 
         AssertAlways(tokenStream.isEmpty());
+
+        if (!ifStack.isEmpty())
+        {
+            Token current = (Token)ifStack.pop();
+            Token original = (Token)ifStack.pop();
+            // don't bother unrefing, we'll just leak refs, for these and any others on stack
+            throw new Error(original.inFileName+":"+(original.inLineNumber+1)+":1: unterminated #"+current.textToString());
+        }
+
+
         if (inputDebugLevel >= DEBUG_PER_FILE)
             System.err.println("    out Cpp.filter");
     } // filter
