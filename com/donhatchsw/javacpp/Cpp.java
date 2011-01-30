@@ -1,11 +1,5 @@
 /*
  maybe another implementation, maybe cleaner
- TODO: I forget the state of this.  Did I hit a dead end?  Should I abort it?
- I think the whole concept of using Readers is maybe too much complication,
- why not just read the whole file into memory
- and have data structures that allow looking up the line and column number
- of any char at any index?
- Then tokens could be essentially type, start and end index
 */
 
 package com.donhatchsw.javacpp;
