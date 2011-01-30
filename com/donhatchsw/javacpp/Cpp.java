@@ -22,7 +22,7 @@ public class Cpp
     // just so they are easy to change instantly.
     // TokenDebugLevel is separate from inputDebugLevel, because sometimes you want to see token debugging but don't care about line debugging.
     private static int inputDebugLevel  = 2;
-    private static int tokenDebugLevel  = 5;
+    private static int tokenDebugLevel  = 3;
     private static int outputDebugLevel = 2;
 
 
@@ -577,6 +577,7 @@ public class Cpp
         private int nFree = 0;
         private int nLogicalAllocations = 0; // numbe of times newRefedToken was called
         private int nPhysicalAllocations = 0; // # of times it called new Token()
+        private int nPrivateBuffersAllocated = 0; // # of times it called new char[]
         private Token freeListHead = null; // we use the parent member to form a linked list
 
 
@@ -636,11 +637,23 @@ public class Cpp
         // clone existing token so that we own our own memory
         public Token newRefedTokenCloned(Token token)
         {
-            AssertAlways(token.lineBufferOwningTextUnderlyingString != null); // shouldn't be calling this otherwise
             int i0 = token.i0, i1 = token.i1;
-            char textUnderlyingString[] = new char[i1-i0];
-            for (int i = 0; i < textUnderlyingString.length; ++i)
-                textUnderlyingString[i] = token.textUnderlyingString[i0+i];
+
+            char textUnderlyingString[];
+            if (token.lineBufferOwningTextUnderlyingString != null)
+            {
+                // Need to copy the buffer, since line buffers are volatile
+                textUnderlyingString = new char[i1-i0];
+                for (int i = 0; i < textUnderlyingString.length; ++i)
+                    textUnderlyingString[i] = token.textUnderlyingString[i0+i];
+                nPrivateBuffersAllocated++;
+            }
+            else
+            {
+                // can share the buffer
+                textUnderlyingString = token.textUnderlyingString;
+            }
+
             return newRefedToken(token.type,
                                  textUnderlyingString,
                                  0,
@@ -1420,14 +1433,14 @@ public class Cpp
                         recurse
                         output any newlines and/or line directives needed to get in sync
                         */
-                        AssertAlways(false); // XXX implement me!
+                        throw new Error("#include UNIMPLEMENTED!");
                     }
                     else if (token.textEquals("define")) // #define
                     {
                         AssertAlways(!inFalseIf); // we checked above
                         //do the appropriate thing
 
-                        AssertAlways(false); // XXX implement me!
+                        throw new Error("#define UNIMPLEMENTED!");
                     }
 
                     // ones that take an integer expression
@@ -1494,20 +1507,29 @@ public class Cpp
 
                             }
                             ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
-                            //
-                            // fall through to the #if thing.
+                            // do the #if thing,
+                            // which is to push the token again.
                             // it's the same token we just pushed,
                             // and the char buffer is considered immutable,
                             // so theoretically we could just push a ref to it
                             // instead of cloning another one,
                             // however in the current implementation,
                             // a given token can only appear once
-                            // on any TokenStack.
+                            // on any TokenStack, so we really do need to
+                            // clone another one.
+                            // However, we clone the clone instead of the
+                            // original, since that is cheaper
+                            // (the allocator will notice it's a clone
+                            // of a non-LineBuffer-owned token,
+                            // and it will share the internal char buffer).
                             //
+                            ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(ifStack.top()));
                         }
-
-                        // do the #if thing...
-                        ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
+                        else
+                        {
+                            // do the #if thing...
+                            ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
+                        }
 
                         // we need to evaluate the expression
                         // iff, before the #if was pushed,
@@ -1515,6 +1537,9 @@ public class Cpp
                         boolean needToEvaluate = highestTrueIfStackLevel >= ifStack.size()-1;
                         if (needToEvaluate)
                         {
+                            if (sb.length() == 0)
+                                throw new Error(expressionStartToken.inFileName+":"+(expressionStartToken.inLineNumber+1)+":"+(expressionStartToken.inColumnNumber+1)+": #"+token.textToString()+" with no expression"); // note, cpp says #if even if it was #elif; we do better
+
                             int expressionValue = 0;
 
                             try
@@ -1524,7 +1549,7 @@ public class Cpp
                             catch (Exception e)
                             {
                                 // ad-hoc error message, different from what gcc emits
-                                throw new Error(expressionStartToken.inFileName+":"+(expressionStartToken.inLineNumber+1)+":"+(expressionStartToken.inColumnNumber+1)+": "+e.getMessage()+" in "+token.textToString()+", expression was "+sb.toString()+"");
+                                throw new Error(expressionStartToken.inFileName+":"+(expressionStartToken.inLineNumber+1)+":"+(expressionStartToken.inColumnNumber+1)+": "+e.getMessage()+" in "+token.textToString()+", expression was \""+escapify(sb.toString())+"\"");
                             }
                             boolean answer = (expressionValue != 0);
                             highestTrueIfStackLevel = (answer ? ifStack.size()
@@ -2045,9 +2070,10 @@ public class Cpp
             System.err.println("    "+lineBufferScratch.nTokensReferringToMe+" tokens referring to lineBufferScratch");
             System.err.println("    "+tokenAllocator.nInUse+" tokens in use");
             System.err.println("    "+tokenAllocator.nFree+" tokens free");
-            System.err.println("    "+tokenAllocator.nPhysicalAllocations+" physical allocations");
-            System.err.println("    "+tokenAllocator.nLogicalAllocations+" logical allocationa");
-            System.err.println("    line buffer max length = "+lineBufferScratch.chars.length);
+            System.err.println("    "+tokenAllocator.nPhysicalAllocations+" physical token allocations");
+            System.err.println("    "+tokenAllocator.nLogicalAllocations+" logical token allocations");
+            System.err.println("    "+tokenAllocator.nPrivateBuffersAllocated+" private char buffers allocated");
+            System.err.println("    line buffer max capacity = "+lineBufferScratch.chars.length);
 
             System.err.println("out Cpp.main");
         }
