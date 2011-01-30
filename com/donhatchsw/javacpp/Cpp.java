@@ -1278,8 +1278,7 @@ public class Cpp
         // as if it was an #else,
         // and then again as if it was an #if. XXX is that necessary?
         // When it's time to pop (on an #endif), we keep popping #elif's
-        // until we hit an #if.
-        // XXX not sure that that suffices... will have to try it, maybe we need endifMultiplierStack
+        // until we hit an #if (or #ifdef or #ifndef).
         //
         TokenStack ifStack = new TokenStack();
         int highestTrueIfStackLevel = 0;
@@ -1502,7 +1501,8 @@ public class Cpp
                             // so theoretically we could just push a ref to it
                             // instead of cloning another one,
                             // however in the current implementation,
-                            // a given token can't appear twice on ifStack.
+                            // a given token can only appear once
+                            // on any TokenStack.
                             //
                         }
 
