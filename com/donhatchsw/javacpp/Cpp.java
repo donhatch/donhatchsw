@@ -1471,12 +1471,13 @@ public class Cpp
                             }
                         }
 
-                        // ones that take one macro name arg and that's all
-                        else if (token.textEquals("ifdef")  // #ifdef
-                              || token.textEquals("ifndef") // #ifndef
-                              || token.textEquals("undef"))  // #undef
+                        // ones that take a macro name
+                        else if (token.textEquals("ifdef")   // #ifdef
+                              || token.textEquals("ifndef")  // #ifndef
+                              || token.textEquals("undef")   // #undef
+                              || token.textEquals("define")) // #define
                         {
-
+                            // XXX oops, already ate up the space above, and did it wrong
                             // move past spaces between directive and macro name
                             while (nextToken.type == Token.SPACES
                                 || nextToken.type == Token.COMMENT)
@@ -1494,7 +1495,7 @@ public class Cpp
                             {
                                 // Got something like "#ifdef /*\n*/ foo"
                                 // Could try to implement this, but it's not that important.
-                                throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": unimplemented: macro name given in "+token.textToString()+" directive");
+                                throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": unimplemented: multi-line comment in "+token.textToString()+" directive");
                             }
 
                             if (nextToken.type != Token.IDENTIFIER)
@@ -1503,54 +1504,68 @@ public class Cpp
                             tokenAllocator.unrefToken(nextToken);
                             nextToken = tokenStream.readToken(inComment);
 
-                            // move past spaces between macro name and newline.
-                            // It's okay to start a c-style comment here.
-                            while (nextToken.type == Token.SPACES
-                                || nextToken.type == Token.COMMENT
-                                || nextToken.type == Token.COMMENT_START)
-                            {
-                                if (nextToken.type == Token.COMMENT_START)
-                                {
-                                    AssertAlways(inComment == false);
-                                    // have to print it so we don't end up outputting the end without the start.
-                                    // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it.
-                                    out.print(token.textUnderlyingString, token.i0, token.i1);
-                                    inComment = true;
-                                    // next token is guaranteed to be a NEWLINE
-                                }
-                                tokenAllocator.unrefToken(nextToken);
-                                nextToken = tokenStream.readToken(inComment);
-                            }
-
-                            if (nextToken.type != Token.NEWLINE)
-                            {
-                                // in cpp this is just a warning; we make it an error
-                                throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": extra tokens at end of "+token.textToString()+" directive");
-                            }
-
-                            if (token.textEquals("undef")) // #undef
+                            if (token.textEquals("define")) #define
                             {
                                 AssertAlways(!inFalseIf); // we checked above
-                                if (macroName == "__LINE__"
-                                 || macroName == "__FILE__")
-                                    throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": can't undefine \""+macroName+"\""); // gcc just gives a warning
-                                macros.remove(macroName);
-                            }
-                            else // #ifdef or #ifndef
-                            {
-                                ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
-                                if (!inFalseIf)
-                                {
-                                    boolean defined = (macros.get(macroName) != null);
-                                    boolean answer = (defined == token.textEquals("ifdef"));
+                                //do the appropriate thing
 
-                                    if (answer == true)
-                                        highestTrueIfStackLevel = ifStack.size(); // set to true as we push
-                                    else
-                                        highestTrueIfStackLevel = ifStack.size()-1; // change from true to false as we push
+                                throw new Error("#define UNIMPLEMENTED!");
+                            }
+                            else
+                            {
+                                // The others (#ifdef, #ifndef, #undef)
+                                // just take the single macro name and nothing else.
+
+                                // move past spaces between macro name and newline.
+                                // It's okay to start a c-style comment here.
+                                while (nextToken.type == Token.SPACES
+                                    || nextToken.type == Token.COMMENT
+                                    || nextToken.type == Token.COMMENT_START)
+                                {
+                                    if (nextToken.type == Token.COMMENT_START)
+                                    {
+                                        AssertAlways(inComment == false);
+                                        // have to print it so we don't end up outputting the end without the start.
+                                        // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it.
+                                        out.print(token.textUnderlyingString, token.i0, token.i1);
+                                        inComment = true;
+                                        // next token is guaranteed to be a NEWLINE
+                                    }
+                                    tokenAllocator.unrefToken(nextToken);
+                                    nextToken = tokenStream.readToken(inComment);
+                                }
+
+                                if (nextToken.type != Token.NEWLINE)
+                                {
+                                    // in cpp this is just a warning; we make it an error
+                                    throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": extra tokens at end of "+token.textToString()+" directive");
+                                }
+
+                                if (token.textEquals("undef")) // #undef
+                                {
+                                    AssertAlways(!inFalseIf); // we checked above
+                                    if (macroName == "__LINE__"
+                                     || macroName == "__FILE__")
+                                        throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": can't undefine \""+macroName+"\""); // gcc just gives a warning
+                                    macros.remove(macroName);
+                                }
+                                else // #ifdef or #ifndef
+                                {
+                                    ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
+                                    if (!inFalseIf)
+                                    {
+                                        boolean defined = (macros.get(macroName) != null);
+                                        boolean answer = (defined == token.textEquals("ifdef"));
+
+                                        if (answer == true)
+                                            highestTrueIfStackLevel = ifStack.size(); // set to true as we push
+                                        else
+                                            highestTrueIfStackLevel = ifStack.size()-1; // change from true to false as we push
+                                    }
                                 }
                             }
                         }
+
 
                         // ones that take an integer expression
                         else if (token.textEquals("if")    // #if
@@ -1678,14 +1693,6 @@ public class Cpp
                             output any newlines and/or line directives needed to get in sync
                             */
                             throw new Error("#include UNIMPLEMENTED!");
-                        }
-
-                        else if (token.textEquals("define")) // #define
-                        {
-                            AssertAlways(!inFalseIf); // we checked above
-                            //do the appropriate thing
-
-                            throw new Error("#define UNIMPLEMENTED!");
                         }
 
 
