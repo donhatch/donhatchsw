@@ -650,7 +650,6 @@ public class Cpp
                                  token.inColumnNumber);
         }
 
-        // XXX TODO: make sure someone uses this, I assume they do
         public Token refToken(Token token)
         {
             AssertAlways(token.refCount > 0); // tokens can't exist out in the world with ref count 0
@@ -721,21 +720,28 @@ public class Cpp
     {
         private Token first = null;
         private Token last = null;
+        private int size = 0;
         public boolean isEmpty()
         {
             return first == null;
         }
-        public void pushAndRef(Token token)
+        public void pushAndKeepRef(Token token)
         {
             AssertAlways(token.nextInStack == null);
             token.nextInStack = first;
             first = token;
             if (last == null)
                 last = first;
-            token.refCount++; // since it's now referred to by first member (last doesn't refcount anything)
 
             // transfered ownership of old first from first member
             // to new first.nextInStack, so no need to adjust its ref count
+
+            size++;
+        }
+        public void pushAndRef(Token token)
+        {
+            pushAndKeepRef(token);
+            token.refCount++; // since it's now referred to by first member (last doesn't refcount anything)
         }
         // TODO: not sure we want this... not sure we want to keep track of last either
         public void addOnBottomAndRef(Token token)
@@ -750,6 +756,8 @@ public class Cpp
                 first = token;
             last = token;
             token.refCount++; // since it's now referred to by either first or oldLast.nextInStack (last doesn't refcount anything). i.e. it's now referred to by the stack.
+
+            size++;
         }
 
         public Token popAndKeepRef()
@@ -764,6 +772,7 @@ public class Cpp
 
             // transfering ownership of token to the caller,
             // so no need to adjust its ref count either
+            size--;
             return token;
         }
         public void popAndUnref(TokenAllocator tokenAllocator)
@@ -771,6 +780,15 @@ public class Cpp
             Token token = popAndKeepRef();
             tokenAllocator.unrefToken(token);
             token = null; // following best practice
+            size--;
+        }
+        public Token top()
+        {
+            return first;
+        }
+        public int size()
+        {
+            return size;
         }
     } // class TokenStack
 
@@ -1212,14 +1230,58 @@ public class Cpp
         if (inputDebugLevel >= DEBUG_PER_FILE)
             System.err.println("    in Cpp.filter");
 
-        // stack of #ifwhatever tokens, for the file,line,column information.
-        // each frame consists of two tokens: the original #ifwhatever token,
-        // and the most recent #elif or #else that it changed into.
-        // (both are needed in order to emulate cpp's somewhat strange behavior:
-        // the line number from the original, and the token text of
-        // what it most recently changed into)
-        java.util.Stack ifStack = new java.util.Stack(); // of #ifwhatever tokens, for the file,line,column information.  Actually 
+        // Stack of #ifwhatever tokens whose scope we are in,
+        // for the file,line,column information
+        // that we'll need to emit if an error occurs.
+        //
+        // In the case of #else, we push #else on the stack
+        // along with the #if, since we'll need both
+        // for an error message like gcc's
+        // (it's a bit odd, the text is #else but the line/column info
+        // is that of the original #if).
+        // When popping, if we see an #else, we pop both the #else
+        // and the #if that's underneath it.
+        // XXX alternative: push a synthetic token with text #else but line/column from original #if
+        //
+        // The short-circuiting logic becomes incomprehensible for #elif,
+        // so internally we treat #elif as #else #if, e.g.
+        //      #if A
+        //      #elif B
+        //      #else
+        //      #endif
+        // becomes:
+        //      #if A
+        //      #else
+        //          #if B
+        //          #else
+        //          #endif
+        //      #endif
+        // and:
+        //      #if A
+        //      #elif B
+        //      #elif C
+        //      #else
+        //      #endif
+        // becomes:
+        //      #if A
+        //      #else
+        //          #if B
+        //          #else
+        //              #if C
+        //              #else
+        //              #endif
+        //          #endif
+        //      #endif
+        // so each time we hit an #elif, we push it on the stack once
+        // as if it was an #else,
+        // and then again as if it was an #if. XXX is that necessary?
+        // When it's time to pop (on an #endif), we keep popping #elif's
+        // until we hit an #if.
+        // XXX not sure that that suffices... will have to try it, maybe we need endifMultiplierStack
+        //
+        TokenStack ifStack = new TokenStack();
         int highestTrueIfStackLevel = 0;
+        java.util.Stack endifMultiplierStack = new java.util.Stack(); // XXX do we need this?
 
         // XXX TODO: should probably be emitLineNumberDirective
         out.println((commentOutLineDirectives?"// "+(out.outLineNumberDelivered+1+1)+" ":"")+"# "+(in.lineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments outLineNumberDelivered
@@ -1287,9 +1349,35 @@ public class Cpp
                 */
 
                 if (token.type == Token.NEWLINE)
-                    out.println();
+                {
+                    // don't print anything--
+                    // newlines only get printed when necessary
+                    // to sync up other text to the desired line numbers
+                    if (true) // XXX wait a minute, why is this needed??
+                        out.println();
+                }
                 else if (token.type == Token.PREPROCESSOR_DIRECTIVE)
                 {
+                    AssertAlways(!inComment);
+
+                    // move past spaces and comments
+                    // TODO: for #ifdef, #ifndef, #undef, we need to do this WITHOUT macro substitution, so that we don't expand the expected macro name.  Othere do it with macro substitution, I think.
+                    Token nextToken = tokenStream.readToken(inComment);
+                    while (nextToken.type == Token.SPACES
+                        || nextToken.type == Token.COMMENT
+                        || nextToken.type == Token.COMMENT_START)
+                    {
+                        if (nextToken.type == Token.COMMENT_START)
+                        {
+                            // have to print it so we don't end up outputting the end without the start.
+                            // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
+                            out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
+                            inComment = true;
+                        }
+                        tokenAllocator.unrefToken(nextToken);
+                        nextToken = tokenStream.readToken(inComment); // XXX need macro substitution?
+                    }
+
                     // when inside a false #if,
                     // the only preprocessor directives we recognize are:
                     //     #if*
@@ -1301,39 +1389,196 @@ public class Cpp
                     //     #undef
                     //     #include
                     boolean inFalseIf = ifStack.size() > highestTrueIfStackLevel;
-                    if (token.textEquals("include")) // #include
+
+                    if (inFalseIf && (token.textEquals("define")
+                                   || token.textEquals("undef")
+                                   || token.textEquals("include")))
                     {
-                        if (!inFalseIf)
+                        // discard tokens til end of line,
+                        // and don't print a newline.
+                        // okay to start a c-style comment here.
+                        while (nextToken.type != Token.NEWLINE)
                         {
-                            /*
-                            get the file name and stuff, including end of line
-                            output any newlines and/or line directives needed to get in sync
-                            recurse
-                            output any newlines and/or line directives needed to get in sync
-                            */
+                            if (nextToken.type == Token.COMMENT_START)
+                            {
+                                // have to print it so we don't end up outputting the end without the start.
+                                // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
+                                out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
+                                inComment = true;
+                            }
+                            tokenAllocator.unrefToken(nextToken);
+                            nextToken = tokenStream.readToken(inComment);
                         }
+                    }
+                    else if (token.textEquals("include")) // #include
+                    {
+                        AssertAlways(!inFalseIf); // we checked above
+                        /*
+                        get the file name and stuff, including end of line
+                        output any newlines and/or line directives needed to get in sync
+                        recurse
+                        output any newlines and/or line directives needed to get in sync
+                        */
+                        AssertAlways(false); // XXX implement me!
                     }
                     else if (token.textEquals("define")) // #define
                     {
-                        if (!inFalseIf)
-                        {
-                            //do the appropriate thing
-                        }
-                    }
-                    else if (token.textEquals("undef")) // #undef
-                    {
-                        if (!inFalseIf)
-                        {
-                            //do the appropriate thing
-                        }
+                        AssertAlways(!inFalseIf); // we checked above
+                        //do the appropriate thing
+
+                        AssertAlways(false); // XXX implement me!
                     }
 
+                    // ones that take an integer expression
+                    else if (token.textEquals("if")    // #if
+                          || token.textEquals("elif")) // #elif
+                    {
+                        Token expressionStartToken = tokenAllocator.refToken(nextToken);
+                        // gather rest of line (with macro substitution and defined() evaluation)
+                        // into a string...
+                        StringBuffer sb = new StringBuffer();
+                        while (nextToken.type != Token.NEWLINE)
+                        {
+                            if (nextToken.type == Token.COMMENT_START)
+                            {
+                                AssertAlways(inComment == false);
+                                // have to print it so we don't end up outputting the end without the start.
+                                // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
+                                out.print(token.textUnderlyingString, token.i0, token.i1);
+                                inComment = true;
+                                // next token is guaranteed to be a NEWLINE
+                            }
+                            else if (nextToken.type == Token.COMMENT)
+                                sb.append(" ");
+                            else
+                                sb.append(nextToken.textUnderlyingString,
+                                          nextToken.i0,
+                                          nextToken.i1-nextToken.i0);
+                            tokenAllocator.unrefToken(nextToken);
+                            nextToken = tokenStream.readToken(inComment); // XXX need to do it with macro substitution and defined() evaluation
+
+                        }
+
+
+                        if (token.textEquals("elif")) // #elif
+                        {
+                            // Simulate #elif by doing the #else thing
+                            // followed by the #if thing.
+
+                            //
+                            // do the #else thing...
+                            //
+                            if (ifStack.top().textEquals("else"))
+                            {
+                                // find the original #if token
+                                Token originalIfToken = ifStack.popAndKeepRef();
+                                while (!originalIfToken.textEquals("if"))
+                                {
+                                    tokenAllocator.unrefToken(originalIfToken);
+                                    originalIfToken = ifStack.popAndKeepRef();
+                                }
+                                throw new Error(
+                                    token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": #"+token.textToString()+" after #else"
+                                  + "\n" // XXX \r\n on windows?
+                                  + originalIfToken.inFileName+":"+(originalIfToken.inLineNumber+1)+":"+(originalIfToken.inColumnNumber+1)+": the conditional began here");
+                            }
+                            // Only consider changing state
+                            // if parent state was true...
+                            if (highestTrueIfStackLevel >= ifStack.size()-1)
+                            {
+                                if (highestTrueIfStackLevel >= ifStack.size()) // was true
+                                    highestTrueIfStackLevel = ifStack.size(); // change from true to false as we push
+                                else // was false
+                                    highestTrueIfStackLevel = ifStack.size()+1; // change from false to true as we push
+
+                            }
+                            ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
+                            //
+                            // do the #if thing...
+                            //
+                            ifStack.pushAndRef(ifStack.top()); // push same token again, as if it were an #if
+                        }
+                        else // #if
+                        {
+                            ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
+                        }
+
+                        // we need to evaluate the expression
+                        // iff, before the #if was pushed,
+                        // we were in a true.
+                        boolean needToEvaluate = highestTrueIfStackLevel >= ifStack.size()-1;
+                        if (needToEvaluate)
+                        {
+                            int expressionValue = 0;
+
+                            try
+                            {
+                                expressionValue = expressionParser.evaluateIntExpression(sb.toString());
+                            }
+                            catch (Exception e)
+                            {
+                                // ad-hoc error message, different from what gcc emits
+                                throw new Error(expressionStartToken.inFileName+":"+(expressionStartToken.inLineNumber+1)+":"+(expressionStartToken.inColumnNumber+1)+": "+e.getMessage()+" in "+token.textToString()+", expression was "+sb.toString()+"");
+                            }
+                            boolean answer = (expressionValue != 0);
+                            highestTrueIfStackLevel = (answer ? ifStack.size()
+                                                              : ifStack.size()-1);
+                        }
+                        tokenAllocator.unrefToken(expressionStartToken);
+                    }
+                    // ones that don't take anything
+                    else if (token.textEquals("else")   // #else
+                          || token.textEquals("endif")) // #endif
+                    {
+                        if (ifStack.isEmpty())
+                            throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": #"+token.textToString()+" without #if");
+
+                        if (token.textEquals("else"))
+                        {
+                            if (ifStack.top().textEquals("else"))
+                            {
+                                // find the original #if token
+                                Token originalIfToken = ifStack.popAndKeepRef();
+                                while (!originalIfToken.textEquals("if"))
+                                {
+                                    tokenAllocator.unrefToken(originalIfToken);
+                                    originalIfToken = ifStack.popAndKeepRef();
+                                }
+                                throw new Error(
+                                    token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": #"+token.textToString()+" after #else"
+                                  + "\n" // XXX \r\n on windows?
+                                  + originalIfToken.inFileName+":"+(originalIfToken.inLineNumber+1)+":"+(originalIfToken.inColumnNumber+1)+": the conditional began here");
+                            }
+                            // Only consider changing state
+                            // if parent state was true...
+                            if (highestTrueIfStackLevel >= ifStack.size()-1)
+                            {
+                                if (highestTrueIfStackLevel >= ifStack.size()) // was true
+                                    highestTrueIfStackLevel = ifStack.size(); // change from true to false as we push
+                                else // was false
+                                    highestTrueIfStackLevel = ifStack.size()+1; // change from false to true as we push
+
+                            }
+                            ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
+                        }
+                        else // #endif
+                        {
+                            // pop til we pop an #if
+                            for (boolean gotIf = false; !gotIf;)
+                            {
+                                AssertAlways(!ifStack.isEmpty()); // stack was nonempty before, so there's got to be an actual #if at the bottom of the stack
+                                Token poppedToken = ifStack.popAndKeepRef();
+                                gotIf = poppedToken.textStartsWith("if");
+                                tokenAllocator.unrefToken(poppedToken);
+                                poppedToken = null;
+                            }
+                        }
+                    }
                     // ones that take one macro name arg and that's all
                     else if (token.textEquals("ifdef")  // #ifdef
                           || token.textEquals("ifndef") // #ifndef
                           || token.textEquals("undef"))  // #undef
                     {
-                        Token nextToken = tokenStream.readToken(inComment); // WITHOUT macro substitution, so we don't expand the expected macro name
 
                         // move past spaces between directive and macro name
                         while (nextToken.type == Token.SPACES
@@ -1370,6 +1615,9 @@ public class Cpp
                             if (nextToken.type == Token.COMMENT_START)
                             {
                                 AssertAlways(inComment == false);
+                                // have to print it so we don't end up outputting the end without the start.
+                                // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it.
+                                out.print(token.textUnderlyingString, token.i0, token.i1);
                                 inComment = true;
                                 // next token is guaranteed to be a NEWLINE
                             }
@@ -1379,10 +1627,9 @@ public class Cpp
 
                         if (nextToken.type != Token.NEWLINE)
                         {
-                            throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": warning: extra tokens at end of "+token.textToString()+" directive");
+                            // in cpp this is just a warning; we make it an error
+                            throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": extra tokens at end of "+token.textToString()+" directive");
                         }
-                        tokenAllocator.unrefToken(nextToken);
-                        nextToken = null;
 
                         if (token.textEquals("undef")) // #undef
                         {
@@ -1396,37 +1643,21 @@ public class Cpp
                         }
                         else // #ifdef or #ifndef
                         {
-                            ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // original
-                            ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // current
+                            ifStack.pushAndKeepRef(tokenAllocator.newRefedTokenCloned(token));
+                            if (!inFalseIf)
+                            {
+                                boolean defined = (macros.get(macroName) != null);
+                                boolean answer = (defined == token.textEquals("ifdef"));
+
+                                if (answer == true)
+                                    highestTrueIfStackLevel = ifStack.size(); // set to true as we push
+                                else
+                                    highestTrueIfStackLevel = ifStack.size()-1; // change from true to false as we push
+                            }
                         }
 
-                        if (true) // XXX this may be temporary, til I get all cases implemented
-                        {
-                            out.println();
-                            continue;
-                        }
                     }
 
-                    else if (token.textEquals("if")) // #if
-                    {
-                        ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // original
-                        ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // current
-                    }
-                    else if (token.textEquals("elif")) // #elif
-                    {
-                        tokenAllocator.unrefToken((Token)ifStack.pop());       // current
-                        ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // current
-                    }
-                    else if (token.textEquals("else")) // #else
-                    {
-                        tokenAllocator.unrefToken((Token)ifStack.pop());       // current
-                        ifStack.push(tokenAllocator.newRefedTokenCloned(token)); // current
-                    }
-                    else if (token.textEquals("endif")) // #endif
-                    {
-                        tokenAllocator.unrefToken((Token)ifStack.pop());       // current
-                        tokenAllocator.unrefToken((Token)ifStack.pop());       // original
-                    }
 
                     else if (token.textStartsWithDigit())
                     {
@@ -1439,28 +1670,40 @@ public class Cpp
                     else if (token.textIsEmpty())
                     {
                         // nothing!
+                        AssertAlways(nextToken.type == Token.NEWLINE);
                     }
                     else
                     {
                         throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": invalid preprocessor directive #"+token.textToString());
                     }
 
+                    // in all of the above cases,
+                    // we processed the whole line til NEWLINE
+                    AssertAlways(nextToken.type == Token.NEWLINE);
+                    tokenAllocator.unrefToken(nextToken);
+                    nextToken = null;
+                    out.println(); // XXX why is this necessary?
+
                 } // preprocessor directive
                 else
                 {
-                    // Actually output something.
-                    // First make sure the output line number is synced up...
-                    if (out.columnNumber == 0)
+                    // if not in a false #if...
+                    if (ifStack.size() <= highestTrueIfStackLevel)
                     {
-                        if (!out.softSyncToInLineNumber(token.inLineNumber))
-                            out.hardSyncToInLineNumber(token.inLineNumber,
-                                                       token.inFileName,
-                                                       commentOutLineDirectives,
-                                                       in.extraCrap);
-                        AssertAlways(out.inLineNumber == token.inLineNumber);
-                        AssertAlways(out.outLineNumberDelivered == out.outLineNumberPromised);
+                        // Actually output something.
+                        // First make sure the output line number is synced up...
+                        if (out.columnNumber == 0)
+                        {
+                            if (!out.softSyncToInLineNumber(token.inLineNumber))
+                                out.hardSyncToInLineNumber(token.inLineNumber,
+                                                           token.inFileName,
+                                                           commentOutLineDirectives,
+                                                           in.extraCrap);
+                            AssertAlways(out.inLineNumber == token.inLineNumber);
+                            AssertAlways(out.outLineNumberDelivered == out.outLineNumberPromised);
+                        }
+                        out.print(token.textUnderlyingString, token.i0, token.i1);
                     }
-                    out.print(token.textUnderlyingString, token.i0, token.i1);
                 }
 
                 tokenAllocator.unrefToken(token);
@@ -1476,9 +1719,11 @@ public class Cpp
 
         if (!ifStack.isEmpty())
         {
-            Token current = (Token)ifStack.pop();
-            Token original = (Token)ifStack.pop();
             // don't bother unrefing, we'll just leak refs, for these and any others on stack
+            Token current = ifStack.popAndKeepRef();
+            Token original = current;
+            while (!original.textStartsWith("if"))
+                original = ifStack.popAndKeepRef();
             throw new Error(original.inFileName+":"+(original.inLineNumber+1)+":1: unterminated #"+current.textToString());
         }
 
