@@ -12,6 +12,10 @@ package com.donhatchsw.javacpp;
 
 public class Cpp
 {
+    // TODO: If this really doesn't give us anything, should just remove
+    // the whole mechanism.
+    public static final boolean useTokenPool = true;
+
     private static final int DEBUG_NONE = 0;
     private static final int DEBUG_OVERALL = 1;
     private static final int DEBUG_PER_FILE = 2;
@@ -589,7 +593,7 @@ public class Cpp
             AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
 
             Token token;
-            if (freeListHead != null)
+            if (useTokenPool && freeListHead != null)
             {
                 nFree--;
                 token = freeListHead;
@@ -695,14 +699,17 @@ public class Cpp
 
 
 
-                // We've carefully unrefed and nulled out the Token members.
-                // Make sure token is not holding on to any other pointers
-                // either...
-                token.textUnderlyingString = null;
-                token.inFileName = null;
+                if (useTokenPool)
+                {
+                    // We've carefully unrefed and nulled out the Token's members.
+                    // Make sure token is not holding on to any other pointers
+                    // either...
+                    token.textUnderlyingString = null;
+                    token.inFileName = null;
 
-                token.nextInStack = freeListHead;
-                freeListHead = token;
+                    token.nextInStack = freeListHead;
+                    freeListHead = token;
+                }
                 nFree++;
 
                 AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
@@ -2069,7 +2076,7 @@ public class Cpp
 
             System.err.println("    "+lineBufferScratch.nTokensReferringToMe+" tokens referring to lineBufferScratch");
             System.err.println("    "+tokenAllocator.nInUse+" tokens in use");
-            System.err.println("    "+tokenAllocator.nFree+" tokens free");
+            System.err.println("    "+tokenAllocator.nFree+" tokens in free list");
             System.err.println("    "+tokenAllocator.nPhysicalAllocations+" physical token allocations");
             System.err.println("    "+tokenAllocator.nLogicalAllocations+" logical token allocations");
             System.err.println("    "+tokenAllocator.nPrivateBuffersAllocated+" private char buffers allocated");
