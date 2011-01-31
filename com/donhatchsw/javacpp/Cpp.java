@@ -554,15 +554,84 @@ public class Cpp
                   +escapify(this.textToString())
                   +"\", "
                   +"                         "
-                  +", \""
-                  +escapify(this.inFileName)
-                  +"\", "
+                  +", "
+                  +(this.inFileName==null ? "null"
+                                          : "\""+escapify(this.inFileName))+"\""
+                  +", "
                   +this.inLineNumber
                   +", "
                   +this.inColumnNumber
                   +")";
         }
     } // class Token
+
+    private static class Macro
+    {
+        // Doesn't include the name
+        public int numParams; // -1 means no parens even
+        public Token[] contents; // args denoted by token type MACRO_ARG with line number containing the index of the argument to be substituted
+        public String inFileName;
+        public int inLineNumber;
+        public int inColumnNumber; // XXX maybe don't need... I think cpp's messages pertaining to macros always say column 1
+        public Macro(int numParams, Token[] contents,
+                     String inFileName, int inLineNumber, int inColumnNumber)
+        {
+            this.numParams = numParams;
+            this.contents = contents;
+            this.inFileName = inFileName;
+            this.inLineNumber = inLineNumber;
+            this.inColumnNumber = inColumnNumber;
+        }
+
+        // For debug printing
+        public String toString()
+        {
+            StringBuffer sb = new StringBuffer();
+            sb.append("new Macro("
+                     +this.numParams
+                     +", ");
+            if (this.contents == null)
+                sb.append("null");
+            else
+            {
+                sb.append("{\n");
+                for (int iContent = 0; iContent < this.contents.length; ++iContent)
+                {
+                    sb.append("    "+iContent+": ");
+                    sb.append(this.contents[iContent]);
+                    sb.append("\n");
+                }
+                sb.append("}");
+            }
+            sb.append(")");
+            return sb.toString();
+        }
+
+        // tell whether one macro is the same as another,
+        // for deciding whether to warn about it being redefined.
+        // note this is semantic comparison, it doesn't care
+        // if the param names are different.
+        public boolean sameContents(Macro other)
+        {
+            if (numParams != other.numParams)
+                return false;
+            if ((contents==null) != (other.contents==null))
+                return false;
+            if (contents != null)
+            {
+                if (contents.length != other.contents.length)
+                    return false;
+                for (int i = 0; i < contents.length; ++i)
+                {
+                    if (contents[i].type != other.contents[i].type)
+                        return false;
+                    if (!contents[i].textToString().equals(other.contents[i].textToString())) // not very efficient, but this isn't going to be used much
+                        return false;
+                }
+            }
+            return true;
+        }
+    } // private static class Macro
 
 
     // Tokens are the thing we are going to create and destroy
@@ -613,6 +682,7 @@ public class Cpp
             nInUse++;
 
             AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
+            //System.err.println("TOKEN LOGICAL ALLOCATION: "+token);
             nLogicalAllocations++;
 
             return token;
@@ -664,6 +734,7 @@ public class Cpp
         public Token refToken(Token token)
         {
             AssertAlways(token.refCount > 0); // tokens can't exist out in the world with ref count 0
+            //System.err.println("TOKEN REF COUNT "+token.refCount+" -> "+(token.refCount+1)+" : "+token);
             token.refCount++;
             return token;
         }
@@ -672,6 +743,8 @@ public class Cpp
         // was holding token to null immediately after calling this function.
         public void unrefToken(Token token)
         {
+            //System.err.println("TOKEN REF COUNT "+token.refCount+" -> "+(token.refCount-1)+" : "+token);
+            AssertAlways(token.refCount > 0);
             if (--token.refCount <= 0)
             {
                 AssertAlways(token.nextInStack == null);
@@ -710,6 +783,17 @@ public class Cpp
             }
         } // unrefToken
 
+        public void unrefTokensInMacro(Macro macro)
+        {
+            Token contents[] = macro.contents;
+            if (contents != null)
+                for (int i = 0; i < contents.length; ++i)
+                {
+                    this.unrefToken(contents[i]);
+                    contents[i] = null;
+                }
+        }
+
         // At all times, nInUse() + nFree() equals nPhysicalAllocations
         // (it's an invariant of all our methods;
         // they always either increment nInUse and decrement nFree, or vice versa,
@@ -728,6 +812,7 @@ public class Cpp
             return nFree;
         }
     } // class TokenAllocator
+
 
 
     private static class TokenStack
@@ -1496,14 +1581,272 @@ public class Cpp
                                 throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": macro names must be identifiers");
                             String macroName = nextToken.textToString();
                             tokenAllocator.unrefToken(nextToken);
-                            nextToken = tokenStream.readToken(inComment);
+                            nextToken = tokenStream.readToken(inComment); // XXX needs to be WITHOUT macro expansion (in case it's #define, we don't want to expand the definition while it's being defined)
 
-                            if (token.textEquals("define")) #define
+                            if (token.textEquals("define")) // #define
                             {
+                                int verboseLevel = 2; // XXX turn this into one of the debug things
+                                if (verboseLevel >= 2)
+                                    System.err.println("        filter: found #define");
                                 AssertAlways(!inFalseIf); // we checked above
-                                //do the appropriate thing
 
-                                throw new Error("#define UNIMPLEMENTED!");
+                                // must be either whitespace or left paren after macro name... it makes a difference
+
+                                String paramNames[] = null;
+                                if (nextToken.type == Token.SYMBOL
+                                 && nextToken.textEquals("("))
+                                {
+                                    if (verboseLevel >= 2)
+                                        System.err.println("        filter:     and there's a macro param list");
+                                    // There's a macro param list.
+                                    java.util.Vector paramNamesVector = new java.util.Vector();
+
+                                    tokenAllocator.unrefToken(nextToken);
+                                    nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+
+                                    // move past spaces
+                                    while (nextToken.type == Token.SPACES
+                                        || nextToken.type == Token.COMMENT)
+                                    {
+                                        tokenAllocator.unrefToken(nextToken);
+                                        nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+                                    }
+
+                                    if (nextToken.type == Token.SYMBOL
+                                     && nextToken.textEquals(")"))
+                                    {
+                                        // zero params
+                                    }
+                                    else
+                                    {
+                                        // must be one or more param names,
+                                        // separated by commas,
+                                        // followed by close paren
+
+                                        if (nextToken.type != Token.IDENTIFIER)
+                                            throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+
+                                        paramNamesVector.add(nextToken.textToString());
+                                        tokenAllocator.unrefToken(nextToken);
+                                        nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+
+                                        while (true)
+                                        {
+                                            // move past spaces
+                                            while (nextToken.type == Token.SPACES
+                                                || nextToken.type == Token.COMMENT)
+                                            {
+
+                                                tokenAllocator.unrefToken(nextToken);
+                                                nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+                                            }
+
+                                            if (nextToken.type == Token.SYMBOL)
+                                            {
+                                                if (nextToken.textEquals(")"))
+                                                    break;
+                                                else if (nextToken.textEquals(","))
+                                                {
+                                                    tokenAllocator.unrefToken(nextToken);
+                                                    nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+
+                                                    // move past spaces
+                                                    while (nextToken.type == Token.SPACES
+                                                        || nextToken.type == Token.COMMENT)
+                                                    {
+                                                        tokenAllocator.unrefToken(nextToken);
+                                                        nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+                                                    }
+
+                                                    if (nextToken.type == Token.IDENTIFIER)
+                                                    {
+                                                        paramNamesVector.add(nextToken.textToString());
+                                                        tokenAllocator.unrefToken(nextToken);
+                                                        nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+                                                        continue;
+                                                    }
+                                                    // otherwise drop into error case
+                                                }
+                                            }
+                                            throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                                        }
+                                    }
+                                    AssertAlways(nextToken.type == Token.SYMBOL
+                                              && nextToken.textEquals(")"));
+                                    tokenAllocator.unrefToken(nextToken);
+                                    nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+
+                                    paramNames = (String[])paramNamesVector.toArray(new String[0]);
+                                }
+                                else if (nextToken.type == Token.SPACES
+                                      || nextToken.type == Token.COMMENT
+                                      || nextToken.type == Token.NEWLINE)
+                                {
+                                    if (verboseLevel >= 2)
+                                        System.err.println("        filter:     and there's no macro param list");
+                                    ;
+                                }
+                                else
+                                {
+                                    // macro name was not followed by a macro param list
+                                    // nor spaces
+                                    throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
+                                }
+
+                                // we are now in the #define, past the macro name and optional arg list.
+                                // next comes the content, up to an unescaped newline
+                                // or eof.
+                                // still using nextToken to hold the next token we are about to look at.
+
+                                java.util.Vector contentsVector = new java.util.Vector();
+
+                                while (nextToken.type != Token.NEWLINE)
+                                {
+                                    if (paramNames != null)
+                                    {
+                                        if (nextToken.type == Token.IDENTIFIER)
+                                        {
+                                            for (int i = 0; i < paramNames.length; ++i)
+                                                if (nextToken.textEquals(paramNames[i]))
+                                                {
+                                                    tokenAllocator.unrefToken(nextToken);
+                                                    nextToken = tokenAllocator.newRefedToken(Token.MACRO_ARG, new char[0], 0, 0, null, i, -1); // smuggle in param index through line number
+                                                    break;
+                                                }
+                                            // if not found, it stays identifier
+                                        }
+                                        else if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
+                                        {
+                                            // XXX what the fuck is this? this is all messed up... in the first version, I recognized preprocessor directives anywhere in the line, so I could hijack that here.  maybe should do that again? not sure
+                                            if (true) throw new Error("XXX hijacking! argh!");
+
+                                            String paramNameMaybe = nextToken.textToString(); // spaces got crunched out already during token lexical scanning
+                                            if (paramNameMaybe.equals("#"))
+                                            {
+                                                //System.err.println(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": hey! "+macroName+" is a token pasting macro!");
+                                                tokenAllocator.unrefToken(nextToken);
+                                                nextToken = tokenAllocator.newRefedToken(Token.TOKEN_PASTE, new char[]{'#','#'}, 0,2, null, -1, -1);
+                                            }
+                                            else
+                                            {
+                                                for (int i = 0; i < paramNames.length; ++i)
+                                                    if (paramNameMaybe.equals(paramNames[i]))
+                                                    {
+                                                        tokenAllocator.unrefToken(nextToken);
+                                                        nextToken = tokenAllocator.newRefedToken(Token.MACRO_ARG_QUOTED, (char[])null, 0, 0, null, i, -1); // smuggle in param index through line number
+                                                        break;
+                                                    }
+                                                // if not found, it's an error
+                                                if (nextToken.type == Token.PREPROCESSOR_DIRECTIVE)
+                                                {
+                                                    System.err.println(nextToken);
+                                                    throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": '#' is not followed by a macro parameter");
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    //System.err.println("(CLONING TOKEN): "+nextToken);
+                                    contentsVector.add(tokenAllocator.newRefedTokenCloned(nextToken));
+                                    //System.err.println("(UNREFING ORIGINAL TOKEN): "+nextToken);
+                                    tokenAllocator.unrefToken(nextToken);
+                                    nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
+                                }
+                                Token contents[] = new Token[contentsVector.size()];
+                                for (int i = 0; i < contents.length; ++i)
+                                    contents[i] = (Token)contentsVector.get(i);
+                                {
+                                    // in place, compress all consecutive comments and spaces
+                                    // into a single space, and
+                                    // discard spaces and comments at the beginning.
+                                    int nOut = 0;
+                                    for (int iIn = 0; iIn < contents.length; ++iIn)
+                                    {
+                                        Token tokenIn = contents[iIn];
+                                        contents[iIn] = null;
+                                        if (tokenIn.type == Token.SPACES
+                                         || tokenIn.type == Token.COMMENT)
+                                        {
+                                            if (nOut != 0
+                                             && contents[nOut-1].type != Token.SPACES
+                                             && !contents[nOut-1].textEquals("##")) // spaces after '##' disappear
+                                            {
+                                                AssertAlways(contents[nOut] == null);
+                                                contents[nOut++] = tokenAllocator.newRefedToken(Token.SPACES, new char[]{' '}, 0,1, tokenIn.inFileName, tokenIn.inLineNumber, tokenIn.inColumnNumber);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (tokenIn.textEquals("##")
+                                             && nOut > 0
+                                             && contents[nOut-1].type == Token.SPACES)
+                                            {
+                                                tokenAllocator.unrefToken(contents[nOut-1]);
+                                                contents[nOut-1] = null;
+                                                nOut--; // spaces before '##' disappear
+                                            }
+
+                                            AssertAlways(contents[nOut] == null);
+                                            contents[nOut++] = tokenAllocator.refToken(tokenIn);
+                                        }
+                                        tokenAllocator.unrefToken(tokenIn);
+                                    }
+                                    // and discard spaces and comments at the end too
+                                    if (nOut > 0
+                                     && contents[nOut-1].type == Token.SPACES)
+                                    {
+                                        tokenAllocator.unrefToken(contents[nOut-1]);
+                                        contents[nOut-1] = null;
+                                        nOut--;
+                                    }
+                                    AssertAlways(!(nOut > 0
+                                                && contents[nOut-1].type == Token.SPACES));
+
+                                    if (nOut != contents.length)
+                                    {
+                                        Token smallerContents[] = new Token[nOut];
+                                        for (int i = 0; i < nOut; ++i)
+                                            smallerContents[i] = contents[i];
+                                        contents = smallerContents;
+                                    }
+                                }
+                                Macro macro = new Macro(paramNames==null ? -1 : paramNames.length,
+                                                        contents,
+                                                        token.inFileName,
+                                                        token.inLineNumber,
+                                                        token.inColumnNumber);
+                                if (verboseLevel >= 2)
+                                    System.err.println("        filter:     defining macro \""+macroName+"\": "+macro);
+                                Macro previousMacro = (Macro)macros.get(macroName);
+                                if (previousMacro != null)
+                                {
+                                    if (macroName == "__LINE__"
+                                     || macroName == "__FILE__")
+                                        throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": can't redefine \""+macroName+"\"");
+
+
+                                    if (!macro.sameContents(previousMacro))
+                                    {
+                                        // note, cpp's notion of sameness is more strict than ours... for example, we consider #define FOO(a,b) a##b the same as #define FOO(x,y) x##y
+                                        System.err.println(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": warning: \""+macroName+"\" redefined");
+                                        System.err.println(previousMacro.inFileName+":"+(previousMacro.inLineNumber+1)+":"+(previousMacro.inColumnNumber+1)+": warning: this is the location of the previous definition");
+                                        // XXX NOTE: cpp says they are at column 1... is that what I should do? maybe don't need to store column number for macro at all?
+                                    }
+
+                                    tokenAllocator.unrefTokensInMacro(previousMacro);
+                                }
+
+                                macros.put(macroName, macro);
+
+                                /* TODO: this was in old version... do I want it?
+                                if (nextToken.type == Token.EOF)
+                                {
+                                    in.pushBackToken(nextToken);
+                                    continue;
+                                }
+                                */
+                                AssertAlways(nextToken.type == Token.NEWLINE);
+                                // don't bother outputting it, we'll output it lazily on next non-newline
                             }
                             else
                             {
@@ -1541,6 +1884,9 @@ public class Cpp
                                     if (macroName == "__LINE__"
                                      || macroName == "__FILE__")
                                         throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": can't undefine \""+macroName+"\""); // gcc just gives a warning
+                                    Macro macro = (Macro)macros.get(macroName);
+                                    if (macro != null)
+                                        tokenAllocator.unrefTokensInMacro(macro);
                                     macros.remove(macroName);
                                 }
                                 else // #ifdef or #ifndef
@@ -1557,7 +1903,7 @@ public class Cpp
                                             highestTrueIfStackLevel = ifStack.size()-1; // change from true to false as we push
                                     }
                                 }
-                            }
+                            } // #ifdef,#ifndef,#undef
                         }
 
 
@@ -1966,6 +2312,22 @@ public class Cpp
             commentOutLineDirectives);
     } // parseArgs
 
+    private static String millisToSecsString(long millis)
+    {
+        String answer = "";
+        if (millis < 0)
+        {
+            answer += "-";
+            millis = -millis;
+        }
+        answer += millis/1000
+                + "."
+                + millis / 100 % 10
+                + millis / 10 % 10
+                + millis % 10;
+        return answer;
+    }
+
     public static void main(String args[])
     {
         if (inputDebugLevel >= DEBUG_OVERALL)
@@ -2033,7 +2395,7 @@ public class Cpp
         {
             // hack to get something in macros, so I can test #ifdef before I get #define working
             System.err.println("XXX GET RID");
-            macros.put("__LINE__", new Object());
+            macros.put("__LINE__", new Macro(-1,null,null,-1,-1));
         }
 
         try
@@ -2094,24 +2456,41 @@ public class Cpp
         }
         writer.flush();
 
+        //
+        // Destroy the macros, freeing any tokens therein.
+        //
+        if (inputDebugLevel >= DEBUG_OVERALL)
+            System.err.println("    freeing macros");
+        for (java.util.Enumeration e = macros.keys(); e.hasMoreElements(); )
+        {
+            String name = (String)e.nextElement();
+            Macro macro = (Macro)macros.get(name); // XXX TODO: weird, is it not possible to iterate through the name/value pairs without calling the hash function?
+            if (inputDebugLevel >= DEBUG_PER_LINE)
+                System.err.println("        "+name+" : "+macro+"");
+            tokenAllocator.unrefTokensInMacro(macro);
+        }
+
+
         if (inputDebugLevel >= DEBUG_OVERALL)
         {
             long t1Millis = System.currentTimeMillis();
-            double totalSeconds = (t1Millis-t0Millis)*1e-3;
-            System.err.println("    "+totalSeconds+" seconds");
 
             System.err.println("    "+lineBufferScratch.nTokensReferringToMe+" tokens referring to lineBufferScratch");
-            System.err.println("    "+tokenAllocator.nInUse+" tokens in use");
+            System.err.println("    "+tokenAllocator.nInUse+" tokens still in use");
             System.err.println("    "+tokenAllocator.nFree+" tokens in free list");
             System.err.println("    "+tokenAllocator.nPhysicalAllocations+" physical token allocations");
             System.err.println("    "+tokenAllocator.nLogicalAllocations+" logical token allocations");
             System.err.println("    "+tokenAllocator.nPrivateBuffersAllocated+" private char buffers allocated");
             System.err.println("    line buffer max capacity = "+lineBufferScratch.chars.length);
 
-            System.err.println("out Cpp.main");
+            System.err.println("    "+millisToSecsString(t1Millis-t0Millis)+" seconds");
         }
+
         AssertAlways(lineBufferScratch.nTokensReferringToMe == 0);
         AssertAlways(tokenAllocator.nInUse == 0);
+
+        if (inputDebugLevel >= DEBUG_OVERALL)
+            System.err.println("out Cpp.main");
         System.exit(0);
     } // main
 
