@@ -21,7 +21,7 @@ public class Cpp
     // TokenDebugLevel is separate from inputDebugLevel, because sometimes you want to see token debugging but don't care about line debugging.
     private static int inputDebugLevel  = 2;
     private static int tokenDebugLevel  = 2;
-    private static int outputDebugLevel = 4;
+    private static int outputDebugLevel = 2;
 
 
     // Logical assertions, always compiled in. Ungracefully bail if violated.
@@ -1384,9 +1384,7 @@ public class Cpp
         int highestTrueIfStackLevel = 0;
         java.util.Stack endifMultiplierStack = new java.util.Stack(); // XXX do we need this?
 
-        // XXX TODO: should probably be emitLineNumberDirective
-        out.println((commentOutLineDirectives?"// "+(out.outLineNumberDelivered+1+1)+" ":"")+"# "+(in.lineNumber+1)+" \""+in.fileName+"\""+in.extraCrap); // increments outLineNumberDelivered
-        out.setInLineNumber(in.lineNumber);
+        out.hardSyncToInLineNumber(in.lineNumber, in.fileName, commentOutLineDirectives, in.extraCrap);
 
         boolean inComment = false;
 
@@ -1585,7 +1583,7 @@ public class Cpp
 
                             if (token.textEquals("define")) // #define
                             {
-                                int verboseLevel = 2; // XXX turn this into one of the debug things
+                                int verboseLevel = 0; // XXX turn this into one of the debug things
                                 if (verboseLevel >= 2)
                                     System.err.println("        filter: found #define");
                                 AssertAlways(!inFalseIf); // we checked above
@@ -2406,16 +2404,146 @@ public class Cpp
         ExpressionParser expressionParser = new ExpressionParser();
         java.util.Hashtable macros = new java.util.Hashtable();
 
-        if (true) // XXX GET RID
-        {
-            // hack to get something in macros, so I can test #ifdef before I get #define working
-            System.err.println("XXX GET RID");
-            macros.put("__LINE__", new Macro(-1,null,null,-1,-1));
-        }
+
+        // For some reason the real cpp does this at the beginning
+        // before the built-ins and command line... so we do it too
+        writer.hardSyncToInLineNumber(0, inFileName, parsedArgs.commentOutLineDirectives, "");
 
         try
         {
-            java.io.Reader commandLineFakeInputReader = new java.io.StringReader(parsedArgs.commandLineFakeInput.toString());
+            String builtinInput = "#define __LINE__ __LINE__\n" // stub, handled specially
+                                + "#define __FILE__ __FILE__\n"; // stub, handled specially
+            String language = parsedArgs.language;
+            if (language.equals("java"))
+            {
+                builtinInput += "#define __java 1\n";
+            }
+            else if (language.equals("c")
+                  || language.equals("c++"))
+            {
+                if (language.equals("c++"))
+                {
+                    // cpp -x c++ -dM /dev/null
+                    // and remove what's in the c output
+                    builtinInput += ""
+                        + "#define __GXX_WEAK__ 1\n"
+                        + "#define __cplusplus 1\n"
+                        + "#define __DEPRECATED 1\n"
+                        + "#define __GNUG__ 3\n"
+                        + "#define __EXCEPTIONS 1\n"
+                        + "#define _GNU_SOURCE 1\n"
+                        ;
+                }
+                // cpp -x c -dM /dev/null
+                builtinInput += "#define __STDC__ 1\n"; // why the heck is this not in the output of cpp -dM??? it's definitely defined
+                builtinInput += ""
+                    + "#define __DBL_MIN_EXP__ (-1021)\n"
+                    + "#define __FLT_MIN__ 1.17549435e-38F\n"
+                    + "#define __CHAR_BIT__ 8\n"
+                    + "#define __WCHAR_MAX__ 2147483647\n"
+                    + "#define __DBL_DENORM_MIN__ 4.9406564584124654e-324\n"
+                    + "#define __FLT_EVAL_METHOD__ 2\n"
+                    + "#define __DBL_MIN_10_EXP__ (-307)\n"
+                    + "#define __FINITE_MATH_ONLY__ 0\n"
+                    + "#define __GNUC_PATCHLEVEL__ 6\n"
+                    + "#define __SHRT_MAX__ 32767\n"
+                    + "#define __LDBL_MAX__ 1.18973149535723176502e+4932L\n"
+                    + "#define __linux 1\n"
+                    + "#define __unix 1\n"
+                    + "#define __LDBL_MAX_EXP__ 16384\n"
+                    + "#define __linux__ 1\n"
+                    + "#define __SCHAR_MAX__ 127\n"
+                    + "#define __USER_LABEL_PREFIX__ \n"
+                    + "#define __STDC_HOSTED__ 1\n"
+                    + "#define __LDBL_HAS_INFINITY__ 1\n"
+                    + "#define __DBL_DIG__ 15\n"
+                    + "#define __FLT_EPSILON__ 1.19209290e-7F\n"
+                    + "#define __LDBL_MIN__ 3.36210314311209350626e-4932L\n"
+                    + "#define __unix__ 1\n"
+                    + "#define __DECIMAL_DIG__ 21\n"
+                    + "#define __gnu_linux__ 1\n"
+                    + "#define __LDBL_HAS_QUIET_NAN__ 1\n"
+                    + "#define __GNUC__ 3\n"
+                    + "#define __DBL_MAX__ 1.7976931348623157e+308\n"
+                    + "#define __DBL_HAS_INFINITY__ 1\n"
+                    + "#define __DBL_MAX_EXP__ 1024\n"
+                    + "#define __LONG_LONG_MAX__ 9223372036854775807LL\n"
+                    + "#define __GXX_ABI_VERSION 1002\n"
+                    + "#define __FLT_MIN_EXP__ (-125)\n"
+                    + "#define __DBL_MIN__ 2.2250738585072014e-308\n"
+                    + "#define __DBL_HAS_QUIET_NAN__ 1\n"
+                    + "#define __tune_i386__ 1\n"
+                    + "#define __REGISTER_PREFIX__ \n"
+                    + "#define __NO_INLINE__ 1\n"
+                    + "#define __i386 1\n"
+                    + "#define __FLT_MANT_DIG__ 24\n"
+                    + "#define __VERSION__ \"3.4.6 20060404 (Red Hat 3.4.6-9)\"\n"
+                    + "#define i386 1\n"
+                    + "#define unix 1\n"
+                    + "#define __i386__ 1\n"
+                    + "#define __SIZE_TYPE__ unsigned int\n"
+                    + "#define __ELF__ 1\n"
+                    + "#define __FLT_RADIX__ 2\n"
+                    + "#define __LDBL_EPSILON__ 1.08420217248550443401e-19L\n"
+                    + "#define __GNUC_RH_RELEASE__ 9\n"
+                    + "#define __FLT_HAS_QUIET_NAN__ 1\n"
+                    + "#define __FLT_MAX_10_EXP__ 38\n"
+                    + "#define __LONG_MAX__ 2147483647L\n"
+                    + "#define __FLT_HAS_INFINITY__ 1\n"
+                    + "#define linux 1\n"
+                    + "#define __LDBL_MANT_DIG__ 64\n"
+                    + "#define __WCHAR_TYPE__ long int\n"
+                    + "#define __FLT_DIG__ 6\n"
+                    + "#define __INT_MAX__ 2147483647\n"
+                    + "#define __FLT_MAX_EXP__ 128\n"
+                    + "#define __DBL_MANT_DIG__ 53\n"
+                    + "#define __WINT_TYPE__ unsigned int\n"
+                    + "#define __LDBL_MIN_EXP__ (-16381)\n"
+                    + "#define __LDBL_MAX_10_EXP__ 4932\n"
+                    + "#define __DBL_EPSILON__ 2.2204460492503131e-16\n"
+                    + "#define __FLT_DENORM_MIN__ 1.40129846e-45F\n"
+                    + "#define __FLT_MAX__ 3.40282347e+38F\n"
+                    + "#define __FLT_MIN_10_EXP__ (-37)\n"
+                    + "#define __GNUC_MINOR__ 4\n"
+                    + "#define __DBL_MAX_10_EXP__ 308\n"
+                    + "#define __LDBL_DENORM_MIN__ 3.64519953188247460253e-4951L\n"
+                    + "#define __PTRDIFF_TYPE__ int\n"
+                    + "#define __LDBL_MIN_10_EXP__ (-4931)\n"
+                    + "#define __LDBL_DIG__ 18\n"
+                    ;
+            }
+            else 
+            {
+                System.err.println("language "+language+" not recognized");
+                System.exit(1);
+            }
+
+            java.io.Reader builtinFakeInputReader = new java.io.StringReader(builtinInput);
+            filter(new LineAndColumnNumberReader(builtinFakeInputReader, "<built-in>"),
+                   writer,
+                   new FileOpener(),
+                   parsedArgs.includePath,
+                   macros,
+                   lineBufferScratch,
+                   tokenStreamScratch,
+                   tokenAllocator,
+                   expressionParser,
+                   parsedArgs.commentOutLineDirectives,
+                   0); // recursionLevel
+        }
+        catch (java.io.IOException e)
+        {
+            writer.flush();
+            System.err.println("Well damn: "+e);
+            System.exit(1);
+        }
+
+
+        try
+        {
+            if (inputDebugLevel >= DEBUG_PER_LINE)
+                System.err.println("command line fake input = \""+escapify(parsedArgs.commandLineFakeInput)+"\"");
+            java.io.Reader commandLineFakeInputReader = new java.io.StringReader(parsedArgs.commandLineFakeInput);
             filter(new LineAndColumnNumberReader(commandLineFakeInputReader, "<command line>"),
                    writer,
                    new FileOpener(),
