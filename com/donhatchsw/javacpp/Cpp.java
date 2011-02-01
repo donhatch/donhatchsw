@@ -1174,6 +1174,8 @@ public class Cpp
         private int outLineNumberPromised = 0;
         private int columnNumber =0; // just for making sure we don't sync when not at end of line... or does caller need to be able to query it?
 
+        private boolean keepSynced = true; // kind of hacky way for caller to turn on and off syncing (there should be no syncing or asserting synced if inside comments)
+
         // To avoid dismal performance, caller should make sure
         // that reader is either a BufferedWriter  or has one as an ancestor.
         public LazyPrintWriter(java.io.Writer writer)
@@ -1186,7 +1188,6 @@ public class Cpp
         // using spaces and (up to 7) newlines,
         // false if it couldn't do that in which case caller needs to
         // issue a line number directive.
-        // TODO: not sure if this is wanted? not sure yet
         public boolean softSyncToInLineNumber(int inLineNumber)
         {
             outLineNumberPromised += inLineNumber - this.inLineNumber;
@@ -1233,6 +1234,7 @@ public class Cpp
             println((commentOutLineDirectives?"// "+(outLineNumberDelivered+1+1)+" ":"")+"# "+(inLineNumber+1)+" \""+inFileName+"\""+extraCrap); // increments outLineNumberPromised and outLineNumberDelivered
             setInLineNumber(inLineNumber);
         }
+        // XXX I think this is only called from hardSync, it can maybe just be removed
         public void setInLineNumber(int inLineNumber)
         {
             AssertAlways(columnNumber == 0);
@@ -1244,7 +1246,7 @@ public class Cpp
         {
             if (outputDebugLevel >= DEBUG_PER_LINE)
                 System.err.println("                in LazyPrintWriter.println()");
-            if (columnNumber != 0)
+            if (!keepSynced || columnNumber != 0)
             {
                 super.println();
                 columnNumber = 0;
@@ -1255,26 +1257,7 @@ public class Cpp
             if (outputDebugLevel >= DEBUG_PER_LINE)
                 System.err.println("                out LazyPrintWriter.println()");
         }
-        public void print(String s)
-        {
-            if (outputDebugLevel >= DEBUG_PER_TOKEN)
-                System.err.println("            in LazyPrintWriter.print(s=\""+escapify(s)+"\")");
-            int sLength = s.length();
-            for (int i = 0; i < sLength; ++i)
-            {
-                char c = s.charAt(i);
-                if (c == '\n')
-                    println(); // above; fixes line and column numbers
-                else
-                {
-                    AssertAlways(outLineNumberDelivered == outLineNumberPromised);
-                    super.print(c);
-                    columnNumber++;
-                }
-            }
-            if (outputDebugLevel >= DEBUG_PER_TOKEN)
-                System.err.println("            out LazyPrintWriter.print(s=\""+escapify(s)+"\")");
-        }
+
         public void print(char s[], int i0, int i1)
         {
             if (outputDebugLevel >= DEBUG_PER_TOKEN)
@@ -1286,11 +1269,14 @@ public class Cpp
                     println(); // above; fixes line and column numbers
                 else
                 {
-                    if (outLineNumberDelivered != outLineNumberPromised)
+                    if (keepSynced && columnNumber == 0)
                     {
-                        throw new Error("INTERNAL ERROR: delivered line number "+outLineNumberDelivered+", promised line number "+outLineNumberPromised+"");
+                        if (outLineNumberDelivered != outLineNumberPromised)
+                        {
+                            throw new Error("INTERNAL ERROR: delivered line number "+outLineNumberDelivered+", promised line number "+outLineNumberPromised+"");
+                        }
+                        AssertAlways(outLineNumberDelivered == outLineNumberPromised);
                     }
-                    AssertAlways(outLineNumberDelivered == outLineNumberPromised);
                     super.print(c);
                     columnNumber++;
                 }
@@ -1298,6 +1284,13 @@ public class Cpp
             if (outputDebugLevel >= DEBUG_PER_TOKEN)
                 System.err.println("            out LazyPrintWriter.print(char[])");
         }
+        public void print(String s)
+        {
+            // This doesn't get called very often-- only on syncs, I think.
+            // so do something simple and maybe not that efficient...
+            print(s.toCharArray(), 0, s.length());
+        }
+
         public void println(String s)
         {
             if (outputDebugLevel >= DEBUG_PER_TOKEN)
@@ -1380,9 +1373,8 @@ public class Cpp
         // When it's time to pop (on an #endif), we keep popping #else's and #elif's
         // until we pop the original #if (or #ifdef or #ifndef).
         //
-        TokenStack ifStack = new TokenStack();
+        TokenStack ifStack = new TokenStack(); // XXX caller should provide, maybe
         int highestTrueIfStackLevel = 0;
-        java.util.Stack endifMultiplierStack = new java.util.Stack(); // XXX do we need this?
 
         out.hardSyncToInLineNumber(in.lineNumber, in.fileName, commentOutLineDirectives, in.extraCrap);
 
@@ -1428,10 +1420,6 @@ public class Cpp
                 Token token = tokenStream.readToken(inComment);
                 if (token == null)
                     break;
-
-                if (token.type == (inComment ? Token.COMMENT_END
-                                             : Token.COMMENT_START))
-                    inComment = !inComment;
 
                 /*
                 if token is name of a macro
@@ -1492,6 +1480,8 @@ public class Cpp
                                 // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
                                 out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
                                 inComment = true;
+                                out.keepSynced = !inComment;
+                                // next token is guaranteed to be a NEWLINE
                             }
                             tokenAllocator.unrefToken(nextToken);
                             nextToken = tokenStream.readToken(inComment); // XXX need macro substitution?
@@ -1862,8 +1852,9 @@ public class Cpp
                                         AssertAlways(inComment == false);
                                         // have to print it so we don't end up outputting the end without the start.
                                         // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it.
-                                        out.print(token.textUnderlyingString, token.i0, token.i1);
+                                        out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
                                         inComment = true;
+                                        out.keepSynced = !inComment;
                                         // next token is guaranteed to be a NEWLINE
                                     }
                                     tokenAllocator.unrefToken(nextToken);
@@ -1920,9 +1911,10 @@ public class Cpp
                                     AssertAlways(inComment == false);
                                     // have to print it so we don't end up outputting the end without the start.
                                     // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
-                                    out.print(token.textUnderlyingString, token.i0, token.i1);
+                                    out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
                                     AssertAlways(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
                                     inComment = true;
+                                    out.keepSynced = !inComment;
                                     // next token is guaranteed to be a NEWLINE
                                 }
                                 else if (nextToken.type == Token.COMMENT)
@@ -2038,9 +2030,10 @@ public class Cpp
                                     AssertAlways(inComment == false);
                                     // have to print it so we don't end up outputting the end without the start.
                                     // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
-                                    out.print(token.textUnderlyingString, token.i0, token.i1);
+                                    out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
                                     AssertAlways(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
                                     inComment = true;
+                                    out.keepSynced = !inComment;
                                     // next token is guaranteed to be a NEWLINE
                                 }
                                 tokenAllocator.unrefToken(nextToken);
@@ -2090,6 +2083,7 @@ public class Cpp
                                 out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
                                 AssertAlways(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
                                 inComment = true;
+                                out.keepSynced = !inComment;
                                 // next token is guaranteed to be a NEWLINE
                             }
                             tokenAllocator.unrefToken(nextToken);
@@ -2107,20 +2101,29 @@ public class Cpp
                     if (ifStack.size() <= highestTrueIfStackLevel)
                     {
                         // Actually output something.
-                        // First make sure the output line number is synced up...
-                        if (out.columnNumber == 0)
+                        if (inComment)
                         {
-                            if (!out.softSyncToInLineNumber(token.inLineNumber))
-                                out.hardSyncToInLineNumber(token.inLineNumber,
-                                                           token.inFileName,
-                                                           commentOutLineDirectives,
-                                                           in.extraCrap);
-                            AssertAlways(out.inLineNumber == token.inLineNumber);
-                            AssertAlways(out.outLineNumberDelivered == out.outLineNumberPromised);
+                            out.print(token.textUnderlyingString, token.i0, token.i1);
                         }
-                        if (outputDebugLevel >= DEBUG_PER_TOKEN)
-                            System.err.println("        (passing through token)");
-                        out.print(token.textUnderlyingString, token.i0, token.i1);
+                        else
+                        {
+                            // First make sure output line number is synced up...
+                            // (if NOT in comment... line directives in comments
+                            // would get ignored!)
+                            if (out.columnNumber == 0)
+                            {
+                                if (!out.softSyncToInLineNumber(token.inLineNumber))
+                                    out.hardSyncToInLineNumber(token.inLineNumber,
+                                                               token.inFileName,
+                                                               commentOutLineDirectives,
+                                                               in.extraCrap);
+                                AssertAlways(out.inLineNumber == token.inLineNumber);
+                                AssertAlways(out.outLineNumberDelivered == out.outLineNumberPromised);
+                            }
+                            if (outputDebugLevel >= DEBUG_PER_TOKEN)
+                                System.err.println("        (passing through token)");
+                            out.print(token.textUnderlyingString, token.i0, token.i1);
+                        }
                     }
                     else
                     {
@@ -2128,6 +2131,15 @@ public class Cpp
                             System.err.println("        (suppressing token because in false #if)");
                     }
                 }
+
+                // XXX could actually assert that COMMENT_START only happens when not in comment, and COMMENT_END only happens when in comment
+                if (token.type == (inComment ? Token.COMMENT_END
+                                             : Token.COMMENT_START))
+                {
+                    inComment = !inComment;
+                    out.keepSynced = !inComment;
+                }
+
 
                 tokenAllocator.unrefToken(token);
                 token = null;
@@ -2608,8 +2620,8 @@ public class Cpp
         {
             String name = (String)e.nextElement();
             Macro macro = (Macro)macros.get(name); // XXX TODO: weird, is it not possible to iterate through the name/value pairs without calling the hash function?
-            if (inputDebugLevel >= DEBUG_PER_LINE)
-                System.err.println("        "+name+" : "+macro+"");
+            // XXX maybe need macroDebugLevel
+            //System.err.println("        "+name+" : "+macro+"");
             tokenAllocator.unrefTokensInMacro(macro);
         }
 
