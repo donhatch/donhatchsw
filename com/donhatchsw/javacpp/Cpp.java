@@ -21,7 +21,7 @@ public class Cpp
     // TokenDebugLevel is separate from inputDebugLevel, because sometimes you want to see token debugging but don't care about line debugging.
     private static int inputDebugLevel  = 2;
     private static int tokenDebugLevel  = 2;
-    private static int outputDebugLevel = 2;
+    private static int outputDebugLevel = 4;
 
 
     // Logical assertions, always compiled in. Ungracefully bail if violated.
@@ -2032,7 +2032,22 @@ public class Cpp
                             recurse
                             output any newlines and/or line directives needed to get in sync
                             */
-                            throw new Error("#include UNIMPLEMENTED!");
+                            System.err.println(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": warning: #include unimplemented");
+                            while (nextToken.type != Token.NEWLINE)
+                            {
+                                if (nextToken.type == Token.COMMENT_START)
+                                {
+                                    AssertAlways(inComment == false);
+                                    // have to print it so we don't end up outputting the end without the start.
+                                    // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
+                                    out.print(token.textUnderlyingString, token.i0, token.i1);
+                                    AssertAlways(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
+                                    inComment = true;
+                                    // next token is guaranteed to be a NEWLINE
+                                }
+                                tokenAllocator.unrefToken(nextToken);
+                                nextToken = tokenStream.readToken(inComment); // XXX need to do it with macro substitution and defined() evaluation
+                            }
                         }
 
 
