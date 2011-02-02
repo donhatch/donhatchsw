@@ -1916,9 +1916,61 @@ public class Cpp
                                     inComment = true;
                                     out.keepSynced = !inComment;
                                     // next token is guaranteed to be a NEWLINE
+
+                                    throw new Error("BUG: not handling COMMENT_BEGIN after expression right (should emit it iff the #if is going to be true)"); // XXX same bug for other #ifs?  yeah I think so maybe
                                 }
                                 else if (nextToken.type == Token.COMMENT)
                                     sb.append(" ");
+                                else if (nextToken.type == Token.IDENTIFIER)
+                                {
+                                    if (nextToken.textEquals("defined"))
+                                    {
+                                        // must be followed by an identifier or exactly the following:
+                                        // '(', identifier, ')'.
+                                        tokenAllocator.unrefToken(nextToken);
+                                        nextToken = tokenStream.readToken(inComment); // NOT expanding macros
+                                        while (nextToken.type == Token.SPACES
+                                            || nextToken.type == Token.COMMENT)
+                                        {
+                                            tokenAllocator.unrefToken(nextToken);
+                                            nextToken = tokenStream.readToken(inComment); // NOT expanding macros
+                                        }
+
+                                        String macroName;
+                                        if (nextToken.type == Token.SYMBOL
+                                         && nextToken.textEquals("("))
+                                        {
+                                            tokenAllocator.unrefToken(nextToken);
+                                            nextToken = tokenStream.readToken(inComment); // NOT expanding macros
+                                            if (nextToken.type != Token.IDENTIFIER)
+                                                throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": operator \"defined\" requires an identifier");
+                                            macroName = nextToken.textToString();
+                                            tokenAllocator.unrefToken(nextToken);
+                                            nextToken = tokenStream.readToken(inComment); // NOT expanding macros
+                                            if (nextToken.type != Token.SYMBOL
+                                             || !nextToken.textEquals(")"))
+                                                throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": missing ')' after \"defined\"");
+                                        }
+                                        else if (nextToken.type == Token.IDENTIFIER)
+                                            macroName = nextToken.textToString();
+                                        else
+                                            throw new Error(nextToken.inFileName+":"+(nextToken.inLineNumber+1)+":"+(nextToken.inColumnNumber+1)+": operator \"defined\" requires an identifier");
+
+                                        if (macros.get(macroName) != null)
+                                            sb.append(" 1 ");
+                                        else
+                                            sb.append(" 0 ");
+                                    }
+                                    else
+                                    {
+                                        // remaining identifiers
+                                        // evaluate to 0
+                                        // XXX or recursivemacro expansion 
+                                        // XXX got stopped? not clear what
+                                        // XXX the semantics are in that case
+                                        sb.append(" 0 ");
+                                    }
+                                }
                                 else
                                     sb.append(nextToken.textUnderlyingString,
                                               nextToken.i0,
