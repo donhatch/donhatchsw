@@ -48,7 +48,14 @@ JAVADOCROOT="c:/Program Files (x86)/Java/jdk1.6.0_17"
 # hmm, if I do it that way, with jikes 1.22, and run it using java1.2, I get a "monitor is in illegal state" error in the jikes-compiled code... specifically, on exiting from any synchronized(someObject) {...} block.  So it seems I have to use javac1.2 instead of jikes.
 
 
-# Pattern rule for making a .class file out of a .prejava file
+# Pattern rule for making a .class file out of a .prejava file.
+# Note: for the class files associated with Foo.prejava,
+# what we really want is the regular expression Foo($.*)?\.class,
+# but I don't think there's any way to express that using a glob pattern,
+# so we use a slightly more general glob pattern which will also remove
+# some non-.class file names such as Foo.barclass, Foo$class, and Foo$barclass
+# (all of which are unlikely to be legitimate precious files,
+# so this seems pretty safe).
 %.class : %.prejava
 	rm -f $*[.$$]*class
 	javacpp ${JAVAC} $<
