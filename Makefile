@@ -47,15 +47,12 @@ JAVADOCROOT="c:/Program Files (x86)/Java/jdk1.6.0_17"
 #JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
 # hmm, if I do it that way, with jikes 1.22, and run it using java1.2, I get a "monitor is in illegal state" error in the jikes-compiled code... specifically, on exiting from any synchronized(someObject) {...} block.  So it seems I have to use javac1.2 instead of jikes.
 
-moo:
-	${JAVADOCROOT}/bin/javadoc
-
 
 # Pattern rule for making a .class file out of a .prejava file
 %.class : %.prejava
-	rm -f $*[.$$]class
+	rm -f $*[.$$]*class
 	javacpp ${JAVAC} $<
-	javarenumber -v 0 $*[.$$]class
+	javarenumber -v 0 $*[.$$]*class
 
 # Pattern rule for making a .class file out of a .java file
 %.class : %.java
