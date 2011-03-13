@@ -51,7 +51,6 @@ TODO:
             cpp -C /usr/include/math.h | cpp -C
             cpp -C < /usr/include/math.h | cpp -C
             etc., also doing it from a temporary file
-    - ##  (concatenates tokens)
     - make #include "filename" look in same directory as current file (I think it's implemented but logic might not be right, it uses File.getParent which is probably retarded)
     - understand <> around file names as well as ""'s -- needed for comparing against cpp on include files in /usr/include which will be the ultimate test I guess
     - hmm, if test output is a bit different... OH it discards spaces at the end of each line!  argh!!
@@ -232,7 +231,7 @@ public class CppOld
         public static final int MACRO_ARG = NUMTYPES++;
         public static final int MACRO_ARG_QUOTED = NUMTYPES++;
         public static final int TOKEN_PASTE = NUMTYPES++; // temporary form that "##" takes during macro evaluation... NOT during initial tokenizing
-        public static final int EOF = NUMTYPES++;
+        public static final int EOF = NUMTYPES++; // XXX TODO: do we need this?
         // NUMTYPES is now one more than the last type value
 
         // TODO: long?
@@ -322,9 +321,10 @@ public class CppOld
                   +escapify(this.text)
                   +"\", "
                   +"                         "
-                  +", \""
-                  +escapify(this.fileName)
-                  +"\", "
+                  +", "
+                  +(this.fileName==null ? "null"
+                                        : "\""+escapify(this.fileName))+"\""
+                  +", "
                   +this.lineNumber
                   +", "
                   +this.columnNumber
@@ -1240,7 +1240,7 @@ public class CppOld
 
         throws java.io.IOException
     {
-        int verboseLevel = 0; // 0: nothing, 1: print enter and exit function, 2: print more
+        int verboseLevel = 2; // 0: nothing, 1: print enter and exit function, 2: print more
 
         if (verboseLevel >= 1)
             System.err.println("    in filter");
@@ -1327,7 +1327,6 @@ public class CppOld
                     }
 
 
-                    boolean needToEvaluate;
                     if (token.text.equals("#elif"))
                     {
                         // Treat this as #else followed by #if.
