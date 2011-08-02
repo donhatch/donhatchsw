@@ -225,7 +225,7 @@ public final class LinearProgramming
      *        ((C[1] dot x)   - d[1])
      *        ...
      *        ((C[m-1] dot x) - d[m-1])
-     *      
+     *     
      * The trick is to add another variable "smallest"
      * with constraints:
      *      smallest <= ((C[0] dot x)   - d[0])
@@ -338,6 +338,16 @@ public final class LinearProgramming
                               double q[], // objective: maximize q dot x
                               boolean implicitRestrictNonNegative)
     {
+        if (debugLevel >= 1)
+        {
+            System.out.println("in LPSolve");
+            PRINTMAT(A);
+            PRINTVEC(b);
+            PRINTMAT(C);
+            PRINTVEC(d);
+            PRINTVEC(q);
+            PRINT(implicitRestrictNonNegative);
+        }
         int n = x.length;            // number of variables
         int m = A.length + C.length; // number of constraints
 
@@ -394,6 +404,12 @@ public final class LinearProgramming
                 for (int i = 0; i < n; ++i)
                     x[i] = xx[i] - xx[n+i];
 
+            if (debugLevel >= 1)
+            {
+                System.out.println("This should be all <= 0 (give or take some slack):");
+                PRINTVEC(VecMath.vmv(VecMath.mxv(C, x), d));
+                System.out.println("out outer LPSolve, returning "+ret);
+            }
             return ret;
         } // if (!implicitRestrictNonNegative)
 
@@ -409,7 +425,8 @@ public final class LinearProgramming
         }
 
         // Fill in M...
-        int nEQ = 0; // and counting
+        int nNE = C.length;
+        int nEQ = A.length;
         int nLE = 0; // and counting
         int nGE = 0; // and counting
         int scrambled2unscrambledY[] = new int[m]; // since we scramble the inequalities since the >= ones need to go at the end
@@ -419,25 +436,25 @@ public final class LinearProgramming
             for (int i = 0; i < n; ++i)
                 M[1][1+1+i] = q[i];
 
-            for (int iNE = 0; iNE < C.length; ++iNE)
+            for (int iNE = 0; iNE < nNE; ++iNE)
             {
                 // simplx requires the constant to be >= 0,
                 // so if that's not the case we negate the <= constraint
                 // to get a >= constraint.
                 int sign = d[iNE] < 0. ? -1 : 1;
-                int iNEscrambled = (sign == -1 ?  (m-1)-(nGE++) : (nLE++));
+                int iNEscrambled = (sign == -1 ? nNE-1-(nGE++) : (nLE++));
                 int iRow = 1+1+iNEscrambled;
                 M[iRow][1+0] = sign * d[iNE];
                 for (int i = 0; i < n; ++i)
                     M[iRow][1+1+i] = sign * -C[iNE][i];
                 scrambled2unscrambledY[iNEscrambled] = iNE;
             }
-            for (int iEQ = 0; iEQ < A.length; ++iEQ)
+            for (int iEQ = 0; iEQ < nEQ; ++iEQ)
             {
                 // simplx requires constant column of input to be >= 0,
                 // so if that's not the case we simply negate the equation.
                 int sign = b[iEQ] < 0. ? -1 : 1;
-                int iRow = 1+1+nLE+nGE+(nEQ++);
+                int iRow = 1+1+nNE+iEQ;
                 M[iRow][1+0] = sign * b[iEQ];
                 for (int i = 0; i < n; ++i)
                     M[iRow][1+1+i] = sign * -A[iEQ][i];
@@ -485,6 +502,13 @@ public final class LinearProgramming
             if (y != null)
                 for (int i = 0; i < y.length; ++i)
                     assert(!Double.isNaN(y[i]));
+        }
+
+        if (debugLevel >= 1)
+        {
+            System.out.println("This should be all <= 0 (give or take some slack):");
+            PRINTVEC(VecMath.vmv(VecMath.mxv(C, x), d));
+            System.out.println("out LPSolve, returning "+icase);
         }
 
         return icase;
@@ -562,7 +586,7 @@ public final class LinearProgramming
                 return "x"+iVar; // original variable
             else if (iVar <= n+m)
                 return "y"+(iVar-n); // slack variable
-            else
+            else // XXX can't happen, see assertion above
                 return "z" + (iVar-(n+m)); // artificial variable
         }
 
@@ -659,22 +683,10 @@ public final class LinearProgramming
 
         sb.deleteCharAt(sb.length()-1); // delete final newline
         return sb.toString();
-    } // printTableau
+    } // TableauToString
 
     #define PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv) System.out.println(#a + " =\n" + TableauToString(a,m,n,m1,m2,izrov,iposv))
 
-
-    private static void myCheckForFeasibility(double a[/*1+1+m+1*/][/*1+1+n*/],
-                                              int m,
-                                              int n,
-                                              int m1,
-                                              int m2,
-                                              int izrov[/*1+n*/],
-                                              int iposv[/*1+m*/],
-                                              boolean useAuxRow)
-    {
-        double objectiveFunctionRow[] = a[useAuxRow ? m+1 : 1];
-    }
 
     //
     // Simplex method for linear programming.
@@ -685,8 +697,8 @@ public final class LinearProgramming
     // whose original variable x_i is now represented by row j+1 of a.
     // These are thus the left-hand variables in the solution.
     // (The first row if A is of course the z-row.)
-    // A value i > N indicates that the variable is a y_i
-    // rather than an x_i, x_(N+j) === y_j.  XXX I didn't follow this
+    // A value i > N indicates that the variable is a y_j
+    // rather than an x_i, x_(N+j) === y_j.
     // Likewise, izrov[j] contains, for j = 1...n,
     // the number i in 1..m
     // whose original variable x_i is now a right-hand variable,
@@ -700,6 +712,13 @@ public final class LinearProgramming
     // +1 if the objective function is unbounded,
     // -1 if no solution satisfies the given constraints.
     //
+    // REMEMBER:
+    //     - a[0] is unused (null)
+    //     - every a[i][0] is unused (NaN)
+    //     - the coeffs of the objective function is on row a[1]:
+    //           a[1][1] + a[1][2] x1 + a[1][3] x2 + ... + a[1][n+1] xn
+    //     - row a[1+i] contains the coeffs of the i'th slack var
+    //           yi = a[1+i][1] + a[1+i][2] x1 + a[1+i][3] x2 + ... + a[1+i][n+1] xn
     //
     private static int simplx(double a[/*1+1+m+1*/][/*1+1+n*/], // in/out
                               int m,                      // in
@@ -751,15 +770,22 @@ public final class LinearProgramming
         //
         double origRowMaxes[] = null;
         boolean doConditioning = true;
+        if (false)
+        {
+            System.out.println("NOT CONDITIONING!!!!!!!!!!");
+            doConditioning = false;
+        }
+        if (debugLevel >= 1)
+        {
+            System.out.println("        INITIAL TABLEAU:");
+            if (debugLevel >= 4)
+                PRINTMAT(a);
+            PRINTVEC(izrov);
+            PRINTVEC(iposv);
+            PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+        }
         if (doConditioning)
         {
-            if (debugLevel >= 1)
-            {
-                System.out.println("        BEFORE CONDITIONING:");
-                PRINTVEC(izrov);
-                PRINTVEC(iposv);
-                PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
-            }
             origRowMaxes = new double[1+1+m]; origRowMaxes[0] = Double.NaN;
             for (int iRow = 1; iRow <= 1+m; ++iRow)
             {
@@ -771,6 +797,15 @@ public final class LinearProgramming
                     VecMath.vxs(a[iRow], a[iRow], 1./max);
             }
             if (debugLevel >= 1) PRINTVEC(origRowMaxes);
+            if (debugLevel >= 1)
+            {
+                System.out.println("        AFTER CONDITIONING:");
+                if (debugLevel >= 4)
+                    PRINTMAT(a);
+                PRINTVEC(izrov);
+                PRINTVEC(iposv);
+                PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+            }
         }
 
         int kpScratch[] = new int[1];
@@ -784,6 +819,7 @@ public final class LinearProgramming
             boolean l3[] = new boolean[1+m2]; l3[0] = true; //  note the book allocates 1..m but only 1..m2 are used so that's what I'm allocating
             for (int i = 1; i <= m2; i++)
                 l3[i] = true;
+            if (debugLevel >= 1) System.out.println("        COMPUTING AUX OBJECTIVE FUNCTION");
             for (int k = 1; k <= n+1; k++)
             {
                 // Compute the auxiliary objective function.
@@ -795,27 +831,29 @@ public final class LinearProgramming
                 // In the code, we skip the two m1-type rows, starting at i=1+m1 instead
                 // and only considering the last 2 rows in that example.
                 // However if I blindly use 1 instead of 1+m1 here, it returns infeasible.
-                // But... is this the cruz of why I don't get the same answer
+                // (XXX I tried it again and it didn't make any difference to the final answer... !?)
+                // But... is this the crux of why I don't get the same first tableau (10.8.18)
                 // as the book?
+                // Note that we *do* get the right answer, so maybe some clever omission is going on.
+                // Maybe this is what is meant by the comment below "m1 type constraints ... have no artificial variable"...
+                // i.e. those are immediately slack variables, with no artificial variable, so they don't take part in the aux function.
                 for (int i = 1+m1; i <= m; i++)
                     q1 += a[i+1][k];
                 a[m+2][k] = -q1;
             }
 
             if (debugLevel >= 1) System.out.println("        PHASE ONE");
-            if (debugLevel >= 4)
-            {
-                PRINTMAT(a);
-            }
-            if (debugLevel >= 1)
-            {
-                PRINTVEC(izrov);
-                PRINTVEC(iposv);
-                PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
-            }
-
             for (;;)
             {
+                if (debugLevel >= 1)
+                {
+                    if (debugLevel >= 4)
+                        PRINTMAT(a);
+                    PRINTVEC(izrov);
+                    PRINTVEC(iposv);
+                    PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+                }
+
                 boolean goingto_one = false; // simulate goto with bubblegum and string
                 int ip = -999; // doesn't really need initializing, but compiler thinks so
 
@@ -928,7 +966,7 @@ public final class LinearProgramming
                 // Update lists of left-and right-hand variables.
                 {
                     // SWAP(izrov[kp], iposv[ip]);
-                    int is = izrov[kp]; 
+                    int is = izrov[kp];
                     izrov[kp] = iposv[ip];
                     iposv[ip] = is;
                 }
@@ -937,21 +975,19 @@ public final class LinearProgramming
         } // if (m2+m3 != 0)
 
         if (debugLevel >= 1) System.out.println("        PHASE TWO");
-        if (debugLevel >= 4)
-        {
-            PRINTMAT(a);
-        }
-        if (debugLevel >= 1)
-        {
-            PRINTVEC(izrov);
-            PRINTVEC(iposv);
-            PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
-        }
 
         // End of phase one code for finding an initial feasible solution.
         // Now, in phase two, optimize it.
         for (;;)
         {
+            if (debugLevel >= 1)
+            {
+                if (debugLevel >= 4)
+                    PRINTMAT(a);
+                PRINTVEC(izrov);
+                PRINTVEC(iposv);
+                PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
+            }
             simp1(a,0,l1,nl1,false,kpScratch,bmaxScratch); // Test the z-row for doneness.
             int kp = kpScratch[0];
             double bmax = bmaxScratch[0];
@@ -1005,13 +1041,11 @@ public final class LinearProgramming
 
 
                 assert(l1[0] == -999);
-                if (debugLevel >= 4)
-                {
-                    PRINTMAT(a);
-                }
                 if (debugLevel >= 1)
                 {
                     System.out.println("        SOLUTION:");
+                    if (debugLevel >= 4)
+                        PRINTMAT(a);
                     PRINTVEC(izrov);
                     PRINTVEC(iposv);
                     PRINTTABLEAU(a,m,n,m1,m2,izrov,iposv);
@@ -1036,7 +1070,7 @@ public final class LinearProgramming
             pivot(a,m,n,ip,kp); // Exchange a left- and right-hand variable (phase two).
             {
                 // SWAP(izrov[kp], iposv[ip]);
-                int is = izrov[kp]; 
+                int is = izrov[kp];
                 izrov[kp] = iposv[ip];
                 iposv[ip] = is;
             }
@@ -1358,6 +1392,8 @@ public final class LinearProgramming
     {
         if (true)
         {
+            System.out.println("=============================================");
+            System.out.println("Example from the book...");
             //
             // Example from the book.
             // Dummy first row and column.
@@ -1776,6 +1812,273 @@ public final class LinearProgramming
                 assert(false);
             }
 
+            System.out.println("=============================================");
+        }
+
+        if (false) // XXX TODO: resultByBruteForce is 1 in this one, why??
+        {
+            System.out.println("=============================================");
+            System.out.println("Testing something from ShephardsPlayApplet, raw");
+            double A[][] = {
+                {-2.3614509898954026,-17.780060264311636,0.0,2.3614509898954026,17.780060264311636,-0.0},
+            };
+            double b[] = {0.9311209148515291};
+            double C[][] = {
+                {-6.656239218051892,7.371444780578594,1.0,6.656239218051892,-7.371444780578594,-1.0},
+                {4.626838308509805,1.6911666002650967,1.0,-4.626838308509805,-1.6911666002650967,-1.0},
+                {-0.0,8.717448883467945,1.0,0.0,-8.717448883467945,-1.0},
+                {4.39085189943749,-0.0,1.0,-4.39085189943749,0.0,-1.0},
+            };
+            double d[] = {-0.06199253443938468,0.8140149783731558,0.9861088504508798,0.5909512664392559};
+            double q[] = {0.0,0.0,1.0,-0.0,-0.0,-1.0};
+            double x[] = new double[q.length];
+            double xByBruteForce[] = new double[q.length];
+            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
+            double y[] = null;
+            double yByBruteForce[] = null;
+            boolean implicitRestrictNonNegative = true;
+            PRINTMAT(A);
+            PRINTVEC(b);
+            PRINTMAT(C);
+            PRINTVEC(d);
+            PRINTVEC(q);
+            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
+            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
+            PRINT(result);
+            PRINT(resultByBruteForce);
+            assert(result == 0);
+            assert(resultByBruteForce == 0);
+            PRINTVEC(x);
+            PRINTVEC(xByBruteForce);
+            System.out.println("This should be 0 (give or take some slack):");
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
+            System.out.println("This should be all <= 0 (give or take some slack):");
+            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
+            PRINTVEC(remainder);
+            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
+            PRINTVEC(remainderByBruteForce);
+            if (true)
+                FORI (i, remainderByBruteForce.length)
+                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
+            if (true)
+                FORI (i, remainder.length)
+                    assert(LEQ(remainder[i], 0., 1e-6));
+            System.out.println("=============================================");
+        }
+        if (true)
+        {
+            System.out.println("=============================================");
+            System.out.println("Testing something from ShephardsPlayApplet, cooked");
+            double A[][] = {
+                {-2.3614509898954026,-17.780060264311636,0.0},
+            };
+            double b[] = {0.9311209148515291};
+            double C[][] = {
+                {-6.656239218051892,7.371444780578594,1.0},
+                {4.626838308509805,1.6911666002650967,1.0},
+                {-0.0,8.717448883467945,1.0},
+                {4.39085189943749,-0.0,1.0},
+            };
+            double d[] = {-0.06199253443938468,0.8140149783731558,0.9861088504508798,0.5909512664392559};
+            double q[] = {0.0,0.0,1.0};
+            double x[] = new double[q.length];
+            double xByBruteForce[] = new double[q.length];
+            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
+            double y[] = null;
+            double yByBruteForce[] = null;
+            boolean implicitRestrictNonNegative = false;
+            PRINTMAT(A);
+            PRINTVEC(b);
+            PRINTMAT(C);
+            PRINTVEC(d);
+            PRINTVEC(q);
+            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
+            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
+            PRINT(result);
+            PRINT(resultByBruteForce);
+            assert(result == 0);
+            assert(resultByBruteForce == 0);
+            PRINTVEC(x);
+            PRINTVEC(xByBruteForce);
+            System.out.println("This should be 0 (give or take some slack):");
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
+            System.out.println("This should be all <= 0 (give or take some slack):");
+            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
+            PRINTVEC(remainder);
+            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
+            PRINTVEC(remainderByBruteForce);
+            if (true)
+                FORI (i, remainderByBruteForce.length)
+                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
+            if (true)
+                FORI (i, remainder.length)
+                    assert(LEQ(remainder[i], 0., 1e-6));
+            System.out.println("=============================================");
+        }
+        if (true)
+        {
+            System.out.println("=============================================");
+            System.out.println("Testing something from ShephardsPlayApplet, smaller raw");
+            double A[][] = {
+                {2.3614509898954026,17.780060264311636,0.0},
+            };
+            double b[] = {0.9311209148515291};
+            double C[][] = {
+                {6.656239218051892,-7.371444780578594,1.0},
+                //{-4.626838308509805,-1.6911666002650967,1.0},
+                {0.0,-8.717448883467945,1.0},
+                //{-4.39085189943749,0.0,1.0},
+            };
+            double d[] = {
+                -0.06199253443938468,
+                //0.8140149783731558,
+                0.9861088504508798,
+                //0.5909512664392559,
+            };
+            double q[] = {0.0,0.0,1.0};
+            double x[] = new double[q.length];
+            double xByBruteForce[] = new double[q.length];
+            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
+            double y[] = null;
+            double yByBruteForce[] = null;
+            boolean implicitRestrictNonNegative = true;
+            PRINTMAT(A);
+            PRINTVEC(b);
+            PRINTMAT(C);
+            PRINTVEC(d);
+            PRINTVEC(q);
+            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
+            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
+            PRINT(result);
+            PRINT(resultByBruteForce);
+            assert(result == 0);
+            assert(resultByBruteForce == 0);
+            PRINTVEC(x);
+            PRINTVEC(xByBruteForce);
+            System.out.println("This should be 0 (give or take some slack):");
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
+            System.out.println("This should be all <= 0 (give or take some slack):");
+            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
+            PRINTVEC(remainder);
+            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
+            PRINTVEC(remainderByBruteForce);
+            if (true)
+                FORI (i, remainderByBruteForce.length)
+                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
+            if (true)
+                FORI (i, remainder.length)
+                    assert(LEQ(remainder[i], 0., 1e-6));
+            System.out.println("=============================================");
+        }
+        if (true)
+        {
+            System.out.println("=============================================");
+            System.out.println("Testing something from ShephardsPlayApplet, even smaller raw");
+            double A[][] = {
+                {17.780060264311636,0.0},
+            };
+            double b[] = {0.9311209148515291};
+            double C[][] = {
+                {-7.371444780578594,1.0},
+                //{-1.6911666002650967,1.0},
+                {-8.717448883467945,1.0},
+                //{0.0,1.0},
+            };
+            double d[] = {
+                -0.06199253443938468,
+                //0.8140149783731558,
+                0.9861088504508798,
+                //0.5909512664392559,
+            };
+            double q[] = {0.0,1.0};
+            double x[] = new double[q.length];
+            double xByBruteForce[] = new double[q.length];
+            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
+            double y[] = null;
+            double yByBruteForce[] = null;
+            boolean implicitRestrictNonNegative = true;
+            PRINTMAT(A);
+            PRINTVEC(b);
+            PRINTMAT(C);
+            PRINTVEC(d);
+            PRINTVEC(q);
+            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
+            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
+            PRINT(result);
+            PRINT(resultByBruteForce);
+            assert(result == 0);
+            assert(resultByBruteForce == 0);
+            PRINTVEC(x);
+            PRINTVEC(xByBruteForce);
+            System.out.println("This should be 0 (give or take some slack):");
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
+            System.out.println("This should be all <= 0 (give or take some slack):");
+            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
+            PRINTVEC(remainder);
+            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
+            PRINTVEC(remainderByBruteForce);
+            if (true)
+                FORI (i, remainderByBruteForce.length)
+                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
+            if (true)
+                FORI (i, remainder.length)
+                    assert(LEQ(remainder[i], 0., 1e-6));
+            System.out.println("=============================================");
+        }
+        if (true)
+        {
+            System.out.println("=============================================");
+            System.out.println("Testing something from ShephardsPlayApplet, even smaller still raw");
+            double A[][] = {
+                {1.,0.},
+            };
+            double b[] = {1};
+            double C[][] = {
+                {-1.,1.},
+                {-2.,1.},
+            };
+            double d[] = {
+                -.5,
+                0.,
+            };
+            double q[] = {0.0,1.0};
+            double x[] = new double[q.length];
+            double xByBruteForce[] = new double[q.length];
+            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
+            double y[] = null;
+            double yByBruteForce[] = null;
+            boolean implicitRestrictNonNegative = true;
+            PRINTMAT(A);
+            PRINTVEC(b);
+            PRINTMAT(C);
+            PRINTVEC(d);
+            PRINTVEC(q);
+            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
+            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
+            PRINT(result);
+            PRINT(resultByBruteForce);
+            assert(result == 0);
+            assert(resultByBruteForce == 0);
+            PRINTVEC(x);
+            PRINTVEC(xByBruteForce);
+            System.out.println("This should be 0 (give or take some slack):");
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
+            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
+            System.out.println("This should be all <= 0 (give or take some slack):");
+            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
+            PRINTVEC(remainder);
+            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
+            PRINTVEC(remainderByBruteForce);
+            if (true)
+                FORI (i, remainderByBruteForce.length)
+                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
+            if (true)
+                FORI (i, remainder.length)
+                    assert(LEQ(remainder[i], 0., 1e-6));
             System.out.println("=============================================");
         }
     } // main
