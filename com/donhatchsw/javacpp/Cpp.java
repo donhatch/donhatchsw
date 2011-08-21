@@ -1526,10 +1526,10 @@ public class Cpp
                             }
                             else // #endif
                             {
-                                // pop til we pop an #if
+                                // pop til we pop an #if*
                                 for (boolean gotIf = false; !gotIf;)
                                 {
-                                    AssertAlways(!ifStack.isEmpty()); // stack was nonempty before, so there's got to be an actual #if at the bottom of the stack
+                                    AssertAlways(!ifStack.isEmpty()); // stack was nonempty before, so there's got to be an actual #if* at the bottom of the stack
                                     Token poppedToken = ifStack.popAndKeepRef();
                                     gotIf = poppedToken.textStartsWith("if");
                                     tokenAllocator.unrefToken(poppedToken);
