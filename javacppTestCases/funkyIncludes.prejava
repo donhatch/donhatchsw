@@ -1,0 +1,3 @@
+#define x "a\nb"
+#include /* 
+*/ "xxx"

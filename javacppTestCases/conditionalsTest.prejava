@@ -1,0 +1,246 @@
+//
+// Simple conditionals
+//
+yes 0
+#if 0
+    NO!!!!!!!
+#endif
+yes 1
+#if 1
+    yes 2
+#endif
+#if !0
+    yes 3
+#endif
+#if !1
+    NO!!!!!!!
+#endif
+yes 4
+#ifdef __LINE__
+    yes 5
+#endif
+yes 6
+#ifndef __LINE__
+    NO!!!!!!!!
+#endif
+yes 7
+#ifdef SOMETHING_THATS_NOT_DEFINED
+    NO!!!!!!!!
+#endif
+yes 8
+#ifndef SOMETHING_THATS_NOT_DEFINED
+    yes 9
+#endif
+yes 10
+
+
+//
+// Conditionals with single #else
+//
+#if 1
+    yes 11
+#else
+    NO!!!!!!!!
+#endif
+yes 12
+#if 0
+    NO!!!!!!!!
+#else
+    yes 13
+#endif
+yes 14
+#ifdef __LINE__
+    yes 15
+#else
+    NO!!!!!!!!
+#endif
+yes 16
+#ifndef __LINE__
+    NO!!!!!!!!
+#else
+    yes 17
+#endif
+yes 18
+
+
+//
+// First make sure we can do #else #if, before we try #elif
+//
+#if 1
+    yes 19
+#else
+    NO!!!!!!!!
+    #if 1
+        NO!!!!!!!!
+    #endif
+    NO!!!!!!!!
+#endif
+yes 20
+#if 1
+    yes 21
+#else
+    NO!!!!!!!!
+    #if 0
+        NO!!!!!!!!
+    #endif
+    NO!!!!!!!!
+#endif
+yes 22
+#if 0
+    NO!!!!!!!!
+#else
+    yes 23
+    #if 1
+        yes 24
+    #endif
+    yes 25
+#endif
+yes 26
+#if 0
+    NO!!!!!!!!
+#else
+    yes 27
+    #if 0
+        NO!!!!!!!!
+    #endif
+    yes 28
+#endif
+yes 29
+
+//
+// Conditionals with single #elif and no #else
+//
+#if 1
+    yes 30
+#elif 1
+    NO!!!!!!!!
+#endif
+yes 31
+#if 1
+    yes 32
+#elif 0
+    NO!!!!!!!!
+#endif
+yes 33
+#if 0
+    NO!!!!!!!!
+#elif 1
+    yes 34
+#endif
+yes 35
+#if 0
+    NO!!!!!!!!
+#elif 0
+    NO!!!!!!!!
+#endif
+yes 36
+
+//
+// Conditionals with single #elif and #else
+//
+#if 1
+    yes 37
+#elif 1
+    NO!!!!!!!!
+#else
+    NO!!!!!!!!
+#endif
+yes 38
+#if 1
+    yes 39
+#elif 0
+    NO!!!!!!!!
+#else
+    NO!!!!!!!!
+#endif
+yes 40
+#if 0
+    NO!!!!!!!!
+#elif 1
+    yes 41
+#else
+    NO!!!!!!!!
+#endif
+yes 42
+#if 0
+    NO!!!!!!!!
+#elif 0
+    NO!!!!!!!!
+#else
+    yes 43
+#endif
+yes 44
+
+
+//
+// Conditionals with two #elifs, no #else
+//
+
+#if 1
+    yes 45
+#elif 1
+    NO!!!!!!!!
+#elif 1
+    NO!!!!!!!!
+#endif
+yes 46
+#if 1
+    yes 47
+#elif 1
+    NO!!!!!!!!
+#elif 0
+    NO!!!!!!!!
+#endif
+yes 48
+#if 1
+    yes 49
+#elif 0
+    NO!!!!!!!!
+#elif 1
+    NO!!!!!!!!
+#endif
+yes 50
+#if 1
+    yes 51
+#elif 0
+    NO!!!!!!!!
+#elif 0
+    NO!!!!!!!!
+#endif
+yes 52
+#if 0
+    NO!!!!!!!!
+#elif 1
+    yes 53
+#elif 1
+    NO!!!!!!!!
+#endif
+yes 54
+#if 0
+    NO!!!!!!!!
+#elif 1
+    yes 55
+#elif 0
+    NO!!!!!!!!
+#endif
+yes 56
+#if 0
+    NO!!!!!!!!
+#elif 0
+    NO!!!!!!!!
+#elif 1
+    yes 57
+#endif
+yes 58
+#if 0
+    NO!!!!!!!!
+#elif 0
+    NO!!!!!!!!
+#elif 0
+    NO!!!!!!!!
+#endif
+yes 59
+
+
+
+

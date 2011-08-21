@@ -1,0 +1,4 @@
+#define q(x,y) a = x , b = y
+#define IDENT(x) q x
+
+IDENT((,))

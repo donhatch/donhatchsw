@@ -1,0 +1,41 @@
+COME UP WITH A MORE COHERENT EXAMPLE
+
+
+
+#define foo(a,b) a b
+
+
+foo(a,b)
+
+
+
+
+\
+\
+
+/*
+
+
+cpp does something bizarre with continuations inside comments...
+it prints one less than the number I have
+\
+\
+\
+\
+
+
+
+
+
+*/ errors from c++ will be on wrong line number
+ooh, line numbers are still wrong!!!
+hey
+
+
+
+
+
+
+
+
+you

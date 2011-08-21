@@ -1,0 +1,13 @@
+//
+// Simple conditionals
+//
+yes 0
+#define FOO(x) x x
+FOO(
+#undef FOO
+q
+)
+yes 1
+#define foo /*
+*/ xxx
+foo

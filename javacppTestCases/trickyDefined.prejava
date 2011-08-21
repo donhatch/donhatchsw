@@ -1,0 +1,17 @@
+// Actually I think this is okay... or, at least, cpp gets it wrong too, maybe?
+
+#define NOT(x) (!(x))
+
+yes 0
+#if NOT(defined(mooooo))
+    yes 1
+#else
+    NO!!!!!
+#endif
+yes 2
+#if NOT(defined(__LINE__))
+    NO!!!!!
+#else
+    yes 3
+#endif
+yes 4
