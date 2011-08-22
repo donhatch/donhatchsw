@@ -1,0 +1,1 @@
+exec java -Xmx1g -classpath donhatchsw.jar com.donhatchsw.mc4d.GenericGlue $*
