@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
-Created-By: (Don Hatch, Tue May 10 16:02:14 PDT 2005)
+Created-By: (Don Hatch, Sat Jan 22 14:26:17 PST 2011)
 Main-Class: com.donhatchsw.mc4d.MC4DApplet
 
