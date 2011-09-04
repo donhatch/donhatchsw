@@ -130,35 +130,29 @@ donhatchsw.jar: \
     ${NULL}
 	/bin/rm -rf scratch
 	mkdir scratch
-	cp -a Makefile RCS com scratch
+	cp -a Makefile com scratch
 	(cd scratch; ${JAVAROOT}/bin/jar -cfm ../donhatchsw.jar ../META-INF/MANIFEST.MF \
             com/donhatchsw/javacpp/*.class \
             com/donhatchsw/javacpp/*.java \
-            com/donhatchsw/javacpp/RCS/* \
             com/donhatchsw/util/*.class \
             com/donhatchsw/util/*.prejava \
             com/donhatchsw/util/*.java \
             com/donhatchsw/util/macros.h \
-            com/donhatchsw/util/RCS \
             com/donhatchsw/awt/*.class \
             com/donhatchsw/awt/*.prejava \
             com/donhatchsw/awt/*.java \
             com/donhatchsw/awt/macros.h \
-            com/donhatchsw/awt/RCS \
             com/donhatchsw/compat/*.class \
             com/donhatchsw/compat/*.prejava \
             com/donhatchsw/compat/*.java \
             com/donhatchsw/compat/macros.h \
-            com/donhatchsw/compat/RCS \
             com/donhatchsw/applet/*.class \
             com/donhatchsw/applet/*.prejava \
             com/donhatchsw/applet/*.java \
             com/donhatchsw/applet/macros.h \
-            com/donhatchsw/applet/RCS \
             com/donhatchsw/mc4d/*.class \
             com/donhatchsw/mc4d/*.java \
-            com/donhatchsw/mc4d/RCS/* \
-            Makefile RCS)
+            Makefile)
 
 clean:
 	# do NOT remove the .java files in javacpp or mc4d !!!
