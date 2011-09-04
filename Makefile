@@ -168,7 +168,9 @@ clean:
             com/donhatchsw/applet/*.java{,.lines} \
             com/donhatchsw/awt/*.java{,.lines} \
             *.html \
-            *.css
+            *.css \
+            resources/ \
+            package-list \
 
 doc: donhatchsw.jar
 	# Copy .prehtml files to .html files
@@ -190,4 +192,4 @@ send: doc
 	scp donhatchsw.jar hatch@plunk.org:public_html/donhatchsw/.
 	(cd ..; scp -r donhatchsw hatch@plunk.org:public_html/private/.)
 senddoc: doc
-	scp -r *.html *.css resources com hatch@plunk.org:public_html/donhatchsw/.
+	scp -r *.html *.css package-list resources com hatch@plunk.org:public_html/donhatchsw/.
