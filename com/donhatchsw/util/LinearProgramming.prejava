@@ -27,6 +27,7 @@ package com.donhatchsw.util;
 // XXX TODO: I don't understand why it's succeeding
 // in the case of m2 variables... aren't they minus what they
 // should be on output?
+// XXX TODO: y's are commented out in various tests, they don't seem to be working
 
 
 public final class LinearProgramming
@@ -392,6 +393,19 @@ public final class LinearProgramming
             for (int i = 0; i < n; ++i)
             {
                 qq[n+i] = -(qq[i] = q[i]);
+
+                // Note, 
+                // if xi,xi' is any solution, then xi+c,xi'+c will be also, for any c.
+                // We could try to fix that here by minimizing the sum xi+xi', i.e. maximizing -xi-xi'.
+                // This guarantees that one of xi,xi' will be zero.
+                // But, sadly, it messes with the objective function (one of the tests in main is a counterexample).
+                // So, I think this remains fragile. :-(
+                if (false)
+                {
+                    qq[i] -= 1.;
+                    qq[n+i] -= 1.;
+                }
+
                 for (int iA = 0; iA < A.length; ++iA)
                     AA[iA][n+i] = -(AA[iA][i] = A[iA][i]);
                 for (int iC = 0; iC < C.length; ++iC)
@@ -1199,19 +1213,21 @@ public final class LinearProgramming
                               double q[], // objective: maximize q dot x
                               boolean implicitRestrictNonNegative)
     {
-        int debugThisFunction = 0;
+        int debugThisFunction = 0; // 0 = nothing, 1 = just in/out, 2 = each time a better one is found, 3 = all possibilities
 
         if (debugThisFunction >= 1) System.out.println("    In LPSolveByBruteForce");
         double AC[][] = (double[][])Arrays.concat(A,C);
         double bd[] = (double[])Arrays.concat(b,d);
 
         int nDims = x.length;
+
+        double I[][] = VecMath.identitymat(nDims);
+        double minusI[][] = VecMath.sxm(-1., I);
+
         if (implicitRestrictNonNegative)
         {
             // Add additional constraints
             // that say each x[i] >= 0
-            double minusI[][] = VecMath.identitymat(nDims);
-            VecMath.sxm(minusI, -1., minusI);
             AC = (double[][])Arrays.concat(AC, minusI);
             bd = (double[])Arrays.concat(bd, VecMath.zerovec(nDims));
         }
@@ -1220,8 +1236,6 @@ public final class LinearProgramming
             // Add additional constraints to bound the problem...
             // if these constraints are hit, we will report
             // that the solution is unbounded.
-            double I[][] = VecMath.identitymat(nDims);
-            double minusI[][] = VecMath.sxm(-1., I);
             double offsets[] = VecMath.fillvec(nDims, 1e6);
             AC = (double[][])Arrays.concat(AC, I);
             bd = (double[])Arrays.concat(bd, offsets);
@@ -1243,8 +1257,6 @@ public final class LinearProgramming
             // to an infinite face.
             // (e.g. the segVerts2d and segVerts3d examples,
             // when the objective function is 1,1,1 or -1,-1,-1).
-            double minusI[][] = VecMath.identitymat(nDims);
-            VecMath.sxm(minusI, -1., minusI);
             AC = (double[][])Arrays.concat(AC, minusI);
             bd = (double[])Arrays.concat(bd, VecMath.zerovec(nDims));
         }
@@ -1261,20 +1273,26 @@ public final class LinearProgramming
         if (debugThisFunction >= 2) System.out.println("        ------------");
         while (incrementMultiIndex(nPlanes, multiIndex))
         {
-            if (debugThisFunction >= 2) PRINTVEC(multiIndex);
+            if (debugThisFunction >= 3) PRINTVEC(multiIndex);
             double normals[][] = (double[][])Arrays.getMany(AC, multiIndex);
             double offsets[] = (double[])Arrays.getMany(bd, multiIndex);
             double det = VecMath.det(normals);
             if (ABS(det) < 1e-12) // XXX crappy test for degeneracy actually
             {
-                if (debugThisFunction >= 2) System.out.println("        (degenerate equations, skipping)");
+                if (debugThisFunction >= 3) System.out.println("        (degenerate equations, skipping)");
                 continue;
             }
             VecMath.invmxv(thisPoint, normals, offsets);
             double thisDot = VecMath.dot(thisPoint, q);
-            if (debugThisFunction >= 2) PRINTVEC(thisPoint);
-            if (debugThisFunction >= 2) PRINT(thisDot);
-            if (thisDot > bestDot)
+            if (debugThisFunction >= 3) PRINTVEC(thisPoint);
+            if (debugThisFunction >= 3) PRINT(thisDot);
+
+            //if (thisDot > bestDot)
+            // kind of hack-- in case of tie, want to favor a vertex that's NOT at one of the infinite walls.
+            // this emphasizes the fact that the method used to allow non-negative constraints in LPSolve is really fragile.
+            if (GT(thisDot, bestDot, 1e-6)
+             || (EQ(thisDot, bestDot, 1e-6)
+              && VecMath.normsqrd(thisPoint) < VecMath.normsqrd(bestPoint)))
             {
                 boolean okaySoFar = true;
                 FORI (iPlane, nConstraintsToEnforce)
@@ -1284,13 +1302,20 @@ public final class LinearProgramming
                     double foo = VecMath.dot(AC[iPlane], thisPoint) - bd[iPlane];
                     if ((iPlane < A.length ? ABS(foo) : foo) > 1e-12) // if violates this == or <= constraint
                     {
-                        if (debugThisFunction >= 2) System.out.println("        (violates some constraint))");
+                        if (debugThisFunction >= 3) System.out.println("        (violates some constraint))");
                         okaySoFar = false;
                         break;
                     }
                 }
                 if (okaySoFar)
                 {
+                    if (debugThisFunction >= 2)
+                    {
+                        System.out.println("        found a better one!");
+                        PRINTVEC(multiIndex);
+                        PRINTVEC(thisPoint);
+                        PRINT(thisDot);
+                    }
                     bestDot = thisDot;
                     VecMath.copyvec(bestPoint, thisPoint);
                     VecMath.copyvec(bestMultiIndex, multiIndex);
@@ -1302,7 +1327,11 @@ public final class LinearProgramming
         if (bestDot > Double.NEGATIVE_INFINITY)
         {
             if (VecMath.normsqrd(bestPoint) >= 1e6*1e6*.99)
+            {
+                System.out.println("I think it's unbounded?");
+                PRINTVEC(bestPoint);
                 ret = 1; // unbounded (hit the huge walls we added)
+            }
             else
             {
                 VecMath.copyvec(x, bestPoint);
@@ -1386,11 +1415,98 @@ public final class LinearProgramming
             return true;
         } // incrementMultiIndex
 
+        private static int testOneCase(double A[][], double b[], double C[][], double d[], double q[], boolean implicitRestrictNonNegative)
+        {
+            System.out.println("    in testOneCase");
+            PRINTMAT(A);
+            PRINTVEC(b);
+            PRINTMAT(C);
+            PRINTVEC(d);
+            PRINTVEC(q);
+            PRINT(implicitRestrictNonNegative);
+            double x[] = new double[q.length];
+            double xByBruteForce[] = new double[q.length];
+            double y[] = new double[C.length];
+            double yByBruteForce[] = new double[C.length];
+            y = null; // XXX for now
+            yByBruteForce = null; // XXX for now
+            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
+            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
+            PRINT(result);
+            PRINT(resultByBruteForce);
+
+            double error[] = null;
+            double errorByBruteForce[] = null;
+            double remainder[] = null;
+            double remainderByBruteForce[] = null;
+            double dot = Double.NaN;
+            double dotByBruteForce = Double.NaN;
+
+            if (result == 0)
+            {
+                error = VecMath.vmv(VecMath.mxv(A,x),b);
+                remainder = VecMath.vmv(VecMath.mxv(C,x),d);
+                dot = VecMath.dot(q, x);
+            }
+            if (resultByBruteForce == 0)
+            {
+                errorByBruteForce = VecMath.vmv(VecMath.mxv(A,xByBruteForce),b);
+                remainderByBruteForce = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
+                dotByBruteForce = VecMath.dot(q, xByBruteForce);
+            }
+
+
+            if (result == 0)
+            {
+                PRINTVEC(x);
+                System.out.println("        This should be 0 (give or take some slack):");
+                PRINTVEC(error);
+                System.out.println("        This should be all <= 0 (give or take some slack):");
+                PRINTVEC(remainder);
+                System.out.println("        This should be maximal:");
+                PRINT(dot);
+            }
+            if (resultByBruteForce == 0)
+            {
+                PRINTVEC(xByBruteForce);
+                System.out.println("        This should be 0 (give or take some slack):");
+                PRINTVEC(errorByBruteForce);
+                System.out.println("        This should be all <= 0 (give or take some slack):");
+                PRINTVEC(remainderByBruteForce);
+                System.out.println("        This should be maximal:");
+                PRINT(dotByBruteForce);
+            }
+            if (result == 0)
+            {
+                FORI (i, error.length)
+                    assert(EQ(error[i], 0., 1e-6));
+                FORI (i, remainder.length)
+                    assert(LEQ(remainder[i], 0., 1e-6));
+            }
+            if (resultByBruteForce == 0)
+            {
+                FORI (i, errorByBruteForce.length)
+                    assert(EQ(errorByBruteForce[i], 0., 1e-6));
+                FORI (i, remainderByBruteForce.length)
+                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
+            }
+            assert(result == resultByBruteForce);
+            if (result == 0 && resultByBruteForce == 0)
+            {
+                assert(EQ(dot, dotByBruteForce, 1e-6));
+            }
+
+            System.out.println("    out testOneCase");
+            return result;
+        } // testOneCase
+
 
     /** Little test program. */
     public static void main(String args[])
     {
-        if (true)
+        int thoroughness = 2;
+
+        if (thoroughness >= 2)
         {
             System.out.println("=============================================");
             System.out.println("Example from the book...");
@@ -1489,7 +1605,7 @@ public final class LinearProgramming
             System.out.println("=============================================");
         }
 
-        if (true)
+        if (thoroughness >= 2)
         {
             System.out.println("=============================================");
             System.out.println("Finding verts of dual polyhedra...");
@@ -1536,6 +1652,11 @@ public final class LinearProgramming
             double segVerts3d[][] = {
                 { 1, 1, 1},
                 {-1,-1,-1},
+            };
+            double triVerts3d[][] = {
+                {1,0,0},
+                {-.5, Math.sqrt(3.)/2, 0},
+                {-.5,-Math.sqrt(3.)/2, 0},
             };
             double backwardsTetraMinusBackVerts[][] = {
                 //{-1,-1,-1},
@@ -1621,6 +1742,7 @@ public final class LinearProgramming
                 triVerts2d, // should be finite
                 oneVert3d, // should be finite
                 segVerts3d, // should be finite
+                triVerts3d, // should be finite
                 backwardsTetraMinusBackVerts, // should be finite
                 tetraMinusFrontVerts, // should be finite
                 tetraVerts, // should be finite
@@ -1652,6 +1774,7 @@ public final class LinearProgramming
 
                 for (int iIter = 0; iIter < 2; ++iIter)
                 {
+                    System.out.println("    --------");
                     boolean implicitRestrictNonNegative = (iIter==0?true:false); // restricted/faster then general.  restricted will often be infeasible if problem is offset in a random direction.
                     PRINT(implicitRestrictNonNegative);
                     java.util.Random generator =
@@ -1677,6 +1800,7 @@ public final class LinearProgramming
                         VecMath.zerovec(offset);
                         offset[0] = 10;
                         // XXX should test this too! objective functions headed straight for face planes, or straight for edges, or straight for vertices
+                        // XXX but for some of the small cases, this would exercise case when maximal face/edge or something is unbounded, not sure what will happen then
                     }
 
                     PRINTVEC(offset);
@@ -1714,7 +1838,12 @@ public final class LinearProgramming
                     int result = LPSolve(x,y,A,b,C,offset_d,q, implicitRestrictNonNegative);
                     int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,offset_d,q, implicitRestrictNonNegative);
 
+                    PRINTVEC(A);
+                    PRINTVEC(b);
+                    PRINTVEC(C);
+                    PRINTVEC(offset_d);
                     PRINTVEC(q);
+                    PRINT(implicitRestrictNonNegative);
                     PRINT(result);
                     PRINTVEC(x);
                     PRINTVEC(y);
@@ -1759,6 +1888,7 @@ public final class LinearProgramming
                             }
                         }
                     }
+                    System.out.println("    --------");
                 } // for iIter
                 System.out.println("SUCCESS");
 
@@ -1767,7 +1897,7 @@ public final class LinearProgramming
             System.out.println("=============================================");
         }
 
-        if (true)
+        if (thoroughness >= 2)
         {
             System.out.println("=============================================");
             System.out.println("Testing L1Solve and LInfinitySolve");
@@ -1815,10 +1945,38 @@ public final class LinearProgramming
             System.out.println("=============================================");
         }
 
-        if (false) // XXX TODO: resultByBruteForce is 1 in this one, why??
+        if (thoroughness >= 1)
         {
             System.out.println("=============================================");
-            System.out.println("Testing something from ShephardsPlayApplet, raw");
+            System.out.println("Thing showing can't mess with objective function to force one of xi,xi' = 0");
+
+            // x0 >= 1
+            // x1 >= 1
+            // 3*x0 + x1 <= 7
+            // maximize 2*x0 + x1
+            //
+            // correct answer is 2,1
+            // if we mess with the objective function, we get 1,4 instead, which doesn't maximize the original objective function
+
+            double A[][] = {
+            };
+            double b[] = {};
+            double C[][] = {
+                {-1,0},
+                {0,-1},
+                {3,1},
+            };
+            double d[] = {-1, -1, 7};
+            double q[] = {2, 1};
+            boolean implicitRestrictNonNegative = false;
+            int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
+            assert(result == 0);
+            System.out.println("=============================================");
+        }
+        if (thoroughness >= 0)
+        {
+            System.out.println("=============================================");
+            System.out.println("Testing something from ShephardsPlayApplet, raw. Problematic for brute force thing");
             double A[][] = {
                 {-2.3614509898954026,-17.780060264311636,0.0,2.3614509898954026,17.780060264311636,-0.0},
             };
@@ -1831,42 +1989,12 @@ public final class LinearProgramming
             };
             double d[] = {-0.06199253443938468,0.8140149783731558,0.9861088504508798,0.5909512664392559};
             double q[] = {0.0,0.0,1.0,-0.0,-0.0,-1.0};
-            double x[] = new double[q.length];
-            double xByBruteForce[] = new double[q.length];
-            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
-            double y[] = null;
-            double yByBruteForce[] = null;
             boolean implicitRestrictNonNegative = true;
-            PRINTMAT(A);
-            PRINTVEC(b);
-            PRINTMAT(C);
-            PRINTVEC(d);
-            PRINTVEC(q);
-            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
-            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
-            PRINT(result);
-            PRINT(resultByBruteForce);
+            int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
             assert(result == 0);
-            assert(resultByBruteForce == 0);
-            PRINTVEC(x);
-            PRINTVEC(xByBruteForce);
-            System.out.println("This should be 0 (give or take some slack):");
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
-            System.out.println("This should be all <= 0 (give or take some slack):");
-            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
-            PRINTVEC(remainder);
-            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
-            PRINTVEC(remainderByBruteForce);
-            if (true)
-                FORI (i, remainderByBruteForce.length)
-                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
-            if (true)
-                FORI (i, remainder.length)
-                    assert(LEQ(remainder[i], 0., 1e-6));
             System.out.println("=============================================");
         }
-        if (true)
+        if (thoroughness >= 1)
         {
             System.out.println("=============================================");
             System.out.println("Testing something from ShephardsPlayApplet, cooked");
@@ -1882,42 +2010,12 @@ public final class LinearProgramming
             };
             double d[] = {-0.06199253443938468,0.8140149783731558,0.9861088504508798,0.5909512664392559};
             double q[] = {0.0,0.0,1.0};
-            double x[] = new double[q.length];
-            double xByBruteForce[] = new double[q.length];
-            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
-            double y[] = null;
-            double yByBruteForce[] = null;
             boolean implicitRestrictNonNegative = false;
-            PRINTMAT(A);
-            PRINTVEC(b);
-            PRINTMAT(C);
-            PRINTVEC(d);
-            PRINTVEC(q);
-            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
-            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
-            PRINT(result);
-            PRINT(resultByBruteForce);
+            int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
             assert(result == 0);
-            assert(resultByBruteForce == 0);
-            PRINTVEC(x);
-            PRINTVEC(xByBruteForce);
-            System.out.println("This should be 0 (give or take some slack):");
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
-            System.out.println("This should be all <= 0 (give or take some slack):");
-            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
-            PRINTVEC(remainder);
-            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
-            PRINTVEC(remainderByBruteForce);
-            if (true)
-                FORI (i, remainderByBruteForce.length)
-                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
-            if (true)
-                FORI (i, remainder.length)
-                    assert(LEQ(remainder[i], 0., 1e-6));
             System.out.println("=============================================");
         }
-        if (true)
+        if (thoroughness >= 1)
         {
             System.out.println("=============================================");
             System.out.println("Testing something from ShephardsPlayApplet, smaller raw");
@@ -1938,42 +2036,12 @@ public final class LinearProgramming
                 //0.5909512664392559,
             };
             double q[] = {0.0,0.0,1.0};
-            double x[] = new double[q.length];
-            double xByBruteForce[] = new double[q.length];
-            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
-            double y[] = null;
-            double yByBruteForce[] = null;
             boolean implicitRestrictNonNegative = true;
-            PRINTMAT(A);
-            PRINTVEC(b);
-            PRINTMAT(C);
-            PRINTVEC(d);
-            PRINTVEC(q);
-            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
-            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
-            PRINT(result);
-            PRINT(resultByBruteForce);
+            int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
             assert(result == 0);
-            assert(resultByBruteForce == 0);
-            PRINTVEC(x);
-            PRINTVEC(xByBruteForce);
-            System.out.println("This should be 0 (give or take some slack):");
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
-            System.out.println("This should be all <= 0 (give or take some slack):");
-            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
-            PRINTVEC(remainder);
-            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
-            PRINTVEC(remainderByBruteForce);
-            if (true)
-                FORI (i, remainderByBruteForce.length)
-                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
-            if (true)
-                FORI (i, remainder.length)
-                    assert(LEQ(remainder[i], 0., 1e-6));
             System.out.println("=============================================");
         }
-        if (true)
+        if (thoroughness >= 1)
         {
             System.out.println("=============================================");
             System.out.println("Testing something from ShephardsPlayApplet, even smaller raw");
@@ -1995,41 +2063,12 @@ public final class LinearProgramming
             };
             double q[] = {0.0,1.0};
             double x[] = new double[q.length];
-            double xByBruteForce[] = new double[q.length];
-            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
-            double y[] = null;
-            double yByBruteForce[] = null;
             boolean implicitRestrictNonNegative = true;
-            PRINTMAT(A);
-            PRINTVEC(b);
-            PRINTMAT(C);
-            PRINTVEC(d);
-            PRINTVEC(q);
-            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
-            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
-            PRINT(result);
-            PRINT(resultByBruteForce);
+            int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
             assert(result == 0);
-            assert(resultByBruteForce == 0);
-            PRINTVEC(x);
-            PRINTVEC(xByBruteForce);
-            System.out.println("This should be 0 (give or take some slack):");
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
-            System.out.println("This should be all <= 0 (give or take some slack):");
-            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
-            PRINTVEC(remainder);
-            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
-            PRINTVEC(remainderByBruteForce);
-            if (true)
-                FORI (i, remainderByBruteForce.length)
-                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
-            if (true)
-                FORI (i, remainder.length)
-                    assert(LEQ(remainder[i], 0., 1e-6));
             System.out.println("=============================================");
         }
-        if (true)
+        if (thoroughness >= 1)
         {
             System.out.println("=============================================");
             System.out.println("Testing something from ShephardsPlayApplet, even smaller still raw");
@@ -2046,39 +2085,9 @@ public final class LinearProgramming
                 0.,
             };
             double q[] = {0.0,1.0};
-            double x[] = new double[q.length];
-            double xByBruteForce[] = new double[q.length];
-            //double y[] = new double[6]; // XXX TODO this gives assertion failure: !Double.isNaN(y[i]) ??
-            double y[] = null;
-            double yByBruteForce[] = null;
             boolean implicitRestrictNonNegative = true;
-            PRINTMAT(A);
-            PRINTVEC(b);
-            PRINTMAT(C);
-            PRINTVEC(d);
-            PRINTVEC(q);
-            int result = LPSolve(x,y,A,b,C,d,q,implicitRestrictNonNegative);
-            int resultByBruteForce = LPSolveByBruteForce(xByBruteForce,yByBruteForce,A,b,C,d,q,implicitRestrictNonNegative);
-            PRINT(result);
-            PRINT(resultByBruteForce);
+            int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
             assert(result == 0);
-            assert(resultByBruteForce == 0);
-            PRINTVEC(x);
-            PRINTVEC(xByBruteForce);
-            System.out.println("This should be 0 (give or take some slack):");
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,x),b));
-            PRINTVEC(VecMath.vmv(VecMath.mxv(A,xByBruteForce),b));
-            System.out.println("This should be all <= 0 (give or take some slack):");
-            double remainder[] = VecMath.vmv(VecMath.mxv(C,x),d);
-            PRINTVEC(remainder);
-            double remainderByBruteForce[] = VecMath.vmv(VecMath.mxv(C,xByBruteForce),d);
-            PRINTVEC(remainderByBruteForce);
-            if (true)
-                FORI (i, remainderByBruteForce.length)
-                    assert(LEQ(remainderByBruteForce[i], 0., 1e-6));
-            if (true)
-                FORI (i, remainder.length)
-                    assert(LEQ(remainder[i], 0., 1e-6));
             System.out.println("=============================================");
         }
     } // main
