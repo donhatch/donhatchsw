@@ -2204,10 +2204,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     }
 
-    /* XXX figure out how to expose this, see Holyhedron/SynopsisStuff.prejava */
-    public static double synopsis(double v[])
+    public static double synopsis(int n, double v[])
     {
-        int n = v.length;
         FORI (i, n)
             if (v[i] <= 0) // non-strict so we do it this way if on the boundary of the positive orthant
             {
@@ -2249,6 +2247,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             */
         }
     } // synopsis of vector returning double
+
+    /* XXX figure out how to expose this, see Holyhedron/SynopsisStuff.prejava */
+    public static double synopsis(double v[])
+    {
+        return synopsis(v.length, v);
+    }
 
     /**
      * Calculates the angular distance from the boundary of the positive orthant
