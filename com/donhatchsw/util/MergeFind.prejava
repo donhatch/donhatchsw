@@ -25,6 +25,8 @@ public class MergeFind
     {
         i = find(i);
         j = find(j);
+        if (i == j)
+            return;
         if (rank[i] > rank[j])
             parent[j] = i;
         else if (rank[i] < rank[j])
