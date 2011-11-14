@@ -1184,36 +1184,57 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** returns minimum element */
-    public static double min(double v[])
+    public static double min(int n, double v[])
     {
         double min = Double.POSITIVE_INFINITY;
-        FORIDOWN (i, v.length)
+        FORI (i, n)
             min = Math.min(min, v[i]);
         return min;
     }
     /** returns minimum element */
-    public static int min(int v[])
+    public static int min(int n, int v[])
     {
         int min = Integer.MAX_VALUE;
-        FORIDOWN (i, v.length)
+        FORI (i, n)
             min = Math.min(min, v[i]);
         return min;
     }
     /** returns maximum element */
-    public static double max(double v[])
+    public static double max(int n, double v[])
     {
         double max = Double.NEGATIVE_INFINITY;
-        FORIDOWN (i, v.length)
+        FORI (i, n)
             max = Math.max(max, v[i]);
         return max;
     }
     /** returns maximum element */
-    public static int max(int v[])
+    public static int max(int n, int v[])
     {
         int max = Integer.MIN_VALUE;
-        FORIDOWN (i, v.length)
+        FORI (i, n)
             max = Math.max(max, v[i]);
         return max;
+    }
+
+    /** returns minimum element */
+    public static double min(double v[])
+    {
+        return min(v.length, v);
+    }
+    /** returns minimum element */
+    public static int min(int v[])
+    {
+        return min(v.length, v);
+    }
+    /** returns maximum element */
+    public static double max(double v[])
+    {
+        return max(v.length, v);
+    }
+    /** returns maximum element */
+    public static int max(int v[])
+    {
+        return max(v.length, v);
     }
 
     /** sum of elements */
