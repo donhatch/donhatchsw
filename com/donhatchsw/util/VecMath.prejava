@@ -438,24 +438,72 @@ public final class VecMath
         mmv(resultFlat, mFlat, v);
     }
 
-    /** ||b-a||^2 ||c-a||^2 - (b-a)dot(c-a) */
+    /** ||B||^2 ||C||^2 - (B dot C )^2   where B=b-a, C=c-a
+    * But that's prone to catastrophic cancellation,
+    * so use this instead:
+    *     ||B - (B dot C)/(||C||^2) C ||^2  ||C||^2
+    */
     public static double sqrdTwiceTriangleArea(double a[],
                                                double b[],
                                                double c[])
     {
-        double ab_dot_ab = 0.;
-        double ab_dot_ac = 0.;
-        double ac_dot_ac = 0.;
-        FORIDOWN (i, a.length)
+        if (false) // catastrophic cancellation way
         {
-            double ai = a[i];
-            double ab = b[i] - ai;
-            double ac = c[i] - ai;
-            ab_dot_ab += ab*ab;
-            ab_dot_ac += ab*ac;
-            ac_dot_ac += ac*ac;
+            double ab_dot_ab = 0.;
+            double ab_dot_ac = 0.;
+            double ac_dot_ac = 0.;
+            FORIDOWN (i, a.length)
+            {
+                double ai = a[i];
+                double ab = b[i] - ai;
+                double ac = c[i] - ai;
+                ab_dot_ab += ab*ab;
+                ab_dot_ac += ab*ac;
+                ac_dot_ac += ac*ac;
+            }
+            return ab_dot_ab*ac_dot_ac - SQR(ab_dot_ac);
         }
-        return ab_dot_ab*ac_dot_ac - SQR(ab_dot_ac);
+        else if (false)
+        {
+            // simple robust way, allocates temporaries
+            double B[] = vmv(b,a);
+            double C[] = vmv(c,a);
+            // orthonormalize B against C...
+            double normsqrdC = normsqrd(C);
+            if (normsqrdC == 0.)
+                return 0.;
+            vpsxv(B, B, -dot(B,C)/normsqrdC, C); // B -= (B dot C)/normsqrd(C) * C
+            return normsqrd(B)*normsqrdC;
+        }
+        else
+        {
+            // previous robust method, but without temporaries...
+            // two passes instead
+            double BdotC = 0.;
+            double CdotC = 0.;
+            FORIDOWN (i, a.length)
+            {
+                double ai = a[i];
+                double Ci = b[i] - ai;
+                double Bi = c[i] - ai;
+                BdotC += Bi*Ci;
+                CdotC += Ci*Ci;
+            }
+            if (CdotC == 0.)
+                return 0.;
+            double scale = BdotC/CdotC; // XXX maybe should swap B,C if necessary so that C is the larger of the two? not sure
+            double BdotB = 0.; // actually not B, but B orthogonalized against C
+            FORIDOWN (i, a.length)
+            {
+                double ai = a[i];
+                double Ci = b[i] - ai;
+                double Bi = c[i] - ai;
+                Bi -= scale * Ci;
+                BdotB += Bi*Bi;
+            }
+            return BdotB * CdotC;
+        }
+
     } // sqrdTwiceTriangleArea
 
 
@@ -4710,6 +4758,34 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             System.err.println("Usage: VecMath <maxdim> [<expr>]");
             System.exit(1);
+        }
+
+
+        if (true)
+        {
+            System.out.println("    testing sqrdTwiceTriangleArea...");
+            java.util.Random generator = new java.util.Random(0);
+            FORI (iTest, 100)
+            {
+                double M[][] = new double[3][3];
+                FORI (i, 3)
+                    random(M[i], generator);
+                lerp(M[2], M[1], M[2], 1e-12); // make M[2] very close to M[1]
+                if (false)
+                {
+                    PRINTARRAY(M);
+                    PRINT(sqrdTwiceTriangleArea(M[0],M[1],M[2]));
+                    PRINT(normsqrd(vxv3(vmv(M[1],M[0]),vmv(M[2],M[0]))));
+                    PRINT(Math.sqrt(sqrdTwiceTriangleArea(M[0],M[1],M[2])));
+                    PRINT(Math.sqrt(normsqrd(vxv3(vmv(M[1],M[0]),vmv(M[2],M[0])))));
+                    PRINT(Math.sqrt(sqrdTwiceTriangleArea(M[0],M[1],M[2]))
+                        - Math.sqrt(normsqrd(vxv3(vmv(M[1],M[0]),vmv(M[2],M[0])))));
+                }
+                assert(EQ(Math.sqrt(sqrdTwiceTriangleArea(M[0],M[1],M[2]))
+                         - Math.sqrt(normsqrd(vxv3(vmv(M[1],M[0]),vmv(M[2],M[0])))), 0., 1e-15));
+            }
+            System.out.println("    done testing sqrdTwiceTriangleArea.");
+            return;
         }
 
         int mindim = 0;
