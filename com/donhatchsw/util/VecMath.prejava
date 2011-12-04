@@ -823,6 +823,22 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         return dot(v0.length, v0, v1);
     }
+
+    /** dot product of vector with matrix column */
+    public static double dotcol(int n, double v[], double M[][], int iCol)
+    {
+        double result = (double)0;
+        FORIDOWN(i, n)
+            result += v[i]*M[i][iCol];
+        return result;
+    }
+    /** dot product of vector with matrix column */
+    public static double dotcol(double v[], double M[][], int iCol)
+    {
+        return dotcol(v.length, v, M, iCol);
+    }
+
+
     /** vector dot product */
     public static float dot(int n, float v0[], float v1[])
     {
@@ -835,6 +851,48 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static float dot(float v0[], float v1[])
     {
         return dot(v0.length, v0, v1);
+    }
+
+    /** dot product of vector with matrix column */
+    public static float dotcol(int n, float v[], float M[][], int iCol)
+    {
+        float result = (float)0;
+        FORIDOWN(i, n)
+            result += v[i]*M[i][iCol];
+        return result;
+    }
+    /** dot product of vector with matrix column */
+    public static float dotcol(float v[], float M[][], int iCol)
+    {
+        return dotcol(v.length, v, M, iCol);
+    }
+
+    /** vector times transpose of matrix */
+    public static void vxtransposem(double result[], double v[], double m[][])
+    {
+        assert(result.length == m.length);
+        FORIDOWN(iCol, result.length)
+        {
+            assert(v.length == m[iCol].length);
+            result[iCol] = dot(v, m[iCol]);
+        }
+    }
+
+    /** matrix times transpose of matrix */
+    public static void mxtransposem(double result[][], double m0[][], double m1[][])
+    {
+        assert(result != m0 && result != m1);
+        assert(result.length == m0.length);
+        FORIDOWN(iRow, result.length)
+            vxtransposem(result[iRow], m0[iRow], m1);
+    }
+
+    /** matrix times transpose of matrix */
+    public static double[][] mxtransposem(double m0[][], double m1[][])
+    {
+        double result[][] = new double[m0.length][m1.length];
+        mxtransposem(result, m0, m1);
+        return result;
     }
 
     // XXX duplicate code below
