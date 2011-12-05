@@ -1989,6 +1989,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // invertmat
 
+    /** Compute determinant using LQ. M may have fewer rows than columns. */
     public static double detUsingLQ(double M[][], boolean destructive)
     {
         int nRows = M.length;
@@ -2003,6 +2004,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             det *= LQcompressed[i][i];
         return det;
     } // detUsingLQ
+
+    /** compute the k-dimensional content of k vectors in n dimensions. */
+    public static double orthotopeContent(double vecs[][])
+    {
+        return detUsingLQ(vecs, false);
+    } // orthotopeContent
 
     public static double detUsingLU(double M[][], boolean destructive)
     {
@@ -4648,11 +4655,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         System.out.println("-----------------");
         PRINTMAT(A);
 
+        PRINT(detUsingLQ(A, false));
+
         double betas[] = new double[A.length];
         double LQcompressed[][] = copymat(A);
-        int det = LQdecompositionCompressed(nRows, nCols,
-                                            LQcompressed, // in/out
-                                            betas);       // out
+        int detSign = LQdecompositionCompressed(nRows, nCols,
+                                                LQcompressed, // in/out
+                                                betas);       // out
         PRINTMAT(LQcompressed);
         PRINTVEC(betas);
 
@@ -4665,7 +4674,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             uncompressLQdecomposition(nRows, nCols,
                                       LQcompressed, // in
                                       betas,        // in
-                                      det,          // in
+                                      detSign,      // in
                                       L, Q);        // out
             PRINTMAT(L);
             PRINTMAT(Q);
