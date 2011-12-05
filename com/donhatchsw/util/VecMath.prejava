@@ -1989,8 +1989,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // invertmat
 
-    /** destructive matrix determinant (destroys the contents of M in the process) */
-    public static double detDestructive(double M[][])
+    /** matrix determinant (optionally destroys the contents of M in the process, but faster) */
+    public static double det(double M[][], boolean destructive)
     {
         int n = M.length;
         assert(n == ROWLENGTH(M));
@@ -2017,6 +2017,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 System.err.println("WARNING: doing slow detDestructive for testing, dim = "+n+"");
         }
         int indx[] = new int[n];
+        if (!destructive)
+            M = copymat(M);
         try
         {
             double d = (double)luDecompose(M, n, indx); // this returns d as +-1.
@@ -2029,35 +2031,17 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return 0.; // XXX not sure this is really exceptional, but...
         }
     } // detDestructive
+
+    /** destructive matrix determinant (destroys the contents of M in the process) */
+    public static double detDestructive(double M[][])
+    {
+        return det(M, true);
+    } // detDestructive
+
     /** matrix determinant */
     public static double det(double M[][])
     {
-        int n = M.length;
-        assert(n == ROWLENGTH(M));
-
-        // XXX duplicate code above
-        if (true)
-        {
-            // optimize for small cases...
-            switch (n)
-            {
-                case 0:
-                    return 1.;
-                case 1:
-                    return M[0][0];
-                case 2:
-                    return vxv2(M[0], M[1]);
-                case 3:
-                    return vxvxv3(M[0], M[1], M[2]);
-            }
-        }
-        else
-        {
-            if (INRANGE(0 <=, n, <= 3))
-                System.err.println("WARNING: doing slow det for testing, dim = "+n+"");
-        }
-
-        return detDestructive(copymat(M));
+        return det(M, false);
     } // det
 
 
@@ -3084,7 +3068,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // uncompressLQdecomposition
 
     /**
-    * returns -1 or 1 depending on whether the number of reflections done
+    * The LQ decomposition is R^T Q^T where Q R is the QR decomposition of A^T.
+    * The function returns -1 or 1 depending on whether the number of reflections done
     * odd or even.
     */
     public static int LQdecompositionCompressed(int nRows, int nCols, // use only first nRows and nCols of A
@@ -4652,6 +4637,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         // Q can be null, or any number of rows up to nCols. test all options.
         for (int nRowsInQ = -1; nRowsInQ <= nCols; ++nRowsInQ)
         {
+            System.out.println("----------");
             double Q[][] = nRowsInQ==-1 ? null : new double[nRowsInQ][nCols];
             uncompressLQdecomposition(nRows, nCols,
                                       LQcompressed, // in
@@ -4710,17 +4696,22 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         // so it should always be possible to make Q
                         // a rotation (not a reflection),
                         // by negating one of the axes if necessary.
-                        // The algorithm should have done that...
-                        assert(Math.abs(detQ-1.) <= 1e-6);
+                        // The algorithm should have done that,
+                        // so detQ should be 1.
+                        assert(EQ(detQ, 1., 1e-6));
                     }
                     else
                     {
+                        // detQ should be +-1.
+                        assert(EQ(ABS(detQ), 1., 1e-6));
+
                         PRINT(det(mxm(transpose(L),L)));
                         assert(nRows == nCols
                             || nRows == 0); // transpose wasn't necessarily the right size in that case but whatever
                     }
                 }
             }
+            System.out.println("----------");
         }
         System.out.println("-----------------");
     } // householderTestOneMatrix
@@ -4732,6 +4723,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
         {
             double testMatrices[][][] = {
+                {
+                    {1,0,0},
+                    {1,1e-9,0},
+                },
                 {
                     {1,1e-9}, // see what it produces... hmm, there's a 1e9 in the compressed L,Q, that's disturbing.  I'm not sure I'm a fan of this normalize-so-first-entry-is-1 stuff.
                 },
@@ -4807,6 +4802,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     }
                 }
             }
+        System.out.println("END HOUSEHOLDER STUFF TEST");
+        System.out.println("============================================");
     } // householderTest
 
 
@@ -4814,7 +4811,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         if (args.length < 1)
         {
-            System.err.println("Usage: VecMath <maxdim> [<expr>]");
+            System.err.println("Usage: VecMath <maxdim>");
             System.exit(1);
         }
 
@@ -4843,7 +4840,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                          - Math.sqrt(normsqrd(vxv3(vmv(M[1],M[0]),vmv(M[2],M[0])))), 0., 1e-15));
             }
             System.out.println("    done testing sqrdTwiceTriangleArea.");
-            return;
         }
 
         int mindim = 0;
@@ -4851,6 +4847,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
         for (int dim = mindim; dim <= maxdim; ++dim)
         {
+            System.out.println("----------");
+            PRINT(dim);
             {
                 double M[][] = new double[dim][dim];
                 double a[] = new double[dim];
@@ -4868,6 +4866,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 PRINTVEC(a);
                 PRINTVEC(b);
                 PRINTVEC(x);
+
+                double origM[][] = copymat(M);
+                PRINT(det(M));
+                assert(equalsExactly(M, origM));
             }
 
             if (dim >= 1)
@@ -4884,6 +4886,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 PRINTMAT(makeRowRotMat(0.f, new float[][]{v}));
                 PRINTMAT(makeRowRotMat(1.f, new float[][]{v}));
             }
+            PRINT(dim);
+            System.out.println("----------");
         }
 
         // Test householder stuff
