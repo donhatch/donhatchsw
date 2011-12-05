@@ -24,29 +24,6 @@ public class MiniBall
     private static boolean checkEveryMiniBall = false; // only set this to true if you know the points are in general position
 
 
-    private static double debugPoints[][];
-    private static int getDebugInd(double point[])
-    {
-        FORI (iDebugPoint, debugPoints.length)
-            if (point == debugPoints[iDebugPoint])
-                return iDebugPoint;
-        assert(false);
-        return -1;
-    }
-    private static int[] getDebugInds(double points[][])
-    {
-        int inds[] = new int[points.length];
-        FORI (iPoint, points.length)
-            inds[iPoint] = getDebugInd(points[iPoint]);
-        return inds;
-    }
-    private static String toDebugIndsString(int nPoints, double points[][])
-    {
-        return Arrays.toStringCompact(getDebugInds((double[][])Arrays.subarray(points,0,nPoints)));
-    }
-
-
-
     /**
     * verify that the given ball is in fact the smallest enclosing ball
     * of the points.
@@ -82,7 +59,7 @@ public class MiniBall
         int nIn = 0;
         int nOn = 0;
         int nOut = 0;
-        double on[][] = new double[nPoints][];
+        int on[] = new int[nPoints];
         FORI (iPoint, nPoints)
         {
             double dist = VecMath.dist(points[iPoint], center);
@@ -92,11 +69,11 @@ public class MiniBall
             else if (LT(dist, radius, radius*1e-12))
                 nIn++;
             else
-                on[nOn++] = points[iPoint];
+                on[nOn++] = iPoint;
         }
         if (verboseLevel >= 1)
         {
-            System.out.print("    "+nOn+" on: "+Arrays.toStringCompact(getDebugInds((double[][])Arrays.subarray(on,0,nOn))));
+            System.out.print("    "+nOn+" on: "+Arrays.toStringCompact(Arrays.subarray(on,0,nOn)));
             System.out.print(", ");
             System.out.print(nIn+" in");
             System.out.print(", ");
@@ -121,6 +98,7 @@ public class MiniBall
             {
                 // reduce nOn to a set of dim+1 support points
                 // (or fewer, if dimension spanned by the support points is less than that)
+                int supportInds[] = new int[dim+1];
                 double supportPoints[][] = new double[dim+1][];
                 double M[][] = new double[dim+1][dim];
                 // maybe a bit silly to go through the loop for the first support point when we know it's going to be on[0], but it doesn't hurt and exercises some functions which need to be exercised
@@ -131,7 +109,8 @@ public class MiniBall
                     double bestContent = -1.;
                     FORI (j, nOn)
                     {
-                        supportPoints[i] = on[j];
+                        supportInds[i] = on[j];
+                        supportPoints[i] = points[supportInds[i]];
                         double thisContent = VecMath.relativeOrthotopeContent(i+1, dim, supportPoints, false);
                         thisContent = ABS(thisContent);
                         //PRINT(thisContent);
@@ -145,7 +124,8 @@ public class MiniBall
                         break;
 
                     assert(bestJ != -1);
-                    supportPoints[i] = on[bestJ];
+                    supportInds[i] = on[bestJ];
+                    supportPoints[i] = points[supportInds[i]];
                     //PRINT(i);
                     PRINT(bestContent);
                     // TODO: if zero, need to truncate to what we've seen so far...
@@ -153,7 +133,7 @@ public class MiniBall
                 // i is now the number of independent points we've seen, at most dim+1
                 assert(i > 0);
                 nOn = i;
-                on = supportPoints;
+                on = supportInds;
             }
 
             assert(nOn <= dim+1);
@@ -166,7 +146,9 @@ public class MiniBall
             // so what we do is, we compute their absolute values
             // and verify that they add up to 1
             // (if any actual barycentrics are negative, they won't).
-            double M[][] = VecMath.copymat(nOn, dim, on);
+            double M[][] = new double[nOn][dim];
+            // XXX the following may be silly, think about it
+            FORI (iOn, nOn) FORI (iDim, dim) M[iOn][iDim] = points[on[iOn]][iDim];
             double m[][] = new double[nOn-1][dim]; // scratch
             FORI (iRow, nOn-1)
                 VecMath.vmv(m[iRow], M[iRow], M[nOn-1]);
@@ -175,7 +157,8 @@ public class MiniBall
             double absBarys[] = new double[nOn];
             FORI (iOn, nOn)
             {
-                VecMath.copymat(nOn, dim, M, on);
+                // XXX the following may be silly, think about it
+                FORI (_iOn, nOn) FORI (iDim, dim) M[_iOn][iDim] = points[on[_iOn]][iDim];
                 VecMath.copyvec(M[iOn], center); // substitute center for iOn'th vertex
                 double det = VecMath.relativeOrthotopeContent(nOn, dim, M, true); // fine to destroy contents of M
                 det = ABS(det);
@@ -213,7 +196,6 @@ public class MiniBall
             System.out.println("                    points = "+Arrays.toStringCompact(points));
         }
 
-        debugPoints = points;
         double radiusSquared = MiniBallHelper(resultCenter,
                                               points,
                                               points.length, VecMath.identityperm(points.length), // it gets reordered, that's okay
