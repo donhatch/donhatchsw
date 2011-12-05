@@ -1989,13 +1989,32 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // invertmat
 
+    public static double detUsingLU(double M[][], boolean destructive)
+    {
+        if (!destructive)
+            M = copymat(M);
+        int n = M.length;
+        assert(n == ROWLENGTH(M));
+        try
+        {
+            int indx[] = new int[n];
+            double d = (double)luDecompose(M, n, indx); // this returns d as +-1.
+            FORI (j, n)
+                d *= M[j][j];
+            return d;
+        }
+        catch (Exception e)
+        {
+            return 0.; // XXX not sure this is really exceptional, but...
+        }
+    } // detUsingLU
+
     /** matrix determinant (optionally destroys the contents of M in the process, but faster) */
     public static double det(double M[][], boolean destructive)
     {
         int n = M.length;
         assert(n == ROWLENGTH(M));
 
-        // XXX duplicate code below
         if (true)
         {
             // optimize for small cases...
@@ -2008,7 +2027,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 case 2:
                     return vxv2(M[0], M[1]);
                 case 3:
-                    return vxvxv3(M[0], M[1], M[2]);
+                    return vxvxv3(M[0], M[1], M[2]); // XXX is this robust?
             }
         }
         else
@@ -2016,21 +2035,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             if (INRANGE(0 <=, n, <= 3))
                 System.err.println("WARNING: doing slow detDestructive for testing, dim = "+n+"");
         }
-        int indx[] = new int[n];
-        if (!destructive)
-            M = copymat(M);
-        try
-        {
-            double d = (double)luDecompose(M, n, indx); // this returns d as +-1.
-            FORI (j, n)
-                d *= M[j][j];
-            return d;
-        }
-        catch (Exception e)
-        {
-            return 0.; // XXX not sure this is really exceptional, but...
-        }
-    } // detDestructive
+        return detUsingLU(M, destructive);
+    } // det with optional destructivity
 
     /** destructive matrix determinant (destroys the contents of M in the process) */
     public static double detDestructive(double M[][])
