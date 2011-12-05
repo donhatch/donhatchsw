@@ -3154,6 +3154,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     * If the result is a square matrix and the original wasn't
     * (or was less than full rank),
     * make sure the result's determinant is +1, not -1.
+    * Note, you should use extendAndOrthogonalize instead of this.
     */
     public static void extendAndGramSchmidt(int k, int n, double result[][], double vecs[][])
     {
