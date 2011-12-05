@@ -741,20 +741,35 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             fillvec(result[i], s);
     }
 
-    /** copy first k rows of m into result*/
+    /** copy first nCols entries of first nRows rows of m into result*/
+    public static void copymat(int nRows, int nCols, double result[][], double m[][])
+    {
+        FORIDOWN (i, nRows)
+            FORIDOWN(j, nCols)
+                result[i][j] = m[i][j];
+    }
+    /** copy first nCols entries of first nRows rows of m into result*/
+    public static void copymat(int nRows, int nCols, float result[][], float m[][])
+    {
+        FORIDOWN (i, nRows)
+            FORIDOWN(j, nCols)
+                result[i][j] = m[i][j];
+    }
+    /** copy first k rows of m into result */
     public static void copymat(int k, double result[][], double m[][])
     {
         FORIDOWN (i, k)
             FORIDOWN(j, MIN(result[i].length, m[i].length))
                 result[i][j] = m[i][j];
     }
-    /** copy first k rows of m into result*/
+    /** copy first k rows of m into result */
     public static void copymat(int k, float result[][], float m[][])
     {
         FORIDOWN (i, k)
             FORIDOWN(j, MIN(result[i].length, m[i].length))
                 result[i][j] = m[i][j];
     }
+
     /** copy m into result, up to smaller of thw two numbers of rows*/
     public static void copymat(double result[][], double m[][])
     {
@@ -1990,12 +2005,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     } // invertmat
 
     /** Compute determinant using LQ. M may have fewer rows than columns. */
-    public static double detUsingLQ(double M[][], boolean destructive)
+    public static double detUsingLQ(int nRows, double M[][], boolean destructive)
     {
-        int nRows = M.length;
-        int nCols = ROWLENGTH(M);
+        int nCols = nRows==0 ? 0 : M[0].length;
         double betas[] = null; // don't care about betas
-        double LQcompressed[][] = destructive ? M : copymat(M);
+        double LQcompressed[][] = destructive ? M : copymat(nRows, M);
         int detSign = LQdecompositionCompressed(nRows, nCols,
                                                 LQcompressed, // in/out
                                                 betas);       // out
@@ -2004,11 +2018,34 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             det *= LQcompressed[i][i];
         return det;
     } // detUsingLQ
+    /** Compute determinant using LQ. M may have fewer rows than columns. */
+    public static double detUsingLQ(double M[][], boolean destructive)
+    {
+        return detUsingLQ(M.length, M, destructive);
+    }
+
+    /** compute the k-dimensional content of k vectors in n dimensions. */
+    public static double orthotopeContent(int k, double vecs[][])
+    {
+        return detUsingLQ(k, vecs, false);
+    } // orthotopeContent
 
     /** compute the k-dimensional content of k vectors in n dimensions. */
     public static double orthotopeContent(double vecs[][])
     {
-        return detUsingLQ(vecs, false);
+        return detUsingLQ(vecs.length, vecs, false);
+    } // orthotopeContent
+
+    /** compute the k-dimensional content of k vectors in n dimensions. */
+    public static double relativeOrthotopeContent(int nPoints, double points[][], boolean destructive)
+    {
+        assert(nPoints >= 1);
+        double relativeTo[] = points[nPoints-1];
+        if (!destructive)
+            points = (double[][])copymat(nPoints-1, points); // can omit relativeTo
+        FORI (iPoint, nPoints-1)
+            vmv(points[iPoint], points[iPoint], relativeTo);
+        return detUsingLQ(nPoints-1, points, true); // fine for it to be destructive now
     } // orthotopeContent
 
     public static double detUsingLU(double M[][], boolean destructive)
@@ -3797,18 +3834,28 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** matrix copy, returning newly allocated result */
+        public static double[][] copymat(int nRows, double M[][])
+        {
+            double result[][] = new double[nRows][nRows==0 ? 0 : M[0].length];
+            copymat(nRows, result, M);
+            return result;
+        }
+        /** matrix copy, returning newly allocated result */
         public static double[][] copymat(double M[][])
         {
-            double result[][] = new double[M.length][M.length==0 ? 0 : M[0].length];
-            copymat(result, M);
+            return copymat(M.length, M);
+        }
+        /** matrix copy, returning newly allocated result */
+        public static float[][] copymat(int nRows, float M[][])
+        {
+            float result[][] = new float[nRows][nRows==0 ? 0 : M[0].length];
+            copymat(nRows, result, M);
             return result;
         }
         /** matrix copy, returning newly allocated result */
         public static float[][] copymat(float M[][])
         {
-            float result[][] = new float[M.length][M.length==0 ? 0 : M[0].length];
-            copymat(result, M);
-            return result;
+            return copymat(M.length, M);
         }
         /** vector copy, returning newly allocated result */
         public static boolean[] copyvec(boolean v[])
