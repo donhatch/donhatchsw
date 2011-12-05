@@ -42,7 +42,6 @@ public class MiniBall
     /**
     * verify that the given ball is in fact the smallest enclosing ball
     * of the points.
-    * LIMITATION: assert-fails if points are not in general position.
     */
     public static boolean IsMiniBall(double center[], double radiusSquared,
                                      int nPoints,
@@ -52,14 +51,20 @@ public class MiniBall
         {
             System.out.println("in IsMiniBall(nPoints="+nPoints+")");
             if (verboseLevel >= 2)
+            {
                 PRINTARRAY(points);
+                PRINTARRAY(center);
+                PRINT(radiusSquared);
+                double radius = Math.sqrt(radiusSquared);
+                PRINT(radius);
+            }
         }
 
         if (radiusSquared < 0.
          || nPoints == 0)
         {
             if (verboseLevel >= 1)
-                System.out.println("out IsMiniBall(nPoints="+nPoints+"), returning "+(radiusSquared < 0. && nPoints == 0)+" trivially because no points");
+                System.out.println("out IsMiniBall(nPoints="+nPoints+"), returning "+(radiusSquared < 0. && nPoints == 0)+" trivially because no points or empty ball");
             return radiusSquared < 0. && nPoints == 0;
         }
 
@@ -74,9 +79,9 @@ public class MiniBall
         {
             double dist = VecMath.dist(points[iPoint], center);
             //PRINT(dist);
-            if (GT(dist, radius, 1e-6))
+            if (GT(dist, radius, radius*1e-12))
                 nOut++;
-            else if (LT(dist, radius, 1e-6))
+            else if (LT(dist, radius, radius*1e-12))
                 nIn++;
             else
                 on[nOn++] = points[iPoint];
@@ -103,7 +108,47 @@ public class MiniBall
         else
         {
             assert(nOn > 0);
-            assert(nOn <= dim+1); // XXX invalid in general... assumes points are in general position
+
+            if (nOn > dim+1)
+            {
+                // reduce nOn to a set of dim+1 support points
+                // (or fewer, if dimension spanned by the support points is less than that)
+                double supportPoints[][] = new double[dim+1][];
+                double M[][] = new double[dim+1][dim];
+                // maybe a bit silly to go through the loop for the first support point when we know it's going to be on[0], but it doesn't hurt and exercises some functions which need to be exercised
+                int i;
+                FOR (i, dim+1)
+                {
+                    int bestJ = -1;
+                    double bestContent = -1.;
+                    FORI (j, nOn)
+                    {
+                        supportPoints[i] = on[j];
+                        double thisContent = VecMath.relativeOrthotopeContent(i+1, dim, supportPoints, false);
+                        thisContent = ABS(thisContent);
+                        //PRINT(thisContent);
+                        if (thisContent > bestContent)
+                        {
+                            bestJ = j;
+                            bestContent = thisContent;
+                        }
+                    }
+                    if (bestContent == 0.)
+                        break;
+
+                    assert(bestJ != -1);
+                    supportPoints[i] = on[bestJ];
+                    //PRINT(i);
+                    PRINT(bestContent);
+                    // TODO: if zero, need to truncate to what we've seen so far...
+                }
+                // i is now the number of independent points we've seen, at most dim+1
+                assert(i > 0);
+                nOn = i;
+                on = supportPoints;
+            }
+
+            assert(nOn <= dim+1);
 
             // make sure center is in the interior or boundary
             // of the simplex formed by the "on" points,
@@ -113,32 +158,29 @@ public class MiniBall
             // so what we do is, we compute their absolute values
             // and verify that they add up to 1
             // (if any actual barycentrics are negative, they won't).
-            on = (double[][])Arrays.subarray(on, 0, nOn); // simplifies things
-            double M[][] = (double[][])Arrays.copy(on, 2);
-            double m[][] = new double[nOn-1][dim];
+            double M[][] = VecMath.copymat(nOn, dim, on);
+            double m[][] = new double[nOn-1][dim]; // scratch
             FORI (iRow, nOn-1)
                 VecMath.vmv(m[iRow], M[iRow], M[nOn-1]);
-            double fulldet = Math.sqrt(VecMath.det(VecMath.mxm(m,VecMath.transpose(m))));
-            //PRINT(fulldet);
-            assert(GT(fulldet, 0., 1e-6));
+            double fulldet = VecMath.relativeOrthotopeContent(nOn, dim, M, true); // fine to destroy contents of M
+            fulldet = ABS(fulldet);
             double absBarys[] = new double[nOn];
             FORI (iOn, nOn)
             {
-                Arrays.copy(M, on, 2);
+                VecMath.copymat(nOn, dim, M, on);
                 VecMath.copyvec(M[iOn], center); // substitute center for iOn'th vertex
-                FORI (iRow, nOn-1)
-                    VecMath.vmv(m[iRow], M[iRow], M[nOn-1]);
-                double detSquared = VecMath.det(VecMath.mxm(m,VecMath.transpose(m)));
-                // can be *slightly* negative...
-                assert(GEQ(detSquared, 0., 1e-6));
-                double det = Math.sqrt(MAX(detSquared,0.));
+                double det = VecMath.relativeOrthotopeContent(nOn, dim, M, true); // fine to destroy contents of M
+                det = ABS(det);
+
                 //PRINT(det);
                 //PRINT(det/fulldet);
                 absBarys[iOn] = det/fulldet;
             }
             //PRINTVEC(absBarys);
+            PRINT(VecMath.sum(absBarys));
             if (!EQ(VecMath.sum(absBarys), 1., 1e-6))
             {
+                PRINTARRAY(absBarys);
                 if (verboseLevel >= 1)
                     System.out.println("out IsMiniBall(nPoints="+nPoints+"), returning false");
                 return false;
@@ -170,7 +212,6 @@ public class MiniBall
                                               0);
         if (checkEveryMiniBall)
         {
-            // XXX TODO: I think the following assumes general position, so it might bomb or assert-fail if not.
             assert(IsMiniBall(resultCenter, radiusSquared, points.length, points));
         }
         if (verboseLevel >= 1)
@@ -205,8 +246,6 @@ public class MiniBall
         double radiusSquared = CircumBall(resultCenter, nB, B);
         if (nB == dim+1)
         {
-            if (false) // XXX this is the issue.. it need NOT be the miniball!
-                assert(IsMiniBall(resultCenter, radiusSquared, nB, B));
             if (verboseLevel >= 2)
             {
                 FORI (iIndent, recursionLevel) System.out.print("    ");
@@ -296,9 +335,6 @@ public class MiniBall
                 }
             }
         }
-        if (false) // seems to fail... need to think about it
-            assert(IsMiniBall(resultCenter, radiusSquared, nL+nB, (double[][])Arrays.concat(Arrays.subarray(L, 0, nL),
-                                                                                            Arrays.subarray(B, 0, nB))));
         if (verboseLevel >= 2)
         {
             FORI (iIndent, recursionLevel) System.out.print("    ");
@@ -376,11 +412,14 @@ public class MiniBall
             double Q[][] = new double[nPoints-1][dim];
             FORI (i, Q.length)
                 VecMath.vmv(Q[i], points[i+1], points[0]);
+            //PRINTMAT(Q);
             double half_A_B[][] = VecMath.mxtransposem(Q,Q); // don't bother multiplying by 2
-            double Qlengths[] = new double[Q.length];
-            FORI (i, Qlengths.length)
-                Qlengths[i] = VecMath.normsqrd(Q[i]);
-            double[] twice_lambdas = VecMath.invmxv(half_A_B, Qlengths); // matrix is symmetric, so doesn't matter whether we use vxinvm or invmxv
+            //PRINTMAT(half_A_B);
+            double Qlength2s[] = new double[Q.length];
+            FORI (i, Qlength2s.length)
+                Qlength2s[i] = VecMath.normsqrd(Q[i]);
+            double[] twice_lambdas = VecMath.invmxv(half_A_B, Qlength2s); // matrix is symmetric, so doesn't matter whether we use vxinvm or invmxv... invmxv is more direct, I believe
+            // XXX should there be a adjmxv and vxadjm?? that would be kinda cool I think maybe...
 
             boolean assertBarysNonNegative = false;
             if (assertBarysNonNegative)
@@ -391,10 +430,154 @@ public class MiniBall
                 FORI (i, twice_lambdas.length)
                     barys[i+1] = lambdas[i];
 
-                if (LT(VecMath.min(barys), 0., 1e-6))
+                if (LT(VecMath.min(barys), 0., 1e-12))
                 {
+                    /*
+                       blech! I think this is problematic...
+                       if we do this, we may end up with a smaller ball,
+                       and then end up asking to do something impossible,
+                       like L=0,2 B=1,3 with:
+                               1
+                          2         0
+                               3
+                       doesn't it suffice to simply say, if the matrix is degerate enough,
+                       then it must contain *all* the other points? hmm no,
+                       this could never happen, I don't think... there must be some point outside ball(0,2; 1)
+                       that created this situation in the first place, such that
+                       1 is outside the ball...
+                       There must be a more robust way of asking this question,
+                       without actually computing/using an untrustworthy ball!
+                       I think, store the ball symbolically somehow,
+                       in such a way that is-another-point-inside-it queries
+                       can be done robustly.
+                       OH! don't store the center, store a point and normal, or something? hmm!
+                       Yes! suffices to store one of the points, and an inward normal towards the center...
+                       and the *inverse* of the squared radius!
+
+                       so let's see, how does that relate to the current problem...
+                       instead of computing C, we'll compute C' = C / radius^2,
+                       so the bigger radius is, the smaller C' will be.
+                       actually that doesn't quite suffice, since if radius is literally infinite,
+                       we still want a direction vector... namely the unit vector C/radius, I think.
+                       so the representation of a ball is:
+                           P0
+                           inward unit normal N
+                           invRadius (or invRadius^2?)
+                       then the center is (possibly unstable or infinite, so we never compute it explicitly):
+                           C = P0 + N/invRadius
+                       and another point P1 is inside the circle iff:
+                           ||P1-C|| < 1/invRadius
+                           ||P1-P0-N/invRadius|| < 1/invRadius
+                       i.e. ||P-N/invRadius|| < 1/invRadius  where P = P1-P0
+                       assuming invRadius >=0 (I'll think about the other case later,
+                       I bet it will just fall out naturally),
+                       this is the same as  saying:
+                           ||P*invRadius-N|| < 1
+                       which is the same as:
+                           ||P*invRadius-N||^2 < 1
+                           (P*invRadius-N) dot (P*invRadius-N) < 1
+                           ||P||^2*invRadius^2 + ||N||^2 - 2*invRadius*(P dot N) < 1
+                           ||P||^2*invRadius^2 + 1 - 2*invRadius*(P dot N) < 1        since ||N|| == 1
+                           ||P||^2*invRadius^2 - 2*invRadius*(P dot N) < 0
+                           ||P||^2*invRadius^2 < 2*invRadius*(P dot N)
+                           ||P||^2*invRadius < 2*(P dot N)
+                       or, if we never want to take a square root,
+                           ||P||^4*invRadius^2 < 4*(P dot N)^2
+                       [
+                           possible alternative to avoid the square root... N could have length 1+invRadius or something?
+                           or...
+                                r=0 -> ||N||=0  (so direction undefined)
+                                r=infinitity -> ||N||=1    hmm?
+                                ||N|| = 1 - 1/(r+1)  ?
+                           or maybe
+                                ||N|| = 1 - 1/(r^2+1)  ?
+                           or
+                                ||N||^2 = 1 - 1/(r^2+1)  ?
+                       ]
+                       Anyway...
+                           if C is lambdas*Q
+                           then invRadius will be 1/||
+                       argh, this might not work out nicely,
+                       since there are cases where the volume of the simplex
+                       is tiny and yet the center is finite.
+
+                       perhaps the whole thing needs another constant,
+                       namely the simplex volume...
+                       solve the equation using the adjoint instead of the inverse,
+                       knowing that the real answer is that divided by the determinant.
+
+                           inv(M) = adj(M)/det(M)
+                           adj(M) = inv(M)*det(M)
+
+                       AH! maybe that's it.
+                       Solve for C' = C * determinant
+                                 radius = ||C'/det||
+                                 invRadius = det/||C'||
+                       Then P is inside the circle iff:
+                           ||P-C|| < radius
+                           ||P-C'/det|| < ||C'/det||
+                           ||P*det-C'|| < ||C'||
+                       is that it? the final straw?
+                       not quite, I think this all falls apart if det is close to 0 even when radius isn't huge. hmm.
+
+
+                       Articulating my concerns:
+                           (1) even if all points in completely general position
+                               with no degeneracies or near-degeneracies,
+                               we are sometimes asked to compute intermediate disks
+                               that can't possibly be the final disk,
+                               since one or more of their barycentrics are significantly negative.
+                               That seems worrisome.
+                               (example)
+                                            0 .7
+
+
+
+
+                                     -.2 0        .2 0
+                                            0 -.1
+                           (2) In the case of 4 points cocircular (with roundoff error),
+                               an intermediate disk with significantly negative coeffs
+                               (as described in the previous)
+                               might actually be returned as the final disk.
+                               If the checking afterwards remembers the points
+                               it was computed from and considers them to be the support points,
+                               it will wrongly say the disk is invalid.
+                               (example)
+                                             0  1
+
+                                      -.8 -.6     .8 -.6
+                                             0 -1
+
+                           (3) The computation of the center of a given circle isn't as accurate
+                               when the coeffs are significantly negative...
+                               getting worse and worse if two or three of them are very close together.
+                               the two-close-together issue is unavoidable (maybe-- but it's a separate
+                               issue) if the two-close-together really are necessary supports
+                               of the final hull, but it seems strange to suffer from it
+                               when that's not the case.
+                               In other words, it seems like bad practice to *ever* compute
+                               a circle from support points for which some barys of the
+                               center are negative.
+                               Can't we do it while only computing balls which are actual
+                               smallest enclosing balls of the support points they are being computed from?
+                               (example)
+
+
+                    */
+                      
                     PRINTVEC(barys);
-                    assert(false);
+                    System.out.println("=================================");
+                    System.out.println("throwing out the worst one and starting over!");
+                    int worstIndex = VecMath.mini(barys);
+                    double savedWorst[] = points[worstIndex];
+                    points[worstIndex] = points[nPoints-1];
+                    double resultRadiusSquared = CircumBall(resultCenter, nPoints-1, points);
+                    points[worstIndex] = savedWorst;
+                    System.out.println("done throwing out the worst one and starting over!");
+                    System.out.println("=================================");
+                    if (verboseLevel >= 3) System.out.println("    out CircumBall (tricky)");
+                    return resultRadiusSquared;
                 }
             }
 
@@ -431,9 +614,190 @@ public class MiniBall
 
         checkEveryMiniBall = true;
 
+
         if (true)
         {
-            // Example where assertions fail...
+            double points[][];
+            String cacheFileName = "6144cache"; // created manually
+            if (!new java.io.File(cacheFileName).exists())
+            {
+                System.out.println("WARNING: cache file "+cacheFileName+" doesn't exist, computing the 6144 points");
+                // as suggested in the paper...
+                // find the set of 6144 integer points on the circle
+                // around the origin with squared radius r^2 = 3728702916375125.
+                long l2 = 3728702916375125L;
+                int nExpected = 6144;
+                int nFound = 0;
+                points = new double[nExpected][];
+                for (long a = 0; a*a + a*a <= l2; ++a)
+                {
+                    long b = Math.round(Math.sqrt(l2 - a*a));
+                    if (a*a + b*b == l2)
+                    {
+                        assert(0 < a);
+                        assert(a < b);
+                        System.out.println("    "+a+" "+b+"");
+                        points[nFound++] = new double[] {a,b};
+                        points[nFound++] = new double[] {a,-b};
+                        points[nFound++] = new double[] {-a,b};
+                        points[nFound++] = new double[] {-a,-b};
+                        points[nFound++] = new double[] {b,a};
+                        points[nFound++] = new double[] {b,-a};
+                        points[nFound++] = new double[] {-b,a};
+                        points[nFound++] = new double[] {-b,-a};
+                    }
+                }
+                PRINT(nFound);
+                assert(nFound == nExpected);
+                assert(nFound == points.length);
+
+
+                int intPoints[][] = new int[points.length][points[0].length];
+                {
+                    FORI (iPoint, points.length)
+                    {
+                        int x = (int)points[iPoint][0];
+                        int y = (int)points[iPoint][1];
+                        assert((double)x == points[iPoint][0]);
+                        assert((double)y == points[iPoint][1]);
+                        intPoints[iPoint][0] = x;
+                        intPoints[iPoint][1] = y;
+                    }
+                }
+                PRINTARRAY(intPoints);
+                return;
+            }
+            else // read it from cache
+            {
+                String fileContents = null;
+                PRINT(__LINE__);
+                try {
+                    java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.FileReader(cacheFileName));
+                    StringBuffer sb = new StringBuffer();
+                    char buf[] = new char[1024];
+                    int numRead = 0;
+                    while ((numRead = reader.read(buf)) > -1)
+                        sb.append(String.valueOf(buf, 0, numRead));
+                    reader.close();
+                    fileContents = sb.toString();
+                }
+                catch (java.io.IOException e)
+                {
+                    System.err.println("Fooey, something went wrong reading file \""+cacheFileName+"\": "+e);
+                    assert(false);
+                }
+                PRINT(__LINE__);
+                if (false)
+                {
+                    try {
+                        points = (double[][])Arrays.fromString(fileContents);
+                    }
+                    catch (java.text.ParseException e)
+                    {
+                        System.err.println("Fooey, something went wrong parsing file \""+cacheFileName+"\": "+e);
+                        assert(false);
+                    }
+                }
+                else
+                {
+                    // holy moly, I didn't realize Arrays.fromString was so slow!
+                    // just read numbers, delimited by: "{},"
+                    String tokens[] = com.donhatchsw.compat.regex.split(fileContents, "[{}, \t\r\n]+");
+                    // XXX huh? how come there's an empty string at the beginning but not at the end??
+                    PRINTARRAY(tokens[0]);
+                    PRINTARRAY(tokens[tokens.length-1]);
+                    assert(tokens.length % 2 == 1);
+                    assert(tokens[0].equals(""));
+                    assert(tokens[tokens.length-1] != "");
+                    int nPoints = (tokens.length-1)/2;
+                    points = new double[nPoints][2];
+                    FORI (iPoint, nPoints)
+                    {
+                        points[iPoint][0] = Integer.parseInt(tokens[1+iPoint*2+0]);
+                        points[iPoint][1] = Integer.parseInt(tokens[1+iPoint*2+1]);
+                    }
+                }
+                PRINT(__LINE__);
+            }
+
+            if (false)
+                points = (double[][])Arrays.subarray(points, 0, 10);
+
+            if (true)
+            {
+                long seed = 0L;
+                java.util.Random generator = new java.util.Random(seed);
+                points = (double[][])Arrays.getMany(points, VecMath.randomperm(points.length, generator));
+            }
+
+            if (true)
+            {
+                // embed in 4-space
+                double points4[][] = new double[points.length][4]; // zeros
+                VecMath.copymat(points4, points);
+                points = points4;
+            }
+
+            PRINTARRAY(points);
+            double center[] = new double[points[0].length];
+            double radiusSquared = MiniBall(center, points); // with internal assertion check
+            double radius = Math.sqrt(radiusSquared);
+            PRINTARRAY(center);
+            PRINT(radiusSquared);
+            PRINT(radius);
+            FORI (iPoint, points.length)
+                PRINT(VecMath.dist(center, points[iPoint]));
+            PRINT(VecMath.dist(points[0],points[1]));
+            PRINT(VecMath.dist(points[1],points[2]));
+            PRINT(VecMath.dist(points[2],points[0]));
+
+            return;
+        }
+
+        if (true)
+        {
+            // possibly problematic case?
+            // can tweak this smaller and smaller... however IsMiniBall will fail since it has a pretty coarse tolerance.
+            double points[][] = {
+                {0,0},
+                {1, 0},
+                {1-1e-10/2, 1e-5},
+            };
+            PRINTARRAY(points);
+            double center[] = new double[points[0].length];
+            double radiusSquared = MiniBall(center, points); // with internal assertion check
+            double radius = Math.sqrt(radiusSquared);
+            PRINTARRAY(center);
+            PRINT(radiusSquared);
+            PRINT(radius);
+            FORI (iPoint, points.length)
+                PRINT(VecMath.dist(center, points[iPoint]));
+            PRINT(VecMath.dist(points[0],points[1]));
+            PRINT(VecMath.dist(points[1],points[2]));
+            PRINT(VecMath.dist(points[2],points[0]));
+        }
+        if (true)
+        {
+            // possibly problematic case?
+            // can tweak this smaller and smaller... however IsMiniBall will fail since it has a pretty coarse tolerance.
+            double points[][] = {
+                {1, 1e-7},
+                {1, -1e-7},
+                {0,0},
+            };
+            PRINTARRAY(points);
+            double center[] = new double[points[0].length];
+            double radiusSquared = MiniBall(center, points); // with internal assertion check
+            double radius = Math.sqrt(radiusSquared);
+            PRINTARRAY(center);
+            PRINT(radiusSquared);
+            PRINT(radius);
+            FORI (iPoint, points.length)
+                PRINT(VecMath.dist(center, points[iPoint]));
+        }
+        if (true)
+        {
+            // Example where assertions fail, if I assert all barycentrics are >= 0...
             // the last point p3 *is* a support point of the whole thing,
             // but it's not a support point of p0,p2,p3.
             // Hmm, need to read the paper again.
@@ -558,7 +922,7 @@ public class MiniBall
             //return;
         }
 
-        int seed = 0;
+        long seed = 0L;
         java.util.Random generator = new java.util.Random(seed);
 
         int minDim = 0;
@@ -653,7 +1017,7 @@ public class MiniBall
                     }
                 }
             }
-        }
+        } // for each dim
 
         System.out.println("out MiniBall.main()");
     } // main
