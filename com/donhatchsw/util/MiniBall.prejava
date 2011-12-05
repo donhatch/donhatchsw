@@ -2,12 +2,20 @@ package com.donhatchsw.util;
 
 #include "macros.h"
 
+/*
+TODO: retain record of which support points were used to compute the ball
+TODO: do it using indices
+TODO: uncomment identical-points examples and fix it
+
+*/
+
 /**
 * Smallest enclosing ball.
 * Roughly follows Emo Welz's move-to-front method
 * described in Bernd Gartner's paper "Fast and Robust Smallest Enclosing Balls".
 * Not really optimized or robustified.
 */
+
 public class MiniBall
 {
     private MiniBall() {} // uninstantiatable
@@ -133,7 +141,7 @@ public class MiniBall
                             bestContent = thisContent;
                         }
                     }
-                    if (bestContent == 0.)
+                    if (bestContent <= 1e-12*radius)
                         break;
 
                     assert(bestJ != -1);
@@ -207,8 +215,9 @@ public class MiniBall
 
         debugPoints = points;
         double radiusSquared = MiniBallHelper(resultCenter,
-                                              points.length, (double[][])Arrays.copy(points, 1), // since it gets reorded
-                                              0, new double[MIN(points.length, dim+1)][],
+                                              points,
+                                              points.length, VecMath.identityperm(points.length), // it gets reordered, that's okay
+                                              0, new int[MIN(points.length, dim+1)],
                                               0);
         if (checkEveryMiniBall)
         {
@@ -221,8 +230,9 @@ public class MiniBall
 
 
     private static double MiniBallHelper(double resultCenter[],
-                                         int nL, double L[][], // not-necessarily-boundary
-                                         int nB, double B[][], // boundary
+                                         double points[][],
+                                         int nL, int L[], // not-necessarily-boundary point indices
+                                         int nB, int B[], // boundary point indices
                                          int recursionLevel)
     {
         if (verboseLevel >= 2)
@@ -231,19 +241,18 @@ public class MiniBall
             System.out.println("                    in MiniBallHelper(nL="+nL+", nB="+nB+")");
 
             FORI (iIndent, recursionLevel) System.out.print("    ");
-            System.out.println("                        L = "+toDebugIndsString(nL,L));
+            System.out.println("                        L = "+Arrays.toStringCompact(Arrays.subarray(L,0,nL)));
 
             FORI (iIndent, recursionLevel) System.out.print("    ");
-            System.out.println("                        B = "+toDebugIndsString(nB,B));
+            System.out.println("                        B = "+Arrays.toStringCompact(Arrays.subarray(B,0,nB)));
 
             FORI (iIndent, recursionLevel) System.out.print("    ");
-            System.out.println("                      O computing circumball of B="+toDebugIndsString(nB,B));
-
+            System.out.println("                      O computing circumball of B="+Arrays.toStringCompact(Arrays.subarray(B,0,nB)));
         }
 
 
         int dim = resultCenter.length;
-        double radiusSquared = CircumBall(resultCenter, nB, B);
+        double radiusSquared = CircumBall(resultCenter, points, nB, B);
         if (nB == dim+1)
         {
             if (verboseLevel >= 2)
@@ -257,24 +266,25 @@ public class MiniBall
         }
         FORI (i, nL)
         {
-            double Li[] = L[i];
+            int Li = L[i];
             if (verboseLevel >= 3)
             {
                 PRINTVEC(resultCenter);
                 PRINT(radiusSquared);
-                PRINT(VecMath.distsqrd(Li, resultCenter))
+                PRINT(VecMath.distsqrd(points[Li], resultCenter))
                 PRINT(Math.sqrt(radiusSquared));
             }
             if (radiusSquared < 0
-             || VecMath.distsqrd(Li, resultCenter) > radiusSquared)
+             || VecMath.distsqrd(points[Li], resultCenter) > radiusSquared)
             {
                 if (verboseLevel >= 2)
                 {
                     FORI (iIndent, recursionLevel) System.out.print("    ");
-                    System.out.println("                      X ("+getDebugInd(Li)+" is outside ball, recursing and replacing ball)");
+                    System.out.println("                      X ("+Li+" is outside ball, recursing and replacing ball)");
                 }
                 B[nB] = Li;
                 radiusSquared = MiniBallHelper(resultCenter,
+                                               points,
                                                i, L,
                                                nB+1, B, // B with Li appended
                                                recursionLevel+1);
@@ -331,7 +341,7 @@ public class MiniBall
                 if (verboseLevel >= 2)
                 {
                     FORI (iIndent, recursionLevel) System.out.print("    ");
-                    System.out.println("                      | ("+getDebugInd(Li)+" is in interior of ball, ignoring new point)");
+                    System.out.println("                      | ("+Li+" is in interior of ball, ignoring new point)");
                 }
             }
         }
@@ -359,59 +369,60 @@ public class MiniBall
     // circum-ball of up to dim+1 points,
     // assuming answer is inside the simplex.
     private static double CircumBall(double resultCenter[],
-                                     int nPoints,
-                                     double points[][])
+                                     double points[][],
+                                     int nInds,
+                                     int inds[])
     {
-        if (verboseLevel >= 3) System.out.println("    in CircumBall ("+nPoints+" points)");
+        if (verboseLevel >= 3) System.out.println("    in CircumBall ("+nInds+" points)");
         int dim = resultCenter.length;
-        assert(nPoints <= dim+1);
-        if (nPoints == 0)
+        assert(nInds <= dim+1);
+        if (nInds == 0)
         {
             VecMath.zerovec(resultCenter);
             if (verboseLevel >= 3) System.out.println("    out CircumBall (empty)");
             return Double.NEGATIVE_INFINITY;
         }
-        else if (nPoints == 1)
+        else if (nInds == 1)
         {
             if (verboseLevel >= 3) System.out.println("    out CircumBall (1 point)");
             // can't use general method even if we want to, since the code gets confused about dimensions since Q would have no rows and so vxinvm can't deduce dimension and so would produce a twice_lambdas with length 0 instead of dim
-            VecMath.copyvec(resultCenter, points[0]);
+            VecMath.copyvec(resultCenter, points[inds[0]]);
             if (verboseLevel >= 3) System.out.println("    out CircumBall (trivial nPoints=1)");
             return 0.;
         }
-#if 0 // test general method
-        else if (nPoints == 2)
+#if 0 // 0 to test general method
+        else if (nInds == 2)
         {
             if (verboseLevel >= 3) System.out.println("    out CircumBall (2 points)");
-            VecMath.lerp(resultCenter, points[0], points[1], .5);
+            VecMath.lerp(resultCenter, points[inds[0]], points[inds[1]], .5);
             if (verboseLevel >= 3) System.out.println("    out CircumBall (trivial nPoints=2)");
-            return VecMath.distsqrd(resultCenter, points[0]);
+            return VecMath.distsqrd(resultCenter, points[inds[0]]);
         }
-        else if (nPoints == 3) // XXX think about whether this is more robust than the general method?
+        else if (nInds == 3) // XXX think about whether this is more robust than the general method?
         {
 
             // http://en.wikipedia.org/wiki/Circumscribed_circle#Barycentric_coordinates_from_cross-_and_dot-products
-            double l12 = VecMath.distsqrd(points[1],points[2]);
-            double l20 = VecMath.distsqrd(points[2],points[0]);
-            double l01 = VecMath.distsqrd(points[0],points[1]);
-            double c0 = l12 * relativeDot(points[0], points[1], points[2]);
-            double c1 = l20 * relativeDot(points[1], points[2], points[0]);
-            double c2 = l01 * relativeDot(points[2], points[0], points[1]);
+            double l12 = VecMath.distsqrd(points[inds[1]],points[inds[2]]);
+            double l20 = VecMath.distsqrd(points[inds[2]],points[inds[0]]);
+            double l01 = VecMath.distsqrd(points[inds[0]],points[inds[1]]);
+            double c0 = l12 * relativeDot(points[inds[0]], points[inds[1]], points[inds[2]]);
+            double c1 = l20 * relativeDot(points[inds[1]], points[inds[2]], points[inds[0]]);
+            double c2 = l01 * relativeDot(points[inds[2]], points[inds[0]], points[inds[1]]);
             double sum = c0 + c1 + c2;
             VecMath.bary(resultCenter,
-                         points[0],
-                         points[1], c1/sum,
-                         points[2], c2/sum);
+                         points[inds[0]],
+                         points[inds[1]], c1/sum,
+                         points[inds[2]], c2/sum);
             if (verboseLevel >= 3) System.out.println("    out CircumBall (3 points)");
-            return VecMath.distsqrd(resultCenter, points[0]);
+            return VecMath.distsqrd(resultCenter, points[inds[0]]);
         }
 #endif
         else if (true)
         {
             // Try the method in Bernd Gartner's paper "Fast and Robust Smallest Enclosing Balls"
-            double Q[][] = new double[nPoints-1][dim];
+            double Q[][] = new double[nInds-1][dim];
             FORI (i, Q.length)
-                VecMath.vmv(Q[i], points[i+1], points[0]);
+                VecMath.vmv(Q[i], points[inds[i+1]], points[inds[0]]);
             //PRINTMAT(Q);
             double half_A_B[][] = VecMath.mxtransposem(Q,Q); // don't bother multiplying by 2
             //PRINTMAT(half_A_B);
@@ -425,7 +436,7 @@ public class MiniBall
             if (assertBarysNonNegative)
             {
                 double lambdas[] = VecMath.vxs(twice_lambdas, .5);
-                double barys[] = new double[nPoints];
+                double barys[] = new double[nInds];
                 barys[0] = 1.-VecMath.sum(lambdas);
                 FORI (i, twice_lambdas.length)
                     barys[i+1] = lambdas[i];
@@ -570,10 +581,10 @@ public class MiniBall
                     System.out.println("=================================");
                     System.out.println("throwing out the worst one and starting over!");
                     int worstIndex = VecMath.mini(barys);
-                    double savedWorst[] = points[worstIndex];
-                    points[worstIndex] = points[nPoints-1];
-                    double resultRadiusSquared = CircumBall(resultCenter, nPoints-1, points);
-                    points[worstIndex] = savedWorst;
+                    int savedWorst = inds[worstIndex];
+                    inds[worstIndex] = nInds-1;
+                    double resultRadiusSquared = CircumBall(resultCenter, points, nInds-1, inds);
+                    inds[worstIndex] = savedWorst;
                     System.out.println("done throwing out the worst one and starting over!");
                     System.out.println("=================================");
                     if (verboseLevel >= 3) System.out.println("    out CircumBall (tricky)");
@@ -585,7 +596,7 @@ public class MiniBall
             double twice_relativeCenter[] = resultCenter; // use resultCenter for scratch
             VecMath.vxm(twice_relativeCenter, twice_lambdas, Q);
             double resultRadiusSquared = .25 * VecMath.normsqrd(twice_relativeCenter); // compute it before we clobber the array
-            VecMath.vpsxv(resultCenter, points[0], .5, twice_relativeCenter);
+            VecMath.vpsxv(resultCenter, points[inds[0]], .5, twice_relativeCenter);
             if (verboseLevel >= 3) System.out.println("    out CircumBall (general)");
             return resultRadiusSquared;
 
@@ -615,7 +626,7 @@ public class MiniBall
         checkEveryMiniBall = true;
 
 
-        if (true)
+        if (false)
         {
             double points[][];
             String cacheFileName = "6144cache"; // created manually
@@ -720,7 +731,7 @@ public class MiniBall
                 PRINT(__LINE__);
             }
 
-            if (false)
+            if (true)
                 points = (double[][])Arrays.subarray(points, 0, 10);
 
             if (true)
@@ -732,10 +743,21 @@ public class MiniBall
 
             if (true)
             {
-                // embed in 4-space
-                double points4[][] = new double[points.length][4]; // zeros
-                VecMath.copymat(points4, points);
-                points = points4;
+                // embed in higher-dimensional space
+                int dim = 3;
+                double Points[][] = new double[points.length][dim]; // zeros
+                VecMath.copymat(Points, points);
+                points = Points;
+            }
+            if (true)
+            {
+                // randomly rotate
+                int dim = points[0].length;
+                double M[][] = new double[dim][dim];
+                FORI (i, M.length)
+                    VecMath.random(M[i]);
+                VecMath.extendAndOrthogonalize(dim, dim, M, M);
+                points = VecMath.mxm(points, M);
             }
 
             PRINTARRAY(points);
@@ -754,6 +776,64 @@ public class MiniBall
             return;
         }
 
+        if (false)
+        {
+            double examples[][][] = {
+                {
+                    // no points
+                },
+                {
+                    // one point in zero dimensions
+                    {},
+                },
+                {
+                    // one point in one dimension
+                    {-.1},
+                },
+                {
+                    // one point in two dimensions
+                    {-.1, -.2},
+                },
+                {
+                    // two (identical) points in zero dims
+                    {}, {},
+                },
+#ifdef NOTYET
+                {
+                    // 2 identical points in 1d
+                    {-.1}, {-.1},
+                },
+#endif
+                {
+                    // 2 diff points in 1d
+                    {-.1}, {-.2},
+                },
+#ifdef NOTYET
+                {
+                    // 2 identical points in 2d
+                    {-.1,-.2}, {-.1,-.2},
+                },
+#endif
+                {
+                    // 2 diff points in 2d
+                    {-.1,-.2}, {-.3,-.4},
+                },
+            };
+            FORI (iExample, examples.length)
+            {
+                double points[][] = examples[iExample];
+                PRINTARRAY(points);
+                double center[] = new double[points.length == 0 ? 0 : points[0].length];
+                double radiusSquared = MiniBall(center, points); // with internal assertion check
+                double radius = Math.sqrt(radiusSquared);
+                PRINTARRAY(center);
+                PRINT(radiusSquared);
+                PRINT(radius);
+                FORI (iPoint, points.length)
+                    PRINT(VecMath.dist(center, points[iPoint]));
+            }
+            return;
+        }
         if (true)
         {
             // possibly problematic case?
@@ -867,7 +947,7 @@ public class MiniBall
             };
             PRINTARRAY(points);
             double center[] = new double[points[0].length];
-            double radiusSquared = CircumBall(center, points.length, points);
+            double radiusSquared = CircumBall(center, points, points.length, VecMath.identityperm(points.length));
             double radius = Math.sqrt(radiusSquared);
             PRINTARRAY(center);
             PRINT(radiusSquared);
