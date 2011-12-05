@@ -1989,6 +1989,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     } // invertmat
 
+    public static double detUsingLQ(double M[][], boolean destructive)
+    {
+        int nRows = M.length;
+        int nCols = ROWLENGTH(M);
+        double betas[] = null; // don't care about betas
+        double LQcompressed[][] = destructive ? M : copymat(M);
+        int detSign = LQdecompositionCompressed(nRows, nCols,
+                                                LQcompressed, // in/out
+                                                betas);       // out
+        double det = (double)detSign;
+        FORI (i, nRows)
+            det *= LQcompressed[i][i];
+        return det;
+    } // detUsingLQ
+
     public static double detUsingLU(double M[][], boolean destructive)
     {
         if (!destructive)
@@ -3093,7 +3108,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             double beta = house(nCols-iRow,
                                 A[iRow], iRow); // A[iRow] starting at col iRow
             double h[] = A[iRow]; // that's where h got put
-            betas[iRow] = beta;
+            if (betas != null)
+                betas[iRow] = beta;
 
             // For row iRow, the "essential part" of the householder vector
             // got put into indices iRow+1..nCols-1 (replacing the entries
@@ -4875,7 +4891,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
                 double origM[][] = copymat(M);
                 PRINT(det(M));
+                PRINT(detUsingLU(M, false));
+                PRINT(detUsingLQ(M, false));
                 assert(equalsExactly(M, origM));
+                assert(EQ(det(M), detUsingLU(M,false), 1e-6));
+                assert(EQ(det(M), detUsingLQ(M,false), 1e-6));
             }
 
             if (dim >= 1)
