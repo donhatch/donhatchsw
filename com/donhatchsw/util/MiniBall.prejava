@@ -4,6 +4,7 @@ package com.donhatchsw.util;
 
 /*
 TODO: retain record of which support points were used to compute the ball?
+TODO: think about whether the fuzzy outside test should be necessary
 */
 
 /**
@@ -61,6 +62,7 @@ public class MiniBall
         {
             double dist = VecMath.dist(points[iPoint], center);
             //PRINT(dist);
+            //PRINT(dist-radius);
             if (GT(dist, radius, radius*1e-12))
                 nOut++;
             else if (LT(dist, radius, radius*1e-12))
@@ -257,7 +259,8 @@ public class MiniBall
                 PRINT(Math.sqrt(radiusSquared));
             }
             if (radiusSquared < 0
-             || VecMath.distsqrd(points[Li], resultCenter) > radiusSquared)
+             || GT(VecMath.distsqrd(points[Li], resultCenter), radiusSquared, 1e-12 * radiusSquared))
+             // XXX wait, should the fuzziness be necessary? hmm
             {
                 if (verboseLevel >= 2)
                 {
@@ -831,6 +834,22 @@ public class MiniBall
                 {
                     // 4 (3 same) points in 2d
                     {-.1,-.1},{-.1,-.1},{-.1,-.1},{-.2,-.3},
+                },
+                {
+                    // one that was giving me an assertion failure in ShephardsPlayApplet
+                    {-0.28,-0.04},
+                    {-0.28,-0.04},
+                    {-0.28,-0.04},
+                    {0.2777777777777778,0.3},
+                    {0.015625,-0.375},
+                },
+                {
+                    // one that was giving me an assertion failure in ShephardsPlayApplet, with mistaken 3rd coord added
+                    {-0.28116531165311653,-0.04067796610169491,0.0},
+                    {-0.28116531165311653,-0.04067796610169491,0.0},
+                    {-0.28116531165311653,-0.04067796610169491,0.0},
+                    {0.2777777777777778,0.3016949152542373,0.0},
+                    {0.015625,-0.375,0.0},
                 },
             };
             FORI (iExample, examples.length)
