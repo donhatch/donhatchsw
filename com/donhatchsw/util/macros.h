@@ -23,20 +23,20 @@
 #define _PRINT5(x0,x1,x2,x3,x4) {_PRINT_(x0);_PRINT4(x1,x2,x3,x4);}
 #define _PRINT6(x0,x1,x2,x3,x4,x5) {_PRINT_(x0);_PRINT5(x1,x2,x3,x4,x5);}
 #define _PRINT7(x0,x1,x2,x3,x4,x5,x6) {_PRINT_(x0);_PRINT6(x1,x2,x3,x4,x5,x6);}
-#define _PRINTSUB(x,i) System.out.println("    " + #x + "["+(i)+"] = " + (x)[i])
-#define PRINT(x) {System.out.print("    "); _PRINT(x);}
-#define PRINT2(x0,x1) {System.out.print("    "); _PRINT2(x0,x1);}
-#define PRINT3(x0,x1,x2) {System.out.print("    "); _PRINT3(x0,x1,x2);}
-#define PRINT4(x0,x1,x2,x3) {System.out.print("    "); _PRINT4(x0,x1,x2,x3);}
+#define _PRINTSUB(x,i) System.out.println("        " + #x + "["+(i)+"] = " + (x)[i])
+#define PRINT(x) {System.out.print("        "); _PRINT(x);}
+#define PRINT2(x0,x1) {System.out.print("        "); _PRINT2(x0,x1);}
+#define PRINT3(x0,x1,x2) {System.out.print("        "); _PRINT3(x0,x1,x2);}
+#define PRINT4(x0,x1,x2,x3) {System.out.print("        "); _PRINT4(x0,x1,x2,x3);}
 // XXX ... what a mess
 
-#define PRINTSUBSUB(x,i,j) System.out.println("    " + #x + "["+(i)+"]["+(j)+"] = " + (x)[i][j])
-#define PRINTSUBSUBSUB(x,i,j,k) System.out.println("    " + #x + "["+(i)+"]["+(j)+"]["+(k)+"] = " + (x)[i][j][k])
-#define PRINTVEC(x) System.out.println("    " + #x + " = " + VecMath.toString(x))
-#define PRINTMATROW(x,i) System.out.println("    " + #x + "["+(i)+"] = " + VecMath.toString((x)[i]))
-#define PRINTMAT(x) System.out.println("    " + #x + " =\n" + VecMath.toString(x))
-#define PRINTARRAY(x) System.out.println("    " + #x + " = " + Arrays.toStringCompact(x))
-#define PRINTARRAY_NONCOMPACT(x) System.out.println("    " + #x + " =\n" + Arrays.toStringNonCompact(x, "    ", "    "))
+#define PRINTSUBSUB(x,i,j) System.out.println("        " + #x + "["+(i)+"]["+(j)+"] = " + (x)[i][j])
+#define PRINTSUBSUBSUB(x,i,j,k) System.out.println("        " + #x + "["+(i)+"]["+(j)+"]["+(k)+"] = " + (x)[i][j][k])
+#define PRINTVEC(x) System.out.println("        " + #x + " = " + VecMath.toString(x))
+#define PRINTMATROW(x,i) System.out.println("        " + #x + "["+(i)+"] = " + VecMath.toString((x)[i]))
+#define PRINTMAT(x) System.out.println("        " + #x + " =\n" + VecMath.toString(x))
+#define PRINTARRAY(x) System.out.println("        " + #x + " = " + Arrays.toStringCompact(x))
+#define PRINTARRAY_NONCOMPACT(x) System.out.println("        " + #x + " =\n" + Arrays.toStringNonCompact(x, "        ", "        "))
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 #define HYPOTSQRD(a,b) (((a)*(a))+((b)*(b)))
