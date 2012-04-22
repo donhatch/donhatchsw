@@ -23,7 +23,7 @@
 #define _PRINT5(x0,x1,x2,x3,x4) {_PRINT_(x0);_PRINT4(x1,x2,x3,x4);}
 #define _PRINT6(x0,x1,x2,x3,x4,x5) {_PRINT_(x0);_PRINT5(x1,x2,x3,x4,x5);}
 #define _PRINT7(x0,x1,x2,x3,x4,x5,x6) {_PRINT_(x0);_PRINT6(x1,x2,x3,x4,x5,x6);}
-#define _PRINTSUB(x,i) System.out.println("        " + #x + "["+(i)+"] = " + (x)[i])
+#define PRINTSUB(x,i) System.out.println("        " + #x + "["+(i)+"] = " + (x)[i])
 #define PRINT(x) {System.out.print("        "); _PRINT(x);}
 #define PRINT2(x0,x1) {System.out.print("        "); _PRINT2(x0,x1);}
 #define PRINT3(x0,x1,x2) {System.out.print("        "); _PRINT3(x0,x1,x2);}
