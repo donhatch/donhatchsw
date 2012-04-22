@@ -416,7 +416,17 @@ public final class LinearProgramming
 
             if (ret == 0)
                 for (int i = 0; i < n; ++i)
+                {
+                    assert(xx[i] >= 0.);
+                    assert(xx[n+i] >= 0.);
+                    // NOTE: I'm not sure the following is actually guaranteed,
+                    // since if we have a solution then xx[i]+=c, xx[i+1]+=c
+                    // also yields a good solution.  It would suck
+                    // if we actually got one of those other solutions.
+                    assert(xx[i] == 0.
+                        || xx[n+i] == 0.);
                     x[i] = xx[i] - xx[n+i];
+                }
 
             if (debugLevel >= 1)
             {
@@ -1534,6 +1544,7 @@ public final class LinearProgramming
     /** Little test program. */
     public static void main(String args[])
     {
+        // not much rhyme or reason to this... I just set various levels to get various subsets temporarily. 2 should get them all.
         int thoroughness = 2;
 
         if (thoroughness >= 2)
