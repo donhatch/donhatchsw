@@ -36,10 +36,18 @@ public class ConvexHull
         }
         int nVerts = verts.length;
         if (nVerts == 0)
+        {
+            if (debugLevel >= 1)
+                System.out.println("    out convexHull (nVerts==0, returning new int[0][])");
             return new int[0][];
+        }
         int d = verts[0].length;
-        if (d == 0 || nVerts == 0)
+        if (d == 0)
+        {
+            if (debugLevel >= 1)
+                System.out.println("    out convexHull (d==0, returning new int[0][])");
             return new int[0][]; // not sure what the hell's going on here
+        }
         if (d == 1)
         {
             // In this case expressing the sidedness of a facet
@@ -55,11 +63,17 @@ public class ConvexHull
                 if (verts[iVert][0] >= verts[answer[1][0]][0]) // >= so prefer last index
                     answer[1][0] = iVert;
             }
+            if (debugLevel >= 1)
+                System.out.println("    out convexHull (d==1, returning lowest and highest vertex)");
             return answer;
         }
 
         if (nVerts < d)
+        {
+            if (debugLevel >= 1)
+                System.out.println("    out convexHull (nVerts<d, returning new int[0][])");
             return new int[0][]; // not enough vertices to make a facet out of
+        }
 
         assert(nVerts >= d && d >= 2);
 
@@ -90,6 +104,7 @@ public class ConvexHull
                     double thisContentSquared = calcParallelotopeContentSquared(verts,
                                                                                 firstHullFacet,
                                                                                 i+1);
+                    //PRINT(thisContentSquared);
                     if (thisContentSquared > biggestContentSquared)
                     {
                         biggestContentSquared = thisContentSquared;
@@ -104,7 +119,11 @@ public class ConvexHull
         }
         double firstFacetUnsignedArea = Math.sqrt(biggestContentSquared);
         if (firstFacetUnsignedArea <= Math.pow(eps, d-1))
+        {
+            if (debugLevel >= 1)
+                System.out.println("    out convexHull (firstFacetUnsignedArea = "+firstFacetUnsignedArea+" <= eps ^ d-1, returning null)");
             return null; // XXX throw?
+        }
 
         // Second hull facet is opposite of first
         int secondHullFacet[] = VecMath.copyvec(firstHullFacet);
@@ -198,10 +217,11 @@ public class ConvexHull
                         // the iRidgeThisFacet'th vertex from the facet
                         FORI (i, d-1)
                             scratchRidge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
-                        SortStuff.sort(scratchRidge); // canonical order
+                        SortStuff.sort(scratchRidge); // canonical order  XXX is this necessary? is facet not already sorted?
 
                         if (visibleBoundary.remove(scratchRidgeHashKey) == null)
                         {
+                            // it wasn't there before-- add it.
                             int ridge[] = VecMath.copyvec(scratchRidge);
                             IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
                             int newFacetMaybe[] = VecMath.copyvec(facet);
@@ -244,7 +264,12 @@ public class ConvexHull
             }
 
             int nFacetsAfter = hullFacets.size();
-            assert(nFacetsAfter > nFacetsBefore); // we didn't delete any yet
+            if (debugLevel >= 3)
+            {
+                PRINT(nFacetsBefore);
+                PRINT(nFacetsAfter);
+            }
+            assert(nFacetsAfter > nFacetsBefore); // added at least one, and didn't delete any yet
 
             // Transfer the hovering vertices
             // from the visible facets (which are about to be deleted)
@@ -392,11 +417,141 @@ public class ConvexHull
         }
 
 
+    private static void testTheseVerts(int d, double verts[][])
+    {
+        PRINTARRAY(verts);
+
+        int hull[][] = convexHull(verts, 1e-12);
+
+        PRINTARRAY(hull);
+
+        // sanity check the hull.
+        // XXX maybe should be a method?
+        {
+            if (verts.length < d)
+            {
+                assert(hull.length == 0);
+            }
+            else
+            {
+                //
+                // Make sure it's boundaryless (i.e. has no
+                // boundary ridges).
+                //
+                {
+                    java.util.HashSet boundary = new java.util.HashSet();
+                    FORI (iFacet, hull.length)
+                    {
+                        int facet[] = hull[iFacet];
+                        assert(facet.length == d);
+                        // XXX assert all verts on facet are distinct
+                        FORI (iRidgeThisFacet, d)
+                        {
+                            int ridge[] = new int[d-1];
+                            FORI (i, d-1)
+                                ridge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
+                            SortStuff.sort(ridge); // canonical order
+                            IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
+                            //PRINTARRAY(ridge);
+                            //PRINT(boundary.size());
+                            //PRINT(boundary.contains(ridgeKey));
+                            if (!boundary.remove(ridgeKey))
+                            {
+                                boundary.add(ridgeKey);
+                                //System.out.println("added ridge "+Arrays.toStringCompact(ridge)+" to boundary");
+                            }
+                            else
+                            {
+                                //System.out.println("removed ridge "+Arrays.toStringCompact(ridge)+" from boundary");
+                            }
+                            //PRINT(boundary.size());
+                        }
+                        //PRINT(boundary.size());
+                        if (iFacet+1 < hull.length)
+                            assert(boundary.size() > 0);
+                    }
+                    assert(boundary.size() == 0);
+                }
+
+                // XXX need check that it's in right order
+
+                //
+                // Make sure it bounds the hull
+                //
+                {
+                    double vertsCenter[] = VecMath.average(verts);
+
+                    double facetVerts[][] = new double[d][];
+                    double facetPlaneVecs[][] = new double[MAX(d-1,0)][d];
+                    double facetNormal[] = new double[d];
+                    double facetCenter[] = new double[d];
+                    double facetCenterToVert[] = new double[d];
+
+                    int sign = 0;
+
+                    FORI (iFacet, hull.length)
+                    {
+                        FORI (i, d)
+                            facetVerts[i] = verts[hull[iFacet][i]];
+                        FORI (i, d-1)
+                            VecMath.vmv(facetPlaneVecs[i], facetVerts[i+1], facetVerts[0]);
+                        VecMath.crossprod(facetNormal, facetPlaneVecs);
+                        // special case for d==1 --
+                        // in this case cross product always
+                        // returns {+1} and so gives no information
+                        if (d == 1)
+                            facetNormal[0] = facetVerts[0][0] - vertsCenter[0];
+                        VecMath.normalize(facetNormal, facetNormal);
+                        // XXX need to deal with degeneracy here maybe
+                        double eps = 1e-12;
+                        assert(EQ(VecMath.normsqrd(facetNormal), 1., 2*eps));
+                        VecMath.average(facetCenter, facetVerts);
+
+
+                        FORI (iVert, verts.length)
+                        {
+                            double vert[] = verts[iVert];
+                            VecMath.vmv(facetCenterToVert,
+                                        vert, facetCenter);
+                            double foo = VecMath.dot(facetNormal, facetCenterToVert);
+                            int thisSign = (LT(foo,0,eps) ? -1 : GT(foo,0,eps) ? 1 : 0);
+                            if (sign == 0)
+                                sign = thisSign; // might still be 0
+                            assert(sign * thisSign >= 0);
+                        }
+                    }
+                }
+            }
+        }
+        System.out.println("======================");
+    } // testTheseVerts
+
     /**
     * Little confidence test program.
     */
     public static void main(String args[])
     {
+        if (true)
+        {
+            //testTheseVerts(3, new double[][] {{1,-1,0},{-1,-1,0},{-1,1,0},{1,1,0}});
+            testTheseVerts(3, new double[][] {{1,-1,0},{-1,-1,0},{-1,1,0},{1,1,.1}});
+            System.exit(1);
+        }
+        if (false)
+        {
+            // Some problematic cases...
+            // XXX the coords are huge... do we care about these or not??
+            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-0.710306904419669},{1.0,1.0,-0.5235452788122057},{-0.01562500000000001,-1.0,-0.22752077864939793}}); // succeeds
+            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-0.710306904419669},{1.0,1.0,-0.5235452788122057},{-0.01562500000000001,-1.0,-0.22752077864939793}}); // succeeds
+            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-1.023660131220196E16},{1.0,1.0,-7.545082632224744E15},{-0.015625000000000024,-1.0,-3.278919980622317E15}}); // assert fails
+            testTheseVerts(3, new double[][] {{-1.0,1.0,-8.011042245140311E15},{-0.553030303030303,-1.0,-2.335983685036597E15},{1.0,0.811023622047244,-1.3737616349472596E16}}); // returns null
+
+            System.exit(1);
+        }
+
+
+
+
         java.util.Random rng = new java.util.Random(0);
 
         int minDim = 0;
@@ -427,111 +582,7 @@ public class ConvexHull
                         FORI (iVert, nVerts)
                             verts[iVert] = VecMath.random(d, rng);
 
-                    PRINTARRAY(verts);
-
-                    int hull[][] = convexHull(verts, 1e-12);
-
-                    PRINTARRAY(hull);
-
-                    // sanity check the hull.
-                    // XXX maybe should be a method?
-                    {
-                        if (nVerts < d)
-                        {
-                            assert(hull.length == 0);
-                        }
-                        else
-                        {
-                            //
-                            // Make sure it's boundaryless (i.e. has no
-                            // boundary ridges).
-                            //
-                            {
-                                java.util.HashSet boundary = new java.util.HashSet();
-                                FORI (iFacet, hull.length)
-                                {
-                                    int facet[] = hull[iFacet];
-                                    assert(facet.length == d);
-                                    // XXX assert all verts on facet are distinct
-                                    FORI (iRidgeThisFacet, d)
-                                    {
-                                        int ridge[] = new int[d-1];
-                                        FORI (i, d-1)
-                                            ridge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
-                                        SortStuff.sort(ridge); // canonical order
-                                        IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
-                                        //PRINTARRAY(ridge);
-                                        //PRINT(boundary.size());
-                                        //PRINT(boundary.contains(ridgeKey));
-                                        if (!boundary.remove(ridgeKey))
-                                        {
-                                            boundary.add(ridgeKey);
-                                            //System.out.println("added ridge "+Arrays.toStringCompact(ridge)+" to boundary");
-                                        }
-                                        else
-                                        {
-                                            //System.out.println("removed ridge "+Arrays.toStringCompact(ridge)+" from boundary");
-                                        }
-                                        //PRINT(boundary.size());
-                                    }
-                                    //PRINT(boundary.size());
-                                    if (iFacet+1 < hull.length)
-                                        assert(boundary.size() > 0);
-                                }
-                                assert(boundary.size() == 0);
-                            }
-
-                            // XXX need check that it's in right order
-
-                            //
-                            // Make sure it bounds the hull
-                            //
-                            {
-                                double vertsCenter[] = VecMath.average(verts);
-
-                                double facetVerts[][] = new double[d][];
-                                double facetPlaneVecs[][] = new double[MAX(d-1,0)][d];
-                                double facetNormal[] = new double[d];
-                                double facetCenter[] = new double[d];
-                                double facetCenterToVert[] = new double[d];
-
-                                int sign = 0;
-
-                                FORI (iFacet, hull.length)
-                                {
-                                    FORI (i, d)
-                                        facetVerts[i] = verts[hull[iFacet][i]];
-                                    FORI (i, d-1)
-                                        VecMath.vmv(facetPlaneVecs[i], facetVerts[i+1], facetVerts[0]);
-                                    VecMath.crossprod(facetNormal, facetPlaneVecs);
-                                    // special case for d==1 --
-                                    // in this case cross product always
-                                    // returns {+1} and so gives no information
-                                    if (d == 1)
-                                        facetNormal[0] = facetVerts[0][0] - vertsCenter[0];
-                                    VecMath.normalize(facetNormal, facetNormal);
-                                    // XXX need to deal with degeneracy here maybe
-                                    double eps = 1e-12;
-                                    assert(EQ(VecMath.normsqrd(facetNormal), 1., 2*eps));
-                                    VecMath.average(facetCenter, facetVerts);
-
-
-                                    FORI (iVert, nVerts)
-                                    {
-                                        double vert[] = verts[iVert];
-                                        VecMath.vmv(facetCenterToVert,
-                                                    vert, facetCenter);
-                                        double foo = VecMath.dot(facetNormal, facetCenterToVert);
-                                        int thisSign = (LT(foo,0,eps) ? -1 : GT(foo,0,eps) ? 1 : 0);
-                                        if (sign == 0)
-                                            sign = thisSign; // might still be 0
-                                        assert(sign * thisSign >= 0);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    System.out.println("======================");
+                    testTheseVerts(d, verts);
                 }
             }
         }
