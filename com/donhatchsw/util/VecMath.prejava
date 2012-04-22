@@ -96,16 +96,26 @@ public final class VecMath
     }
 
     /** vector times scalar */
+    public static void vxs(int n, double result[], double v[], double s)
+    {
+        FORIDOWN (i, n)
+            result[i] = v[i] * s;
+    }
+    /** vector times scalar */
     public static void vxs(double result[], double v[], double s)
     {
-        FORIDOWN (i, v.length)
+        vxs(MIN(result.length, v.length), result, v, s);
+    }
+    /** vector times scalar */
+    public static void vxs(int n, float result[], float v[], float s)
+    {
+        FORIDOWN (i, n)
             result[i] = v[i] * s;
     }
     /** vector times scalar */
     public static void vxs(float result[], float v[], float s)
     {
-        FORIDOWN (i, v.length)
-            result[i] = v[i] * s;
+        vxs(MIN(result.length, v.length), result, v, s);
     }
 
     /** matrix times scalar */
@@ -155,23 +165,37 @@ public final class VecMath
     }
 
     /** scalar times vector */
+    public static void sxv(int n, double result[], double s, double v[])
+    {
+        FORIDOWN (i, n)
+            result[i] = s * v[i];
+    }
+    /** scalar times vector */
     public static void sxv(double result[], double s, double v[])
     {
-        FORIDOWN (i, v.length)
+        sxv(MIN(result.length, v.length), result, s, v);
+    }
+    /** scalar times vector */
+    public static void sxv(int n, float result[], float s, float v[])
+    {
+        FORIDOWN (i, n)
             result[i] = s * v[i];
     }
     /** scalar times vector */
     public static void sxv(float result[], float s, float v[])
     {
-        FORIDOWN (i, v.length)
+        sxv(MIN(result.length, v.length), result, s, v);
+    }
+    /** scalar times vector */
+    public static void sxv(int n, int result[], int s, int v[])
+    {
+        FORIDOWN (i, n)
             result[i] = s * v[i];
     }
-
     /** scalar times vector */
     public static void sxv(int result[], int s, int v[])
     {
-        FORIDOWN (i, v.length)
-            result[i] = s * v[i];
+        sxv(MIN(result.length, v.length), result, s, v);
     }
 
     /** v0 as a single-column matrix times v1 as a single-row matrix */
@@ -2356,16 +2380,20 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
      * Calculates the angle between two unit vectors,
      * using the robust algorithm described in <a href="http://plunk.org/~hatch/rightway.php">http://plunk.org/~hatch/rightway.php</a>.
      */
-    public static double angleBetweenUnitVectors(double u0[], double u1[])
+    public static double angleBetweenUnitVectors(int n, double u0[], double u1[])
     {
         // XXX can we cleverly avoid the square root?
-        if (dot(u0, u1) > (double)0)
-            return 2*Math.asin(.5*dist(u0,u1));
+        if (dot(n, u0, u1) > (double)0)
+            return 2*Math.asin(.5*dist(n, u0,u1));
         else
         {
-            double minusU1[] = sxv((double)-1,u1);
-            return (double)(Math.PI - 2*Math.asin(.5*dist(u0,minusU1)));
+            double minusU1[] = sxv(n, (double)-1,u1);
+            return (double)(Math.PI - 2*Math.asin(.5*dist(n, u0,minusU1)));
         }
+    }
+    public static double angleBetweenUnitVectors(double u0[], double u1[])
+    {
+        return angleBetweenUnitVectors(MIN(u0.length, u1.length), u0, u1);
     }
     public static float angleBetweenUnitVectors(float u0[], float u1[])
     {
@@ -3497,25 +3525,40 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** scalar times vector, returning newly allocated result */
+        public static double[] sxv(int n, double s, double v[])
+        {
+            double result[] = new double[n];
+            sxv(n, result, s, v);
+            return result;
+        }
+        /** scalar times vector, returning newly allocated result */
         public static double[] sxv(double s, double v[])
         {
-            double result[] = new double[v.length];
-            sxv(result, s, v);
+            return sxv(v.length, s, v);
+        }
+        /** scalar times vector, returning newly allocated result */
+        public static float[] sxv(int n, float s, float v[])
+        {
+            float result[] = new float[n];
+            sxv(n, result, s, v);
             return result;
         }
         /** scalar times vector, returning newly allocated result */
         public static float[] sxv(float s, float v[])
         {
-            float result[] = new float[v.length];
-            sxv(result, s, v);
+            return sxv(v.length, s, v);
+        }
+        /** scalar times vector, returning newly allocated result */
+        public static int[] sxv(int n, int s, int v[])
+        {
+            int result[] = new int[n];
+            sxv(n, result, s, v);
             return result;
         }
         /** scalar times vector, returning newly allocated result */
         public static int[] sxv(int s, int v[])
         {
-            int result[] = new int[v.length];
-            sxv(result, s, v);
-            return result;
+            return sxv(v.length, s, v);
         }
         public static double[] normalize(double v[])
         {
@@ -3546,9 +3589,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         * returning newly allocated result */
         public static double[][] outerProduct(double v0[], double v1[])
         {
-            int n = v0.length;
-            assert(n == v1.length);
-            double result[][] = new double[n][n];
+            double result[][] = new double[v0.length][v1.length];
             outerProduct(result, v0, v1);
             return result;
         }
@@ -4083,18 +4124,28 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
         /** vector times scalar, returning newly allocated result */
+        public static double[] vxs(int n, double v[], double s)
+        {
+            double result[] = new double[n];
+            vxs(n, result, v, s);
+            return result;
+        }
+        /** vector times scalar, returning newly allocated result */
         public static double[] vxs(double v[], double s)
         {
-            double result[] = new double[v.length];
-            vxs(result, v, s);
+            return vxs(v.length, v, s);
+        }
+        /** vector times scalar, returning newly allocated result */
+        public static float[] vxs(int n, float v[], float s)
+        {
+            float result[] = new float[n];
+            vxs(n, result, v, s);
             return result;
         }
         /** vector times scalar, returning newly allocated result */
         public static float[] vxs(float v[], float s)
         {
-            float result[] = new float[v.length];
-            vxs(result, v, s);
-            return result;
+            return vxs(v.length, v, s);
         }
         /** row vector times matrix, returning newly allocated result */
         public static double[] vxm(double v[], double M[][])
