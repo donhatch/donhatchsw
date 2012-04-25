@@ -111,6 +111,7 @@ donhatchsw.jar: \
     com/donhatchsw/awt/Col.class \
     com/donhatchsw/awt/LayoutExample.class \
     com/donhatchsw/awt/MainWindowCount.class \
+    com/donhatchsw/util/NewtonSolver.class \
     com/donhatchsw/util/SmoothlyVaryingViewingParameter.class \
     com/donhatchsw/util/UndoTreeSquirrel.class \
     com/donhatchsw/util/UndoTreeViewer.class \
