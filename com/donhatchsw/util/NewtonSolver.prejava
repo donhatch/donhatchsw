@@ -19,7 +19,7 @@ public class NewtonSolver
         {
             double fx[] = f(x);
             double answer[][] = new double[x.length][fx.length];
-            double dx = 1e-4; // XXX ?
+            double dx = eps();
             double invdx = 1./dx;
             double xplusdx[] = VecMath.copyvec(x); // scratch
             FORI (i, x.length)
@@ -35,6 +35,13 @@ public class NewtonSolver
             }
             //PRINTMAT(answer);
             return answer;
+        }
+        // the default J() uses this for the finite difference.
+        // derived classes may implement this
+        // to make it use a different finite difference.
+        public double eps()
+        {
+            return 1e-4;
         }
     } // interface Fun
 
