@@ -130,6 +130,13 @@ public class ConvexHull
         Arrays.swap(secondHullFacet, 0, secondHullFacet, 1);
 
 
+        // As long as result so far is coplanar,
+        // we need to symbolically perturb each new vertex
+        // out of that plane,
+        // so that it appears to be on a consistent side
+        // of what's been seen so far.
+        double symbolicPerturbation[] = calcNormal(verts, firstHullFacet);
+
         if (debugLevel >= 2)
         {
             System.out.println("        initializing queue");
@@ -199,17 +206,42 @@ public class ConvexHull
             int nFacetsBefore = hullFacets.size();
             visibleFacets.clear();
             visibleBoundary.clear();
+
             FORI (iFacet, nFacetsBefore)
             {
                 int facet[] = (int[])hullFacets.get(iFacet);
+                if (debugLevel >= 3)
+                    System.out.println("                    can I see hull facet "+Arrays.toStringCompact(facet)+"?");
                 double facetUnsignedArea = hullFacetUnsignedArea.get(iFacet);
                 VecMath.copyvec(d, scratchSimplex, facet);
                 scratchSimplex[d] = iVert;
                 double content = calcParallelotopeContent(verts,
                                                           scratchSimplex);
                 double height = content / facetUnsignedArea;
+                if (symbolicPerturbation != null)
+                {
+                    if (!EQ(height, 0., eps))
+                    {
+                        if (debugLevel >= 3)
+                            System.out.println("                        vert is out of initial plane, killing symbolicPerturbation");
+                        symbolicPerturbation = null; // no need for it any more
+                    }
+                    else
+                    {
+                        if (debugLevel >= 3)
+                            System.out.println("                        symbolically perturbing new vert to get it out of initial plane");
+
+                        double facetNormal[] = calcNormal(verts,
+                                                          facet);
+                        height = VecMath.dot(d, facetNormal, symbolicPerturbation);
+                        assert(!EQ(height, 0., eps));
+                    }
+                }
+
                 if (height >= -eps) // if facet is visible or borderline visible from vertex
                 {
+                    if (debugLevel >= 3)
+                        System.out.println("                        it's visible");
                     visibleFacets.add(iFacet);
                     FORI (iRidgeThisFacet, d)
                     {
@@ -228,14 +260,19 @@ public class ConvexHull
                             newFacetMaybe[iRidgeThisFacet] = iVert;
                             visibleBoundary.put(ridgeKey, newFacetMaybe);
                             if (debugLevel >= 3)
-                                System.out.println("                    ridge "+Arrays.toStringCompact(scratchRidge)+" was not on boundary so adding ridge "+Arrays.toStringCompact(ridge));
+                                System.out.println("                        ridge "+Arrays.toStringCompact(scratchRidge)+" was not on boundary so adding ridge "+Arrays.toStringCompact(ridge));
                         }
                         else
                         {
                             if (debugLevel >= 3)
-                                System.out.println("                    removed ridge "+Arrays.toStringCompact(scratchRidge)+" from boundary");
+                                System.out.println("                        removed ridge "+Arrays.toStringCompact(scratchRidge)+" from boundary");
                         }
                     }
+                }
+                else
+                {
+                    if (debugLevel >= 3)
+                        System.out.println("                        it's not visible");
                 }
             }
 
@@ -375,6 +412,17 @@ public class ConvexHull
                                       verts[points[0]]);
             return VecMath.det(M);
         }
+        private static double[] calcNormal(
+                                    double verts[][/*d*/],
+                                    int points[/*d*/])
+        {
+            double M[][] = new double[points.length-1][];
+            FORI (iRow, M.length)
+                M[iRow] = VecMath.vmv(verts[points[iRow+1]],
+                                      verts[points[0]]);
+            return VecMath.crossprod(M);
+
+        }
         private static void fastRemove(ArrayList arrayList, int index)
         {
             int n = arrayList.size();
@@ -419,7 +467,10 @@ public class ConvexHull
 
     private static void testTheseVerts(int d, double verts[][])
     {
+        PRINT(d);
         PRINTARRAY(verts);
+        FORI (iVert, verts.length)
+            assert(verts[iVert].length == d);
 
         int hull[][] = convexHull(verts, 1e-12);
 
@@ -533,9 +584,9 @@ public class ConvexHull
     {
         if (true)
         {
-            //testTheseVerts(3, new double[][] {{1,-1,0},{-1,-1,0},{-1,1,0},{1,1,0}});
+            testTheseVerts(3, new double[][] {{1,1,0},{-1,1,0},{-1,-1,0},{.5,-.5,.1}}); // not coplanar, not problematic
+            testTheseVerts(3, new double[][] {{1,-1,0},{-1,-1,0},{-1,1,0},{.5,.5,0}}); // four coplanar was problematic
             testTheseVerts(3, new double[][] {{1,-1,0},{-1,-1,0},{-1,1,0},{1,1,.1}});
-            System.exit(1);
         }
         if (false)
         {
