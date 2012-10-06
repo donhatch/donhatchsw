@@ -350,7 +350,7 @@ public class ConvexHull
                     if (theNewFacetIndex != -1)
                     {
                         if (debugLevel >= 3)
-                            System.out.println("        transfering vertex "+jVert+" from facet "+Arrays.toStringCompact((int[])hullFacets.get(iVisibleFacet))+" to hovering at height "+highestHeight+" above facet "+Arrays.toStringCompact((int[])hullFacets.get(theNewFacetIndex))+"");
+                            System.out.println("        transferring vertex "+jVert+" from facet "+Arrays.toStringCompact((int[])hullFacets.get(iVisibleFacet))+" to hovering at height "+highestHeight+" above facet "+Arrays.toStringCompact((int[])hullFacets.get(theNewFacetIndex))+"");
                         ((IntArrayList)hullFacetToHoveringVerts.get(theNewFacetIndex)).add(jVert);
                         queue.adjust(jVert, -highestHeight);
                     }
@@ -360,7 +360,7 @@ public class ConvexHull
                         // So jVert is inside the hull, so it should
                         // be ignored.
                         if (debugLevel >= 3)
-                            System.out.println("        transfering vertex "+jVert+" from facet "+Arrays.toStringCompact((int[])hullFacets.get(iVisibleFacet))+" to the void because it's inside the hull");
+                            System.out.println("        transferring vertex "+jVert+" from facet "+Arrays.toStringCompact((int[])hullFacets.get(iVisibleFacet))+" to the void because it's inside the hull");
                         queue.remove(jVert);
                     }
                 }
@@ -511,153 +511,154 @@ public class ConvexHull
         int hull[][] = convexHull(verts, 1e-10); // argh! 1e-12 made it fail in real life, 1e-9 made it fail randomized confidence test!
 
         PRINTARRAY(hull);
+        sanityCheckConvexHull(d, verts, hull, 1e-9);
+        System.out.println("======================");
+    } // testTheseVerts
 
-        // sanity check the hull.
-        // XXX maybe should be a method?
+    public static void sanityCheckConvexHull(int d, double verts[][], int hull[][], double eps)
+    {
+        if (verts.length < d)
         {
-            if (verts.length < d)
+            assert(hull.length == 0);
+        }
+        else
+        {
+            //
+            // Make sure it's boundaryless (i.e. has no
+            // boundary ridges).
+            // Actually stronger than that: each ridge
+            // occuring on a facet of the hull
+            // must appear on exactly one other facet of the hull,
+            // in the opposite orientation.
+            // TODO: assert connected, too.
+            // TODO: and that each ridge is locally convex.
+            //
             {
-                assert(hull.length == 0);
-            }
-            else
-            {
-                //
-                // Make sure it's boundaryless (i.e. has no
-                // boundary ridges).
-                // Actually stronger than that: each ridge
-                // occuring on a facet of the hull
-                // must appear on exactly one other facet of the hull,
-                // in the opposite orientation.
-                //
+                // ridgeParityToFacets maps a canonical-order ridge
+                // to an array of two arrays:
+                // the facets containing the ridge with parity 0,
+                // and the facets containing the ridge with parity 1.
+                java.util.Hashtable ridgeParityToFacets = new java.util.Hashtable();
+                FORI (iFacet, hull.length)
                 {
-                    // ridgeParityToFacets maps a canonical-order ridge
-                    // to an array of two arrays:
-                    // the facets containing the ridge with parity 0,
-                    // and the facets containing the ridge with parity 1.
-                    java.util.Hashtable ridgeParityToFacets = new java.util.Hashtable();
-                    FORI (iFacet, hull.length)
+                    int facet[] = hull[iFacet];
+                    assert(facet.length == d);
+
+                    // assert all verts on facet are distinct
                     {
-                        int facet[] = hull[iFacet];
-                        assert(facet.length == d);
-
-                        // assert all verts on facet are distinct
-                        {
-                            int sortedFacet[] = VecMath.copyvec(facet);
-                            SortStuff.sort(sortedFacet);
-                            FORI (i, d-1)
-                                assert(sortedFacet[i+1] != sortedFacet[i]);
-                        }
-
-                        FORI (iRidgeThisFacet, d)
-                        {
-                            int ridge[] = new int[d-1]; // must be unique array since ownership will be transferred to the IntArrayHashKey
-                            FORI (i, d-1)
-                                ridge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
-                            if (d-1 >= 2 && iRidgeThisFacet % 2 == 1)
-                                Arrays.swap(ridge, 0, ridge, 1);
-                            int parity = (d-1==0 ? iFacet :
-                                          d-1==1 ? iRidgeThisFacet : permParity(ridge));
-
-                            SortStuff.sort(ridge); // canonical order
-
-                            IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
-
-                            int parityToFacets[][] = (int[][])ridgeParityToFacets.get(ridgeKey);
-                            if (parityToFacets == null)
-                            {
-                                parityToFacets = new int[3][0];
-                                parityToFacets[2] = ridge; // smuggle in ridge itself
-                                ridgeParityToFacets.put(ridgeKey, parityToFacets);
-                            }
-                            parityToFacets[parity] = Arrays.append(parityToFacets[parity],
-                                                                   iFacet);
-                        }
-                    }
-                    boolean okSoFar = true;
-                    for (java.util.Enumeration e = ridgeParityToFacets.keys(); e.hasMoreElements();)
-                    {
-                        IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
-                        int value[][] = (int[][])ridgeParityToFacets.get(ridgeKey);
-                        assert(value.length == 3);
-                        int ridge[] = value[2];
-                        if (value[0].length != 1
-                         || value[1].length != 1)
-                        {
-                            if (value[0].length+value[1].length == 2)
-                                System.out.println("HEY! both occurrences of ridge "+Arrays.toStringCompact(ridge)+" have same orientation!");
-                            else
-                                System.out.println("HEY! ridge "+Arrays.toStringCompact(ridge)+" occurs "+(value[0].length+value[1].length)+" times, should be 2");
-                            FORI (parity, 2)
-                            {
-                                System.out.println("    occurrences with parity "+parity+":");
-                                FORI (iFacetThisParity, value[parity].length)
-                                {
-                                    int iFacet = value[parity][iFacetThisParity];
-                                    System.out.println("        facet "+iFacet+" = "+Arrays.toStringCompact(hull[iFacet]));
-                                }
-                            }
-                            okSoFar = false;
-                        }
-                    }
-                    assert(okSoFar);
-                }
-
-                //
-                // Make sure it bounds the hull
-                //
-                {
-                    double vertsCenter[] = VecMath.average(verts);
-
-                    double facetVerts[][] = new double[d][];
-                    double facetPlaneVecs[][] = new double[MAX(d-1,0)][d];
-                    double facetNormal[] = new double[d];
-                    double facetCenter[] = new double[d];
-                    double facetCenterToVert[] = new double[d];
-
-                    int sign = 0;
-
-                    FORI (iFacet, hull.length)
-                    {
-                        FORI (i, d)
-                            facetVerts[i] = verts[hull[iFacet][i]];
+                        int sortedFacet[] = VecMath.copyvec(facet);
+                        SortStuff.sort(sortedFacet);
                         FORI (i, d-1)
-                            VecMath.vmv(facetPlaneVecs[i], facetVerts[i+1], facetVerts[0]);
-                        VecMath.crossprod(facetNormal, facetPlaneVecs);
-                        // special case for d==1 --
-                        // in this case cross product always
-                        // returns {+1} and so gives no information
-                        if (d == 1)
-                            facetNormal[0] = facetVerts[0][0] - vertsCenter[0];
-                        VecMath.normalize(facetNormal, facetNormal);
-                        // XXX need to deal with degeneracy here maybe
-                        double eps = 1e-9;
-                        assert(EQ(VecMath.normsqrd(facetNormal), 1., 2*eps));
-                        VecMath.average(facetCenter, facetVerts);
+                            assert(sortedFacet[i+1] != sortedFacet[i]);
+                    }
 
+                    FORI (iRidgeThisFacet, d)
+                    {
+                        int ridge[] = new int[d-1]; // must be unique array since ownership will be transferred to the IntArrayHashKey
+                        FORI (i, d-1)
+                            ridge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
+                        if (d-1 >= 2 && iRidgeThisFacet % 2 == 1)
+                            Arrays.swap(ridge, 0, ridge, 1);
+                        int parity = (d-1==0 ? iFacet :
+                                      d-1==1 ? iRidgeThisFacet : permParity(ridge));
 
-                        FORI (iVert, verts.length)
+                        SortStuff.sort(ridge); // canonical order
+
+                        IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
+
+                        int parityToFacets[][] = (int[][])ridgeParityToFacets.get(ridgeKey);
+                        if (parityToFacets == null)
                         {
-                            double vert[] = verts[iVert];
-                            VecMath.vmv(facetCenterToVert,
-                                        vert, facetCenter);
-                            double foo = VecMath.dot(facetNormal, facetCenterToVert);
-                            int thisSign = (LT(foo,0,eps) ? -1 : GT(foo,0,eps) ? 1 : 0);
-                            if (sign == 0)
-                                sign = thisSign; // might still be 0
-                            if (! (sign * thisSign >= 0))
-                            {
-                                PRINT(foo);
-                                PRINT(thisSign);
-                                PRINT(sign);
-                            }
-                            assert(sign * thisSign >= 0);
+                            parityToFacets = new int[3][0];
+                            parityToFacets[2] = ridge; // smuggle in ridge itself
+                            ridgeParityToFacets.put(ridgeKey, parityToFacets);
                         }
+                        parityToFacets[parity] = Arrays.append(parityToFacets[parity],
+                                                               iFacet);
+                    }
+                }
+                boolean okSoFar = true;
+                for (java.util.Enumeration e = ridgeParityToFacets.keys(); e.hasMoreElements();)
+                {
+                    IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
+                    int value[][] = (int[][])ridgeParityToFacets.get(ridgeKey);
+                    assert(value.length == 3);
+                    int ridge[] = value[2];
+                    if (value[0].length != 1
+                     || value[1].length != 1)
+                    {
+                        if (value[0].length+value[1].length == 2)
+                            System.out.println("HEY! both occurrences of ridge "+Arrays.toStringCompact(ridge)+" have same orientation!");
+                        else
+                            System.out.println("HEY! ridge "+Arrays.toStringCompact(ridge)+" occurs "+(value[0].length+value[1].length)+" times, should be 2");
+                        FORI (parity, 2)
+                        {
+                            System.out.println("    occurrences with parity "+parity+":");
+                            FORI (iFacetThisParity, value[parity].length)
+                            {
+                                int iFacet = value[parity][iFacetThisParity];
+                                System.out.println("        facet "+iFacet+" = "+Arrays.toStringCompact(hull[iFacet]));
+                            }
+                        }
+                        okSoFar = false;
+                    }
+                }
+                assert(okSoFar);
+            }
+
+            //
+            // Make sure it bounds the hull
+            //
+            {
+                double vertsCenter[] = VecMath.average(verts);
+
+                double facetVerts[][] = new double[d][];
+                double facetPlaneVecs[][] = new double[MAX(d-1,0)][d];
+                double facetNormal[] = new double[d];
+                double facetCenter[] = new double[d];
+                double facetCenterToVert[] = new double[d];
+
+                int sign = 0;
+
+                FORI (iFacet, hull.length)
+                {
+                    FORI (i, d)
+                        facetVerts[i] = verts[hull[iFacet][i]];
+                    FORI (i, d-1)
+                        VecMath.vmv(facetPlaneVecs[i], facetVerts[i+1], facetVerts[0]);
+                    VecMath.crossprod(facetNormal, facetPlaneVecs);
+                    // special case for d==1 --
+                    // in this case cross product always
+                    // returns {+1} and so gives no information
+                    if (d == 1)
+                        facetNormal[0] = facetVerts[0][0] - vertsCenter[0];
+                    VecMath.normalize(facetNormal, facetNormal);
+                    // XXX need to deal with degeneracy here maybe
+                    assert(EQ(VecMath.normsqrd(facetNormal), 1., 2*eps));
+                    VecMath.average(facetCenter, facetVerts);
+
+
+                    FORI (iVert, verts.length)
+                    {
+                        double vert[] = verts[iVert];
+                        VecMath.vmv(facetCenterToVert,
+                                    vert, facetCenter);
+                        double foo = VecMath.dot(facetNormal, facetCenterToVert);
+                        int thisSign = (LT(foo,0,eps) ? -1 : GT(foo,0,eps) ? 1 : 0);
+                        if (sign == 0)
+                            sign = thisSign; // might still be 0
+                        if (! (sign * thisSign >= 0))
+                        {
+                            PRINT(foo);
+                            PRINT(thisSign);
+                            PRINT(sign);
+                        }
+                        assert(sign * thisSign >= 0);
                     }
                 }
             }
         }
-        System.out.println("======================");
-    } // testTheseVerts
+    } // sanityCheckConvexHull
 
     /**
     * Little confidence test program.
