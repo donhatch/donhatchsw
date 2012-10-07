@@ -160,43 +160,41 @@ public class ConvexHull
 
         double distanceFromHull[] = new double[nVerts];
 
-        int scratchSimplex[] = new int[d+1];
-        VecMath.copyvec(d, scratchSimplex, firstHullFacet);
+        double scratchVec[] = new double[d];
         FORI (iVert, nVerts)
         {
             if (Arrays.indexOf(firstHullFacet, iVert) != -1)
                 continue; // this vertex is already part of the hull
-            scratchSimplex[d] = iVert;
-            double content = calcParallelotopeContent(verts, scratchSimplex);
-            if (content >= 0.)
+
+            VecMath.vmv(scratchVec, verts[iVert], verts[firstHullFacet[0]]);
+            double height = VecMath.dot(firstFacetUnitNormal, scratchVec);
+
+            if (height >= 0.)
             {
                 vertsAboveOrOnFirstHullFacetPlane.add(iVert);
                 if (debugLevel >= 3)
-                    System.out.println("            vertex "+iVert+" is hovering at height "+(content / firstFacetUnsignedArea)+" over facet "+Arrays.toStringCompact(firstHullFacet));
+                    System.out.println("            vertex "+iVert+" is hovering at height "+height+" over facet "+Arrays.toStringCompact(firstHullFacet));
             }
             else
             {
-                content = -content;
+                height = -height;
                 vertsBelowFirstHullFacetPlane.add(iVert);
                 if (debugLevel >= 3)
-                    System.out.println("            vertex "+iVert+" is hovering at height "+(content / firstFacetUnsignedArea)+" over facet "+Arrays.toStringCompact(secondHullFacet));
+                    System.out.println("            vertex "+iVert+" is hovering at height "+height+" over facet "+Arrays.toStringCompact(secondHullFacet));
             }
-            double height = content / firstFacetUnsignedArea;
+            assert(height >= 0.);
             queue.add(iVert, -height); // reverse sense so we can extract max height item as min item
         }
 
 
         ArrayList/*<int[][d]>*/ hullFacets = new ArrayList();
         ArrayList/*double[d]*/ hullFacetUnitNormals = new ArrayList();
-        DoubleArrayList hullFacetUnsignedAreaDEFUNCT = new DoubleArrayList(); // XXX NO! should be array of facet normals!  Maybe unit normals
         ArrayList/*<ArrayList<int>>*/ hullFacetToHoveringVerts = new ArrayList();
 
         hullFacets.add(firstHullFacet);
         hullFacets.add(secondHullFacet);
         hullFacetUnitNormals.add(firstFacetUnitNormal);
         hullFacetUnitNormals.add(VecMath.sxv(-1., firstFacetUnitNormal));
-        hullFacetUnsignedAreaDEFUNCT.add(firstFacetUnsignedArea);
-        hullFacetUnsignedAreaDEFUNCT.add(firstFacetUnsignedArea);
         hullFacetToHoveringVerts.add(vertsAboveOrOnFirstHullFacetPlane);
         hullFacetToHoveringVerts.add(vertsBelowFirstHullFacetPlane);
 
@@ -204,7 +202,6 @@ public class ConvexHull
         IntArrayList visibleFacets = new IntArrayList(); // scratch, logically local to loop body below
         java.util.Hashtable visibleBoundary = new java.util.Hashtable(); // scratch, logically local to loop body below
         int scratchRidge[] = new int[d-1];
-        double scratchVec[] = new double[d];
         IntArrayHashKey scratchRidgeHashKey = new IntArrayHashKey(scratchRidge);
         if (debugLevel >= 2)
         {
@@ -228,19 +225,9 @@ public class ConvexHull
                 if (debugLevel >= 3)
                     System.out.println("                    can I see hull facet "+Arrays.toStringCompact(facet)+"?");
 
-                double facetUnsignedAreaDEFUNCT = hullFacetUnsignedAreaDEFUNCT.get(iFacet);
-                VecMath.copyvec(d, scratchSimplex, facet);
-                scratchSimplex[d] = iVert;
-                double contentDEFUNCT = calcParallelotopeContent(verts,
-                                                          scratchSimplex);
-                double heightDEFUNCT = contentDEFUNCT / facetUnsignedAreaDEFUNCT;
-
-
                 double facetUnitNormal[] = (double[])hullFacetUnitNormals.get(iFacet);
                 VecMath.vmv(scratchVec, verts[iVert], verts[facet[0]]);
                 double height = VecMath.dot(scratchVec, facetUnitNormal);
-                assert(EQ(height, heightDEFUNCT, 1e-3));
-
 
                 if (debugLevel >= 3)
                     System.out.println("                        height = "+height);
@@ -321,9 +308,6 @@ public class ConvexHull
                 IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
                 int newFacet[] = (int[])visibleBoundary.get(ridgeKey);
                 hullFacets.add(newFacet);
-                hullFacetUnsignedAreaDEFUNCT.add(Math.sqrt(calcParallelotopeContentSquared(verts,
-                                                                                    newFacet,
-                                                                                    d)));
                 hullFacetUnitNormals.add(calcUnitNormal(verts, newFacet));
                 hullFacetToHoveringVerts.add(new IntArrayList());
             }
@@ -356,16 +340,9 @@ public class ConvexHull
                     for (int iNewFacet = nFacetsBefore; iNewFacet < nFacetsAfterAdding; ++iNewFacet)
                     {
                         int newFacet[] = (int[])hullFacets.get(iNewFacet);
-                        VecMath.copyvec(d, scratchSimplex, newFacet);
-                        scratchSimplex[d] = jVert;
-                        double contentDEFUNCT = calcParallelotopeContent(verts,
-                                                                  scratchSimplex);
-                        double heightDEFUNCT = contentDEFUNCT / hullFacetUnsignedAreaDEFUNCT.get(iNewFacet);
-
                         double facetUnitNormal[] = (double[])hullFacetUnitNormals.get(iNewFacet);
                         VecMath.vmv(scratchVec, verts[jVert], verts[newFacet[0]]);
                         double height = VecMath.dot(scratchVec, facetUnitNormal);
-                        assert(EQ(height, heightDEFUNCT, 1e-3));
 
                         if (height > highestHeight
                          && height >= -eps)
@@ -398,7 +375,6 @@ public class ConvexHull
             {
                 int iFacet = visibleFacets.get(iVisibleFacet);
                 fastRemove(hullFacets, iFacet);
-                fastRemove(hullFacetUnsignedAreaDEFUNCT, iFacet);
                 fastRemove(hullFacetUnitNormals, iFacet);
                 fastRemove(hullFacetToHoveringVerts, iFacet);
             }
