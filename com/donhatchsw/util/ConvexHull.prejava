@@ -237,7 +237,7 @@ public class ConvexHull
 
             FORI (iFacet, nFacetsBefore)
             {
-                Facet facetStruct = (Facet)hullFacetStructs.get(iFacet);
+                Facet facetStruct = hullFacetStructs.get(iFacet);
                 int facet[] = facetStruct.vertInds;
                 if (debugLevel >= 3)
                     System.out.println("                    can I see hull facet "+Arrays.toStringCompact(facet)+"?");
@@ -311,7 +311,7 @@ public class ConvexHull
             {
                 ArrayList scratch = new ArrayList();
                 FORI (iVisibleFacet, visibleFacets.size())
-                    scratch.add(((Facet)hullFacetStructs.get(visibleFacets.get(iVisibleFacet))).vertInds);
+                    scratch.add(hullFacetStructs.get(visibleFacets.get(iVisibleFacet)).vertInds);
                 System.out.println("                visibleFacets = "+intArrayArrayListToStringCompact(scratch));
                 System.out.println("                visible boundary size = "+visibleBoundary.size());
             }
@@ -349,7 +349,7 @@ public class ConvexHull
             {
                 int iFacet = visibleFacets.get(iVisibleFacet);
                 // For each vertex that was hovering over this visible facet...
-                IntArrayList hoverers = ((Facet)hullFacetStructs.get(iFacet)).hoveringVerts;
+                IntArrayList hoverers = hullFacetStructs.get(iFacet).hoveringVerts;
                 int nHoverers = hoverers.size();
                 FORI (iHoverer, nHoverers)
                 {
@@ -361,7 +361,7 @@ public class ConvexHull
                     double highestHeight = Double.NEGATIVE_INFINITY;
                     for (int iNewFacet = nFacetsBefore; iNewFacet < nFacetsAfterAdding; ++iNewFacet)
                     {
-                        Facet newFacetStruct = (Facet)hullFacetStructs.get(iNewFacet);
+                        Facet newFacetStruct = hullFacetStructs.get(iNewFacet);
                         int newFacet[] = newFacetStruct.vertInds;
                         double facetUnitNormal[] = newFacetStruct.unitNormal;
                         VecMath.vmv(scratchVec, verts[jVert], verts[newFacet[0]]);
@@ -377,8 +377,8 @@ public class ConvexHull
                     if (theNewFacetIndex != -1)
                     {
                         if (debugLevel >= 3)
-                            System.out.println("        transferring vertex "+jVert+" from facet "+Arrays.toStringCompact(((Facet)hullFacetStructs.get(iVisibleFacet)).vertInds)+" to hovering at height "+highestHeight+" above facet "+Arrays.toStringCompact(((Facet)hullFacetStructs.get(theNewFacetIndex)).vertInds)+"");
-                        ((Facet)hullFacetStructs.get(theNewFacetIndex)).hoveringVerts.add(jVert);
+                            System.out.println("        transferring vertex "+jVert+" from facet "+Arrays.toStringCompact(hullFacetStructs.get(iVisibleFacet).vertInds)+" to hovering at height "+highestHeight+" above facet "+Arrays.toStringCompact(hullFacetStructs.get(theNewFacetIndex).vertInds)+"");
+                        hullFacetStructs.get(theNewFacetIndex).hoveringVerts.add(jVert);
                         queue.adjust(jVert, -highestHeight);
                     }
                     else
