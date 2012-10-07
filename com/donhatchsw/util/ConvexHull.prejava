@@ -15,7 +15,7 @@ public class ConvexHull
     * Caller can set this for debugging, although it's not thread-safe.
     * 0: nothing, 1: function in/out, 2: phases, 3: detail
     */
-    public static int debugLevel = 1;
+    public static int debugLevel = 0;
 
     /**
     * Computes the convex hull in d dimensions,
@@ -86,8 +86,12 @@ public class ConvexHull
         {
             System.out.println("        choosing a non-degenerate (d-1)-dimensional simplex");
         }
+
         // Start with any non-degenerate (d-1)-dimensional simplex
-        // (if there is any)
+        // (if there is any).
+        // (The paper starts with a d-dimensional simplex
+        // but I don't see advantage of that.)
+
         int firstHullFacet[] = VecMath.fillvec(d, -1);
         double biggestContentSquared = -1.;
         FORI (i, d)
@@ -129,6 +133,8 @@ public class ConvexHull
                 System.out.println("    out convexHull (firstFacetUnsignedArea = "+firstFacetUnsignedArea+" <= eps ^ d-1, returning null)");
             return null; // XXX throw?
         }
+        double firstFacetUnitNormal[] = calcUnitNormal(verts, firstHullFacet);
+        VecMath.normalize(firstFacetUnitNormal, firstFacetUnitNormal);
 
         // Second hull facet is opposite of first
         int secondHullFacet[] = VecMath.copyvec(firstHullFacet);
@@ -140,7 +146,7 @@ public class ConvexHull
         // out of that plane,
         // so that it appears to be on a consistent side
         // of what's been seen so far.
-        double symbolicPerturbation[] = calcNormal(verts, firstHullFacet);
+        double symbolicPerturbation[] = firstFacetUnitNormal;
 
         if (debugLevel >= 2)
         {
@@ -181,13 +187,16 @@ public class ConvexHull
 
 
         ArrayList/*<int[][d]>*/ hullFacets = new ArrayList();
-        DoubleArrayList hullFacetUnsignedArea = new DoubleArrayList(); // XXX NO! should be array of facet normals!  Maybe unit normals
+        ArrayList/*double[d]*/ hullFacetUnitNormals = new ArrayList();
+        DoubleArrayList hullFacetUnsignedAreaDEFUNCT = new DoubleArrayList(); // XXX NO! should be array of facet normals!  Maybe unit normals
         ArrayList/*<ArrayList<int>>*/ hullFacetToHoveringVerts = new ArrayList();
 
         hullFacets.add(firstHullFacet);
         hullFacets.add(secondHullFacet);
-        hullFacetUnsignedArea.add(firstFacetUnsignedArea);
-        hullFacetUnsignedArea.add(firstFacetUnsignedArea);
+        hullFacetUnitNormals.add(firstFacetUnitNormal);
+        hullFacetUnitNormals.add(VecMath.sxv(-1., firstFacetUnitNormal));
+        hullFacetUnsignedAreaDEFUNCT.add(firstFacetUnsignedArea);
+        hullFacetUnsignedAreaDEFUNCT.add(firstFacetUnsignedArea);
         hullFacetToHoveringVerts.add(vertsAboveOrOnFirstHullFacetPlane);
         hullFacetToHoveringVerts.add(vertsBelowFirstHullFacetPlane);
 
@@ -195,6 +204,7 @@ public class ConvexHull
         IntArrayList visibleFacets = new IntArrayList(); // scratch, logically local to loop body below
         java.util.Hashtable visibleBoundary = new java.util.Hashtable(); // scratch, logically local to loop body below
         int scratchRidge[] = new int[d-1];
+        double scratchVec[] = new double[d];
         IntArrayHashKey scratchRidgeHashKey = new IntArrayHashKey(scratchRidge);
         if (debugLevel >= 2)
         {
@@ -217,12 +227,21 @@ public class ConvexHull
                 int facet[] = (int[])hullFacets.get(iFacet);
                 if (debugLevel >= 3)
                     System.out.println("                    can I see hull facet "+Arrays.toStringCompact(facet)+"?");
-                double facetUnsignedArea = hullFacetUnsignedArea.get(iFacet);
+
+                double facetUnsignedAreaDEFUNCT = hullFacetUnsignedAreaDEFUNCT.get(iFacet);
                 VecMath.copyvec(d, scratchSimplex, facet);
                 scratchSimplex[d] = iVert;
-                double content = calcParallelotopeContent(verts,
+                double contentDEFUNCT = calcParallelotopeContent(verts,
                                                           scratchSimplex);
-                double height = content / facetUnsignedArea;
+                double heightDEFUNCT = contentDEFUNCT / facetUnsignedAreaDEFUNCT;
+
+
+                double facetUnitNormal[] = (double[])hullFacetUnitNormals.get(iFacet);
+                VecMath.vmv(scratchVec, verts[iVert], verts[facet[0]]);
+                double height = VecMath.dot(scratchVec, facetUnitNormal);
+                assert(EQ(height, heightDEFUNCT, 1e-3));
+
+
                 if (debugLevel >= 3)
                     System.out.println("                        height = "+height);
                 if (symbolicPerturbation != null)
@@ -238,8 +257,8 @@ public class ConvexHull
                         if (debugLevel >= 3)
                             System.out.println("                        symbolically perturbing new vert to get it out of initial plane");
 
-                        double facetNormal[] = calcNormal(verts,
-                                                          facet);
+                        double facetNormal[] = calcUnitNormal(verts,
+                                                              facet);
                         height = VecMath.dot(d, facetNormal, symbolicPerturbation);
                         assert(!EQ(height, 0., eps));
                     }
@@ -302,9 +321,10 @@ public class ConvexHull
                 IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
                 int newFacet[] = (int[])visibleBoundary.get(ridgeKey);
                 hullFacets.add(newFacet);
-                hullFacetUnsignedArea.add(Math.sqrt(calcParallelotopeContentSquared(verts,
+                hullFacetUnsignedAreaDEFUNCT.add(Math.sqrt(calcParallelotopeContentSquared(verts,
                                                                                     newFacet,
                                                                                     d)));
+                hullFacetUnitNormals.add(calcUnitNormal(verts, newFacet));
                 hullFacetToHoveringVerts.add(new IntArrayList());
             }
 
@@ -335,11 +355,18 @@ public class ConvexHull
                     double highestHeight = Double.NEGATIVE_INFINITY;
                     for (int iNewFacet = nFacetsBefore; iNewFacet < nFacetsAfterAdding; ++iNewFacet)
                     {
-                        VecMath.copyvec(d, scratchSimplex, (int[])hullFacets.get(iNewFacet));
+                        int newFacet[] = (int[])hullFacets.get(iNewFacet);
+                        VecMath.copyvec(d, scratchSimplex, newFacet);
                         scratchSimplex[d] = jVert;
-                        double content = calcParallelotopeContent(verts,
+                        double contentDEFUNCT = calcParallelotopeContent(verts,
                                                                   scratchSimplex);
-                        double height = content / hullFacetUnsignedArea.get(iNewFacet);
+                        double heightDEFUNCT = contentDEFUNCT / hullFacetUnsignedAreaDEFUNCT.get(iNewFacet);
+
+                        double facetUnitNormal[] = (double[])hullFacetUnitNormals.get(iNewFacet);
+                        VecMath.vmv(scratchVec, verts[jVert], verts[newFacet[0]]);
+                        double height = VecMath.dot(scratchVec, facetUnitNormal);
+                        assert(EQ(height, heightDEFUNCT, 1e-3));
+
                         if (height > highestHeight
                          && height >= -eps)
                         {
@@ -371,7 +398,8 @@ public class ConvexHull
             {
                 int iFacet = visibleFacets.get(iVisibleFacet);
                 fastRemove(hullFacets, iFacet);
-                fastRemove(hullFacetUnsignedArea, iFacet);
+                fastRemove(hullFacetUnsignedAreaDEFUNCT, iFacet);
+                fastRemove(hullFacetUnitNormals, iFacet);
                 fastRemove(hullFacetToHoveringVerts, iFacet);
             }
 
@@ -423,7 +451,7 @@ public class ConvexHull
                                       verts[points[0]]);
             return VecMath.det(M);
         }
-        private static double[] calcNormal(
+        private static double[] calcUnitNormal(
                                     double verts[][/*d*/],
                                     int points[/*d*/])
         {
@@ -431,7 +459,9 @@ public class ConvexHull
             FORI (iRow, M.length)
                 M[iRow] = VecMath.vmv(verts[points[iRow+1]],
                                       verts[points[0]]);
-            return VecMath.crossprod(M);
+            double normal[] = VecMath.crossprod(M);
+            VecMath.normalize(normal, normal);
+            return normal;
 
         }
         private static void fastRemove(ArrayList arrayList, int index)
@@ -654,7 +684,7 @@ public class ConvexHull
         FORI (iVert, verts.length)
             assert(verts[iVert].length == d);
 
-        int hull[][] = convexHull(verts, 1e-10); // argh! 1e-12 made it fail in real life, 1e-9 made it fail randomized confidence test!
+        int hull[][] = convexHull(verts, 1e-11); // argh! 1e-12 made it fail in real life (test case below), 1e-9 made it fail randomized confidence test, 1e-10 made it fail in real life (test case below)
 
         PRINTARRAY(hull);
         sanityCheckConvexHull(d, verts, hull, 1e-9);
@@ -667,11 +697,29 @@ public class ConvexHull
     */
     public static void main(String args[])
     {
-        if (false)
+        if (true)
         {
-            // This one is currently failing the test:
+            // This one is currently failing the test with eps=1e-10:
             // there's a ridge that occurs 4 times.
-            debugLevel = 3;
+            //debugLevel = 3;
+            testTheseVerts(3, new double[][] {
+                {.2,-1.,.6},
+                {1.,-0.8,-0.348},
+                {.9999999999907109,-0.75,-0.07},
+                {1,-0.67,0.185},
+                {1,-0.5833333333337675,0.407},
+                {1,-0.5,0.6},
+                {.999,0.8333333333349515,-0.348},
+                {1,.9,-0.66},
+                {-1,1,1},
+                {1,1,-1},
+            });
+        }
+        if (true)
+        {
+            // This one is currently failing the test with eps=1e-9 and eps=1e-10:
+            // there's a ridge that occurs 4 times.
+            //debugLevel = 3;
             testTheseVerts(3, new double[][] {
                 {0.19999999999752163,-1.0,-0.0608695652201183},
                 {0.19999999999751436,-0.9166666666666868,0.13913043478051065},
@@ -694,7 +742,6 @@ public class ConvexHull
                 {-0.9999999999999999,1.0,0.1739130434753577},
                 {0.9999999999920242,0.9999999999970313,-1.0000000000000002}
             });
-            System.exit(0);
         }
 
         if (true)
@@ -734,7 +781,6 @@ public class ConvexHull
             testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-1.023660131220196E16},{1.0,1.0,-7.545082632224744E15},{-0.015625000000000024,-1.0,-3.278919980622317E15}}); // assert fails
             testTheseVerts(3, new double[][] {{-1.0,1.0,-8.011042245140311E15},{-0.553030303030303,-1.0,-2.335983685036597E15},{1.0,0.811023622047244,-1.3737616349472596E16}}); // returns null
 
-            System.exit(1);
         }
 
 
