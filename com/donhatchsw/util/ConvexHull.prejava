@@ -187,9 +187,19 @@ public class ConvexHull
         }
 
 
-        ArrayList/*<int[][d]>*/ hullFacets = new ArrayList();
-        ArrayList/*double[d]*/ hullFacetUnitNormals = new ArrayList();
+        ArrayList/*<int[d]>*/ hullFacets = new ArrayList();
+        ArrayList/*<double[d]>*/ hullFacetUnitNormals = new ArrayList();
         ArrayList/*<ArrayList<int>>*/ hullFacetToHoveringVerts = new ArrayList();
+
+
+
+        // hullFacetNeighbors[i][j] is the j'th neighbor of facet i.
+        ArrayList/*<int[d]>*/ hullFacetNeighbors = new ArrayList();
+        // hullFacetNeighborsIndexOfMe[i][j] is the index of i
+        // in hullFacetNeighbors[hullFacetNeighbors[i][j]].
+        //      hullFacetNeighbors[hullFacetNeighbors[i][j]][hullFacetNeighborsIndexOfMe[i][j]] = i
+        ArrayList/*<int[d]>*/ hullFacetNeighborsIndexOfMe = new ArrayList();
+
 
         hullFacets.add(firstHullFacet);
         hullFacets.add(secondHullFacet);
@@ -197,6 +207,15 @@ public class ConvexHull
         hullFacetUnitNormals.add(VecMath.sxv(-1., firstFacetUnitNormal));
         hullFacetToHoveringVerts.add(vertsAboveOrOnFirstHullFacetPlane);
         hullFacetToHoveringVerts.add(vertsBelowFirstHullFacetPlane);
+
+        hullFacetNeighbors.add(VecMath.fillvec(d, 1)); // all d neighbors of facet 0 are facet 1
+        hullFacetNeighbors.add(VecMath.fillvec(d, 0)); // all d neighbors of facet 1 are facet 0
+        // use knowledge of how second facet was constructed from first...
+        int firstAndSecondFacetNeighborsIndexOfMe[] = VecMath.identityperm(d);
+        firstAndSecondFacetNeighborsIndexOfMe[0] = 1;
+        firstAndSecondFacetNeighborsIndexOfMe[1] = 0;
+        hullFacetNeighborsIndexOfMe.add(firstAndSecondFacetNeighborsIndexOfMe);
+        hullFacetNeighborsIndexOfMe.add(firstAndSecondFacetNeighborsIndexOfMe);
 
 
         IntArrayList visibleFacets = new IntArrayList(); // scratch, logically local to loop body below
@@ -251,7 +270,6 @@ public class ConvexHull
                     }
                 }
 
-                //if (height >= -eps) // if facet is visible or borderline visible from vertex
                 if (GEQ(height, 0., eps)) // if facet is visible or borderline visible from vertex
                 {
                     if (debugLevel >= 3)
@@ -310,6 +328,12 @@ public class ConvexHull
                 hullFacets.add(newFacet);
                 hullFacetUnitNormals.add(calcUnitNormal(verts, newFacet));
                 hullFacetToHoveringVerts.add(new IntArrayList());
+
+                int newFacetNeighbors[] = new int[d];
+                int newFacetNeighborsIndexOfMe[] = new int[d];
+                // XXX TODO: figure out the new facet neighbors, and fix back pointers
+                hullFacetNeighbors.add(newFacetNeighbors);
+                hullFacetNeighborsIndexOfMe.add(newFacetNeighborsIndexOfMe);
             }
 
             int nFacetsAfterAdding = hullFacets.size();
@@ -377,6 +401,9 @@ public class ConvexHull
                 fastRemove(hullFacets, iFacet);
                 fastRemove(hullFacetUnitNormals, iFacet);
                 fastRemove(hullFacetToHoveringVerts, iFacet);
+                fastRemove(hullFacetNeighbors, iFacet);
+                fastRemove(hullFacetNeighborsIndexOfMe, iFacet);
+                // XXX TODO: fix up neighbors and back pointers as we rearrange indices
             }
 
             if (debugLevel >= 3)
