@@ -521,17 +521,7 @@ public class ConvexHull
                                            VecMath.transpose(M)));
 
         } // calcParallelotopeContentSquared
-        private static double calcParallelotopeContent(
-                                    double verts[][/*d*/],
-                                    int points[/*d+1*/])
-        {
-            // Should maybe make caller do this
-            double M[][] = new double[points.length-1][];
-            FORI (iRow, M.length)
-                M[iRow] = VecMath.vmv(verts[points[iRow+1]],
-                                      verts[points[0]]);
-            return VecMath.det(M);
-        }
+
         private static double[] calcUnitNormal(
                                     double verts[][/*d*/],
                                     int points[/*d*/])
@@ -544,18 +534,6 @@ public class ConvexHull
             VecMath.normalize(normal, normal);
             return normal;
 
-        }
-        private static void fastRemove(ArrayList arrayList, int index)
-        {
-            int n = arrayList.size();
-            arrayList.set(index, arrayList.get(n-1));
-            arrayList.remove(n-1);
-        }
-        private static void fastRemove(DoubleArrayList arrayList, int index)
-        {
-            int n = arrayList.size();
-            arrayList.set(index, arrayList.get(n-1));
-            arrayList.removeIndex(n-1);
         }
 
         private static class IntArrayHashKey
