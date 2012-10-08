@@ -215,7 +215,7 @@ public class ConvexHull
         hullFacetStructs.add(secondHullFacetStruct);
 
 
-        IntArrayList visibleFacets = new IntArrayList(); // scratch, logically local to loop body below
+        ArrayList visibleFacets = new ArrayList(); // scratch, logically local to loop body below
         java.util.Hashtable visibleBoundary = new java.util.Hashtable(); // scratch, logically local to loop body below
         int scratchRidge[] = new int[d-1];
         IntArrayHashKey scratchRidgeHashKey = new IntArrayHashKey(scratchRidge);
@@ -272,7 +272,7 @@ public class ConvexHull
                 {
                     if (debugLevel >= 3)
                         System.out.println("                        it's visible");
-                    visibleFacets.add(iFacet);
+                    visibleFacets.add(facetStruct);
                     FORI (iRidgeThisFacet, d)
                     {
                         // Look at the ridge formed by omitting
@@ -311,7 +311,7 @@ public class ConvexHull
             {
                 ArrayList scratch = new ArrayList();
                 FORI (iVisibleFacet, visibleFacets.size())
-                    scratch.add(hullFacetStructs.get(visibleFacets.get(iVisibleFacet)).vertInds);
+                    scratch.add(((Facet)visibleFacets.get(iVisibleFacet)).vertInds);
                 System.out.println("                visibleFacets = "+intArrayArrayListToStringCompact(scratch));
                 System.out.println("                visible boundary size = "+visibleBoundary.size());
             }
@@ -347,9 +347,8 @@ public class ConvexHull
             // to the facets that just got created
             FORI (iVisibleFacet, nVisibleFacets)
             {
-                int iFacet = visibleFacets.get(iVisibleFacet);
                 // For each vertex that was hovering over this visible facet...
-                IntArrayList hoverers = hullFacetStructs.get(iFacet).hoveringVerts;
+                IntArrayList hoverers = ((Facet)visibleFacets.get(iVisibleFacet)).hoveringVerts;
                 int nHoverers = hoverers.size();
                 FORI (iHoverer, nHoverers)
                 {
@@ -393,22 +392,9 @@ public class ConvexHull
                 }
             }
 
-            int nAdded = nFacetsAfterAdding - nFacetsBefore;
-            int nToRemove = nVisibleFacets;
-            //PRINT(nAdded);
-            //PRINT(nToRemove);
-
-            assert(nToRemove <= nAdded); // XXX this would explain the mystery below, but is a bogus assumption!  I think?? if so, why am I not seeing it ever violated??
-
-
             // Remove the visible facets from the hull
             FORI (iVisibleFacet, nVisibleFacets)
-            {
-                // TODO: how the hell are we getting away with this? not re-indexing in visibleFacets list?? huh?
-                int iFacet = visibleFacets.get(iVisibleFacet);
-
-                hullFacetStructs.fastRemove(iFacet);
-            }
+                hullFacetStructs.fastRemove((Facet)visibleFacets.get(iVisibleFacet));
 
             if (debugLevel >= 3)
             {
@@ -479,6 +465,15 @@ public class ConvexHull
         {
             facet.myIndex = i;
             facetArrayList.set(i, facet);
+        }
+        // TODO: only need one of the following, which one?
+        public void fastRemove(Facet facet)
+        {
+            int i = facet.myIndex;
+            int n = facetArrayList.size();
+            if (i != n-1)
+                set(i, get(n-1));
+            facetArrayList.remove(n-1);
         }
         public void fastRemove(int i)
         {
