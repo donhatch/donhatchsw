@@ -246,7 +246,7 @@ public class ConvexHull
             visibleBoundaryNeighbors.clear();
             visibleBoundaryNeighborsIndexOfMe.clear();
 
-            boolean bruteForceFlag = false;
+            boolean bruteForceFlag = false; // XXX currently hard-coded
             if (!bruteForceFlag)
             {
                 // Figure out visible facets,
@@ -255,18 +255,27 @@ public class ConvexHull
                 // using the facet neighbors adjacency structure.
                 facetSearchList.clear();
                 hoveringVertToFacet[iVert].isVisible = 1;
+                visibleFacets.add(hoveringVertToFacet[iVert]);
                 facetSearchList.add(hoveringVertToFacet[iVert]);
+                if (debugLevel >= 3)
+                    System.out.println("                initializing visible facets set to {"+Arrays.toStringCompact(hoveringVertToFacet[iVert].vertInds)+"}");
                 FORI (iFacetInSearchList, facetSearchList.size()) // while it's growing
                 {
                     Facet facet = (Facet)facetSearchList.get(iFacetInSearchList);
+                    if (debugLevel >= 3)
+                        System.out.println("                    got to facet "+Arrays.toStringCompact(facet.vertInds)+" ("+(facet.isVisible==1?"visible":facet.isVisible==0?"invisible":"???")+")");
                     assert(facet.isVisible != -1);
                     if (facet.isVisible == 1)
                     {
                         FORI (iNeighbor, d)
                         {
                             Facet neighbor = facet.neighbors[iNeighbor];
+                            if (debugLevel >= 3)
+                                System.out.println("                        neighbor "+Arrays.toStringCompact(neighbor.vertInds)+" through ridge "+Arrays.toStringCompact(Arrays.delete(facet.vertInds, iNeighbor)));
                             if (neighbor.isVisible == -1)
                             {
+                                if (debugLevel >= 3)
+                                    System.out.println("                                (not in list, computing visibility)");
                                 VecMath.vmv(scratchVec, verts[iVert], verts[neighbor.vertInds[0]]);
                                 double height = VecMath.dot(scratchVec, neighbor.unitNormal);
                                 if (symbolicPerturbation != null)
@@ -274,13 +283,13 @@ public class ConvexHull
                                     if (!EQ(height, 0., eps))
                                     {
                                         if (debugLevel >= 3)
-                                            System.out.println("                        vert is out of initial plane, killing symbolicPerturbation");
+                                            System.out.println("                                vert is out of initial plane, killing symbolicPerturbation");
                                         symbolicPerturbation = null; // no need for it any more
                                     }
                                     else
                                     {
                                         if (debugLevel >= 3)
-                                            System.out.println("                        symbolically perturbing new vert to get it out of initial plane");
+                                            System.out.println("                                symbolically perturbing new vert to get it out of initial plane");
 
                                         height = VecMath.dot(d, neighbor.unitNormal, symbolicPerturbation);
                                         assert(!EQ(height, 0., eps));
@@ -288,15 +297,26 @@ public class ConvexHull
                                 }
                                 neighbor.isVisible = (GEQ(height, 0., eps) ? 1 : 0); // whether neighbor is visible or borderline visible from vertex
                                 facetSearchList.add(neighbor);
+
                                 if (neighbor.isVisible == 1)
-                                {
                                     visibleFacets.add(neighbor);
-                                }
-                                else
-                                {
-                                    visibleBoundaryNeighbors.add(neighbor);
-                                    visibleBoundaryNeighborsIndexOfMe.add(facet.neighborsIndexOfMe[iNeighbor]);
-                                }
+                            }
+                            else
+                            {
+                                if (debugLevel >= 3)
+                                    System.out.println("                                (already in list)");
+                            }
+                            if (neighbor.isVisible == 0)
+                            {
+                                if (debugLevel >= 3)
+                                    System.out.println("                            invisible, adding boundary ridge");
+                                visibleBoundaryNeighbors.add(neighbor);
+                                visibleBoundaryNeighborsIndexOfMe.add(facet.neighborsIndexOfMe[iNeighbor]);
+                            }
+                            else
+                            {
+                                if (debugLevel >= 3)
+                                    System.out.println("                        visible");
                             }
                         }
                     }
@@ -306,7 +326,10 @@ public class ConvexHull
                     ((Facet)facetSearchList.get(iFacetInSearchList)).isVisible = -1;
 
                 // add new facets forming a cone from the visible boundary
-                // to the vertex
+                // to the vertex.
+                // First, we put them in oriented backwards (it's easier to
+                // get the indices straight that way), then we flip them
+                // all by swapping index 0 with index 1.
                 theMap.clear();
                 FORIDOWN (iVisibleBoundary, visibleBoundaryNeighbors.size())
                 {
@@ -315,7 +338,6 @@ public class ConvexHull
 
                     int newFacetVertInds[] = VecMath.copyvec(invisibleNeighbor.vertInds);
                     newFacetVertInds[invisibleNeighborsIndexOfMe] = iVert;
-                    Arrays.swap(newFacetVertInds, 0, newFacetVertInds, 1);
 
                     Facet newFacet = new Facet(newFacetVertInds,
                                                calcUnitNormal(verts, newFacetVertInds),
@@ -324,9 +346,8 @@ public class ConvexHull
                                                VecMath.fillvec(d, -1)); // neighborsIndexOfMe
                     newFacet.neighbors[invisibleNeighborsIndexOfMe] = invisibleNeighbor; // only one known so far
                     newFacet.neighborsIndexOfMe[invisibleNeighborsIndexOfMe] = invisibleNeighborsIndexOfMe;
-                    Arrays.swap(newFacet.neighbors, 0, newFacet.neighbors, 1);
                     invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe] = newFacet;
-                    invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe] = (invisibleNeighborsIndexOfMe < 2 ? 1-invisibleNeighborsIndexOfMe : invisibleNeighborsIndexOfMe);
+                    invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe] = invisibleNeighborsIndexOfMe;
 
                     FORI (iRidgeThisNewFacet, d)
                     {
@@ -338,7 +359,7 @@ public class ConvexHull
                                 scratchRidge[i] = newFacet.vertInds[i>=iRidgeThisNewFacet ? i+1 : i];
                             SortStuff.sort(scratchRidge); // canonical order
 
-                            Object value[] = (Object[])theMap.get(scratchRidgeHashKey);
+                            Object value[] = (Object[])theMap.remove(scratchRidgeHashKey);
                             if (value != null)
                             {
                                 Facet neighbor = (Facet)value[0];
@@ -357,7 +378,33 @@ public class ConvexHull
                             }
                         }
                     }
-                    assert(theMap.isEmpty());
+
+                    hullFacets.add(newFacet);
+                }
+                assert(theMap.isEmpty());
+
+                // make sure we filled in everything properly,
+                // and flip orientations of the cone of new facets.
+                FORIDOWN (iVisibleBoundary, visibleBoundaryNeighbors.size())
+                {
+                    Facet newFacet = hullFacets.get(hullFacets.size()-1-iVisibleBoundary);
+                    // make sure it's all filled in properly...
+                    FORI (i, d)
+                    {
+                        assert(newFacet.neighbors[i] != null);
+                        assert(newFacet.neighborsIndexOfMe[i] != -1);
+                    }
+                    VecMath.sxv(newFacet.unitNormal, -1., newFacet.unitNormal);
+                    Arrays.swap(newFacet.vertInds, 0, newFacet.vertInds, 1);
+                    Arrays.swap(newFacet.neighbors, 0, newFacet.neighbors, 1);
+                    Arrays.swap(newFacet.neighborsIndexOfMe, 0, newFacet.neighborsIndexOfMe, 1);
+                    FORI (i, 2)
+                    {
+                        assert(newFacet.neighbors[i].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[i]] == 1-i);
+                        newFacet.neighbors[i].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[i]] = i;
+                    }
+                    FORI (i, d)
+                        assert(newFacet.neighbors[i].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[i]] == i);
                 }
             }
             else
@@ -886,9 +933,10 @@ public class ConvexHull
     {
         if (true)
         {
-            debugLevel = 3;
+            //debugLevel = 3;
             testTheseVerts(2, new double[][] {{1,1},{-1,1},{-1,-1},{1,-1}}); // just a square in 2d
-            System.exit(0);
+            testTheseVerts(2, new double[][] {{0,0},{1,1},{-1,1},{-1,-1}}); // right triangle with vert in middle of diagonal
+            testTheseVerts(2, new double[][] {{0,0},{1,1},{-1,1},{-1,-1},{1,-1}}); // just a square in 2d with one in the middle
         }
         if (true)
         {
@@ -979,37 +1027,44 @@ public class ConvexHull
 
 
 
-        java.util.Random rng = new java.util.Random(0);
 
-        int minDim = 0;
-        int maxDim = 5;
-        int minVerts = 0;
-        int maxVerts = 20;
-        int nTestsPerSize = 10;
-        for (int d = minDim; d <= maxDim; ++d)
+        if (true)
         {
-            for (int nVerts = minVerts; nVerts < maxVerts; ++nVerts)
+            java.util.Random rng = new java.util.Random(0);
+            int minDim = 0;
+            int maxDim = 5;
+            int minVerts = 0;
+            int maxVerts = 20;
+            int nTestsPerSize = 10;
+            for (int d = minDim; d <= maxDim; ++d)
             {
-                FORI (iTest, nTestsPerSize)
+                for (int nVerts = minVerts; nVerts < maxVerts; ++nVerts)
                 {
-                    System.out.println("======================");
-                    System.out.println("    Testing d="+d+" nVerts="+nVerts+" iTest="+iTest+"/"+nTestsPerSize+"");
-                    double verts[][] = new double[nVerts][];
-                    if (iTest == 0)
+                    FORI (iTest, nTestsPerSize)
                     {
-                        double invScale = Math.pow(nVerts, d); // if nVerts is 0 we'll never use it
-                        FORI (iVert, nVerts)
+                        System.out.println("======================");
+                        System.out.println("    Testing d="+d+" nVerts="+nVerts+" iTest="+iTest+"/"+nTestsPerSize+"");
+                        double verts[][] = new double[nVerts][];
+                        if (iTest == 0)
                         {
-                            verts[iVert] = new double[d];
-                            FORI (i, d)
-                                verts[iVert][i] = Math.pow(iVert, i+1)/invScale;
+                            double invScale = Math.pow(nVerts, d); // if nVerts is 0 we'll never use it
+                            FORI (iVert, nVerts)
+                            {
+                                verts[iVert] = new double[d];
+                                FORI (i, d)
+                                    verts[iVert][i] = Math.pow(iVert, i+1)/invScale;
+                            }
                         }
-                    }
-                    else
-                        FORI (iVert, nVerts)
-                            verts[iVert] = VecMath.random(d, rng);
+                        else
+                            FORI (iVert, nVerts)
+                                verts[iVert] = VecMath.random(d, rng);
 
-                    testTheseVerts(d, verts);
+                        testTheseVerts(d, verts);
+
+                        FORI (iVert, nVerts)
+                            VecMath.normalize(verts[iVert], verts[iVert]);
+                        testTheseVerts(d, verts);
+                    }
                 }
             }
         }

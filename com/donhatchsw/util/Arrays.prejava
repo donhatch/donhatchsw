@@ -193,6 +193,18 @@ public final class Arrays
         System.arraycopy(array, i+1, newArray, i, n-(i+1));
         return newArray;
     } // delete
+    /**
+    * Returns the array obtained by deleting the i'th element
+    * from the given array.
+    */
+    public static int[] delete(int[] array, int i)
+    {
+        int n = array.length;
+        int newArray[] = new int[n-1];
+        System.arraycopy(array, 0, newArray, 0, i);
+        System.arraycopy(array, i+1, newArray, i, n-(i+1));
+        return newArray;
+    } // delete
 
     /**
      * Returns a newly allocated array
