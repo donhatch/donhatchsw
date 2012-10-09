@@ -802,27 +802,27 @@ public class ConvexHull
         }
 
 
-        // return the parity (0 or 1) of the permutation
-        // that sorts the given list.
+        // sort the list,
+        // and return the parity (0 or 1) of the permutation
+        // (i.e. number of swaps needed).
         // works by bubble sort.
-        private static int permParity(int order[])
+        private static int sortAndExtractParity(int order[])
         {
             int n = order.length;
-            int scratch[] = VecMath.copyvec(order);
             int nSwaps = 0;
             FORIDOWN (k, n)
             {
                 FORI (i, k)
                 {
-                    if (scratch[i] > scratch[i+1])
+                    if (order[i] > order[i+1])
                     {
-                        Arrays.swap(scratch, i, scratch, i+1);
+                        Arrays.swap(order, i, order, i+1);
                         nSwaps++;
                     }
                 }
             }
             FORI (i, n-1)
-                assert(scratch[i] < scratch[i+1]);
+                assert(order[i] < order[i+1]);
             return nSwaps % 2;
         }
 
@@ -872,10 +872,9 @@ public class ConvexHull
                         if (d-1 >= 2 && iRidgeThisFacet % 2 == 1)
                             Arrays.swap(ridge, 0, ridge, 1);
                         int parity = (d-1==0 ? iFacet :
-                                      d-1==1 ? iRidgeThisFacet : permParity(ridge));
-                        // now that we've deduced parity, can sort it
+                                      d-1==1 ? iRidgeThisFacet : sortAndExtractParity(ridge));
 
-                        SortStuff.sort(ridge); // canonical order
+                        // ridge is now in canonical order, as required
 
                         IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
 
@@ -1002,6 +1001,19 @@ public class ConvexHull
     */
     public static void main(String args[])
     {
+        if (true)
+        {
+            // Regular pentagon. Was omitting a point.
+            debugLevel = 3;
+            testTheseVerts(3, new double[][] {
+                {1.0,-0.4350294182873468,0.0},
+                {-0.1170446707055916,-1.0,0.0},
+                {-1.0,-0.11310304464242973,0.0},
+                {-0.4286517333462084,1.0,0.0},
+                {0.807416244153581,0.801038559212443,0.0}
+            });
+            System.exit(1);
+        }
         if (true)
         {
             //debugLevel = 3;
