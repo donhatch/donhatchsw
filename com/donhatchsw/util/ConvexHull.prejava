@@ -873,6 +873,7 @@ public class ConvexHull
                             Arrays.swap(ridge, 0, ridge, 1);
                         int parity = (d-1==0 ? iFacet :
                                       d-1==1 ? iRidgeThisFacet : permParity(ridge));
+                        // now that we've deduced parity, can sort it
 
                         SortStuff.sort(ridge); // canonical order
 
@@ -980,7 +981,7 @@ public class ConvexHull
         FORI (iVert, verts.length)
             assert(verts[iVert].length == d);
 
-        int answer[][][] = convexHull(verts, 1e-11); // argh! 1e-12 made it fail in real life (test case below), 1e-9 made it fail randomized confidence test, 1e-10 made it fail in real life (test case below)
+        int answer[][][] = convexHull(verts, 1e-11); // argh! 1e-12 made it fail in real life with brute force method (test case below), 1e-9 made it fail randomized confidence test, 1e-10 and coarser made it fail in real life using either method (test case below)
         assert(answer.length == 3);
         int hull[][] = answer[0];
         int adjs[][] = answer[1];
@@ -990,7 +991,7 @@ public class ConvexHull
         PRINTARRAY(hull);
         PRINTARRAY(adjs);
         PRINTARRAY(back);
-        // TODO: pass in adjs and back indices
+        // TODO: pass in adjs and back indices, and sanity check them
         sanityCheckConvexHull(d, verts, hull, 1e-9);
         System.out.println("======================");
     } // testTheseVerts
