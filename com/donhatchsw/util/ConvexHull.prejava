@@ -746,22 +746,28 @@ public class ConvexHull
 
 
         private static double[] calcUnitNormal(
-                                    double verts[][/*d*/],
+                                    double verts[/*d*/][/*d*/],
                                     int points[/*d*/])
         {
-            double M[][] = new double[points.length-1][];
-            FORI (iRow, M.length)
+            int d = points.length;
+            double M[][] = new double[d-1][d];
+            FORI (iRow, d-1)
             {
                 if (false)
                 {
-                    M[iRow] = VecMath.vmv(verts[points[iRow+1]],
-                                          verts[points[0]]);
+                    // subtract first vert from the others
+                    VecMath.vmv(M[iRow],
+                                verts[points[iRow+1]],
+                                verts[points[0]]);
                 }
                 else
                 {
-                    // hmm, in 2d, this seems to make the final result come out CCW, which is good
-                    M[iRow] = VecMath.vmv(verts[points[iRow]],
-                                          verts[points[points.length-1]]);
+                    // subtract last vert from the others.
+                    // this only matters in even dimensions.
+                    // in 2d, this seems to make the final convex hull result come out CCW, which is good.
+                    VecMath.vmv(M[iRow],
+                                verts[points[iRow]],
+                                verts[points[points.length-1]]);
                 }
             }
             double normal[] = VecMath.crossprod(M);
