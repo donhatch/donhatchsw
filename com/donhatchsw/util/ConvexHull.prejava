@@ -582,6 +582,36 @@ public class ConvexHull
             }
         } // while queue not empty
 
+
+        if (d == 2)
+        {
+            // re-order nicely, starting with smallest index vert
+
+            int nFacets = hullFacets.size();
+            Facet firstFacet = hullFacets.get(0);
+            FORI (iFacet, nFacets)
+            {
+                Facet facet = hullFacets.get(iFacet);
+                if (facet.vertInds[0] < firstFacet.vertInds[0])
+                    firstFacet = facet;
+            }
+
+            FacetArrayList hullFacetsReordered = new FacetArrayList();
+            hullFacets.fastRemove(firstFacet);
+            hullFacetsReordered.add(firstFacet);
+            for (Facet facet = firstFacet.neighbors[0];
+                 facet != firstFacet;
+                 facet = facet.neighbors[0])
+            {
+                hullFacets.fastRemove(facet);
+                hullFacetsReordered.add(facet);
+            }
+            assert(hullFacets.size() == 0);
+            assert(hullFacetsReordered.size() == nFacets);
+            hullFacets = hullFacetsReordered;
+        }
+
+
         int hullFacetsArray[][]      = new int[hullFacets.size()][];
         int hullAdjacenciesArray[][] = new int[hullFacets.size()][d];
         int backIndsArray[][]        = new int[hullFacets.size()][d];
@@ -657,7 +687,6 @@ public class ConvexHull
             facet.myIndex = i;
             facetArrayList.set(i, facet);
         }
-        // TODO: only need one of the following, which one?
         public void fastRemove(Facet facet)
         {
             fastRemove(facet.myIndex);
