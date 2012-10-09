@@ -29,8 +29,16 @@ public class ConvexHull
     * a list of adjacencies among them
     * (each consisting of d facet indices),
     * and a list of back-indices
-    * (each consisting of d indicies where the facet occurs
+    * (each consisting of the d indices where the facet occurs
     * in each of its neighbors' neighbors list).
+    * <p>
+    * For example, if the input is a triangle in two dimensions,
+    * given in CCW order, then the output will be:
+    * <pre>
+    *     {{{0,1},{1,2},{2,0}},  // the facets themselves
+    *      {{1,2},{2,0},{0,1}},  // e.g. the first 0 says facet 1's neighbor opposite vertex 2 is facet 0
+    *      {{1,0},{1,0},{1,0}}}  // and the 0 below it says facet 1 occurs at index 0 in facet 0's neighbors
+    * </pre>
     * <p>
     * WARNING: no attempt is made to correct topological faults
     */
@@ -74,11 +82,13 @@ public class ConvexHull
             int answer[][][] = new int[][][] {
                 {{iVertMin},{iVertMax}},
                 {{1},{0}}, // neighbor of facet 0 is facet 1 and vice versa
-                {{0},{0}},
+                {{0},{0}}, // only choice for back index is 0
             };
-            PRINTVEC(answer); // TODO: get rid
             if (debugLevel >= 1)
+            {
+                PRINTVEC(answer);
                 System.out.println("    out convexHull (d==1, returning lowest and highest vertex)");
+            }
             return answer;
         }
 
@@ -500,8 +510,8 @@ public class ConvexHull
                     Facet newFacetStruct = new Facet(newFacet,
                                                      calcUnitNormal(verts, newFacet),
                                                      hoveringVerts,
-                                                     new Facet[d], // TODO: figure out new facet neighbors
-                                                     new int[d]); // TODO: figure out new facet back pointers
+                                                     new Facet[d], // we're in brute force method, we never bother to figure out new facet neighbors
+                                                     new int[d]); // nor back indices
                     hullFacets.add(newFacetStruct);
                 }
             } // brute force method
@@ -551,10 +561,11 @@ public class ConvexHull
                     }
                     if (theNewFacetIndex != -1)
                     {
+                        Facet theNewFacet = hullFacets.get(theNewFacetIndex);
                         if (debugLevel >= 3)
-                            System.out.println("        transferring vertex "+jVert+" from facet "+Arrays.toStringCompact(visibleFacet.vertInds)+" to hovering at height "+highestHeight+" above facet "+Arrays.toStringCompact(hullFacets.get(theNewFacetIndex).vertInds)+"");
-                        hullFacets.get(theNewFacetIndex).hoveringVerts.add(jVert);
-                        hoveringVertToFacet[jVert] = hullFacets.get(theNewFacetIndex); // TODO: too many gets
+                            System.out.println("        transferring vertex "+jVert+" from facet "+Arrays.toStringCompact(visibleFacet.vertInds)+" to hovering at height "+highestHeight+" above facet "+Arrays.toStringCompact(theNewFacet.vertInds)+"");
+                        theNewFacet.hoveringVerts.add(jVert);
+                        hoveringVertToFacet[jVert] = theNewFacet;
                         queue.adjust(jVert, -highestHeight);
                     }
                     else
@@ -829,7 +840,7 @@ public class ConvexHull
             // must appear on exactly one other facet of the hull,
             // in the opposite orientation.
             // TODO: assert connected, too.
-            // TODO: and that each ridge is locally convex.
+            // TODO: and that each ridge is locally convex... maybe?
             //
             {
                 // ridgeParityToFacets maps a canonical-order ridge
@@ -976,7 +987,7 @@ public class ConvexHull
         PRINTARRAY(hull);
         PRINTARRAY(adjs);
         PRINTARRAY(back);
-        // TODO: pass in adjs and back
+        // TODO: pass in adjs and back indices
         sanityCheckConvexHull(d, verts, hull, 1e-9);
         System.out.println("======================");
     } // testTheseVerts
@@ -990,6 +1001,7 @@ public class ConvexHull
         if (true)
         {
             //debugLevel = 3;
+            testTheseVerts(2, new double[][] {{1,1},{-1,1},{-1,-1}}); // just a triangle in 2d
             testTheseVerts(2, new double[][] {{1,1},{-1,1},{-1,-1},{1,-1}}); // just a square in 2d
             testTheseVerts(2, new double[][] {{0,0},{1,1},{-1,1},{-1,-1}}); // right triangle with vert in middle of diagonal
             testTheseVerts(2, new double[][] {{0,0},{1,1},{-1,1},{-1,-1},{1,-1}}); // just a square in 2d with one in the middle
