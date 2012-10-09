@@ -27,7 +27,7 @@ public class ConvexHull
     * a list of adjacencies among them
     * (each consisting of d facet indices),
     * and a list of back-indices
-    * (each consisting of d indicies where iFacet occurs
+    * (each consisting of d indicies where the facet occurs
     * in each of its neighbors' neighbors list).
     * <p>
     * WARNING: no attempt is made to correct topological faults
