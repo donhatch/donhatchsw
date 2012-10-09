@@ -22,12 +22,18 @@ public class ConvexHull
     * using the QuickHull algorithm
     * (i.e. the incremental algorithm, but always
     * choosing the next point farthest from the current hull).
-    * Returns a list of (d-1)-dimensional simplices.
+    * Returns three lists: a list of (d-1)-dimensional simplices
+    * (each consisting of d vert indices),
+    * a list of adjacencies among them
+    * (each consisting of d facet indices),
+    * and a list of back-indices
+    * (each consisting of d indicies where iFacet occurs
+    * in each of its neighbors' neighbors list).
     * <p>
     * WARNING: no attempt is made to correct topological faults
     */
-    public static int[][/*d*/] convexHull(double verts[][/*d*/],
-                                          double eps)
+    public static int[/*3*/][][/*d*/] convexHull(double verts[][/*d*/],
+                                                 double eps)
     {
         if (debugLevel >= 1)
         {
@@ -39,31 +45,36 @@ public class ConvexHull
         if (nVerts == 0)
         {
             if (debugLevel >= 1)
-                System.out.println("    out convexHull (nVerts==0, returning new int[0][])");
-            return new int[0][];
+                System.out.println("    out convexHull (nVerts==0, returning new int[2][0][])");
+            return new int[3][0][];
         }
         int d = verts[0].length;
         if (d == 0)
         {
             if (debugLevel >= 1)
-                System.out.println("    out convexHull (d==0, returning new int[0][])");
-            return new int[0][]; // not sure what the hell's going on here
+                System.out.println("    out convexHull (d==0, returning new int[2][0][d])");
+            return new int[3][0][d]; // not sure what the hell's going on here
         }
         if (d == 1)
         {
             // In this case expressing the sidedness of a facet
             // is problematic.  So just do it the trivial way,
             // returning the lowest and highest vertex.
-            int answer[][] = new int[2][1];
-            PRINTVEC(answer);
-            answer[0][0] = answer[1][0] = 0;
+            int iVertMin = 0;
+            int iVertMax = 0;
             for (int iVert = 1; iVert < nVerts; ++iVert) // skip 0
             {
-                if (verts[iVert][0] < verts[answer[0][0]][0]) // < so prefer first index
-                    answer[0][0] = iVert;
-                if (verts[iVert][0] >= verts[answer[1][0]][0]) // >= so prefer last index
-                    answer[1][0] = iVert;
+                if (verts[iVert][0] < verts[iVertMin][0]) // < so prefer first index
+                    iVertMin = iVert;
+                if (verts[iVert][0] >= verts[iVertMax][0]) // >= so prefer last index
+                    iVertMax = iVert;
             }
+            int answer[][][] = new int[][][] {
+                {{iVertMin},{iVertMax}},
+                {{1},{0}}, // neighbor of facet 0 is facet 1 and vice versa
+                {{0},{0}},
+            };
+            PRINTVEC(answer); // TODO: get rid
             if (debugLevel >= 1)
                 System.out.println("    out convexHull (d==1, returning lowest and highest vertex)");
             return answer;
@@ -72,8 +83,8 @@ public class ConvexHull
         if (nVerts < d)
         {
             if (debugLevel >= 1)
-                System.out.println("    out convexHull (nVerts<d, returning new int[0][])");
-            return new int[0][]; // not enough vertices to make a facet out of
+                System.out.println("    out convexHull (nVerts<d, returning new int[2][0][d])");
+            return new int[3][0][d]; // not enough vertices to make a facet out of
         }
 
         assert(nVerts >= d && d >= 2);
@@ -570,16 +581,24 @@ public class ConvexHull
             }
         } // while queue not empty
 
-        int hullFacetsArray[][] = new int[hullFacets.size()][];
+        int hullFacetsArray[][]      = new int[hullFacets.size()][];
+        int hullAdjacenciesArray[][] = new int[hullFacets.size()][d];
+        int backIndsArray[][]        = new int[hullFacets.size()][d];
         FORI (iFacet, hullFacetsArray.length)
-            hullFacetsArray[iFacet] = hullFacets.get(iFacet).vertInds;
+        {
+            Facet facet = hullFacets.get(iFacet);
+            hullFacetsArray[iFacet] = facet.vertInds;
+            FORI (i, d)
+                hullAdjacenciesArray[iFacet][i] = facet.neighbors[i].myIndex;
+            backIndsArray[iFacet] = facet.neighborsIndexOfMe;
+        }
         if (debugLevel >= 1)
         {
             System.out.println("        "+hullFacetsArray.length+" facets");
             PRINTARRAY(hullFacetsArray);
             System.out.println("    out convexHull");
         }
-        return hullFacetsArray;
+        return new int[/*3*/][/*nFacets*/][/*d*/] {hullFacetsArray, hullAdjacenciesArray, backIndsArray};
     } // convexHull
 
     private static class Facet
@@ -904,9 +923,17 @@ public class ConvexHull
         FORI (iVert, verts.length)
             assert(verts[iVert].length == d);
 
-        int hull[][] = convexHull(verts, 1e-11); // argh! 1e-12 made it fail in real life (test case below), 1e-9 made it fail randomized confidence test, 1e-10 made it fail in real life (test case below)
+        int answer[][][] = convexHull(verts, 1e-11); // argh! 1e-12 made it fail in real life (test case below), 1e-9 made it fail randomized confidence test, 1e-10 made it fail in real life (test case below)
+        assert(answer.length == 3);
+        int hull[][] = answer[0];
+        int adjs[][] = answer[1];
+        int back[][] = answer[2];
+        assert(hull.length == adjs.length);
 
         PRINTARRAY(hull);
+        PRINTARRAY(adjs);
+        PRINTARRAY(back);
+        // TODO: pass in adjs and back
         sanityCheckConvexHull(d, verts, hull, 1e-9);
         System.out.println("======================");
     } // testTheseVerts
