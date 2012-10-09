@@ -973,7 +973,7 @@ public class ConvexHull
     } // sanityCheckConvexHull
 
 
-    private static void testTheseVerts(int d, double verts[][])
+    private static int[][] testTheseVerts(int d, double verts[][])
     {
         PRINT(d);
         PRINTARRAY(verts);
@@ -993,6 +993,7 @@ public class ConvexHull
         // TODO: pass in adjs and back indices, and sanity check them
         sanityCheckConvexHull(d, verts, hull, 1e-9);
         System.out.println("======================");
+        return hull; // caller usually ignores
     } // testTheseVerts
 
 
@@ -1005,13 +1006,20 @@ public class ConvexHull
         {
             // Regular pentagon. Was omitting a point.
             debugLevel = 3;
-            testTheseVerts(3, new double[][] {
-                {1.0,-0.4350294182873468,0.0},
-                {-0.1170446707055916,-1.0,0.0},
-                {-1.0,-0.11310304464242973,0.0},
-                {-0.4286517333462084,1.0,0.0},
-                {0.807416244153581,0.801038559212443,0.0}
-            });
+
+            int nVerts = 5;
+            int d = 3;
+            double verts[][] = new double[nVerts][d];
+            FORI (iVert, nVerts)
+            {
+                double angle = iVert * (2*Math.PI/nVerts);
+                verts[iVert][0] = Math.cos(angle);
+                verts[iVert][1] = Math.sin(angle);
+                verts[iVert][2] = 0.;
+                //verts[iVert][2] = Math.random();
+            }
+            int hull[][] = testTheseVerts(d, verts);
+            assert(hull.length == (nVerts-2)*2);
             System.exit(1);
         }
         if (true)
