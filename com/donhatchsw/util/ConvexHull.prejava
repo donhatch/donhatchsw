@@ -390,8 +390,7 @@ public class ConvexHull
                             else
                             {
                                 // it wasn't there before-- add it.
-                                int ridge[] = VecMath.copyvec(scratchRidge);
-                                IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
+                                IntArrayHashKey ridgeKey = new IntArrayHashKey(VecMath.copyvec(scratchRidge));
                                 theMap.put(ridgeKey, new Object[]{newFacet, new Integer(iRidgeThisNewFacet)});
                             }
                         }
@@ -466,13 +465,12 @@ public class ConvexHull
                             if (visibleBoundary.remove(scratchRidgeHashKey) == null)
                             {
                                 // it wasn't there before-- add it.
-                                int ridge[] = VecMath.copyvec(scratchRidge);
-                                IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
+                                IntArrayHashKey ridgeKey = new IntArrayHashKey(VecMath.copyvec(scratchRidge));
                                 int newFacetMaybe[] = VecMath.copyvec(facet);
                                 newFacetMaybe[iRidgeThisFacet] = iVert;
                                 visibleBoundary.put(ridgeKey, newFacetMaybe);
                                 if (debugLevel >= 3)
-                                    System.out.println("                        ridge "+Arrays.toStringCompact(scratchRidge)+" was not on boundary so adding ridge "+Arrays.toStringCompact(ridge));
+                                    System.out.println("                        ridge "+Arrays.toStringCompact(scratchRidge)+" was not on boundary so adding ridge "+Arrays.toStringCompact(scratchRidge));
                             }
                             else
                             {
@@ -773,13 +771,12 @@ public class ConvexHull
             double normal[] = VecMath.crossprod(M);
             VecMath.normalize(normal, normal);
             return normal;
-
         }
 
         private static class IntArrayHashKey
         {
             private int item[];
-            IntArrayHashKey(int item[])
+            IntArrayHashKey(int item[]) // NOTE modifying contents will modify behavior accordingly! caller uses this fact
             {
                 this.item = item;
             }
