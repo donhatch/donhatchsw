@@ -17,6 +17,8 @@ public class ConvexHull
     */
     public static int debugLevel = 0;
 
+    public static boolean bruteForceFlag = false; // XXX currently undocumented
+
     /**
     * Computes the convex hull in d dimensions,
     * using the QuickHull algorithm
@@ -252,7 +254,6 @@ public class ConvexHull
             visibleBoundaryFacets.clear();
             visibleBoundaryNeighborIndex.clear();
 
-            boolean bruteForceFlag = false; // XXX currently hard-coded
             if (!bruteForceFlag)
             {
                 // Figure out visible facets,
@@ -588,8 +589,9 @@ public class ConvexHull
         {
             Facet facet = hullFacets.get(iFacet);
             hullFacetsArray[iFacet] = facet.vertInds;
-            FORI (i, d)
-                hullAdjacenciesArray[iFacet][i] = facet.neighbors[i].myIndex;
+            if (!bruteForceFlag)
+                FORI (i, d)
+                    hullAdjacenciesArray[iFacet][i] = facet.neighbors[i].myIndex;
             backIndsArray[iFacet] = facet.neighborsIndexOfMe;
         }
         if (debugLevel >= 1)
