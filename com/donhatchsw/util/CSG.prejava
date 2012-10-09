@@ -2289,7 +2289,7 @@ public final class CSG
             double R0_pentagon = 1./(2*Math.cos(Math.PI * (.5 - 1./5)));
             double R1_pentagon = .5*Math.tan(Math.PI * (.5 - 1./5));
             double antiprism_height = Math.sqrt(.75 - (R0_pentagon - R1_pentagon)
-                                                   *(R0_pentagon - R1_pentagon));
+                                                     *(R0_pentagon - R1_pentagon));
 
             /*
              * Vertices...

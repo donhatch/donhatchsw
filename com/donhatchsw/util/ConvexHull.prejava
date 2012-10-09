@@ -181,10 +181,7 @@ public class ConvexHull
         hullFacets.add(firstHullFacetStruct);
         hullFacets.add(secondHullFacetStruct);
 
-
-        double distanceFromHull[] = new double[nVerts];
-        Facet hoveringVertToFacet[] = new Facet[nVerts];
-
+        Facet hoveringVertToFacet[] = new Facet[nVerts]; // all null initially
 
         double scratchVec[] = new double[d];
         FORI (iVert, nVerts)
@@ -385,6 +382,7 @@ public class ConvexHull
 
                 // make sure we filled in everything properly,
                 // and flip orientations of the cone of new facets.
+                // XXX TODO: I think the flip wouldn't be necessary if we used the visible boundary facet instead of the invisible one as the template? try it
                 FORIDOWN (iVisibleBoundary, visibleBoundaryNeighbors.size())
                 {
                     Facet newFacet = hullFacets.get(hullFacets.size()-1-iVisibleBoundary);
