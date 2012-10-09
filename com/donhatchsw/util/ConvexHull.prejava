@@ -704,14 +704,26 @@ public class ConvexHull
 
         } // calcParallelotopeContentSquared
 
+
         private static double[] calcUnitNormal(
                                     double verts[][/*d*/],
                                     int points[/*d*/])
         {
             double M[][] = new double[points.length-1][];
             FORI (iRow, M.length)
-                M[iRow] = VecMath.vmv(verts[points[iRow+1]],
-                                      verts[points[0]]);
+            {
+                if (false)
+                {
+                    M[iRow] = VecMath.vmv(verts[points[iRow+1]],
+                                          verts[points[0]]);
+                }
+                else
+                {
+                    // hmm, in 2d, this seems to make the final result come out CCW, which is good
+                    M[iRow] = VecMath.vmv(verts[points[iRow]],
+                                          verts[points[points.length-1]]);
+                }
+            }
             double normal[] = VecMath.crossprod(M);
             VecMath.normalize(normal, normal);
             return normal;
