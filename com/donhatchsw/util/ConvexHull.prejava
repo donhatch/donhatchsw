@@ -24,11 +24,7 @@ public class ConvexHull
     * choosing the next point farthest from the current hull).
     * Returns a list of (d-1)-dimensional simplices.
     * <p>
-    * WARNING: this hasn't had much testing yet
-    * <p>
-    * WARNING: the search for visible faces isn't smart so the whole thing is O(n^2)
-    * <p>
-    * WARNING: no attempt is made to correct topological faults yet
+    * WARNING: no attempt is made to correct topological faults
     */
     public static int[][/*d*/] convexHull(double verts[][/*d*/],
                                           double eps)
