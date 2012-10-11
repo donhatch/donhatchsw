@@ -306,7 +306,7 @@ public class ConvexHull
                                     else
                                     {
                                         if (debugLevel >= 3)
-                                            System.out.println("                                symbolically perturbing new vert to get it out of initial plane");
+                                            System.out.println("                                symbolically perturbing new vert out of initial plane");
 
                                         height = VecMath.dot(d, neighbor.unitNormal, symbolicPerturbation);
                                         assert(!EQ(height, 0., eps));
@@ -442,7 +442,7 @@ public class ConvexHull
                         else
                         {
                             if (debugLevel >= 3)
-                                System.out.println("                        symbolically perturbing new vert to get it out of initial plane");
+                                System.out.println("                        symbolically perturbing new vert out of initial plane");
 
                             height = VecMath.dot(d, facetStruct.unitNormal, symbolicPerturbation);
                             assert(!EQ(height, 0., eps));
@@ -548,7 +548,24 @@ public class ConvexHull
                         int newFacet[] = newFacetStruct.vertInds;
                         double facetUnitNormal[] = newFacetStruct.unitNormal;
                         VecMath.vmv(scratchVec, verts[jVert], verts[newFacet[0]]);
-                        double height = VecMath.dot(scratchVec, facetUnitNormal);
+                        double height = VecMath.dot(d, scratchVec, facetUnitNormal);
+                        if (symbolicPerturbation != null)
+                        {
+                            if (!EQ(height, 0., eps))
+                            {
+                                if (debugLevel >= 3)
+                                    System.out.println("                        vert is out of initial plane, killing symbolicPerturbation");
+                                symbolicPerturbation = null; // no need for it any more
+                            }
+                            else
+                            {
+                                if (debugLevel >= 3)
+                                    System.out.println("                        symbolically perturbing new vert out of initial plane");
+
+                                height = VecMath.dot(d, symbolicPerturbation, facetUnitNormal);
+                                assert(!EQ(height, 0., eps));
+                            }
+                        }
 
                         if (height > highestHeight
                          && height >= -eps)
@@ -1004,23 +1021,25 @@ public class ConvexHull
     {
         if (true)
         {
-            // Regular pentagon. Was omitting a point.
-            debugLevel = 3;
-
-            int nVerts = 5;
-            int d = 3;
-            double verts[][] = new double[nVerts][d];
-            FORI (iVert, nVerts)
+            // Regular pentagon in 3d was omitting a point.
+            // Test regular polygons in 3d, 2 to 100 sides.
+            //debugLevel = 3;
+            for (int nVerts = 2; nVerts <= 100; ++nVerts)
             {
-                double angle = iVert * (2*Math.PI/nVerts);
-                verts[iVert][0] = Math.cos(angle);
-                verts[iVert][1] = Math.sin(angle);
-                verts[iVert][2] = 0.;
-                //verts[iVert][2] = Math.random();
+                PRINT(nVerts);
+                int d = 3;
+                double verts[][] = new double[nVerts][d];
+                FORI (iVert, nVerts)
+                {
+                    double angle = iVert * (2*Math.PI/nVerts);
+                    verts[iVert][0] = Math.cos(angle);
+                    verts[iVert][1] = Math.sin(angle);
+                    verts[iVert][2] = 0.;
+                    //verts[iVert][2] = Math.random();
+                }
+                int hull[][] = testTheseVerts(d, verts);
+                assert(hull.length == (nVerts-2)*2);
             }
-            int hull[][] = testTheseVerts(d, verts);
-            assert(hull.length == (nVerts-2)*2);
-            System.exit(1);
         }
         if (true)
         {
