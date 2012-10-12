@@ -582,6 +582,7 @@ public class ConvexHull
                         theNewFacet.hoveringVerts.add(jVert);
                         hoveringVertToFacet[jVert] = theNewFacet;
                         queue.adjust(jVert, -highestHeight);
+                        // XXX TODO: if perturbed, this will be wrong later when we remove the perturbation.  but hopefully that doesn't affect accuracy, just efficiency?
                     }
                     else
                     {
