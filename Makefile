@@ -109,6 +109,8 @@ donhatchsw.jar: \
     com/donhatchsw/awt/TablePanel.class \
     com/donhatchsw/awt/Row.class \
     com/donhatchsw/awt/Col.class \
+    com/donhatchsw/awt/JRow.class \
+    com/donhatchsw/awt/JCol.class \
     com/donhatchsw/awt/LayoutExample.class \
     com/donhatchsw/awt/MainWindowCount.class \
     com/donhatchsw/util/NewtonSolver.class \

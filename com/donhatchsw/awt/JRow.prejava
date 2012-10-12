@@ -1,12 +1,12 @@
 package com.donhatchsw.awt;
 
 /**
- * A Panel whose layout manager is a RowLayout.
+ * A JPanel whose layout manager is a RowLayout.
  */
-public class Row
-    extends java.awt.Panel
+public class JRow
+    extends javax.swing.JPanel
 {
-    public Row()
+    public JRow()
     {
         super(new RowLayout());
     }

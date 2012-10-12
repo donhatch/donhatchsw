@@ -1,0 +1,13 @@
+package com.donhatchsw.awt;
+
+/**
+ * A JPanel whose layout manager is a ColLayout.
+ */
+public class JCol
+    extends javax.swing.JPanel
+{
+    public JCol()
+    {
+        super(new ColLayout());
+    }
+}
