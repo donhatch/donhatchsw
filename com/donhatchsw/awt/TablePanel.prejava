@@ -16,28 +16,4 @@ public class TablePanel
     {
         ((TableLayout)getLayout()).advanceRow();
     }
-
-    // return type has to be Component instead of void,
-    // to match the one that happens to be in the bas class
-    public java.awt.Component add(java.awt.Component c, int fill)
-    {
-        TableLayout.add(this, c, fill);
-        return c;
-    }
-    public void add(java.awt.Component c, int gridx, int gridy)
-    {
-        TableLayout.add(this, c, gridx, gridy);
-    }
-    public void add(java.awt.Component c, int gridx, int gridy, int fill)
-    {
-        TableLayout.add(this, c, gridx, gridy, fill);
-    }
-    public void add(java.awt.Component c, int gridx, int gridy, int gridwidth, int gridheight)
-    {
-        TableLayout.add(this, c, gridx, gridy, gridwidth, gridheight);
-    }
-    public void add(java.awt.Component c, int gridx, int gridy, int gridwidth, int gridheight, int fill)
-    {
-        TableLayout.add(this, c, gridx, gridy, gridwidth, gridheight, fill);
-    }
 } // class TablePanel
