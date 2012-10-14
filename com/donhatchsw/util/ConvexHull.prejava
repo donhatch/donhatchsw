@@ -17,9 +17,6 @@ public class ConvexHull
     */
     public static int debugLevel = 0;
 
-    public static boolean bruteForceFlag = false; // XXX currently undocumented
-    public static boolean useTheMap = true; // XXX currently undocumented, and only looked at if bruteForceFlag=false
-
     /**
     * Computes the convex hull in d dimensions,
     * using the QuickHull algorithm
@@ -243,17 +240,9 @@ public class ConvexHull
 
         int scratchRidge[] = new int[d-1];
 
-        // ONLY USED IN NON-BRUTE-FORCE METHOD...
         ArrayList visibleBoundaryFacets = new ArrayList();
         IntArrayList visibleBoundaryNeighborIndex = new IntArrayList();
         ArrayList facetSearchList = new ArrayList();
-        // theMap is a map from ridge vert inds (in canonical order) to pair {facet, iNeighbor}.
-        java.util.HashMap theMap = new java.util.HashMap();
-        IntArrayHashKey scratchRidgeHashKey = new IntArrayHashKey(scratchRidge);
-
-        // ONLY USED IN BRUTE FORCE METHOD...
-
-        java.util.Hashtable visibleBoundary = new java.util.Hashtable(); // scratch, logically local to loop body below.
 
 
         if (debugLevel >= 2)
@@ -270,347 +259,211 @@ public class ConvexHull
             }
             int nFacetsBefore = hullFacets.size();
             visibleFacets.clear();
-            visibleBoundary.clear();
             visibleBoundaryFacets.clear();
             visibleBoundaryNeighborIndex.clear();
 
-            if (!bruteForceFlag)
+
+
+            // Figure out visible facets,
+            // the smart way-- do a search
+            // outwards from the one,
+            // using the facet neighbors adjacency structure.
+            facetSearchList.clear();
+            hoveringVertToFacet[iVert].isVisible = 1;
+            visibleFacets.add(hoveringVertToFacet[iVert]);
+            facetSearchList.add(hoveringVertToFacet[iVert]);
+            if (debugLevel >= 3)
+                System.out.println("                initializing visible facets set to {"+Arrays.toStringCompact(hoveringVertToFacet[iVert].vertInds)+"}");
+            FORI (iFacetInSearchList, facetSearchList.size()) // while it's growing
             {
-                // Figure out visible facets,
-                // the smart way-- do a search
-                // outwards from the one,
-                // using the facet neighbors adjacency structure.
-                facetSearchList.clear();
-                hoveringVertToFacet[iVert].isVisible = 1;
-                visibleFacets.add(hoveringVertToFacet[iVert]);
-                facetSearchList.add(hoveringVertToFacet[iVert]);
+                Facet facet = (Facet)facetSearchList.get(iFacetInSearchList);
                 if (debugLevel >= 3)
-                    System.out.println("                initializing visible facets set to {"+Arrays.toStringCompact(hoveringVertToFacet[iVert].vertInds)+"}");
-                FORI (iFacetInSearchList, facetSearchList.size()) // while it's growing
+                    System.out.println("                    got to facet "+Arrays.toStringCompact(facet.vertInds)+" ("+(facet.isVisible==1?"visible":facet.isVisible==0?"invisible":"???")+")");
+                assert(facet.isVisible != -1);
+                if (facet.isVisible == 1)
                 {
-                    Facet facet = (Facet)facetSearchList.get(iFacetInSearchList);
-                    if (debugLevel >= 3)
-                        System.out.println("                    got to facet "+Arrays.toStringCompact(facet.vertInds)+" ("+(facet.isVisible==1?"visible":facet.isVisible==0?"invisible":"???")+")");
-                    assert(facet.isVisible != -1);
-                    if (facet.isVisible == 1)
+                    FORI (iNeighbor, d)
                     {
-                        FORI (iNeighbor, d)
+                        Facet neighbor = facet.neighbors[iNeighbor];
+                        if (debugLevel >= 3)
+                            System.out.println("                        neighbor "+Arrays.toStringCompact(neighbor.vertInds)+" through ridge "+Arrays.toStringCompact(Arrays.delete(facet.vertInds, iNeighbor)));
+                        if (neighbor.isVisible == -1)
                         {
-                            Facet neighbor = facet.neighbors[iNeighbor];
                             if (debugLevel >= 3)
-                                System.out.println("                        neighbor "+Arrays.toStringCompact(neighbor.vertInds)+" through ridge "+Arrays.toStringCompact(Arrays.delete(facet.vertInds, iNeighbor)));
-                            if (neighbor.isVisible == -1)
+                                System.out.println("                                (not in list, computing visibility)");
+                            VecMath.vmv(scratchVec, verts[iVert], verts[neighbor.vertInds[0]]);
+                            double height = VecMath.dot(scratchVec, neighbor.unitNormal);
+                            if (symbolicPerturbation != null)
                             {
-                                if (debugLevel >= 3)
-                                    System.out.println("                                (not in list, computing visibility)");
-                                VecMath.vmv(scratchVec, verts[iVert], verts[neighbor.vertInds[0]]);
-                                double height = VecMath.dot(scratchVec, neighbor.unitNormal);
-                                if (symbolicPerturbation != null)
+                                if (!EQ(height, 0., eps))
                                 {
-                                    if (!EQ(height, 0., eps))
-                                    {
-                                        if (debugLevel >= 3)
-                                            System.out.println("                                vert is out of initial plane, killing symbolicPerturbation");
-                                        symbolicPerturbation = null; // no need for it any more
-                                    }
-                                    else
-                                    {
-                                        if (debugLevel >= 3)
-                                            System.out.println("                                symbolically perturbing new vert out of initial plane");
-
-                                        height = VecMath.dot(d, neighbor.unitNormal, symbolicPerturbation);
-                                        assert(!EQ(height, 0., eps));
-                                    }
-                                }
-                                neighbor.isVisible = (GEQ(height, 0., eps) ? 1 : 0); // whether neighbor is visible or borderline visible from vertex
-                                facetSearchList.add(neighbor);
-
-                                if (neighbor.isVisible == 1)
-                                    visibleFacets.add(neighbor);
-                            }
-                            else
-                            {
-                                if (debugLevel >= 3)
-                                    System.out.println("                                (already in list)");
-                            }
-                            if (neighbor.isVisible == 0)
-                            {
-                                if (debugLevel >= 3)
-                                    System.out.println("                            invisible, adding boundary ridge");
-                                visibleBoundaryFacets.add(facet);
-                                visibleBoundaryNeighborIndex.add(iNeighbor);
-                            }
-                            else
-                            {
-                                if (debugLevel >= 3)
-                                    System.out.println("                        visible");
-                            }
-                        }
-                    }
-                }
-                // add new facets forming a cone from the visible boundary
-                // to the vertex.
-                theMap.clear();
-                FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
-                {
-                    Facet oldFacet = (Facet)visibleBoundaryFacets.get(iVisibleBoundary);
-                    int iNeighbor = visibleBoundaryNeighborIndex.get(iVisibleBoundary);
-
-                    int newFacetVertInds[] = VecMath.copyvec(oldFacet.vertInds);
-                    newFacetVertInds[iNeighbor] = iVert;
-
-                    Facet newFacet = new Facet(newFacetVertInds,
-                                               calcUnitNormal(verts, newFacetVertInds),
-                                               new IntArrayList(), // hoveringVerts
-                                               new Facet[d], // neighbors
-                                               VecMath.fillvec(d, -1)); // neighborsIndexOfMe
-                    if (!useTheMap)
-                        newFacet.isVisible = 2; // "new" (XXX should maybe be a legit bitfield?)
-                    Facet invisibleNeighbor = oldFacet.neighbors[iNeighbor];
-                    int invisibleNeighborsIndexOfMe = oldFacet.neighborsIndexOfMe[iNeighbor];
-                    newFacet.neighbors[iNeighbor] = invisibleNeighbor; // only one known so far
-                    newFacet.neighborsIndexOfMe[iNeighbor] = invisibleNeighborsIndexOfMe;
-                    invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe] = newFacet;
-                    assert(invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe] == iNeighbor);
-
-                    if (useTheMap)
-                    {
-                        FORI (iRidgeThisNewFacet, d)
-                        {
-                            if (newFacet.neighbors[iRidgeThisNewFacet] == null)
-                            {
-                                // Look at the ridge formed by omitting
-                                // the iRidgeThisNewFacet'th vertex from newFacet
-                                FORI (i, d-1)
-                                    scratchRidge[i] = newFacet.vertInds[i>=iRidgeThisNewFacet ? i+1 : i];
-                                SortStuff.sort(scratchRidge); // canonical order
-
-                                Object value[] = (Object[])theMap.remove(scratchRidgeHashKey);
-                                if (value != null)
-                                {
-                                    Facet neighbor = (Facet)value[0];
-                                    int neighborsIndexOfMe = ((Integer)value[1]).intValue();
-                                    newFacet.neighbors[iRidgeThisNewFacet] = neighbor;
-                                    newFacet.neighborsIndexOfMe[iRidgeThisNewFacet] = neighborsIndexOfMe;
-                                    neighbor.neighbors[neighborsIndexOfMe] = newFacet;
-                                    neighbor.neighborsIndexOfMe[neighborsIndexOfMe] = iRidgeThisNewFacet;
+                                    if (debugLevel >= 3)
+                                        System.out.println("                                vert is out of initial plane, killing symbolicPerturbation");
+                                    symbolicPerturbation = null; // no need for it any more
                                 }
                                 else
                                 {
-                                    // it wasn't there before-- add it.
-                                    IntArrayHashKey ridgeKey = new IntArrayHashKey(VecMath.copyvec(scratchRidge));
-                                    theMap.put(ridgeKey, new Object[]{newFacet, new Integer(iRidgeThisNewFacet)});
-                                }
-                            }
-                        }
-                    }
-
-                    hullFacets.add(newFacet);
-                }
-                if (!useTheMap)
-                {
-                    if (debugLevel >= 3)
-                        System.out.println("                sewing up cone the smart way");
-                    // smarter way, doesn't involve any hashing!
-                    // to sew up the cone, walk around the invisible part to find the neighbors.
-                    FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
-                    {
-                        Facet oldFacet = (Facet)visibleBoundaryFacets.get(iVisibleBoundary);
-                        int iInvisibleNeighbor = visibleBoundaryNeighborIndex.get(iVisibleBoundary);
-                        Facet invisibleNeighbor = oldFacet.neighbors[iInvisibleNeighbor];
-                        int invisibleNeighborsIndexOfMe = oldFacet.neighborsIndexOfMe[iInvisibleNeighbor];
-                        Facet newFacet = invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe];
-                        if (debugLevel >= 3)
-                            System.out.println("                    looking at oldFacet="+Arrays.toStringCompact(oldFacet.vertInds)+", newFacet="+Arrays.toStringCompact(newFacet.vertInds)+", invisibleNeighbor = "+Arrays.toStringCompact(invisibleNeighbor.vertInds));
-                        // oldFacet still points at the neighbor,
-                        // but the neighbor doesn't point back!
-                        assert(newFacet != oldFacet);
-
-                        FORI (iRidgeThisNewFacet, d)
-                        {
-                            if (newFacet.neighbors[iRidgeThisNewFacet] == null)
-                            {
-                                // Which other new facet
-                                // is across the ridge formed by omitting
-                                // the iRidgeThisNewFacet'th vertex from newFacet?
-                                // Walk around the invisible (i.e. not marked visible) part to find it.
-
-                                Facet thisFacet = oldFacet; // next facet will be invisibleNeighbor
-                                int i0 = iInvisibleNeighbor;
-                                int i1 = iRidgeThisNewFacet;
-                                assert(thisFacet.isVisible == 1);
-
-                                if (debugLevel >= 3)
-                                {
-                                    System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
-                                    System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
-                                    System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
-                                }
-
-                                while (true)
-                                {
-                                    Facet nextFacet = thisFacet.neighbors[i0];
-                                    int j0 = Arrays.indexOf(nextFacet.vertInds, thisFacet.vertInds[i1]);
-                                    int j1 = thisFacet.neighborsIndexOfMe[i0];
-
-                                    thisFacet = nextFacet;
-                                    i0 = j0;
-                                    i1 = j1;
-
                                     if (debugLevel >= 3)
-                                    {
-                                        System.out.println("                        advancing...");
-                                        System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
-                                        System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
-                                        System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
-                                    }
+                                        System.out.println("                                symbolically perturbing new vert out of initial plane");
 
-                                    assert(thisFacet.isVisible == -1  /* was not traversed; implicitly invisible */
-                                        || thisFacet.isVisible == 0   /* was marked invisible */
-                                        || thisFacet.isVisible == 2); /* new */
-                                    if (thisFacet.isVisible == 2) // it's the desired new one!
-                                        break;
+                                    height = VecMath.dot(d, neighbor.unitNormal, symbolicPerturbation);
+                                    assert(!EQ(height, 0., eps));
                                 }
-
-                                // sew newFacet to thisFacet
-                                newFacet.neighbors[iRidgeThisNewFacet] = thisFacet;
-                                newFacet.neighborsIndexOfMe[iRidgeThisNewFacet] = i0;
-                                thisFacet.neighbors[i0] = newFacet;
-                                thisFacet.neighborsIndexOfMe[i0] = iRidgeThisNewFacet;
                             }
-                        } // for iRidgeThisNewFacet
+                            neighbor.isVisible = (GEQ(height, 0., eps) ? 1 : 0); // whether neighbor is visible or borderline visible from vertex
+                            facetSearchList.add(neighbor);
 
-                        // done sewing up this new facet,
-                        // and no other new facet will need this one any more,
-                        // so we can clear the "new" flag,
-                        // and also disconnect it from the invisible neighbor.
-                        assert(newFacet.isVisible == 2); // i.e. "new"
-                        newFacet.isVisible = -1;
-
-                    } // for iVisibleBoundary
-                } // !useTheMap
-                assert(theMap.isEmpty());
-
-                // clear visibility flags of original search list
-                // (visibility flag of new cone has already been cleared...
-                // actually it was conceptually different)
-                FORIDOWN (iFacetInSearchList, facetSearchList.size())
-                    ((Facet)facetSearchList.get(iFacetInSearchList)).isVisible = -1;
-
-                // make sure we filled in everything properly in the new facets
-                FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
-                {
-                    Facet newFacet = hullFacets.get(hullFacets.size()-1-iVisibleBoundary);
-                    // make sure it's all filled in properly,
-                    // and that the "new" flag is cleared.
-                    FORI (iNeighbor, d)
-                    {
-                        assert(newFacet.neighbors[iNeighbor] != null);
-                        assert(newFacet.neighborsIndexOfMe[iNeighbor] != -1);
-                        assert(newFacet.neighbors[iNeighbor].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[iNeighbor]] == iNeighbor);
-                        assert(newFacet.isVisible == -1);
-                    }
-                }
-            }
-            else // bruteForceFlag
-            {
-                // Figure out visible facets,
-                // the brute force way-- look at all facets.
-                FORI (iFacet, nFacetsBefore)
-                {
-                    Facet facetStruct = hullFacets.get(iFacet);
-                    int facet[] = facetStruct.vertInds;
-                    if (debugLevel >= 3)
-                        System.out.println("                    can I see hull facet "+Arrays.toStringCompact(facet)+"?");
-
-                    double facetUnitNormal[] = facetStruct.unitNormal;
-                    VecMath.vmv(scratchVec, verts[iVert], verts[facet[0]]);
-                    double height = VecMath.dot(scratchVec, facetUnitNormal);
-
-                    if (debugLevel >= 3)
-                        System.out.println("                        height = "+height);
-                    if (symbolicPerturbation != null)
-                    {
-                        if (!EQ(height, 0., eps))
-                        {
-                            if (debugLevel >= 3)
-                                System.out.println("                        vert is out of initial plane, killing symbolicPerturbation");
-                            symbolicPerturbation = null; // no need for it any more
+                            if (neighbor.isVisible == 1)
+                                visibleFacets.add(neighbor);
                         }
                         else
                         {
                             if (debugLevel >= 3)
-                                System.out.println("                        symbolically perturbing new vert out of initial plane");
-
-                            height = VecMath.dot(d, facetStruct.unitNormal, symbolicPerturbation);
-                            assert(!EQ(height, 0., eps));
+                                System.out.println("                                (already in list)");
                         }
-                    }
-
-                    if (GEQ(height, 0., eps)) // if facet is visible or borderline visible from vertex
-                    {
-                        if (debugLevel >= 3)
-                            System.out.println("                        it's visible");
-                        visibleFacets.add(facetStruct);
-                        FORI (iRidgeThisFacet, d)
+                        if (neighbor.isVisible == 0)
                         {
-                            // Look at the ridge formed by omitting
-                            // the iRidgeThisFacet'th vertex from the facet
-                            FORI (i, d-1)
-                                scratchRidge[i] = facet[i>=iRidgeThisFacet ? i+1 : i];
-                            SortStuff.sort(scratchRidge); // canonical order
-
-                            if (visibleBoundary.remove(scratchRidgeHashKey) == null)
-                            {
-                                // it wasn't there before-- add it.
-                                IntArrayHashKey ridgeKey = new IntArrayHashKey(VecMath.copyvec(scratchRidge));
-                                int newFacetMaybe[] = VecMath.copyvec(facet);
-                                newFacetMaybe[iRidgeThisFacet] = iVert;
-                                visibleBoundary.put(ridgeKey, newFacetMaybe);
-                                if (debugLevel >= 3)
-                                    System.out.println("                        ridge "+Arrays.toStringCompact(scratchRidge)+" was not on boundary so adding ridge "+Arrays.toStringCompact(scratchRidge));
-                            }
-                            else
-                            {
-                                if (debugLevel >= 3)
-                                    System.out.println("                        removed ridge "+Arrays.toStringCompact(scratchRidge)+" from boundary");
-                            }
+                            if (debugLevel >= 3)
+                                System.out.println("                            invisible, adding boundary ridge");
+                            visibleBoundaryFacets.add(facet);
+                            visibleBoundaryNeighborIndex.add(iNeighbor);
+                        }
+                        else
+                        {
+                            if (debugLevel >= 3)
+                                System.out.println("                        visible");
                         }
                     }
-                    else
-                    {
-                        if (debugLevel >= 3)
-                            System.out.println("                        it's not visible");
-                    }
                 }
+            }
+            // add new facets forming a cone from the visible boundary
+            // to the vertex.
+            FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
+            {
+                Facet oldFacet = (Facet)visibleBoundaryFacets.get(iVisibleBoundary);
+                int iNeighbor = visibleBoundaryNeighborIndex.get(iVisibleBoundary);
 
-                int nVisibleFacets = visibleFacets.size();
+                int newFacetVertInds[] = VecMath.copyvec(oldFacet.vertInds);
+                newFacetVertInds[iNeighbor] = iVert;
+
+                Facet newFacet = new Facet(newFacetVertInds,
+                                           calcUnitNormal(verts, newFacetVertInds),
+                                           new IntArrayList(), // hoveringVerts
+                                           new Facet[d], // neighbors
+                                           VecMath.fillvec(d, -1)); // neighborsIndexOfMe
+                newFacet.isVisible = 2; // "new" (XXX should maybe be a legit bitfield?)
+                Facet invisibleNeighbor = oldFacet.neighbors[iNeighbor];
+                int invisibleNeighborsIndexOfMe = oldFacet.neighborsIndexOfMe[iNeighbor];
+                newFacet.neighbors[iNeighbor] = invisibleNeighbor; // only one known so far
+                newFacet.neighborsIndexOfMe[iNeighbor] = invisibleNeighborsIndexOfMe;
+                invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe] = newFacet;
+                assert(invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe] == iNeighbor);
+                hullFacets.add(newFacet);
+            }
+
+            // to sew up the cone, walk around the invisible part to find the desired neighbors.
+            // doesn't require any hash tables.
+            if (debugLevel >= 3)
+                System.out.println("                sewing up cone the smart way");
+            FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
+            {
+                Facet oldFacet = (Facet)visibleBoundaryFacets.get(iVisibleBoundary);
+                int iInvisibleNeighbor = visibleBoundaryNeighborIndex.get(iVisibleBoundary);
+                Facet invisibleNeighbor = oldFacet.neighbors[iInvisibleNeighbor];
+                int invisibleNeighborsIndexOfMe = oldFacet.neighborsIndexOfMe[iInvisibleNeighbor];
+                Facet newFacet = invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe];
                 if (debugLevel >= 3)
-                {
-                    ArrayList scratch = new ArrayList();
-                    FORI (iVisibleFacet, visibleFacets.size())
-                        scratch.add(((Facet)visibleFacets.get(iVisibleFacet)).vertInds);
-                    System.out.println("                visibleFacets = "+intArrayArrayListToStringCompact(scratch));
-                    System.out.println("                visible boundary size = "+visibleBoundary.size());
-                }
-                assert(nVisibleFacets >= 1); // the facet that iVert was hovering over, at least
+                    System.out.println("                    looking at oldFacet="+Arrays.toStringCompact(oldFacet.vertInds)+", newFacet="+Arrays.toStringCompact(newFacet.vertInds)+", invisibleNeighbor = "+Arrays.toStringCompact(invisibleNeighbor.vertInds));
+                // oldFacet still points at the neighbor,
+                // but the neighbor doesn't point back!
+                assert(newFacet != oldFacet);
 
-                // For each ridge on the visible boundary...
-                for (java.util.Enumeration e = visibleBoundary.keys();
-                     e.hasMoreElements();)
+                FORI (iRidgeThisNewFacet, d)
                 {
-                    IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
-                    int newFacet[] = (int[])visibleBoundary.get(ridgeKey);
-                    IntArrayList hoveringVerts = new IntArrayList();
+                    if (newFacet.neighbors[iRidgeThisNewFacet] == null)
+                    {
+                        // Which other new facet
+                        // is across the ridge formed by omitting
+                        // the iRidgeThisNewFacet'th vertex from newFacet?
+                        // Walk around the invisible (i.e. not marked visible) part to find it.
 
-                    Facet newFacetStruct = new Facet(newFacet,
-                                                     calcUnitNormal(verts, newFacet),
-                                                     hoveringVerts,
-                                                     new Facet[d], // we're in brute force method, we never bother to figure out new facet neighbors
-                                                     new int[d]); // nor back indices
-                    hullFacets.add(newFacetStruct);
+                        Facet thisFacet = oldFacet; // next facet will be invisibleNeighbor
+                        int i0 = iInvisibleNeighbor;
+                        int i1 = iRidgeThisNewFacet;
+                        assert(thisFacet.isVisible == 1);
+
+                        if (debugLevel >= 3)
+                        {
+                            System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
+                            System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
+                            System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
+                        }
+
+                        while (true)
+                        {
+                            Facet nextFacet = thisFacet.neighbors[i0];
+                            int j0 = Arrays.indexOf(nextFacet.vertInds, thisFacet.vertInds[i1]);
+                            int j1 = thisFacet.neighborsIndexOfMe[i0];
+
+                            thisFacet = nextFacet;
+                            i0 = j0;
+                            i1 = j1;
+
+                            if (debugLevel >= 3)
+                            {
+                                System.out.println("                        advancing...");
+                                System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
+                                System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
+                                System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
+                            }
+
+                            assert(thisFacet.isVisible == -1  /* was not traversed; implicitly invisible */
+                                || thisFacet.isVisible == 0   /* was marked invisible */
+                                || thisFacet.isVisible == 2); /* new */
+                            if (thisFacet.isVisible == 2) // it's the desired new one!
+                                break;
+                        }
+
+                        // sew newFacet to thisFacet
+                        newFacet.neighbors[iRidgeThisNewFacet] = thisFacet;
+                        newFacet.neighborsIndexOfMe[iRidgeThisNewFacet] = i0;
+                        thisFacet.neighbors[i0] = newFacet;
+                        thisFacet.neighborsIndexOfMe[i0] = iRidgeThisNewFacet;
+                    }
+                } // for iRidgeThisNewFacet
+
+                // done sewing up this new facet,
+                // and no other new facet will need this one any more,
+                // so we can clear the "new" flag,
+                // and also disconnect it from the invisible neighbor.
+                assert(newFacet.isVisible == 2); // i.e. "new"
+                newFacet.isVisible = -1;
+
+            } // for iVisibleBoundary
+
+
+            // clear visibility flags of original search list
+            // (visibility flag of new cone has already been cleared...
+            // actually it was conceptually different)
+            FORIDOWN (iFacetInSearchList, facetSearchList.size())
+                ((Facet)facetSearchList.get(iFacetInSearchList)).isVisible = -1;
+
+            // make sure we filled in everything properly in the new facets
+            FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
+            {
+                Facet newFacet = hullFacets.get(hullFacets.size()-1-iVisibleBoundary);
+                // make sure it's all filled in properly,
+                // and that the "new" flag is cleared.
+                FORI (iNeighbor, d)
+                {
+                    assert(newFacet.neighbors[iNeighbor] != null);
+                    assert(newFacet.neighborsIndexOfMe[iNeighbor] != -1);
+                    assert(newFacet.neighbors[iNeighbor].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[iNeighbor]] == iNeighbor);
+                    assert(newFacet.isVisible == -1);
                 }
-            } // brute force method
+            }
+
+
 
             int nVisibleFacets = visibleFacets.size();
             assert(nVisibleFacets >= 1); // the facet that iVert was hovering over, at least
@@ -744,9 +597,8 @@ public class ConvexHull
         {
             Facet facet = hullFacets.get(iFacet);
             hullFacetsArray[iFacet] = facet.vertInds;
-            if (!bruteForceFlag)
-                FORI (i, d)
-                    hullAdjacenciesArray[iFacet][i] = facet.neighbors[i].myIndex;
+            FORI (i, d)
+                hullAdjacenciesArray[iFacet][i] = facet.neighbors[i].myIndex;
             backIndsArray[iFacet] = facet.neighborsIndexOfMe;
         }
         if (debugLevel >= 1)
@@ -889,6 +741,8 @@ public class ConvexHull
             return normal;
         }
 
+
+        // only used for sanityCheckConvexHull, not used in actual implementation
         private static class IntArrayHashKey
         {
             private int item[];
@@ -908,14 +762,6 @@ public class ConvexHull
                 return VecMath.equals(this.item, ((IntArrayHashKey)that).item);
             }
         } // class IntArrayHashKey
-
-        // XXX won't be needed when Arrays.toStringCompact gets smarter
-        static String intArrayArrayListToStringCompact(ArrayList arrayList)
-        {
-            int scratch[][] = new int[arrayList.size()][];
-            arrayList.toArray(scratch);
-            return Arrays.toStringCompact(scratch);
-        }
 
 
         // sort the list,
