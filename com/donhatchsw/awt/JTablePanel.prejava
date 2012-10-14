@@ -1,0 +1,19 @@
+package com.donhatchsw.awt;
+
+/**
+ * A JPanel whose layout manager is a {@link TableLayout},
+ * with an advanceRow() method that calls
+ * the layout manager's.
+ */
+public class JTablePanel
+    extends javax.swing.JPanel
+{
+    public JTablePanel()
+    {
+        super(new TableLayout());
+    }
+    public void advanceRow()
+    {
+        ((TableLayout)getLayout()).advanceRow();
+    }
+} // class JTablePanel
