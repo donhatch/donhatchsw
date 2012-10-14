@@ -361,85 +361,174 @@ public class ConvexHull
                 hullFacets.add(newFacet);
             }
 
-            // to sew up the cone, walk around the invisible part to find the desired neighbors.
-            // doesn't require any hash tables.
-            if (debugLevel >= 3)
-                System.out.println("                sewing up cone the smart way");
-            FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
+            if (d == 2)
             {
-                Facet oldFacet = (Facet)visibleBoundaryFacets.get(iVisibleBoundary);
-                int iInvisibleNeighbor = visibleBoundaryNeighborIndex.get(iVisibleBoundary);
-                Facet invisibleNeighbor = oldFacet.neighbors[iInvisibleNeighbor];
-                int invisibleNeighborsIndexOfMe = oldFacet.neighborsIndexOfMe[iInvisibleNeighbor];
-                Facet newFacet = invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe];
+                // The general sewing method would work fine,
+                // but in this case it would be incredibly inefficient...
+                // the "peak" would be (-1)-dimensional,
+                // and it would be walking around the entire invisible back side.
+                // In this case the answer is trivial, so just do it.
                 if (debugLevel >= 3)
-                    System.out.println("                    looking at oldFacet="+Arrays.toStringCompact(oldFacet.vertInds)+", newFacet="+Arrays.toStringCompact(newFacet.vertInds)+", invisibleNeighbor = "+Arrays.toStringCompact(invisibleNeighbor.vertInds));
-                // oldFacet still points at the neighbor,
-                // but the neighbor doesn't point back!
-                assert(newFacet != oldFacet);
-
-                FORI (iRidgeThisNewFacet, d)
+                    System.out.println("                sewing up cone the trivial way");
+                assert(visibleBoundaryFacets.size() == 2);
+                Facet oldFacet0 = (Facet)visibleBoundaryFacets.get(0);
+                Facet oldFacet1 = (Facet)visibleBoundaryFacets.get(1);
+                int iInvisibleNeighbor0 = visibleBoundaryNeighborIndex.get(0);
+                int iInvisibleNeighbor1 = visibleBoundaryNeighborIndex.get(1);
+                Facet invisibleNeighbor0 = oldFacet0.neighbors[iInvisibleNeighbor0];
+                Facet invisibleNeighbor1 = oldFacet1.neighbors[iInvisibleNeighbor1];
+                int invisibleNeighborsIndexOfMe0 = oldFacet0.neighborsIndexOfMe[iInvisibleNeighbor0];
+                int invisibleNeighborsIndexOfMe1 = oldFacet1.neighborsIndexOfMe[iInvisibleNeighbor1];
+                Facet newFacet0 = invisibleNeighbor0.neighbors[invisibleNeighborsIndexOfMe0];
+                Facet newFacet1 = invisibleNeighbor1.neighbors[invisibleNeighborsIndexOfMe1];
+                if (debugLevel >= 3)
                 {
-                    if (newFacet.neighbors[iRidgeThisNewFacet] == null)
+                    System.out.println("                    looking at oldFacet0="+Arrays.toStringCompact(oldFacet0.vertInds)+", newFacet0="+Arrays.toStringCompact(newFacet0.vertInds)+", invisibleNeighbor0 = "+Arrays.toStringCompact(invisibleNeighbor0.vertInds));
+                    System.out.println("                    looking at oldFacet1="+Arrays.toStringCompact(oldFacet1.vertInds)+", newFacet1="+Arrays.toStringCompact(newFacet1.vertInds)+", invisibleNeighbor1 = "+Arrays.toStringCompact(invisibleNeighbor1.vertInds));
+                }
+                assert(newFacet0 != oldFacet0);
+                assert(newFacet1 != oldFacet1);
+
+                assert(newFacet0.neighbors[1-iInvisibleNeighbor0] == null);
+                assert(newFacet1.neighbors[1-iInvisibleNeighbor1] == null);
+                newFacet0.neighbors[1-iInvisibleNeighbor0] = newFacet1;
+                newFacet1.neighbors[1-iInvisibleNeighbor1] = newFacet0;
+                newFacet0.neighborsIndexOfMe[1-iInvisibleNeighbor0] = 1-iInvisibleNeighbor1;
+                newFacet1.neighborsIndexOfMe[1-iInvisibleNeighbor1] = 1-iInvisibleNeighbor0;
+
+                assert(newFacet0.isVisible == 2); // i.e. "new"
+                assert(newFacet1.isVisible == 2); // i.e. "new"
+                newFacet0.isVisible = -1;
+                newFacet1.isVisible = -1;
+            }
+            else // d >= 3
+            {
+                // to sew up the cone, walk around the invisible part to find the desired neighbors.
+                // doesn't require any hash tables.
+                if (debugLevel >= 3)
+                    System.out.println("                sewing up cone the smart way");
+                FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
+                {
+                    Facet oldFacet = (Facet)visibleBoundaryFacets.get(iVisibleBoundary);
+                    int iInvisibleNeighbor = visibleBoundaryNeighborIndex.get(iVisibleBoundary);
+                    Facet invisibleNeighbor = oldFacet.neighbors[iInvisibleNeighbor];
+                    int invisibleNeighborsIndexOfMe = oldFacet.neighborsIndexOfMe[iInvisibleNeighbor];
+                    Facet newFacet = invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe];
+                    if (debugLevel >= 3)
+                        System.out.println("                    looking at oldFacet="+Arrays.toStringCompact(oldFacet.vertInds)+", newFacet="+Arrays.toStringCompact(newFacet.vertInds)+", invisibleNeighbor = "+Arrays.toStringCompact(invisibleNeighbor.vertInds));
+                    // oldFacet still points at the neighbor,
+                    // but the neighbor doesn't point back!
+                    assert(newFacet != oldFacet);
+
+                    FORI (iRidgeThisNewFacet, d)
                     {
-                        // Which other new facet
-                        // is across the ridge formed by omitting
-                        // the iRidgeThisNewFacet'th vertex from newFacet?
-                        // Walk around the invisible (i.e. not marked visible) part to find it.
-
-                        Facet thisFacet = oldFacet; // next facet will be invisibleNeighbor
-                        int i0 = iInvisibleNeighbor;
-                        int i1 = iRidgeThisNewFacet;
-                        assert(thisFacet.isVisible == 1);
-
-                        if (debugLevel >= 3)
+                        if (newFacet.neighbors[iRidgeThisNewFacet] == null)
                         {
-                            System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
-                            System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
-                            System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
-                        }
-
-                        while (true)
-                        {
-                            Facet nextFacet = thisFacet.neighbors[i0];
-                            int j0 = Arrays.indexOf(nextFacet.vertInds, thisFacet.vertInds[i1]);
-                            int j1 = thisFacet.neighborsIndexOfMe[i0];
-
-                            thisFacet = nextFacet;
-                            i0 = j0;
-                            i1 = j1;
+                            // Which other new facet
+                            // is across the ridge formed by omitting
+                            // the iRidgeThisNewFacet'th vertex from newFacet?
+                            // Walk around the invisible (i.e. not marked visible) part,
+                            // around the peak, til we find another new facet; that's it.
+                            //            *-------------*
+                            //           / \  (invis)  / \
+                            //          /   \         /   \
+                            //         /     \       /     \
+                            //        /       \     /(invis)\
+                            //       /invisible\   /         \
+                            //      / Neighbor  \ /           \
+                            //     *=============*=============*
+                            //   i1 \  (vis)    / \   (vis)   /
+                            //       \oldFacet /   \         /
+                            //        \       /     \       /
+                            //         \     /       \     /
+                            //          \   /         \   /
+                            //           \ /  (invis)  \ /
+                            //         i0 *-------------*
+                            Facet thisFacet = oldFacet; // next facet will be invisibleNeighbor
+                            int i0 = iInvisibleNeighbor;
+                            int i1 = iRidgeThisNewFacet;
+                            assert(thisFacet.isVisible == 1);
 
                             if (debugLevel >= 3)
                             {
-                                System.out.println("                        advancing...");
                                 System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
                                 System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
                                 System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
                             }
 
-                            assert(thisFacet.isVisible == -1  /* was not traversed; implicitly invisible */
-                                || thisFacet.isVisible == 0   /* was marked invisible */
-                                || thisFacet.isVisible == 2); /* new */
-                            if (thisFacet.isVisible == 2) // it's the desired new one!
-                                break;
+                            while (true)
+                            {
+                                // TODO: which of the following new pics do I like better?
+                                //            i0           i1
+                                //            *-------------* j0
+                                //           / \  (invis)  / \
+                                //          /   \thisFacet/   \
+                                //         /     \       /     \
+                                //        /       \     /(invis)\
+                                //       /         \   /nextFacet\
+                                //      /           \ /           \ j1
+                                //     *=============*=============*
+                                //      \           : :           /
+                                //       \newFacet :   :other new/
+                                //        \       :     :       /
+                                //         \     :       :     /
+                                //          \   :<--sew-->:   /
+                                //           \ :           : /
+                                //            *             *
+                                //
+                                //            i0           i1
+                                //            *-------------* j0
+                                //           / \  (invis)  / \
+                                //          /   \thisFacet/   \
+                                //         /     \       /     \
+                                //        /       \     /(invis)\
+                                //       /         \   /nextFacet\
+                                //      /           \ /           \ j1
+                                //     *=============*=============*
+                                //      \           : :           /
+                                //       \ newFacet : : other new/
+                                //        \         : :         /
+                                //         \        : :        /
+                                Facet nextFacet = thisFacet.neighbors[i0];
+                                int j0 = Arrays.indexOf(nextFacet.vertInds, thisFacet.vertInds[i1]);
+                                int j1 = thisFacet.neighborsIndexOfMe[i0];
+
+                                thisFacet = nextFacet;
+                                i0 = j0;
+                                i1 = j1;
+
+                                if (debugLevel >= 3)
+                                {
+                                    System.out.println("                        advancing...");
+                                    System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
+                                    System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
+                                    System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
+                                }
+
+                                assert(thisFacet.isVisible == -1  /* was not traversed; implicitly invisible */
+                                    || thisFacet.isVisible == 0   /* was marked invisible */
+                                    || thisFacet.isVisible == 2); /* new */
+                                if (thisFacet.isVisible == 2) // it's the desired new one!
+                                    break;
+                            }
+
+                            // sew newFacet to thisFacet
+                            newFacet.neighbors[iRidgeThisNewFacet] = thisFacet;
+                            newFacet.neighborsIndexOfMe[iRidgeThisNewFacet] = i0;
+                            thisFacet.neighbors[i0] = newFacet;
+                            thisFacet.neighborsIndexOfMe[i0] = iRidgeThisNewFacet;
                         }
+                    } // for iRidgeThisNewFacet
 
-                        // sew newFacet to thisFacet
-                        newFacet.neighbors[iRidgeThisNewFacet] = thisFacet;
-                        newFacet.neighborsIndexOfMe[iRidgeThisNewFacet] = i0;
-                        thisFacet.neighbors[i0] = newFacet;
-                        thisFacet.neighborsIndexOfMe[i0] = iRidgeThisNewFacet;
-                    }
-                } // for iRidgeThisNewFacet
+                    // done sewing up this new facet,
+                    // and no other new facet will need this one any more,
+                    // so we can clear the "new" flag,
+                    // and also disconnect it from the invisible neighbor. (XXX not doing that, probably doesn't matter)
+                    assert(newFacet.isVisible == 2); // i.e. "new"
+                    newFacet.isVisible = -1;
 
-                // done sewing up this new facet,
-                // and no other new facet will need this one any more,
-                // so we can clear the "new" flag,
-                // and also disconnect it from the invisible neighbor.
-                assert(newFacet.isVisible == 2); // i.e. "new"
-                newFacet.isVisible = -1;
-
-            } // for iVisibleBoundary
+                } // for iVisibleBoundary
+            } // d >= 3
 
 
             // clear visibility flags of original search list
@@ -942,12 +1031,15 @@ public class ConvexHull
         FORI (iVert, verts.length)
             assert(verts[iVert].length == d);
 
+        long t0 = System.currentTimeMillis();
         int answer[][][] = convexHull(verts, 1e-11); // argh! 1e-12 made it fail in real life with brute force method (test case below), 1e-9 made it fail randomized confidence test, 1e-10 and coarser made it fail in real life using either method (test case below)
+        long t1 = System.currentTimeMillis();
         assert(answer.length == 3);
         int hull[][] = answer[0];
         int adjs[][] = answer[1];
         int back[][] = answer[2];
         assert(hull.length == adjs.length);
+        System.err.println("convex hull of "+verts.length+" verts in "+d+"d returned "+hull.length+" simplices in "+(t1-t0)/1000.+" secs.");
 
         PRINTARRAY(hull);
         PRINTARRAY(adjs);
@@ -966,6 +1058,26 @@ public class ConvexHull
     {
         if (true)
         {
+            // Do a regular polygon in 2d.
+            //debugLevel = 3;
+            //for (int nVerts = 2; nVerts <= 100; ++nVerts)
+            for (int nVerts = 5000; nVerts <= 5000; ++nVerts)
+            {
+                PRINT(nVerts);
+                int d = 2;
+                double verts[][] = new double[nVerts][d];
+                FORI (iVert, nVerts)
+                {
+                    double angle = iVert * (2*Math.PI/nVerts);
+                    verts[iVert][0] = Math.cos(angle);
+                    verts[iVert][1] = Math.sin(angle);
+                }
+                int hull[][] = testTheseVerts(d, verts);
+                assert(hull.length == nVerts);
+            }
+        }
+        if (true)
+        {
             // Regular tet in 3d. Simple.
             //debugLevel = 3;
             double verts[][] = {
@@ -982,8 +1094,7 @@ public class ConvexHull
             // Regular pentagon in 3d was omitting a point.
             // Test regular polygons in 3d, 2 to 100 sides.
             //debugLevel = 3;
-            //for (int nVerts = 2; nVerts <= 100; ++nVerts)
-            for (int nVerts = 5; nVerts <= 100; ++nVerts)
+            for (int nVerts = 2; nVerts <= 100; ++nVerts)
             {
                 PRINT(nVerts);
                 int d = 3;
