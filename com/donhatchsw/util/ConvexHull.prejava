@@ -18,6 +18,7 @@ public class ConvexHull
     public static int debugLevel = 0;
 
     public static boolean bruteForceFlag = false; // XXX currently undocumented
+    public static boolean useTheMap = true; // XXX currently undocumented, and only looked at if bruteForceFlag=false
 
     /**
     * Computes the convex hull in d dimensions,
@@ -235,17 +236,26 @@ public class ConvexHull
 
 
 
-        ArrayList visibleFacets = new ArrayList(); // scratch, logically local to loop body below
+        //
+        // All of the following are scratch, logically local to loop body below.
+        //
+        ArrayList visibleFacets = new ArrayList();
 
-        ArrayList visibleBoundaryFacets = new ArrayList(); // scratch, logically local to loop body below
-        IntArrayList visibleBoundaryNeighborIndex = new IntArrayList(); // scratch, logically local to loop body below
-
-        java.util.Hashtable visibleBoundary = new java.util.Hashtable(); // scratch, logically local to loop body below.  only used in brute force method.
-        ArrayList facetSearchList = new ArrayList(); // scratch, logically local to loop body below
         int scratchRidge[] = new int[d-1];
+
+        // ONLY USED IN NON-BRUTE-FORCE METHOD...
+        ArrayList visibleBoundaryFacets = new ArrayList();
+        IntArrayList visibleBoundaryNeighborIndex = new IntArrayList();
+        ArrayList facetSearchList = new ArrayList();
         // theMap is a map from ridge vert inds (in canonical order) to pair {facet, iNeighbor}.
-        java.util.HashMap theMap = new java.util.HashMap(); // scratch, logically local to loop body below
+        java.util.HashMap theMap = new java.util.HashMap();
         IntArrayHashKey scratchRidgeHashKey = new IntArrayHashKey(scratchRidge);
+
+        // ONLY USED IN BRUTE FORCE METHOD...
+
+        java.util.Hashtable visibleBoundary = new java.util.Hashtable(); // scratch, logically local to loop body below.
+
+
         if (debugLevel >= 2)
         {
             System.out.println("        servicing the queue");
@@ -338,15 +348,8 @@ public class ConvexHull
                         }
                     }
                 }
-                // clear visibility flags
-                FORIDOWN (iFacetInSearchList, facetSearchList.size())
-                    ((Facet)facetSearchList.get(iFacetInSearchList)).isVisible = -1;
-
                 // add new facets forming a cone from the visible boundary
                 // to the vertex.
-                // First, we put them in oriented backwards (it's easier to
-                // get the indices straight that way), then we flip them
-                // all by swapping index 0 with index 1.
                 theMap.clear();
                 FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
                 {
@@ -361,60 +364,155 @@ public class ConvexHull
                                                new IntArrayList(), // hoveringVerts
                                                new Facet[d], // neighbors
                                                VecMath.fillvec(d, -1)); // neighborsIndexOfMe
+                    if (!useTheMap)
+                        newFacet.isVisible = 2; // "new" (XXX should maybe be a legit bitfield?)
                     Facet invisibleNeighbor = oldFacet.neighbors[iNeighbor];
                     int invisibleNeighborsIndexOfMe = oldFacet.neighborsIndexOfMe[iNeighbor];
                     newFacet.neighbors[iNeighbor] = invisibleNeighbor; // only one known so far
                     newFacet.neighborsIndexOfMe[iNeighbor] = invisibleNeighborsIndexOfMe;
                     invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe] = newFacet;
                     assert(invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe] == iNeighbor);
-                    FORI (iRidgeThisNewFacet, d)
-                    {
-                        if (newFacet.neighbors[iRidgeThisNewFacet] == null)
-                        {
-                            // Look at the ridge formed by omitting
-                            // the iRidgeThisNewFacet'th vertex from newFacet
-                            FORI (i, d-1)
-                                scratchRidge[i] = newFacet.vertInds[i>=iRidgeThisNewFacet ? i+1 : i];
-                            SortStuff.sort(scratchRidge); // canonical order
 
-                            Object value[] = (Object[])theMap.remove(scratchRidgeHashKey);
-                            if (value != null)
+                    if (useTheMap)
+                    {
+                        FORI (iRidgeThisNewFacet, d)
+                        {
+                            if (newFacet.neighbors[iRidgeThisNewFacet] == null)
                             {
-                                Facet neighbor = (Facet)value[0];
-                                int neighborsIndexOfMe = ((Integer)value[1]).intValue();
-                                newFacet.neighbors[iRidgeThisNewFacet] = neighbor;
-                                newFacet.neighborsIndexOfMe[iRidgeThisNewFacet] = neighborsIndexOfMe;
-                                neighbor.neighbors[neighborsIndexOfMe] = newFacet;
-                                neighbor.neighborsIndexOfMe[neighborsIndexOfMe] = iRidgeThisNewFacet;
-                            }
-                            else
-                            {
-                                // it wasn't there before-- add it.
-                                IntArrayHashKey ridgeKey = new IntArrayHashKey(VecMath.copyvec(scratchRidge));
-                                theMap.put(ridgeKey, new Object[]{newFacet, new Integer(iRidgeThisNewFacet)});
+                                // Look at the ridge formed by omitting
+                                // the iRidgeThisNewFacet'th vertex from newFacet
+                                FORI (i, d-1)
+                                    scratchRidge[i] = newFacet.vertInds[i>=iRidgeThisNewFacet ? i+1 : i];
+                                SortStuff.sort(scratchRidge); // canonical order
+
+                                Object value[] = (Object[])theMap.remove(scratchRidgeHashKey);
+                                if (value != null)
+                                {
+                                    Facet neighbor = (Facet)value[0];
+                                    int neighborsIndexOfMe = ((Integer)value[1]).intValue();
+                                    newFacet.neighbors[iRidgeThisNewFacet] = neighbor;
+                                    newFacet.neighborsIndexOfMe[iRidgeThisNewFacet] = neighborsIndexOfMe;
+                                    neighbor.neighbors[neighborsIndexOfMe] = newFacet;
+                                    neighbor.neighborsIndexOfMe[neighborsIndexOfMe] = iRidgeThisNewFacet;
+                                }
+                                else
+                                {
+                                    // it wasn't there before-- add it.
+                                    IntArrayHashKey ridgeKey = new IntArrayHashKey(VecMath.copyvec(scratchRidge));
+                                    theMap.put(ridgeKey, new Object[]{newFacet, new Integer(iRidgeThisNewFacet)});
+                                }
                             }
                         }
                     }
 
                     hullFacets.add(newFacet);
                 }
+                if (!useTheMap)
+                {
+                    if (debugLevel >= 3)
+                        System.out.println("                sewing up cone the smart way");
+                    // smarter way, doesn't involve any hashing!
+                    // to sew up the cone, walk around the invisible part to find the neighbors.
+                    FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
+                    {
+                        Facet oldFacet = (Facet)visibleBoundaryFacets.get(iVisibleBoundary);
+                        int iInvisibleNeighbor = visibleBoundaryNeighborIndex.get(iVisibleBoundary);
+                        Facet invisibleNeighbor = oldFacet.neighbors[iInvisibleNeighbor];
+                        int invisibleNeighborsIndexOfMe = oldFacet.neighborsIndexOfMe[iInvisibleNeighbor];
+                        Facet newFacet = invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe];
+                        if (debugLevel >= 3)
+                            System.out.println("                    looking at oldFacet="+Arrays.toStringCompact(oldFacet.vertInds)+", newFacet="+Arrays.toStringCompact(newFacet.vertInds)+", invisibleNeighbor = "+Arrays.toStringCompact(invisibleNeighbor.vertInds));
+                        // oldFacet still points at the neighbor,
+                        // but the neighbor doesn't point back!
+                        assert(newFacet != oldFacet);
+
+                        FORI (iRidgeThisNewFacet, d)
+                        {
+                            if (newFacet.neighbors[iRidgeThisNewFacet] == null)
+                            {
+                                // Which other new facet
+                                // is across the ridge formed by omitting
+                                // the iRidgeThisNewFacet'th vertex from newFacet?
+                                // Walk around the invisible (i.e. not marked visible) part to find it.
+
+                                Facet thisFacet = oldFacet; // next facet will be invisibleNeighbor
+                                int i0 = iInvisibleNeighbor;
+                                int i1 = iRidgeThisNewFacet;
+                                assert(thisFacet.isVisible == 1);
+
+                                if (debugLevel >= 3)
+                                {
+                                    System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
+                                    System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
+                                    System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
+                                }
+
+                                while (true)
+                                {
+                                    Facet nextFacet = thisFacet.neighbors[i0];
+                                    int j0 = Arrays.indexOf(nextFacet.vertInds, thisFacet.vertInds[i1]);
+                                    int j1 = thisFacet.neighborsIndexOfMe[i0];
+
+                                    thisFacet = nextFacet;
+                                    i0 = j0;
+                                    i1 = j1;
+
+                                    if (debugLevel >= 3)
+                                    {
+                                        System.out.println("                        advancing...");
+                                        System.out.println("                            thisFacet = "+Arrays.toStringCompact(thisFacet.vertInds));
+                                        System.out.println("                            thisFacet[i0="+i0+"] = "+thisFacet.vertInds[i0]);
+                                        System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
+                                    }
+
+                                    assert(thisFacet.isVisible == -1  /* was not traversed; implicitly invisible */
+                                        || thisFacet.isVisible == 0   /* was marked invisible */
+                                        || thisFacet.isVisible == 2); /* new */
+                                    if (thisFacet.isVisible == 2) // it's the desired new one!
+                                        break;
+                                }
+
+                                // sew newFacet to thisFacet
+                                newFacet.neighbors[iRidgeThisNewFacet] = thisFacet;
+                                newFacet.neighborsIndexOfMe[iRidgeThisNewFacet] = i0;
+                                thisFacet.neighbors[i0] = newFacet;
+                                thisFacet.neighborsIndexOfMe[i0] = iRidgeThisNewFacet;
+                            }
+                        } // for iRidgeThisNewFacet
+
+                        // done sewing up this new facet,
+                        // and no other new facet will need this one any more,
+                        // so we can clear the "new" flag,
+                        // and also disconnect it from the invisible neighbor.
+                        assert(newFacet.isVisible == 2); // i.e. "new"
+                        newFacet.isVisible = -1;
+
+                    } // for iVisibleBoundary
+                } // !useTheMap
                 assert(theMap.isEmpty());
 
-                // make sure we filled in everything properly,
-                // and flip orientations of the cone of new facets.
+                // clear visibility flags of original search list
+                // (visibility flag of new cone has already been cleared...
+                // actually it was conceptually different)
+                FORIDOWN (iFacetInSearchList, facetSearchList.size())
+                    ((Facet)facetSearchList.get(iFacetInSearchList)).isVisible = -1;
+
+                // make sure we filled in everything properly in the new facets
                 FORIDOWN (iVisibleBoundary, visibleBoundaryFacets.size())
                 {
                     Facet newFacet = hullFacets.get(hullFacets.size()-1-iVisibleBoundary);
-                    // make sure it's all filled in properly...
-                    FORI (i, d)
+                    // make sure it's all filled in properly,
+                    // and that the "new" flag is cleared.
+                    FORI (iNeighbor, d)
                     {
-                        assert(newFacet.neighbors[i] != null);
-                        assert(newFacet.neighborsIndexOfMe[i] != -1);
-                        assert(newFacet.neighbors[i].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[i]] == i);
+                        assert(newFacet.neighbors[iNeighbor] != null);
+                        assert(newFacet.neighborsIndexOfMe[iNeighbor] != -1);
+                        assert(newFacet.neighbors[iNeighbor].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[iNeighbor]] == iNeighbor);
+                        assert(newFacet.isVisible == -1);
                     }
                 }
             }
-            else
+            else // bruteForceFlag
             {
                 // Figure out visible facets,
                 // the brute force way-- look at all facets.
@@ -595,7 +693,7 @@ public class ConvexHull
                         queue.remove(jVert);
                     }
                 }
-            }
+            } // FORI (iVisibleFacet, nVisibleFacets)
 
             // Remove the visible facets from the hull
             FORI (iVisibleFacet, nVisibleFacets)
@@ -1022,10 +1120,24 @@ public class ConvexHull
     {
         if (true)
         {
+            // Regular tet in 3d. Simple.
+            //debugLevel = 3;
+            double verts[][] = {
+                {1,-1,-1},
+                {-1,1,-1},
+                {-1,-1,1},
+                {1,1,1},
+            };
+            int hull[][] = testTheseVerts(3, verts);
+            assert(hull.length == 4);
+        }
+        if (true)
+        {
             // Regular pentagon in 3d was omitting a point.
             // Test regular polygons in 3d, 2 to 100 sides.
             //debugLevel = 3;
-            for (int nVerts = 2; nVerts <= 100; ++nVerts)
+            //for (int nVerts = 2; nVerts <= 100; ++nVerts)
+            for (int nVerts = 5; nVerts <= 100; ++nVerts)
             {
                 PRINT(nVerts);
                 int d = 3;
