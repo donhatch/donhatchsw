@@ -88,7 +88,7 @@ public abstract class Listenable
             // Some people recommend removing listeners that throw,
             // but I think that's too harsh, since it's often
             // a temporary condition.
-            // However, we do need to make sure we get to all the listeners.
+            // However, we do need to make sure we notify all the listeners.
             Throwable lastCaught = null;
 
             int n = listeners.size();
