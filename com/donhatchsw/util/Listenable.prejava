@@ -83,44 +83,65 @@ public abstract class Listenable
 
     protected void notifyListenersThatValueChanged()
     {
-        synchronized(listeners) // XXX this should be a read-only synchronization that allows multiple readers to run simultaneously, if I can figure out how to do that
+        synchronized(listeners) // XXX this should be a read-only synchronization that allows multiple readers to run simultaneously, if I can figure out how to do that.  actually if I do that, need to change to full synchronization if it looks like we have to modify it.  copy-on-write?
         {
+            // Some people recommend removing listeners that throw,
+            // but I think that's too harsh, since it's often
+            // a temporary condition.
+            // However, we do need to make sure we get to all the listeners.
+            Throwable lastCaught = null;
+
             int n = listeners.size();
-            int nLapsedListeners = 0;
+            int nOut = 0;
             for (int i = 0; i < n; ++i)
             {
+                Object listenerRef = listeners.get(i);
+                Listener listener = null;
                 if (useWeakRefs)
                 {
-                    java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
-                    Listener listener = (Listener)wr.get();
-                    if (listener != null)
-                        listener.valueChanged();
-                    else
-                        nLapsedListeners++;
+                    listener = (Listener)((java.lang.ref.WeakReference)listenerRef).get();
+                    if (listener == null)
+                        System.out.println("WARNING: Listenable.Listener.notifyListenersThatValueChanged: CLEARING LAPSED LISTENER");
                 }
                 else
-                    ((Listener)listeners.get(i)).valueChanged();
-            }
-            if (nLapsedListeners > 0)
-            {
-                System.out.println("CLEARING "+nLapsedListeners+" LAPSED LISTENER"+(nLapsedListeners==1?"":"S")+"!");
-                assert(!useWeakRefs); // XXX is this a mistake??? looks like it
-                synchronized(listeners) // XXX this is the part that needs a real synchronize
+                    listener = (Listener)listenerRef;
+                if (listener != null)
                 {
-                    int nOut = 0;
-                    for (int i = 0; i < n; ++i)
+                    try
                     {
-                        java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
-                        if (wr.get() != null)
-                            listeners.set(nOut++, wr);
+                        listener.valueChanged();
                     }
-                    // listeners.removeRange(nOut, n); // ARGH! removeRange is protected, see http://forum.java.sun.com/thread.jspa?threadID=5121683&messageID=9425625 for a laugh
-                    while (n > nOut)
-                        listeners.remove(--n);
+                    catch (Throwable e)
+                    {
+                        if (lastCaught != null)
+                        {
+                            System.err.println("(Listenable.notifyListenersThatValueChanged: printing previous caught)");
+                            System.err.print("Exception in Listenable.notifyListenersThatValueChanged listener: ");
+                            lastCaught.printStackTrace();
+                        }
+                        lastCaught = e;
+                    }
+                    if (nOut++ != i)
+                        listeners.set(nOut-1, listenerRef);
                 }
             }
+            // listeners.removeRange(nOut, n); // ARGH! removeRange is protected, see http://stackoverflow.com/questions/2289183/why-is-javas-abstractlists-removerange-method-protected for a laugh
+            while (n > nOut)
+                listeners.remove(--n);
+
+            if (lastCaught != null)
+            {
+                System.err.println("(Listenable.notifyListenersThatValueChanged: re-throwing last caught)");
+                // can't just throw Throwable; can only throw unchecked exceptions
+                if (lastCaught instanceof RuntimeException)
+                    throw (RuntimeException)lastCaught;
+                else if (lastCaught instanceof Error)
+                    throw (Error)lastCaught;
+                else
+                    assert(false); // all unchecked exceptions are RuntimeError or Error, this shouldn't happen
+            }
         }
-    }
+    } // notifyListenersThatValueChanged
 
     public static class Boolean extends Listenable
     {
