@@ -21,12 +21,12 @@ import java.awt.GridBagConstraints;
  * Subclasses should implement the protected abstract method setNextGridxy(),
  * which defines what RELATIVE actually means in that subclass.
  * <p>
- * Also see the subclasses TableLayout, RowLayout and ColLayout,
+ * Also see the concrete subclasses TableLayout, RowLayout and ColLayout,
  * and the convenience classes TablePanel, Row, Col, JTablePanel, JRow, JCol.
- * XXX not written yet
  * <p>
  * There are convenience methods for expressing the most common
- * calls to add:
+ * calls to add (they make a GridBagConstraints out of the given
+ * args, and call container.add(component, gridBagConstraints):
  * <ul>
  *     <li> add(container, component, fill)
  *     <li> add(container, component, gridx, gridy)
@@ -45,7 +45,7 @@ public abstract class GridBagLayoutInWhichRELATIVEMeansSomethingUseful extends G
     // If this breaks anything, it was already broken anyway :-)
     private static GridBagConstraints scratchConstraints = new GridBagConstraints();
     private static void copyGridBagConstraints(java.awt.GridBagConstraints to,
-                                                 java.awt.GridBagConstraints from)
+                                               java.awt.GridBagConstraints from)
     {
         to.gridx = from.gridx;
         to.gridy = from.gridy;
