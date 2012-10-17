@@ -147,8 +147,8 @@ public class ConvexHull
         if (firstFacetUnsignedArea <= Math.pow(eps, d-1))
         {
             if (debugLevel >= 1)
-                System.out.println("    out convexHull (firstFacetUnsignedArea = "+firstFacetUnsignedArea+" <= eps ^ d-1, returning null)");
-            return null; // XXX throw?
+                System.out.println("    out convexHull (firstFacetUnsignedArea = "+firstFacetUnsignedArea+" <= eps ^ d-1, returning empty)");
+            return new int[3][0][d]; // XXX throw?
         }
         double firstFacetUnitNormal[] = calcUnitNormal(verts, firstHullFacet);
         VecMath.normalize(firstFacetUnitNormal, firstFacetUnitNormal);
@@ -208,8 +208,30 @@ public class ConvexHull
 
             VecMath.vmv(scratchVec, verts[iVert], verts[firstHullFacet[0]]);
             double height = VecMath.dot(firstFacetUnitNormal, scratchVec);
+            double perturbedHeight = height;
 
-            if (height >= 0.)
+            if (symbolicPerturbation != null)
+            {
+                if (!EQ(height, 0., eps))
+                {
+                    if (debugLevel >= 3)
+                        System.out.println("                                vert is out of initial plane, killing symbolicPerturbation");
+                    symbolicPerturbation = null; // no need for it any more
+                }
+                else
+                {
+                    if (debugLevel >= 3)
+                    {
+                        System.out.println("            symbolically perturbing new vert out of initial plane!");
+                        PRINTARRAY(symbolicPerturbation);
+                    }
+
+                    perturbedHeight = VecMath.dot(d, firstFacetUnitNormal, symbolicPerturbation);
+                    assert(!EQ(perturbedHeight, 0., eps));
+                }
+            }
+
+            if (perturbedHeight >= 0.)
             {
                 firstHullFacetStruct.hoveringVerts.add(iVert);
                 hoveringVertToFacet[iVert] = firstHullFacetStruct;
@@ -224,7 +246,7 @@ public class ConvexHull
                 if (debugLevel >= 3)
                     System.out.println("            vertex "+iVert+" is hovering at height "+height+" over facet "+Arrays.toStringCompact(secondHullFacet));
             }
-            assert(height >= 0.);
+            assert(GEQ(height, 0., eps));
             queue.add(iVert, -height); // reverse sense so we can extract max height item as min item
         }
 
@@ -293,6 +315,7 @@ public class ConvexHull
                                 System.out.println("                                (not in list, computing visibility)");
                             VecMath.vmv(scratchVec, verts[iVert], verts[neighbor.vertInds[0]]);
                             double height = VecMath.dot(scratchVec, neighbor.unitNormal);
+                            double perturbedHeight = height;
                             if (symbolicPerturbation != null)
                             {
                                 if (!EQ(height, 0., eps))
@@ -304,13 +327,18 @@ public class ConvexHull
                                 else
                                 {
                                     if (debugLevel >= 3)
-                                        System.out.println("                                symbolically perturbing new vert out of initial plane");
+                                    {
+                                        System.out.println("                                symbolically perturbing new vert out of initial plane!");
+                                        PRINTARRAY(symbolicPerturbation);
+                                    }
 
-                                    height = VecMath.dot(d, neighbor.unitNormal, symbolicPerturbation);
-                                    assert(!EQ(height, 0., eps));
+                                    perturbedHeight = VecMath.dot(d, neighbor.unitNormal, symbolicPerturbation);
+                                    assert(!EQ(perturbedHeight, 0., eps));
                                 }
                             }
-                            neighbor.isVisible = (GEQ(height, 0., eps) ? 1 : 0); // whether neighbor is visible or borderline visible from vertex
+                            if (debugLevel >= 3)
+                                System.out.println("                                (height="+height+")");
+                            neighbor.isVisible = (GEQ(perturbedHeight, 0., eps) ? 1 : 0); // whether neighbor is visible or borderline visible from vertex
                             facetSearchList.add(neighbor);
 
                             if (neighbor.isVisible == 1)
@@ -368,8 +396,12 @@ public class ConvexHull
                 // the "peak" would be (-1)-dimensional,
                 // and it would be walking around the entire invisible back side.
                 // In this case the answer is trivial, so just do it.
+                // XXX TODO: argh, it's still inefficient for a cone with large polygonal base, for example.  go back to hash table? bleah!
                 if (debugLevel >= 3)
+                {
                     System.out.println("                sewing up cone the trivial way");
+                    PRINT(visibleBoundaryFacets.size());
+                }
                 assert(visibleBoundaryFacets.size() == 2);
                 Facet oldFacet0 = (Facet)visibleBoundaryFacets.get(0);
                 Facet oldFacet1 = (Facet)visibleBoundaryFacets.get(1);
@@ -589,6 +621,7 @@ public class ConvexHull
                         double facetUnitNormal[] = newFacetStruct.unitNormal;
                         VecMath.vmv(scratchVec, verts[jVert], verts[newFacet[0]]);
                         double height = VecMath.dot(d, scratchVec, facetUnitNormal);
+                        double perturbedHeight = height;
                         if (symbolicPerturbation != null)
                         {
                             if (!EQ(height, 0., eps))
@@ -602,13 +635,13 @@ public class ConvexHull
                                 if (debugLevel >= 3)
                                     System.out.println("                        symbolically perturbing new vert out of initial plane");
 
-                                height = VecMath.dot(d, symbolicPerturbation, facetUnitNormal);
-                                assert(!EQ(height, 0., eps));
+                                perturbedHeight = VecMath.dot(d, symbolicPerturbation, facetUnitNormal);
+                                assert(!EQ(perturbedHeight, 0., eps));
                             }
                         }
 
                         if (height > highestHeight
-                         && height >= -eps)
+                         && perturbedHeight >= -eps)
                         {
                             highestHeight = height;
                             theNewFacetIndex = iNewFacet;
@@ -622,7 +655,6 @@ public class ConvexHull
                         theNewFacet.hoveringVerts.add(jVert);
                         hoveringVertToFacet[jVert] = theNewFacet;
                         queue.adjust(jVert, -highestHeight);
-                        // XXX TODO: if perturbed, this will be wrong later when we remove the perturbation.  but hopefully that doesn't affect accuracy, just efficiency?
                     }
                     else
                     {
@@ -971,6 +1003,7 @@ public class ConvexHull
 
             //
             // Make sure it bounds the hull
+            // (note, this is O(n^2) )
             //
             {
                 double vertsCenter[] = VecMath.average(verts);
@@ -1019,6 +1052,11 @@ public class ConvexHull
                         assert(sign * thisSign >= 0);
                     }
                 }
+                // TODO: can't we assert something about the sign, for god's sake?? argh! this is insane!
+                if (d == 3)
+                    assert(sign <= 0);
+                if (d == 4)
+                    assert(sign >= 0);
             }
         }
     } // sanityCheckConvexHull
@@ -1032,8 +1070,16 @@ public class ConvexHull
             assert(verts[iVert].length == d);
 
         long t0 = System.currentTimeMillis();
-        int answer[][][] = convexHull(verts, 1e-11); // argh! 1e-12 made it fail in real life with brute force method (test case below), 1e-9 made it fail randomized confidence test, 1e-10 and coarser made it fail in real life using either method (test case below)
+
+        // argh! 1e-12 made it fail in real life with brute force method (test case below), 1e-9 made it fail randomized confidence test, 1e-10 and coarser made it fail in real life using either method (test case below).
+        // update now that I'm using more robust method:
+        //      Everything succeeds down to 1e-30.
+        //      Something fails in 5d coplanar, with 1e-40 and smaller.
+        double EPS = 1e-11;
+
+        int answer[][][] = convexHull(verts, EPS);
         long t1 = System.currentTimeMillis();
+        assert(answer != null);
         assert(answer.length == 3);
         int hull[][] = answer[0];
         int adjs[][] = answer[1];
@@ -1056,6 +1102,33 @@ public class ConvexHull
     */
     public static void main(String args[])
     {
+        if (true)
+        {
+            // this was failing at one time.
+            // it was a problem with perturbed heights persisting and being compared wrongly with actual heights
+            //debugLevel = 3;
+            testTheseVerts(2, new double[][] {
+                {1.0,-1.0},
+                {-1.0,-0.5643178129536277},
+                {1.0,-1.0},{-1.0,-1.0},
+            });
+        }
+        if (true)
+        {
+            // this was failing at one time
+            //debugLevel = 3;
+            testTheseVerts(2, new double[][] {
+                {1.0,0},
+                {1.0,1.0},
+                {0.9999999999999997,1.0},
+            });
+        }
+        if (false)
+        {
+            debugLevel = 3;
+            testTheseVerts(5, new double[][] {{1.0,0.0,0.0,0.0,0.0},{1.0,1.0,1.0,1.0,1.0},{0.0625,0.125,0.25,0.5,1.0},{0.012345679012345678,0.03703703703703703,0.1111111111111111,0.3333333333333333,1.0},{0.0039062499999999996,0.015624999999999998,0.06249999999999999,0.24999999999999997,0.9999999999999999},{0.0015999999999999999,0.007999999999999998,0.039999999999999994,0.2,1.0},{7.716049382716049E-4,0.004629629629629629,0.027777777777777776,0.16666666666666666,1.0},{4.1649312786339027E-4,0.0029154518950437317,0.02040816326530612,0.14285714285714285,1.0},{2.4414062499999997E-4,0.0019531249999999998,0.015624999999999998,0.12499999999999999,0.9999999999999999},{1.5241579027587258E-4,0.0013717421124828533,0.01234567901234568,0.11111111111111112,1.0},{1.0E-4,0.0010000000000000002,0.01,0.10000000000000002,1.0},{6.830134553650708E-5,7.513148009015778E-4,0.008264462809917357,0.09090909090909091,1.0}});
+            System.exit(33);
+        }
         if (true)
         {
             // Do a regular polygon in 2d.
@@ -1219,7 +1292,7 @@ public class ConvexHull
             int nTestsPerSize = 10;
             for (int d = minDim; d <= maxDim; ++d)
             {
-                for (int nVerts = minVerts; nVerts < maxVerts; ++nVerts)
+                for (int nVerts = minVerts; nVerts <= maxVerts; ++nVerts)
                 {
                     FORI (iTest, nTestsPerSize)
                     {
@@ -1246,6 +1319,66 @@ public class ConvexHull
                         FORI (iVert, nVerts)
                             VecMath.normalize(verts[iVert], verts[iVert]);
                         testTheseVerts(d, verts);
+                        
+                        if (false)
+                        {
+                            // stress test with lots of co(hyper)planar verts:
+                            // move all verts to cube
+                            if (d >= 1)
+                            {
+                                FORI (iVert, nVerts)
+                                    VecMath.vxs(verts[iVert], verts[iVert], 1./Math.abs(verts[iVert][VecMath.maxabsi(verts[iVert])]));
+                                testTheseVerts(d, verts);
+
+                                {
+                                    // rotate randomly,
+                                    // and do it again
+                                    double rot[][] = new double[d][d];
+                                    FORI (iRow, d-1)
+                                        FORI (iCol, d)
+                                            rot[iRow][iCol] = Math.random();
+                                    VecMath.extendAndOrthogonalize(d-1, d, rot, rot);
+
+                                    FORI (iVert, nVerts)
+                                        verts[iVert] = VecMath.vxm(verts[iVert], rot);
+
+                                    testTheseVerts(d, verts);
+
+                                    // rotate back
+                                    FORI (iVert, nVerts)
+                                        verts[iVert] = VecMath.mxv(rot, verts[iVert]);
+                                }
+                            }
+                        }
+
+                        if (false)
+                        {
+                            // another stress test with lots of co(hyper)linear verts:
+                            // scale by 2, clamp back to cube, and do it again
+                            FORI (iVert, nVerts)
+                                FORI (i, d)
+                                    verts[iVert][i] = CLAMP(2*verts[iVert][i], -1., 1.);
+                            testTheseVerts(d, verts);
+
+                            {
+                                // rotate randomly,
+                                // and do it again
+                                double rot[][] = new double[d][d];
+                                FORI (iRow, d-1)
+                                    FORI (iCol, d)
+                                        rot[iRow][iCol] = Math.random();
+                                VecMath.extendAndOrthogonalize(d-1, d, rot, rot);
+
+                                FORI (iVert, nVerts)
+                                    verts[iVert] = VecMath.vxm(verts[iVert], rot);
+
+                                testTheseVerts(d, verts);
+
+                                // rotate back
+                                FORI (iVert, nVerts)
+                                    verts[iVert] = VecMath.mxv(rot, verts[iVert]);
+                            }
+                        }
                     }
                 }
             }
