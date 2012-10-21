@@ -98,7 +98,6 @@ public class IndexBinaryHeap
         int heapIndexParent;
         if (heapIndex > 0
          //&& val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]
-         // XXX hmm, omitting this one didn't lead to an assertion failure, that's strange
          && LESS(val,
                  index,
                  values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]],
@@ -119,7 +118,6 @@ public class IndexBinaryHeap
                 // index stays the same
             } while (heapIndex > 0
                   //&& val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]
-                  // XXX hmm, omitting this one didn't lead to an assertion failure, that's strange
                   && LESS(val,
                           index,
                           values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]],
@@ -243,13 +241,17 @@ public class IndexBinaryHeap
 
     // This isn't intended to ever be used externally,
     // it's just for the confidence test.
-    private static int[] heapSortWithSanityChecks(double vals[])
+    private static int[] heapSortWithSanityChecks(double vals[], java.util.Random rng)
     {
         int sortedInds[] = new int[vals.length];
         IndexBinaryHeap heap = new IndexBinaryHeap(vals.length);
         heap.sanityCheck();
-        FORI (i, vals.length)
+
+        // insert in random order; that's a better stress-test of the heap
+        int randomPerm[] = VecMath.randomperm(vals.length, rng);
+        FORI (ii, vals.length)
         {
+            int i = randomPerm[ii];
             heap.add(i, vals[i]);
             heap.sanityCheck();
         }
@@ -283,7 +285,7 @@ public class IndexBinaryHeap
                     vals[Arrays.randomIndex(max,rng)] = vals[Arrays.randomIndex(max,rng)];
 
                 PRINTARRAY(vals);
-                int sortedInds[] = heapSortWithSanityChecks(vals);
+                int sortedInds[] = heapSortWithSanityChecks(vals, rng);
                 PRINTARRAY(sortedInds);
                 System.out.println("============");
                 assert(sortedInds.length == max);
