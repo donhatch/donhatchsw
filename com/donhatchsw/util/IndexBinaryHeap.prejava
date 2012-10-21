@@ -93,10 +93,12 @@ public class IndexBinaryHeap
         #define HEAP_CHILD1(i) (((i)<<1)+2)
 
         #define LESS(val0,index0, val1,index1) ((val0) < (val1) || ((val0)==(val1) && (index0) < (index1)))
+        #define GREATER(val0,index0, val1,index1) LESS(val1,index1, val0,index0)
 
         int heapIndexParent;
         if (heapIndex > 0
          //&& val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]
+         // XXX hmm, omitting this one didn't lead to an assertion failure, that's strange
          && LESS(val,
                  index,
                  values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]],
@@ -117,6 +119,7 @@ public class IndexBinaryHeap
                 // index stays the same
             } while (heapIndex > 0
                   //&& val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]
+                  // XXX hmm, omitting this one didn't lead to an assertion failure, that's strange
                   && LESS(val,
                           index,
                           values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]],
@@ -139,7 +142,8 @@ public class IndexBinaryHeap
                     LESS(values[heap[heapIndexChild1]], heap[heapIndexChild1],
                          values[heap[heapIndexChild0]], heap[heapIndexChild0])
                     ? heapIndexChild1 : heapIndexChild0);
-                if (val > values[heap[heapIndexChild]])
+                //if (val > values[heap[heapIndexChild]])
+                if (GREATER(val,index, values[heap[heapIndexChild]],heap[heapIndexChild]))
                 {
                     // swap with smaller of children,
                     // but don't bother to fill it in at the child,
@@ -161,6 +165,17 @@ public class IndexBinaryHeap
     } // adjust
 
 
+    private void _print(int i, String indent)
+    {
+        if (i < size)
+        {
+            System.out.print(indent);
+            System.out.println(heap[i]+": "+values[heap[i]]);
+            _print(HEAP_CHILD0(i), indent+"    ");
+            _print(HEAP_CHILD1(i), indent+"    ");
+        }
+    }
+
     // totally hacky
     private void print()
     {
@@ -169,8 +184,10 @@ public class IndexBinaryHeap
         PRINTARRAY(heap);
         PRINTARRAY(indexToHeapIndex);
         PRINTARRAY(values);
+        _print(0, "            ");
         System.out.println("-----");
     }
+
     private void sanityCheck()
     {
         if (false)
@@ -217,6 +234,10 @@ public class IndexBinaryHeap
         for (int i = 1; i < size; ++i) // all but [0]
         {
             assert(values[heap[HEAP_PARENT(i)]] <= values[heap[i]]);
+            // can assert strictly less, since nothing's exactly equal
+            // due to tiebreaking by index.
+            assert(LESS(values[heap[HEAP_PARENT(i)]],heap[HEAP_PARENT(i)],
+                        values[heap[i]], heap[i]));
         }
     } // sanityCheck
 
@@ -256,13 +277,24 @@ public class IndexBinaryHeap
             FORI (iSort, nSortsPerMax)
             {
                 double vals[] = VecMath.random(max, rng);
+
+                // make some of them equal to others
+                FORI (iFudge, max*3/4)
+                    vals[Arrays.randomIndex(max,rng)] = vals[Arrays.randomIndex(max,rng)];
+
                 PRINTARRAY(vals);
                 int sortedInds[] = heapSortWithSanityChecks(vals);
                 PRINTARRAY(sortedInds);
                 System.out.println("============");
                 assert(sortedInds.length == max);
                 FORI (i, max-1)
+                {
                     assert(vals[sortedInds[i]] <= vals[sortedInds[i+1]]);
+                    // can assert strictly less, since nothing's exactly equal
+                    // due to tiebreaking by index.
+                    assert(LESS(vals[sortedInds[i]], sortedInds[i],
+                                vals[sortedInds[i+1]], sortedInds[i+1]));
+                }
                 assert(VecMath.sum(sortedInds) == max*(max-1)/2); // if this is right then we probably got all the indices
             }
         }
