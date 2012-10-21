@@ -92,9 +92,16 @@ public class IndexBinaryHeap
         #define HEAP_CHILD0(i) (((i)<<1)+1)
         #define HEAP_CHILD1(i) (((i)<<1)+2)
 
+        #define LESS(val0,index0, val1,index1) ((val0) < (val1) || ((val0)==(val1) && (index0) < (index1)))
+
         int heapIndexParent;
         if (heapIndex > 0
-         && val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]])
+         //&& val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]
+         && LESS(val,
+                 index,
+                 values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]],
+                 heap[heapIndexParent])
+        )
         {
             // trickle up
             //System.out.println("TRICKLING UP");
@@ -109,7 +116,12 @@ public class IndexBinaryHeap
                 heapIndex = heapIndexParent;
                 // index stays the same
             } while (heapIndex > 0
-                  && val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]);
+                  //&& val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]
+                  && LESS(val,
+                          index,
+                          values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]],
+                          heap[heapIndexParent])
+              );
         }
         else
         {
@@ -122,8 +134,11 @@ public class IndexBinaryHeap
                     break; // at leaf of tree; done
 
                 int heapIndexChild1 = HEAP_CHILD1(heapIndex);
-                int heapIndexChild = (heapIndexChild1 < size
-                                   && values[heap[heapIndexChild1]] < values[heap[heapIndexChild0]] ? heapIndexChild1 : heapIndexChild0);
+                int heapIndexChild = (heapIndexChild1 < size &&
+                    //values[heap[heapIndexChild1]] < values[heap[heapIndexChild0]]
+                    LESS(values[heap[heapIndexChild1]], heap[heapIndexChild1],
+                         values[heap[heapIndexChild0]], heap[heapIndexChild0])
+                    ? heapIndexChild1 : heapIndexChild0);
                 if (val > values[heap[heapIndexChild]])
                 {
                     // swap with smaller of children,
