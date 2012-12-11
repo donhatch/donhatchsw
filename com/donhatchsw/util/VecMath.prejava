@@ -299,27 +299,48 @@ public final class VecMath
 
 
     /** vector plus (scalar times vector) */
+    public static void vpsxv(int n, double result[], double v0[],
+                                              double s1, double v1[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] + s1*v1[i];
+    }
+
+    /** vector plus (scalar times vector) */
+    public static void vpsxv(int n, float result[], float v0[],
+                                             float s1, float v1[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] + s1*v1[i];
+    }
+
+    /** vector plus (scalar times vector) */
+    public static void vpsxv(int n, int result[], int v0[],
+                                           int s1, int v1[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] + s1*v1[i];
+    }
+
+    /** vector plus (scalar times vector) */
     public static void vpsxv(double result[], double v0[],
                                               double s1, double v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] + s1*v1[i];
+        vpsxv(v0.length, result, v0, s1, v1);
     }
 
     /** vector plus (scalar times vector) */
     public static void vpsxv(float result[], float v0[],
                                              float s1, float v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] + s1*v1[i];
+        vpsxv(v0.length, result, v0, s1, v1);
     }
 
     /** vector plus (scalar times vector) */
     public static void vpsxv(int result[], int v0[],
                                            int s1, int v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] + s1*v1[i];
+        vpsxv(v0.length, result, v0, s1, v1);
     }
 
     /** vector plus vector minus vector */
