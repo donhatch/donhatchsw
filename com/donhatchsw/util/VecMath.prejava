@@ -221,6 +221,23 @@ public final class VecMath
     {
         return v[0]*w[1] - v[1]*w[0];
     }
+
+
+    /** 3-dimensional vector plus cross product */
+    public static void vpvxv3(double result[/*3*/], double v0[/*3*/], final double v1[/*3*/], final double v2[/*3*/])
+    {
+        result[0] = v0[0] + v1[1]*v2[2] - v1[2]*v2[1];
+        result[1] = v0[1] + v1[2]*v2[0] - v1[0]*v2[2];
+        result[2] = v0[2] + v1[0]*v2[1] - v1[1]*v2[0];
+    }
+    /** 3-dimensional vector plus cross product */
+    public static void vpvxv3(float result[/*3*/], float v0[/*3*/], final float v1[/*3*/], final float v2[/*3*/])
+    {
+        result[0] = v0[0] + v1[1]*v2[2] - v1[2]*v2[1];
+        result[1] = v0[1] + v1[2]*v2[0] - v1[0]*v2[2];
+        result[2] = v0[2] + v1[0]*v2[1] - v1[1]*v2[0];
+    }
+
     /** 3-dimensional cross product */
     public static void vxv3(double v0[/*3*/], final double v1[/*3*/], final double v2[/*3*/])
     {
