@@ -76,7 +76,7 @@ public abstract class Listenable
     public abstract void set(Listenable from);
     public abstract void resetToDefault();
     public abstract boolean isDefault();
-    public abstract String toString(); // force subclass to define it
+    public abstract java.lang.String toString(); // force subclass to define it
 
     private com.donhatchsw.compat.ArrayList listeners =
         new com.donhatchsw.compat.ArrayList();
@@ -101,7 +101,7 @@ public abstract class Listenable
                 {
                     listener = (Listener)((java.lang.ref.WeakReference)listenerRef).get();
                     if (listener == null)
-                        System.out.println("WARNING: Listenable.Listener.notifyListenersThatValueChanged: CLEARING LAPSED LISTENER");
+                        System.out.println("WARNING: Listenable.Listener.notifyListenersThatValueChanged: CLEARING LAPSED LISTENER on listenable with value "+this);
                 }
                 else
                     listener = (Listener)listenerRef;
@@ -166,7 +166,7 @@ public abstract class Listenable
         public void set(Listenable from) { set(((Boolean)from).get()); }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get() == getDefaultValue(); }
-        public String toString() { return ""+get(); }
+        public java.lang.String toString() { return ""+get(); }
     }
 
     public static abstract class Number extends Listenable
@@ -205,7 +205,7 @@ public abstract class Listenable
         public void set(Listenable from) { set(((Int)from).get()); }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get() == getDefaultValue(); }
-        public String toString() { return ""+get(); }
+        public java.lang.String toString() { return ""+get(); }
 
         // Number overrides
         public double getDouble() { return (double)value; }
@@ -241,7 +241,7 @@ public abstract class Listenable
         public void set(Listenable from) { set(((Float)from).get()); }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get() == getDefaultValue(); }
-        public String toString() { return ""+get(); }
+        public java.lang.String toString() { return ""+get(); }
 
         // Number overrides
         public double getDouble() { return (double)value; }
@@ -277,7 +277,7 @@ public abstract class Listenable
         public void set(Listenable from) { set(((Double)from).get()); }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get() == getDefaultValue(); }
-        public String toString() { return ""+get(); }
+        public java.lang.String toString() { return ""+get(); }
 
         // Number overrides
         public double getDouble() { return (double)value; }
@@ -285,6 +285,30 @@ public abstract class Listenable
         public double minDouble() { return (double)minValue; }
         public double maxDouble() { return (double)maxValue; }
         public double defaultDouble() { return (double)defaultValue; }
+    }
+    public static class String extends Listenable
+    {
+        private java.lang.String value, defaultValue;
+        public String(java.lang.String defaultValue)
+        {
+            this.defaultValue = defaultValue;
+            this.value = this.defaultValue; // immutable so can share
+        }
+        public java.lang.String getDefaultValue() { return defaultValue; }
+        public java.lang.String get() { return value; }
+        public void set(java.lang.String newValue)
+        {
+            if (!newValue.equals(value))
+            {
+                value = newValue;
+                this.notifyListenersThatValueChanged(); // "this." necessary or javac 1.2 gets confused
+            }
+        }
+        // Listenable overrides
+        public void set(Listenable from) { set(((String)from).get()); }
+        public void resetToDefault() { set(getDefaultValue()); }
+        public boolean isDefault() { return get().equals(getDefaultValue()); }
+        public java.lang.String toString() { return ""+get(); }
     }
     public static class Color extends Listenable
     {
@@ -309,7 +333,7 @@ public abstract class Listenable
         public void set(Listenable from) { set(((Color)from).get()); }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return get().equals(getDefaultValue()); }
-        public String toString() { return ""+get(); }
+        public java.lang.String toString() { return ""+get(); }
     }
     public static class FloatVector extends Listenable
     {
@@ -335,7 +359,7 @@ public abstract class Listenable
         public void set(Listenable from) { set(((FloatVector)from).get()); }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return VecMath.equalsExactly(get(),getDefaultValue()); }
-        public String toString() { return Arrays.toStringCompact(get()); }
+        public java.lang.String toString() { return Arrays.toStringCompact(get()); }
     }
     public static class FloatMatrix extends Listenable
     {
@@ -361,7 +385,7 @@ public abstract class Listenable
         public void set(Listenable from) { set(((FloatMatrix)from).get()); }
         public void resetToDefault() { set(getDefaultValue()); }
         public boolean isDefault() { return VecMath.equalsExactly(get(),getDefaultValue()); }
-        public String toString()
+        public java.lang.String toString()
         {
             if (false)
                 return Arrays.toStringCompact(get());
