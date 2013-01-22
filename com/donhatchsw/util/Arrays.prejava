@@ -31,7 +31,7 @@ package com.donhatchsw.util;
  *      <li> array compare to given depth using equals </li>
  *      <li> array compare to given depth using == </li>
  *      <li> array toString with depth (then PRINTVEC and PRINTMAT can have more control) </li>
- *      <li> get() taking additional integer argument specifying dimension of array being indexed into </li>
+ *      <li> get() taking additional integer argument specifying dimension of array being indexed into (see getMany())</li>
  *      <li> linear search using equals </li>
  *      <li> linear search using == </li>
  *      <li> subarray allowing permutation or general lut into original dims
@@ -310,6 +310,7 @@ public final class Arrays
      * inds should be a multidimensional array of int (or a single Int).
      * The returned array will have the same dimension and size as inds.
      * <p>
+     * XXX should make a version that takes the result as an argument rather than allocating a new one
      * XXX should make an enhanced version that lets array
      *     be multidimensional, and allows specifying its dimension,
      *     in which case each 1-dimensional component of indices
