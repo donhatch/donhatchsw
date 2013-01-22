@@ -376,12 +376,29 @@ public final class VecMath
     }
 
     /** vector plus (scalar times vector) plus (scalar times vector) */
+    public static void vpsxvpsxv(int n, double result[], double v0[],
+                                                  double s1, double v1[],
+                                                  double s2, double v2[])
+    {
+        FORI (i, n)
+            result[i] = v0[i] + s1*v1[i] + s2*v2[i];
+    }
+
+    /** vector plus (scalar times vector) plus (scalar times vector) */
     public static void vpsxvpsxv(double result[],            double v0[],
                                                   double s1, double v1[],
                                                   double s2, double v2[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = v0[i] + s1*v1[i] + s2*v2[i];
+        vpsxvpsxv(v0.length, result, v0, s1, v1, s2, v2);
+    }
+
+    /** (scalar times vector) plus (scalar times vector) plus (scalar times vector) */
+    public static void sxvpsxvpsxv(int n, double result[], double s0, double v0[],
+                                                    double s1, double v1[],
+                                                    double s2, double v2[])
+    {
+        FORI (i, n)
+            result[i] = s0*v0[i] + s1*v1[i] + s2*v2[i];
     }
 
     /** (scalar times vector) plus (scalar times vector) plus (scalar times vector) */
@@ -389,8 +406,7 @@ public final class VecMath
                                                     double s1, double v1[],
                                                     double s2, double v2[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = s0*v0[i] + s1*v1[i] + s2*v2[i];
+        sxvpsxvpsxv(v0.length, result, s0, v0, s1, v1, s2, v2);
     }
 
     /** matrix plus matrix */
@@ -1137,6 +1153,27 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             float m_i[] = m[i];
             float sum = (float)0;
+            FOR (j, nCols)
+            {
+                sum += m_i[j] * v[j];
+            }
+            result[i] = sum;
+        }
+    }
+    /** matrix times column vector */
+    public static void mxv(int result[], int m[][], int v[])
+    {
+        assumpt(result != v);
+        int nRows = m.length;
+        if (nRows == 0)
+            return;
+        int nCols = v.length; // = m[0].length
+        int i, j;
+        // XXX convert to FORIDOWN if appropriate; I didn't think about it for too long
+        FOR (i, nRows)
+        {
+            int m_i[] = m[i];
+            int sum = (int)0;
             FOR (j, nCols)
             {
                 sum += m_i[j] * v[j];
@@ -4199,6 +4236,13 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             vxm(result, v, M);
             return result;
         }
+        /** row vector times matrix, returning newly allocated result */
+        public static int[] vxm(int v[], int M[][])
+        {
+            int result[] = new int[M.length == 0 ? 0 : M[0].length];
+            vxm(result, v, M);
+            return result;
+        }
         /** matrix times column vector, returning newly allocated result */
         public static double[] mxv(double M[][], double v[])
         {
@@ -4213,27 +4257,51 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             mxv(result, M, v);
             return result;
         }
+        /** matrix times column vector, returning newly allocated result */
+        public static int[] mxv(int M[][], int v[])
+        {
+            int result[] = new int[M.length];
+            mxv(result, M, v);
+            return result;
+        }
+        /** vector plus (scalar times vector), returning newly allocated result */
+        public static double[] vpsxv(int n, double v0[], double s1, double v1[])
+        {
+            double result[] = new double[n];
+            vpsxv(n, result, v0, s1, v1);
+            return result;
+        }
         /** vector plus (scalar times vector), returning newly allocated result */
         public static double[] vpsxv(double v0[], double s1, double v1[])
         {
-            double result[] = new double[v0.length];
-            vpsxv(result, v0, s1, v1);
+            return vpsxv(v0.length, v0, s1, v1);
+        }
+        /** vector plus (scalar times vector), returning newly allocated result */
+        public static float[] vpsxv(int n, float v0[], float s1, float v1[])
+        {
+            float result[] = new float[n];
+            vpsxv(n, result, v0, s1, v1);
             return result;
         }
         /** vector plus (scalar times vector), returning newly allocated result */
         public static float[] vpsxv(float v0[], float s1, float v1[])
         {
-            float result[] = new float[v0.length];
-            vpsxv(result, v0, s1, v1);
+            return vpsxv(v0.length, v0, s1, v1);
+        }
+
+        /** vector plus (scalar times vector), returning newly allocated result */
+        public static int[] vpsxv(int n, int v0[], int s1, int v1[])
+        {
+            int result[] = new int[n];
+            vpsxv(n, result, v0, s1, v1);
             return result;
         }
         /** vector plus (scalar times vector), returning newly allocated result */
         public static int[] vpsxv(int v0[], int s1, int v1[])
         {
-            int result[] = new int[v0.length];
-            vpsxv(result, v0, s1, v1);
-            return result;
+            return vpsxv(v0.length, v0, s1, v1);
         }
+
         /** add v to every row of m, returning newly allocated result */
         public static double[][] vpm(double v[], double m[][])
         {
