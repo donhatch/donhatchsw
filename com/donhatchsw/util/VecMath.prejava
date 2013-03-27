@@ -1320,9 +1320,18 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** vector norm (length) squared */
+    public static double normsqrd(int n, double v[])
+    {
+        return dot(n, v,v);
+    }
     public static double normsqrd(double v[])
     {
         return dot(v,v);
+    }
+    /** vector norm (length) squared */
+    public static float normsqrd(int n, float v[])
+    {
+        return dot(n, v,v);
     }
     /** vector norm (length) squared */
     public static float normsqrd(float v[])
@@ -1330,9 +1339,19 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return dot(v,v);
     }
     /** vector norm (length) */
+    public static double norm(int n, double v[])
+    {
+        return Math.sqrt(dot(n, v,v));
+    }
+    /** vector norm (length) */
     public static double norm(double v[])
     {
         return Math.sqrt(dot(v,v));
+    }
+    /** vector norm (length) */
+    public static float norm(int n, float v[])
+    {
+        return (float)Math.sqrt(dot(n, v,v)); // XXX is there a sqrtf?
     }
     /** vector norm (length) */
     public static float norm(float v[])
@@ -2729,7 +2748,18 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return false;
         return true;
     } // equals
-    /** Fuzzy matrix equality test; works even if eps==0. */
+    /** Fuzzy vector equality test; works even if eps==0. */
+    public static boolean equals(int n, double v0[], double v1[], double eps)
+    {
+        FORI (i, n)
+        {
+            if (v0[i] != v1[i] // avoid function call in common case
+             && Math.abs(v0[i]-v1[i]) > eps)
+                    return false;
+        }
+        return true;
+    } // equals
+    /** Fuzzy vector equality test; works even if eps==0. */
     public static boolean equals(double v0[], double v1[], double eps)
     {
         if (v0 == null && v1 == null)
