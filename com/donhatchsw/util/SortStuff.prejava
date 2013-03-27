@@ -53,49 +53,49 @@ public class SortStuff
     {
         sortRange(list, i0, i0+n-1, comparator);
     }
+
     private static DoubleComparator defaultDoubleComparator = new DoubleComparator();
     /** Sorts the array of doubles into increasing order. */
     public static void sort(double list[])
     {
-        sort(list, defaultDoubleComparator);
+        sortRange(list, 0, list.length-1, defaultDoubleComparator);
     }
-    private static IntComparator defaultIntComparator = new IntComparator();
-    /** Sorts the array of ints into increasing order. */
-    public static void sort(int list[])
+    /** Sorts the array of doubles into increasing order. */
+    public static void sort(double list[], int i0, int n)
     {
-        sort(list, defaultIntComparator);
+        sortRange(list, i0, i0+n-1, defaultDoubleComparator);
     }
     /** Sorts the array of doubles using the given DoubleComparator. */
     public static void sort(double list[], final DoubleComparator comparator)
     {
-        double ptrlist[][] = new double[list.length][1];
-        int i;
-        for (i = 0; i < list.length; ++i)
-            ptrlist[i][0] = list[i];
-        sort(ptrlist, new Comparator() {
-            public int compare(Object a, Object b)
-            {
-                return comparator.compare(((double[])a)[0],((double[])b)[0]);
-            }
-        });
-        for (i = 0; i < list.length; ++i)
-            list[i] = ptrlist[i][0];
+        sortRange(list, 0, list.length-1, comparator);
+    }
+    /** Sorts the array of doubles using the given DoubleComparator. */
+    public static void sort(double list[], int i0, int n, final DoubleComparator comparator)
+    {
+        sortRange(list, i0, i0+n-1, comparator);
+    }
+
+    private static IntComparator defaultIntComparator = new IntComparator();
+    /** Sorts the array of ints into increasing order. */
+    public static void sort(int list[])
+    {
+        sortRange(list, 0, list.length-1, defaultIntComparator);
+    }
+    /** Sorts the array of ints into increasing order. */
+    public static void sort(int list[], int i0, int n)
+    {
+        sortRange(list, i0, i0+n-1, defaultIntComparator);
     }
     /** Sorts the array of ints using the given IntComparator. */
     public static void sort(int list[], final IntComparator comparator)
     {
-        int ptrlist[][] = new int[list.length][1];
-        int i;
-        for (i = 0; i < list.length; ++i)
-            ptrlist[i][0] = list[i];
-        sort(ptrlist, new Comparator() {
-            public int compare(Object a, Object b)
-            {
-                return comparator.compare(((int[])a)[0],((int[])b)[0]);
-            }
-        });
-        for (i = 0; i < list.length; ++i)
-            list[i] = ptrlist[i][0];
+        sortRange(list, 0, list.length-1, comparator);
+    }
+    /** Sorts the array of ints using the given IntComparator. */
+    public static void sort(int list[], int i0, int n, final IntComparator comparator)
+    {
+        sortRange(list, i0, i0+n-1, comparator);
     }
 
 
@@ -139,10 +139,6 @@ public class SortStuff
 
 
 
-        public static void sort(int list[], int i0, int n, final IntComparator comparator)
-        {
-            sortRange(list, i0, i0+n-1, comparator);
-        }
         // special versions for int...
         // this is duplicate code but I think it's pretty solid.
         // XXX should maybe use the preprocessor just for this,
@@ -167,6 +163,43 @@ public class SortStuff
             list[i] = temp;
         }
         private static int partitionRange(int list[], int i, int j, int object, IntComparator comparator)
+        {
+            int i0 = i+1; // keerist! who wrote this shit?
+            do
+            {
+                while (comparator.compare(list[++i], object) < 0) // don't need to check bounds on i, it will stop automatically because object is known to be at list[j] at start
+                    ;
+                // i is now at the first index in the range
+                // such that list[i] >= object
+                while (j > i0 && comparator.compare(list[--j], object) > 0)
+                    ;
+                // j is now at the last index in the range such that list[j] <= object
+                swap(list, i, j);
+            } while(i < j);
+            swap(list, i, j);
+            return i;
+        }
+        // and for double...
+        private static void sortRange(double list[], int i, int j, final DoubleComparator comparator)
+        {
+            if (j <= i)
+                return;
+            int k = (i + j) / 2;
+            swap(list, k, j);
+            int l = partitionRange(list, i - 1, j, list[j], comparator);
+            swap(list, l, j);
+            if(l - i > 1)
+                sortRange(list, i, l - 1, comparator);
+            if(j - l > 1)
+                sortRange(list, l + 1, j, comparator);
+        }
+        private static void swap(double list[], int i, int j)
+        {
+            double temp = list[j];
+            list[j] = list[i];
+            list[i] = temp;
+        }
+        private static int partitionRange(double list[], int i, int j, double object, DoubleComparator comparator)
         {
             int i0 = i+1; // keerist! who wrote this shit?
             do
