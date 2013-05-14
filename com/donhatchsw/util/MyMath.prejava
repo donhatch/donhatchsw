@@ -121,7 +121,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     {
         double u = 1. + x;
         if (u == 1.)
-            return x;
+            return 1.;
         return Math.log(u)/(u-1.);
     }
 
