@@ -11,7 +11,6 @@ package com.donhatchsw.util;
 * For explanations of some of the robust algorithms used, see:
 * <a href="http://plunk.org/~hatch/rightway.php">http://plunk.org/~hatch/rightway.php</a>
 */
-//#ifdef __java
 
 public class MyMath
 {
@@ -41,6 +40,22 @@ public class MyMath
     }
 
     /**
+    * (exp(x)-1)/x, accurate even when x is small.
+    */
+    public static double
+    expm1_over_x(double x)
+    {
+        double u = Math.exp(x);
+        if (u == Double.POSITIVE_INFINITY)
+            return Double.POSITIVE_INFINITY;
+        if (u == 1.)
+            return 1.;
+        if (u-1. == -1.)
+            return -1./x;
+        return (u-1.)/Math.log(u);
+    }
+
+    /**
     *  log(1+x), accurate even when x is small.
     */
     /*
@@ -58,6 +73,7 @@ public class MyMath
             return Math.log(x);
         return Math.log(u) - ((u-1.)-x)/u; // cancels errors with IEEE arithmetic
     }
+
     /* 
         XXX the following might be preferable...
  from http://www.hursley.ibm.com/majordomo/JSR-DECIMAL/archives/jsr-decimal.archive.0102/Author/article-6.html:
@@ -73,7 +89,7 @@ log1p(x) {
   if ( (1.0 + x ) == 1.0)
     return x;
   else
-    return log(1.0 +x)*x/(1.0 +x);
+    return log(1.0 +x)*x/(1.0 +x);     XXX that doesn't look right to me... should be dividing by something close to x, not close to 1+x
 }
 
 The ( (1.0 + x ) == 1.0) expression computes the sum of x and 1.0
@@ -96,6 +112,19 @@ this function when it should be very fast.
     XXX whoa, and lots of other good stuff at:
 http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     */
+
+    /**
+    *  log(1+x)/x, accurate even when x is small.
+    */
+    public static double
+    log1p_over_x(double x)
+    {
+        double u = 1. + x;
+        if (u == 1.)
+            return x;
+        return Math.log(u)/(u-1.);
+    }
+
 
     /** hyperbolic sine function */
     public static double
@@ -359,43 +388,3 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return max * Math.sqrt(1. + min_over_max*min_over_max);
     }
 } // class MyMath
-
-/*
-#endif // __java
-
-#if __cplusplus
-    //
-    // C++ program, for comparison to make sure I got it right
-    //
-    #include <math.h>
-    #include <stdio.h>
-    #define print(x) printf("%s = %.17g\n", #x, x)
-    int main()
-    {
-        print(sinh(-1.5));
-        print(sinh(-.5));
-        print(sinh(.5));
-        print(sinh(1.5));
-        print(cosh(-1.5));
-        print(cosh(-.5));
-        print(cosh(.5));
-        print(cosh(1.5));
-        print(tanh(-1.5));
-        print(tanh(-.5));
-        print(tanh(.5));
-        print(tanh(1.5));
-        print(asinh(-1.5));
-        print(asinh(-.5));
-        print(asinh(.5));
-        print(asinh(1.5));
-        print(acosh(-1.5));
-        print(acosh(-.5));
-        print(acosh(.5));
-        print(acosh(1.5));
-        print(atanh(-1.5));
-        print(atanh(-.5));
-        print(atanh(.5));
-        print(atanh(1.5));
-    }
-#endif // __cplusplus
-*/
