@@ -1,7 +1,15 @@
 package com.donhatchsw.awt;
 
 /**
- * A JPanel whose layout manager is a ColLayout.
+ * A JPanel whose layout manager is a {@link ColLayout}.
+ * @see RowLayout
+ * @see ColLayout
+ * @see TableLayout
+ * @see Row
+ * @see Col
+ * @see TablePanel
+ * @see JRow
+ * @see JTablePanel
  */
 public class JCol
     extends javax.swing.JPanel

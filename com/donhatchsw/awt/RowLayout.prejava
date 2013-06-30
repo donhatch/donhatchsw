@@ -17,6 +17,14 @@ import java.awt.GridBagConstraints;
  *           and gridwidth and gridheight should be 1;
  *           if not, the behavior is undefined.
  * </ul>
+ * @see ColLayout
+ * @see TableLayout
+ * @see Row
+ * @see Col
+ * @see TablePanel
+ * @see JRow
+ * @see JCol
+ * @see JTablePanel
  */
 public class RowLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
 {

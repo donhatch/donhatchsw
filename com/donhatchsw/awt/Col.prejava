@@ -1,7 +1,15 @@
 package com.donhatchsw.awt;
 
 /**
- * A Panel whose layout manager is a ColLayout.
+ * A Panel whose layout manager is a {@link ColLayout}.
+ * @see RowLayout
+ * @see ColLayout
+ * @see TableLayout
+ * @see Row
+ * @see TablePanel
+ * @see JRow
+ * @see JCol
+ * @see JTablePanel
  */
 public class Col
     extends java.awt.Panel

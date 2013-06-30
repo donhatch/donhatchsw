@@ -27,6 +27,14 @@ import java.awt.Button;
  *           gridx=0 and the following gridy=RELATIVE will mean the next row.
  *      <li> there is an advanceRow() method that advances to the next row.
  * </ul>
+ * @see RowLayout
+ * @see ColLayout
+ * @see Row
+ * @see Col
+ * @see TablePanel
+ * @see JRow
+ * @see JCol
+ * @see JTablePanel
  */
 public class TableLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
 {

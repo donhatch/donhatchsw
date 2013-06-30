@@ -21,8 +21,8 @@ import java.awt.GridBagConstraints;
  * Subclasses should implement the protected abstract method setNextGridxy(),
  * which defines what RELATIVE actually means in that subclass.
  * <p>
- * Also see the concrete subclasses TableLayout, RowLayout and ColLayout,
- * and the convenience classes TablePanel, Row, Col, JTablePanel, JRow, JCol.
+ * Also see the concrete subclasses {@link TableLayout}, {@link RowLayout} and {@link ColLayout},
+ * and the convenience classes {@link TablePanel}, {@link Row}, {@link Col}, {@link JTablePanel}, {@link JRow}, {@link JCol}.
  * <p>
  * There are convenience methods for expressing the most common
  * calls to add (they make a GridBagConstraints out of the given

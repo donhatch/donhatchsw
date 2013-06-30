@@ -4,6 +4,14 @@ package com.donhatchsw.awt;
  * A JPanel whose layout manager is a {@link TableLayout},
  * with an advanceRow() method that calls
  * the layout manager's.
+ * @see RowLayout
+ * @see ColLayout
+ * @see TableLayout
+ * @see Row
+ * @see Col
+ * @see TablePanel
+ * @see JRow
+ * @see JCol
  */
 public class JTablePanel
     extends javax.swing.JPanel

@@ -1,7 +1,15 @@
 package com.donhatchsw.awt;
 
 /**
- * A Panel whose layout manager is a RowLayout.
+ * A Panel whose layout manager is a {@link RowLayout}.
+ * @see RowLayout
+ * @see ColLayout
+ * @see TableLayout
+ * @see Col
+ * @see TablePanel
+ * @see JRow
+ * @see JCol
+ * @see JTablePanel
  */
 public class Row
     extends java.awt.Panel
