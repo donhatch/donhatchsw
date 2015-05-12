@@ -1,3 +1,4 @@
+/* vim: set filetype=java: */
 package com.donhatchsw.compat;
 
 #include "macros.h"

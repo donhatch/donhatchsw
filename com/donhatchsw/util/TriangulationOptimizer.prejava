@@ -1,3 +1,4 @@
+/* vim: set filetype=java: */
 //
 // TriangulationOptimizer.h
 // Optimizes a triangulation by flipping quad diagonals.

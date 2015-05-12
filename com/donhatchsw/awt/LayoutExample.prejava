@@ -1,3 +1,4 @@
+/* vim: set filetype=java: */
 package com.donhatchsw.awt;
 import java.awt.*;
 public class LayoutExample
