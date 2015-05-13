@@ -440,14 +440,22 @@ public class SmoothlyVaryingViewingParameter
             return length;
         }
 
-        // Ask mathematica for the points x-a/2, x+a/2
+        // Given a,b, ask mathematica for the points x-a/2, x+a/2
         // whose cosh's are b apart:
         //      Solve[Cosh[x+a/2] == Cosh[x-a/2] + b, x]
         // the answer is:
         //      x = asinh(b/2 / sinh(a/2))
-        // this works whether a is positive or negative,
+        // This works whether a is positive or negative,
         // although it goes to +inf or -inf as a approaches 0.
         // XXX should look into whether we lose accuracy near a==0 and would do better using the linear method sooner
+        // This is a totally surprising formula!!
+        // TODO:
+        //      - Understand it geometrically.
+        //        For starters, note that the arc length from 0 to that x center
+        //        is sinh of that x center, i.e. b/2 / sinh(a/2))
+        //      - Figure out how to combine it with scale,
+        //        so that we get a formula that is usable
+        //        and well behaved as scale approaches zero!
         double xAvg = MyMath.asinh(b*.5 / sinhHalfA);
         double x0 = xAvg - a*.5;
         double x1 = xAvg + a*.5;
@@ -489,7 +497,7 @@ public class SmoothlyVaryingViewingParameter
         }
         answer[0] = (sinhx1*x1 - coshx1) - (sinhx0*x0 - coshx0)  + (v0[0]-x0) * partialArcLength;
         answer[1] = ((sinhx1*coshx1 + x1) - (sinhx0*coshx0 + x0))*.5 + (v0[1]-coshx0) * partialArcLength;
-        // XXX TODO: there has got to be some clever cancellation here that will save us from subtracting huge values that are close to each other
+        // XXX TODO: there has got to be some clever cancellation here that will save us from subtracting huge values that are close to each other.  Understanding the geometric situation better may help, see above
         if (vFinal != null)
         {
             vFinal[0] = x1     + (v0[0]-x0);
