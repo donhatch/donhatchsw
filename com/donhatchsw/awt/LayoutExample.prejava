@@ -87,7 +87,14 @@ public class LayoutExample
                         add(new LabeledCol("A:"," ") {{
                             add(new Row() {{
                                 add(new Label("1:"));
-                                add(new Button("aa"));
+                                add(new Button("aa") {{
+                                    addActionListener(new java.awt.event.ActionListener() {
+                                        public void actionPerformed(java.awt.event.ActionEvent e)
+                                        {
+                                            System.out.println("aa button pressed!");
+                                        }
+                                    });
+                                }});
                                 add(new Button("b"));
                                 add(new Button("c"));
                             }});

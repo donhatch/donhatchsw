@@ -159,7 +159,8 @@ public class MC4DViewGuts
 
 
         //public Listenable.Double nFrames90(0., 100., 15.);
-        public Listenable.Double nFrames90 = new Listenable.Double(0., 100., 30.);
+        //public Listenable.Double nFrames90 = new Listenable.Double(0., 100., 30.);
+        public Listenable.Double nFrames90 = new Listenable.Double(0., 300., 150.);
         public Listenable.Double bounce = new Listenable.Double(0., 1., 0.);
 
         // Currently this is used for rot to center, but not for twists (which are smoothed by the undo tree, which effectively uses a quadratic interpolator).

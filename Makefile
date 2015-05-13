@@ -37,15 +37,20 @@
 #     javac1.2: 1:08
 #     javac1.6: 1:42
 #     jikes with 1.2: 53 seconds
-#JAVAC=javac1.6
-#JAVAROOT=c:/jdk1.3.1_20
-JAVAC=javac1.2
-JAVAROOT=c:/jdk1.2.2
-# use later javadoc, since it produces nicer package summaries from the package.html files
-JAVADOCROOT="c:/Program Files/Java/jdk1.7.0_21"
-# there is no -source 1.2 or -source 1.1 for jikes
-#JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
-# hmm, if I do it that way, with jikes 1.22, and run it using java1.2, I get a "monitor is in illegal state" error in the jikes-compiled code... specifically, on exiting from any synchronized(someObject) {...} block.  So it seems I have to use javac1.2 instead of jikes.
+##JAVAC=javac1.6
+##JAVAROOT=c:/jdk1.3.1_20
+#JAVAC=javac1.2
+#JAVAROOT=c:/jdk1.2.2
+## use 1.6 javadoc, since it produces nicer package summaries from the package.html files
+#JAVADOCROOT="c:/Program Files (x86)/Java/jdk1.6.0_17"
+## there is no -source 1.2 or -source 1.1 for jikes
+##JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
+## hmm, if I do it that way, with jikes 1.22, and run it using java1.2, I get a "monitor is in illegal state" error in the jikes-compiled code... specifically, on exiting from any synchronized(someObject) {...} block.  So it seems I have to use javac1.2 instead of jikes.
+
+# at google
+JAVAC=javac
+JAVAROOT=/usr/local/buildtools/java/jdk
+JAVADOCROOT=/usr/local/buildtools/java/jdk
 
 
 # Pattern rule for making a .class file out of a .prejava file.
