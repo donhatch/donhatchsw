@@ -449,10 +449,22 @@ public class SmoothlyVaryingViewingParameter
         // although it goes to +inf or -inf as a approaches 0.
         // XXX should look into whether we lose accuracy near a==0 and would do better using the linear method sooner
         // This is a totally surprising formula!!
+        // Why is the formula for the x center so surprisingly nice
+        // (and formula for arc length from 0 to x center even more so)
+        // when the formulas for the endpoints are not?
         // TODO:
         //      - Understand it geometrically.
         //        For starters, note that the arc length from 0 to that x center
-        //        is sinh of that x center, i.e. b/2 / sinh(a/2))
+        //        is sinh of that x center, i.e. b/2 / sinh(a/2)):
+        //              x = asinh(b/2 / sinh(a/2)
+        //              t = b/2 / sinh(a/2)
+        //              y = sqrt((b/2/sinh(a/2))^2 + 1)
+        //              x0 = asinh(b/2 / sinh(a/2)) - a/2
+        //              y0 = sqrt((b/2/sinh(a/2))^2 + 1) - b/2
+        //              t0 = sinh( asinh(b/2 / sinh(a/2)) - a/2 )
+        //              t0 = sqrt(y0^2 - 1) where y0 is as above.  XXX expand this out
+        //        Ultimately I think we really want t0 and t1,
+        //        in a form that combines with scale nicely.
         //      - Figure out how to combine it with scale,
         //        so that we get a formula that is usable
         //        and well behaved as scale approaches zero!
