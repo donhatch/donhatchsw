@@ -1,1 +1,2 @@
-exec java -classpath donhatchsw.jar com.donhatchsw.util.CSG $*
+#!/bin/bash
+exec java -classpath donhatchsw.jar com.donhatchsw.util.CSG "$@"

@@ -1,1 +1,2 @@
-exec java -classpath donhatchsw.jar com.donhatchsw.util.SmoothlyVaryingViewingParameter $*
+#!/bin/bash
+exec java -classpath donhatchsw.jar com.donhatchsw.util.SmoothlyVaryingViewingParameter "$@"

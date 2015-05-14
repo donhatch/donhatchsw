@@ -1,1 +1,2 @@
-exec java -Xmx1g -classpath donhatchsw.jar com.donhatchsw.mc4d.GenericGlue $*
+#!/bin/bash
+exec java -Xmx1g -classpath donhatchsw.jar com.donhatchsw.mc4d.GenericGlue "$@"
