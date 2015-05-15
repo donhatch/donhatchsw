@@ -1905,7 +1905,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     imax = i;
                 }
             }
-            assert(imax != -1);
+            if (imax == -1)
+            {
+                System.out.println("uh oh...");
+                PRINTMAT(A);
+            }
+            assert(imax != -1); // XXX this can happen, if NaNs in the matrix
             if (j != imax) // Do we need to interchange rows?
             {
                 // Yes, do so...
