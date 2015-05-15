@@ -51,7 +51,7 @@ public class NewtonSolver
     * it will be refined.
     */
     public static void solve(double x[],
-                             double y[],
+                             double y[], // const
                              Fun fun,
                              int maxIterations)
     {
@@ -94,7 +94,7 @@ public class NewtonSolver
                             VecMath.sxv(
                                 1., // fudge-- only go partway there
                                 VecMath.invmxv(Jx,
-                                              VecMath.vmv(y, fx))));
+                                               VecMath.vmv(y, fx))));
 
             fx = fun.f(x);
         }

@@ -7,6 +7,9 @@ package com.donhatchsw.util;
 * so I don't have an anxiety attack.  You can knock the target value
 * all over the place, and the actual value will smoothly move towards to it,
 * without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
+*
+* XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
+* XXX TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
 */
 public class SmoothlyVaryingViewingParameter
 {
@@ -82,14 +85,14 @@ public class SmoothlyVaryingViewingParameter
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: return buffer size is "+position.length+", expected "+this.position.length+"");
         VecMath.copyvec(position, this.position);
     }
-    /** Gets the velocity of this scalar variable now, in case you're interested.  You can't set the velocity directly (except to zero, by calling snap() or the equivalent).  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    /** Gets the velocity of this scalar variable now.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
     public double getVelocity()
     {
         if (position.length != 1)
-            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getVelocity: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
         return velocity[0];
     }
-    /** Gets the velocity of this scalar variable now, in case you're interested.  You can't set the velocity directly (except to zero, by calling snap() or the equivalent). */
+    /** Gets the velocity of this scalar variable now. */
     public void getVelocity(double velocity[])
     {
         if (velocity.length != this.velocity.length)
@@ -97,14 +100,15 @@ public class SmoothlyVaryingViewingParameter
         VecMath.copyvec(velocity, this.velocity);
     }
 
-    // this is PRIVATE. XXX well maybe I shouldn't be so hard-line, if I make it public, change the above comment
-    private void setVelocity(double velocity[])
+    /** Sets the current velocity.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    public void setVelocity(double velocity[])
     {
         if (velocity.length != this.velocity.length)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setVelocity: new velocity has dimension "+velocity.length+", expected "+this.velocity.length+"");
         VecMath.copyvec(this.velocity, velocity);
     }
-    private void setVelocity(double velocity)
+    /** Sets the current velocity (scalar version). */
+    public void setVelocity(double velocity)
     {
         if (this.velocity.length != 1)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setVelocity: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
@@ -118,6 +122,13 @@ public class SmoothlyVaryingViewingParameter
         if (position.length != 1)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getTarget: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
         return targetPosition[0];
+    }
+    /** Gets the target value of this scalar variable now. */
+    public void getTarget(double target[])
+    {
+        if (target.length != this.targetPosition.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getTarget: return buffer size is "+target.length+", expected "+this.targetPosition.length+"");
+        VecMath.copyvec(target, this.targetPosition);
     }
 
 
@@ -214,20 +225,32 @@ public class SmoothlyVaryingViewingParameter
                 double A = a * ((1.+bounce)/(1.-bounce));
 
                 System.out.println("================================");
+                PRINT(A);
                 PRINTVEC(velocity);
                 PRINTVEC(position);
+
+                // It's easier to think about if we do it backwards,
+                // that is, a trip starting at p=0,v=0
+                // and ending with p=(position-targetPosition),v=-velocity.
+                // I.e. find the catenary connecting 0 with -velocity
+                // whose moment is position.
+                double minusVelocity[] = VecMath.sxv(-1., velocity);
+                double positionDisplacement[] = VecMath.vmv(position, targetPosition);
                 // We want to work in 2 dimensions.
                 // So find two orthogonal vectors spanning the space
-                // containing 0, velocity, and position.
-                double basis[][] = VecMath.extendAndOrthogonalize(2, 2, new double[][]{velocity,position});
-                PRINTMAT(basis);
+                // containing 0, -velocity, and positionDisplacement.
+                // With respect to this basis, we want -velocity to go on the non-negative x axis
+                // and positionDisplacement to be in the 3rd or 4th quadrant.
+                double basis[][] = VecMath.extendAndOrthogonalize(2, 2, new double[][]{
+                    minusVelocity,
+                    positionDisplacement,
+                });
+                // 
                 VecMath.sxv(basis[1], -1., basis[1]);
-                PRINT(VecMath.dot(velocity, basis[0]));
-                assert(VecMath.dot(velocity, basis[0]) >= 0);
+                assert(VecMath.dot(minusVelocity, basis[0]) >= 0);
                 assert(VecMath.dot(position, basis[1]) <= 0);
-                double v[/*2*/] = VecMath.mxv(basis, velocity);
-                double p[/*2*/] = VecMath.mxv(basis, position);
-                double pTarget[/*2*/] = VecMath.mxv(basis, targetPosition);
+                double v[/*2*/] = VecMath.mxv(basis, minusVelocity);
+                double p[/*2*/] = VecMath.mxv(basis, positionDisplacement);
                 // v should be on non-negative x axis,
                 // p should be in the 3rd or 4th quadrant
                 PRINTVEC(v);
@@ -235,7 +258,6 @@ public class SmoothlyVaryingViewingParameter
                 assert(v[0] >= 0);
                 assert(EQ(v[1], 0., 1e-6)); // XXX need to make this relative
                 assert(p[1] <= 0);
-
                 // We want the down-angle and scale
                 // of the catenary with end points 0,v
                 // and integral p.
@@ -252,49 +274,90 @@ public class SmoothlyVaryingViewingParameter
                 //
                 // We're going to solve for such x,y.
 
-                //System.out.println("=====================");
-                //System.out.println("trying to do it right");
-                //PRINTVEC(velocity);
-                //PRINTVEC(position);
-                //PRINTVEC(v);
-                //PRINTVEC(p);
-
-
-                // ...
-                final double v0[] = v;
-                final double v1[] = {0,0};
-                final double desiredIntegral[] = VecMath.vxs(VecMath.vmv(pTarget, p),
-                                                             A);
+                final double v0[] = {0,0};
+                final double v1[] = v;
+                final double desiredIntegral[] = VecMath.vxs(p, A);
+                PRINTVEC(desiredIntegral);
                 NewtonSolver.Fun fun = new NewtonSolver.Fun() {
-                    public double[] f(double x[])
+                    public double[] f(double xy[])
                     {
+                        //System.out.println("in f(xy = "+Arrays.toStringCompact(xy)+")");
                         double integral[] = new double[2];
-                        double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1,
-                                                                                      x[0], x[1],
-                                                                                      Double.POSITIVE_INFINITY,
-                                                                                      integral,
-                                                                                      null);
+                        double arcLength = integralOfCatenaryWithEndpointsRectangular(
+                            v0, v1,
+                            xy[0], xy[1],
+                            Double.POSITIVE_INFINITY,
+                            integral,
+                            null); // vFinal
+                        //System.out.println("out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
                         return integral;
                     }
                 };
-                double answer[] = {0,
-                                   p[1] < 0. ? -1. : 1.};
-                NewtonSolver.solve(answer,
+                double xyAnswer[] = {0, -1.}; // XXX make better initial guess
+                NewtonSolver.solve(xyAnswer,
                                    desiredIntegral,
                                    fun, 1000);
-                double integral[] = new double[2];
-                double vFinal[] = new double[2];
-                double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, answer[0], answer[1],
-                                                                              dt*A,
-                                                                              integral,
-                                                                              vFinal);
-                PRINTVEC(desiredIntegral);
-                PRINTVEC(integral);
 
-                // Convert new position and velocity from 2d back to original space
-                VecMath.vxm(velocity, v, basis);
-                VecMath.vxm(position, p, basis);
-                //System.out.println("=====================");
+                // Okay we've found the catenary shape.
+                // The next part is tricky since it's kind of backwards.
+                // We want to integrate along that catenary,
+                // starting at v1, and going towards v0.
+                // So the x (but not the y) of the catenary will be minus what we got from the solve.
+
+                // XXX But I think that's broken, or at least hard to think about, so instead, negate v1 temporarily and try it.
+                PRINT(v1[1]); // should be 0
+                v1[0] *= -1;
+                xyAnswer[0] *= -1;
+
+                double partwayIntegral[] = new double[2];
+                double vFinal[] = new double[2];
+                OUT("        ??? figuring out evolution by dt="+dt+"...");
+                double arcLength = integralOfCatenaryWithEndpointsRectangular(
+                    v1, v0,
+                    xyAnswer[0], xyAnswer[1],
+                    dt*A, // XXX is this right?
+                    partwayIntegral,
+                    vFinal);
+
+                // XXX undo the temporary fudge
+                v1[0] *= -1;
+                xyAnswer[0] *= -1;
+                partwayIntegral[0] *= -1;
+                vFinal[0] *= -1;
+
+                if (false)
+                {
+                    OUT("old:");
+                    PRINTVEC(velocity);
+                    PRINTVEC(position);
+                    PRINTVEC(positionDisplacement);
+                }
+
+                // p gets adjusted by cutting off the last part of it,
+                // i.e. subtracting partwayIntegral
+                VecMath.vmv(p, p, partwayIntegral);
+
+                // Convert new minusVelocity and positionDisplacement from 2d back to original space
+                VecMath.vxm(minusVelocity, vFinal, basis);
+                VecMath.vxm(positionDisplacement, p, basis);
+
+
+                // We were working with minusVelocity = -velocity
+                VecMath.vxs(velocity, minusVelocity, -1.);
+                // We were actually working with positionDisplacement = position-targetPosition
+                //VecMath.vpv(position, positionDisplacement, targetPosition);
+                VecMath.vpv(position, positionDisplacement, targetPosition);
+
+                // We've set the new position and velocity.
+                // Done!
+
+                if (false)
+                {
+                    OUT("new:");
+                    PRINTVEC(velocity);
+                    PRINTVEC(position);
+                    PRINTVEC(positionDisplacement);
+                }
             } // if strategy == STRATEGY_TRY_TO_DO_IT_RIGHT
             else if (strategy == STRATEGY_TWO_PIECE_QUADRATIC)
             {
@@ -401,15 +464,25 @@ public class SmoothlyVaryingViewingParameter
              || VecMath.normsqrd(velocity) != 0.;
     }
 
-    // answer gets put into answer. The function return value is the arc length.
+    // Path-length integrate from v0 to either v1, or to a length of maxLengthToIntegrate,
+    // which ever comes first.
+    // Answer gets put into answer. The function return value is the arc length.
+    // vFinal is the point that the integral went to (either v1, or the point at distance maxLengthToIntegrate along the curve).
     private static double integralOfTranslatedCoshGraphWithEndpoints(double v0[/*2*/],
                                                                      double v1[/*2*/],
                                                                      double maxLengthToIntegrate,
                                                                      double answer[/*2*/],
                                                                      double vFinal[/*2*/]) // optional
     {
+        int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
+        if (debugLevel >= 1) System.out.println("                in integralOfTranslatedCoshGraphWithEndpoints");
+        if (debugLevel >= 2) PRINTARRAY(v0);
+        if (debugLevel >= 2) PRINTARRAY(v1);
+        if (debugLevel >= 2) PRINT(maxLengthToIntegrate);
         double a = v1[0]-v0[0];
         double b = v1[1]-v0[1];
+        if (debugLevel >= 2) PRINT(a);
+        if (debugLevel >= 2) PRINT(b);
         double sinhHalfA = MyMath.sinh(a*.5);
         // Test for a==0.
         // Actually test for sinh(a*.5)==0 (which underflows faster than a does)
@@ -437,6 +510,7 @@ public class SmoothlyVaryingViewingParameter
                                 length*.5, v0,
                                 length*.5, v1);
             }
+            if (debugLevel >= 1) System.out.println("                out integralOfTranslatedCoshGraphWithEndpoints (degenerate case), returning length="+length);
             return length;
         }
 
@@ -515,12 +589,13 @@ public class SmoothlyVaryingViewingParameter
             vFinal[0] = x1     + (v0[0]-x0);
             vFinal[1] = coshx1 + (v0[1]-coshx0);
         }
+        if (debugLevel >= 1) System.out.println("                out integralOfTranslatedCoshGraphWithEndpoints, returning wholeArcLength="+wholeArcLength);
         return wholeArcLength;
     } // integralOfTranslatedCoshGraphWithEndpoints
 
     // A catenary is a scaled rotated translated cosh.
     // Answer gets put into answer. The function return value is the arc length.
-    // XXX do this in rectangular coordinates! should be no need to do the trig
+    // XXX do this in rectangular coordinates! should be no need to do the trig to get the rotation matrix!
     private static double integralOfCatenaryWithEndpointsPolar(double v0[/*2*/],
                                                                double v1[/*2*/],
                                                                double invCatenaryScale,
@@ -529,6 +604,8 @@ public class SmoothlyVaryingViewingParameter
                                                                double answer[/*2*/],
                                                                double vFinal[/*2*/]) // optional
     {
+        int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
+        if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsPolar");
         // invCatenaryScale^2 is what we're going to divide by,
         // so test that instead of invCatenaryScale itself
         if (invCatenaryScale*invCatenaryScale == 0.)
@@ -552,6 +629,7 @@ public class SmoothlyVaryingViewingParameter
                 if (vFinal != null)
                     VecMath.copyvec(vFinal, v1);
             }
+            if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsPolar, returning length="+length);
             return length;
         }
         double downRotation = downAngle - (-Math.PI/2);
@@ -585,8 +663,9 @@ public class SmoothlyVaryingViewingParameter
             VecMath.vxm(temp, vFinal, downRotationMatrix);
             VecMath.vxs(vFinal, temp, 1./invCatenaryScale);
         }
+        if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsPolar, returning arcLength="+arcLength+" / invCatenaryScale="+invCatenaryScale+" = "+(arcLength / invCatenaryScale));
         return arcLength / invCatenaryScale;
-    } // integralOfCatenaryWithEndpoints
+    } // integralOfCatenaryWithEndpointsPolar
 
     // TODO: implement this directly, there's no need for the trig
     private static double integralOfCatenaryWithEndpointsRectangular(double v0[/*2*/],
@@ -11765,6 +11844,97 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
 
 
+    // DOING THIS:
+    //     Evolve from now by dt, 2*dt, 3*dt, ... until calm,
+    //     then evolve by each of those to each other, and make sure we get same result.
+    // COULD DO THIS INSTEAD but more prone to roundoff:
+    //     first do it by dt increments
+    private static void trySomeEvolves(double[] initialPosition,
+                                       double[] targetPosition,
+                                       double[] initialVelocity,
+                                       double dt)
+    {
+        System.out.println("    in trySomeEvolves");
+        PRINT(initialPosition);
+        PRINT(targetPosition);
+        PRINT(initialVelocity);
+        // to get A=1...
+        double referenceTripDistance = .25;
+        double referenceTripTime = 1.;
+        double bounce = 0.; // probably not prepared to do anything with this
+
+        com.donhatchsw.compat.ArrayList positionsArrayList = new com.donhatchsw.compat.ArrayList();
+        com.donhatchsw.compat.ArrayList velocitiesArrayList = new com.donhatchsw.compat.ArrayList();
+
+        for (int i = 0; ; i++)
+        {
+            SmoothlyVaryingViewingParameter foo = new SmoothlyVaryingViewingParameter(initialPosition);
+            foo.setVelocity(initialVelocity);
+            foo.set(targetPosition);
+            double p[] = new double[initialPosition.length];
+            double v[] = new double[initialPosition.length];
+            SmoothlyVaryingViewingParameter.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT; // global!
+            foo.evolve(referenceTripDistance,
+                       referenceTripTime,
+                       i * dt,
+                       bounce);
+            foo.get(p);
+            foo.getVelocity(v);
+            positionsArrayList.add(p);
+            velocitiesArrayList.add(v);
+            System.out.println("        i = "+i+" -> p="+Arrays.toStringCompact(p)+" v="+Arrays.toStringCompact(v));
+
+            if (VecMath.norm(v) == 0.
+             && VecMath.equalsExactly(p, targetPosition)) // but this never happens exactly, currently :-(
+                break;
+            // also need to break if not changing (since position doesn't go exactly to target, currently)
+            if (i > 0)
+            {
+                double pPrev[] = (double[])positionsArrayList.get(i-1);
+                double vPrev[] = (double[])velocitiesArrayList.get(i-1);
+                if (VecMath.equalsExactly(vPrev, v)
+                 && VecMath.equalsExactly(pPrev, p))
+                {
+                    positionsArrayList.remove(i-1);
+                    velocitiesArrayList.remove(i-1);
+                    break;
+                }
+            }
+        }
+        int n = positionsArrayList.size();
+        double positions[][] = (double[][])positionsArrayList.toArray(new double[n][]);
+        double velocities[][] = (double[][])velocitiesArrayList.toArray(new double[n][]);
+        PRINTARRAY_NONCOMPACT(positions);
+        PRINTARRAY_NONCOMPACT(velocities);
+
+        for (int i = 1; i < n; ++i) // skip i=0
+        for (int j = i; j < n; ++j)
+        {
+            double pExpected[] = positions[j];
+            double vExpected[] = velocities[j];
+
+            SmoothlyVaryingViewingParameter foo = new SmoothlyVaryingViewingParameter(positions[i]);
+            foo.setVelocity(velocities[i]);
+            foo.set(targetPosition);
+            double pActual__[] = new double[initialPosition.length];
+            double vActual__[] = new double[initialPosition.length];
+            SmoothlyVaryingViewingParameter.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT; // global!
+            foo.evolve(referenceTripDistance,
+                       referenceTripTime,
+                       (j-i) * dt,
+                       bounce);
+            foo.get(pActual__);
+            foo.getVelocity(vActual__);
+            System.out.println("        "+i+"->"+j+":");
+            PRINTARRAY(pExpected);
+            PRINTARRAY(pActual__);
+            PRINTARRAY(vExpected);
+            PRINTARRAY(vActual__);
+        }
+
+        System.out.println("    out trySomeEvolves");
+    } // trySomeEvolves
+
     // Trying to visualize the kinodynamic planning problem.
     // not part of the SmoothlyVaryingViewingParameter implementation yet.
     private static void interactiveDemo2()
@@ -11797,9 +11967,18 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public double v0[] = {0,0};
                 public double p0[] = {0,0};
 
+#if 1
+                // nice case to look at
                 public double A0[] = {1.5,-1};
                 public double A1[] = {1.5,1}; // will be adjusted to be unit distance away
                 public double t1 = 2.5;
+#else
+                // nice case to debug
+                public double A0[] = {.17,-1.6};
+                public double A1[] = {.17,1.6}; // will be adjusted to be unit distance away XXX
+                public double t1 = VecMath.dist(A0,A1); // so A1 actually turns into At1
+#endif
+
 
                 public double accelerationMagnitude = 1.; // we fake this by simply scaling everything in the view except the unit circle by the inverse of this
                 public boolean twoQuadraticsMode = false;
@@ -12471,6 +12650,32 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                             repaint();
                         }
+                        else if (c == 'e')
+                        {
+                            OUT("==================================");
+                            OUT("        Trying some evolves");
+
+                            // Messing around here... do some evolves.
+                            // Can only do this if v0 is at 0.
+                            PRINTARRAY(model.v0);
+                            if (VecMath.normsqrd(model.v0) == 0.)
+                            {
+                                double vt1[] = calcVelocity(model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
+                                double pt1[] = calcPosition(model.p0,model.v0,model.A0,model.A1,model.t1,model.twoQuadraticsMode);
+                                if (model.t1 > 0.)
+                                    VecMath.vxs(vt1, vt1, -1.);
+                                double initialPosition[] = {pt1[0], pt1[1], 0};
+                                double targetPosition[] = {model.p0[0], model.p0[1], 0};
+                                double initialVelocity[] = {vt1[0], vt1[1], 0};
+                                double dt = .1;
+                                trySomeEvolves(initialPosition, targetPosition, initialVelocity, dt);
+                            }
+                            else
+                            {
+                                System.out.println("    can't do it; v(0) isn't at 0");
+                            }
+                            OUT("==================================");
+                        }
                         else
                         {
                             System.out.println("Huh?");
@@ -12715,7 +12920,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                      twoQuadraticsMode,
                                      A0, At1); // initial guess
 
-                            if (false)
+                            if (eventVerbose >= 2)
                             {
                                 System.out.println("Before solve:");
                                 PRINTVEC(A0);
@@ -12725,7 +12930,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             A0 = solvedA0At1[0];
                             At1 = solvedA0At1[1];
 
-                            if (false)
+                            if (eventVerbose >= 2)
                             {
                                 System.out.println("After solve:");
                                 PRINTVEC(A0);
