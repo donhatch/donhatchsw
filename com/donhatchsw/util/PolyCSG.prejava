@@ -56,7 +56,7 @@ public final class PolyCSG
 
     public static Poly PolyFromPolytope(CSG.Polytope ptope)
     {
-        assert(ptope.dim == 3);
+        assert_eq(ptope.dim, 3);
         assert(CSG.isOrientedShallow(ptope)); // preemptive insanity prevention
 
         CSG.SPolytope allFaces[] = ptope.facets;
@@ -81,12 +81,12 @@ public final class PolyCSG
                     {
                         CSG.Polytope edge = edgesThisFace[iEdgeThisFace].p;
                         int nVertsThisEdge = edge.facets.length;
-                        assert(nVertsThisEdge % 2 == 0);
+                        assert_eq(nVertsThisEdge % 2, 0);
                         nVerts += nVertsThisEdge/2;
                     }
                 }
                 // each edge was counted twice...
-                assert(nEdges % 2 == 0);
+                assert_eq(nEdges % 2, 0);
                 nEdges /= 2;
                 // each vertex was counted lots of times;
                 // we will nodup them out a little later.
@@ -124,8 +124,8 @@ public final class PolyCSG
                     }
                 }
             }
-            assert(iEdge == nEdges);
-            assert(iVert == nVerts);
+            assert_eq(iEdge, nEdges);
+            assert_eq(iVert, nVerts);
         } // allEdges, allVerts
 
         SortStuff.Comparator idComparator = new SortStuff.Comparator() {
@@ -143,7 +143,7 @@ public final class PolyCSG
         //
         {
             SortStuff.sort(allEdges, idComparator);
-            assert(SortStuff.nodup(allEdges, idComparator) == nEdges); // there are no dups
+            assert_eq(SortStuff.nodup(allEdges, idComparator), nEdges); // there are no dups
             SortStuff.sort(allVerts, idComparator);
             nVerts = SortStuff.nodup(allVerts, idComparator);
             allVerts = (CSG.Polytope[])Arrays.subarray(allVerts, 0, nVerts); // resize
@@ -223,7 +223,7 @@ public final class PolyCSG
             FORI (iEdge, nEdges)
             {
                 int nVertsThisEdge = e2v[iEdge].length;
-                assert(nVertsThisEdge % 2 == 0);
+                assert_eq(nVertsThisEdge % 2, 0);
                 nSegments += nVertsThisEdge/2;
             }
 
@@ -319,9 +319,9 @@ public final class PolyCSG
                         assert(jInd < nVertsThisEdge); // make sure we matched
                     }
                 }
-                assert(iSegThisEdge == nSegsThisEdge);
+                assert_eq(iSegThisEdge, nSegsThisEdge);
             }
-            assert(iSegment == nSegments);
+            assert_eq(iSegment, nSegments);
         } // allSegments, e2s
 
         //PRINTMAT(allSegments);
@@ -363,7 +363,7 @@ public final class PolyCSG
                         iSegThisFace++;
                     }
                 }
-                assert(iSegThisFace == nSegsThisFace);
+                assert_eq(iSegThisFace, nSegsThisFace);
             }
         } // f2s
 
@@ -502,7 +502,7 @@ public final class PolyCSG
         int nSegs;
         {
             int twiceNumSegs = Arrays.arrayLength(faces, 3);
-            assert(twiceNumSegs % 2 == 0);
+            assert_eq(twiceNumSegs % 2, 0);
             nSegs = twiceNumSegs/2;
             segs = new int[nSegs][2];
             {
@@ -521,7 +521,7 @@ public final class PolyCSG
                         seg[1] = b;
                     }
                 }
-                assert(iSeg == nSegs);
+                assert_eq(iSeg, nSegs);
             }
         }
 
@@ -594,7 +594,7 @@ public final class PolyCSG
                         iSegThisFace++;
                     }
                 }
-                assert(iSegThisFace == nSegsThisFace);
+                assert_eq(iSegThisFace, nSegsThisFace);
             }
         } // segsPerFace
 

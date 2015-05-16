@@ -116,7 +116,7 @@ public final class Arrays
             java.lang.reflect.Array.set(subarray, iNew++,
                 java.lang.reflect.Array.get(array, start+iOld));
         }
-        assert(iNew == subarrayLength);
+        assert_eq(iNew, subarrayLength);
         return subarray;
     } // subarray with which
 
@@ -250,7 +250,7 @@ public final class Arrays
         assert(depth >= 1); // XXX should be param check throwing exception
         {
             int n = java.lang.reflect.Array.getLength(from);
-            assert(n == java.lang.reflect.Array.getLength(to));
+            assert_eq(n, java.lang.reflect.Array.getLength(to));
             if (depth == 1)
                 System.arraycopy(from, 0,
                                  to, 0,
@@ -662,7 +662,7 @@ public final class Arrays
                 Object inds[] = (Object[])java.lang.reflect.Array.newInstance(
                                     Arrays.getClassOfArrayOf(int[].class, depth-1),
                                     arrayLength);
-                assert(getDim(inds) == depth+1);
+                assert_eq(getDim(inds), depth+1);
                 FORI (i, arrayLength)
                 {
                     currentIndex[indexIntoCurrentIndex] = i;
@@ -724,7 +724,7 @@ public final class Arrays
         if (startDepth == 0)
         {
             int pos = _flatten(flatArray, 0, array, furtherDepth);
-            assert(pos == nFlat);
+            assert_eq(pos, nFlat);
         }
         else
         {
@@ -806,7 +806,7 @@ public final class Arrays
     public static void reverse(int to[], int from[])
     {
         int n = from.length;
-        assert(n == to.length);
+        assert_eq(n, to.length);
         if (to == from)
         {
             int temp;
@@ -823,7 +823,7 @@ public final class Arrays
     public static void reverse(Object to, Object from)
     {
         int n = java.lang.reflect.Array.getLength(from);
-        assert(n == java.lang.reflect.Array.getLength(to));
+        assert_eq(n, java.lang.reflect.Array.getLength(to));
         if (to == from)
         {
             int halfN = n/2; // rounded down

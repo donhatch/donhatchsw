@@ -152,22 +152,22 @@ public class TriangulationOptimizer
                     FORI (iEdgeOnTri, 3)
                     {
                         DirectedEdge e = edges[iTri][iEdgeOnTri];
-                        assert(e.iTri == iTri);
-                        assert(e.iEdgeOnTri == iEdgeOnTri);
-                        assert(e.initialVertex == tris[iTri][iEdgeOnTri]);
-                        assert(e.finalVertex == tris[iTri][(iEdgeOnTri+1)%3]);
+                        assert_eq(e.iTri, iTri);
+                        assert_eq(e.iEdgeOnTri, iEdgeOnTri);
+                        assert_eq(e.initialVertex, tris[iTri][iEdgeOnTri]);
+                        assert_eq(e.finalVertex, tris[iTri][(iEdgeOnTri+1)%3]);
                         if (e.opposite != null)
                         {
-                            assert(e.opposite.opposite == e);
-                            assert(e.opposite.initialVertex == e.finalVertex);
-                            assert(e.opposite.finalVertex == e.initialVertex);
+                            assert_eq(e.opposite.opposite, e);
+                            assert_eq(e.opposite.initialVertex, e.finalVertex);
+                            assert_eq(e.opposite.finalVertex, e.initialVertex);
                         }
                     }
                 }
                 FORI (iHeap, heap.n)
                 {
                     DirectedEdge e = (DirectedEdge)heap.heap[iHeap];
-                    assert(edges[e.iTri][e.iEdgeOnTri] == e);
+                    assert_eq(edges[e.iTri][e.iEdgeOnTri], e);
                     assert(e.opposite != null);
                     if (HEAP_PARENT(iHeap) >= 0)
                         assert(heap.heap[HEAP_PARENT(iHeap)].getVal()
@@ -368,7 +368,7 @@ public class TriangulationOptimizer
                         edgesThisContour[iVertThisContour] = edge;
                     }
                 }
-                assert(iEdge == nEdges);
+                assert_eq(iEdge, nEdges);
             }
             SortStuff.Comparator edgeComparator = new SortStuff.Comparator() {
                 public int compare(Object _a, Object _b)

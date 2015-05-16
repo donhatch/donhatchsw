@@ -115,19 +115,19 @@ public class IntArrayList
     public static void main(String args[])
     {
         IntArrayList a = new IntArrayList();
-        assert(a.size() == 0);
+        assert_eq(a.size(), 0);
         a.add(100);
-        assert(a.size() == 1);
+        assert_eq(a.size(), 1);
         a.add(200);
-        assert(a.size() == 2);
+        assert_eq(a.size(), 2);
         a.add(-1);
-        assert(a.size() == 3);
+        assert_eq(a.size(), 3);
         a.removeIndex(a.size()-1);
-        assert(a.size() == 2);
+        assert_eq(a.size(), 2);
         a.add(300);
-        assert(a.size() == 3);
+        assert_eq(a.size(), 3);
         a.clear();
-        assert(a.size() == 0);
+        assert_eq(a.size(), 0);
         System.out.println("All good!");
     }
 } // class ArrayList

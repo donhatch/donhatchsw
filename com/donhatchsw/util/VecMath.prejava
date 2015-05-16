@@ -964,10 +964,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** vector times transpose of matrix */
     public static void vxtransposem(double result[], double v[], double m[][])
     {
-        assert(result.length == m.length);
+        assert_eq(result.length, m.length);
         FORIDOWN(iCol, result.length)
         {
-            assert(v.length == m[iCol].length);
+            assert_eq(v.length, m[iCol].length);
             result[iCol] = dot(v, m[iCol]);
         }
     }
@@ -976,7 +976,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static void mxtransposem(double result[][], double m0[][], double m1[][])
     {
         assert(result != m0 && result != m1);
-        assert(result.length == m0.length);
+        assert_eq(result.length, m0.length);
         FORIDOWN(iRow, result.length)
             vxtransposem(result[iRow], m0[iRow], m1);
     }
@@ -2084,8 +2084,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         int nRows = M.length;
         int nCols = ROWLENGTH(M);
-        assert(nRows == result.length);
-        assert(nCols == ROWLENGTH(result));
+        assert_eq(nRows, result.length);
+        assert_eq(nCols, ROWLENGTH(result));
         if (nRows == nCols)
         {
 #ifdef DEFUNCT
@@ -2176,7 +2176,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         if (!destructive)
             M = copymat(M);
         int n = M.length;
-        assert(n == ROWLENGTH(M));
+        assert_eq(n, ROWLENGTH(M));
         try
         {
             int indx[] = new int[n];
@@ -2195,7 +2195,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static double det(double M[][], boolean destructive)
     {
         int n = M.length;
-        assert(n == ROWLENGTH(M));
+        assert_eq(n, ROWLENGTH(M));
 
         if (true)
         {
@@ -2262,9 +2262,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
 
         int n = b.length;
-        assert(n == A.length);
+        assert_eq(n, A.length);
         int rowlength = ROWLENGTH(A);
-        assert(rowlength == result.length);
+        assert_eq(rowlength, result.length);
         if (rowlength < n)
         {
             // Linear least squares
@@ -2274,7 +2274,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             invmxv(result, AA, bb); // recurse on the normal equation
             return;
         }
-        assert(rowlength == n); // A is square
+        assert_eq(rowlength, n); // A is square
                 // XXX note, we get a different assertion above if A is 0x1, should make that more clear
 
         double temp[][] = copymat(A);
@@ -2303,7 +2303,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
             FORI (i, n)
             {
-                //assert(1. + SQR(bb[i] - b[i]) == 1.);
+                //assert_eq(1. + SQR(bb[i] - b[i]), 1.);
                 /*
                 if (1. + SQR(bb[i] - b[i]) != 1.)
                 {
@@ -2315,9 +2315,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 }
                 */
                 if (ABS(b[i]) > 1. && ABS(bb[i]) > 1.)
-                    assert((float)(bb[i]/b[i]) == (float)1.);
+                    assert_eq((float)(bb[i]/b[i]), (float)1.);
                 else
-                    assert((float)(1. + SQR(bb[i] - b[i])) == (float)1.);
+                    assert_eq((float)(1. + SQR(bb[i] - b[i])), (float)1.);
             }
         }
     } // invmxv
@@ -2329,11 +2329,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return; // avoid dangerous assertions
 
         int n = B.length;
-        assert(n == A.length);
+        assert_eq(n, A.length);
         int rowlength = ROWLENGTH(A);
-        assert(rowlength == result.length);
+        assert_eq(rowlength, result.length);
         int nCols = ROWLENGTH(result);
-        assert(nCols == ROWLENGTH(B));
+        assert_eq(nCols, ROWLENGTH(B));
         if (rowlength < n)
         {
             // Linear least squares
@@ -2343,7 +2343,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             invmxm(result, AA, BB); // recurse on the normal equation, of size rowlength
             return;
         }
-        assert(rowlength == n); // A is square
+        assert_eq(rowlength, n); // A is square
 
         double temp[][] = copymat(A);
         int indx[] = new int[n];
@@ -2917,7 +2917,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static int leftSqrtOfSymmetricMatrix(double result[][], boolean whichColumnsOfResultAreImaginary[], double C[][])
     {
         int n = C.length; // == C[0].length
-        assert(n == result.length);
+        assert_eq(n, result.length);
         double eigenValues[] = new double[n];
         double eigenVectors[][] = new double[n][n]; // columns
         double temp[][] = copymat(C); // since jacobi is destructive
@@ -2949,7 +2949,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             int j;
             FOR (i, n)
             FOR (j, n)
-                assert(1. + SQR(A[i][j]-B[i][j]) == 1.);
+                assert_eq(1. + SQR(A[i][j]-B[i][j]), 1.);
         }
 
         // XXX if result is null, shouldn't do the sqrts and stuff in the
@@ -4549,7 +4549,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             int nFixedAxes = fixedAxes.length;
             int n = (nFixedAxes == 0 ? 2 : fixedAxes[0].length);
-            assert(nFixedAxes == n-2);
+            assert_eq(nFixedAxes, n-2);
             double rotXtoFixedAxes[][] = new double[n][n];
             extendAndGramSchmidt(nFixedAxes, n, rotXtoFixedAxes, fixedAxes);
             return mxmxm(transpose(rotXtoFixedAxes),
@@ -4571,7 +4571,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[][] makeRowRotMatThatSlerps(double from[], double to[], double t)
         {
             int n = from.length;
-            assert(n == to.length);
+            assert_eq(n, to.length);
             assert(n >= 2);
             from = normalize(from);
             to = normalize(to);
@@ -4863,7 +4863,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                                        int lut1[])
         {
             int n = lut1.length;
-            assert(n == result.length);
+            assert_eq(n, result.length);
             FORI (i, n)
                 result[i] = lut0[lut1[i]];
         } // composeluts
@@ -4926,7 +4926,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     if (iCol == iRow)
                         assert(L[iRow][iCol] >= 0.);
                     if (iCol > iRow)
-                        assert(L[iRow][iCol] == 0.);
+                        assert_eq(L[iRow][iCol], 0.);
                 }
                 if (nRowsInQ != -1)
                 {

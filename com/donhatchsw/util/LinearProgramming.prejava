@@ -83,7 +83,7 @@ public final class LinearProgramming
     {
         int n = x.length;
         int m = A.length;
-        assert(m == b.length);
+        assert_eq(m, b.length);
 
         double xx[] = new double[n+m];
         double AA[][] = new double[0][n+m];
@@ -166,7 +166,7 @@ public final class LinearProgramming
         // with a column of -1's added on the right...
         for (int iRow = 0; iRow < A.length; ++iRow)
         {
-            assert(A[iRow].length == n);
+            assert_eq(A[iRow].length, n);
             for (int i = 0; i < n; ++i)
                 CC[A.length+iRow][i] = -(CC[iRow][i] = A[iRow][i]);
             CC[iRow][n] = -1;
@@ -259,8 +259,8 @@ public final class LinearProgramming
                                       double C[][], double d[]) // maximize minimum element of Cx - d
     {
         int n = x.length;
-        assert(A.length == b.length);
-        assert(C.length == d.length);
+        assert_eq(A.length, b.length);
+        assert_eq(C.length, d.length);
         // row length assertions will be done below
 
         double xx[] = new double[n+1];
@@ -272,14 +272,14 @@ public final class LinearProgramming
 
         for (int iA = 0; iA < A.length; ++iA)
         {
-            assert(A[iA].length == n);
+            assert_eq(A[iA].length, n);
             for (int i = 0; i < n; ++i)
                 AA[iA][i] = A[iA][i];
             AA[iA][n] = 0.;
         }
         for (int iC = 0; iC < C.length; ++iC)
         {
-            assert(C[iC].length == n);
+            assert_eq(C[iC].length, n);
             for (int i = 0; i < n; ++i)
                 CC[iC][i] = -C[iC][i];
             CC[iC][n] = 1.;
@@ -353,13 +353,13 @@ public final class LinearProgramming
         int n = x.length;            // number of variables
         int m = A.length + C.length; // number of constraints
 
-        assert(q.length == n);
-        assert(A.length == b.length);
-        assert(C.length == d.length);
+        assert_eq(q.length, n);
+        assert_eq(A.length, b.length);
+        assert_eq(C.length, d.length);
         for (int i = 0; i < A.length; ++i)
-            assert(A[i].length == n);
+            assert_eq(A[i].length, n);
         for (int i = 0; i < C.length; ++i)
-            assert(C[i].length == n);
+            assert_eq(C[i].length, n);
 
         if (!implicitRestrictNonNegative)
         {
@@ -497,11 +497,11 @@ public final class LinearProgramming
                            nEQ,
                            izrov,
                            iposv);
-        assert(M[0] == null);
+        assert_eq(M[0], null);
         for (int i = 1; i < M.length; ++i)
             assert(Double.isNaN(M[i][0]));
-        assert(izrov[0] == -999);
-        assert(iposv[0] == -999);
+        assert_eq(izrov[0], -999);
+        assert_eq(iposv[0], -999);
 
         if (icase == 0) // if got a finite result
         {
@@ -628,13 +628,13 @@ public final class LinearProgramming
         //
         // Sanity check the arrays...
         //
-        assert(a.length == 1+1+m+1);
-        assert(a[0] == null);
-        assert(a[1].length == 1+1+n);
+        assert_eq(a.length, 1+1+m+1);
+        assert_eq(a[0], null);
+        assert_eq(a[1].length, 1+1+n);
         for (int iRow = 1; iRow < a.length; ++iRow)
             assert(Double.isNaN(a[iRow][0]));
-        assert(izrov[0] == -999);
-        assert(iposv[0] == -999);
+        assert_eq(izrov[0], -999);
+        assert_eq(iposv[0], -999);
 
         //
         // Figure out optimal column widths
@@ -891,8 +891,8 @@ public final class LinearProgramming
                     // Auxiliary objective function is still negative
                     // and can't be improved, hence no
                     // feasible solution exists.
-                    assert(l1[0] == -999);
-                    assert(l3[0] == true);
+                    assert_eq(l1[0], -999);
+                    assert_eq(l3[0], true);
                     if (debugLevel >= 1) System.out.println("    Out simplx (infeasible)");
                     return -1;
                 }
@@ -945,8 +945,8 @@ public final class LinearProgramming
                     {
                         // Maximum of auxiliary objective function is
                         // unbounded, so no feasible solution exists.
-                        assert(l1[0] == -999);
-                        assert(l3[0] == true);
+                        assert_eq(l1[0], -999);
+                        assert_eq(l3[0], true);
                         if (debugLevel >= 1) System.out.println("    Out simplx (infeasible, aux objective function unbounded)");
                         return -1;
                     }
@@ -996,7 +996,7 @@ public final class LinearProgramming
                     iposv[ip] = is;
                 }
             } // Still in phase 1, go back to for(;;).
-            assert(l3[0] == true);
+            assert_eq(l3[0], true);
         } // if (m2+m3 != 0)
 
         if (debugLevel >= 1) System.out.println("        PHASE TWO");
@@ -1065,7 +1065,7 @@ public final class LinearProgramming
 
 
 
-                assert(l1[0] == -999);
+                assert_eq(l1[0], -999);
                 if (debugLevel >= 1)
                 {
                     System.out.println("        SOLUTION:");
@@ -1082,7 +1082,7 @@ public final class LinearProgramming
             if (ip == 0)
             {
                 // Objective function is unbounded.  Report and return.
-                assert(l1[0] == -999);
+                assert_eq(l1[0], -999);
                 if (debugLevel >= 1) System.out.println("    Out simplx (unbounded)");
                 return 1;
             }
@@ -1499,7 +1499,7 @@ public final class LinearProgramming
             {
                 FORI (i, error.length)
                     assert(EQ(error[i], 0., 1e-6));
-                assert(remainder.length == y.length);
+                assert_eq(remainder.length, y.length);
                 int nExactZeros = 0;
                 FORI (i, remainder.length)
                 {
@@ -1517,7 +1517,7 @@ public final class LinearProgramming
             {
                 FORI (i, errorByBruteForce.length)
                     assert(EQ(errorByBruteForce[i], 0., 1e-6));
-                assert(remainderByBruteForce.length == yByBruteForce.length);
+                assert_eq(remainderByBruteForce.length, yByBruteForce.length);
                 int nExactZeros = 0;
                 FORI (i, remainderByBruteForce.length)
                 {
@@ -1531,7 +1531,7 @@ public final class LinearProgramming
                 if (!implicitRestrictNonNegative)
                     assert(nExactZeros >= q.length - A.length);
             }
-            assert(result == resultByBruteForce);
+            assert_eq(result, resultByBruteForce);
             if (result == 0 && resultByBruteForce == 0)
             {
                 assert(EQ(dot, dotByBruteForce, 1e-6));
@@ -1575,7 +1575,7 @@ public final class LinearProgramming
             int nLE = 2;
             int nGE = 1;
             int nEQ = 1;
-            assert(nLE+nGE+nEQ == m);
+            assert_eq(nLE+nGE+nEQ, m);
             System.out.println("Input:");
             PRINTMAT(A);
             PRINT(m);
@@ -1606,11 +1606,11 @@ public final class LinearProgramming
                 PRINTTABLEAU(A,m,n,nLE,nGE,izrov,iposv);
             }
 
-            assert(A[0] == null);
+            assert_eq(A[0], null);
             for (int i = 1; i < A.length; ++i)
                 assert(Double.isNaN(A[i][0]));
-            assert(izrov[0] == -999);
-            assert(iposv[0] == -999);
+            assert_eq(izrov[0], -999);
+            assert_eq(iposv[0], -999);
 
             //
             // Assert the answer is right...
@@ -1960,7 +1960,7 @@ public final class LinearProgramming
             PRINT(resultInf);
             PRINTVEC(xInf);
             PRINTVEC(xInfExpected);
-            assert(resultInf == 0);
+            assert_eq(resultInf, 0);
             if (VecMath.dist(xInf,xInfExpected) <= 1e-12)
                 System.out.println("SUCCESS");
             else
@@ -1975,7 +1975,7 @@ public final class LinearProgramming
             PRINT(result1);
             PRINTVEC(x1);
             PRINTVEC(x1Expected);
-            assert(result1 == 0);
+            assert_eq(result1, 0);
             if (VecMath.dist(x1,x1Expected) <= 1e-12)
                 System.out.println("SUCCESS");
             else
@@ -2012,7 +2012,7 @@ public final class LinearProgramming
             double q[] = {2, 1};
             boolean implicitRestrictNonNegative = false;
             int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
-            assert(result == 0);
+            assert_eq(result, 0);
             System.out.println("=============================================");
         }
         if (thoroughness >= 1)
@@ -2033,7 +2033,7 @@ public final class LinearProgramming
             double q[] = {0.0,0.0,1.0,-0.0,-0.0,-1.0};
             boolean implicitRestrictNonNegative = true;
             int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
-            assert(result == 0);
+            assert_eq(result, 0);
             System.out.println("=============================================");
         }
         if (thoroughness >= 1)
@@ -2054,7 +2054,7 @@ public final class LinearProgramming
             double q[] = {0.0,0.0,1.0};
             boolean implicitRestrictNonNegative = false;
             int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
-            assert(result == 0);
+            assert_eq(result, 0);
             System.out.println("=============================================");
         }
         if (thoroughness >= 1)
@@ -2080,7 +2080,7 @@ public final class LinearProgramming
             double q[] = {0.0,0.0,1.0};
             boolean implicitRestrictNonNegative = true;
             int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
-            assert(result == 0);
+            assert_eq(result, 0);
             System.out.println("=============================================");
         }
         if (thoroughness >= 1)
@@ -2107,7 +2107,7 @@ public final class LinearProgramming
             double x[] = new double[q.length];
             boolean implicitRestrictNonNegative = true;
             int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
-            assert(result == 0);
+            assert_eq(result, 0);
             System.out.println("=============================================");
         }
         if (thoroughness >= 1)
@@ -2129,7 +2129,7 @@ public final class LinearProgramming
             double q[] = {0.0,1.0};
             boolean implicitRestrictNonNegative = true;
             int result = testOneCase(A,b,C,d,q,implicitRestrictNonNegative);
-            assert(result == 0);
+            assert_eq(result, 0);
             System.out.println("=============================================");
         }
     } // main

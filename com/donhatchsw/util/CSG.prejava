@@ -240,8 +240,8 @@ public final class CSG
                     FORI (iFacet, nFacets)
                     {
                         Polytope facet = facets[iFacet].p;
-                        assert(facet.fullDim == fullDim);
-                        assert(facet.dim == dim-1);
+                        assert_eq(facet.fullDim, fullDim);
+                        assert_eq(facet.dim, dim-1);
                     }
                 }
 
@@ -264,7 +264,7 @@ public final class CSG
             {
                 if (_coords == null)
                 {
-                    assert(dim == 0); // must be a vertex
+                    assert_eq(dim, 0); // must be a vertex
                     _coords = intersectHyperplanes(contributingHyperplanes);
                 }
                 assert(_coords != null); // XXX not sure if I'm preventing this
@@ -1004,7 +1004,7 @@ public final class CSG
         {
             int dim = 2;
             int fullDim = verts[0].length;
-            assert(fullDim == 2); // XXX could try to do it in higher dimensions; would require getting a hyperplane basis for the othogonal complement space, I think
+            assert_eq(fullDim, 2); // XXX could try to do it in higher dimensions; would require getting a hyperplane basis for the othogonal complement space, I think
             int nVerts = verts.length;
 
             //
@@ -1126,9 +1126,9 @@ public final class CSG
             FORI (iFacet, answer.p.facets.length)
             {
                 Hyperplane contributingHyperplanes[] = answer.p.facets[iFacet].p.contributingHyperplanes;
-                assert(contributingHyperplanes.length == 1);
+                assert_eq(contributingHyperplanes.length, 1);
                 Hyperplane hyperplane = contributingHyperplanes[0];
-                assert(hyperplane.offset == 1);
+                assert_eq(hyperplane.offset, 1);
                 hyperplane.offset = VecMath.dot(hyperplane.normal, center) + inRadius;
             }
             return answer;
@@ -1393,7 +1393,7 @@ public final class CSG
             //PRINTARRAY(wythoff);
             Polytope p = sp.p;
             assert(wythoff != null);
-            assert(wythoff.length == p.dim);
+            assert_eq(wythoff.length, p.dim);
 
             //
             // The vertices of the omni correspond to the flags of p.
@@ -1454,7 +1454,7 @@ public final class CSG
             double weights[] = new double[p.dim];
             {
                 int nDims = p.dim;
-                assert(p.fullDim == nDims);
+                assert_eq(p.fullDim, nDims);
                 double flagMat[][] = new double[nDims][nDims];
                 Polytope[] flag = (Polytope[])flags.get(0); // some flag
                 FORI (iDim, nDims)
@@ -1556,7 +1556,7 @@ public final class CSG
                             // remove the edge and merge the two
                             // vertices.
                             //
-                            assert(elt.facets.length == 2);
+                            assert_eq(elt.facets.length, 2);
                             //PRINTVEC(elt.facets[0].p.getCoords());
                             //PRINTVEC(elt.facets[1].p.getCoords());
                             if (VecMath.distsqrd(elt.facets[0].p.getCoords(),
@@ -1676,7 +1676,7 @@ public final class CSG
                                                int schlafliDenoms[/*nDims-1*/])
         {
             assert(schlafliDenoms != null);
-            assert(schlafli.length == schlafliDenoms.length);
+            assert_eq(schlafli.length, schlafliDenoms.length);
             if (schlafliDenoms == null)
                 schlafliDenoms = VecMath.fillvec(schlafli.length, 1);
             // copy them so we can canonicalize them...
@@ -2326,7 +2326,7 @@ public final class CSG
                                                 * antiprism_height;
                     nverts++;
                 }
-            assert(nverts == verts.length);
+            assert_eq(nverts, verts.length);
 
             // Now if we had a convex hull function,
             // we'd just use it on the vertices and be done.
@@ -4537,8 +4537,8 @@ public final class CSG
             int k = simplices[0].length-1;  // dimension of each simplex
             int n = simplices[0][0].length; // full dimension of space
 
-            assert(sp.p.dim == k);
-            assert(sp.p.fullDim == n);
+            assert_eq(sp.p.dim, k);
+            assert_eq(sp.p.fullDim, n);
             int nNonRedundantNormals = n-k;
             assert(nNonRedundantNormals <= nNormals);
             double sum = 0.;
@@ -4570,10 +4570,10 @@ public final class CSG
                 return;
             int k = simplices[0].length-1; // dimension of each simplex
             int n = simplices[0][0].length; // full dimension of space
-            assert(k == sp.p.dim);
+            assert_eq(k, sp.p.dim);
 
-            assert(k == n-1);
-            assert(result.length == n); // make sure they passed in the right dimension result
+            assert_eq(k, n-1);
+            assert_eq(result.length, n); // make sure they passed in the right dimension result
             double M[][] = new double[k][n];
             double simplexNormal[] = new double[n];
             FORI (iSimplex, nSimplices)
@@ -4670,7 +4670,7 @@ public final class CSG
                         Polytope Ab = _cross(A, b, ocean, subIndentString);
                         facets[iFacet++] = new SPolytope(0,1,Ab); // sign arbitrary, will be fixed later
                     }
-                    assert(iFacet == facets.length);
+                    assert_eq(iFacet, facets.length);
                 }
 
                 Hyperplane contributingHyperplanes[] = new Hyperplane[A.contributingHyperplanes.length + B.contributingHyperplanes.length];
@@ -4699,7 +4699,7 @@ public final class CSG
                         // XXX need to look up zero_b in the ocean to see if it already exists! although it's probably not a functional problem if hyperplane lists get duplicated... maybe
                         contributingHyperplanes[iPlane++] = zero_b;
                     }
-                    assert(iPlane == contributingHyperplanes.length);
+                    assert_eq(iPlane, contributingHyperplanes.length);
                 }
 
                 AB = new Polytope(A.dim+B.dim,
@@ -5004,14 +5004,14 @@ public final class CSG
                         PRINT(totalSignOn);
                         PRINT(totalSignAbove);
                     }
-                    assert(totalSignBelow + totalSignOn + totalSignAbove == 0);
+                    assert_eq(totalSignBelow + totalSignOn + totalSignAbove, 0);
 
                     if (nVertsAbove > 0 && nVertsBelow == 0)
                     {
                         above = slicee.p;
                         if (nVertsOn > 0)
                         {
-                            assert(nVertsOn == 1);
+                            assert_eq(nVertsOn, 1);
                             aboveCapFacet = someVertexOnHyperplane;
                         }
                     }
@@ -5020,7 +5020,7 @@ public final class CSG
                         below = slicee.p;
                         if (nVertsOn > 0)
                         {
-                            assert(nVertsOn == 1);
+                            assert_eq(nVertsOn, 1);
                             belowCapFacet = someVertexOnHyperplane;
                         }
                     }
@@ -5391,8 +5391,8 @@ public final class CSG
                     else
                     {
                         // All zero-- return nothing
-                        assert(nBoundaryRidgesBelow == 0);
-                        assert(nBoundaryRidgesAbove == 0);
+                        assert_eq(nBoundaryRidgesBelow, 0);
+                        assert_eq(nBoundaryRidgesAbove, 0);
                     }
                 } // slicee.p.dim >= 2
 
@@ -5502,7 +5502,7 @@ public final class CSG
                 System.out.println();
 
             int fullDim = A.p.fullDim;
-            assert(fullDim == B.p.fullDim);
+            assert_eq(fullDim, B.p.fullDim);
 
             if (true)
             {
@@ -5868,7 +5868,7 @@ public final class CSG
             if (result == null)
             {
                 int fullDim = A.p.fullDim;
-                assert(fullDim == B.p.fullDim);
+                assert_eq(fullDim, B.p.fullDim);
                 int dim = fullDim - ((fullDim-A.p.dim)
                                    + (fullDim-B.p.dim));
                 result = new SPolytope(0,1,
@@ -6139,9 +6139,9 @@ public final class CSG
                         {
                             SPolytope sedgeI = edges[iEdge];
                             Polytope edgeI = sedgeI.p;
-                            assert(edgeI.facets.length == 2
-                             && edgeI.facets[0].sign == -1
-                             && edgeI.facets[1].sign == 1);
+                            assert_eq(edgeI.facets.length, 2);
+                            assert_eq(edgeI.facets[0].sign, -1);
+                            assert_eq(edgeI.facets[1].sign, 1);
                             Polytope finalVertexOnEdgeI = edgeI.facets[FINAL(sedgeI.sign)].p;
                             if (finalVertexOnEdgeI
                              == initialVertexOnContour)
@@ -6331,7 +6331,7 @@ public final class CSG
                         }
                     }
                 }
-                assert(firstFacetContainingRidge.size() == 0); // everything matched XXX change this assert to failure I think
+                assert_eq(firstFacetContainingRidge.size(), 0); // everything matched XXX change this assert to failure I think
             } // facetNeighbors
 
             int signOfFirstFacet = 1; // arbitrarily XXX is there a better choice?

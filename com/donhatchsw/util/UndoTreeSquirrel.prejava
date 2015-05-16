@@ -558,7 +558,7 @@ public class UndoTreeSquirrel
                 }
                 currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex];
                 currentNodeFraction.snap(0.);
-                assert(currentNodeFraction.get() == 0.);
+                assert_eq(currentNodeFraction.get(), 0.);
                 currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
                 returnVal = new ReturnValueOfIncrementViewTowardsOtherView(1, currentNode.itemOnEdgeFromParentToMe/*AFTER we change current node*/);
                 // In this case don't evolve... wait for next time around,
@@ -652,10 +652,10 @@ public class UndoTreeSquirrel
                     // We'll get the next one next time around (hopefully).
                     //System.out.println("SWITCHING HORSES, BABY!");
                     currentNodeFraction.warp(currentNodeFraction.get()-1.); // i.e. change position without changing velocity   XXX in more general circumstances, we may have to rescale the velocity, although this is fine for now since we only merge when consecutive edges are identical
-                    assert(currentNode.children.length == 1); // XXX for now
+                    assert_eq(currentNode.children.length, 1); // XXX for now
                     currentNodeIndex += currentNode.children[0]; // XXX should be preferred child index
                     currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
-                    assert(returnVal == null); // there shouldn't be any other discrete change we're trying to return
+                    assert_eq(returnVal, null); // there shouldn't be any other discrete change we're trying to return
                     returnVal = new ReturnValueOfIncrementViewTowardsOtherView(1, currentNode.itemOnEdgeFromParentToMe/*AFTER we change current node*/);
                 }
             }
@@ -671,7 +671,7 @@ public class UndoTreeSquirrel
                 returnVal = new ReturnValueOfIncrementViewTowardsOtherView(-1, currentNode.itemOnEdgeFromParentToMe/*BEFORE we change current node*/); // tell caller there was a discrete undo
                 currentNodeIndex += currentNode.parent;
                 currentNodeFraction.snap(1.);
-                assert(currentNodeFraction.get() == 1.);
+                assert_eq(currentNodeFraction.get(), 1.);
                 currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
                 // In this case don't evolve... wait for next time around,
                 // which will do something or other depending
@@ -753,7 +753,7 @@ public class UndoTreeSquirrel
                     //System.out.println("SWITCHING HORSES, BABY!");
                     currentNodeFraction.warp(currentNodeFraction.get()+1.); // i.e. change position without changing velocity   XXX in more general circumstances, we may have to rescale the velocity, although this is fine for now since we only merge when consecutive edges are identical
 
-                    assert(returnVal == null); // there shouldn't be any other discrete change we're trying to return
+                    assert_eq(returnVal, null); // there shouldn't be any other discrete change we're trying to return
                     returnVal = new ReturnValueOfIncrementViewTowardsOtherView(-1, currentNode.itemOnEdgeFromParentToMe/*BEFORE we change current node*/); // tell caller there was a discrete undo
                     currentNodeIndex += currentNode.parent;
                     currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
@@ -1668,7 +1668,7 @@ public class UndoTreeSquirrel
                     int childIndex = iNode + node.children[iChild];
                     UndoTree.Node child = (UndoTree.Node)model.nodes.get(childIndex);
                     //System.out.println(""+iNode+"->"+childIndex);
-                    assert(childIndex+child.parent == iNode);
+                    assert_eq(childIndex+child.parent, iNode);
                 }
             }
         }

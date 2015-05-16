@@ -84,7 +84,7 @@ public class MiniBall
             return false;
         if (dim == 0)
         {
-            assert(nOn == nPoints);
+            assert_eq(nOn, nPoints);
             if (verboseLevel >= 1)
                 System.out.println("out IsMiniBall(nPoints="+nPoints+"), returning true trivially because dim==0");
             // XXX wait a minute, should make sure radiusSquared is 0!
@@ -306,11 +306,11 @@ public class MiniBall
                         if (firstInOrder == iL)
                         {
                             // it's already in front
-                            assert(iLprev == -1);
+                            assert_eq(iLprev, -1);
                         }
                         else
                         {
-                            assert(nextInOrder[iLprev] == iL);
+                            assert_eq(nextInOrder[iLprev], iL);
                             nextInOrder[iLprev] = nextInOrder[iL];
                             nextInOrder[iL] = firstInOrder;
                             firstInOrder = iL;
@@ -653,8 +653,8 @@ public class MiniBall
                     }
                 }
                 PRINT(nFound);
-                assert(nFound == nExpected);
-                assert(nFound == points.length);
+                assert_eq(nFound, nExpected);
+                assert_eq(nFound, points.length);
 
 
                 int intPoints[][] = new int[points.length][points[0].length];
@@ -663,8 +663,8 @@ public class MiniBall
                     {
                         int x = (int)points[iPoint][0];
                         int y = (int)points[iPoint][1];
-                        assert((double)x == points[iPoint][0]);
-                        assert((double)y == points[iPoint][1]);
+                        assert_eq((double)x, points[iPoint][0]);
+                        assert_eq((double)y, points[iPoint][1]);
                         intPoints[iPoint][0] = x;
                         intPoints[iPoint][1] = y;
                     }
@@ -709,7 +709,7 @@ public class MiniBall
                     // XXX huh? how come there's an empty string at the beginning but not at the end?? this is completely retarded
                     PRINTARRAY(tokens[0]);
                     PRINTARRAY(tokens[tokens.length-1]);
-                    assert(tokens.length % 2 == 1);
+                    assert_eq(tokens.length % 2, 1);
                     assert(tokens[0].equals(""));
                     assert(tokens[tokens.length-1] != "");
                     int nPoints = (tokens.length-1)/2;

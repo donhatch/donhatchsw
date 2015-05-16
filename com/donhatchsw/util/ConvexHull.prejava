@@ -386,7 +386,7 @@ public class ConvexHull
                 newFacet.neighbors[iNeighbor] = invisibleNeighbor; // only one known so far
                 newFacet.neighborsIndexOfMe[iNeighbor] = invisibleNeighborsIndexOfMe;
                 invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe] = newFacet;
-                assert(invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe] == iNeighbor);
+                assert_eq(invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe], iNeighbor);
                 hullFacets.add(newFacet);
             }
 
@@ -403,7 +403,7 @@ public class ConvexHull
                     System.out.println("                sewing up cone the trivial way");
                     PRINT(visibleBoundaryFacets.size());
                 }
-                assert(visibleBoundaryFacets.size() == 2);
+                assert_eq(visibleBoundaryFacets.size(), 2);
                 Facet oldFacet0 = (Facet)visibleBoundaryFacets.get(0);
                 Facet oldFacet1 = (Facet)visibleBoundaryFacets.get(1);
                 int iInvisibleNeighbor0 = visibleBoundaryNeighborIndex.get(0);
@@ -422,15 +422,15 @@ public class ConvexHull
                 assert(newFacet0 != oldFacet0);
                 assert(newFacet1 != oldFacet1);
 
-                assert(newFacet0.neighbors[1-iInvisibleNeighbor0] == null);
-                assert(newFacet1.neighbors[1-iInvisibleNeighbor1] == null);
+                assert_eq(newFacet0.neighbors[1-iInvisibleNeighbor0], null);
+                assert_eq(newFacet1.neighbors[1-iInvisibleNeighbor1], null);
                 newFacet0.neighbors[1-iInvisibleNeighbor0] = newFacet1;
                 newFacet1.neighbors[1-iInvisibleNeighbor1] = newFacet0;
                 newFacet0.neighborsIndexOfMe[1-iInvisibleNeighbor0] = 1-iInvisibleNeighbor1;
                 newFacet1.neighborsIndexOfMe[1-iInvisibleNeighbor1] = 1-iInvisibleNeighbor0;
 
-                assert(newFacet0.isVisible == 2); // i.e. "new"
-                assert(newFacet1.isVisible == 2); // i.e. "new"
+                assert_eq(newFacet0.isVisible, 2); // i.e. "new"
+                assert_eq(newFacet1.isVisible, 2); // i.e. "new"
                 newFacet0.isVisible = -1;
                 newFacet1.isVisible = -1;
             }
@@ -480,7 +480,7 @@ public class ConvexHull
                             Facet thisFacet = oldFacet; // next facet will be invisibleNeighbor
                             int i0 = iInvisibleNeighbor;
                             int i1 = iRidgeThisNewFacet;
-                            assert(thisFacet.isVisible == 1);
+                            assert_eq(thisFacet.isVisible, 1);
 
                             if (debugLevel >= 3)
                             {
@@ -557,7 +557,7 @@ public class ConvexHull
                     // and no other new facet will need this one any more,
                     // so we can clear the "new" flag,
                     // and also disconnect it from the invisible neighbor. (XXX not doing that, probably doesn't matter)
-                    assert(newFacet.isVisible == 2); // i.e. "new"
+                    assert_eq(newFacet.isVisible, 2); // i.e. "new"
                     newFacet.isVisible = -1;
 
                 } // for iVisibleBoundary
@@ -580,8 +580,8 @@ public class ConvexHull
                 {
                     assert(newFacet.neighbors[iNeighbor] != null);
                     assert(newFacet.neighborsIndexOfMe[iNeighbor] != -1);
-                    assert(newFacet.neighbors[iNeighbor].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[iNeighbor]] == iNeighbor);
-                    assert(newFacet.isVisible == -1);
+                    assert_eq(newFacet.neighbors[iNeighbor].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[iNeighbor]], iNeighbor);
+                    assert_eq(newFacet.isVisible, -1);
                 }
             }
 
@@ -706,8 +706,8 @@ public class ConvexHull
                 hullFacets.fastRemove(facet);
                 hullFacetsReordered.add(facet);
             }
-            assert(hullFacets.size() == 0);
-            assert(hullFacetsReordered.size() == nFacets);
+            assert_eq(hullFacets.size(), 0);
+            assert_eq(hullFacetsReordered.size(), nFacets);
             hullFacets = hullFacetsReordered;
         }
 
@@ -773,7 +773,7 @@ public class ConvexHull
         public Facet get(int i)
         {
             Facet facet = (Facet)facetArrayList.get(i);
-            assert(facet.myIndex == i);
+            assert_eq(facet.myIndex, i);
             return facet;
         }
         public void add(Facet facet)
@@ -915,7 +915,7 @@ public class ConvexHull
     {
         if (verts.length < d)
         {
-            assert(hull.length == 0);
+            assert_eq(hull.length, 0);
         }
         else
         {
@@ -938,7 +938,7 @@ public class ConvexHull
                 FORI (iFacet, hull.length)
                 {
                     int facet[] = hull[iFacet];
-                    assert(facet.length == d);
+                    assert_eq(facet.length, d);
 
                     // assert all verts on facet are distinct
                     {
@@ -978,7 +978,7 @@ public class ConvexHull
                 {
                     IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
                     int value[][] = (int[][])ridgeParityToFacets.get(ridgeKey);
-                    assert(value.length == 3);
+                    assert_eq(value.length, 3);
                     int ridge[] = value[2];
                     if (value[0].length != 1
                      || value[1].length != 1)
@@ -1068,7 +1068,7 @@ public class ConvexHull
         PRINT(d);
         PRINTARRAY(verts);
         FORI (iVert, verts.length)
-            assert(verts[iVert].length == d);
+            assert_eq(verts[iVert].length, d);
 
         long t0 = System.currentTimeMillis();
 
@@ -1081,11 +1081,11 @@ public class ConvexHull
         int answer[][][] = convexHull(verts, EPS);
         long t1 = System.currentTimeMillis();
         assert(answer != null);
-        assert(answer.length == 3);
+        assert_eq(answer.length, 3);
         int hull[][] = answer[0];
         int adjs[][] = answer[1];
         int back[][] = answer[2];
-        assert(hull.length == adjs.length);
+        assert_eq(hull.length, adjs.length);
         System.err.println("convex hull of "+verts.length+" verts in "+d+"d returned "+hull.length+" simplices in "+(t1-t0)/1000.+" secs.");
 
         PRINTARRAY(hull);
@@ -1147,7 +1147,7 @@ public class ConvexHull
                     verts[iVert][1] = Math.sin(angle);
                 }
                 int hull[][] = testTheseVerts(d, verts);
-                assert(hull.length == nVerts);
+                assert_eq(hull.length, nVerts);
             }
         }
         if (true)
@@ -1161,7 +1161,7 @@ public class ConvexHull
                 {1,1,1},
             };
             int hull[][] = testTheseVerts(3, verts);
-            assert(hull.length == 4);
+            assert_eq(hull.length, 4);
         }
         if (true)
         {
@@ -1182,7 +1182,7 @@ public class ConvexHull
                     //verts[iVert][2] = Math.random();
                 }
                 int hull[][] = testTheseVerts(d, verts);
-                assert(hull.length == (nVerts-2)*2);
+                assert_eq(hull.length, (nVerts-2)*2);
             }
         }
         if (true)

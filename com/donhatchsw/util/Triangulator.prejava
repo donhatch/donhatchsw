@@ -217,7 +217,7 @@ public class Triangulator
             }
             assert(i >= 0); // found an ear
         }
-        assert(contourLength == 2);
+        assert_eq(contourLength, 2);
         if (verboseLevel >= 2)
             System.out.println(indentString + "    Done clipping ears.");
 
@@ -449,7 +449,7 @@ public class Triangulator
                 System.out.println(indentString + "            bigContour = " + Arrays.toStringCompact(Arrays.subarray(bigContour,0,bigContourLength)));
             }
         }
-        assert(bigContourLength == bigContourMax); // would be less if we removed dups, but we don't (we leave that to triangulate). XXX but we probably should, now that this function can be used standalone!
+        assert_eq(bigContourLength, bigContourMax); // would be less if we removed dups, but we don't (we leave that to triangulate). XXX but we probably should, now that this function can be used standalone!
         if (verboseLevel >= 2)
             System.out.println(indentString + "    Done merging.");
 
@@ -753,7 +753,7 @@ public class Triangulator
                         assumpt(iVertOnContour < nVertsOnContour); // the boundary of one contour cannot completely include the boundary of another
                     }
 
-                    assert((density & 1) == 0); // solidly in or out
+                    assert_eq((density & 1), 0); // solidly in or out
                     // 0 means outside
                     // 2 means inside CCW (outer) contour
                     // -2 means inside CW (inner) contour
@@ -833,7 +833,7 @@ public class Triangulator
                     connectedComponents[iConnectedComponent++] = (int[][])Arrays.subarray(group, 0, groupSize);
                 }
             }
-            assert(iConnectedComponent == nConnectedComponents);
+            assert_eq(iConnectedComponent, nConnectedComponents);
         }
 
         if (verboseLevel >= 2)

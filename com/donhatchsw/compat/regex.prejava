@@ -133,7 +133,7 @@ public class regex
                 if (verboseLevel >= 1) System.out.println("    theirs = "+Arrays.toStringCompact(theirs));
                 if (verboseLevel >= 1) System.out.println("    mine = "+Arrays.toStringCompact(mine));
                 assert(theirs != null && mine != null);
-                assert(theirs.length == mine.length);
+                assert_eq(theirs.length, mine.length);
                 for (int i = 0; i < theirs.length; ++i)
                     assert(theirs[i].equals(mine[i]));
             }
@@ -203,16 +203,17 @@ public class regex
                     if (myGroups != null) PRINT(myGroups.length);
                     PRINTARRAY(myGroups);
                 }
-                assert(theirs == mine);
+                assert_eq(theirs, mine);
                 if (theirs)
                 {
                     assert(theirGroups != null && myGroups != null);
-                    assert(theirGroups.length == myGroups.length);
+                    assert_eq(theirGroups.length, myGroups.length);
                     for (int iGroup = 0; iGroup < theirGroups.length; ++iGroup)
                     {
-                        assert(theirGroups[iGroup].length == 2 && myGroups[iGroup].length == 2);
-                        assert(theirGroups[iGroup][0] == myGroups[iGroup][0]);
-                        assert(theirGroups[iGroup][1] == myGroups[iGroup][1]);
+                        assert_eq(theirGroups[iGroup].length, 2);
+                        assert_eq(myGroups[iGroup].length, 2);
+                        assert_eq(theirGroups[iGroup][0], myGroups[iGroup][0]);
+                        assert_eq(theirGroups[iGroup][1], myGroups[iGroup][1]);
                     }
                 }
             }
@@ -244,7 +245,7 @@ public class regex
                 mine = myMatcher.groupCount();
             if (checkAgainstStandardVersion)
             {
-                assert(theirs == mine);
+                assert_eq(theirs, mine);
             }
             return useStandardVersion ? theirs : mine;
         }
@@ -271,7 +272,7 @@ public class regex
             {
                 //PRINT(theirs);
                 //PRINT(mine);
-                assert((theirs != null) == (mine != null));
+                assert_eq((theirs != null), (mine != null));
                 if (theirs != null)
                     assert(theirs.equals(mine));
             }
@@ -290,7 +291,7 @@ public class regex
             //PRINT(myMatcher.myGroups.length);
             //PRINTARRAY(myMatcher.myGroups);
             if (checkAgainstStandardVersion)
-                assert(theirs == mine);
+                assert_eq(theirs, mine);
             return useStandardVersion ? theirs : mine;
         }
         public int end(int iGroup)
@@ -301,7 +302,7 @@ public class regex
             if (!useStandardVersion || checkAgainstStandardVersion)
                 mine = myMatcher.end(iGroup);
             if (checkAgainstStandardVersion)
-                assert(theirs == mine);
+                assert_eq(theirs, mine);
             return useStandardVersion ? theirs : mine;
         }
         public int end()
@@ -312,7 +313,7 @@ public class regex
             if (!useStandardVersion || checkAgainstStandardVersion)
                 mine = myMatcher.end();
             if (checkAgainstStandardVersion)
-                assert(theirs == mine);
+                assert_eq(theirs, mine);
             return useStandardVersion ? theirs : mine;
         }
         public String replaceAll(String replacement)
@@ -650,7 +651,7 @@ public class regex
 
                     if (transition != null)
                     {
-                        assert(states[iState].transitions.length == 0);
+                        assert_eq(states[iState].transitions.length, 0);
                         states[iState].transitions = (Transition[])Arrays.append(states[iState].transitions, transition);
                     }
                 }
