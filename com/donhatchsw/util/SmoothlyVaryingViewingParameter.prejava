@@ -439,7 +439,6 @@ public class SmoothlyVaryingViewingParameter
                         OUT("      old:");
                         PRINTVEC(velocity);
                         PRINTVEC(position);
-                        PRINTVEC(positionDisplacement);
                     }
 
                     // p gets adjusted by cutting off the last part of it,
@@ -465,8 +464,26 @@ public class SmoothlyVaryingViewingParameter
                         OUT("      new:");
                         PRINTVEC(velocity);
                         PRINTVEC(position);
-                        PRINTVEC(positionDisplacement);
                     }
+
+                    if (arcLength <= dt*A)
+                    {
+                        // Done!  Position should be target
+                        // and velocity should be zero,
+                        // but they may be off due to floating point roundoff error.
+                        // Set them to exactly what they should be,
+                        // so that isMoving()'s criteria will be met.
+                        if (verboseLevel >= 2) System.out.println("Done!");
+                        VecMath.zerovec(velocity);
+                        VecMath.copyvec(position, targetPosition);
+                        if (verboseLevel >= 2)
+                        {
+                            OUT("      adjusted new:");
+                            PRINTVEC(velocity);
+                            PRINTVEC(position);
+                        }
+                    }
+
                 }
                 catch (Throwable throwable)
                 {
@@ -12066,27 +12083,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
              || Double.isInfinite(VecMath.norm(p)))
             {
                 System.out.println("        (ouch.)");
-               break;
+                break;
             }
             positionsArrayList.add(p);
             velocitiesArrayList.add(v);
 
-            if (VecMath.norm(v) == 0.
-             && VecMath.equalsExactly(p, targetPosition)) // but this never happens exactly, currently :-(
+            if (!foo.isMoving())
                 break;
-            // also need to break if not changing (since position doesn't go exactly to target, currently)
-            if (i > 0)
-            {
-                double pPrev[] = (double[])positionsArrayList.get(i-1);
-                double vPrev[] = (double[])velocitiesArrayList.get(i-1);
-                if (VecMath.equalsExactly(vPrev, v)
-                 && VecMath.equalsExactly(pPrev, p))
-                {
-                    positionsArrayList.remove(i-1);
-                    velocitiesArrayList.remove(i-1);
-                    break;
-                }
-            }
         }
         int n = positionsArrayList.size();
         double positions[][] = (double[][])positionsArrayList.toArray(new double[n][]);
