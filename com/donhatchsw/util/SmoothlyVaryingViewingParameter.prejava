@@ -8,7 +8,6 @@ package com.donhatchsw.util;
 * all over the place, and the actual value will smoothly move towards to it,
 * without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
 *
-* XXX TODO: circle doesn't circle origin correctly (bug in drawHollowCircle? or, not centered smartly? not sure)
 * XXX TODO: lines connecting velocity dots with acceleration dots? not sure
 * XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
 * XXX TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
