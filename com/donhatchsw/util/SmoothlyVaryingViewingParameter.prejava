@@ -445,19 +445,20 @@ public class SmoothlyVaryingViewingParameter
                     // i.e. subtracting partwayIntegral
                     VecMath.vmv(p, p, partwayIntegral);
 
-                    // Convert new minusVelocity and positionDisplacement from 2d back to original space
+                    // Convert new minusVelocity and positionDisplacement from
+                    // 2d back to original space
                     VecMath.vxm(minusVelocity, vFinal, basis);
                     VecMath.vxm(positionDisplacement, p, basis);
 
 
                     // We were working with minusVelocity = -velocity
                     VecMath.vxs(velocity, minusVelocity, -1.);
-                    // We were actually working with positionDisplacement = position-targetPosition
-                    //VecMath.vpv(position, positionDisplacement, targetPosition);
+                    // We were actually working with
+                    // positionDisplacement = position-targetPosition
                     VecMath.vpv(position, positionDisplacement, targetPosition);
 
                     // We've set the new position and velocity.
-                    // Done!
+                    // Done with this timestep.
 
                     if (verboseLevel >= 2)
                     {
@@ -468,9 +469,10 @@ public class SmoothlyVaryingViewingParameter
 
                     if (arcLength <= dt*A)
                     {
-                        // Done!  Position should be target
-                        // and velocity should be zero,
-                        // but they may be off due to floating point roundoff error.
+                        // Done with entire journey!
+                        // Position should be target and velocity should be
+                        // zero, but they may be slightly different due to
+                        // floating point roundoff error.
                         // Set them to exactly what they should be,
                         // so that isMoving()'s criteria will be met.
                         if (verboseLevel >= 2) System.out.println("Done!");
