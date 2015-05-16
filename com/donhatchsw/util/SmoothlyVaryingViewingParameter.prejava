@@ -1509,6 +1509,7 @@ public class SmoothlyVaryingViewingParameter
         if (true)
         {
             // TODO: put this stuff in MyMath
+
             assert(Double.isNaN(Math.log(Double.NEGATIVE_INFINITY)));
             assert_eq(MyMath.expm1(Double.NEGATIVE_INFINITY), -1.);
             assert_eq(MyMath.sinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
@@ -1545,8 +1546,6 @@ public class SmoothlyVaryingViewingParameter
             assert_eq(MyMath.asinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
             assert_eq(MyMath.acosh1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
-
-
             assert_eq(MyMath.sin_over_x(Double.NEGATIVE_INFINITY), 0.);
             assert_eq(MyMath.sinh_over_x(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
             assert(Double.isNaN(MyMath.asin_over_x(Double.NEGATIVE_INFINITY)));
@@ -1567,7 +1566,6 @@ public class SmoothlyVaryingViewingParameter
             assert_eq(MyMath.asinh_over_x(Double.POSITIVE_INFINITY), 0.);
             assert_eq(MyMath.cosf1_over_xx(Double.POSITIVE_INFINITY), 0.);
             assert_eq(MyMath.coshm1_over_xx(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-
 
             // TODO: all of the following is missing testing of all the *_over_x functions
             // TODO: all of the following is missing testing of asinh, probably others
@@ -1655,8 +1653,27 @@ public class SmoothlyVaryingViewingParameter
                     }
                 }
             }
-            System.out.println("MyMath functions all good!");
+
             if (true)
+            {
+                // lambertw tests
+                for (double i = -714.; i <= 696.; ++i) // empirically, works to this range
+                {
+                    if (i <= -1.)
+                    {
+                        if (i >= -10 && i <= 10) System.out.println("    lambertw(e^"+i+"*"+i+", -1) = "+MyMath.lambertw(Math.exp(i)*i,-1));
+                        assert_eq(MyMath.lambertw(Math.exp(i)*i,-1), i); // seems to be exact
+                    }
+                    if (i >= -1.)
+                    {
+                        if (i >= -10 && i <= 10) System.out.println("    lambertw(e^"+i+"*"+i+", 0) = "+MyMath.lambertw(Math.exp(i)*i,0));
+                        assert_eq(MyMath.lambertw(Math.exp(i)*i,0), i); // seems to be exact
+                    }
+                }
+            }
+
+            System.out.println("MyMath functions all good!");
+            if (false)
             {
                 System.out.println("WARNING: returning early!!!");
                 return;

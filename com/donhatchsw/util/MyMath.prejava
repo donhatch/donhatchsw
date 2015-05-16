@@ -1,6 +1,8 @@
 /* vim: set filetype=java: */
 // Author: Don Hatch (hatch@hadron.org)
 
+#include "macros.h" // XXX
+
 package com.donhatchsw.util;
 
 /**
@@ -389,6 +391,47 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             return max;
         double min_over_max = min/max;
         return max * Math.sqrt(1. + min_over_max*min_over_max);
+    }
+
+    /** Lambert W function, that is, functional inverse of x = f(w) = w e^w.
+    * http://blogs.mathworks.com/cleve/2013/09/02/the-lambert-w-function/
+    * Copyright 2013 The MathWorks, Inc.
+    */
+    public static double lambertw(double x,
+                                  int branch) // 0 means primary or upper, -1 means lower
+    {
+        double w;
+        if (branch == 0)
+            w = 1; // start above -1
+        else if (branch == -1)
+            w = -2; // start below -1
+        else
+            return Double.NaN; // XXX should throw illegal argument exception, maybe?
+
+        if (x <= -1./Math.E)
+        {
+            if (x < -1./Math.E)
+                return Double.NaN;
+            else
+                return -1.; // so we get this one exact; it would be pretty sloppy otherwise
+        }
+
+        double v = Double.POSITIVE_INFINITY * w;
+        while (Math.abs((w - v)/w) > 1e-8) // XXX do something different here? not sure
+        //while (Math.abs((w - v)/w) > 0.) // XXX do something different here I think
+        {
+            v = w;
+            double e = Math.exp(w);
+            double f = w*e - x; // Iterate to make this quantity zero
+            w -= f/(e*(w+1.) - (w+2.)*f/(2.*w+2.));
+            /*
+            PRINT(e);
+            PRINT(f);
+            PRINT(w);
+            PRINT((w-v)/w);
+            */
+        }
+        return w;
     }
 
     public static void main(String args[])
