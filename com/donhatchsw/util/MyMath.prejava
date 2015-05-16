@@ -67,6 +67,8 @@ public class MyMath
     public static double
     log1p(double x)
     {
+        if (x == -1.)
+            return Double.NEGATIVE_INFINITY; // grr special case since apparently -inf + nan == nan (I'd prefer -inf)
         if (x == Double.POSITIVE_INFINITY)
             return Double.POSITIVE_INFINITY;
         double u = 1.+x;
@@ -90,7 +92,7 @@ log1p(x) {
   if ( (1.0 + x ) == 1.0)
     return x;
   else
-    return log(1.0 +x)*x/(1.0 +x);     XXX that doesn't look right to me... should be dividing by something close to x, not close to 1+x
+    return log(1.0 +x)*x/(1.0 +x);     XXX that doesn't look right to me... should be dividing by something close to x, not close to 1+x. good thing I'm not using this.
 }
 
 The ( (1.0 + x ) == 1.0) expression computes the sum of x and 1.0
@@ -196,7 +198,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     acosh1p(double x)
     {
-        return 2 * Math.sqrt(asinh(Math.sqrt(x/2)));
+        return 2 * asinh(Math.sqrt(x/2));
     }
 
 
@@ -387,5 +389,12 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             return max;
         double min_over_max = min/max;
         return max * Math.sqrt(1. + min_over_max*min_over_max);
+    }
+
+    public static void main(String args[])
+    {
+        System.out.println("    in MyMath.main");
+        // TODO: transplant stuff from SmoothlyVaryingViewingParameter.prejava to here
+        System.out.println("    out MyMath.main");
     }
 } // class MyMath

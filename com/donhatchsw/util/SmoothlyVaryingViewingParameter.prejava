@@ -1489,8 +1489,8 @@ public class SmoothlyVaryingViewingParameter
     {
         if (true)
         {
+
             // TODO: put this stuff in MyMath
-            assert(Math.exp(Double.NEGATIVE_INFINITY) == 0.);
             assert(Double.isNaN(Math.log(Double.NEGATIVE_INFINITY)));
             assert(MyMath.expm1(Double.NEGATIVE_INFINITY) == -1.);
             assert(MyMath.sinh(Double.NEGATIVE_INFINITY) == Double.NEGATIVE_INFINITY);
@@ -1500,12 +1500,19 @@ public class SmoothlyVaryingViewingParameter
             assert(MyMath.asinh(Double.NEGATIVE_INFINITY) == Double.NEGATIVE_INFINITY);
             assert(Double.isNaN(MyMath.acosh1p(Double.NEGATIVE_INFINITY)));
 
+            assert(Math.exp(Double.NEGATIVE_INFINITY) == 0.);
+            assert(Math.exp(-1.) == 1./Math.E);
             assert(Math.exp(0.) == 1.);
+            assert(Math.exp(1.) == Math.E);
             assert(Math.log(0.) == Double.NEGATIVE_INFINITY);
+            assert(Math.log(1./Math.E) == -1.);
+            assert(Math.log(1.) == 0.);
+            assert(Math.log(Math.E) == 1.);
             assert(MyMath.expm1(0.) == 0.);
             assert(MyMath.sinh(0.) == 0.);
             assert(MyMath.cosh(0.) == 1.);
             assert(MyMath.coshm1(0.) == 0.);
+            assert(MyMath.log1p(-1.) == Double.NEGATIVE_INFINITY);
             assert(MyMath.log1p(0.) == 0.);
             assert(MyMath.asinh(0.) == 0.);
             assert(MyMath.acosh1p(0.) == 0.);
@@ -1545,7 +1552,7 @@ public class SmoothlyVaryingViewingParameter
 
 
             // TODO: all of the following is missing testing of all the *_over_x functions
-            // TODO: all of the following is missing testing of asinh, acoshm1, probably others
+            // TODO: all of the following is missing testing of asinh, probably others
 
             // first and last entries are big enough to overflow all the exp and hyperbolic trig functions
             double xs[] = {-1000, -100, -10, -1, -.1, 0, .1, 1, 10, 100, 1000};
@@ -1561,6 +1568,21 @@ public class SmoothlyVaryingViewingParameter
 
                 assert(MyMath.expm1(x) + 1. == Math.exp(x) - 1. + 1.);
                 assert(MyMath.expm1(x) + 1. - 1. == Math.exp(x) - 1.);
+
+                if (x > -1.)
+                {
+                    System.out.println("    log1p("+x+") = "+MyMath.log1p(x)+"");
+                    // TODO: come up with something more sensible I think? I'm a bit confused.
+                    assert((float)MyMath.log1p(x) == (float)Math.log(1.+x));
+                }
+
+                if (x >= 0.)
+                {
+                    System.out.println("    acosh1p("+x+") = "+MyMath.acosh1p(x)+"");
+                    // TODO: come up with something more sensible I think? I'm a bit confused.
+                    assert((float)MyMath.acosh1p(x) == (float)MyMath.acosh(1.+x));
+                }
+
                 if (false)
                 {
                     // hmm, not quite exact, apparently
@@ -1570,6 +1592,11 @@ public class SmoothlyVaryingViewingParameter
                     PRINT(MyMath.coshm1(x) + 1. - 1.);
                     PRINT(MyMath.cosh(x) - 1.);
                     assert(MyMath.coshm1(x) + 1. - 1. == MyMath.cosh(x) - 1.);
+                }
+                else
+                {
+                    // TODO: come up with something more sensible I think? I'm confused
+                    assert((float)MyMath.coshm1(x) == (float)(MyMath.cosh(x) - 1.));
                 }
 
                 if (x >= 0.)
@@ -1611,7 +1638,11 @@ public class SmoothlyVaryingViewingParameter
                 }
             }
             System.out.println("MyMath functions all good!");
-            //return;
+            if (false)
+            {
+                System.out.println("WARNING: returning early!!!");
+                return;
+            }
         }
 
         if (true)
@@ -1710,7 +1741,7 @@ public class SmoothlyVaryingViewingParameter
                     double integralTransformed[] = new double[2];
                     double arcLengthTransformed = integralOfCatenaryWithEndpointsPolar(v0Transformed, v1Transformed, invScale, downAngle, Double.POSITIVE_INFINITY, integralTransformed, null);
 
-                    assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
+                    assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6); // XXX oops! redo this now that I scale by cos(theta) inside integralOfCatenaryWithEndpointsPolar I think
                 }
             } // for x0,x1
             // return;
