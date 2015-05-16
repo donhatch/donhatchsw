@@ -1670,6 +1670,25 @@ public class SmoothlyVaryingViewingParameter
                         assert_eq(MyMath.lambertw(Math.exp(i)*i,0), i); // seems to be exact
                     }
                 }
+                // wolframalpha says the inverse function of e^x/x is -W(-1/x)
+                // i.e. if:
+                //     y = e^x/x
+                // then:
+                //     x = -W(-1/y)
+                // and empirically, it's the lower branch. Hmm.  (wolframalpha didn't indicate that)
+                // XXX hmm, -14 and -13 (not as much) are slow! interesting! should investigate!
+                // that's
+                //     -14: lambert(-5.9394908507397704E-8)
+                //     -13: -1.7387149284469648E-7
+                //     -12: -5.120176961106842E-7
+                //     -11: -1.5183364354768781E-6
+                OUT("========");
+                for (double i = -100.; i <= 100.; ++i)
+                {
+                    int branch = i<1 ? -1 : 0;
+                    if (i >= -100 && i <= 20) System.out.println("    MyMath.inverse_function_of_exp_over_x(Math.exp("+i+")/"+i+"="+(Math.exp(i)/i)+","+branch+") = "+MyMath.inverse_function_of_exp_over_x(Math.exp(i)/i,branch));
+                    assert_eq(MyMath.inverse_function_of_exp_over_x(Math.exp(i)/i,branch), i);
+                }
             }
 
             System.out.println("MyMath functions all good!");
