@@ -444,6 +444,8 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
 
     // wolframalpha says the inverse function of e^x/x is -W(-1/x)
     // and empirically, it uses the opposite branch from the one we got.
+    // Subtle point: if x is 0 or -0 and branch is -1, we return -infinity.
+    // (another possibly valid choice would be -0->-infinity, +0->nan)
     public static double inverse_function_of_exp_over_x(double x,
                                                         int branch)
     {
