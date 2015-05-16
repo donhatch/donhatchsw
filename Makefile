@@ -163,6 +163,7 @@ donhatchsw.jar: \
             com/donhatchsw/mc4d/*.class \
             com/donhatchsw/mc4d/*.java \
             Makefile)
+	/bin/rm -rf scratch
 
 clean:
 	# do NOT remove the .java files in javacpp or mc4d !!!
