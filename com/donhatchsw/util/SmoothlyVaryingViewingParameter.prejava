@@ -8,10 +8,12 @@ package com.donhatchsw.util;
 * all over the place, and the actual value will smoothly move towards to it,
 * without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
 *
-* XXX TODO: 't' key in demo2 needs work
+* XXX TODO: circle doesn't circle origin correctly (bug in drawHollowCircle? or, not centered smartly? not sure)
+* XXX TODO: lines connecting velocity dots with acceleration dots? not sure
 * XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
 * XXX TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
 * XXX TODO: picking should only see things that are visible
+* XXX TODO: SEPARABLE should choose x and y accelerations so that they land at the same time
 */
 public class SmoothlyVaryingViewingParameter
 {
@@ -305,7 +307,7 @@ public class SmoothlyVaryingViewingParameter
                     final boolean inJ[] = {false};
                     if (verboseLevel >= 2) PRINTVEC(desiredIntegral);
                     NewtonSolver.Fun fun = new NewtonSolver.Fun() {
-                        public double[] f(double xy[])
+                        @Override public double[] f(double xy[])
                         {
                             if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
                             double integral[] = new double[2];
@@ -11911,7 +11913,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     this.sign_t1 = sign_t1;
                     this.twoQuadraticsMode = twoQuadraticsMode;
                 }
-                public double[] f(double x[])
+                @Override public double[] f(double x[])
                 {
                     double A0[] = {x[0],x[1]};
                     double At1[] = {x[2],x[3]};
@@ -12227,6 +12229,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 boolean finalVelocityHandleIsNegative = false;
                 double intensityMultiplier = 0.; // gets auto scaled based on where user is clicking
                 double scale = .24;
+                double focus[] = {0.,0.};
             }
             class Controller
             {
@@ -12274,12 +12277,14 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 java.awt.Graphics g = backBuffer.getGraphics();
 
                 int minSize = Math.min(w,h);
+                // We actually change the graphics scale depending on the acceleration magnitude,
+                // and change the size of the unit circle to compensate!  Argh!
+                // So are we actually not using accelerationMagnitude in the computation at all?  Argh!!
                 com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
-                                               -1.*w/minSize/(view.scale*model.accelerationMagnitude),
-                                               1.*w/minSize/(view.scale*model.accelerationMagnitude),
-                                               -1.*h/minSize/(view.scale*model.accelerationMagnitude),
-                                               1.*h/minSize/(view.scale*model.accelerationMagnitude));
-
+                                              view.focus[0] + -1.*w/minSize/(view.scale*model.accelerationMagnitude),
+                                              view.focus[0] +  1.*w/minSize/(view.scale*model.accelerationMagnitude),
+                                              view.focus[1] + -1.*h/minSize/(view.scale*model.accelerationMagnitude),
+                                              view.focus[1] +  1.*h/minSize/(view.scale*model.accelerationMagnitude));
 
                 // Clear to black
                 mg.setColor(java.awt.Color.black);
@@ -12287,7 +12292,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                 java.awt.Color lightBlue = new java.awt.Color(128, 128, 255);
 
-                int pointSize = 7;
+                int littleCircleSize = 9;
 
                 double p0[] = model.p0;
                 double v0[] = model.v0;
@@ -12527,7 +12532,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     mg.drawHollowRegularPolygonPoint(handlet1[0],
                                                      handlet1[1],
                                                      3, // triangle
-                                                     pointSize+1);
+                                                     littleCircleSize+1);
                 }
 
                 //
@@ -12592,7 +12597,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     // since both v0 (green) and p0 (blue) are there
                     mg.setColor(java.awt.Color.cyan);
                     mg.drawHollowCirclePoint(model.p0[0],model.p0[1],
-                                             pointSize);
+                                             littleCircleSize);
                 }
                 else
                 {
@@ -12600,13 +12605,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     {
                         mg.setColor(java.awt.Color.green);
                         mg.drawHollowCirclePoint(model.v0[0],model.v0[1],
-                                                 pointSize);
+                                                 littleCircleSize);
                     }
                     if (view.showPositionsFlag)
                     {
                         mg.setColor(java.awt.Color.blue);
                         mg.drawHollowCirclePoint(model.p0[0],model.p0[1],
-                                                 pointSize);
+                                                 littleCircleSize);
                     }
                 }
 
@@ -12618,24 +12623,24 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     mg.setColor(java.awt.Color.red);
                     mg.drawHollowCirclePoint(A0[0],
                                              A0[1],
-                                             pointSize);
+                                             littleCircleSize);
                     mg.drawHollowCirclePoint(a0[0],
                                              a0[1],
-                                             pointSize);
+                                             littleCircleSize);
                     mg.drawHollowRegularPolygonPoint(At1[0],
                                                      At1[1],
                                                      3, // triangle
-                                                     pointSize+1);
+                                                     littleCircleSize+1);
                     mg.drawHollowRegularPolygonPoint(at1[0],
                                                      at1[1],
                                                      3, // triangle
-                                                     pointSize);
+                                                     littleCircleSize);
                     mg.drawHollowPoint(A1[0],
                                        A1[1],
-                                       pointSize);
+                                       littleCircleSize);
                     mg.drawHollowPoint(a1[0],
                                        a1[1],
-                                       pointSize);
+                                       littleCircleSize);
                     mg.drawString("  t=0", A0[0],A0[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
                     if (twoQuadraticsMode)
                     {
@@ -12665,11 +12670,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     mg.setColor(java.awt.Color.green);
                     mg.drawHollowPoint(v1[0],
                                        v1[1],
-                                       pointSize);
+                                       littleCircleSize);
                     mg.drawHollowRegularPolygonPoint(vt1[0],
                                                      vt1[1],
                                                      3, // triangle
-                                                     pointSize+1);
+                                                     littleCircleSize+1);
                     mg.drawString("  v(t)", vt1[0],vt1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
                     mg.drawString(VecMath.normsqrd(model.v0)==0. ? "v(0)=0 " : "v(0) ", model.v0[0],model.v0[1],1,1.5); // XXX argh, spaces are fudge because it's not working right
                     if (twoQuadraticsMode)
@@ -12688,11 +12693,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     mg.setColor(lightBlue);
                     mg.drawHollowPoint(p1[0],
                                        p1[1],
-                                       pointSize);
+                                       littleCircleSize);
                     mg.drawHollowRegularPolygonPoint(pt1[0],
                                                      pt1[1],
                                                      3, // triangle
-                                                     pointSize+1);
+                                                     littleCircleSize+1);
                     mg.drawString("  p(t)", pt1[0],pt1[1],-1.,0); // XXX argh, spaces are fudge because it's not working right
                     mg.drawString(VecMath.normsqrd(model.p0)==0. ? "p(0)=0 " : "p(0) ", model.p0[0],model.p0[1],1,-1.5); // XXX argh, spaces are fudge because it's not working right
                     if (twoQuadraticsMode)
@@ -12752,14 +12757,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         {
                             double x[] = model.mostRecentNewtonPath[i][0];
                             double y[] = model.mostRecentNewtonPath[i][1];
-                            if (x == null)
-                            {
-                                mg.setColor(java.awt.Color.yellow);
-                                mg.drawHollowRegularPolygonPoint(y[0],y[1],
-                                                                 8, // octagon
-                                                                 7); // pointSize
-                            }
-                            else
+                            if (x != null)
                             {
                                 if (Double.isNaN(x[0])
                                  || Double.isNaN(x[1])
@@ -12793,6 +12791,21 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 xPrev = x;
                                 yPrev = y;
                                 midPrev = mid;
+                            }
+                        }
+                        for (int i = 0; i < model.mostRecentNewtonPath.length; i++)
+                        {
+                            double x[] = model.mostRecentNewtonPath[i][0];
+                            double y[] = model.mostRecentNewtonPath[i][1];
+                            if (x == null)
+                            {
+                                mg.setColor(java.awt.Color.yellow);
+                                mg.drawHollowCirclePoint(y[0],y[1],
+                                                         1); // pointSize
+                                mg.drawHollowCirclePoint(y[0],y[1],
+                                                         5); // pointSize
+                                mg.drawHollowCirclePoint(y[0],y[1],
+                                                         9); // pointSize
                             }
                         }
                         System.out.println("DREW MOST RECENT NEWTON PATH");
@@ -12981,6 +12994,24 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             }
                             OUT("==================================");
                         }
+                        else if (c == 'c')
+                        {
+                            // try to put the target at the center of the screen.
+                            if (model.mostRecentNewtonPath != null)
+                            {
+                                for (int i = 0; i < model.mostRecentNewtonPath.length; ++i)
+                                {
+                                    if (model.mostRecentNewtonPath[i][0] == null)
+                                    {
+                                        double target[] = model.mostRecentNewtonPath[i][1];
+                                        view.focus[0] = target[0];
+                                        view.focus[1] = target[1];
+                                        repaint();
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                         else if (c == 'h')
                         {
                             System.out.println("The following keys do things:");
@@ -12999,7 +13030,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             System.out.println("        ctrl-v - toggle direction of one of the velocity handles");
                             System.out.println("             t - toggle between t1 positive and negative, adjusting everything so position trajectory is same (XXX needs work)");
                             System.out.println("             e - do some evolves");
-                            System.out.println("   alt-(-/+/=) - decrease/increase index of interest, and do some evolves");
+                            System.out.println("   alt-(-/+/=) - decrease/increase index of interest in newton path, and do some evolves");
+                            System.out.println("             c - change focus to the target of the index of interest in the most recent newton path so you can zoom in and out around it");
                         }
                         else
                         {

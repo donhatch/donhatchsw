@@ -109,7 +109,7 @@ public class MyGraphics
          || y0 < -nPixels
          || y0 > gsize.height+nPixels)
             return;
-        g.drawArc(x0, y0, nPixels, nPixels, 0, 360);
+        g.drawArc(x0, y0, nPixels-1, nPixels-1, 0, 360);
     }
     public void drawHollowRegularPolygonPoint(double x, double y,
                                               int n, // gonality
