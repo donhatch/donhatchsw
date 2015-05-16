@@ -204,3 +204,13 @@ send: doc
 	(cd ..; scp -r donhatchsw hatch@plunk.org:public_html/private/.)
 senddoc: doc
 	scp -r *.html *.css package-list resources com hatch@plunk.org:public_html/donhatchsw/.
+
+
+
+
+# XXX temporary? for expedience.  Would be good if we could do something more genuine.
+# Note that we don't make anything depend on Makefile.  This is arguably
+# wrong, but a dependency on Makefile would cause a lot of pain.
+com/donhatchsw/util/SmoothlyVaryingViewingParameter.class: com/donhatchsw/util/macros.h
+com/donhatchsw/util/MyMath.class: com/donhatchsw/util/macros.h
+

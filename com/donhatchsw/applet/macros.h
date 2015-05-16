@@ -13,6 +13,7 @@
 
 // NOTE: this causes a,b to be evaluated twice, so is not ideal. might be better to do a block... ?
 #define assert_eq(a,b) do { if (!((a)==(b))) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")==(" + #b + ") ("+(a)+" vs. "+(b)+")"); } while (false)
+#define assert_nan(x) do { if (!Double.isNaN(x)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #x + " is "+(x)+", expected NaN"); } while (false)
 
 #define INRANGE(foo,bar,baz) ((foo(bar))&&((bar)baz))
 
