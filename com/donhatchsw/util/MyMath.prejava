@@ -1,8 +1,6 @@
 /* vim: set filetype=java: */
 // Author: Don Hatch (hatch@hadron.org)
 
-#include "macros.h" // XXX
-
 package com.donhatchsw.util;
 
 /**
@@ -424,12 +422,6 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             double e = Math.exp(w);
             double f = w*e - x; // Iterate to make this quantity zero
             w -= f/(e*(w+1.) - (w+2.)*f/(2.*w+2.));
-            /*
-            PRINT(e);
-            PRINT(f);
-            PRINT(w);
-            PRINT((w-v)/w);
-            */
         }
         return w;
     }
