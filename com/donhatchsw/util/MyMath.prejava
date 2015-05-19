@@ -442,12 +442,16 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return w;
     }
 
-    // wolframalpha says the inverse function of e^x/x is -W(-1/x)
-    // and empirically, it uses the opposite branch from the one we got.
-    // Subtle point: if x is 0 or -0 and branch is -1, we return -infinity.
-    // (another possibly valid choice would be -0->-infinity, +0->nan)
-    public static double inverse_function_of_exp_over_x(double x,
-                                                        int branch)
+    /**
+    * Functional inverse of e^x/x.
+    * http://www1.american.edu/cas/mathstat/People/kalman/pdffiles/glog.pdf
+    * Wolfram Alpha says this -W(-1/x)
+    * and empirically, it uses the opposite branch from the one we got.
+    * Subtle point: if x is 0 or -0 and branch is -1, we return -infinity.
+    * (another possibly valid choice would be -0->-infinity, +0->nan)
+    */
+    public static double glog(double x,
+                              int branch)
     {
         // This is a subtle decision, but on branch -1,
         // I think we want to return -infinity if x is either 0 or -0.
