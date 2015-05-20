@@ -62,10 +62,21 @@ asinhc_by_newton(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y
       # this gets called with x<xPrev, unless converged.
       asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? (x+xPrev)/2. : asinhc_by_newton_recurse(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
 
+# TODO: not working yet, looks like a mess
+asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), -1., 6)
+
+  asinhc_by_halley_recurse(y, x, xPrev, maxRecursions) = maxRecursions==0 ? x : x==xPrev ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, sinh(x)/x, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions)
+  asinhc_by_halley_recurse_helper(y, x, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, maxRecursions-1)
+
+  # same but only computes sinh(x) and cosh(x) once, at expense of another layer of user-defined function
+  asinhc_by_halley_recurse(y, x, xPrev, maxRecursions) = maxRecursions==0 ? x : x==xPrev ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper1(y, x, sinh(x), cosh(x), maxRecursions)
+  asinhc_by_halley_recurse_helper1(y, x, sinh_x, cosh_x, maxRecursions) = asinhc_by_halley_recurse_helper2(y, x, sinh_x/x, (x*cosh_x-sinh_x)/x**2, ((x**2+2)*sinh_x-2*x*cosh_x)/x**3, maxRecursions)
+  asinhc_by_halley_recurse_helper2(y, x, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, maxRecursions-1)
+
 #asinhc(y) = asinhc_by_binary_search(y)
 asinhc(y) = asinhc_by_newton(y)
+#asinhc(y) = asinhc_by_halley(y)
 
-# TODO: Halley's method?  That seems to be the method of choice for lambertw and glog, maybe for this too?
 
 a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle);
 b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle);
