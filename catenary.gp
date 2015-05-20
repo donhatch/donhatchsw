@@ -27,15 +27,43 @@ set view 0,359.999,1.5 # top down, with a bit of fudge to make y axis labels com
 
 i = {0,1}
 
-EXACT(x) = sprintf("%.17g",x)
+EXACT(z) = imag(z)==0. ? sprintf("%.17g", z) : sprintf("{%.17g, %.17g}", real(z), imag(z))
+
 max(a,b) = a>=b ? a : b
 
+#
+# This method works but tends to be a bit slower than newton
+#
 sinhc(x) = x==0. ? 1. : sinh(x)/x
-asinhc(y) = y==1. ? 0. : asinhc_binary_search(y, 0., 1e3, (0.+1e3)/2.)
+asinhc_by_binary_search(y) = y==1. ? 0. : asinhc_binary_search(y, 0., 1e3, (0.+1e3)/2.)
   asinhc_binary_search(y, x0, x1, xMid) = \
       xMid<=x0 || xMid>=x1 ? xMid : \
       sinhc(xMid) < y ? asinhc_binary_search(y, xMid, x1, (xMid+x1)/2.) \
                       : asinhc_binary_search(y, x0, xMid, (x0+xMid)/2.)
+
+#
+# The good news is, Newton seems to work well in all cases:
+#   f(x) = sinh(x)/x-y
+#   f'(x) = (x*math.cosh(x)-sinh(x))/x**2
+#   xNext = x - f(x)/f'(x)
+#         = x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2)
+# But the bad news is, when done, it seems to get in cycles of 5 so we'd need to retain a lot of values
+# if our stopping criterion is seeing a repeat.
+# But the good news is, after one iteration, we get a value that's definitely too high,
+# after which it's all downhill, so we can stop as soon as it didn't decrease.
+#
+asinhc_by_newton(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y, asinh(y))
+  # this gets called with an initial guess x that may be (or must be?) too small.
+  asinhc_by_newton_recurse0(y, x)   = asinhc_by_newton_recurse1(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2))
+    # this gets called with x that's definitely bigger than the answer.
+    asinhc_by_newton_recurse1(y, x) = asinhc_by_newton_recurse (y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
+      # this gets called with x<xPrev, unless converged.
+      asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? xPrev : asinhc_by_newton_recurse(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
+
+#asinhc(y) = asinhc_by_binary_search(y)
+asinhc(y) = asinhc_by_newton(y)
+
+# TODO: Halley's method?  That seems to be the method of choice for lambertw and glog, maybe for this too?
 
 a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle);
 b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle);
