@@ -32,7 +32,9 @@ EXACT(z) = imag(z)==0. ? sprintf("%.17g", z) : sprintf("{%.17g, %.17g}", real(z)
 max(a,b) = a>=b ? a : b
 
 #
-# This method works but tends to be a bit slower than newton
+# This method works but tends to be slower than newton
+# except for when y>6e23 i.e. x>59.5, or so.
+# Newton is a lot better for typical values.
 #
 sinhc(x) = x==0. ? 1. : sinh(x)/x
 asinhc_by_binary_search(y) = y==1. ? 0. : asinhc_binary_search(y, 0., 1e3, (0.+1e3)/2.)
@@ -58,7 +60,7 @@ asinhc_by_newton(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y
     # this gets called with x that's definitely bigger than the answer.
     asinhc_by_newton_recurse1(y, x) = asinhc_by_newton_recurse (y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
       # this gets called with x<xPrev, unless converged.
-      asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? xPrev : asinhc_by_newton_recurse(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
+      asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? (x+xPrev)/2. : asinhc_by_newton_recurse(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
 
 #asinhc(y) = asinhc_by_binary_search(y)
 asinhc(y) = asinhc_by_newton(y)
@@ -181,18 +183,28 @@ u1 = maxMag * log(magBase)
 v0 = 0
 v1 = 2*pi
 
-#xy1 = 200
-#xy1 = 100
-#xy1 = 50
-#xy1 = 10
-#xy1 = 8.5 # 4 on the right
-xy1 = 3.5 # 2 on the right, 3 on the left
-#xy1 = 1.75 # 1 on the right
-#xy1 = 1
+#r = 200
+#r = 100
+#r = 50
+#r = 10
+r = 8.5 # 4 on the right
+#r = 3.5 # 2 on the right, 4 on the left
+#r = 1.75 # 1 on the right
+#r = 1
+#r = .5
+#r = .25
+#r = .125
+#r = 1./16
+#r = 1./32
+#r = 1./64
+#r = 1./128
 
-x0 = y0 = -(x1 = y1 = xy1)
+x0 = (r < 1 ? .5 : 0) - r
+x1 = (r < 1 ? .5 : 0) + r
+y0 = -r
+y1 = r
 z0 = 0
-z1 = 2*xy1
+z1 = 10*r # XXX need to figure out the right adjustment here based on r... 2*r seems right usually but it's wrong when r is tiny
 
 
 set samples 4*(maxMag-minMag)+1,10*nAngles+1
@@ -209,13 +221,13 @@ lw = .5  # seems to be optimal for information I think
 
 # change from lines to linespoints to debug
 time0 = time(0.)
-splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw
+#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw, real(f(exp(0*u+i*v))),imag(f(exp(0*u+i*v))),exp(u) with linespoints linewidth lw
-#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with lines linewidth lw
+splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with lines linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with dots linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with pm3d
 time1 = time(0.)
 
-print sprintf("that took %.6f seconds.", (time1-time0))
+print sprintf("splot took %.6f seconds.", (time1-time0))
 
 pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
