@@ -17,12 +17,6 @@
 
 # Q: maybe project contours onto the base and sides? Hmm.
 
-#
-# Bad case:
-# worstSlack = 1.9999999999999998
-# worstAngle = 1.5427463923878448 = 88.392857142857125 degrees
-#
-
 set term wxt size 1000,1000
 #set term x11 size 1000,1000
 set size square
@@ -36,26 +30,12 @@ i = {0,1}
 EXACT(x) = sprintf("%.17g",x)
 max(a,b) = a>=b ? a : b
 
-# for debugging the stack overflow when it happens
-maxRecursionLevel = -1
-worstSlack = -1
-worstAngle = -1
-worstY = -1
-nWorsts = 0
-
-
-
 sinhc(x) = x==0. ? 1. : sinh(x)/x
-asinhc(y) = y==1. ? 0. : asinhc_binary_search(y, 0., 1e3, (0.+1e3)/2., 0)
-  asinhc_binary_search(y, x0, x1, xMid, recursionLevel) = \
-      ((recursionLevel>maxRecursionLevel ? (maxRecursionLevel = recursionLevel, worstY = y, nWorsts = 1) : \
-       recursionLevel==maxRecursionLevel ? (nWorsts = nWorsts + 1) : 0), \
+asinhc(y) = y==1. ? 0. : asinhc_binary_search(y, 0., 1e3, (0.+1e3)/2.)
+  asinhc_binary_search(y, x0, x1, xMid) = \
       xMid<=x0 || xMid>=x1 ? xMid : \
-      recursionLevel==243 ? (0/0) : \
-      sinhc(xMid) < y ? asinhc_binary_search(y, xMid, x1, (xMid+x1)/2., recursionLevel+1) \
-                      : asinhc_binary_search(y, x0, xMid, (x0+xMid)/2., recursionLevel+1))
-
-
+      sinhc(xMid) < y ? asinhc_binary_search(y, xMid, x1, (xMid+x1)/2.) \
+                      : asinhc_binary_search(y, x0, xMid, (x0+xMid)/2.)
 
 a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle);
 b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle);
@@ -209,11 +189,5 @@ splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))
 time1 = time(0.)
 
 print sprintf("that took %.6f seconds.", (time1-time0))
-
-print "maxRecursionLevel = ", maxRecursionLevel
-print "worstSlack = ", EXACT(worstSlack)
-print "worstAngle = ", EXACT(worstAngle), " = ", EXACT(worstAngle*180/pi), " degrees"
-print "worstY = ", EXACT(worstY)
-print "nWorsts = ", nWorsts
 
 pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
