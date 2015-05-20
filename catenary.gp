@@ -40,24 +40,42 @@ max(a,b) = a>=b ? a : b
 maxRecursionLevel = -1
 worstSlack = -1
 worstAngle = -1
+worstY = -1
 nWorsts = 0
 
-slack_from_angle_and_invCatScale(angle, invCatScale) = slack_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                          b_from_angle_and_invCatScale(angle,invCatScale))
-  a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle);
-  b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle);
-  slack_from_a_and_b(a,b) = slack_from_a_and_b_and_xmid(a,b,xmid_from_a_and_b(a,b))
-    xmid_from_a_and_b(a,b) = asinh(b/2./sinh(a/2.))
-    slack_from_a_and_b_and_xmid(a,b,xmid) = ((sinh(xmid+a/2.)-sinh(xmid-a/2.))/sqrt(a*a+b*b)) - 1.
-# find invCatScale such that slack_from_angle_and_invCatScale(angle,invCatScale) = slack
-invCatScale_from_slack_and_angle(slack, angle) = invCatScale_from_slack_and_angle_binary_search(slack, angle, 0., 1e3, 0) # XXX higher limit makes some of the graphs disappear?? weird
-  # tolerance chosen empirically so as not to overflow recursion limit
-  invCatScale_from_slack_and_angle_binary_search(slack, angle, invCatScale0, invCatScale1, recursionLevel) = \
-    ((recursionLevel>maxRecursionLevel ? (maxRecursionLevel = recursionLevel, worstSlack = slack, worstAngle = angle, nWorsts = 1) : \
-      recursionLevel==maxRecursionLevel ? (nWorsts = nWorsts + 1) : 0), recursionLevel==243 ? (0/0) : \
-      (invCatScale1-invCatScale0)<=1e-13 ? (invCatScale0+invCatScale1)/2. : \
-      slack_from_angle_and_invCatScale(angle, (invCatScale0+invCatScale1)/2.) < slack ? invCatScale_from_slack_and_angle_binary_search(slack, angle, (invCatScale0+invCatScale1)/2., invCatScale1, recursionLevel+1) : \
-                                                                                        invCatScale_from_slack_and_angle_binary_search(slack, angle, invCatScale0, (invCatScale0+invCatScale1)/2., recursionLevel+1))
+
+
+sinhc(x) = x==0. ? 1. : sinh(x)/x
+asinhc(y) = y==1. ? 0. : asinhc_binary_search(y, 0., 1e3, (0.+1e3)/2., 0)
+  asinhc_binary_search(y, x0, x1, xMid, recursionLevel) = \
+      ((recursionLevel>maxRecursionLevel ? (maxRecursionLevel = recursionLevel, worstY = y, nWorsts = 1) : \
+       recursionLevel==maxRecursionLevel ? (nWorsts = nWorsts + 1) : 0), \
+      xMid<=x0 || xMid>=x1 ? xMid : \
+      recursionLevel==243 ? (0/0) : \
+      sinhc(xMid) < y ? asinhc_binary_search(y, xMid, x1, (xMid+x1)/2., recursionLevel+1) \
+                      : asinhc_binary_search(y, x0, xMid, (x0+xMid)/2., recursionLevel+1))
+
+
+
+a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle);
+b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle);
+xmid_from_a_and_b(a,b) = asinh(b/2./sinh(a/2.))
+
+#
+# From any of the following references:
+#       Barzel/Pixar "Faking Dynamics of Ropes and Springs", EIII Computer Graphics and Applications 17(3), May-June 1997
+#       Weil "The synthesis of Cloth Objects", SIGGraph 1986
+#       http://en.wikipedia.org/wiki/Catenary#Determining_parameters
+# Given L = arc length, a=(x1-x0), b=(y1-y0):
+#    sqrt(L^2 - b^2) = 2*catScale*asinh(a/(2*catScale))
+#                    = a * (2*catScale/a) * asinh(a/(2*catScale))
+#                    = a * sinhc(a/(2*catScale))
+#    sqrt(L^2 - b^2)/a = sinhc(a/(2*catScale))
+#    a/(2*catScale) = asinhc(sqrt(L^2 - b^2)/a)
+#    invCatScale = asinhc(sqrt(L^2 - b^2)/a) * (2/a)
+# In our case, L = 1+slack, a=cos(angle), b=sin(angle).
+invCatScale_from_slack_and_angle(slack, angle) = invCatScale_from_L_and_a_and_b(1.+slack, cos(angle), sin(angle))
+  invCatScale_from_L_and_a_and_b(L, a, b) = asinhc(sqrt(L**2 - b**2) / a) * (2./a)
 
 x0_from_a_and_b(a,b) = xmid_from_a_and_b(a,b) - a/2.
 x1_from_a_and_b(a,b) = xmid_from_a_and_b(a,b) + a/2.
@@ -70,7 +88,8 @@ conj(z) = real(z) - i*imag(z)
 
 # analytic version to use when on x axis
 moment_from_x(slack) = slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)
-moment_from_xy(x,y) = x!=0&&abs(y/x)<.001 ? moment_from_x(x) : y>0 ? conj(_moment_from_xy(x,-y)) : _moment_from_xy(x,y)
+moment_from_xy(x,y) = x!=0&&abs(y/x)<1e-12 ? moment_from_x(x) : y>0 ? conj(_moment_from_xy(x,-y)) : _moment_from_xy(x,y)
+#moment_from_xy(x,y) = y==0. ? moment_from_x(x) : y>0 ? conj(_moment_from_xy(x,-y)) : _moment_from_xy(x,y)
 _moment_from_xy(x,y) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y))
   slack_from_xy(x,y) = sqrt(x**2+y**2)
   #angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
@@ -168,7 +187,7 @@ z0 = 0
 z1 = 2*xy1
 
 
-set samples 4*(maxMag-minMag)+1,14*nAngles+1
+set samples 4*(maxMag-minMag)+1,10*nAngles+1
 set isosamples (maxMag-minMag)+1,nAngles+1
 set parametric
 set zeroaxis
@@ -181,15 +200,20 @@ lw = .5  # seems to be optimal for information I think
 
 
 # change from lines to linespoints to debug
+time0 = time(0.)
 splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw, real(f(exp(0*u+i*v))),imag(f(exp(0*u+i*v))),exp(u) with linespoints linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with lines linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with dots linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with pm3d
+time1 = time(0.)
+
+print sprintf("that took %.6f seconds.", (time1-time0))
 
 print "maxRecursionLevel = ", maxRecursionLevel
 print "worstSlack = ", EXACT(worstSlack)
 print "worstAngle = ", EXACT(worstAngle), " = ", EXACT(worstAngle*180/pi), " degrees"
+print "worstY = ", EXACT(worstY)
 print "nWorsts = ", nWorsts
 
 pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
