@@ -1,7 +1,15 @@
 #!/usr/bin/gnuplot
 
+# TODO: maybe project contours onto the base and sides? Hmm.
+# TODO: Make option to do the picture for arbitrary displacement of v0,v1:
+#       f(slack,angle,v0) = f(slack,angle,{0,0}) + (1+slack)*v0
+# TODO: Make option to squash each ellipse into a circle, to see how badly non-circular they get:
+#       fSquashed(slack,angle) = f(slack,angle) with y coord scaled by: (f(slack,0)-f(slack,pi))/(2*imag(f(slack,pi/2)))
+
 # Q: I know the "ellipses" aren't really ellipses.  But are they left-right symmetric at least?
-# A: Yes!
+# A: Yes!  Actually this is obvious since they are the same shape as the
+#    contours from v0=(-.5,0),v1=(.5,0) which is left-right-symmetric picture,
+#    with each contour right-shifted by .5*(1+slack).
 
 # Q: how to get a splot in 2d (currently fudging using "set view" and "unset ztics")
 #    (but maybe I don't want it any more? not sure)
@@ -10,12 +18,6 @@
 # Q: is there a way to increase the recursion depth limit? (seems to be 250)
 # Q: can I make a visual differentiator at mag=0?
 # PA: well, can add a degenerate plot at a different color
-
-# Q: can I print during function recursion?
-# Q: how do I debug what values are causing recursion depth limit overflow?
-# A: keep track of recursion level and max recursion level, and snapshot params when highest is reached, then print the snapshot at the end
-
-# Q: maybe project contours onto the base and sides? Hmm.
 
 set term wxt size 1000,1000
 #set term x11 size 1000,1000
@@ -61,6 +63,10 @@ asinhc_by_newton(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y
     asinhc_by_newton_recurse1(y, x) = asinhc_by_newton_recurse (y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
       # this gets called with x<xPrev, unless converged.
       asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? (x+xPrev)/2. : asinhc_by_newton_recurse(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
+
+      # same but only computes sinh(x) once, at expense of another layer of user-defined function
+      asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? (x+xPrev)/2. : asinhc_by_newton_recurse_helper(y, sinh(x))
+      asinhc_by_newton_recurse_helper(y, x, xPrev) = asinhc_by_newton_recurse(y, x - (sinh_x/x-y)/((x*cosh(x)-sinh_x)/x**2), x)
 
 # TODO: not working yet, looks like a mess
 asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), -1., 6)
@@ -152,7 +158,7 @@ f(z) = moment_from_xy(real(z),imag(z))
 
 
 # Test whether the non-ellipses that look like ellipses are at least left-right symmetric. \
-# They are! \
+# They are! (and actually this is obvious, see comment at top of this file) \
 if (1) \
     print "f({0,1}) = ",f({0,1}); \
     print "f({1,0})-f({0,1}) = ",f({1,0})-f({0,1}); \
@@ -174,7 +180,7 @@ if (1) \
 set pm3d depthorder  # applies to either "set pm3d" if we did it above, or "with pm3d" if we do that below
 
 # Default is no further subdivisions (i.e. divide into 1 part),
-# but we may tweak this below if using hidden3d.
+# but we tweak this below if using hidden3d.
 magFurtherSubdivisions = 1
 angleFurtherSubdivisions = 1
 
