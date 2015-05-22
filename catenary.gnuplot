@@ -1,10 +1,10 @@
 #!/usr/bin/gnuplot
 
+# Things that can be tweaked:
+#       - change to various values of velocity0 ({-.5,0} for symmetric about origin)
+#       - uncomment the "f(z) = unstretched_moment_from_xy(...)" to see the almost-circles (probably only works with velocity0 on x axis)
+
 # TODO: maybe project contours onto the base and sides? Hmm.
-# TODO: Make option to do the picture for arbitrary displacement of v0,v1:
-#       f(slack,angle,v0) = f(slack,angle,{0,0}) + (1+slack)*v0
-# TODO: Make option to squash each ellipse into a circle, to see how badly non-circular they get:
-#       fSquashed(slack,angle) = f(slack,angle) with y coord scaled by: (f(slack,0)-f(slack,pi))/(2*imag(f(slack,pi/2)))
 
 # Q: I know the "ellipses" aren't really ellipses.  But are they left-right symmetric at least?
 # A: Yes!  Actually this is obvious since they are the same shape as the
@@ -111,14 +111,14 @@ t1_from_a_and_b(a,b) = sinh(x1_from_a_and_b(a,b))
 conj(z) = real(z) - i*imag(z)
 
 # analytic version to use when on x axis
-moment_from_x(slack) = slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)
-moment_from_xy(x,y) = x!=0&&abs(y/x)<1e-12 ? moment_from_x(x) : y>0 ? conj(_moment_from_xy(x,-y)) : _moment_from_xy(x,y)
-#moment_from_xy(x,y) = y==0. ? moment_from_x(x) : y>0 ? conj(_moment_from_xy(x,-y)) : _moment_from_xy(x,y)
-_moment_from_xy(x,y) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y))
+moment_from_x(slack,v0) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
+moment_from_xy(x,y,v0) = x!=0&&abs(y/x)<1e-12 ? moment_from_x(x,v0) : y>0 ? conj(_moment_from_xy(x,-y,conj(v0))) : _moment_from_xy(x,y,v0)
+#moment_from_xy(x,y,v0) = y==0. ? moment_from_x(x,v0) : y>0 ? conj(_moment_from_xy(x,-y,conj(v0))) : _moment_from_xy(x,y,v0)
+_moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0)
   slack_from_xy(x,y) = sqrt(x**2+y**2)
   #angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
   angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
-  moment_from_slack_and_angle(slack,angle) = moment_from_slack_and_angle_and_invCatScale(slack, angle, invCatScale_from_slack_and_angle(slack, angle))
+  moment_from_slack_and_angle(slack,angle,v0) = v0*(1.+slack) + moment_from_slack_and_angle_and_invCatScale(slack, angle, invCatScale_from_slack_and_angle(slack, angle))
     moment_from_slack_and_angle_and_invCatScale(slack,angle,invCatScale) = moment_from_slack_and_angle_and_invCatScale_and_t0_and_t1(slack,angle,invCatScale, \
                                                                                                                                      t0_from_slack_and_angle_and_invCatScale(slack,angle,invCatScale), \
                                                                                                                                      t1_from_slack_and_angle_and_invCatScale(slack,angle,invCatScale))
@@ -151,7 +151,16 @@ _moment_from_xy(x,y) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_fro
 #print moment_from_xy(0,-2)
 #print moment_from_xy(0,-10)
 
-f(z) = moment_from_xy(real(z),imag(z))
+velocity0 = {0,0}   # normal
+#velocity0 = {-.5,0} # symmetric about origin
+f(z) = moment_from_xy(real(z),imag(z),velocity0)
+
+unstretched_moment_from_xy(x,y,v0) = squashBy(moment_from_xy(x,y,v0), squash_from_xy(x,y,v0))
+  squash_from_xy(x,y,v0) = squash_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0)
+    squash_from_slack_and_angle(slack, angle, v0) = slack==0 ? 1. : (moment_from_x(slack,v0)-moment_from_x(-slack,v0))/(-2*imag(moment_from_slack_and_angle(slack,0,v0)))
+  squashBy(z,squash) = real(z) + imag(z)*squash*{0,1}
+# uncomment this to see the almost-circles
+#f(z) = unstretched_moment_from_xy(real(z),imag(z),velocity0)
 
 
 # Test whether the non-ellipses that look like ellipses are at least left-right symmetric. \
@@ -200,6 +209,7 @@ v1 = 2*pi
 #r = 200
 #r = 100
 #r = 50
+#r = 20
 #r = 10
 r = 8.5 # 4 on the right
 #r = 3.5 # 2 on the right, 4 on the left
@@ -212,9 +222,13 @@ r = 8.5 # 4 on the right
 #r = 1./32
 #r = 1./64
 #r = 1./128
+#r = 1./256
+#r = 1./512
+#r = 1./1024
+#r = 1./2048
 
-x0 = (r < 1 ? .5 : 0) - r
-x1 = (r < 1 ? .5 : 0) + r
+x0 = (r < 1 ? real(velocity0)+.5 : 0) - r
+x1 = (r < 1 ? real(velocity0)+.5 : 0) + r
 y0 = -r
 y1 = r
 z0 = 0
@@ -232,14 +246,20 @@ lw = .5  # seems to be optimal for information I think
 #lw = .25 # just gets lighter
 
 
+tics = r<=.5 ? r/4. : r<=1 ? r/8. : r<=1.75 ? 1./8 : r<=3.5 ? 1./2 : r<=8.5 ? 1 : r<=10 ? 1 : r<=20 ? 1 : r/10 # kind of weird
+set xtics tics
+set ytics tics
 
 # change from lines to linespoints to debug
 time0 = time(0.)
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw
-#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw, real(f(exp(0*u+i*v))),imag(f(exp(0*u+i*v))),exp(u) with linespoints linewidth lw
+#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw, real(f(exp(0*u+i*v))),imag(f(exp(0*u+i*v))),exp(u) with linespoints linewidth lw # hacky way to get green on center contour
 splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with lines linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with dots linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with pm3d
+
+#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with lines linewidth lw, real(exp(u+i*v)),imag(exp(u+i*v)),exp(u) # best-fit circles when symmetric picture
+
 time1 = time(0.)
 
 print sprintf("splot took %.6f seconds.", (time1-time0))
