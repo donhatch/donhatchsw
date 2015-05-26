@@ -1,4 +1,5 @@
 #!/usr/bin/gnuplot
+# note, some day I think there will be a -c option that will allow args to be passed in more easily, but not today.
 
 # Things that can be tweaked:
 #       - change to various values of velocity0 ({-.5,0} for symmetric about origin)
@@ -16,8 +17,24 @@
 # Q: how to reset view to 0,359.99,1.5 from keyboard?
 # Q: why the heck isn't the z axis going all the way to the floor?
 # Q: is there a way to increase the recursion depth limit? (seems to be 250)
+
 # Q: can I make a visual differentiator at mag=0?
 # PA: well, can add a degenerate plot at a different color
+# PA: if I was good at color palettes then maybe I could do it?
+#     people seem to have demos on the web where they make a simple plot do it,
+#     but not an splot? hmm
+#     if I google for images "gnuplot splot using palette",
+#     I get lots of pictures of pm3d but that's not what I want! argh!
+#     oh wait maybe there's some:
+#     Oh! see http://www.cs.huji.ac.il/course/2006/76552/Lesson12/
+#       splot x*x-y*y with line palette  
+#       set parametric
+#       splot u,v,v with line palette
+#     Easy!
+#     Except I don't understand it :-(
+
+
+     
 
 set term wxt size 1000,1000
 #set term x11 size 1000,1000
@@ -39,11 +56,16 @@ max(a,b) = a>=b ? a : b
 # Newton is a lot better for typical values.
 #
 sinhc(x) = x==0. ? 1. : sinh(x)/x
-asinhc_by_binary_search(y) = y==1. ? 0. : asinhc_binary_search(y, 0., 1e3, (0.+1e3)/2.)
-  asinhc_binary_search(y, x0, x1, xMid) = \
+asinhc_by_binary_search_lo(y) = y==1. ? 0. : asinhc_binary_search_lo(y, 0., 1e3, (0.+1e3)/2.)
+  asinhc_binary_search_lo(y, x0, x1, xMid) = \
       xMid<=x0 || xMid>=x1 ? xMid : \
-      sinhc(xMid) < y ? asinhc_binary_search(y, xMid, x1, (xMid+x1)/2.) \
-                      : asinhc_binary_search(y, x0, xMid, (x0+xMid)/2.)
+      sinhc(xMid) < y ? asinhc_binary_search_lo(y, xMid, x1, (xMid+x1)/2.) \
+                      : asinhc_binary_search_lo(y, x0, xMid, (x0+xMid)/2.)
+asinhc_by_binary_search_hi(y) = y==1. ? 0. : asinhc_binary_search_hi(y, 0., 1e3, (0.+1e3)/2.)
+  asinhc_binary_search_hi(y, x0, x1, xMid) = \
+      xMid<=x0 || xMid>=x1 ? xMid : \
+      sinhc(xMid) <= y ? asinhc_binary_search_hi(y, xMid, x1, (xMid+x1)/2.) \
+                      : asinhc_binary_search_hi(y, x0, xMid, (x0+xMid)/2.)
 
 #
 # The good news is, Newton seems to work well in all cases:
@@ -65,20 +87,51 @@ asinhc_by_newton(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y
       asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? (x+xPrev)/2. : asinhc_by_newton_recurse_helper(y, x, cosh(x), sinh(x))
       asinhc_by_newton_recurse_helper(y, x, cosh_x, sinh_x) = asinhc_by_newton_recurse(y, x - (sinh_x/x-y)/((x*cosh_x-sinh_x)/x**2), x)
 
-# TODO: not working yet, looks like a mess
-asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), -1., 6)
+# XXXTODO: is it really guaranteed that the first time the diff from prev doesn't decrease, it's the answer?
+# Actually newton seems a little bit faster than halley.
+# Is it because when the 2nd derivative is zero or close to it, newton actually converges cubically? No I don't think so, hmm.
+# I know however that I'm slowed down by the extra params here (xPrev, maxRecursions)
+asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 100)
 
-  asinhc_by_halley_recurse(y, x, xPrev, maxRecursions) = maxRecursions==0 ? NaN : x==xPrev ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, sinh(x)/x, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions)
-  asinhc_by_halley_recurse_helper(y, x, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, maxRecursions-1)
+  asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = maxRecursions==0 ? crash(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions)
+  asinhc_by_halley_recurse_helper(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1)
 
   # same but only computes sinh(x) and cosh(x) once, at expense of another layer of user-defined function
-  asinhc_by_halley_recurse(y, x, xPrev, maxRecursions) = maxRecursions==0 ? NaN : x==xPrev ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper1(y, x, sinh(x), cosh(x), maxRecursions)
-  asinhc_by_halley_recurse_helper1(y, x, sinh_x, cosh_x, maxRecursions) = asinhc_by_halley_recurse_helper2(y, x, sinh_x/x, (x*cosh_x-sinh_x)/x**2, ((x**2+2)*sinh_x-2*x*cosh_x)/x**3, maxRecursions)
-  asinhc_by_halley_recurse_helper2(y, x, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, maxRecursions-1)
+  asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = maxRecursions==0 ? crash(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper1(y, x, xPrev, sinh(x), cosh(x), maxRecursions)
+  asinhc_by_halley_recurse_helper1(y, x, xPrev, sinh_x, cosh_x, maxRecursions) = asinhc_by_halley_recurse_helper2(y, x, xPrev, sinh_x/x-y, (x*cosh_x-sinh_x)/x**2, ((x**2+2)*sinh_x-2*x*cosh_x)/x**3, maxRecursions)
+  asinhc_by_halley_recurse_helper2(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1)
 
-#asinhc(y) = asinhc_by_binary_search(y)
+#asinhc(y) = asinhc_by_binary_search_lo(y)
 asinhc(y) = asinhc_by_newton(y)
 #asinhc(y) = asinhc_by_halley(y)
+
+
+
+#asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 100)
+#  asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = ((traceString=traceString.sprintf("    x=%.17g\n",x)),maxRecursions==0 ? crash(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions))
+#  asinhc_by_halley_recurse_helper(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = (asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1))
+
+#y=2.
+#y = (y-1)/1.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y=1.1
+#y = (y-1)/1.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/2.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/2.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+#y = (y-1)/2.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
 
 
 a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle);
@@ -211,8 +264,8 @@ v1 = 2*pi
 #r = 50
 #r = 20
 #r = 10
-r = 8.5 # 4 on the right
-#r = 3.5 # 2 on the right, 4 on the left
+#r = 8.5 # 4 on the right
+r = 3.5 # 2 on the right, 4 on the left
 #r = 1.75 # 1 on the right
 #r = 1
 #r = .5
@@ -231,8 +284,11 @@ x0 = (r < 1 ? real(velocity0)+.5 : 0) - r
 x1 = (r < 1 ? real(velocity0)+.5 : 0) + r
 y0 = -r
 y1 = r
+#z0 = 0
+#z1 = 10*r # XXX need to figure out the right adjustment here based on r... 2*r seems right usually but it's wrong when r is tiny
+#z1 = r # XXX need to figure out the right adjustment here based on r... 2*r seems right usually but it's wrong when r is tiny
 z0 = 0
-z1 = 10*r # XXX need to figure out the right adjustment here based on r... 2*r seems right usually but it's wrong when r is tiny
+z1 = 1
 
 
 set samples 4*(maxMag-minMag)+1,10*nAngles+1
@@ -250,11 +306,20 @@ tics = r<=.5 ? r/4. : r<=1 ? r/8. : r<=1.75 ? 1./8 : r<=3.5 ? 1./2 : r<=8.5 ? 1 
 set xtics tics
 set ytics tics
 
+# XXX I have no idea what the fuck I'm doing here
+set palette defined (0 "red", .09 "red", .1 "blue", .13 "red", 1 "red")
+
+set terminal png size 600,600
+#set terminal png size 100,100
+set output "RMME.png"
+# XXX argh, the "set size square" isn't taking
+
 # change from lines to linespoints to debug
 time0 = time(0.)
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw, real(f(exp(0*u+i*v))),imag(f(exp(0*u+i*v))),exp(u) with linespoints linewidth lw # hacky way to get green on center contour
-splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with lines linewidth lw
+#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),10*exp(u) with lines linewidth lw
+splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),.1*exp(u) with line palette linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with dots linewidth lw
 #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with pm3d
 
@@ -264,4 +329,4 @@ time1 = time(0.)
 
 print sprintf("splot took %.6f seconds.", (time1-time0))
 
-pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
+#pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
