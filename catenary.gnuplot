@@ -34,11 +34,34 @@
 #     Except I don't understand it :-(
 
 
+#
+# Parameters that could logically be taken from command line args if hooked up
+
+    png_flag = 1 # if set, output to RMME1.png and RMME2.png instead of terminal
+
+    #velocity0 = -sqrt(.5) + -sqrt(.5)*{0,1}
+    #velocity0 = -sqrt(.5) + 1.1 * -sqrt(.5)*{0,1}
+
+    #velocity0 = {-1.5,0}
+    #velocity0 = {-1,0}
+    #velocity0 = {-.5,0} # symmetric about origin: {-.5,0} to {.5,0}
+    velocity0 = {0,0}   # normal, from {0,0} to {1,0}
+    #velocity0 = {.5,0}
+
+    # when png_flag is set, both of the following can be set.
+    # otherwise it makes sense to set at most one of them.
+    plot1_flag = 1  # slack-and-angle to moment
+    plot2_flag = 0  # moment to slack-and-angle
+
+    alternate_plot1_flag = 0 # if set, use alternate formulation (non-slack-based invCatScale) for plot1
      
 
-set term wxt size 1000,1000
-#set term x11 size 1000,1000
-set size square
+if (!png_flag) {
+    set term wxt size 1000,1000
+    #set term x11 size 1000,1000
+    set size square
+}
+
 set view 0,359.999,1.5 # top down, with a bit of fudge to make y axis labels come out on left instead of right
 #set view 85,85 # bad angle for pm3d
 #unset ztics
@@ -90,16 +113,10 @@ asinhc_by_newton(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y
 # XXXTODO: is it really guaranteed that the first time the diff from prev doesn't decrease, it's the answer?
 # Actually newton seems a little bit faster than halley.
 # Is it because when the 2nd derivative is zero or close to it, newton actually converges cubically? No I don't think so, hmm.
-# I know however that I'm slowed down by the extra params here (xPrev, maxRecursions)
-asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 100)
+asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 20)
 
   asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = maxRecursions==0 ? crash(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions)
   asinhc_by_halley_recurse_helper(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1)
-
-  # same but only computes sinh(x) and cosh(x) once, at expense of another layer of user-defined function
-  asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = maxRecursions==0 ? crash(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper1(y, x, xPrev, sinh(x), cosh(x), maxRecursions)
-  asinhc_by_halley_recurse_helper1(y, x, xPrev, sinh_x, cosh_x, maxRecursions) = asinhc_by_halley_recurse_helper2(y, x, xPrev, sinh_x/x-y, (x*cosh_x-sinh_x)/x**2, ((x**2+2)*sinh_x-2*x*cosh_x)/x**3, maxRecursions)
-  asinhc_by_halley_recurse_helper2(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1)
 
 #asinhc(y) = asinhc_by_binary_search_lo(y)
 asinhc(y) = asinhc_by_newton(y)
@@ -107,31 +124,30 @@ asinhc(y) = asinhc_by_newton(y)
 
 
 
-#asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 100)
-#  asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = ((traceString=traceString.sprintf("    x=%.17g\n",x)),maxRecursions==0 ? crash(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions))
-#  asinhc_by_halley_recurse_helper(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = (asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1))
 
-#y=2.
-#y = (y-1)/1.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y=1.1
-#y = (y-1)/1.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/2.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/2.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
-#y = (y-1)/2.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+if (0) { # turn this on to debug asinhc_by_halley. exercises what I think is the worst case, to verify the max recursion depth ever used.  seems to be 20. (found by trying various numbers)
+    crashed = 0
+    crashedTraceString = ""
+    if (1) {
+        # version that accumulates a string and sets "crashed" flag instead of actually crashing
+        asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 20)
+          asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = ((traceString=traceString.sprintf("        y=%s x=%s\n",EXACT(y),EXACT(x))),maxRecursions==0 ? (crashed=1,crashedTraceString=traceString,NaN) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions))
+          asinhc_by_halley_recurse_helper(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = (asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1))
+    }
+
+    y=2.
+    y = (y-1)/1.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+    y=1.1
+    y = (y-1)/1.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+    do for [i=1:14] {
+        y = (y-1)/10.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+    }
+    do for [i=1:3] {
+        y = (y-1)/2.+1.; traceString = ""; print sprintf("asinhc_by_bin_lo(%.17g) = %.17g", y, asinhc_by_binary_search_lo(y)); print sprintf("asinhc_by_bin_hi(%.17g) = %.17g", y, asinhc_by_binary_search_hi(y)); print sprintf("asinhc_by_newton(%.17g) = %.17g", y, asinhc_by_newton(y)); print sprintf("asinhc_by_halley(%.17g) = %.17g", y, asinhc_by_halley(y)); print "traceString = ", traceString
+    }
+    print "crashed = ",crashed
+    exit
+}
 
 
 a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle);
@@ -169,16 +185,16 @@ moment_from_xy(x,y,v0) = x!=0&&abs(y/x)<1e-12 ? moment_from_x(x,v0) : y>0 ? conj
 #moment_from_xy(x,y,v0) = y==0. ? moment_from_x(x,v0) : y>0 ? conj(_moment_from_xy(x,-y,conj(v0))) : _moment_from_xy(x,y,v0)
 _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0)
   slack_from_xy(x,y) = sqrt(x**2+y**2)
-  #angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
-  angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
-  moment_from_slack_and_angle(slack,angle,v0) = v0*(1.+slack) + moment_from_slack_and_angle_and_invCatScale(slack, angle, invCatScale_from_slack_and_angle(slack, angle))
-    moment_from_slack_and_angle_and_invCatScale(slack,angle,invCatScale) = moment_from_slack_and_angle_and_invCatScale_and_t0_and_t1(slack,angle,invCatScale, \
-                                                                                                                                     t0_from_slack_and_angle_and_invCatScale(slack,angle,invCatScale), \
-                                                                                                                                     t1_from_slack_and_angle_and_invCatScale(slack,angle,invCatScale))
-      t0_from_slack_and_angle_and_invCatScale(slack,angle,invCatScale) = t0_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                                         b_from_angle_and_invCatScale(angle,invCatScale))
-      t1_from_slack_and_angle_and_invCatScale(slack,angle,invCatScale) = t1_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                                         b_from_angle_and_invCatScale(angle,invCatScale))
+  angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
+  #angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
+  moment_from_slack_and_angle(slack,angle,v0) = v0*(1.+slack) + moment_from_angle_and_invCatScale(angle, invCatScale_from_slack_and_angle(slack, angle))
+    moment_from_angle_and_invCatScale(angle,invCatScale) = moment_from_angle_and_invCatScale_and_t0_and_t1(angle,invCatScale, \
+                                                                                                                                     t0_from_angle_and_invCatScale(angle,invCatScale), \
+                                                                                                                                     t1_from_angle_and_invCatScale(angle,invCatScale))
+      t0_from_angle_and_invCatScale(angle,invCatScale) = t0_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
+                                                                                   b_from_angle_and_invCatScale(angle,invCatScale))
+      t1_from_angle_and_invCatScale(angle,invCatScale) = t1_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
+                                                                                   b_from_angle_and_invCatScale(angle,invCatScale))
 
       # Integrate from t0 to t1 on the canonical catenary with x(t),y(t) translated to the origin,
       # then rotate by -angle and scale by 1/invCatScale^2.
@@ -187,7 +203,7 @@ _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_
       # where:
       #       x(t) = asinh(t)
       #       y(t) = sqrt(t**2+1)
-      moment_from_slack_and_angle_and_invCatScale_and_t0_and_t1(slack,angle,invCatScale,t0,t1) = rotate_xy_by_angle(x_part_of_integral(t0,t1), \
+      moment_from_angle_and_invCatScale_and_t0_and_t1(angle,invCatScale,t0,t1) = rotate_xy_by_angle(x_part_of_integral(t0,t1), \
                                                                                                                     y_part_of_integral(t0,t1), angle) / invCatScale**2
         rotate_xy_by_angle(x,y,angle) = x*cos(angle)-y*sin(angle) \
                                      + (x*sin(angle)+y*cos(angle)) * i
@@ -204,9 +220,61 @@ _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_
 #print moment_from_xy(0,-2)
 #print moment_from_xy(0,-10)
 
-velocity0 = {0,0}   # normal
-#velocity0 = {-.5,0} # symmetric about origin
 f(z) = moment_from_xy(real(z),imag(z),velocity0)
+
+if (alternate_plot1_flag) {
+    # Alternate to look at: a function that can be computed analytically: moment from angle and invCatScale.
+    # But unfortunately I think invCatScale must be scaled by something involving asinhc, so we are
+    # no better off than before (using the slack formulation) I don't think...
+    # Idea: we could use invCatScale directly when far from x axis, which would speed things up maybe....
+    # but not too hopeful on this, at this point.
+
+    f(z) = imag(z)>0 ? conj(_f(conj(z))) : _f(z)
+      _f(z) = moment_from_angle_and_invCatScale(angle_from_xy(real(z),imag(z)), abs(z))
+    # Can we get a simple scaling based on cos(angle) so that, asymptotically, the contours are circles?
+    # Well, asymptotically, if we let:
+    #   s = catscale
+    #   x = x coord on canonical catenary
+    #   y = y coord on canonical catenary
+    #   t = half-length on canonical catenary
+    #   theta = downangle - pi/2
+    #
+    #   y = t = cosh x = sinh x = 1/2 e^x
+    #
+    #   T = actual length = s*t = s*y
+    #   X = actual width = s*x = cos(theta)
+    #
+    # So, given theta,T, what is the corresponding s?
+    # Well...
+    #   s = X/x = cos(theta)/x
+    #   T = Y = s*y = cos(theta)/x * y
+    #               = cos(theta)/x * sinh(x)
+    #               = cos(theta) * sinhc(x)
+    #   T/cos(theta) = sinhc(x)
+    #   x = asinhc(T/cos(theta))
+    #   s = X/x = cos(theta)/asinhc(T/cos(theta))
+    #   invCatScale = 1/s = asinhc(T/cos(theta))/cos(theta)
+    #
+    # Let's try that.
+    # Getting thoughts organized:
+    # Input: z, v0
+    #   angle <- z    angle_from_xy(z)
+    #   nominalMagnitude <- z   abs(z)
+    #     invCatScale <- angle,nominalMagnitude   invCatScale_from_angle_and_nominalMagnitude
+    #       slack <- angle,invCatScale            slack_from_angle_and_invCatScale
+    #         moment <- v0,slack,angle,invCatScale      moment_from_slack_and_angle_and_invCatScale_and_v0
+    # BLEAH! still pinched at origin!
+      _f(z) = moment_from_angle_and_nominalMagnitude_and_v0(angle_from_xy(real(z),imag(z)), abs(z),velocity0)
+        moment_from_angle_and_nominalMagnitude_and_v0(angle,nominalMagnitude,v0) = \
+            moment_from_angle_and_nominalMagnitude_and_v0_helper1(angle,nominalMagnitude,v0,invCatScale_from_angle_and_nominalMagnitude(angle,nominalMagnitude))
+        moment_from_angle_and_nominalMagnitude_and_v0_helper1(angle,nominalMagnitude,v0,invCatScale) = \
+            moment_from_angle_and_nominalMagnitude_and_v0_helper2(angle,nominalMagnitude,v0,invCatScale,slack_from_angle_and_invCatScale(angle,invCatScale))
+        moment_from_angle_and_nominalMagnitude_and_v0_helper2(angle,nominalMagnitude,v0,invCatScale,slack) = \
+            v0*(1.+slack) + moment_from_angle_and_invCatScale(angle, invCatScale)
+
+        invCatScale_from_angle_and_nominalMagnitude(angle,nominalMagnitude) =  asinhc(1.+nominalMagnitude/cos(angle))/cos(angle)**1.1
+        slack_from_angle_and_invCatScale(angle,invCatScale) = (t1_from_angle_and_invCatScale(angle,invCatScale)-t0_from_angle_and_invCatScale(angle,invCatScale))/invCatScale - 1.
+}
 
 unstretched_moment_from_xy(x,y,v0) = squashBy(moment_from_xy(x,y,v0), squash_from_xy(x,y,v0))
   squash_from_xy(x,y,v0) = squash_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0)
@@ -216,22 +284,49 @@ unstretched_moment_from_xy(x,y,v0) = squashBy(moment_from_xy(x,y,v0), squash_fro
 #f(z) = unstretched_moment_from_xy(real(z),imag(z),velocity0)
 
 
-# Test whether the non-ellipses that look like ellipses are at least left-right symmetric. \
-# They are! (and actually this is obvious, see comment at top of this file) \
-if (1) \
-    print "f({0,1}) = ",f({0,1}); \
-    print "f({1,0})-f({0,1}) = ",f({1,0})-f({0,1}); \
-    print "f({-1,0})-f({0,1}) = ",f({-1,0})-f({0,1}); \
-    print "====="; \
-    print "f({0,2}) = ",f({0,2}); \
-    print "f({2,0})-f({0,2}) = ",f({2,0})-f({0,2}); \
-    print "f({-2,0})-f({0,2}) = ",f({-2,0})-f({0,2}); \
-    print "====="; \
-    print "f({0,5}) = ",f({0,5}); \
-    print "f({3,4})-f({0,5}) = ",f({3,4})-f({0,5}); \
-    print "f({-3,4})-f({0,5}) = ",f({-3,4})-f({0,5}); \
-    print "f({4,3})-f({0,5}) = ",f({4,3})-f({0,5}); \
+# bold experiment: try newton's method in the plane.
+# uses hard coded function: f_to_invert. (since unfortunately a function can't be passed
+# as a parameter to another function)
+# for derivative, uses finite difference with given epsilon.
+f_to_invert(z) = f(z)
+
+crashed = 0
+invf(y, epsilon) = crashed ? NaN : (traceString="", invf_recurse(y, epsilon, imag(y)>0 ? {0,.01} : {0,.01}, NaN, NaN, 100))
+  # crash when at limit
+  invf_recurse(y, epsilon, x, xPrev, xPrevPrev, maxRecursions) = ((traceString=traceString.sprintf("    y=%s x=%s progress=%s prevProgress=%s\n", EXACT(y), EXACT(x), EXACT(abs(x-xPrev)), EXACT(abs(xPrev-xPrevPrev)))), x!=x ? NaN : maxRecursions==0 ? (crashed=1,crashedTraceString=traceString,NaN) : x==xPrev||x==xPrevPrev||abs(x-xPrev)>abs(xPrev-xPrevPrev) ? x : invf_recurse_helper(y, epsilon, x, xPrev, f_to_invert(x), maxRecursions))
+  # experiment with just returning x when at limit
+  invf_recurse(y, epsilon, x, xPrev, xPrevPrev, maxRecursions) = ((traceString=traceString.sprintf("    y=%s x=%s progress=%s prevProgress=%s\n", EXACT(y), EXACT(x), EXACT(abs(x-xPrev)), EXACT(abs(xPrev-xPrevPrev)))), x!=x ? NaN : maxRecursions==0 ? x : x==xPrev||x==xPrevPrev||abs(x-xPrev)>abs(xPrev-xPrevPrev) ? x : invf_recurse_helper(y, epsilon, x, xPrev, f_to_invert(x), maxRecursions))
+  #FUDGE = .5 # go only partway there; makes it more stable
+  FUDGE = .25 # go only partway there; makes it more stable
+  #FUDGE = .125 # go only partway there; makes it more stable
+  #FUDGE = 1./16 # go only partway there; makes it more stable
+  invf_recurse_helper(y, epsilon, x, xPrev, fx, maxRecursions) = invf_recurse(y, epsilon, x - FUDGE*(fx-y)/((f_to_invert(x+epsilon)-fx)/epsilon), x, xPrev, maxRecursions-1)
+
+if (0) { # turn this on to debug invf
+    traceString = ""
+    crashedTraceString = ""
+    print invf({0,1}, 1e-4)
+    print "traceString = ", traceString
+}
+
+
+# Test whether the non-ellipses that look like ellipses are at least left-right symmetric.
+# They are! (and actually this is obvious, see comment at top of this file)
+if (0) { # turn this on to demonstrate
+    print "f({0,1}) = ",f({0,1})
+    print "f({1,0})-f({0,1}) = ",f({1,0})-f({0,1})
+    print "f({-1,0})-f({0,1}) = ",f({-1,0})-f({0,1})
+    print "====="
+    print "f({0,2}) = ",f({0,2})
+    print "f({2,0})-f({0,2}) = ",f({2,0})-f({0,2})
+    print "f({-2,0})-f({0,2}) = ",f({-2,0})-f({0,2})
+    print "====="
+    print "f({0,5}) = ",f({0,5})
+    print "f({3,4})-f({0,5}) = ",f({3,4})-f({0,5})
+    print "f({-3,4})-f({0,5}) = ",f({-3,4})-f({0,5})
+    print "f({4,3})-f({0,5}) = ",f({4,3})-f({0,5})
     print "f({-4,3})-f({0,5}) = ",f({-4,3})-f({0,5})
+}
 
 # Interesting colors but not sure it's completely useful...
 # Trouble making it interact well with the lines.
@@ -251,7 +346,7 @@ angleFurtherSubdivisions = 1
 
 magBase = 2**(1./magFurtherSubdivisions) # each mag level is an integer power of magBase
 minMag = -8 * magFurtherSubdivisions
-maxMag = 3 * magFurtherSubdivisions
+maxMag = (alternate_plot1_flag ? 6 : 4) * magFurtherSubdivisions
 nAngles = 16 * angleFurtherSubdivisions # divide 360 degrees into this many parts
 
 u0 = minMag * log(magBase)
@@ -265,7 +360,7 @@ v1 = 2*pi
 #r = 20
 #r = 10
 #r = 8.5 # 4 on the right
-r = 3.5 # 2 on the right, 4 on the left
+r = 3.5 # 2 on the right, 4 on the left (this is a good one)
 #r = 1.75 # 1 on the right
 #r = 1
 #r = .5
@@ -280,10 +375,10 @@ r = 3.5 # 2 on the right, 4 on the left
 #r = 1./1024
 #r = 1./2048
 
-x0 = (r < 1 ? real(velocity0)+.5 : 0) - r
-x1 = (r < 1 ? real(velocity0)+.5 : 0) + r
-y0 = -r
-y1 = r
+x0 = (r <= 1 ? real(velocity0)+.5 : 0) - r
+x1 = (r <= 1 ? real(velocity0)+.5 : 0) + r
+y0 = (r <= 1 ? imag(velocity0) : 0) -r
+y1 = (r <= 1 ? imag(velocity0) : 0) + r
 #z0 = 0
 #z1 = 10*r # XXX need to figure out the right adjustment here based on r... 2*r seems right usually but it's wrong when r is tiny
 #z1 = r # XXX need to figure out the right adjustment here based on r... 2*r seems right usually but it's wrong when r is tiny
@@ -302,31 +397,96 @@ lw = .5  # seems to be optimal for information I think
 #lw = .25 # just gets lighter
 
 
-tics = r<=.5 ? r/4. : r<=1 ? r/8. : r<=1.75 ? 1./8 : r<=3.5 ? 1./2 : r<=8.5 ? 1 : r<=10 ? 1 : r<=20 ? 1 : r/10 # kind of weird
+tics = r<=.5 ? r/4. : r<=1 ? r/4. : r<=1.75 ? 1./8 : r<=3.5 ? 1./2 : r<=8.5 ? 1 : r<=10 ? 1 : r<=20 ? 1 : r/10 # kind of weird
 set xtics tics
 set ytics tics
 
 # XXX I have no idea what the fuck I'm doing here
 set palette defined (0 "red", .09 "red", .1 "blue", .13 "red", 1 "red")
 
-set terminal png size 600,600
-#set terminal png size 100,100
-set output "RMME.png"
-# XXX argh, the "set size square" isn't taking
 
-# change from lines to linespoints to debug
-time0 = time(0.)
-#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw
-#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with linespoints linewidth lw, real(f(exp(0*u+i*v))),imag(f(exp(0*u+i*v))),exp(u) with linespoints linewidth lw # hacky way to get green on center contour
-#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),10*exp(u) with lines linewidth lw
-splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),.1*exp(u) with line palette linewidth lw
-#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with dots linewidth lw
-#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with pm3d
+#zscale = 0
+#zscale = 10
+zscale = (alternate_plot1_flag ? .01 : .1)
 
-#splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),exp(u) with lines linewidth lw, real(exp(u+i*v)),imag(exp(u+i*v)),exp(u) # best-fit circles when symmetric picture
+if (plot1_flag) {
+    if (png_flag) {
+        set terminal png size 600,600
+        set output "RMME1.png"
+    }
 
-time1 = time(0.)
+    # change from lines to linespoints to debug
+    print "doing first plot..."
+    time0 = time(0.)
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with linespoints linewidth lw
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with linespoints linewidth lw, real(f(exp(0*u+i*v))),imag(f(exp(0*u+i*v))),exp(u) with linespoints linewidth lw # hacky way to get green on center contour
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with lines linewidth lw
+    splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with dots linewidth lw
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with pm3d
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with lines linewidth lw, real(exp(u+i*v)),imag(exp(u+i*v)),exp(u) # best-fit circles when symmetric picture
+    time1 = time(0.)
+    print sprintf("splot took %.6f seconds.", (time1-time0))
+}
 
-print sprintf("splot took %.6f seconds.", (time1-time0))
+
+#=================================================================================================
+
+if (plot2_flag) {
+    if (png_flag) {
+        set terminal png size 600,600
+        set output "RMME2.png"
+    }
+
+    magBase = 2**(1./magFurtherSubdivisions) # each mag level is an integer power of magBase
+    minMag = -8 * magFurtherSubdivisions
+    maxMag = 4 * magFurtherSubdivisions
+    #nAngles = 16 * angleFurtherSubdivisions # divide 360 degrees into this many parts
+    nAngles = 8 * angleFurtherSubdivisions # divide 360 degrees into this many parts
+    set samples 4*(maxMag-minMag)+1,10*nAngles+1
+    set isosamples (maxMag-minMag)+1,nAngles+1
+
+    u0 = minMag * log(magBase)
+    u1 = maxMag * log(magBase)
+    v0 = 0
+    v1 = 2*pi
+    #r = 4
+    r = 2
+    #r = .5
+
+    # Empirically, the center is approximately:
+    #       velocity0=-1.5 -> center = 3.25
+    #       velocity0=-1 -> center = 1.5
+    #       velocity0=-.5 -> center = 0  (symmetric)
+    #       velocity0=0 -> center=-1.5   (normal)
+    #       velocity0=.5 -> center=-3.25
+    # so it's something like: (velocity0+.5)*-3.25
+    x0 = (r <= 2 ? real(velocity0+.5)*-3.25 : 0) - r
+    x1 = (r <= 2 ? real(velocity0+.5)*-3.25 : 0) + r
+    y0 = (r <= 2 ? imag(velocity0+.5)*-3.25 : 0) -r
+    y1 = (r <= 2 ? imag(velocity0+.5)*-3.25 : 0) + r
+
+    tics = r<=.5 ? r/4. : r<=1 ? r/8. : r<=1.75 ? 1./8 : r<=3.5 ? 1./2 : r<=8.5 ? 1 : r<=10 ? 1 : r<=20 ? 1 : r/10 # kind of weird
+    set xtics tics
+    set ytics tics
+
+
+
+
+    g(z) = invf(z, 1e-4)
+    print "doing second plot (inverse)..."
+    time0 = time(0.)
+    crashed = 0
+    traceString = ""
+    crashedTraceString = ""
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(g(exp(u+i*v))),imag(g(exp(u+i*v))),0 with linespoints linewidth lw
+    splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(g(exp(u+i*v))),imag(g(exp(u+i*v))),0 with lines linewidth lw
+    time1 = time(0.)
+    print sprintf("second splot took %.6f seconds.", (time1-time0))
+    print "crashed = ",crashed
+    #print "traceString = ",traceString
+    print "crashedTraceString = ",crashedTraceString
+}
+
 
 #pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
