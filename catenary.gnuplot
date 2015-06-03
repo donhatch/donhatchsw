@@ -37,7 +37,7 @@
 #
 # Parameters that could logically be taken from command line args if hooked up
 
-    png_flag = 1 # if set, output to RMME1.png and RMME2.png instead of terminal
+    png_flag = 0 # if set, output to RMME1.png and RMME2.png instead of terminal
 
     #velocity0 = -sqrt(.5) + -sqrt(.5)*{0,1}
     #velocity0 = -sqrt(.5) + 1.1 * -sqrt(.5)*{0,1}
@@ -54,6 +54,8 @@
     plot2_flag = 0  # moment to slack-and-angle
 
     alternate_plot1_flag = 0 # if set, use alternate formulation (non-slack-based invCatScale) for plot1
+
+    weil_flag = 0 # if set, use formulation more like the one in Weil's paper.  it should work either way.
      
 
 if (!png_flag) {
@@ -101,7 +103,7 @@ asinhc_by_binary_search_hi(y) = y==1. ? 0. : asinhc_binary_search_hi(y, 0., 1e3,
 # But the good news is, after one iteration, we get a value that's definitely too high,
 # after which it's all downhill, so we can stop as soon as it didn't decrease.
 #
-asinhc_by_newton(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y, asinh(y))
+asinhc_by_newton(y) = y<1. ? crash_in_asinhc_by_newton(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y, asinh(y))
   # this gets called with an initial guess x that may be (or must be?) too small.
   asinhc_by_newton_recurse0(y, x)   = asinhc_by_newton_recurse1(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2))
     # this gets called with x that's definitely bigger than the answer.
@@ -113,9 +115,9 @@ asinhc_by_newton(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y
 # XXXTODO: is it really guaranteed that the first time the diff from prev doesn't decrease, it's the answer?
 # Actually newton seems a little bit faster than halley.
 # Is it because when the 2nd derivative is zero or close to it, newton actually converges cubically? No I don't think so, hmm.
-asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 20)
+asinhc_by_halley(y) = y<1. ? crash_in_asinhc_by_halley(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 20)
 
-  asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = maxRecursions==0 ? crash(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions)
+  asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = maxRecursions==0 ? crash_in_asinhc_by_halley_recurse(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions)
   asinhc_by_halley_recurse_helper(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1)
 
 #asinhc(y) = asinhc_by_binary_search_lo(y)
@@ -123,14 +125,12 @@ asinhc(y) = asinhc_by_newton(y)
 #asinhc(y) = asinhc_by_halley(y)
 
 
-
-
 if (0) { # turn this on to debug asinhc_by_halley. exercises what I think is the worst case, to verify the max recursion depth ever used.  seems to be 20. (found by trying various numbers)
     crashed = 0
     crashedTraceString = ""
     if (1) {
         # version that accumulates a string and sets "crashed" flag instead of actually crashing
-        asinhc_by_halley(y) = y<1. ? crash(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 20)
+        asinhc_by_halley(y) = y<1. ? crash_in_asinhc_by_halley(1) : y==1. ? 0. : asinhc_by_halley_recurse(y, asinh(y), NaN, NaN, 20)
           asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = ((traceString=traceString.sprintf("        y=%s x=%s\n",EXACT(y),EXACT(x))),maxRecursions==0 ? (crashed=1,crashedTraceString=traceString,NaN) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions))
           asinhc_by_halley_recurse_helper(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = (asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1))
     }
@@ -150,9 +150,33 @@ if (0) { # turn this on to debug asinhc_by_halley. exercises what I think is the
 }
 
 
-a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle);
-b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle);
+a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle)
+b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle)
+# surprising magic.
 xmid_from_a_and_b(a,b) = asinh(b/2./sinh(a/2.))
+# I wish it simplified further though!
+# Basic case of it is asinh(1/sinh(x)). Does that simplify?
+#       asinh(y) = log(y + sqrt(1+y^2))
+#       sinh(x) = (e^x-e^-x)/2
+#       asinh(1/sinh(x)) = log(2/(e**x-e**-x) + sqrt(1+(2/(e**x-e**-x))**2))
+#                        = log(2/X + sqrt(1+(2/X)^2))
+#                        = log(X + sqrt(1+X^2)) where X = 1/sinh(x).  bleah! not getting anywhere. but wait...
+#                        = log(X*(1 + sqrt(1/X^2 + 1)))
+#                        = log(1/sinh(x) * (1 + sqrt(sinh(x)**2+1)))
+#                        = log((1 + cosh(x)) / sinh(x))
+#                        = log(1./sinh(x) + cosh(x)/sinh(x))
+#                        = log(csch(x) + coth(x))
+# So it does sort of simplify... ?
+# Okay let's do the non-basic case. Let B=b/2, A=a/2.
+#       asinh(B/sinh(A)) = log(B/sinh(A) + sqrt(1 + (B/sinh(A))^2))
+#                        = log((B + sqrt(sinh(A)^2 + B^2)) / sinh(A))
+# bleah, it's getting messier than the basic case I think :-(
+# That's because sqrt(sinh(x)^2+1) simplifies to cosh(x) but sqrt(sinh(x)^2+c) doesn't?
+# Wait but...
+#       sqrt(sinh(x)**2+2) is sqrt(cosh(x)**2+1)
+# that's just because sinh(x)**2 and cosh(x)**2 differ by 1.
+# Hmph!  I think this will lead nowhere :-(
+#
 
 #
 # From any of the following references:
@@ -166,21 +190,26 @@ xmid_from_a_and_b(a,b) = asinh(b/2./sinh(a/2.))
 #    sqrt(L^2 - b^2)/a = sinhc(a/(2*catScale))
 #    a/(2*catScale) = asinhc(sqrt(L^2 - b^2)/a)
 #    invCatScale = asinhc(sqrt(L^2 - b^2)/a) * (2/a)
-# In our case, L = 1+slack, a=cos(angle), b=sin(angle).
-invCatScale_from_slack_and_angle(slack, angle) = invCatScale_from_L_and_a_and_b(1.+slack, cos(angle), sin(angle))
+# In our case, L = 1+slack, a=cos(-angle), b=sin(-angle).
+invCatScale_from_slack_and_angle(slack, angle) = invCatScale_from_L_and_a_and_b(1.+slack, cos(-angle), sin(-angle))
   invCatScale_from_L_and_a_and_b(L, a, b) = asinhc(sqrt(L**2 - b**2) / a) * (2./a)
 
 x0_from_a_and_b(a,b) = xmid_from_a_and_b(a,b) - a/2.
 x1_from_a_and_b(a,b) = xmid_from_a_and_b(a,b) + a/2.
 y0_from_a_and_b(a,b) = cosh(x0_from_a_and_b(a,b))
 y1_from_a_and_b(a,b) = cosh(x1_from_a_and_b(a,b))
-t0_from_a_and_b(a,b) = sinh(x0_from_a_and_b(a,b))
-t1_from_a_and_b(a,b) = sinh(x1_from_a_and_b(a,b))
+t0_from_a_and_b(a,b) = sinh(x0_from_a_and_b(a,b))  # = sinh(asinh(b/2./sinh(a/2.)) - a/2.)
+t1_from_a_and_b(a,b) = sinh(x1_from_a_and_b(a,b))  # = sinh(asinh(b/2./sinh(a/2.)) + a/2.)
+
+
+
 
 conj(z) = real(z) - i*imag(z)
+xconj(z) = -real(z) + i*imag(z)
 
 # analytic version to use when on x axis
 moment_from_x(slack,v0) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
+# XXX what is the right criterion?
 moment_from_xy(x,y,v0) = x!=0&&abs(y/x)<1e-12 ? moment_from_x(x,v0) : y>0 ? conj(_moment_from_xy(x,-y,conj(v0))) : _moment_from_xy(x,y,v0)
 #moment_from_xy(x,y,v0) = y==0. ? moment_from_x(x,v0) : y>0 ? conj(_moment_from_xy(x,-y,conj(v0))) : _moment_from_xy(x,y,v0)
 _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0)
@@ -189,12 +218,12 @@ _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_
   #angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
   moment_from_slack_and_angle(slack,angle,v0) = v0*(1.+slack) + moment_from_angle_and_invCatScale(angle, invCatScale_from_slack_and_angle(slack, angle))
     moment_from_angle_and_invCatScale(angle,invCatScale) = moment_from_angle_and_invCatScale_and_t0_and_t1(angle,invCatScale, \
-                                                                                                                                     t0_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                                                                                     t1_from_angle_and_invCatScale(angle,invCatScale))
+                                                                                                           t0_from_angle_and_invCatScale(angle,invCatScale), \
+                                                                                                           t1_from_angle_and_invCatScale(angle,invCatScale))
       t0_from_angle_and_invCatScale(angle,invCatScale) = t0_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                                   b_from_angle_and_invCatScale(angle,invCatScale))
+                                                                         b_from_angle_and_invCatScale(angle,invCatScale))
       t1_from_angle_and_invCatScale(angle,invCatScale) = t1_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                                   b_from_angle_and_invCatScale(angle,invCatScale))
+                                                                         b_from_angle_and_invCatScale(angle,invCatScale))
 
       # Integrate from t0 to t1 on the canonical catenary with x(t),y(t) translated to the origin,
       # then rotate by -angle and scale by 1/invCatScale^2.
@@ -204,7 +233,7 @@ _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_
       #       x(t) = asinh(t)
       #       y(t) = sqrt(t**2+1)
       moment_from_angle_and_invCatScale_and_t0_and_t1(angle,invCatScale,t0,t1) = rotate_xy_by_angle(x_part_of_integral(t0,t1), \
-                                                                                                                    y_part_of_integral(t0,t1), angle) / invCatScale**2
+                                                                                                    y_part_of_integral(t0,t1), angle) / invCatScale**2
         rotate_xy_by_angle(x,y,angle) = x*cos(angle)-y*sin(angle) \
                                      + (x*sin(angle)+y*cos(angle)) * i
         x_part_of_integral(t0,t1) = (t1*asinh(t1)-sqrt(t1**2+1)) \
@@ -213,6 +242,128 @@ _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_
         y_part_of_integral(t0,t1) = .5*(t1*sqrt(t1**2+1)+asinh(t1)) \
                                   - .5*(t0*sqrt(t0**2+1)+asinh(t0)) \
                                   - (t1-t0)*sqrt(t0**2+1)
+
+#
+# Let's examine the formulation given by Weil and see if it amounts to the same thing.
+# Given (x0,y0),(x1,y1),
+# he wants to find params a,b,c such that the curve is given by:
+#       y = c + a*cosh((x-b)/a)
+# and has given length L.
+# First solve for a (=catScale) in:
+#       sqrt(L^2 - (y1-y0)^2) = 2*a*sinh((x1-x0)/(2*a))
+#                             = (2*a)/(x1-x0)*sinh((x1-x0)/(2*a))*(x1-x0)
+#                             = sinhc((x1-x0)/(2*a)) * (x1-x0)
+#       (x1-x0)/(2*a) = asinhc(sqrt(L^2 - (y1-y0)^2) / (x1-x0))
+#       2*a = (x1-x0)/asinhc(sqrt(L^2 - (y1-y0)^2) / (x1-x0))
+#         a = (x1-x0)/(2*asinhc(sqrt(L^2 - (y1-y0)^2) / (x1-x0)))
+# Then,
+#         M = sinh(x1/a) - sinh(x0/a)     = t distance on canonical catenary
+#         N = cosh(x1/a) - cosh(x0/a)     = y distance on canonical catenary
+# Wait a minute, isn't it always true that M >= N?  (assuming x0 <= x1)
+# So why are the two papers pretending that's not the case??
+#
+# Anyway,
+#       If N>M:   (actually this never happens, wtf?)
+#           mu = atanh(M/N)
+#            Q = M/sinh(mu) = N/cosh(mu)   (the Barzel paper always uses M/sinh(mu), don't know why)
+#            b = a*(mu - asinh(L/(Q*a)))
+#       If M>=N:  (this is always true)
+#            mu = atanh(N/M)
+#            Q = M/cosh(mu) = N/sinh(mu)   (the Barzel paper always uses N/sinh(mu), don't know why)
+#            b = a*(mu - acosh(L/(Q*a)))
+#   (NOTE: wolframalpha says Q is M*sqrt(1-N^2/M^2) = sqrt(M^2-N^2) so that might simplify things?)
+# SIMPLIFICATIONS:
+#   - wolframalpha says:
+#       Q = M*sqrt(1-N^2/M^2)
+#         = sqrt(M^2-N^2)
+#         = sqrt(2*(cosh((x1-x0)/a) - 1))
+#   - wolframalpha says:
+#       mu = atanh((cosh(x1)-cosh(x0))/(sinh(x1)-sinh(x0)))
+#          = (x0+x1)/(2*a)
+#            wtf??? is this way way simpler than they made it??
+#   - so:
+#       b = (x0+x1)/2 - a*acosh(L/(a*sqrt(2*(cosh((x1-x0)/a) - 1))))
+#   - actually, I think I can use my surprising magic formula for the midpoint on the canonical catenary:
+#       xmid = asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a)))
+#     In other words:
+#       asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a))) = xmid = ((x0+x1)/2-b)/a
+#       a*asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a))) = (x0+x1)/2-b
+#       b = (x0+x1)/2 - a*asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a)))
+#     So that seems simpler than all of the above.
+#   - also, almost everywhere b is used it's divided by a...
+#     so instead of b, use B = (x0+x1)/(2*a) - acosh(L/(a*sqrt(2*(cosh((x1-x0)/a) - 1)))).
+#     Then the catenary satisfies:
+#       y = c + a*cosh(x/a-B)
+#
+# Then solve for c:
+#       y0 = c + a*cosh(x/a-B)
+#       c = y0 - a*cosh(x0/a-B)
+#               (in Barzel paper, x0=y0=0 and its c = -c here, so c = cosh(b/a))
+# Okay so now we know a,B,c, and:
+#       y = c + a*cosh(x/a-B)
+# Can we parametrize that by arc length?
+#       t0 = a*sinh(x0/a-B)
+#       t1 = a*sinh(x1/a-B)
+#       t = a*sinh(x/a-B)
+#       x = B*a + a*asinh(t/a)
+#       y = c + a*cosh(x/a-B)
+#         = c + a*cosh(((B + asinh(t/a))-B))
+#         = c + a*cosh(asinh(t/a))
+#         = c + sqrt(t^2 + a^2)
+# So, the moment will be the integral of x,y from t=t0 to t=t1.
+# According to wolframalpha:
+#       x part of integral = a*t*asinh(t/a) + a*B*t - a*sqrt(a^2+t^2)
+#       y part of integral = 1/2 t (sqrt(t^2+a^2) + 2*c)) + 1/2 a^2 log(sqrt(t^2+a^2) + t)
+# but we can turn log(sqrt(t^2+a^2) + t) into hyperbolic trig as follows:
+#         log(sqrt(t**2+a**2) + t)
+#       = log(a*(sqrt((t/a)^2 + 1) + t/a))
+#       = log(a) + log(sqrt((t/a)^2+1) + t/a)
+#       = log(a) + asinh(t/a)
+# and the log(a) gets absorbed into the integration constant. Yay! So:
+#       x part of integral = a*t*asinh(t/a) + a*B*t - a*sqrt(a^2+t^2)
+#       y part of integral = 1/2 t (sqrt(t^2+a^2) + 2*c)) + 1/2 a^2 asinh(t/a)
+#
+# XXX still simplifying.. and in the end I might just end up with what I had above,
+#     except that I suck at naming things so the above looks messier than it needs to
+
+assert(cond) = cond ? 1 : assertion_failed(1)
+
+if (weil_flag) {
+  moment_from_slack_and_angle(slack,angle,v0) = \
+      moment_from_slack_and_angle_helper1(angle,1.+slack, real(v0),imag(v0),real(v0)+cos(-angle),imag(v0)+sin(-angle))
+    # paper only works if x0,y0 is the *lower* end, for some reason
+    moment_from_slack_and_angle_helper1(angle,L,x0,y0,x1,y1) = \
+      y1>=y0 ? moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1) \
+             : xconj(moment_from_slack_and_angle_helper2(-angle,L,-x1,y1,-x0,y0))
+    moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1) = \
+        moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1, \
+                                            (x1-x0)/(2*asinhc(sqrt(L**2 - (y1-y0)**2) / (x1-x0))))  # = a
+
+    moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,a) =  \
+        moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,a, \
+                                            (x0+x1)/(2.*a) - acosh(L / (a*sqrt(2*(cosh((x1-x0)/a) - 1)))))  # = B
+
+    # using instead my magic b = (x0+x1)/2 - a*asinh((y1-y0)/a/2./sinh((x1-x0)/a/2.))
+    #                     so B = (x0+x1)/(2.*a) - asinh((y1-y0)/a/2./sinh((x1-x0)/a/2.))
+    moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,a) =  \
+        moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,a, \
+                                            (x0+x1)/(2.*a) - asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a)))) # = B
+
+    moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,a,B) = \
+        moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,a,B, \
+                                            y0 - a*cosh(x0/a-B))  # = c
+    moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,a,B,c) = \
+        moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,a,B,c, \
+                                            a*sinh(x0/a-B), a*sinh(x1/a-B))  # = t0,t1
+    moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,a,B,c,t0,t1) = \
+        rotate_xy_by_angle(x_part_of_integral(a,B,c,t1) - x_part_of_integral(a,B,c,t0), \
+                           y_part_of_integral(a,B,c,t1) - y_part_of_integral(a,B,c,t0), \
+                           angle)
+      x_part_of_integral(a,B,c_unused,t) = a * (t*(asinh(t/a) + B) - sqrt(t**2 + a**2))
+      y_part_of_integral(a,B_unused,c,t) = .5*t*(sqrt(t**2+a**2) + 2*c) + .5*a**2*asinh(t/a)
+      rotate_xy_by_angle(x,y,angle) = x*cos(angle)-y*sin(angle) \
+                                   + (x*sin(angle)+y*cos(angle)) * i
+}
 
 #print moment_from_xy(0,-.01)
 #print moment_from_xy(0,-.1)
@@ -263,7 +414,9 @@ if (alternate_plot1_flag) {
     #     invCatScale <- angle,nominalMagnitude   invCatScale_from_angle_and_nominalMagnitude
     #       slack <- angle,invCatScale            slack_from_angle_and_invCatScale
     #         moment <- v0,slack,angle,invCatScale      moment_from_slack_and_angle_and_invCatScale_and_v0
-    # BLEAH! still pinched at origin!
+    # XXX BLEAH! still pinched at origin!  What the hell?
+    # XXX and isn't this a waste of time anyway?  "slack" is the thing I'm looking for, isn't it?  And we have invCatScale_from_slack_and_angle
+    # which is of similar complexity as anything I'm doing here, right?
       _f(z) = moment_from_angle_and_nominalMagnitude_and_v0(angle_from_xy(real(z),imag(z)), abs(z),velocity0)
         moment_from_angle_and_nominalMagnitude_and_v0(angle,nominalMagnitude,v0) = \
             moment_from_angle_and_nominalMagnitude_and_v0_helper1(angle,nominalMagnitude,v0,invCatScale_from_angle_and_nominalMagnitude(angle,nominalMagnitude))
@@ -488,5 +641,6 @@ if (plot2_flag) {
     print "crashedTraceString = ",crashedTraceString
 }
 
-
-#pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
+if (!png_flag) {
+  pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
+}
