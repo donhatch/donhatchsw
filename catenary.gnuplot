@@ -37,7 +37,7 @@
 #
 # Parameters that could logically be taken from command line args if hooked up
 
-    png_flag = 0 # if set, output to RMME1.png and RMME2.png instead of terminal
+    png_flag = 1 # if set, output to RMME1.png and RMME2.png instead of terminal
 
     #velocity0 = -sqrt(.5) + -sqrt(.5)*{0,1}
     #velocity0 = -sqrt(.5) + 1.1 * -sqrt(.5)*{0,1}
@@ -55,7 +55,7 @@
 
     alternate_plot1_flag = 0 # if set, use alternate formulation (non-slack-based invCatScale) for plot1
 
-    weil_flag = 0 # if set, use formulation more like the one in Weil's paper.  it should work either way.
+    weil_flag = 1 # if set, use formulation more like the one in Weil's paper.  it should work either way.
      
 
 if (!png_flag) {
@@ -290,29 +290,44 @@ _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_
 #       a*asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a))) = (x0+x1)/2-b
 #       b = (x0+x1)/2 - a*asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a)))
 #     So that seems simpler than all of the above.
-#   - also, almost everywhere b is used it's divided by a...
-#     so instead of b, use B = (x0+x1)/(2*a) - acosh(L/(a*sqrt(2*(cosh((x1-x0)/a) - 1)))).
-#     Then the catenary satisfies:
-#       y = c + a*cosh(x/a-B)
 #
 # Then solve for c:
 #       y0 = c + a*cosh(x/a-B)
 #       c = y0 - a*cosh(x0/a-B)
 #               (in Barzel paper, x0=y0=0 and its c = -c here, so c = cosh(b/a))
+
 # Okay so now we know a,B,c, and:
-#       y = c + a*cosh(x/a-B)
+#       y = c + a*cosh((x-b)/a)
+# But that's a sucky computation of c, in the case that a is small or 0...
+# so we'll compute it more robustly in a moment.
 # Can we parametrize that by arc length?
-#       t0 = a*sinh(x0/a-B)
-#       t1 = a*sinh(x1/a-B)
-#       t = a*sinh(x/a-B)
-#       x = B*a + a*asinh(t/a)
-#       y = c + a*cosh(x/a-B)
-#         = c + a*cosh(((B + asinh(t/a))-B))
+#       t0 = a*sinh((x0-b)/a)
+#       t1 = a*sinh((x1-b)/a)
+#       t = a*sinh((x-b)/a)
+# Ok proceeding with parametrization by arc length...
+#       x = b + a*asinh(t/a)
+#       y = c + a*cosh((x-b)/a)
+#         = c + a*cosh(((b/a + asinh(t/a))-b/a))
 #         = c + a*cosh(asinh(t/a))
 #         = c + sqrt(t^2 + a^2)
+#
+# Now let's get c more robustly as promised:
+#       y0 = c + sqrt(t0^2 + a^2)  (or same for y1)
+#       c = y0 - sqrt(t0^2 + a^2)
+#
+# XXX Argh! But we still didn't get t0,t1 robustly.  How do we do that??
+# XXX I think maybe we need to get c from first principles, without getting t0,t1 first?  Not sure.
+#     The trick is, need to compute t0,t1,c from y0,y1,a,b, *not* from x0,x1.
+#     Ouch, but wait a minute... it's actually not computable from y0,y1,a,b
+#     in the case when a=0!  In that case we know b = x0==x1 but c,y0,y1 can be anything...
+#     still need L to be in the equation, I think.
+#     Know L = t1-t0
+
+#       
+#
 # So, the moment will be the integral of x,y from t=t0 to t=t1.
 # According to wolframalpha:
-#       x part of integral = a*t*asinh(t/a) + a*B*t - a*sqrt(a^2+t^2)
+#       x part of integral = a*t*asinh(t/a) + b*t - a*sqrt(a^2+t^2)
 #       y part of integral = 1/2 t (sqrt(t^2+a^2) + 2*c)) + 1/2 a^2 log(sqrt(t^2+a^2) + t)
 # but we can turn log(sqrt(t^2+a^2) + t) into hyperbolic trig as follows:
 #         log(sqrt(t**2+a**2) + t)
@@ -320,7 +335,7 @@ _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_
 #       = log(a) + log(sqrt((t/a)^2+1) + t/a)
 #       = log(a) + asinh(t/a)
 # and the log(a) gets absorbed into the integration constant. Yay! So:
-#       x part of integral = a*t*asinh(t/a) + a*B*t - a*sqrt(a^2+t^2)
+#       x part of integral = a*t*asinh(t/a) + b*t - a*sqrt(a^2+t^2)
 #       y part of integral = 1/2 t (sqrt(t^2+a^2) + 2*c)) + 1/2 a^2 asinh(t/a)
 #
 # XXX still simplifying.. and in the end I might just end up with what I had above,
@@ -341,26 +356,38 @@ if (weil_flag) {
 
     moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,a) =  \
         moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,a, \
-                                            (x0+x1)/(2.*a) - acosh(L / (a*sqrt(2*(cosh((x1-x0)/a) - 1)))))  # = B
+                                            (x0+x1)/2. - a*acosh(L / (a*sqrt(2*(cosh((x1-x0)/a) - 1)))))  # = b
 
-    # using instead my magic b = (x0+x1)/2 - a*asinh((y1-y0)/a/2./sinh((x1-x0)/a/2.))
-    #                     so B = (x0+x1)/(2.*a) - asinh((y1-y0)/a/2./sinh((x1-x0)/a/2.))
+    # using instead my magic b = (x0+x1)/2. - a*xmid_from_a_and_b((x1-x0)/a, (y1-y0)/a)  (where a_and_b mean different from a and b here)
+    #                          = (x0+x1)/2. - a*asinh((y1-y0)/a/2./sinh((x1-x0)/a/2.))
+    # XXX rewrite the following in terms of b only, B=b/a was wrongheaded
+    #                     so B = (x0+x1)/(2.*a) - asinh((y1-y0)/(2.*a*sinh((x1-x0)/(2.*a))))
+    #                          = (x0+x1)/(2.*a) - asinh((y1-y0)/(x1-x0)*(x1-x0)/(2.*a)/sinh((x1-x0)/(2.*a)))
+    #                          = (x0+x1)/(2.*a) - asinh((y1-y0)/((x1-x0)*sinhc((x1-x0)/(2.*a))))
+    # (not sure which of the latter two is better if either)
     moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,a) =  \
         moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,a, \
-                                            (x0+x1)/(2.*a) - asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a)))) # = B
+                                            (x0+x1)/2. - a*asinh((y1-y0)/(2.*a)/sinh((x1-x0)/(2.*a)))) # = b
+    moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,a) =  \
+        moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,a, \
+                                            (x0+x1)/2. - a*asinh((y1-y0)/((x1-x0)*sinhc((x1-x0)/(2.*a)))))  # = b
 
-    moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,a,B) = \
-        moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,a,B, \
-                                            y0 - a*cosh(x0/a-B))  # = c
-    moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,a,B,c) = \
-        moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,a,B,c, \
-                                            a*sinh(x0/a-B), a*sinh(x1/a-B))  # = t0,t1
-    moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,a,B,c,t0,t1) = \
-        rotate_xy_by_angle(x_part_of_integral(a,B,c,t1) - x_part_of_integral(a,B,c,t0), \
-                           y_part_of_integral(a,B,c,t1) - y_part_of_integral(a,B,c,t0), \
+    moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,a,b) = \
+        moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,a,b, \
+                                            y0 - a*cosh((x0-b)/a))  # = c
+    moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,a,b,c) = \
+        moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,a,b,c, \
+                                            a*sinh((x0-b)/a), a*sinh((x1-b)/a))  # = t0,t1
+
+
+
+
+    moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,a,b,c,t0,t1) = \
+        rotate_xy_by_angle(x_part_of_integral(a,b,c,t1) - x_part_of_integral(a,b,c,t0), \
+                           y_part_of_integral(a,b,c,t1) - y_part_of_integral(a,b,c,t0), \
                            angle)
-      x_part_of_integral(a,B,c_unused,t) = a * (t*(asinh(t/a) + B) - sqrt(t**2 + a**2))
-      y_part_of_integral(a,B_unused,c,t) = .5*t*(sqrt(t**2+a**2) + 2*c) + .5*a**2*asinh(t/a)
+      x_part_of_integral(a,b,c_unused,t) = a * (t*(asinh(t/a) + b/a) - sqrt(t**2 + a**2))
+      y_part_of_integral(a,b_unused,c,t) = .5*t*(sqrt(t**2+a**2) + 2*c) + .5*a**2*asinh(t/a)
       rotate_xy_by_angle(x,y,angle) = x*cos(angle)-y*sin(angle) \
                                    + (x*sin(angle)+y*cos(angle)) * i
 }
