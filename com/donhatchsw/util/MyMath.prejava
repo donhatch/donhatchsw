@@ -247,9 +247,9 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // Therefore we special case negative arguments.
         // XXX TODO: might want to switch to more naive log-based when args very large-- might be better behaved? not sure
         if (x >= 0)
-            return  log1p( x * (1. + x / (Math.sqrt(x*x+1.)+1.)));
+            return  log1p( x * (1. + x / (hypot(x,1.)+1.)));
         else
-            return -log1p(-x * (1. - x / (Math.sqrt(x*x+1.)+1.)));
+            return -log1p(-x * (1. - x / (hypot(x,1.)+1.)));
     }
 
     /** inverse hyperbolic cosine function */
