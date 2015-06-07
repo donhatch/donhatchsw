@@ -227,17 +227,29 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     asinh(double x)
     {
+        if (x == Double.NEGATIVE_INFINITY)
+            return Double.NEGATIVE_INFINITY;
+        if (x == Double.POSITIVE_INFINITY)
+            return Double.POSITIVE_INFINITY;
+        // To make it better behaved near 0:
         // asinh(x) = log(x + sqrt(x^2 + 1))
         //          = log1p(x + sqrt(x^2 + 1) - 1)
         //          = log1p(x + (sqrt(x^2+1)-1)*(sqrt(x^2+1)+1)/(sqrt(x^2+1)+1))
         //          = log1p(x + (x^2+1 - 1)/(sqrt(x^2+1)+1))
         //          = log1p(x + x^2 / (sqrt(x^2+1)+1))
         //          = log1p(x * (1 + x / (sqrt(x^2+1)+1) ))
-        if (x == Double.NEGATIVE_INFINITY)
-            return Double.NEGATIVE_INFINITY;
-        if (x == Double.POSITIVE_INFINITY)
-            return Double.POSITIVE_INFINITY;
-        return log1p(x * (1. + x / (Math.sqrt(x*x+1.)+1.)));
+        // That fixes it near 0:
+        //     gnuplot> plot [-1e-15:1e-15] asinh(x), asinh_smart(x)
+        // However, for some reason the formula still isn't symmetric,
+        // even though the function is symmetric, and furthermore
+        // it behaves rather atrociously for large negative arguments:
+        //     gnuplot> plot [-1e9:1e9] asinh(x), asinh_smart(x)
+        // Therefore we special case negative arguments.
+        // XXX TODO: might want to switch to more naive log-based when args very large-- might be better behaved? not sure
+        if (x >= 0)
+            return  log1p( x * (1. + x / (Math.sqrt(x*x+1.)+1.)));
+        else
+            return -log1p(-x * (1. - x / (Math.sqrt(x*x+1.)+1.)));
     }
 
     /** inverse hyperbolic cosine function */

@@ -1618,6 +1618,7 @@ public class SmoothlyVaryingViewingParameter
                 if (x >= 0.)
                 {
                     assert_eq(MyMath.sinh(-x), -MyMath.sinh(x));
+                    assert_eq(MyMath.asinh(-x), -MyMath.asinh(x));
                     assert_eq(MyMath.cosh(-x), MyMath.cosh(x));
                 }
 
@@ -1688,36 +1689,36 @@ public class SmoothlyVaryingViewingParameter
                 for (double i = -100.; i <= 100.; ++i)
                 {
                     int branch = i<1 ? -1 : 0;
-                    if (i >= -20 && i <= 20) System.out.println("    MyMath.inverse_function_of_exp_over_x(Math.exp("+i+")/"+i+"="+(Math.exp(i)/i)+","+branch+") = "+MyMath.inverse_function_of_exp_over_x(Math.exp(i)/i,branch));
-                    assert_eq(MyMath.inverse_function_of_exp_over_x(Math.exp(i)/i,branch), i);
+                    if (i >= -20 && i <= 20) System.out.println("    MyMath.glog(Math.exp("+i+")/"+i+"="+(Math.exp(i)/i)+","+branch+") = "+MyMath.glog(Math.exp(i)/i,branch));
+                    assert_eq(MyMath.glog(Math.exp(i)/i,branch), i);
 
                     if (i < 0.)
                     {
-                        assert(MyMath.inverse_function_of_exp_over_x(i, -1) < 0.);
-                        assert_nan(MyMath.inverse_function_of_exp_over_x(i, 0));
+                        assert(MyMath.glog(i, -1) < 0.);
+                        assert_nan(MyMath.glog(i, 0));
                     }
                     else if (i == 0)
                     {
                         // subtle: it's implemented so that both -0 and 0 produce NEGATIVE_INFINITY on branch -1.
-                        assert_eq(MyMath.inverse_function_of_exp_over_x(i, -1), Double.NEGATIVE_INFINITY);
-                        assert_eq(MyMath.inverse_function_of_exp_over_x(-i, -1), Double.NEGATIVE_INFINITY);
-                        assert_nan(MyMath.inverse_function_of_exp_over_x(i, 0));
-                        assert_nan(MyMath.inverse_function_of_exp_over_x(-i, 0));
+                        assert_eq(MyMath.glog(i, -1), Double.NEGATIVE_INFINITY);
+                        assert_eq(MyMath.glog(-i, -1), Double.NEGATIVE_INFINITY);
+                        assert_nan(MyMath.glog(i, 0));
+                        assert_nan(MyMath.glog(-i, 0));
                     }
                     else if (i < Math.E)
                     {
-                        assert_nan(MyMath.inverse_function_of_exp_over_x(i, -1));
-                        assert_nan(MyMath.inverse_function_of_exp_over_x(i, 0));
+                        assert_nan(MyMath.glog(i, -1));
+                        assert_nan(MyMath.glog(i, 0));
                     }
                     else if (i == Math.E)
                     {
-                        assert_eq(MyMath.inverse_function_of_exp_over_x(i, -1), 1.);
-                        assert_eq(MyMath.inverse_function_of_exp_over_x(i, 0), 1.);
+                        assert_eq(MyMath.glog(i, -1), 1.);
+                        assert_eq(MyMath.glog(i, 0), 1.);
                     }
                     else if (i > Math.E)
                     {
-                        assert(MyMath.inverse_function_of_exp_over_x(i, -1) < 1.);
-                        assert(MyMath.inverse_function_of_exp_over_x(i, 0) > 1.);
+                        assert(MyMath.glog(i, -1) < 1.);
+                        assert(MyMath.glog(i, 0) > 1.);
                     }
                 }
             }
