@@ -172,10 +172,10 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
 
 
 if (strategy eq "first") {
-    a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle)
-    b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle)
+    first_a_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*cos(-angle)
+    first_b_from_angle_and_invCatScale(angle, invCatScale) = invCatScale*sin(-angle)
     # surprising magic.
-    xmid_from_a_and_b(a,b) = Asinh(b/2./sinh(a/2.))
+    first_xmid_from_a_and_b(a,b) = Asinh(b/2./sinh(a/2.))
     # I wish it simplified further though!
     # Basic case of it is Asinh(1/sinh(x)). Does that simplify?
     #       Asinh(y) = log(y + sqrt(1+y^2))
@@ -213,35 +213,35 @@ if (strategy eq "first") {
     #    a/(2*catScale) = asinhc(sqrt(L^2 - b^2)/a)
     #    invCatScale = asinhc(sqrt(L^2 - b^2)/a) * (2/a)
     # In our case, L = 1+slack, a=cos(-angle), b=sin(-angle).
-    invCatScale_from_slack_and_angle(slack, angle) = invCatScale_from_L_and_a_and_b(1.+slack, cos(-angle), sin(-angle))
-      invCatScale_from_L_and_a_and_b(L, a, b) = asinhc(sqrt(L**2 - b**2) / a) * (2./a)
+    first_invCatScale_from_slack_and_angle(slack, angle) = first_invCatScale_from_L_and_a_and_b(1.+slack, cos(-angle), sin(-angle))
+      first_invCatScale_from_L_and_a_and_b(L, a, b) = asinhc(sqrt(L**2 - b**2) / a) * (2./a)
 
-    x0_from_a_and_b(a,b) = xmid_from_a_and_b(a,b) - a/2.
-    x1_from_a_and_b(a,b) = xmid_from_a_and_b(a,b) + a/2.
-    y0_from_a_and_b(a,b) = cosh(x0_from_a_and_b(a,b))
-    y1_from_a_and_b(a,b) = cosh(x1_from_a_and_b(a,b))
-    t0_from_a_and_b(a,b) = sinh(x0_from_a_and_b(a,b))  # = sinh(Asinh(b/2./sinh(a/2.)) - a/2.)
-    t1_from_a_and_b(a,b) = sinh(x1_from_a_and_b(a,b))  # = sinh(Asinh(b/2./sinh(a/2.)) + a/2.)
+    first_x0_from_a_and_b(a,b) = first_xmid_from_a_and_b(a,b) - a/2.
+    first_x1_from_a_and_b(a,b) = first_xmid_from_a_and_b(a,b) + a/2.
+    first_y0_from_a_and_b(a,b) = cosh(first_x0_from_a_and_b(a,b))
+    first_y1_from_a_and_b(a,b) = cosh(first_x1_from_a_and_b(a,b))
+    first_t0_from_a_and_b(a,b) = sinh(first_x0_from_a_and_b(a,b))  # = sinh(Asinh(b/2./sinh(a/2.)) - a/2.)
+    first_t1_from_a_and_b(a,b) = sinh(first_x1_from_a_and_b(a,b))  # = sinh(Asinh(b/2./sinh(a/2.)) + a/2.)
 
 
 
 
     # analytic version to use when on x axis
-    moment_from_x(slack,v0) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
-    moment_from_xy(x,y,v0) = y==0. ? moment_from_x(x,v0) : y>0 ? conj(_moment_from_xy(x,-y,conj(v0))) : _moment_from_xy(x,y,v0)
-    _moment_from_xy(x,y,v0) = moment_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0)
-      slack_from_xy(x,y) = sqrt(x**2+y**2)
-      angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
-      #angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
+    first_moment_from_x(slack,v0) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
+    first_moment_from_xy(x,y,v0) = y==0. ? first_moment_from_x(x,v0) : y>0 ? conj(first__moment_from_xy(x,-y,conj(v0))) : first__moment_from_xy(x,y,v0)
+    first__moment_from_xy(x,y,v0) = first_moment_from_slack_and_angle(first_slack_from_xy(x,y), first_angle_from_xy(x,y), v0)
+      first_slack_from_xy(x,y) = sqrt(x**2+y**2)
+      first_angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
+      #first_angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
 
-      moment_from_slack_and_angle(slack,angle,v0) = v0*(1.+slack) + moment_from_angle_and_invCatScale(angle, invCatScale_from_slack_and_angle(slack, angle))
-        moment_from_angle_and_invCatScale(angle,invCatScale) = moment_from_angle_and_invCatScale_and_t0_and_t1(angle,invCatScale, \
-                                                                                                               t0_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                                                               t1_from_angle_and_invCatScale(angle,invCatScale))
-          t0_from_angle_and_invCatScale(angle,invCatScale) = t0_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                             b_from_angle_and_invCatScale(angle,invCatScale))
-          t1_from_angle_and_invCatScale(angle,invCatScale) = t1_from_a_and_b(a_from_angle_and_invCatScale(angle,invCatScale), \
-                                                                             b_from_angle_and_invCatScale(angle,invCatScale))
+      first_moment_from_slack_and_angle(slack,angle,v0) = v0*(1.+slack) + first_moment_from_angle_and_invCatScale(angle, first_invCatScale_from_slack_and_angle(slack, angle))
+        first_moment_from_angle_and_invCatScale(angle,invCatScale) = first_moment_from_angle_and_invCatScale_and_t0_and_t1(angle,invCatScale, \
+                                                                                                               first_t0_from_angle_and_invCatScale(angle,invCatScale), \
+                                                                                                               first_t1_from_angle_and_invCatScale(angle,invCatScale))
+          first_t0_from_angle_and_invCatScale(angle,invCatScale) = first_t0_from_a_and_b(first_a_from_angle_and_invCatScale(angle,invCatScale), \
+                                                                             first_b_from_angle_and_invCatScale(angle,invCatScale))
+          first_t1_from_angle_and_invCatScale(angle,invCatScale) = first_t1_from_a_and_b(first_a_from_angle_and_invCatScale(angle,invCatScale), \
+                                                                             first_b_from_angle_and_invCatScale(angle,invCatScale))
 
           # Integrate from t0 to t1 on the canonical catenary with x(t),y(t) translated to the origin,
           # then rotate by -angle and scale by 1/invCatScale^2.
@@ -250,14 +250,14 @@ if (strategy eq "first") {
           # where:
           #       x(t) = Asinh(t)
           #       y(t) = sqrt(t**2+1)
-          moment_from_angle_and_invCatScale_and_t0_and_t1(angle,invCatScale,t0,t1) = rotate_xy_by_angle(x_part_of_integral(t0,t1), \
-                                                                                                        y_part_of_integral(t0,t1), angle) / invCatScale**2
-            rotate_xy_by_angle(x,y,angle) = x*cos(angle)-y*sin(angle) \
+          first_moment_from_angle_and_invCatScale_and_t0_and_t1(angle,invCatScale,t0,t1) = first_rotate_xy_by_angle(first_x_part_of_integral(t0,t1), \
+                                                                                                        first_y_part_of_integral(t0,t1), angle) / invCatScale**2
+            first_rotate_xy_by_angle(x,y,angle) = x*cos(angle)-y*sin(angle) \
                                          + (x*sin(angle)+y*cos(angle)) * i
-            x_part_of_integral(t0,t1) = (t1*Asinh(t1)-sqrt(t1**2+1)) \
+            first_x_part_of_integral(t0,t1) = (t1*Asinh(t1)-sqrt(t1**2+1)) \
                                       - (t0*Asinh(t0)-sqrt(t0**2+1)) \
                                       - (t1-t0)*Asinh(t0)
-            y_part_of_integral(t0,t1) = .5*(t1*sqrt(t1**2+1)+Asinh(t1)) \
+            first_y_part_of_integral(t0,t1) = .5*(t1*sqrt(t1**2+1)+Asinh(t1)) \
                                       - .5*(t0*sqrt(t0**2+1)+Asinh(t0)) \
                                       - (t1-t0)*sqrt(t0**2+1)
 } # strategy eq "first"
@@ -475,42 +475,44 @@ if (strategy eq "first") {
 
   good_moment_from_slack_and_angle(slack,angle,v0) = \
       good_moment_from_slack_and_angle_helper1(angle,1.+slack, real(v0),imag(v0),real(v0)+cos(-angle),imag(v0)+sin(-angle))
+
     good_moment_from_slack_and_angle_helper1(angle,L,x0,y0,x1,y1) = \
         good_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1)
-    good_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1) = \
-        good_moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1, \
+
+    good_moment_from_slack_and_angle_helper1(angle,L,x0,y0,x1,y1) = \
+        good_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1, \
                                             (x1-x0)/(2*asinhc(sqrt(L**2 - (y1-y0)**2) / (x1-x0))))  # = s  XXX divides by x1-x0, need to reformulate to be well behaved.  should just produce 0 in that case I think?
 
 
 
 
-    good_moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,s) =  \
-        good_moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,s, \
+    good_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1,s) =  \
+        good_moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,s, \
                                             (x0+x1)/2. - s*acosh(L / (s*sqrt(2*(cosh((x1-x0)/s) - 1)))))  # = b    XXX divides by s, need to reformulate to be well behaved.  should just produce (x0+x1)/2. in that case I think?
 
     # using instead my magic b = (x0+x1)/2. - s*xmid_from_a_and_b((x1-x0)/s, (y1-y0)/s)  (where a_and_b mean different from s and b here)
     #                          = (x0+x1)/2. - s*Asinh((y1-y0)/(2.*s)/sinh((x1-x0)/(2.*s)))
     #                          = (x0+x1)/2. - s*Asinh((y1-y0)/((x1-x0)*sinhc((x1-x0)/(2.*s))))
     # (not sure which of the latter two is better if either)
-    good_moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,s) =  \
-        good_moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,s, \
+    good_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1,s) =  \
+        good_moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,s, \
                                             (x0+x1)/2. - s*Asinh((y1-y0)/(2.*s)/sinh((x1-x0)/(2.*s))))  # = b    XXX divides by s, need to reformulate to be well behaved.  should just produce (x0+x1)/2. in that case I think?
-    good_moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,s) =  \
-        good_moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,s, \
+    good_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1,s) =  \
+        good_moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,s, \
                                             (x0+x1)/2. - s*Asinh((y1-y0)/((x1-x0)*sinhc((x1-x0)/(2.*s)))))  # = b    XXX divides by s, and by (x1-x0) too, need to reformulate to be well behaved.  should just produce (x0+x1)/2. in that case I think?
 
-    good_moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,s,b) = \
-        good_moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,s,b, \
+    good_moment_from_slack_and_angle_helper3(angle,L,x0,y0,x1,y1,s,b) = \
+        good_moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,s,b, \
                                             .5*(y1-y0)*sqrt(1+4*s**2/(L**2-(y1-y0)**2)))  # = tMid
-    good_moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,s,b,tMid) = \
-        good_moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,s,b, tMid-L/2., tMid+L/2.)  # = t0,t1
+    good_moment_from_slack_and_angle_helper4(angle,L,x0,y0,x1,y1,s,b,tMid) = \
+        good_moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,s,b, tMid-L/2., tMid+L/2.)  # = t0,t1
 
-    good_moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,s,b,t0,t1) = \
-        good_moment_from_slack_and_angle_helper7(angle,L,x0,y0,x1,y1,s,b, \
+    good_moment_from_slack_and_angle_helper5(angle,L,x0,y0,x1,y1,s,b,t0,t1) = \
+        good_moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,s,b, \
                                             y0 - sqrt(t0**2 + s**2), t0,t1)  # = c,t0,t1
 
 
-    good_moment_from_slack_and_angle_helper7(angle,L,x0,y0,x1,y1,s,b,c,t0,t1) = \
+    good_moment_from_slack_and_angle_helper6(angle,L,x0,y0,x1,y1,s,b,c,t0,t1) = \
         good_rotate_xy_by_angle(good_x_part_of_integral(s,b,c,t1) - good_x_part_of_integral(s,b,c,t0), \
                            good_y_part_of_integral(s,b,c,t1) - good_y_part_of_integral(s,b,c,t0), \
                            angle)
@@ -539,6 +541,9 @@ if (strategy eq "first") {
       #angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
 } # setup for "good"
 
+if (strategy eq "first") {
+  moment_from_xy(x,y,v0) = first_moment_from_xy(x,y,v0)
+}
 if (strategy eq "weil") {
   moment_from_xy(x,y,v0) = weil_moment_from_xy(x,y,v0)
 }
@@ -762,7 +767,9 @@ if (plot1_flag) {
     #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with lines linewidth lw, real(exp(u+i*v)),imag(exp(u+i*v)),exp(u) # best-fit circles when symmetric picture
 
     # weil's in red (with blue slack=1 contour) offset by a little, good in green
-    splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(.01+wf(exp(u+i*v))),imag(wf(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw, \
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(.01+wf(exp(u+i*v))),imag(wf(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw, \
+    #                                          real(gf(exp(u+i*v))),imag(gf(exp(u+i*v))),zscale*exp(u) with lines linewidth lw
+    splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(wf(exp(u+i*v))),imag(wf(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw+4, \
                                               real(gf(exp(u+i*v))),imag(gf(exp(u+i*v))),zscale*exp(u) with lines linewidth lw
 
     time1 = time(0.)
