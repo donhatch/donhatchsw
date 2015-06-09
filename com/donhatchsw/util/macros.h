@@ -11,7 +11,7 @@
 #define assumpt(expr) do { if (!(expr)) throw new Error("Assumption failed at "+__FILE__+"("+__LINE__+"): " + #expr + ""); } while (false)
 #define unimplemented() do {if (true) throw new Error("Unimplemented at "+__FILE__+"("+__LINE__+")"); } while (false)
 
-// NOTE: this causes a,b to be evaluated twice, so is not ideal. might be better to do a block... ?
+// NOTE: this causes a,b to be evaluated twice on failure, so is not ideal. might be better to do a block... ?
 #define assert_eq(a,b) do { if (!((a)==(b))) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")==(" + #b + ") ("+(a)+" vs. "+(b)+")"); } while (false)
 #define assert_nan(x) do { if (!Double.isNaN(x)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #x + " is "+(x)+", expected NaN"); } while (false)
 
