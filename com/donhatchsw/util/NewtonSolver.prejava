@@ -58,6 +58,7 @@ public class NewtonSolver
                              double stepScale) // set to 1 usually, but less than 1 for debugging whether things are basically sane other than parametrization not being very good.
     {
         boolean debug = false;
+        if (debug) System.out.println("    in solve(x="+VecMath.toString(x)+", y="+VecMath.toString(y)+", maxIterations="+maxIterations+", stepScale="+stepScale);
         if (debug) PRINT(maxIterations);
         double prevPrevErrorLengthSqrd = Double.POSITIVE_INFINITY;
         double prevErrorLengthSqrd = Double.POSITIVE_INFINITY;
@@ -74,13 +75,14 @@ public class NewtonSolver
             if (debug) PRINT(errorLengthSqrd);
             if (Double.isNaN(errorLengthSqrd) || Double.isInfinite(errorLengthSqrd))
             {
+                if (debug) System.out.println("    out solve (NaN or infinite)");
                 return;
             }
             if (iIter >= minIterations
              && !(errorLengthSqrd < prevErrorLengthSqrd))
              // XXX something about prevPrev? think about it
             {
-                //System.out.println("    stopped improving after "+iIter+" iterations");
+                if (debug) System.out.println("    out solve (stopped improving after "+iIter+" iterations");
                 return;
             }
             prevPrevErrorLengthSqrd = prevErrorLengthSqrd;
@@ -113,6 +115,7 @@ public class NewtonSolver
                                 VecMath.invmxv(Jx,
                                                VecMath.vmv(y, fx))));
         }
+        if (debug) System.out.println("    out solve (maxIterations="+maxIterations+" reached)");
     } // solve
 
     // Little test program
