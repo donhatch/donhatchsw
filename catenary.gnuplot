@@ -75,8 +75,8 @@
     plot2_flag = 0  # moment to slack-and-angle
 
     # either of the following should work.
-    strategy = "weil" # sets f = wf
-    #strategy = "good" # sets f = gf
+    #strategy = "weil" # sets f = wf
+    strategy = "good" # sets f = gf
      
 
 if (png_flag) {
@@ -467,6 +467,9 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
     # analytic version to use when on x axis
     good_moment_from_x(slack,v0,v1) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
     good_moment_from_xy(x,y,v0,v1) = y==0. ? good_moment_from_x(x,v0,v1) : y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
+
+    # XXX hmm, actually don't need the 1-d case any more? that would be great!
+    good_moment_from_xy(x,y,v0,v1) = y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
 
     _good_moment_from_xy(x,y,v0,v1) = good_moment_from_slack_and_angle(good_slack_from_xy(x,y), good_angle_from_xy(x,y), v0,v1)
       good_slack_from_xy(x,y) = sqrt(x**2+y**2)
