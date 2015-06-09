@@ -477,7 +477,221 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static void main(String args[])
     {
         System.out.println("    in MyMath.main");
-        // TODO: transplant stuff from SmoothlyVaryingViewingParameter.prejava to here
+
+        assert_nan(Math.log(Double.NEGATIVE_INFINITY));
+        assert_eq(MyMath.expm1(Double.NEGATIVE_INFINITY), -1.);
+        assert_eq(MyMath.sinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
+        assert_eq(MyMath.cosh(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.coshm1(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_nan(MyMath.log1p(Double.NEGATIVE_INFINITY));
+        assert_eq(MyMath.asinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
+        assert_nan(MyMath.acosh1p(Double.NEGATIVE_INFINITY));
+
+        assert_eq(Math.exp(Double.NEGATIVE_INFINITY), 0.);
+        assert_eq(Math.exp(-1.), 1./Math.E);
+        assert_eq(Math.exp(0.), 1.);
+        assert_eq(Math.exp(1.), Math.E);
+        assert_eq(Math.log(0.), Double.NEGATIVE_INFINITY);
+        assert_eq(Math.log(1./Math.E), -1.);
+        assert_eq(Math.log(1.), 0.);
+        assert_eq(Math.log(Math.E), 1.);
+        assert_eq(MyMath.expm1(0.), 0.);
+        assert_eq(MyMath.sinh(0.), 0.);
+        assert_eq(MyMath.cosh(0.), 1.);
+        assert_eq(MyMath.coshm1(0.), 0.);
+        assert_eq(MyMath.log1p(-1.), Double.NEGATIVE_INFINITY);
+        assert_eq(MyMath.log1p(0.), 0.);
+        assert_eq(MyMath.asinh(0.), 0.);
+        assert_eq(MyMath.acosh1p(0.), 0.);
+
+        assert_eq(Math.exp(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(Math.log(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.expm1(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.sinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.cosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.coshm1(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.log1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.asinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.acosh1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_eq(MyMath.sin_over_x(Double.NEGATIVE_INFINITY), 0.);
+        assert_eq(MyMath.sinh_over_x(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_nan(MyMath.asin_over_x(Double.NEGATIVE_INFINITY));
+        assert_eq(MyMath.asinh_over_x(Double.NEGATIVE_INFINITY), 0.);
+        assert_eq(MyMath.cosf1_over_xx(Double.NEGATIVE_INFINITY), 0.);
+        assert_eq(MyMath.coshm1_over_xx(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_eq(MyMath.sin_over_x(0.), 1.);
+        assert_eq(MyMath.sinh_over_x(0.), 1.);
+        assert_eq(MyMath.asin_over_x(0.), 1.);
+        assert_eq(MyMath.asinh_over_x(0.), 1.);
+        assert_eq(MyMath.cosf1_over_xx(0.), .5);
+        assert_eq(MyMath.coshm1_over_xx(0.), .5);
+
+        assert_eq(MyMath.sin_over_x(Double.POSITIVE_INFINITY), 0.);
+        assert_eq(MyMath.sinh_over_x(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_nan(MyMath.asin_over_x(Double.POSITIVE_INFINITY));
+        assert_eq(MyMath.asinh_over_x(Double.POSITIVE_INFINITY), 0.);
+        assert_eq(MyMath.cosf1_over_xx(Double.POSITIVE_INFINITY), 0.);
+        assert_eq(MyMath.coshm1_over_xx(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        // TODO: all of the following is missing testing of all the *_over_x functions
+        // TODO: all of the following is missing testing of asinh, probably others
+
+        // first and last entries are big enough to overflow all the exp and hyperbolic trig functions
+        double xs[] = {-1000, -100, -10, -1, -.1, 0, .1, 1, 10, 100, 1000};
+        for (int i = 0; i < xs.length; ++i)
+        {
+            double x = xs[i];
+
+            System.out.println("    exp("+x+") = "+Math.exp(x)+"");
+            System.out.println("    expm1("+x+") = "+MyMath.expm1(x)+"");
+            System.out.println("    sinh("+x+") = "+MyMath.sinh(x)+"");
+            System.out.println("    cosh("+x+") = "+MyMath.cosh(x)+"");
+            System.out.println("    coshm1("+x+") = "+MyMath.coshm1(x)+"");
+
+            assert_eq(MyMath.expm1(x) + 1., Math.exp(x) - 1. + 1.);
+            assert_eq(MyMath.expm1(x) + 1. - 1., Math.exp(x) - 1.);
+
+            if (x > -1.)
+            {
+                System.out.println("    log1p("+x+") = "+MyMath.log1p(x)+"");
+                // TODO: come up with something more sensible I think? I'm a bit confused.
+                assert_eq((float)MyMath.log1p(x), (float)Math.log(1.+x));
+            }
+
+            if (x >= 0.)
+            {
+                System.out.println("    acosh1p("+x+") = "+MyMath.acosh1p(x)+"");
+                // TODO: come up with something more sensible I think? I'm a bit confused.
+                assert_eq((float)MyMath.acosh1p(x), (float)MyMath.acosh(1.+x));
+            }
+
+            if (false)
+            {
+                // hmm, not quite exact, apparently
+                PRINT(MyMath.coshm1(x) + 1.);
+                PRINT(MyMath.cosh(x) - 1. + 1.);
+                assert_eq(MyMath.coshm1(x) + 1., MyMath.cosh(x) - 1. + 1.);
+                PRINT(MyMath.coshm1(x) + 1. - 1.);
+                PRINT(MyMath.cosh(x) - 1.);
+                assert_eq(MyMath.coshm1(x) + 1. - 1., MyMath.cosh(x) - 1.);
+            }
+            else
+            {
+                // TODO: come up with something more sensible I think? I'm confused
+                assert_eq((float)MyMath.coshm1(x), (float)(MyMath.cosh(x) - 1.));
+            }
+
+            if (x >= 0.)
+            {
+                assert_eq(MyMath.sinh(-x), -MyMath.sinh(x));
+                assert_eq(MyMath.asinh(-x), -MyMath.asinh(x));
+                assert_eq(MyMath.cosh(-x), MyMath.cosh(x));
+            }
+
+            if (i == 0)
+            {
+                assert_eq(Math.exp(x), 0.);
+                assert_eq(MyMath.expm1(x), -1.);
+                assert_eq(MyMath.sinh(x), Double.NEGATIVE_INFINITY);
+                assert_eq(MyMath.cosh(x), Double.POSITIVE_INFINITY);
+            }
+            if (i == xs.length-1)
+            {
+                assert_eq(Math.exp(x), Double.POSITIVE_INFINITY);
+                assert_eq(MyMath.expm1(x), Double.POSITIVE_INFINITY);
+                assert_eq(MyMath.sinh(x), Double.POSITIVE_INFINITY);
+                assert_eq(MyMath.cosh(x), Double.POSITIVE_INFINITY);
+            }
+
+            if (i > 0.)
+            {
+                assert(Math.exp(xs[i-1]) < Math.exp(xs[i]));
+                assert(MyMath.expm1(xs[i-1]) <= MyMath.expm1(xs[i])); // not strict < for some
+                assert(MyMath.sinh(xs[i-1]) < MyMath.sinh(xs[i]));
+                if (ABS(xs[i-1]) < ABS(xs[i]))
+                {
+                    assert(MyMath.cosh(xs[i-1]) < MyMath.cosh(xs[i]));
+                    assert(MyMath.coshm1(xs[i-1]) < MyMath.coshm1(xs[i]));
+                }
+                else
+                {
+                    assert(MyMath.cosh(xs[i-1]) > MyMath.cosh(xs[i]));
+                    assert(MyMath.coshm1(xs[i-1]) > MyMath.coshm1(xs[i]));
+                }
+            }
+        }
+
+        if (true)
+        {
+            // lambertw tests
+            for (double i = -714.; i <= 696.; ++i) // empirically, works to this range
+            {
+                if (i <= -1.)
+                {
+                    if (i >= -10 && i <= 10) System.out.println("    lambertw(e^"+i+"*"+i+", -1) = "+MyMath.lambertw(Math.exp(i)*i,-1));
+                    assert_eq(MyMath.lambertw(Math.exp(i)*i,-1), i); // seems to be exact
+                }
+                if (i >= -1.)
+                {
+                    if (i >= -10 && i <= 10) System.out.println("    lambertw(e^"+i+"*"+i+", 0) = "+MyMath.lambertw(Math.exp(i)*i,0));
+                    assert_eq(MyMath.lambertw(Math.exp(i)*i,0), i); // seems to be exact
+                }
+            }
+            assert_eq(MyMath.lambertw(Double.POSITIVE_INFINITY, 0), Double.POSITIVE_INFINITY);
+            assert_nan(MyMath.lambertw(Double.POSITIVE_INFINITY, -1));
+
+            // wolframalpha says the inverse function of e^x/x is -W(-1/x)
+            // and we have to figure out which branch it is.
+            // then:
+            //     x = -W(-1/y)
+            // and empirically, it's the lower branch. Hmm.  (wolframalpha didn't indicate that)
+            // XXX hmm, -14 and -13 (not as much) are slow! interesting! should investigate!
+            // that's
+            //     -14: lambert(-5.9394908507397704E-8)
+            //     -13: -1.7387149284469648E-7
+            //     -12: -5.120176961106842E-7
+            //     -11: -1.5183364354768781E-6
+            OUT("========");
+            for (double i = -100.; i <= 100.; ++i)
+            {
+                int branch = i<1 ? -1 : 0;
+                if (i >= -20 && i <= 20) System.out.println("    MyMath.glog(Math.exp("+i+")/"+i+"="+(Math.exp(i)/i)+","+branch+") = "+MyMath.glog(Math.exp(i)/i,branch));
+                assert_eq(MyMath.glog(Math.exp(i)/i,branch), i);
+
+                if (i < 0.)
+                {
+                    assert(MyMath.glog(i, -1) < 0.);
+                    assert_nan(MyMath.glog(i, 0));
+                }
+                else if (i == 0)
+                {
+                    // subtle: it's implemented so that both -0 and 0 produce NEGATIVE_INFINITY on branch -1.
+                    assert_eq(MyMath.glog(i, -1), Double.NEGATIVE_INFINITY);
+                    assert_eq(MyMath.glog(-i, -1), Double.NEGATIVE_INFINITY);
+                    assert_nan(MyMath.glog(i, 0));
+                    assert_nan(MyMath.glog(-i, 0));
+                }
+                else if (i < Math.E)
+                {
+                    assert_nan(MyMath.glog(i, -1));
+                    assert_nan(MyMath.glog(i, 0));
+                }
+                else if (i == Math.E)
+                {
+                    assert_eq(MyMath.glog(i, -1), 1.);
+                    assert_eq(MyMath.glog(i, 0), 1.);
+                }
+                else if (i > Math.E)
+                {
+                    assert(MyMath.glog(i, -1) < 1.);
+                    assert(MyMath.glog(i, 0) > 1.);
+                }
+            }
+        }
+
+        System.out.println("      MyMath functions all good!");
         System.out.println("    out MyMath.main");
     }
 } // class MyMath
