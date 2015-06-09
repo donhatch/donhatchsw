@@ -1,5 +1,13 @@
 #!/usr/bin/gnuplot
+
+# Experimenting fitting a catenary between two points,
+# that has a given moment.
+# This is the underlying problem for SmoothlyVaryingViewingParameter.
+
+
 # note, some day I think there will be a -c option that will allow args to be passed in more easily, but not today.
+
+# TODO: implement for arbitrary angle from v0 to v1
 
 # Things that can be tweaked:
 #       - change to various values of velocity0 ({-.5,0} for symmetric about origin)
@@ -37,9 +45,18 @@
 #
 # Parameters that could logically be taken from command line args if hooked up
 
-    png_flag = 1 # if set, output to RMME1.png and RMME2.png instead of terminal
+    png_flag = 0 # if set, output to RMME1.png and RMME2.png instead of terminal
 
-    #velocity0 = -sqrt(.5) + -sqrt(.5)*{0,1}
+    if (!png_flag) {
+      DISPLAY = "`echo $DISPLAY`"
+      #print "DISPLAY = '",DISPLAY,"'"
+      if (DISPLAY eq "") {
+        print "no DISPLAY, forcing png_flag to 1 (so output goes into RMME1.png, RMME2.png)"
+        png_flag = 1
+      }
+    }
+
+    #velocity0 = sqrt(.5) * {-1,-1}
     #velocity0 = -sqrt(.5) + 1.1 * -sqrt(.5)*{0,1}
 
     #velocity0 = {-1.5,0}
@@ -49,6 +66,8 @@
     #velocity0 = {.5,0}
 
     velocity1 = velocity0 + {1,0}
+    #velocity1 = velocity0 + sqrt(.5)*{1,1}  # XXX not implemented at all yet anywhere I don't think
+    #velocity1 = velocity0 + {.5,0}
 
     # when png_flag is set, both of the following can be set.
     # otherwise it makes sense to set at most one of them.
@@ -282,7 +301,11 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
 
 
   weil_moment_from_slack_and_angle(slack,angle,v0,v1) = \
-      weil_moment_from_slack_and_angle_helper1(angle,abs(v1-v0)+slack, real(v0),imag(v0),real(v0)+cos(-angle),imag(v0)+sin(-angle))
+      weil_moment_from_slack_and_angle_helper1(angle,abs(v1-v0)+slack, \
+                                               real(v0 * (cos(-angle) + i*sin(-angle))), \
+                                               imag(v0 * (cos(-angle) + i*sin(-angle))), \
+                                               real(v1 * (cos(-angle) + i*sin(-angle))), \
+                                               imag(v1 * (cos(-angle) + i*sin(-angle))))
     # paper only works if x0,y0 is the *lower* end, for some reason
     weil_moment_from_slack_and_angle_helper1(angle,L,x0,y0,x1,y1) = \
       y1>=y0 ? weil_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1) \
@@ -330,10 +353,10 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
     weil_moment_from_x(slack,v0,v1) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
     # I suspect the weil version can be demonstrated to behave poorly near the x axis...
     weil_moment_from_xy(x,y,v0,v1) = y==0. ? weil_moment_from_x(x,v0,v1) : y>0 ? conj(_weil_moment_from_xy(x,-y,conj(v0),conj(v1))) : _weil_moment_from_xy(x,y,v0,v1)
-    _weil_moment_from_xy(x,y,v0,v1) = weil_moment_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0,v1)
-      slack_from_xy(x,y) = sqrt(x**2+y**2)
-      angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
-      #angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
+    _weil_moment_from_xy(x,y,v0,v1) = weil_moment_from_slack_and_angle(weil_slack_from_xy(x,y), weil_angle_from_xy(x,y), v0,v1)
+      weil_slack_from_xy(x,y) = sqrt(x**2+y**2)
+      weil_angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
+      #weil_angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
 } # setup for "weil"
 
 {
@@ -383,16 +406,15 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
   # and the log(s) gets absorbed into the integration constant. Yay! So:
   #       x part of integral = s*t*Asinh(t/s) + b*t - s*sqrt(s^2+t^2)
   #       y part of integral = 1/2 t (sqrt(t^2+s^2) + 2*c)) + 1/2 s^2 Asinh(t/s)
-
-  # XXX but wasn't there a problem near slack=0?  In this case I actually don't think
-  # it's possible to compute t unambiguously from y, is it? Because there will be 2 solutions. Maybe.
-  # And in any case it's probably more stable to compute it from x in that case anyway.  Maybe.
+  #
+  # XXX In the case of slack=0 or near 0, might be more stable to compute t0,t1 from x's instead of from y's
 
   good_moment_from_slack_and_angle(slack,angle,v0,v1) = \
-      good_moment_from_slack_and_angle_helper1(angle,abs(v1-v0)+slack, real(v0),imag(v0),real(v0)+cos(-angle),imag(v0)+sin(-angle))
-
-    good_moment_from_slack_and_angle_helper1(angle,L,x0,y0,x1,y1) = \
-        good_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1)
+      good_moment_from_slack_and_angle_helper1(angle,abs(v1-v0)+slack, \
+                                               real(v0 * (cos(-angle) + i*sin(-angle))), \
+                                               imag(v0 * (cos(-angle) + i*sin(-angle))), \
+                                               real(v1 * (cos(-angle) + i*sin(-angle))), \
+                                               imag(v1 * (cos(-angle) + i*sin(-angle))))
 
     good_moment_from_slack_and_angle_helper1(angle,L,x0,y0,x1,y1) = \
         good_moment_from_slack_and_angle_helper2(angle,L,x0,y0,x1,y1, \
@@ -428,6 +450,7 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
                            angle)
 
       # XXX keep thinking about this... it's pretty good now but I'm not sure if it's perfect.
+      # XXX actually... why did I need a special case for t==0? won't it just come out right?
       s_times_asinh_t_over_s(t,s) = s==0.||t==0. ? 0. : s*Asinh(t/s)
 
       good_x_part_of_integral(s,b,c_unused,t) = t*(b + s_times_asinh_t_over_s(t,s)) - s*sqrt(t**2 + s**2)
@@ -445,10 +468,10 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
     good_moment_from_x(slack,v0,v1) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
     good_moment_from_xy(x,y,v0,v1) = y==0. ? good_moment_from_x(x,v0,v1) : y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
 
-    _good_moment_from_xy(x,y,v0,v1) = good_moment_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0,v1)
-      slack_from_xy(x,y) = sqrt(x**2+y**2)
-      angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
-      #angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
+    _good_moment_from_xy(x,y,v0,v1) = good_moment_from_slack_and_angle(good_slack_from_xy(x,y), good_angle_from_xy(x,y), v0,v1)
+      good_slack_from_xy(x,y) = sqrt(x**2+y**2)
+      good_angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
+      #good_angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
 } # setup for "good"
 
 if (strategy eq "weil") {
@@ -583,13 +606,12 @@ z1 = 1
 set samples 4*(maxMag-minMag)+1,10*nAngles+1
 set isosamples (maxMag-minMag)+1,nAngles+1
 set parametric
-set zeroaxis
+set zeroaxis # show axes as dotted lines
 
 #lw = 2 # nice for viewing
 #lw = 1
 lw = .5  # seems to be optimal for information I think
 #lw = .25 # just gets lighter
-
 
 tics = r<=.5 ? r/4. : r<=1 ? r/4. : r<=1.75 ? 1./8 : r<=3.5 ? 1./2 : r<=8.5 ? 1 : r<=10 ? 1 : r<=20 ? 1 : r/10 # kind of weird
 set xtics tics
