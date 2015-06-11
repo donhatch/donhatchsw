@@ -13,6 +13,19 @@ package com.donhatchsw.util;
 * XXX TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
 * XXX TODO: picking should only see things that are visible
 * XXX TODO: SEPARABLE should choose x and y accelerations so that they land at the same time
+* XXX TODO: Think about whether bounce should be in terms of time or distance.  The current code says "each piece takes sqrt(bounce) as much time as the previous",
+*           i.e. it takes bounce as much distance as the previous. is that what we want? seems like for small bounce, distance-based will be really tiny, making it less manageable,
+            say, with a slider.  I.e. the question is, if we have a bounce slider from 0 to 1,
+            what does 1/2 mean?
+            Does it mean each bounce takes 1/2 as much distance (and 1/sqrt(2) times as much time) as the previous?
+            Or does it mean each bounce 1/2 as much time (and 1/4 as much distance) as the previous?
+
+                                    distance-based interpretation                                          time-based interpretation
+            slider: 1/sqrt(2)=.707  next bounce takes 1/sqrt(2) the distance and 1/sqrt(sqrt(2)) the time  next bounce takes 1/2 the distance and 1/sqrt(2) the time
+            slider: 1/2             next bounce takes 1/2 the distance and 1/sqrt(2) the time              next bounce takes 1/4 the distance and 1/2 the time
+            slider: 1/4             next bounce takes 1/4 the distance and 1/2 the time                    next bounce takes 1/16 the distance and 1/4 the time
+            slider: 1/10            next bounce takes 1/10 the distance and 1/sqrt(10) the time            next bounce takes 1/100 the distance and 1/10 the time
+            slider: 1/100           next bounce takes 1/100 the distance and 1/10 the time                 next bounce takes 1/10000 the distance and 1/100 the time
 */
 public class SmoothlyVaryingViewingParameter
 {
@@ -140,9 +153,8 @@ public class SmoothlyVaryingViewingParameter
     * 0: nothing
     * 1: some haphazard stuff
     * 2: more detailed haphazard stuff
-    * XXX actually not used at the moment... it's overridden by something more local
     */
-    //public static int verboseLevel = 0;
+    public static int verboseLevel = 0;
 
     /**
     * If true, handle each coordinate separately,
@@ -186,13 +198,12 @@ public class SmoothlyVaryingViewingParameter
                        double dt,
                        double bounce)
     {
-        int verboseLevel = 0;
         com.donhatchsw.compat.ArrayList newtonPath = null;
         this.evolve(referenceTripDistance,
                     referenceTripTime,
                     dt,
                     bounce,
-                    verboseLevel,
+                    verboseLevel, // the public static variable
                     newtonPath);
     }
     public void evolve(double referenceTripDistance,
@@ -226,27 +237,95 @@ public class SmoothlyVaryingViewingParameter
                 if (referenceTripDistance == 0.)
                     throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.evolve: referenceTripDistance/referenceTripTime is 0/0 !?");
                 // Infinite power-- bonk it there.
+                // isMoving() will subsequently return false.
                 VecMath.copyvec(this.position, targetPosition);
                 VecMath.zerovec(this.velocity);
-                if (verboseLevel >= 1)
-                {
-                    System.out.println("    out evolve (referenceTripTime is 0)");
-                    return;
-                }
+                if (verboseLevel >= 1) System.out.println("    out evolve (referenceTripTime is 0)");
+                return;
             }
             //assert(false); // XXX coverage-- remove when hit
 
             if (strategy == STRATEGY_SEPARABLE)
             {
                 if (verboseLevel >= 2) System.out.println("      SEPARABLE");
+
                 //assert(false); // XXX coverage-- remove when hit
-                double p_and_v[] = new double[2];
+                double p_and_v[] = new double[2]; // scratch
+
+                double scales[] = null;
+                if (verboseLevel >= 2) PRINTVEC(scales);
+                if (position.length >= 2)
+                {
+                    scales = VecMath.fillvec(position.length, 1./Math.sqrt(position.length));
+                    int nPreflights = 10;
+                    for (int iPreflight = 0; iPreflight < nPreflights; ++iPreflight)
+                    {
+                        // XXX this results in bouncing, when close to diagonal but not exactly?? weird!
+                        // Goal is to give each component an acceleration
+                        // so that the norm of the vector of accelerations is the overall acceleration
+                        // and each component arrives at the same time.
+                        // Do a preflight to get estimates on the amount of work needed
+                        // by each coordinate.
+                        // The accelerations given to the various coords
+                        // should be proportional to the squares of the times each thinks it will take to settle
+                        // given equal portions. (Can repeat this any number of times if desired.)
+                        for (int i = 0; i < position.length; ++i)
+                        {
+                            if (scales[i] != 0.)
+                            {
+                                p_and_v[0] = position[i] - targetPosition[i];
+                                p_and_v[1] = velocity[i];
+                                double settleTime = update_p_and_v(p_and_v, referenceTripDistance*scales[i], referenceTripTime, dt, bounce);
+                                // discard p_and_v result; we are only interested in settleTime, for this preflight
+                                if (verboseLevel >= 2) System.out.println("            i="+i+": settleTime="+settleTime);
+                                //scales[i] *= settleTime*settleTime; // I think that's theoretically right, but causes instability?
+                                scales[i] *= settleTime;
+                                //scales[i] *= Math.sqrt(settleTime);
+                            }
+                        }
+                        //PRINTVEC(scales);
+                        if (VecMath.normsqrd(scales) == 0.)
+                        {
+                            System.out.println("SURPRISE: SmoothlyVaryingViewingParameter strategy=separable: scales unexpectedly zero after "+(iPreflight+1)+"/"+nPreflights+" preflights: position="+VecMath.toString(position)+" targetPosition="+VecMath.toString(targetPosition)+" position-targetPosition="+VecMath.toString(VecMath.vmv(position,targetPosition))+" velocity="+VecMath.toString(velocity));
+                            assert(VecMath.normsqrd(scales) == 0.);
+                        }
+                        VecMath.normalize(scales, scales);
+                        if (verboseLevel >= 2) PRINTVEC(scales); // XXX bleah, if using settleTime^2, when I print these out, they oscillate sometimes, e.g.
+                        // scales = <0.900401218490184,0.43506050813811153>
+                        // scales = <0.21387558341269755,0.9768609086353484>
+                        // scales = <0.9985446970692868,0.05393039917158324>
+                        // scales = <0.016514494716214887,0.9998636264332591>
+                        // scales = <0.9999938828297847,0.00349775685413743>
+                        // That's not the desired behavior!!
+                        // and even if just using settleTime, they oscillate a little, which is weird.
+                        // Clearest weirdness:  just click at 45 degrees, they all overshoot a little!  Wtf?
+                        // That doesn't seem to make any sense-- if none of them would overshoot by itself,
+                        // why would they overshoot together?
+                        // Well, overshooting comes from when someone thinks they will have more power than they actually do,
+                        // so they don't slow down as much as they should.
+                        // Is that what's going on??
+                        // Or... does one guy have more power at the beginning so it gets overconfident,
+                        // but then that power gets taken away when it turns out the other guy needs it more?
+                        //
+                        // Or... do I have some logic bug that is making it overconfident by a factor of sqrt(2) or something?
+
+                        // Get straight on this:
+                        // With twice the acceleration, we go twice as far in a given time, right?
+                    }
+                    if (verboseLevel >= 2) OUT("======");
+                }
+
+
                 for (int i = 0; i < position.length; ++i)
                 {
                     //assert(false); // XXX coverage-- remove when hit
                     p_and_v[0] = position[i] - targetPosition[i];
                     p_and_v[1] = velocity[i];
-                    update_p_and_v(p_and_v, referenceTripDistance, referenceTripTime, dt, bounce);
+                    double settleTime_ignored = update_p_and_v(p_and_v,
+                                                               referenceTripDistance*(scales!=null ? scales[i] : 1.),
+                                                               referenceTripTime,
+                                                               dt,
+                                                               bounce);
                     position[i] = p_and_v[0] + targetPosition[i];
                     velocity[i] = p_and_v[1];
                 }
@@ -1714,20 +1793,35 @@ EOF
 #endif // NOTYET_MAYBE_NEVER
                                         
     // utility function, evolves a single coordinate
-    // towards zero position and velocity
-    private static void update_p_and_v(double p_and_v[/*2*/],
-                                       double referenceTripDistance,
-                                       double referenceTripTime,
-                                       double dt,
-                                       double bounce)
+    // towards zero position and velocity.
+    // returns the amount of time, starting at the original time, needed to settle.
+    private static double update_p_and_v(double p_and_v[/*2*/],
+                                         double referenceTripDistance,
+                                         double referenceTripTime,
+                                         double dt,
+                                         double bounce)
     {
         boolean debug = false;
         if (debug) System.out.println("in update_p_and_v");
         assert(bounce >= 0); // XXX make this a bad param exception or something
 
+        if (referenceTripDistance == 0.)
+        {
+            // no acceleration, don't move
+            return Double.POSITIVE_INFINITY; // XXX or zero if there already? not sure
+        }
+        if (referenceTripTime == 0.)
+        {
+            // infinite acceleration-- snap to target
+            p_and_v[0] = 0.;
+            p_and_v[1] = 0.;
+            return 0.;
+        }
+
         // acceleration magnitude...
         double aMag = 4 * referenceTripDistance
                         / SQR(referenceTripTime);
+        // XXX um, what if referenceTripTime is 0? shouldn't this get the code from the old implementation?
         double p = p_and_v[0];
         double v = p_and_v[1];
         double vSign = (v<0 ? -1. : 1.);
@@ -1800,6 +1894,10 @@ EOF
         // Don't do that division explicitly (in case bounce is very close
         // to 1); instead, check whether:
         //     (dt-t0)*(1-sqrt(bounce)) >= t1-t0
+
+        // actually do the division after all, for the return value.
+        double settleTime = bounce==1. ? Double.POSITIVE_INFINITY : t0 + (t1-t0)/(1-Math.sqrt(bounce));
+
         if ((dt-t0)*(1-Math.sqrt(bounce)) >= t1-t0)
         {
             // Settled
@@ -1839,7 +1937,7 @@ EOF
                     assert(false); // coverage
                     p_and_v[0] = 0;
                     p_and_v[1] = 0;
-                    return;
+                    return settleTime;
                 }
             }
             if (debug) System.out.println("    i = "+i);
@@ -1866,7 +1964,8 @@ EOF
         }
         p_and_v[0] = p;
         p_and_v[1] = v;
-        if (debug) System.out.println("out update_p_and_v");
+        if (debug) System.out.println("out update_p_and_v, returning settleTime="+settleTime);
+        return settleTime;
     } // private update_p_and_v single coordinate version
 
 
@@ -12543,7 +12642,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private com.donhatchsw.awt.MyGraphics mostRecentGraphics = null;
 
 
-            // SIZE
+            // SIZE (demo2)
             public java.awt.Dimension getPreferredSize()
             {
                 return new java.awt.Dimension(850,850);
@@ -12558,7 +12657,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private java.awt.Dimension backBufferSize = null;
 
             public void update(java.awt.Graphics g) { paint(g); } // don't flash
-            // PAINT
+            // PAINT (demo2)
             public void paint(java.awt.Graphics frontBufferGraphics)
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
@@ -13686,7 +13785,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             double prevPoint[] = null;
             int indexOfThingBeingDragged = -1;
 
-            // SIZE
+            // SIZE (demo1)
             public java.awt.Dimension getPreferredSize()
             {
                 //return new java.awt.Dimension(800,800);
@@ -13697,7 +13796,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private java.awt.Dimension backBufferSize = null;
 
             public void update(java.awt.Graphics g) { paint(g); } // don't flash
-            // PAINT
+            // PAINT (demo1)
             public void paint(java.awt.Graphics frontBufferGraphics)
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
@@ -13958,8 +14057,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     private static void interactiveDemo3()
     {
         final int eventVerbose = 0; // set to something else to debug
-        //strategy = STRATEGY_SEPARABLE;
-        strategy = STRATEGY_TWO_PIECE_QUADRATIC;
+        strategy = STRATEGY_SEPARABLE;
+        //strategy = STRATEGY_TWO_PIECE_QUADRATIC;
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
@@ -13998,8 +14097,20 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         referenceTripDistancesInPixels[i] = Math.pow(1., 1-frac)
                                                           * Math.pow(maxDistance, frac);
                         referenceTripTimesInRepaints[i] = 1.;
+
                         points[i].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
-                        points[i].setVelocity(new double[]{0,.25});
+                        points[i].setVelocity(new double[]{0,.25}); // northward a bit
+
+                        if (true)
+                        {
+                            // debug pure diagonal motion.  WTF, this makes the bounce not happen??
+                            points[i].warp(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bounce doesn't happen!
+                            points[i].warp(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                            points[i].warp(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                            points[i].warp(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                            points[i].setVelocity(new double[]{0.,0.});
+                            // after window resize, target will be set to window center.
+                        }
 
                         float hue = i/(n-1.f);
                         float sat = .4f;
@@ -14025,7 +14136,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private com.donhatchsw.awt.MyGraphics mostRecentGraphics = null;
 
 
-            // SIZE
+            // SIZE (demo3)
             public java.awt.Dimension getPreferredSize()
             {
                 //return new java.awt.Dimension(850,850);
@@ -14040,7 +14151,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private java.awt.Dimension backBufferSize = null;
 
             public void update(java.awt.Graphics g) { paint(g); } // don't flash
-            // PAINT
+            // PAINT (demo3)
             public void paint(java.awt.Graphics frontBufferGraphics)
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
@@ -14164,6 +14275,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         else if (c == 'v' || c == 'V') // doesn't really do anything currently
                         {
                             view.showVelocities ^= true;
+                            verboseLevel = (verboseLevel+1)%3;
                             repaint();
                         }
                         else if (c == 'b')
