@@ -1,0 +1,177 @@
+/* vim: set filetype=java: */
+package com.donhatchsw.util;
+#include "macros.h" 
+public class CatenaryRotated extends Catenary
+{
+    public double cosRotation;
+    public double sinRotation;
+
+    @Override public void assertValid()
+    {
+        super.assertValid();
+        assert(MyMath.hypot(cosRotation, sinRotation) == 1.); // XXX need tolerance
+    }
+
+    // Position at time t.
+    @Override public void evaluate(double t,
+                                   double answer[/*2*/])
+    {
+        super.evaluate(t, answer);
+        rotate(this.cosRotation, this.sinRotation, answer[0], answer[1], answer);
+    }
+    // Arc length integral from focus to t.
+    @Override public void integrate(double t,
+                                    double answer[/*2*/])
+    {
+        super.integrate(t, answer);
+        rotate(cosRotation, sinRotation, answer[0], answer[1], answer);
+    }
+    // Set members to be the parameters of the catenary
+    // passing through points (x0,y0),(x1,y1)
+    // with given moment (i.e. integral with respect to arc length).
+    // Caveat: this is done numerically.
+    // In general there may be 1 or 2 solutions;
+    // if there are 2 solutions, this function may find one of them,
+    // or it may fail to converge.
+    // If the function is not 1-to-1 in a neighborhood of the solution,
+    // it will fail to converge.
+    // If it fails to converge, [XXX what?] is thrown.
+    // XXX use current contents as initial guess?
+    public void fit(double x0, double y0,
+                    double x1, double y1,
+                    double xMoment, double yMoment)
+    {
+        int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
+        com.donhatchsw.compat.ArrayList newtonPath = null; // XXX think about what we want here.  make this a parameter?
+
+        double dist = MyMath.hypot(y1-y0, x1-x0);
+        double desiredMoment[] = {xMoment, yMoment};
+
+        // Represent a solution by polar coords slack,downAngle,
+        // converted to rectangular coords x,y:
+        //  x = slack * cos(downAngle)
+        //  y = slack * sin(downAngle)
+        // We will do a numeric solve for x,y.
+        final int verboseLevelFinal = verboseLevel;
+        final com.donhatchsw.compat.ArrayList newtonPathFinal = newtonPath;
+        final boolean inJ[] = {false};
+        final double x0final = x0;
+        final double y0final = y0;
+        final double x1final = x1;
+        final double y1final = y1;
+
+        NewtonSolver.Fun fun = new NewtonSolver.Fun() {
+            @Override public double[] f(double xy[])
+            {
+                if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
+
+                // use self as scratch catenary
+                CatenaryRotated self = CatenaryRotated.this;
+                self.fitFromRectangularCoords(x0final,y0final, x1final,y1final, xy);
+
+                double integral[] = new double[2]; // XXX wtf? change NewtonSolver so it doesn't require allocating a new thing each time
+                self.integrate(self.t0, self.t1, integral);
+
+                if (!inJ[0] && newtonPathFinal != null)
+                {
+                    newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(integral)});
+                }
+                if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
+                return integral;
+            }
+            @Override public double[][] J(double xy[], double fxy[])
+            {
+                if (verboseLevelFinal >= 2) System.out.println("            in J");
+                double[][] answer = null;
+                inJ[0] = true;
+                try
+                {
+                    answer = super.J(xy, fxy);
+                }
+                finally
+                {
+                    inJ[0] = false; // executed even on the way out of a throw
+                }
+                if (verboseLevelFinal >= 2) PRINTMAT(answer);
+                if (verboseLevelFinal >= 2) System.out.println("            out J");
+                return answer;
+            }
+        };
+
+        // Make an initial guess-- this gets it in the correct upper or lower
+        // half-plane, but is otherwise very rough.
+        double xMomentIfZeroSlack = (x0+x1)*.5 * dist;
+        double yMomentIfZeroSlack = (y0+y1)*.5 * dist;
+        double xInitialGuess = xMoment - xMomentIfZeroSlack;
+        double yInitialGuess = yMoment - yMomentIfZeroSlack;
+        double xyAnswer[] = {xInitialGuess, yInitialGuess};
+
+        double stepScale = 1.;
+        //double stepScale = .1; // smaller stepScale makes it slower but more likely to converge
+        NewtonSolver.solve(xyAnswer,
+                           desiredMoment,
+                           fun,
+                           1000,
+                           stepScale);
+
+        this.fitFromRectangularCoords(x0,y0, x1,y1, xyAnswer);
+    } // fit
+
+
+    private void fitFromRectangularCoords(double x0, double y0,
+                                          double x1, double y1,
+                                          double xy[/*2*/])
+    {
+        double slack = MyMath.hypot(xy[0], xy[1]);
+        double downAngle = Math.atan2(xy[0], xy[1]);
+        double cosDownAngle = Math.cos(downAngle);
+        double sinDownAngle = Math.sin(downAngle);
+        // note cosDownAngle,sinDownAngle are just x,y normalized, robustly.
+        this.fitFromPolarCoords(x0,y0, x1,y1, slack, cosDownAngle, sinDownAngle);
+    } // fitFromRectangularCoords
+
+    private void fitFromPolarCoords(double x0, double y0,
+                                    double x1, double y1,
+                                    double slack,
+                                    double cosDownAngle,
+                                    double sinDownAngle)
+    {
+        // rotation = downAngle - (-pi/2)
+        this.cosRotation = -sinDownAngle;
+        this.sinRotation = cosDownAngle;
+        double x0Unrotated = xPartOfUnrotated(this.cosRotation, this.sinRotation, x0, y0);
+        double y0Unrotated = yPartOfUnrotated(this.cosRotation, this.sinRotation, x0, y0);
+        double x1Unrotated = xPartOfUnrotated(this.cosRotation, this.sinRotation, x1, y1);
+        double y1Unrotated = yPartOfUnrotated(this.cosRotation, this.sinRotation, x1, y1);
+        super.fit(x0Unrotated, y0Unrotated, 
+                  x1Unrotated, y1Unrotated,
+                  slack);
+    } // fitFromPolarCoords
+
+    private static double xPartOfRotated(double cosRotation, double sinRotation, double x, double y)
+    {
+        return cosRotation * x - sinRotation * y;
+    }
+    private static double yPartOfRotated(double cosRotation, double sinRotation, double x, double y)
+    {
+        return sinRotation * x + cosRotation * y;
+    }
+    private static double xPartOfUnrotated(double cosRotation, double sinRotation, double x, double y)
+    {
+        return cosRotation * x + sinRotation * y;
+    }
+    private static double yPartOfUnrotated(double cosRotation, double sinRotation, double x, double y)
+    {
+        return -sinRotation * x + cosRotation * y;
+    }
+    private static void rotate(double cosRotation, double sinRotation, double x, double y, double answer[/*2*/])
+    {
+        answer[0] = xPartOfRotated(cosRotation, sinRotation, x, y);
+        answer[1] = yPartOfRotated(cosRotation, sinRotation, x, y);
+    }
+    private static void unRotate(double cosRotation, double sinRotation, double x, double y, double answer[/*2*/])
+    {
+        answer[0] = xPartOfUnrotated(cosRotation, sinRotation, x, y);
+        answer[1] = yPartOfUnrotated(cosRotation, sinRotation, x, y);
+    }
+}  // CatenaryRotated

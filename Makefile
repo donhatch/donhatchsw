@@ -120,6 +120,8 @@ donhatchsw.jar: \
     com/donhatchsw/awt/LayoutExample.class \
     com/donhatchsw/awt/MainWindowCount.class \
     com/donhatchsw/util/NewtonSolver.class \
+    com/donhatchsw/util/Catenary.class \
+    com/donhatchsw/util/CatenaryRotated.class \
     com/donhatchsw/util/SmoothlyVaryingViewingParameter.class \
     com/donhatchsw/util/UndoTreeSquirrel.class \
     com/donhatchsw/util/UndoTreeViewer.class \
@@ -208,7 +210,7 @@ senddoc: doc
 
 
 
-# XXX temporary? for expedience.  Would be good if we could do something more genuine.
+# XXX temporary? for expedience, so these get recompiled properly when I change macros.h since I'm working on them.  Would be good if we could do something more genuine.
 # Note that we don't make anything depend on Makefile.  This is arguably
 # wrong, but a dependency on Makefile would cause a lot of pain.
 com/donhatchsw/util/SmoothlyVaryingViewingParameter.class: com/donhatchsw/util/macros.h

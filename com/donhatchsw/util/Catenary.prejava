@@ -1,0 +1,384 @@
+/* vim: set filetype=java: */
+package com.donhatchsw.util;
+#include "macros.h" 
+
+/* XXX javadocize
+* This class encapsulates parameters of a downward-hanging catenary
+* in the x,y plane; that is, the graph of the canonical catenary function y=cosh(x)-1,
+* possibly scaled and translated.
+* Very small or large scales including 0 and infinity are handled robustly.
+* The parameters are the scale s and a "focus point" both on the canonical catenary
+* and in world space:
+*   - scale s
+*   - a focus time T0 yielding focus point X0=asinh(T0),Y0=sqrt(T0^2+1)-1
+*       on the canonical catenary graph Y=cosh(X)-1
+*   - the corresponding focus point x0,y0 in world space
+* The parametrization is then nominally:
+*   x(t) = x0 + s*asinh(t/s + T0)
+*   y(t) = y0 + s*(sqrt((t/s + T0)^2 + 1) - 1)
+* Robustness is achieved, in part, by the following techniques:
+*   - s is represented as a non-negative numerator and a denominator,
+*     either (but not both) of which may be zero.
+*   - T0,X0,Y0 are represented implicitly by "focusDirection" which is the tangent unit
+*     direction vector of the function at the focus point (both in canonical catenary space
+*     and in world space).
+*     Then nominally,
+*         T0 = slope = yFocusDirection/xFocusDirection
+*         X0 = asinh(T0)
+*         Y0 = sqrt(T0^2+1)-1
+*     In particular:
+*         focusDirection=(0,-1) represents T0=-infinity,X0=-infinity,Y0=infinity
+*         focusDirection=(1,0)  represents T0=0,X0=0,Y0=0
+*         focusDirection=(0,1)  represents T0=infinity,X0=infinity,Y0=infinity
+*   - When fitting to sample points, the focus points are chosen
+*     to be close to the sample points to avoid unnecessarily large
+*     intermediate values in computations.
+*   - When s <= 1, the focus direction is constrained to be (1,0).
+* Constraints:
+*   sNumerator >= 0
+*   sDenominator >= 0
+*   max(sNumerator, sDenominator) = 1
+*   xFocusDirection >= 0 (no sign restriction on y)
+*   xFocusDirection^2 + yFocusDirection^2 = 1
+*   when s<=1, focusDirection=(1,0)
+*   when s>=1, and fitting to two sample points, the focus must be between the two
+*              sample points.
+*              XXX maybe focusDirection should be from first toward second sample point? not sure
+*   XXX when s<=1 can the slope be represented as / replaced by t distance from apex in world space?  and when s>=1 it's the t disance from apex in canon space.  hmm, maybe some elegant formulation hidden in here that I'm not quite getting.
+*/
+public class Catenary
+{
+    // Scale s, in range [0,infinity].
+    // sNumerator>=1, sDenominator>=1, max(sNumerator,sDenominator)==1.
+    public double sNumerator;
+    public double sDenominator;
+
+    // Value at t=0.  Must be finite.
+    public double xFocusInWorld;
+    public double yFocusInWorld;
+
+    // Unit direction vector of the tangent of the function at the focus point.
+    public double xFocusDirection;
+    public double yFocusDirection;
+
+    public double t0; // t for which value is x0,y0 if fitting to sample points
+    public double t1;  // t for which value is x1,y1 if fitting to sample points
+
+    public Catenary()
+    {}
+
+    public void assertValid()
+    {
+        assert(sNumerator >= 0.);
+        assert(sDenominator >= 0.);
+        assert(Math.max(sNumerator, sDenominator) == 1.);
+        assert(xFocusDirection >= 0); // no restriction on sign of y
+        assert(MyMath.hypot(xFocusDirection, yFocusDirection) == 1.); // XXX need tolerance
+        if (sNumerator <= sDenominator)
+        {
+            assert(xFocusDirection == 1.);
+            assert(yFocusDirection == 0.);
+        }
+        else
+        {
+            assert(t0 <= 0.);
+            assert(t1 >= 0.);
+        }
+        assert(t0 <= t1);
+    }
+
+    // Position at time t.
+    public void evaluate(double t,
+                         double answer[/*2*/])
+    {
+        assertValid();
+        if (sDenominator == 0.)
+        {
+            // s is infinity
+            assert(false); // coverage; remove when hit
+            answer[0] = xFocusInWorld + t * xFocusDirection;
+            answer[1] = yFocusInWorld + t * yFocusDirection;
+        }
+        else if (sNumerator == 0.)
+        {
+            // s is 0
+            assert(false); // coverage; remove when hit
+            answer[0] = xFocusInWorld;
+            answer[1] = yFocusInWorld + Math.abs(t);
+        }
+        else
+        {
+            // 0 < s < infinity
+            assert(false); // coverage; remove when hit
+            assert(false); // XXX implement me!
+        }
+    } // evaluate
+    // Arc length integral from focus to t.
+    public void integrate(double t,
+                          double answer[/*2*/])
+    {
+        assertValid();
+        if (sDenominator == 0.)
+        {
+            // s is infinity
+            assert(false); // coverage; remove when hit
+            answer[0] = t * (xFocusInWorld + .5*t*xFocusDirection);
+            answer[1] = t * (yFocusInWorld + .5*t*yFocusDirection);
+        }
+        else if (sNumerator == 0.)
+        {
+            // s is 0
+            assert(false); // coverage; remove when hit
+            answer[0] = t * xFocusInWorld;
+            answer[1] = t * (yFocusInWorld + .5*Math.abs(t));
+        }
+        else
+        {
+            assert(false); // coverage; remove when hit
+            assert(false); // XXX implement me!
+        }
+    } // integrate
+
+    public void integrate(double t0, // not necessarily this.t0
+                          double t1, // not necessarily this.t1
+                          double answer[/*2*/])
+    {
+        integrate(t0, answer);
+        double answer0x = answer[0];
+        double answer0y = answer[1];
+        integrate(t0, answer); // note this might be a subclass's integrate
+        answer[0] -= answer0x;
+        answer[1] -= answer0y;
+    } // integrate
+
+    // Set members to be the parameters of the catenary
+    // passing through points (x0,y0),(x1,y1) with given slack.
+    // Does no memory allocations.
+    public void fit(double x0, double y0,
+                    double x1, double y1,
+                    double slack)
+    {
+        assert(slack >= 0.);
+        assert(x0 <= x1);
+        double dx = x1 - x0;
+        double dy = y1 - y0;
+        if (slack == 0.) // XXX TODO: need better condition
+        {
+            // s is infinity
+            assert(false); // coverage; remove when hit
+            this.sNumerator = 1.;
+            this.sDenominator = 0.;
+            this.xFocusInWorld = (x0+x1)*.5;
+            this.yFocusInWorld = (y0+y1)*.5;
+
+            this.xFocusDirection = dx;
+            this.yFocusDirection = dy;
+
+
+            double L = MyMath.hypot(dx, dy);
+            this.t0 = -L*.5;
+            this.t1 = L*.5;
+        }
+        else if (dx == 0.) // XXX TODO: need better condition
+        {
+            // s is zero
+            assert(false); // coverage; remove when hit
+            this.sNumerator = 0.;
+            this.sDenominator = 1.;
+            this.xFocusInWorld = x0;
+            this.yFocusInWorld = Math.min(y0,y1) - slack*.5;
+            this.xFocusDirection = 1.;
+            this.yFocusDirection = 0.;
+            this.t0 = this.yFocusInWorld - y0; // negative
+            this.t1 = y1 - this.yFocusInWorld; // positive
+        }
+        else
+        {
+            // s is finite and nonzero
+            assert(false); // coverage; remove when hit
+            double L = MyMath.hypot(dx, dy) + slack;
+            // XXX TODO: make the following totally robust even if s is very large or small
+            double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
+            if (s < 1.)
+            {
+                assert(false); // coverage; remove when hit
+                this.sNumerator = s;
+                this.sDenominator = 1.;
+            }
+            else
+            {
+                assert(false); // coverage; remove when hit
+                this.sNumerator = 1.;
+                this.sDenominator = 1./s;
+            }
+
+            // XXX TODO: for better stability, make this something else, if s < 1.
+            this.xFocusDirection = 1.;
+            this.yFocusDirection = 0.;
+
+            double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L*L - dy*dy));
+            this.t0 = tMid - L/2.;
+            this.t1 = t0 + L;
+            // If we didn't care about stability:
+            //   this.xFocusInWorld = x0 - s*asinh(t0/s)
+            // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of x0 I guess?
+            this.xFocusInWorld = (x0+x1)/2.
+                               - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
+            this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
+
+            /*
+            y = yFocusInWorld + sqrt(t*t + s*s) - s;
+            yAtTmid = yFocusInWorld + sqrt(tMid*tMid + s*s) - s;
+            yFocusInWorld
+            */
+        }
+        assertValid();
+    } // fit
+
+
+
+
+    //======================================================================================
+    // XXX move asinhc to MyMath? note it's conceptually very similar to glog and lambertw.
+    //
+    // The good news is, Newton seems to work well in all cases:
+    //   f(x) = sinh(x)/x-y
+    //   f'(x) = (x*math.cosh(x)-sinh(x))/x**2
+    //   xNext = x - f(x)/f'(x)
+    //         = x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2)
+    // But the bad news is, when done, it seems to get in cycles of 5 so we'd need to retain a lot of values
+    // if our stopping criterion is seeing a repeat.
+    // But the good news is, after one iteration, we get a value that's definitely too high,
+    // after which it's all downhill, so we can stop as soon as it didn't decrease.
+    //
+    /*
+    asinhc_by_newton(y) = y<1. ? crash_in_asinhc_by_newton(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y, Asinh(y))
+      // this gets called with an initial guess x that may be (or must be?) too small.
+      asinhc_by_newton_recurse0(y, x)   = asinhc_by_newton_recurse1(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2))
+        // this gets called with x that's definitely bigger than the answer.
+        asinhc_by_newton_recurse1(y, x) = asinhc_by_newton_recurse (y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
+          // this gets called with x<xPrev, unless converged.
+          asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? (x+xPrev)/2. : asinhc_by_newton_recurse_helper(y, x, cosh(x), sinh(x))
+          asinhc_by_newton_recurse_helper(y, x, cosh_x, sinh_x) = asinhc_by_newton_recurse(y, x - (sinh_x/x-y)/((x*cosh_x-sinh_x)/x**2), x)
+          */
+    private static double asinhc_by_binary_search(double y)
+    {
+        if (y <= 1.)
+        {
+            if (y == 1.)
+                return 0.;
+            else
+                return Double.NaN; // XXX or 0 ? that will correctly handle slight roundoff error in input, but it won't catch blatant errors. in fact, maybe should throw?  not sure
+        }
+        double lo = 0.;
+        double hi = 1e3; // XXX should be more principled, this is plenty for double though
+        while (true)
+        {
+            double mid = (lo + hi) / 2;
+            if (mid == lo || mid == hi)
+                return mid;
+            if (MyMath.sinh(mid)/mid < y) // mid is too low
+                lo = mid;
+            else
+                hi = mid;
+        }
+    }
+    private static double asinhc_by_newton(double y)
+    {
+        if (y <= 1.)
+        {
+            if (y == 1.)
+                return 0.;
+            else
+                return Double.NaN; // XXX or 0 ? that will correctly handle slight roundoff error in input, but it won't catch blatant errors. in fact, maybe should throw?  not sure
+        }
+        // initial guess that may be too small.
+        //double x = MyMath.asinh(y); // I think this *must* be too small? not sure
+        // very rough eyeball fit:
+        // gnuplot> set samples 10000
+        // gnuplot> q = 10
+        // gnuplot> plot [-q:q] [-q:q] sinh(x)/x, cosh(x/1.5), cosh(x/2.5)**2
+        // gnuplot> q = 100
+        // gnuplot> replot
+        // therefore, roughly:
+        //     y = sinhc(x) = cosh(x/2.5)**2
+        //     x = 2.5*acosh(sqrt(y))
+        // Let's do this in a principled way: using gnuplot's fit function.
+        // First dump some samples (somewhat ad-hoc):
+        /*
+        gnuplot << EOF > DATA.txt  # XXX not right yet, had to paste results manually
+sinhc(x) = sinh(x)/x
+print 0, 1
+print 1, sinhc(1)
+print 1.001, sinhc(1.001)
+print 1.01, sinhc(1.01)
+print 1.1, sinhc(1.1)
+print 2, sinhc(2)
+print 5, sinhc(5)
+EOF
+            f(x) = cosh(x/A)**B
+            A = 1 # initial guess
+            B = 1 #  initial guess
+            FIT_LIMIT = 1e-5 # default
+            FIT_LIMIT = 1e-13
+            #FIT_LIMIT = 1e-14 # The maximum lambda = 1.000000e+20 was exceeded. Fit stopped.
+            fit f(x) "DATA.txt" using 1:2 via A,B
+            print A, B
+            print sprintf("%.17g %.17g", A, B)
+            q = 20
+            q = 2
+            set samples 1001
+            plot [-q:q] [-q:q] "DATA.txt" with points, cosh(x/A)**B
+
+        output is:
+            2.4536756011708301 1.9812429870098702
+        */
+        //                    
+        double x = 2.4536756011708301 * MyMath.acosh(Math.pow(y, 1./1.9812429870098702));
+
+        // Actually maybe better:
+        /*
+            f(x) = (cosh(x/A)-1.)**B+1.
+            A = 1 # initial guess
+            B = 1 #  initial guess
+            FIT_LIMIT = 1e-5 # default
+            FIT_LIMIT = 1e-8
+            #FIT_LIMIT = 1e-9 # "The maximum lambda = 1.000000e+20 was exceeded. Fit stopped."
+            fit f(x) "DATA.txt" using 1:2 via A,B
+            print A,B
+            print sprintf("%.17g %.17g", A, B)
+            q = 20
+            q = 2
+            set samples 1001
+            plot [-q:q] [-q:q] "DATA.txt" with points, cosh(x/A)**B
+            1.62278016560655 1.14541126805886
+        */
+        // Hmm actually no, that sucks.  Fooey.  Why??
+        // Maybe see: http://stackoverflow.com/questions/11073925/gnuplot-behaves-oddly-in-polynomial-fit-why-is-that
+
+
+        // iterate once to get something that's definitely bigger than the answer.
+        {
+            double sinh_x = MyMath.sinh(x);
+            x -= (sinh_x/x-y)/((x*MyMath.cosh(x)-sinh_x)/(x*x));
+        }
+        double xPrev = Double.POSITIVE_INFINITY;
+        while (true)
+        {
+            if (!(x < xPrev))
+                return (x+xPrev)*.5;
+            xPrev = x;
+            double sinh_x = MyMath.sinh(x);
+            x -= (sinh_x/x-y)/((x*MyMath.cosh(x)-sinh_x))/(x*x);
+        }
+    }
+
+    public static double asinhc(double y)
+    {
+        // XXX TODO: something wrong with newton... ? gives wrong answer on y=3.4081082040601114
+        //return asinhc_by_newton(y);
+        return asinhc_by_binary_search(y);
+    }
+    //======================================================================================
+
+} // private static class Catenary

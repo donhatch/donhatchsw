@@ -422,17 +422,17 @@ public class SmoothlyVaryingViewingParameter
                         {
                             if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
                             double integral[] = new double[2];
-                            double arcLength = integralOfCatenaryWithEndpointsRectangular(
+                            double unusedArcLength = integralOfCatenaryWithEndpointsRectangular(
                                 v0, v1,
                                 xy[0], xy[1],
                                 Double.POSITIVE_INFINITY,
                                 integral,
                                 null); // vFinal
-                            if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
                             if (!inJ[0] && newtonPathFinal != null)
                             {
                                 newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(integral)});
                             }
+                            if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
                             return integral;
                         }
                         @Override public double[][] J(double xy[], double fxy[])
@@ -899,147 +899,6 @@ public class SmoothlyVaryingViewingParameter
         return wholeArcLength;
     } // integralOfTranslatedCoshGraphWithEndpoints
 
-    // XXX move to MyMath? note it's conceptually very similar to glog and lambertw
-    //
-    // The good news is, Newton seems to work well in all cases:
-    //   f(x) = sinh(x)/x-y
-    //   f'(x) = (x*math.cosh(x)-sinh(x))/x**2
-    //   xNext = x - f(x)/f'(x)
-    //         = x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2)
-    // But the bad news is, when done, it seems to get in cycles of 5 so we'd need to retain a lot of values
-    // if our stopping criterion is seeing a repeat.
-    // But the good news is, after one iteration, we get a value that's definitely too high,
-    // after which it's all downhill, so we can stop as soon as it didn't decrease.
-    //
-    /*
-    asinhc_by_newton(y) = y<1. ? crash_in_asinhc_by_newton(1) : y==1. ? 0. : asinhc_by_newton_recurse0(y, Asinh(y))
-      // this gets called with an initial guess x that may be (or must be?) too small.
-      asinhc_by_newton_recurse0(y, x)   = asinhc_by_newton_recurse1(y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2))
-        // this gets called with x that's definitely bigger than the answer.
-        asinhc_by_newton_recurse1(y, x) = asinhc_by_newton_recurse (y, x - (sinh(x)/x-y)/((x*cosh(x)-sinh(x))/x**2), x)
-          // this gets called with x<xPrev, unless converged.
-          asinhc_by_newton_recurse(y, x, xPrev) = x>=xPrev ? (x+xPrev)/2. : asinhc_by_newton_recurse_helper(y, x, cosh(x), sinh(x))
-          asinhc_by_newton_recurse_helper(y, x, cosh_x, sinh_x) = asinhc_by_newton_recurse(y, x - (sinh_x/x-y)/((x*cosh_x-sinh_x)/x**2), x)
-          */
-    private static double asinhc_by_binary_search(double y)
-    {
-        if (y <= 1.)
-        {
-            if (y == 1.)
-                return 0.;
-            else
-                return Double.NaN; // XXX or 0 ? that will correctly handle slight roundoff error in input, but it won't catch blatant errors. in fact, maybe should throw?  not sure
-        }
-        double lo = 0.;
-        double hi = 1e3; // XXX should be more principled, this is plenty for double though
-        while (true)
-        {
-            double mid = (lo + hi) / 2;
-            if (mid == lo || mid == hi)
-                return mid;
-            if (MyMath.sinh(mid)/mid < y) // mid is too low
-                lo = mid;
-            else
-                hi = mid;
-        }
-    }
-    private static double asinhc_by_newton(double y)
-    {
-        if (y <= 1.)
-        {
-            if (y == 1.)
-                return 0.;
-            else
-                return Double.NaN; // XXX or 0 ? that will correctly handle slight roundoff error in input, but it won't catch blatant errors. in fact, maybe should throw?  not sure
-        }
-        // initial guess that may be too small.
-        //double x = MyMath.asinh(y); // I think this *must* be too small? not sure
-        // very rough eyeball fit:
-        // gnuplot> set samples 10000
-        // gnuplot> q = 10
-        // gnuplot> plot [-q:q] [-q:q] sinh(x)/x, cosh(x/1.5), cosh(x/2.5)**2
-        // gnuplot> q = 100
-        // gnuplot> replot
-        // therefore, roughly:
-        //     y = sinhc(x) = cosh(x/2.5)**2
-        //     x = 2.5*acosh(sqrt(y))
-        // Let's do this in a principled way: using gnuplot's fit function.
-        // First dump some samples (somewhat ad-hoc):
-        /*
-        gnuplot << EOF > DATA.txt  # XXX not right yet, had to paste results manually
-sinhc(x) = sinh(x)/x
-print 0, 1
-print 1, sinhc(1)
-print 1.001, sinhc(1.001)
-print 1.01, sinhc(1.01)
-print 1.1, sinhc(1.1)
-print 2, sinhc(2)
-print 5, sinhc(5)
-EOF
-            f(x) = cosh(x/A)**B
-            A = 1 # initial guess
-            B = 1 #  initial guess
-            FIT_LIMIT = 1e-5 # default
-            FIT_LIMIT = 1e-13
-            #FIT_LIMIT = 1e-14 # The maximum lambda = 1.000000e+20 was exceeded. Fit stopped.
-            fit f(x) "DATA.txt" using 1:2 via A,B
-            print A, B
-            print sprintf("%.17g %.17g", A, B)
-            q = 20
-            q = 2
-            set samples 1001
-            plot [-q:q] [-q:q] "DATA.txt" with points, cosh(x/A)**B
-
-        output is:
-            2.4536756011708301 1.9812429870098702
-        */
-        //                    
-        double x = 2.4536756011708301 * MyMath.acosh(Math.pow(y, 1./1.9812429870098702));
-
-        // Actually maybe better:
-        /*
-            f(x) = (cosh(x/A)-1.)**B+1.
-            A = 1 # initial guess
-            B = 1 #  initial guess
-            FIT_LIMIT = 1e-5 # default
-            FIT_LIMIT = 1e-8
-            #FIT_LIMIT = 1e-9 # "The maximum lambda = 1.000000e+20 was exceeded. Fit stopped."
-            fit f(x) "DATA.txt" using 1:2 via A,B
-            print A,B
-            print sprintf("%.17g %.17g", A, B)
-            q = 20
-            q = 2
-            set samples 1001
-            plot [-q:q] [-q:q] "DATA.txt" with points, cosh(x/A)**B
-            1.62278016560655 1.14541126805886
-        */
-        // Hmm actually no, that sucks.  Fooey.  Why??
-        // Maybe see: http://stackoverflow.com/questions/11073925/gnuplot-behaves-oddly-in-polynomial-fit-why-is-that
-
-
-        // iterate once to get something that's definitely bigger than the answer.
-        {
-            double sinh_x = MyMath.sinh(x);
-            x -= (sinh_x/x-y)/((x*MyMath.cosh(x)-sinh_x)/(x*x));
-        }
-        double xPrev = Double.POSITIVE_INFINITY;
-        while (true)
-        {
-            if (!(x < xPrev))
-                return (x+xPrev)*.5;
-            xPrev = x;
-            double sinh_x = MyMath.sinh(x);
-            x -= (sinh_x/x-y)/((x*MyMath.cosh(x)-sinh_x))/(x*x);
-        }
-    }
-
-    private static double asinhc(double y)
-    {
-        // XXX TODO: something wrong with newton... ? gives wrong answer on y=3.4081082040601114
-        //return asinhc_by_newton(y);
-        return asinhc_by_binary_search(y);
-    }
-
     // A catenary is a scaled rotated translated cosh.
     // Path-length integrate from v0 to either v1, or to a length of maxLengthToIntegrate,
     // which ever comes first.
@@ -1127,6 +986,7 @@ EOF
         //      x = a*asinh(t/a) + b
         //      y = sqrt(t^2+a^2) + c
         // for t=t0 to t1.
+        // XXX TODO put this into class Catenary and CatenaryRotated
         double x0 = invTransformedV0[0];
         double y0 = invTransformedV0[1];
         double x1 = invTransformedV1[0];
@@ -1148,7 +1008,7 @@ EOF
             PRINT(dy);
             PRINT(dx);
             double foo = Math.sqrt(L*L - dy*dy) / dx;
-            double bar = asinhc(foo);
+            double bar = Catenary.asinhc(foo);
             double baz = MyMath.sinh(bar)/bar;
             PRINT(foo); // 1.0421906109874948
             PRINT(bar); // 0.5009200267192209
@@ -1156,7 +1016,7 @@ EOF
         }
 
         double s = dx==0. ? 0. :
-                   dx/(2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
+                   dx/(2.*Catenary.asinhc(Math.sqrt(L*L - dy*dy) / dx));
         if (debugLevel >= 2) System.out.println("              s = "+s);
 
         assert(s != 0.); // XXX so goes to separable, for now
@@ -1983,6 +1843,7 @@ EOF
         if (debug) System.out.println("out update_p_and_v, returning settleTime="+settleTime);
         return settleTime;
     } // private update_p_and_v single coordinate version
+
 
 
 
