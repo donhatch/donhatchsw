@@ -73,6 +73,8 @@
     # otherwise it makes sense to set at most one of them.
     plot1_flag = 1  # slack-and-angle to moment
     plot2_flag = 0  # moment to slack-and-angle
+    plotf0_flag = 0 # XXX currently doesn't work well
+    plotf1_flag = 0 # XXX currently doesn't work well
 
     # either of the following should work.
     #strategy = "weil" # sets f = wf
@@ -94,6 +96,7 @@ set view 0,359.999,1.5 # top down, with a bit of fudge to make y axis labels com
 
 
 i = {0,1}
+debug(s) = system(sprintf("echo \"%s\" >> RMME", s))
 assert(cond) = cond || assertion_failed(1) # function that doesn't exist
 EXACT(z) = imag(z)==0. ? sprintf("%.17g", z) : sprintf("{%.17g, %.17g}", real(z), imag(z))
 max(a,b) = a>=b ? a : b
@@ -130,6 +133,7 @@ asinhc_by_binary_search_hi(y) = y==1. ? 0. : asinhc_binary_search_hi(y, 0., 1e3,
       xMid<=x0 || xMid>=x1 ? xMid : \
       sinhc(xMid) <= y ? asinhc_binary_search_hi(y, xMid, x1, (xMid+x1)/2.) \
                       : asinhc_binary_search_hi(y, x0, xMid, (x0+xMid)/2.)
+
 
 #
 # The good news is, Newton seems to work well in all cases:
@@ -287,7 +291,7 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
     # So, the moment will be the integral of x,y from t=t0 to t=t1.
     # According to wolframalpha:
     #       x part of integral = a*t*Asinh(t/a) + b*t - a*sqrt(a^2+t^2)
-    #       y part of integral = 1/2 t (sqrt(t^2+a^2) + 2*c)) + 1/2 a^2 log(sqrt(t^2+a^2) + t)
+    #       y part of integral = 1/2 t (sqrt(t^2+a^2) + 2*c) + 1/2 a^2 log(sqrt(t^2+a^2) + t)
     # but we can turn log(sqrt(t^2+a^2) + t) into hyperbolic trig as follows:
     #         log(sqrt(t**2+a**2) + t)
     #       = log(a*(sqrt((t/a)^2 + 1) + t/a))
@@ -295,7 +299,7 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
     #       = log(a) + Asinh(t/a)
     # and the log(a) gets absorbed into the integration constant. Yay! So:
     #       x part of integral = a*t*Asinh(t/a) + b*t - a*sqrt(a^2+t^2)
-    #       y part of integral = 1/2 t (sqrt(t^2+a^2) + 2*c)) + 1/2 a^2 Asinh(t/a)
+    #       y part of integral = 1/2 t (sqrt(t^2+a^2) + 2*c) + 1/2 a^2 Asinh(t/a)
     # XXX still simplifying... not sure what the point is though, switching horses to the "good" method
     #
 
@@ -397,7 +401,7 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
   # So, the moment will be the integral of x,y from t=t0 to t=t1.
   # According to wolframalpha:
   #       x part of integral = s*t*Asinh(t/s) + b*t - s*sqrt(s^2+t^2)
-  #       y part of integral = 1/2 t (sqrt(t^2+s^2) + 2*c)) + 1/2 s^2 log(sqrt(t^2+s^2) + t)
+  #       y part of integral = 1/2 t (sqrt(t^2+s^2) + 2*c) + 1/2 s^2 log(sqrt(t^2+s^2) + t)
   # but we can turn log(sqrt(t^2+s^2) + t) into hyperbolic trig as follows:
   #         log(sqrt(t**2+s**2) + t)
   #       = log(s*(sqrt((t/s)^2 + 1) + t/s))
@@ -405,7 +409,7 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
   #       = log(s) + Asinh(t/s)
   # and the log(s) gets absorbed into the integration constant. Yay! So:
   #       x part of integral = s*t*Asinh(t/s) + b*t - s*sqrt(s^2+t^2)
-  #       y part of integral = 1/2 t (sqrt(t^2+s^2) + 2*c)) + 1/2 s^2 Asinh(t/s)
+  #       y part of integral = 1/2 t (sqrt(t^2+s^2) + 2*c) + 1/2 s^2 Asinh(t/s)
   #
   # XXX In the case of slack=0 or near 0, might be more stable to compute t0,t1 from x's instead of from y's
 
@@ -466,7 +470,7 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
 
     # analytic version to use when on x axis
     good_moment_from_x(slack,v0,v1) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
-    good_moment_from_xy(x,y,v0,v1) = y==0. ? good_moment_from_x(x,v0,v1) : y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
+    #good_moment_from_xy(x,y,v0,v1) = y==0. ? good_moment_from_x(x,v0,v1) : y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
 
     # XXX hmm, actually don't need the 1-d case any more? that would be great!
     good_moment_from_xy(x,y,v0,v1) = y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
@@ -476,6 +480,60 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
       good_angle_from_xy(x,y) = atan2(x,-y) # i.e. atan2(y,x) minus -90 degrees
       #good_angle_from_xy(x,y) = atan2(y,x) - (-pi/2) # should be same thing
 } # setup for "good"
+
+  # note angle is really angle starting from straight down, I think
+  slack_and_angle_to_angle0or1(which,slack,angle,v0,v1) = \
+      slack_and_angle_to_angle0or1_helper1(which,angle,abs(v1-v0)+slack, \
+                                        real(v0 * (cos(-angle) + i*sin(-angle))), \
+                                        imag(v0 * (cos(-angle) + i*sin(-angle))), \
+                                        real(v1 * (cos(-angle) + i*sin(-angle))), \
+                                        imag(v1 * (cos(-angle) + i*sin(-angle))))
+
+  slack_and_angle_to_angle0or1(which,slack,angle,v0,v1) = \
+      ( \
+      assert(slack >= 0), \
+      slack_and_angle_to_angle0or1_helper1(which,angle,abs(v1-v0)+slack, \
+                                        real(v0 * (cos(-angle) + i*sin(-angle))), \
+                                        imag(v0 * (cos(-angle) + i*sin(-angle))), \
+                                        real(v1 * (cos(-angle) + i*sin(-angle))), \
+                                        imag(v1 * (cos(-angle) + i*sin(-angle)))))
+
+    slack_and_angle_to_angle0or1_helper1(which,angle,L,x0,y0,x1,y1) = \
+        _helper2(which,angle,L,x0,y0,x1,y1, \
+                                            (x1-x0)/(2*asinhc(sqrt(L**2 - (y1-y0)**2) / (x1-x0))))  # = s  XXX divides by x1-x0, need to reformulate to be well behaved.  should just produce 0 in that case I think?
+    _helper2(which,angle,L,x0,y0,x1,y1,s) =  \
+        _helper3(which,angle,L,x0,y0,x1,y1,s, \
+                                            (x0+x1)/2. - s*acosh(L / (s*sqrt(2*(cosh((x1-x0)/s) - 1)))))  # = b    XXX divides by s, need to reformulate to be well behaved.  should just produce (x0+x1)/2. in that case I think?
+    _helper3(which,angle,L,x0,y0,x1,y1,s,b) = \
+        _helper4(which,angle,L,x0,y0,x1,y1,s,b, \
+                                            .5*(y1-y0)*sqrt(1+4*s**2/(L**2-(y1-y0)**2)))  # = tMid
+    _helper4(which,angle,L,x0,y0,x1,y1,s,b,tMid) = \
+        _helper5(which,angle,L,x0,y0,x1,y1,s,b, tMid-L/2., tMid+L/2.)  # = t0,t1
+    _helper5(which,angle,L,x0,y0,x1,y1,s,b,t0,t1) = \
+      0?asinh(t0/s):\
+        angle + (which==0 ? atan(asinh(t0/s)) : atan(asinh(t1/s))-pi)
+
+  slack_and_angle0or1_to_angle(which,slack,angle0or1,v0,v1) = \
+      slack_and_angle0or1_to_angle_helper1(which,slack,angle0or1,v0,v1,-pi/2.,pi/2.)
+  slack_and_angle0or1_to_angle(which,slack,angle0or1,v0,v1) = \
+      ( \
+      slack_and_angle0or1_to_angle_helper1(which,slack,angle0or1,v0,v1,-pi/2.,pi/2.))
+    slack_and_angle0or1_to_angle_helper1(which,slack,angle0or1,v0,v1,lo,hi) = \
+      (lo+hi)/2.<=lo||(lo+hi)/2.>=hi ? (lo+hi)/2. : \
+      slack_and_angle_to_angle0or1(which,slack,(lo+hi)/2.,v0,v1) < angle0or1 ? \
+      slack_and_angle0or1_to_angle_helper1(which,slack,angle0or1,v0,v1,(lo+hi)/2.,hi) : \
+      slack_and_angle0or1_to_angle_helper1(which,slack,angle0or1,v0,v1,lo,(lo+hi)/2.)
+
+  moment_from_xy_through_angle0or1(which,x,y,v0,v1) = y>0 ? conj(moment_from_xy_through_angle0or1_helper1(which,x,-y,conj(v0),conj(v1))) : moment_from_xy_through_angle0or1_helper1(which,x,y,v0,v1)
+
+    moment_from_xy_through_angle0or1_helper1(which,x,y,v0,v1) = moment_from_slack_and_angle0or1(which,sqrt(x**2+y**2),atan2(y,x),v0,v1)
+    moment_from_slack_and_angle0or1(which,slack,angle0or1,v0,v1) = good_moment_from_slack_and_angle(slack,slack_and_angle0or1_to_angle(which,slack,angle0or1,v0,v1),v0,v1)
+
+
+print a=rtod(slack_and_angle_to_angle0or1(0,100.,dtor(9.),velocity0,velocity1))
+print b=rtod(slack_and_angle_to_angle0or1(1,100.,dtor(9.),velocity0,velocity1))
+print rtod(slack_and_angle0or1_to_angle(0,100.,dtor(a),velocity0,velocity1))
+print rtod(slack_and_angle0or1_to_angle(1,100.,dtor(b),velocity0,velocity1))
 
 if (strategy eq "weil") {
   moment_from_xy(x,y,v0,v1) = weil_moment_from_xy(x,y,v0,v1)
@@ -493,7 +551,8 @@ if (strategy eq "good") {
 f(z) = moment_from_xy(real(z),imag(z),velocity0,velocity1)
 wf(z) = weil_moment_from_xy(real(z),imag(z),velocity0,velocity1)
 gf(z) = good_moment_from_xy(real(z),imag(z),velocity0,velocity1)
-
+f0(z) = moment_from_xy_through_angle0or1(0,real(z),imag(z),velocity0,velocity1)
+f1(z) = moment_from_xy_through_angle0or1(1,real(z),imag(z),velocity0,velocity1)
 
 unstretched_moment_from_xy(x,y,v0,v1) = squashBy(moment_from_xy(x,y,v0,v1), squash_from_xy(x,y,v0,v1))
   squash_from_xy(x,y,v0,v1) = squash_from_slack_and_angle(slack_from_xy(x,y), angle_from_xy(x,y), v0,v1)
@@ -582,7 +641,7 @@ v1 = 2*pi
 #r = 8.5 # 4 on the right
 r = 3.5 # 2 on the right, 4 on the left (this is a good one)
 #r = 1.75 # 1 on the right
-r = 1
+#r = 1
 #r = .5
 #r = .25
 #r = .125
@@ -627,6 +686,27 @@ set palette defined (0 "red", .09 "red", .1 "blue", .13 "red", 1 "red")
 #zscale = 0
 #zscale = 10
 zscale = .1
+
+if (plotf0_flag) {
+    if (png_flag) {
+        set output "RMMEf0.png"
+    }
+    print "doing f0 plot..."
+    time0 = time(0.)
+    splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f0(exp(u+i*v))),imag(f0(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw
+    time1 = time(0.)
+    print sprintf("f0 splot took %.6f seconds.", (time1-time0))
+}
+if (plotf1_flag) {
+    if (png_flag) {
+        set output "RMMEf1.png"
+    }
+    print "doing f1 plot..."
+    time0 = time(0.)
+    splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f1(exp(u+i*v))),imag(f1(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw
+    time1 = time(0.)
+    print sprintf("f1 splot took %.6f seconds.", (time1-time0))
+}
 
 if (plot1_flag) {
     if (png_flag) {
