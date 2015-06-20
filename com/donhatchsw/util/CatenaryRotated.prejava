@@ -309,104 +309,15 @@ public class CatenaryRotated extends Catenary
         if (debugLevel >= 1) System.out.println("                out integralOfTranslatedCoshGraphWithEndpoints, returning wholeArcLength="+wholeArcLength);
         return wholeArcLength;
     } // integralOfTranslatedCoshGraphWithEndpoints
-    // XXX definitely phase this out.
-    // A catenary is a scaled rotated translated cosh.
-    // Answer gets put into answer. The function return value is the arc length.
-    // XXX do this in rectangular coordinates! should be no need to do the trig to get the rotation matrix!
-    private static double integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale(double v0[/*2*/],
-                                                               double v1[/*2*/],
-                                                               double invCatenaryScaleSortOf,
-                                                               double downAngle,
-                                                               double maxLengthToIntegrate,
-                                                               double answer[/*2*/],
-                                                               double vFinal[/*2*/]) // optional
-    {
-        int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
-        if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale");
-
-        // invCatenaryScale^2 is what we're going to divide by,   XXX is it? where? hmm
-        // so test that instead of invCatenaryScale itself
-        if (invCatenaryScaleSortOf*invCatenaryScaleSortOf == 0.)
-        {
-            // It's just a segment; return its integral
-            double length = VecMath.dist(v0, v1);
-            if (maxLengthToIntegrate < length)
-            {
-                double wayPoint[] = VecMath.lerp(v0, v1, maxLengthToIntegrate/length);
-                VecMath.sxvpsxv(answer,
-                                maxLengthToIntegrate*.5, v0,
-                                maxLengthToIntegrate*.5, wayPoint);
-                if (vFinal != null)
-                    VecMath.copyvec(vFinal, wayPoint);
-            }
-            else
-            {
-                VecMath.sxvpsxv(answer,
-                                length*.5, v0,
-                                length*.5, v1);
-                if (vFinal != null)
-                    VecMath.copyvec(vFinal, v1);
-            }
-            if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale, returning length="+length);
-            return length;
-        }
-        double downRotation = downAngle - (-Math.PI/2);
-        double c = Math.cos(downRotation);
-        double s = Math.sin(downRotation);
-        // row-oriented rotation matrix
-        // that takes canonical catenary orientation to the one with given downAngle
-        double downRotationMatrix[][] = {{c,s},
-                                        {-s,c}};
-        // tranform v0 and v1 by inverse of downRotationMatrix,
-        // i.e. into orientation of canonical catenary
-        double invTransformedV0[] = VecMath.mxv(downRotationMatrix, v0);
-        double invTransformedV1[] = VecMath.mxv(downRotationMatrix, v1);
-        // and scale them into scale of canonical catenary
-        double invCatenaryScale = invCatenaryScaleSortOf / c; // XXX does this make sense?  it's empirical
-
-        VecMath.vxs(invTransformedV0, invTransformedV0, invCatenaryScale);
-        VecMath.vxs(invTransformedV1, invTransformedV1, invCatenaryScale);
-        double integral[] = new double[2];
-        double arcLength = integralOfTranslatedCoshGraphWithEndpoints(invTransformedV0,
-                                                                      invTransformedV1,
-                                                                      maxLengthToIntegrate*invCatenaryScale,
-                                                                      integral,
-                                                                      vFinal);
-        // Transform integral back into original space.
-        // The integral is in units squared.
-        VecMath.vxm(answer, integral, downRotationMatrix);
-        VecMath.vxs(answer,
-                    answer, 1./(invCatenaryScale*invCatenaryScale));
-        if (vFinal != null)
-        {
-            double temp[] = integral; // we're not using that any more
-            VecMath.vxm(temp, vFinal, downRotationMatrix);
-            VecMath.vxs(vFinal, temp, 1./invCatenaryScale);
-        }
-        if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale, returning arcLength="+arcLength+" / invCatenaryScale="+invCatenaryScale+" = "+(arcLength / invCatenaryScale));
-        return arcLength / invCatenaryScale;
-    } // integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale
-
-    // TODO: implement this directly, there's no need for the trig
-    private static double integralOfCatenaryWithEndpointsRectangularBasedOnInvCatScale(double v0[/*2*/],
-                                                                     double v1[/*2*/],
-                                                                     double x, double y, // invScaleSortOf,downAngle in rectangular coords
-                                                                     double maxLengthToIntegrate,
-                                                                     double answer[/*2*/],
-                                                                     double vFinal[/*2*/])
-    {
-        double invCatenaryScale = MyMath.hypot(x, y);
-        double downAngle = Math.atan2(y, x);
-        return integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale(v0, v1, invCatenaryScale, downAngle, maxLengthToIntegrate, answer, vFinal);
-    } // integralOfCatenaryWithEndpointsRectangularBasedOnInvCatScale
 
     // XXX phase this out, moving to pure catenary routines... I think?
+    // XXX start by making private so SmoothlyVaryingViewingParameter can't see it
     // A catenary is a scaled rotated translated cosh.
     // Path-length integrate from v0 to either v1, or to a length of maxLengthToIntegrate,
     // which ever comes first.
     // Answer gets put into answer. The function return value is the arc length.
     // vFinal is the point that the integral went to (either v1, or the point at distance maxLengthToIntegrate along the curve).
-    private static double integralOfCatenaryWithEndpointsRectangularBasedOnSlack(double v0[/*2*/],
+    public static double integralOfCatenaryWithEndpointsRectangular(double v0[/*2*/],
                                                                      double v1[/*2*/],
                                                                      double x, double y, // invScale,downAngle in rectangular coords
                                                                      double maxLengthToIntegrate,
@@ -414,7 +325,7 @@ public class CatenaryRotated extends Catenary
                                                                      double vFinal[/*2*/])
     {
         int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
-        if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsRectangularBasedOnSlack");
+        if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsRectangular");
         if (debugLevel >= 2) System.out.println("              v0 = "+VecMath.toString(v0));
         if (debugLevel >= 2) System.out.println("              v1 = "+VecMath.toString(v1));
         if (debugLevel >= 2) System.out.println("              x = "+x+" y = "+y);
@@ -446,7 +357,7 @@ public class CatenaryRotated extends Catenary
                 if (vFinal != null)
                     VecMath.copyvec(vFinal, v1);
             }
-            if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangularBasedOnSlack, returning length="+length);
+            if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning length="+length);
             return length;
         }
         double downRotation = downAngle - (-Math.PI/2);
@@ -549,22 +460,9 @@ public class CatenaryRotated extends Catenary
             temp[1] = y1;
             VecMath.vxm(vFinal, temp, downRotationMatrix);
         }
-        if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangularBasedOnSlack, returning L="+L);
+        if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning L="+L);
         return L;
-    } // integralOfCatenaryWithEndpointsRectangularBasedOnSlack
-
-    // XXX make this non-public and phase it out
-    public static double integralOfCatenaryWithEndpointsRectangular(double v0[/*2*/],
-                                                                    double v1[/*2*/],
-                                                                    double x, double y, // invScale,downAngle in rectangular coords
-                                                                    double maxLengthToIntegrate,
-                                                                    double answer[/*2*/],
-                                                                    double vFinal[/*2*/])
-    {
-        // the way based on inv cat scale might be more efficient since solved for down-angle and scale directly, but it sucks when near degenerate.
-        return integralOfCatenaryWithEndpointsRectangularBasedOnSlack(v0, v1, x, y, maxLengthToIntegrate, answer, vFinal);
-        //return integralOfCatenaryWithEndpointsRectangularBasedOnInvCatScale(v0, v1, x, y, maxLengthToIntegrate, answer, vFinal);
-    }
+    } // integralOfCatenaryWithEndpointsRectangular
 
     public static void main(String args[])
     {
@@ -621,21 +519,10 @@ public class CatenaryRotated extends Catenary
 
             if (true)
             {
-                // invCatScale=1 -> s=1
-                double arcLength = integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale(v0, v1, 1., -Math.PI/2., Double.POSITIVE_INFINITY, integral, null);
-                PRINT(arcLength);
-                PRINT(expectedArcLength);
-                assert(EQ(arcLength, expectedArcLength, 1e-6));
-                PRINTVEC(integral);
-                PRINTVEC(expectedIntegral);
-                assert(VecMath.dist(integral, expectedIntegral) < 1e-6);
-            }
-
-            if (true)
-            {
+                // s=1
                 double x = 0.;
                 double y = -slack;
-                double arcLength = integralOfCatenaryWithEndpointsRectangularBasedOnSlack(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null);
+                double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null);
                 PRINT(arcLength);
                 PRINT(expectedArcLength);
                 assert(EQ(arcLength, expectedArcLength, 1e-6));
@@ -650,30 +537,12 @@ public class CatenaryRotated extends Catenary
             double expectedArcLengthOfSegment = VecMath.dist(v0,v1);
             double integralOfSegment[] = new double[2];
 
-
-#ifdef DEFUNCT
             if (true)
             {
-                // invCatScale=0 -> s=infinity
-                double arcLengthOfSegment = integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale(v0, v1, 0., -Math.PI/2., Double.POSITIVE_INFINITY, integralOfSegment, null);
-                assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
-                assert(EQ(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6));
-            }
-
-
-            if (true)
-            {
-                // invCatScale=0 -> s=infinity
-                arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangularBasedOnInvCatScale(v0, v1, 0., 0., Double.POSITIVE_INFINITY, integralOfSegment, null);
-                assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
-                assert(EQ(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6));
-            }
-#endif // DEFUNCT
-
-            if (true)
-            {
-                // slack=0 -> s=infinity
-                double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangularBasedOnSlack(v0, v1, 0., 0., Double.POSITIVE_INFINITY, integralOfSegment, null);
+                // s=infinity
+                double x = 0.;
+                double y = 0.;
+                double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null);
                 PRINTVEC(integralOfSegment);
                 PRINTVEC(expectedIntegralOfSegment);
                 assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
@@ -727,22 +596,14 @@ public class CatenaryRotated extends Catenary
                 if (true)
                 {
                     double integralTransformed[] = new double[2];
-                    double invScaleSortOf = invScale * c; // this is what integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale expects
-                    double arcLengthTransformed = integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale(v0Transformed, v1Transformed, invScaleSortOf, downAngle, Double.POSITIVE_INFINITY, integralTransformed, null);
-                    assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
-                    assert(EQ(arcLengthTransformed, expectedArcLengthTransformed, 1e-6));
-                }
-
-                // XXX do the one based on slack instead
-                if (true) // XXX need to do the one with invScale=0 i.e. scale=infinity i.e. scaled slack=0
-                {
-                    double integralTransformed[] = new double[2];
                     // 0,-slack/invScale rotated by rotation that takes YAxis to downAngle
 
                     // keep in mind the invScale=0 test is really a different test, don't expect it to be totally analogous
                     double xy[] = {0, invScale==0. ? 0. : -slack/invScale};
                     xy = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, xy); // by inverse of matrix
-                    double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangularBasedOnSlack(v0Transformed, v1Transformed, xy[0], xy[1], Double.POSITIVE_INFINITY, integralTransformed, null);
+                    double x = xy[0];
+                    double y = xy[1];
+                    double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null);
                     //PRINT(arcLengthTransformed);
                     //PRINT(expectedArcLengthTransformed);
                     assert(EQ(arcLengthTransformed, expectedArcLengthTransformed, 1e-6));
