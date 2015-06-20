@@ -422,7 +422,7 @@ public class SmoothlyVaryingViewingParameter
                         {
                             if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
                             double integral[] = new double[2];
-                            double unusedArcLength = integralOfCatenaryWithEndpointsRectangular(
+                            double unusedArcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
                                 v0, v1,
                                 xy[0], xy[1],
                                 Double.POSITIVE_INFINITY,
@@ -543,7 +543,7 @@ public class SmoothlyVaryingViewingParameter
 
                     double partwayIntegral[] = new double[2];
                     double vFinal[] = new double[2];
-                    double arcLength = integralOfCatenaryWithEndpointsRectangular(
+                    double arcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
                         v1, v0,
                         xyAnswer[0], xyAnswer[1],
                         dt*A, // XXX is this right?
@@ -770,6 +770,8 @@ public class SmoothlyVaryingViewingParameter
              || VecMath.normsqrd(velocity) != 0.;
     }
 
+#ifdef DEFUNCT
+    // XXX get rid, use Catenary routines instead
     // Path-length integrate from v0 to either v1, or to a length of maxLengthToIntegrate,
     // which ever comes first.
     // Answer gets put into answer. The function return value is the arc length.
@@ -899,6 +901,7 @@ public class SmoothlyVaryingViewingParameter
         return wholeArcLength;
     } // integralOfTranslatedCoshGraphWithEndpoints
 
+    // XXX get rid, use Catenary routines instead
     // A catenary is a scaled rotated translated cosh.
     // Path-length integrate from v0 to either v1, or to a length of maxLengthToIntegrate,
     // which ever comes first.
@@ -1069,9 +1072,9 @@ public class SmoothlyVaryingViewingParameter
         return L;
     } // integralOfCatenaryWithEndpointsRectangularBasedOnSlack
 
+    // XXX get rid, use Catenary routines instead
     // A catenary is a scaled rotated translated cosh.
     // Answer gets put into answer. The function return value is the arc length.
-    // XXX do this in rectangular coordinates! should be no need to do the trig to get the rotation matrix!
     private static double integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale(double v0[/*2*/],
                                                                double v1[/*2*/],
                                                                double invCatenaryScaleSortOf,
@@ -1146,7 +1149,7 @@ public class SmoothlyVaryingViewingParameter
         return arcLength / invCatenaryScale;
     } // integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale
 
-    // TODO: implement this directly, there's no need for the trig
+    // XXX get rid, use Catenary routines instead
     private static double integralOfCatenaryWithEndpointsRectangularBasedOnInvCatScale(double v0[/*2*/],
                                                                      double v1[/*2*/],
                                                                      double x, double y, // invScaleSortOf,downAngle in rectangular coords
@@ -1159,6 +1162,7 @@ public class SmoothlyVaryingViewingParameter
         return integralOfCatenaryWithEndpointsPolarBasedOnInvCatScale(v0, v1, invCatenaryScale, downAngle, maxLengthToIntegrate, answer, vFinal);
     } // integralOfCatenaryWithEndpointsRectangularBasedOnInvCatScale
 
+    // XXX get rid, use Catenary routines instead
     private static double integralOfCatenaryWithEndpointsRectangular(double v0[/*2*/],
                                                                      double v1[/*2*/],
                                                                      double x, double y, // invScale,downAngle in rectangular coords
@@ -1170,6 +1174,7 @@ public class SmoothlyVaryingViewingParameter
         return integralOfCatenaryWithEndpointsRectangularBasedOnSlack(v0, v1, x, y, maxLengthToIntegrate, answer, vFinal);
         //return integralOfCatenaryWithEndpointsRectangularBasedOnInvCatScale(v0, v1, x, y, maxLengthToIntegrate, answer, vFinal);
     }
+#endif // DEFUNCT
 
 
 
@@ -1857,9 +1862,11 @@ public class SmoothlyVaryingViewingParameter
 
     private static void confidenceTests()
     {
+#ifdef DEFUNCT
         if (true)
         {
             // Test utilities for integrals
+            // XXX move to Catenary and CatenaryRotated classes
             double downAngles[] = {-Math.PI/2., -Math.PI/4, 0., Math.PI/2, Math.PI};
             double invScales[] = {1., .5, 2., 0.};
             double xTranslates[] = {0., 2., -2.};
@@ -1913,7 +1920,7 @@ public class SmoothlyVaryingViewingParameter
                 PRINTVEC(expectedIntegral);
                 assert(VecMath.dist(integral, expectedIntegral) < 1e-6);
 
-                if (true) // XXX based on slack-- doesn't work yet.  make it work!
+                if (true)
                 {
                     double slack = Math.abs(arcLength) - VecMath.dist(v0,v1);
                     double x = 0.;
@@ -1995,6 +2002,7 @@ public class SmoothlyVaryingViewingParameter
             } // for x0,x1
             // return;
         }
+#endif // DEFUNCT
 
         if (true)
         {

@@ -2,7 +2,9 @@
 package com.donhatchsw.util;
 #include "macros.h" 
 
-/* XXX javadocize
+/**
+* WORK IN PROGRESS
+* XXX javadocize
 * This class encapsulates parameters of a downward-hanging catenary
 * in the x,y plane; that is, the graph of the canonical catenary function y=cosh(x)-1,
 * possibly scaled and translated.
