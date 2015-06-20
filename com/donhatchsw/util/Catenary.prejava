@@ -12,22 +12,22 @@ package com.donhatchsw.util;
 * The parameters are the scale s and a "focus point" both on the canonical catenary
 * and in world space:
 *   - scale s
-*   - a focus time T0 yielding focus point X0=asinh(T0),Y0=sqrt(T0^2+1)-1
+*   - a focus time TFocus yielding focus point XFocus=asinh(TFocus),YFocus=sqrt(TFocus^2+1)-1
 *       on the canonical catenary graph Y=cosh(X)-1
-*   - the corresponding focus point x0,y0 in world space
+*   - the corresponding focus point xFocusInWorld,yFocusInWorld in world space
 * The parametrization is then nominally:
-*   x(t) = x0 + s*asinh(t/s + T0)
-*   y(t) = y0 + s*(sqrt((t/s + T0)^2 + 1) - 1)
+*   x(t) = xFocusInWorld + s*asinh(t/s + TFocus0)
+*   y(t) = yFocusInWorld + s*(sqrt((t/s + TFocus0)^2 + 1) - 1)
 * Robustness is achieved, in part, by the following techniques:
 *   - s is represented as a non-negative numerator and a denominator,
 *     either (but not both) of which may be zero.
-*   - T0,X0,Y0 are represented implicitly by "focusDirection" which is the tangent unit
+*   - TFocus,XFocus,YFocus are represented implicitly by "focusDirection" which is the tangent unit
 *     direction vector of the function at the focus point (both in canonical catenary space
 *     and in world space).
 *     Then nominally,
-*         T0 = slope = yFocusDirection/xFocusDirection
-*         X0 = asinh(T0)
-*         Y0 = sqrt(T0^2+1)-1
+*         TFocus = slope = yFocusDirection/xFocusDirection
+*         XFocus = asinh(TFocus)
+*         YFocus = sqrt(TFocus^2+1)-1
 *     In particular:
 *         focusDirection=(0,-1) represents T0=-infinity,X0=-infinity,Y0=infinity
 *         focusDirection=(1,0)  represents T0=0,X0=0,Y0=0
@@ -75,7 +75,11 @@ public class Catenary
         assert(sDenominator >= 0.);
         assert(Math.max(sNumerator, sDenominator) == 1.);
         assert(xFocusDirection >= 0); // no restriction on sign of y
-        assert(MyMath.hypot(xFocusDirection, yFocusDirection) == 1.); // XXX need tolerance
+        PRINT(xFocusDirection);
+        PRINT(yFocusDirection);
+        PRINT(MyMath.hypot(xFocusDirection, yFocusDirection));
+        double focusDirectionLengthError = MyMath.hypot(xFocusDirection, yFocusDirection) - 1.;
+        assert(SQR(focusDirectionLengthError) + 1. - 1. == 0.);
         if (sNumerator <= sDenominator)
         {
             assert(xFocusDirection == 1.);
@@ -88,6 +92,174 @@ public class Catenary
         }
         assert(t0 <= t1);
     }
+
+    // Set members to be the parameters of the catenary
+    // passing through points (x0,y0),(x1,y1) with given slack.
+    // Does no memory allocations.
+    public void fit(double x0, double y0,
+                    double x1, double y1,
+                    double slack)
+    {
+        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: more details
+        if (verboseLevel >= 1) System.out.println("                in Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
+        assert(slack >= 0.);
+        assert(x0 <= x1);
+        double dx = x1 - x0;
+        double dy = y1 - y0;
+        if (slack == 0.) // XXX TODO: need better condition
+        {
+            if (verboseLevel >= 1) System.out.println("                    slack=0 s=infinity case");
+            // s is infinity
+            //assert(false); // coverage; remove when hit
+            this.sNumerator = 1.;
+            this.sDenominator = 0.;
+            this.xFocusInWorld = (x0+x1)*.5;
+            this.yFocusInWorld = (y0+y1)*.5;
+
+            double L = MyMath.hypot(dx, dy);
+            if (L == 0.)
+            {
+                this.xFocusDirection = 1.;
+                this.yFocusDirection = 0.;
+            }
+            else
+            {
+                this.xFocusDirection = dx / L;
+                this.yFocusDirection = dy / L;
+            }
+            this.t0 = -L*.5;
+            this.t1 = L*.5;
+        }
+        else if (dx == 0.) // XXX TODO: need better condition
+        {
+            if (verboseLevel >= 1) System.out.println("                    dx=0 s=0 case");
+            // s is zero
+            assert(false); // coverage; remove when hit
+            this.sNumerator = 0.;
+            this.sDenominator = 1.;
+            this.xFocusInWorld = x0;
+            this.yFocusInWorld = Math.min(y0,y1) - slack*.5;
+            this.xFocusDirection = 1.;
+            this.yFocusDirection = 0.;
+            this.t0 = this.yFocusInWorld - y0; // negative
+            this.t1 = y1 - this.yFocusInWorld; // positive
+        }
+        else
+        {
+            if (verboseLevel >= 1) System.out.println("                    s finite and nonzero case");
+            // s is finite and nonzero
+            //assert(false); // coverage; remove when hit
+            double L = MyMath.hypot(dx, dy) + slack;
+            // XXX TODO: make the following totally robust even if s is very large or small
+            double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
+            if (s < 1.)
+            {
+                //assert(false); // coverage; remove when hit
+                this.sNumerator = s;
+                this.sDenominator = 1.;
+
+                this.xFocusDirection = 1.;
+                this.yFocusDirection = 0.;
+
+                double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L*L - dy*dy));
+                this.t0 = tMid - L/2.;
+                this.t1 = t0 + L;
+                // If we didn't care about stability:
+                //   this.xFocusInWorld = x0 - s*asinh(t0/s)
+                // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of x0 I guess?
+                this.xFocusInWorld = (x0+x1)/2.
+                                   - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
+                this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
+            }
+            else
+            {
+                //assert(false); // coverage; remove when hit
+                this.sNumerator = 1.;
+                this.sDenominator = 1./s;
+
+                if (true)
+                {
+                    // For now, start with the canonical focus case and adjust.
+                    // XXX eventually need to move to something more stable
+
+                    this.xFocusDirection = 1.;
+                    this.yFocusDirection = 0.;
+
+                    double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L*L - dy*dy));
+                    this.t0 = tMid - L/2.;
+                    this.t1 = t0 + L;
+                    // If we didn't care about stability:
+                    //   this.xFocusInWorld = x0 - s*asinh(t0/s)
+                    // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of x0 I guess?
+                    this.xFocusInWorld = (x0+x1)/2.
+                                       - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
+                    this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
+
+                    // Adjust to meet validity criteria: t0<=0, t1>=0.
+
+                    // Switch focus from 0 (apex of catenary) to tMid (measured from apex of catenary)
+
+                    double xFocusInWorldOld = this.xFocusInWorld;
+                    double yFocusInWorldOld = this.yFocusInWorld;
+                    double t0Old = this.t0;
+                    double t1Old = this.t1;
+
+                    // Anything with T in it, here,
+                    // is a measurement from the apex of the canonical catenary.
+                    double TFocusOld = 0.;
+                    double XFocusOld = 0.;
+                    double YFocusOld = 0.;
+                    double T0Old = t0Old / s;
+                    double T1Old = t1Old / s;
+
+                    double TFocusNew = tMid / s;
+                    double XFocusNew = MyMath.asinh(TFocusNew);
+                    double YFocusNew = Math.sqrt(SQR(TFocusNew)+1.)-1.;
+                    double t0New = (T0Old - TFocusNew) * s;
+                    double t1New = (T1Old - TFocusNew) * s;
+                    double xFocusInWorldNew = xFocusInWorldOld + (XFocusNew-XFocusOld) * s;
+                    double yFocusInWorldNew = yFocusInWorldOld + (YFocusNew-YFocusOld) * s;
+                    double focusSlopeNew = TFocusNew;
+                    double xFocusDirectionNew = 1.;
+                    double yFocusDirectionNew = focusSlopeNew;
+                    double temp = Math.hypot(xFocusDirectionNew, yFocusDirectionNew);
+                    xFocusDirectionNew /= temp;
+                    yFocusDirectionNew /= temp;
+
+                    this.t0 = t0New;
+                    this.t1 = t1New;
+                    this.xFocusInWorld = xFocusInWorldNew;
+                    this.yFocusInWorld = yFocusInWorldNew;
+                    this.xFocusDirection = xFocusDirection;
+                    this.yFocusDirection = yFocusDirection;
+                }
+            }
+
+
+
+            /*
+            y = yFocusInWorld + sqrt(t*t + s*s) - s;
+            yAtTmid = yFocusInWorld + sqrt(tMid*tMid + s*s) - s;
+            yFocusInWorld
+            */
+        }
+        if (verboseLevel >= 1)
+        {
+            System.out.println("                  sNumerator = "+this.sNumerator);
+            System.out.println("                  sDenominator = "+this.sDenominator);
+            System.out.println("                  xFocusDirection = "+this.xFocusDirection);
+            System.out.println("                  yFocusDirection = "+this.yFocusDirection);
+            System.out.println("                  xFocusInWorld = "+this.xFocusInWorld);
+            System.out.println("                  yFocusInWorld = "+this.yFocusInWorld);
+            System.out.println("                  t0 = "+this.t0);
+            System.out.println("                  t0 = "+this.t1);
+
+        }
+
+        assertValid();
+        if (verboseLevel >= 1) System.out.println("                out Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
+    } // fit
+
 
     // Position at time t.
     public void evaluate(double t,
@@ -141,6 +313,9 @@ public class Catenary
         }
     } // integrate
 
+    // subclasses don't need to override this--
+    // it's just a convenience function
+    // that calls the subclass's integrate() anyway.
     public void integrate(double t0, // not necessarily this.t0
                           double t1, // not necessarily this.t1
                           double answer[/*2*/])
@@ -153,89 +328,61 @@ public class Catenary
         answer[1] -= answer0y;
     } // integrate
 
-    // Set members to be the parameters of the catenary
-    // passing through points (x0,y0),(x1,y1) with given slack.
-    // Does no memory allocations.
-    public void fit(double x0, double y0,
-                    double x1, double y1,
-                    double slack)
+
+
+    // Catenary always has non-negative scale,
+    // and fit points must satisfy x0<=x1.
+    // This class has no such restriction.
+    public static class FlippedMaybe extends Catenary
     {
-        assert(slack >= 0.);
-        assert(x0 <= x1);
-        double dx = x1 - x0;
-        double dy = y1 - y0;
-        if (slack == 0.) // XXX TODO: need better condition
+        public boolean flipped;
+        @Override public void fit(double x0, double y0,
+                                  double x1, double y1,
+                                  double slack)
         {
-            // s is infinity
-            assert(false); // coverage; remove when hit
-            this.sNumerator = 1.;
-            this.sDenominator = 0.;
-            this.xFocusInWorld = (x0+x1)*.5;
-            this.yFocusInWorld = (y0+y1)*.5;
-
-            this.xFocusDirection = dx;
-            this.yFocusDirection = dy;
-
-
-            double L = MyMath.hypot(dx, dy);
-            this.t0 = -L*.5;
-            this.t1 = L*.5;
-        }
-        else if (dx == 0.) // XXX TODO: need better condition
-        {
-            // s is zero
-            assert(false); // coverage; remove when hit
-            this.sNumerator = 0.;
-            this.sDenominator = 1.;
-            this.xFocusInWorld = x0;
-            this.yFocusInWorld = Math.min(y0,y1) - slack*.5;
-            this.xFocusDirection = 1.;
-            this.yFocusDirection = 0.;
-            this.t0 = this.yFocusInWorld - y0; // negative
-            this.t1 = y1 - this.yFocusInWorld; // positive
-        }
-        else
-        {
-            // s is finite and nonzero
-            assert(false); // coverage; remove when hit
-            double L = MyMath.hypot(dx, dy) + slack;
-            // XXX TODO: make the following totally robust even if s is very large or small
-            double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
-            if (s < 1.)
+            if (x1 < x0)
             {
-                assert(false); // coverage; remove when hit
-                this.sNumerator = s;
-                this.sDenominator = 1.;
+                super.fit(x1, y1, x0, y0, slack);
+                this.flipped = true;
             }
             else
             {
-                assert(false); // coverage; remove when hit
-                this.sNumerator = 1.;
-                this.sDenominator = 1./s;
+                super.fit(x0, y0, x1, y1, slack);
+                this.flipped = false;
             }
-
-            // XXX TODO: for better stability, make this something else, if s < 1.
-            this.xFocusDirection = 1.;
-            this.yFocusDirection = 0.;
-
-            double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L*L - dy*dy));
-            this.t0 = tMid - L/2.;
-            this.t1 = t0 + L;
-            // If we didn't care about stability:
-            //   this.xFocusInWorld = x0 - s*asinh(t0/s)
-            // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of x0 I guess?
-            this.xFocusInWorld = (x0+x1)/2.
-                               - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
-            this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
-
-            /*
-            y = yFocusInWorld + sqrt(t*t + s*s) - s;
-            yAtTmid = yFocusInWorld + sqrt(tMid*tMid + s*s) - s;
-            yFocusInWorld
-            */
         }
-        assertValid();
-    } // fit
+        @Override public void evaluate(double t,
+                                       double answer[/*2*/])
+        {
+            if (this.flipped)
+            {
+                t = (t0+t1) - t; // so t0 becomes t1 and t1 becomes t0
+                super.evaluate(t, answer);
+                answer[0] *= -1.;
+                answer[1] *= -1.;
+            }
+            else
+            {
+                super.evaluate(t, answer);
+            }
+        }
+        @Override public void integrate(double t,
+                                        double answer[/*2*/])
+        {
+            if (this.flipped)
+            {
+                t = (t0+t1) - t; // so t0 becomes t1 and t1 becomes t0
+                super.integrate(t, answer);
+                answer[0] *= -1.;
+                answer[1] *= -1.;
+            }
+            else
+            {
+                super.integrate(t, answer);
+            }
+        }
+    } // class FlippedMaybe
+
 
 
 

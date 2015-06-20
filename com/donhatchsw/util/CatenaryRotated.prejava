@@ -4,7 +4,7 @@ package com.donhatchsw.util;
 
 
 /* WORK IN PROGRESS */
-public class CatenaryRotated extends Catenary
+public class CatenaryRotated extends Catenary.FlippedMaybe
 {
     public double cosRotation;
     public double sinRotation;
@@ -12,7 +12,7 @@ public class CatenaryRotated extends Catenary
     @Override public void assertValid()
     {
         super.assertValid();
-        assert(MyMath.hypot(cosRotation, sinRotation) == 1.); // XXX need tolerance
+        assert(MyMath.hypot(cosRotation, sinRotation) == 1.); // XXX need tolerance... I think?
     }
 
     // Position at time t.
@@ -42,11 +42,12 @@ public class CatenaryRotated extends Catenary
     * If it fails to converge, [XXX what?] is thrown.
     * XXX use current contents as initial guess?
     */
-    public void fit(double x0, double y0,
-                    double x1, double y1,
-                    double xMoment, double yMoment)
+    public void fitFromMoment(double x0, double y0,
+                              double x1, double y1,
+                              double xMoment, double yMoment)
     {
         int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
+        int fitVerboseLevel = 0;
         com.donhatchsw.compat.ArrayList newtonPath = null; // XXX think about what we want here.  make this a parameter?
 
         double dist = MyMath.hypot(y1-y0, x1-x0);
@@ -58,6 +59,7 @@ public class CatenaryRotated extends Catenary
         //  y = slack * sin(downAngle)
         // We will do a numeric solve for x,y.
         final int verboseLevelFinal = verboseLevel;
+        final int fitVerboseLevelFinal = fitVerboseLevel;
         final com.donhatchsw.compat.ArrayList newtonPathFinal = newtonPath;
         final boolean inJ[] = {false};
         final double x0final = x0;
@@ -72,7 +74,7 @@ public class CatenaryRotated extends Catenary
 
                 // use self as scratch catenary
                 CatenaryRotated self = CatenaryRotated.this;
-                self.fitFromRectangularCoords(x0final,y0final, x1final,y1final, xy);
+                self.fitFromRectangularCoords(x0final,y0final, x1final,y1final, xy[0], xy[1], fitVerboseLevelFinal);
 
                 double integral[] = new double[2]; // XXX wtf? change NewtonSolver so it doesn't require allocating a new thing each time
                 self.integrate(self.t0, self.t1, integral);
@@ -119,28 +121,34 @@ public class CatenaryRotated extends Catenary
                            1000,
                            stepScale);
 
-        this.fitFromRectangularCoords(x0,y0, x1,y1, xyAnswer);
+        this.fitFromRectangularCoords(x0,y0, x1,y1, xyAnswer[0], xyAnswer[1], fitVerboseLevelFinal);
     } // fit
 
 
     private void fitFromRectangularCoords(double x0, double y0,
                                           double x1, double y1,
-                                          double xy[/*2*/])
+                                          double x, double y, // slack,downAngle in rectangular coords
+                                          int verboseLevel)
     {
-        double slack = MyMath.hypot(xy[0], xy[1]);
-        double downAngle = Math.atan2(xy[0], xy[1]);
+        if (verboseLevel >= 1) System.out.println("        in CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
+        double slack = MyMath.hypot(x, y);
+        double downAngle = Math.atan2(y, x);
         double cosDownAngle = Math.cos(downAngle);
         double sinDownAngle = Math.sin(downAngle);
         // note cosDownAngle,sinDownAngle are just x,y normalized, robustly.
-        this.fitFromPolarCoords(x0,y0, x1,y1, slack, cosDownAngle, sinDownAngle);
+        // if I had a robust normalization function that I trusted, I'd use that instead.
+        this.fitFromPolarCoords(x0,y0, x1,y1, slack, cosDownAngle, sinDownAngle, verboseLevel);
+        if (verboseLevel >= 1) System.out.println("        out CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
     } // fitFromRectangularCoords
 
     private void fitFromPolarCoords(double x0, double y0,
                                     double x1, double y1,
                                     double slack,
                                     double cosDownAngle,
-                                    double sinDownAngle)
+                                    double sinDownAngle,
+                                    int verboseLevel)
     {
+        if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromPolarCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+" c="+cosDownAngle+" s="+sinDownAngle+")");
         // rotation = downAngle - (-pi/2)
         this.cosRotation = -sinDownAngle;
         this.sinRotation = cosDownAngle;
@@ -151,6 +159,7 @@ public class CatenaryRotated extends Catenary
         super.fit(x0Unrotated, y0Unrotated, 
                   x1Unrotated, y1Unrotated,
                   slack);
+        if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromPolarCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+" c="+cosDownAngle+" s="+sinDownAngle+")");
     } // fitFromPolarCoords
 
     private static final double xPartOfRotated(double cosRotation, double sinRotation, double x, double y)
@@ -180,7 +189,12 @@ public class CatenaryRotated extends Catenary
         answer[1] = yPartOfUnrotated(cosRotation, sinRotation, x, y);
     }
 
+
+
+#ifdef NOTYET
     // XXX phase this out...
+    // XXX or maybe Catenary.integrate() should call this?
+    // XXX oh right! this is the new function that no one calls yet I think?  Hmm.
     // Path-length integrate from v0 to either v1, or to a length of maxLengthToIntegrate,
     // which ever comes first.
     // Answer gets put into answer. The function return value is the arc length.
@@ -196,6 +210,7 @@ public class CatenaryRotated extends Catenary
         if (debugLevel >= 2) PRINTARRAY(v0);
         if (debugLevel >= 2) PRINTARRAY(v1);
         if (debugLevel >= 2) PRINT(maxLengthToIntegrate);
+
         double a = v1[0]-v0[0];
         double b = v1[1]-v0[1];
         if (debugLevel >= 2) PRINT(a);
@@ -289,7 +304,7 @@ public class CatenaryRotated extends Catenary
         double sinhx0 = MyMath.sinh(x0);
         double coshx1 = MyMath.cosh(x1);
         double sinhx1 = MyMath.sinh(x1);
-        double wholeArcLength = sinhx1 - sinhx0;
+        double wholeArcLength = sinhx1 - sinhx0; // function return value
         double partialArcLength = wholeArcLength;
         if (maxLengthToIntegrate < wholeArcLength)
         {
@@ -309,6 +324,7 @@ public class CatenaryRotated extends Catenary
         if (debugLevel >= 1) System.out.println("                out integralOfTranslatedCoshGraphWithEndpoints, returning wholeArcLength="+wholeArcLength);
         return wholeArcLength;
     } // integralOfTranslatedCoshGraphWithEndpoints
+#endif // NOTYET
 
     // XXX phase this out, moving to pure catenary routines... I think?
     // XXX start by making private so SmoothlyVaryingViewingParameter can't see it
@@ -319,155 +335,183 @@ public class CatenaryRotated extends Catenary
     // vFinal is the point that the integral went to (either v1, or the point at distance maxLengthToIntegrate along the curve).
     public static double integralOfCatenaryWithEndpointsRectangular(double v0[/*2*/],
                                                                      double v1[/*2*/],
-                                                                     double x, double y, // invScale,downAngle in rectangular coords
+                                                                     double x, double y, // slack,downAngle in rectangular coords
                                                                      double maxLengthToIntegrate,
                                                                      double answer[/*2*/],
                                                                      double vFinal[/*2*/])
     {
-        int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
+        int debugLevel = 2; // 0: nothing, 1: in/out, 2: a bit more
+        int fitVerboseLevel = 2;
         if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsRectangular");
         if (debugLevel >= 2) System.out.println("              v0 = "+VecMath.toString(v0));
         if (debugLevel >= 2) System.out.println("              v1 = "+VecMath.toString(v1));
         if (debugLevel >= 2) System.out.println("              x = "+x+" y = "+y);
         if (debugLevel >= 2) System.out.println("              maxLengthToIntegrate = "+maxLengthToIntegrate);
 
-        double slack = MyMath.hypot(x, y);
-        double downAngle = Math.atan2(y, x);
-        if (debugLevel >= 2) System.out.println("              slack = "+slack);
-        if (debugLevel >= 2) System.out.println("              downAngle = "+downAngle+" = "+RTOD(downAngle)+"deg");
-
-        if (slack*slack == 0.) // XXX rough heuristic
+        if (true)
         {
-            // It's just a segment; return its integral
-            double length = VecMath.dist(v0, v1);
-            if (maxLengthToIntegrate < length)
+            CatenaryRotated catenaryRotated = new CatenaryRotated();
+            catenaryRotated.fitFromRectangularCoords(v0[0], v0[1], v1[0], v1[1], x, y, fitVerboseLevel);
+
+            /*
+            double slack = MyMath.hypot(x, y);
+            double downAngle = Math.atan2(y, x);
+            double L = MyMath.hypot(dx, dy) + slack;
+            if (maxLengthToIntegrate < L)
             {
-                double wayPoint[] = VecMath.lerp(v0, v1, maxLengthToIntegrate/length);
-                VecMath.sxvpsxv(answer,
-                                maxLengthToIntegrate*.5, v0,
-                                maxLengthToIntegrate*.5, wayPoint);
-                if (vFinal != null)
-                    VecMath.copyvec(vFinal, wayPoint);
+                if (debugLevel >= 2) System.out.println("                  clamping! = ");
+                L = maxLengthToIntegrate;
             }
-            else
+            */
+            //if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning L="+L);
+            //return L;
+        }
+        if (true)
+        {
+            double slack = MyMath.hypot(x, y);
+            double downAngle = Math.atan2(y, x);
+
+            if (debugLevel >= 2) System.out.println("              slack = "+slack);
+            if (debugLevel >= 2) System.out.println("              downAngle = "+downAngle+" = "+RTOD(downAngle)+"deg");
+
+            if (slack*slack == 0.) // XXX rough heuristic
             {
-                VecMath.sxvpsxv(answer,
-                                length*.5, v0,
-                                length*.5, v1);
-                if (vFinal != null)
-                    VecMath.copyvec(vFinal, v1);
+                // It's just a segment; return its integral
+                double length = VecMath.dist(v0, v1);
+                if (maxLengthToIntegrate < length)
+                {
+                    double wayPoint[] = VecMath.lerp(v0, v1, maxLengthToIntegrate/length);
+                    VecMath.sxvpsxv(answer,
+                                    maxLengthToIntegrate*.5, v0,
+                                    maxLengthToIntegrate*.5, wayPoint);
+                    if (vFinal != null)
+                        VecMath.copyvec(vFinal, wayPoint);
+                }
+                else
+                {
+                    VecMath.sxvpsxv(answer,
+                                    length*.5, v0,
+                                    length*.5, v1);
+                    if (vFinal != null)
+                        VecMath.copyvec(vFinal, v1);
+                }
+                if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning length="+length);
+                return length;
             }
-            if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning length="+length);
-            return length;
+            double downRotation = downAngle - (-Math.PI/2);
+            if (debugLevel >= 2) System.out.println("              downRotation = "+downRotation+" = "+RTOD(downRotation)+"deg");
+            double cos = Math.cos(downRotation);
+            double sin = Math.sin(downRotation);
+            // row-oriented rotation matrix
+            // that takes canonical catenary orientation to the one with given downAngle
+            double downRotationMatrix[][] = {{cos,sin},
+                                            {-sin,cos}};
+            // tranform v0 and v1 by inverse of downRotationMatrix,
+            // i.e. into orientation of canonical catenary
+            double invTransformedV0[] = VecMath.mxv(downRotationMatrix, v0);
+            double invTransformedV1[] = VecMath.mxv(downRotationMatrix, v1);
+            if (debugLevel >= 2) System.out.println("              cos = "+cos);
+            if (debugLevel >= 2) System.out.println("              sin = "+sin);
+            if (debugLevel >= 2) System.out.println("              invTransformedV0 = "+VecMath.toString(invTransformedV0));
+            if (debugLevel >= 2) System.out.println("              invTransformedV1 = "+VecMath.toString(invTransformedV1));
+            // Figure out catenary params a,b,c,t0,t1
+            // such that the catenary is:
+            //      x = a*asinh(t/a) + b
+            //      y = sqrt(t^2+a^2) + c
+            // for t=t0 to t1.
+            // XXX TODO put this into class Catenary and CatenaryRotated
+            double x0 = invTransformedV0[0];
+            double y0 = invTransformedV0[1];
+            double x1 = invTransformedV1[0];
+            double y1 = invTransformedV1[1];
+            double dx = x1 - x0;
+            double dy = y1 - y0;
+            double L = MyMath.hypot(dx, dy) + slack;
+            if (debugLevel >= 2) System.out.println("              L = "+L);
+
+            // paper says:
+            //      2*a*sinh(dx/(2*a)) = sqrt(L*L - dy*dy)
+            //      dx*(2a/dx)sinh(dx/(2a)) = sqrt(L*L - dy*dy)
+            //      sinhc(dx/2a) = sqrt(L*L-dy*dy)/dx
+            //      dx/2a = asinhc(sqrt(L^2-dy^2)/dx)
+            //      a = dx/(2*asinhc(sqrt(L^2-dy^2)/dx))
+            if (false)
+            {
+                PRINT(L);
+                PRINT(dy);
+                PRINT(dx);
+                double foo = Math.sqrt(L*L - dy*dy) / dx;
+                double bar = Catenary.asinhc(foo);
+                double baz = MyMath.sinh(bar)/bar;
+                PRINT(foo); // 1.0421906109874948
+                PRINT(bar); // 0.5009200267192209
+                PRINT(baz); // 1.0423479684321144 // ooh that's not good!
+            }
+
+            double s = dx==0. ? 0. :
+                       dx/(2.*Catenary.asinhc(Math.sqrt(L*L - dy*dy) / dx));
+            if (debugLevel >= 2) System.out.println("              s = "+s);
+
+            assert(s != 0.); // XXX so goes to separable, for now
+
+            double b = s==0. ? (x0+x1)/2. :
+                       (x0+x1)/2. - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
+            if (debugLevel >= 2) System.out.println("              b = "+b);
+            double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L*L - dy*dy));
+            if (debugLevel >= 2) System.out.println("              tMid = "+tMid);
+            double t0 = tMid - L/2.;
+            if (debugLevel >= 2) System.out.println("              t0 = "+t0);
+            double t1 = t0 + L;
+            if (debugLevel >= 2) System.out.println("              t1 = "+t1);
+            double c = y0 - Math.sqrt(t0*t0 + s*s); // XXX that sqrt is used several times, should save it
+            if (debugLevel >= 2) System.out.println("              c = "+c);
+            if (maxLengthToIntegrate < L)
+            {
+                if (debugLevel >= 2) System.out.println("                  clamping! = ");
+                L = maxLengthToIntegrate;
+                t1 = t0 + L;
+                x1 = (s==0. ? 0. : s * MyMath.asinh(t1/s)) + b;
+                y1 = Math.sqrt(t1*t1 + s*s) + c;
+                // note, dx,dy no longer right, but we don't use them any more
+                if (debugLevel >= 2) System.out.println("                  L = "+L);
+                if (debugLevel >= 2) System.out.println("                  t1 = "+t1);
+                if (debugLevel >= 2) System.out.println("                  x1 = "+x1);
+                if (debugLevel >= 2) System.out.println("                  y1 = "+y1);
+            }
+
+            double s_times_asinh_t0_over_s = s==0. ? 0. : s*MyMath.asinh(t0/s);
+            double s_times_asinh_t1_over_s = s==0. ? 0. : s*MyMath.asinh(t1/s);
+            double x_part_of_integral_at_t0 = t0*(b + s_times_asinh_t0_over_s) - s*Math.sqrt(t0*t0 + s*s);
+            double x_part_of_integral_at_t1 = t1*(b + s_times_asinh_t1_over_s) - s*Math.sqrt(t1*t1 + s*s);
+            double y_part_of_integral_at_t0 = t0*(c + .5*Math.sqrt(t0*t0+s*s)) + .5*s*s_times_asinh_t0_over_s;
+            double y_part_of_integral_at_t1 = t1*(c + .5*Math.sqrt(t1*t1+s*s)) + .5*s*s_times_asinh_t1_over_s;
+            double x_part_of_integral = x_part_of_integral_at_t1 - x_part_of_integral_at_t0;
+            double y_part_of_integral = y_part_of_integral_at_t1 - y_part_of_integral_at_t0;
+            double integral[] = {x_part_of_integral, y_part_of_integral};
+
+            // Transform integral back into original space.
+            VecMath.vxm(answer, integral, downRotationMatrix);
+            if (vFinal != null)
+            {
+                double temp[] = integral; // reuse memory
+                temp[0] = x1;
+                temp[1] = y1;
+                VecMath.vxm(vFinal, temp, downRotationMatrix);
+            }
+            if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning L="+L);
+            return L;
         }
-        double downRotation = downAngle - (-Math.PI/2);
-        if (debugLevel >= 2) System.out.println("              downRotation = "+downRotation+" = "+RTOD(downRotation)+"deg");
-        double cos = Math.cos(downRotation);
-        double sin = Math.sin(downRotation);
-        // row-oriented rotation matrix
-        // that takes canonical catenary orientation to the one with given downAngle
-        double downRotationMatrix[][] = {{cos,sin},
-                                        {-sin,cos}};
-        // tranform v0 and v1 by inverse of downRotationMatrix,
-        // i.e. into orientation of canonical catenary
-        double invTransformedV0[] = VecMath.mxv(downRotationMatrix, v0);
-        double invTransformedV1[] = VecMath.mxv(downRotationMatrix, v1);
-        if (debugLevel >= 2) System.out.println("              cos = "+cos);
-        if (debugLevel >= 2) System.out.println("              sin = "+sin);
-        if (debugLevel >= 2) System.out.println("              invTransformedV0 = "+VecMath.toString(invTransformedV0));
-        if (debugLevel >= 2) System.out.println("              invTransformedV1 = "+VecMath.toString(invTransformedV1));
-        // Figure out catenary params a,b,c,t0,t1
-        // such that the catenary is:
-        //      x = a*asinh(t/a) + b
-        //      y = sqrt(t^2+a^2) + c
-        // for t=t0 to t1.
-        // XXX TODO put this into class Catenary and CatenaryRotated
-        double x0 = invTransformedV0[0];
-        double y0 = invTransformedV0[1];
-        double x1 = invTransformedV1[0];
-        double y1 = invTransformedV1[1];
-        double dx = x1 - x0;
-        double dy = y1 - y0;
-        double L = MyMath.hypot(dx, dy) + slack;
-        if (debugLevel >= 2) System.out.println("              L = "+L);
+        return Double.NaN; // XXX to shut up compiler-- get rid
 
-        // paper says:
-        //      2*a*sinh(dx/(2*a)) = sqrt(L*L - dy*dy)
-        //      dx*(2a/dx)sinh(dx/(2a)) = sqrt(L*L - dy*dy)
-        //      sinhc(dx/2a) = sqrt(L*L-dy*dy)/dx
-        //      dx/2a = asinhc(sqrt(L^2-dy^2)/dx)
-        //      a = dx/(2*asinhc(sqrt(L^2-dy^2)/dx))
-        if (false)
-        {
-            PRINT(L);
-            PRINT(dy);
-            PRINT(dx);
-            double foo = Math.sqrt(L*L - dy*dy) / dx;
-            double bar = Catenary.asinhc(foo);
-            double baz = MyMath.sinh(bar)/bar;
-            PRINT(foo); // 1.0421906109874948
-            PRINT(bar); // 0.5009200267192209
-            PRINT(baz); // 1.0423479684321144 // ooh that's not good!
-        }
-
-        double s = dx==0. ? 0. :
-                   dx/(2.*Catenary.asinhc(Math.sqrt(L*L - dy*dy) / dx));
-        if (debugLevel >= 2) System.out.println("              s = "+s);
-
-        assert(s != 0.); // XXX so goes to separable, for now
-
-        double b = s==0. ? (x0+x1)/2. :
-                   (x0+x1)/2. - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
-        if (debugLevel >= 2) System.out.println("              b = "+b);
-        double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L*L - dy*dy));
-        if (debugLevel >= 2) System.out.println("              tMid = "+tMid);
-        double t0 = tMid - L/2.;
-        if (debugLevel >= 2) System.out.println("              t0 = "+t0);
-        double t1 = t0 + L;
-        if (debugLevel >= 2) System.out.println("              t1 = "+t1);
-        double c = y0 - Math.sqrt(t0*t0 + s*s); // XXX that sqrt is used several times, should save it
-        if (debugLevel >= 2) System.out.println("              c = "+c);
-        if (maxLengthToIntegrate < L)
-        {
-            if (debugLevel >= 2) System.out.println("                  clamping! = ");
-            L = maxLengthToIntegrate;
-            t1 = t0 + L;
-            x1 = (s==0. ? 0. : s * MyMath.asinh(t1/s)) + b;
-            y1 = Math.sqrt(t1*t1 + s*s) + c;
-            // note, dx,dy no longer right, but we don't use them any more
-            if (debugLevel >= 2) System.out.println("                  L = "+L);
-            if (debugLevel >= 2) System.out.println("                  t1 = "+t1);
-            if (debugLevel >= 2) System.out.println("                  x1 = "+x1);
-            if (debugLevel >= 2) System.out.println("                  y1 = "+y1);
-        }
-
-        double s_times_asinh_t0_over_s = s==0. ? 0. : s*MyMath.asinh(t0/s);
-        double s_times_asinh_t1_over_s = s==0. ? 0. : s*MyMath.asinh(t1/s);
-        double x_part_of_integral_at_t0 = t0*(b + s_times_asinh_t0_over_s) - s*Math.sqrt(t0*t0 + s*s);
-        double x_part_of_integral_at_t1 = t1*(b + s_times_asinh_t1_over_s) - s*Math.sqrt(t1*t1 + s*s);
-        double y_part_of_integral_at_t0 = t0*(c + .5*Math.sqrt(t0*t0+s*s)) + .5*s*s_times_asinh_t0_over_s;
-        double y_part_of_integral_at_t1 = t1*(c + .5*Math.sqrt(t1*t1+s*s)) + .5*s*s_times_asinh_t1_over_s;
-        double x_part_of_integral = x_part_of_integral_at_t1 - x_part_of_integral_at_t0;
-        double y_part_of_integral = y_part_of_integral_at_t1 - y_part_of_integral_at_t0;
-        double integral[] = {x_part_of_integral, y_part_of_integral};
-
-        // Transform integral back into original space.
-        VecMath.vxm(answer, integral, downRotationMatrix);
-        if (vFinal != null)
-        {
-            double temp[] = integral; // reuse memory
-            temp[0] = x1;
-            temp[1] = y1;
-            VecMath.vxm(vFinal, temp, downRotationMatrix);
-        }
-        if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning L="+L);
-        return L;
     } // integralOfCatenaryWithEndpointsRectangular
 
     public static void main(String args[])
     {
+        System.out.println("    in CatenaryRotated.main");
         // Test utilities for integrals
-        // XXX move to Catenary and CatenaryRotated classes
+
+        int testVerboseLevel = 1; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
+
         double downAngles[] = {-Math.PI/2., -Math.PI/4, 0., Math.PI/2, Math.PI};
         double invScales[] = {1., .5, 2., 0.};
         double xTranslates[] = {0., 2., -2.};
@@ -511,9 +555,9 @@ public class CatenaryRotated extends Catenary
             };
             double integral[] = new double[2]; // scratch
 
-            System.out.println("======================");
-            PRINT(x0);
-            PRINT(x1);
+            if (testVerboseLevel >= 1) System.out.println("======================");
+            if (testVerboseLevel >= 1) PRINT(x0);
+            if (testVerboseLevel >= 1) PRINT(x1);
 
             double slack = Math.abs(expectedArcLength) - VecMath.dist(v0,v1);
 
@@ -523,11 +567,11 @@ public class CatenaryRotated extends Catenary
                 double x = 0.;
                 double y = -slack;
                 double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null);
-                PRINT(arcLength);
-                PRINT(expectedArcLength);
+                if (testVerboseLevel >= 1) PRINT(arcLength);
+                if (testVerboseLevel >= 1) PRINT(expectedArcLength);
                 assert(EQ(arcLength, expectedArcLength, 1e-6));
-                PRINTVEC(integral);
-                PRINTVEC(expectedIntegral);
+                if (testVerboseLevel >= 1) PRINTVEC(integral);
+                if (testVerboseLevel >= 1) PRINTVEC(expectedIntegral);
                 assert(VecMath.dist(integral, expectedIntegral) < 1e-6);
             }
 
@@ -543,11 +587,11 @@ public class CatenaryRotated extends Catenary
                 double x = 0.;
                 double y = 0.;
                 double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null);
-                PRINTVEC(integralOfSegment);
-                PRINTVEC(expectedIntegralOfSegment);
+                if (testVerboseLevel >= 1) PRINTVEC(integralOfSegment);
+                if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfSegment);
                 assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
-                PRINT(arcLengthOfSegment);
-                PRINT(expectedArcLengthOfSegment);
+                if (testVerboseLevel >= 1) PRINT(arcLengthOfSegment);
+                if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfSegment);
                 assert(EQ(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6));
             }
 
@@ -560,7 +604,7 @@ public class CatenaryRotated extends Catenary
                 double invScale = invScales[iInvScale];
                 double translate[] = {xTranslates[iXTranslate], yTranslates[iYTranslate]};
 
-                //System.out.println("    downAngle="+RTOD(downAngle)+"deg invScale="+invScale+" translate="+VecMath.toString(translate));
+                if (testVerboseLevel >= 3) System.out.println("    downAngle="+RTOD(downAngle)+"deg invScale="+invScale+" translate="+VecMath.toString(translate));
 
 
                 // we're really doing two fundamentally different tests,
@@ -604,18 +648,19 @@ public class CatenaryRotated extends Catenary
                     double x = xy[0];
                     double y = xy[1];
                     double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null);
-                    //PRINT(arcLengthTransformed);
-                    //PRINT(expectedArcLengthTransformed);
+                    if (testVerboseLevel >= 3) PRINT(arcLengthTransformed);
+                    if (testVerboseLevel >= 3) PRINT(expectedArcLengthTransformed);
                     assert(EQ(arcLengthTransformed, expectedArcLengthTransformed, 1e-6));
-                    //PRINTVEC(integralTransformed);
-                    //PRINTVEC(expectedIntegralTransformed);
+                    if (testVerboseLevel >= 3) PRINTVEC(integralTransformed);
+                    if (testVerboseLevel >= 3) PRINTVEC(expectedIntegralTransformed);
                     assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
                 }
 
-                System.out.print(".");
+                if (testVerboseLevel == 2) System.out.print(".");
             }
-            System.out.println();
+            if (testVerboseLevel == 2) System.out.println();
         } // for x0,x1
+        System.out.println("    out CatenaryRotated.main");
     } // main
 
 }  // CatenaryRotated
