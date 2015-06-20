@@ -9,6 +9,10 @@ package com.donhatchsw.util;
 * in the x,y plane; that is, the graph of the canonical catenary function y=cosh(x)-1,
 * possibly scaled and translated.
 * Very small or large scales including 0 and infinity are handled robustly.
+* However the scale must be nonnegative,
+* which means the x coord is nondecreasing.  If you want a class without
+* this restriction, use Catenary.FlippedMaybe instead.
+*
 * The parameters are the scale s and a "focus point" both on the canonical catenary
 * and in world space:
 *   - scale s
@@ -75,11 +79,11 @@ public class Catenary
         assert(sDenominator >= 0.);
         assert(Math.max(sNumerator, sDenominator) == 1.);
         assert(xFocusDirection >= 0); // no restriction on sign of y
-        PRINT(xFocusDirection);
-        PRINT(yFocusDirection);
-        PRINT(MyMath.hypot(xFocusDirection, yFocusDirection));
+        //PRINT(xFocusDirection);
+        //PRINT(yFocusDirection);
+        //PRINT(MyMath.hypot(xFocusDirection, yFocusDirection));
         double focusDirectionLengthError = MyMath.hypot(xFocusDirection, yFocusDirection) - 1.;
-        assert(SQR(focusDirectionLengthError) + 1. - 1. == 0.);
+        assert(SQR(focusDirectionLengthError) + 1. - 1. == 0.); // implicit tolerance
         if (sNumerator <= sDenominator)
         {
             assert(xFocusDirection == 1.);
@@ -100,7 +104,7 @@ public class Catenary
                     double x1, double y1,
                     double slack)
     {
-        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: more details
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: more details
         if (verboseLevel >= 1) System.out.println("                in Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
         assert(slack >= 0.);
         assert(x0 <= x1);
@@ -333,53 +337,38 @@ public class Catenary
     // Catenary always has non-negative scale,
     // and fit points must satisfy x0<=x1.
     // This class has no such restriction.
+    // The catenary still hangs downward but may be left-right flipped.
     public static class FlippedMaybe extends Catenary
     {
-        public boolean flipped;
+        public boolean leftRightFlipped;
         @Override public void fit(double x0, double y0,
                                   double x1, double y1,
                                   double slack)
         {
             if (x1 < x0)
             {
-                super.fit(x1, y1, x0, y0, slack);
-                this.flipped = true;
+                super.fit(-x0,y0, -x1,y1, slack);
+                this.leftRightFlipped = true;
             }
             else
             {
-                super.fit(x0, y0, x1, y1, slack);
-                this.flipped = false;
+                super.fit(x0,y0, x1,y1, slack);
+                this.leftRightFlipped = false;
             }
         }
         @Override public void evaluate(double t,
                                        double answer[/*2*/])
         {
-            if (this.flipped)
-            {
-                t = (t0+t1) - t; // so t0 becomes t1 and t1 becomes t0
-                super.evaluate(t, answer);
+            super.evaluate(t, answer);
+            if (this.leftRightFlipped)
                 answer[0] *= -1.;
-                answer[1] *= -1.;
-            }
-            else
-            {
-                super.evaluate(t, answer);
-            }
         }
         @Override public void integrate(double t,
                                         double answer[/*2*/])
         {
-            if (this.flipped)
-            {
-                t = (t0+t1) - t; // so t0 becomes t1 and t1 becomes t0
-                super.integrate(t, answer);
+            super.integrate(t, answer);
+            if (this.leftRightFlipped)
                 answer[0] *= -1.;
-                answer[1] *= -1.;
-            }
-            else
-            {
-                super.integrate(t, answer);
-            }
         }
     } // class FlippedMaybe
 

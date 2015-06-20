@@ -340,8 +340,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                                      double answer[/*2*/],
                                                                      double vFinal[/*2*/])
     {
-        int debugLevel = 2; // 0: nothing, 1: in/out, 2: a bit more
-        int fitVerboseLevel = 2;
+        int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
+        int fitVerboseLevel = 0;
         if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsRectangular");
         if (debugLevel >= 2) System.out.println("              v0 = "+VecMath.toString(v0));
         if (debugLevel >= 2) System.out.println("              v1 = "+VecMath.toString(v1));
@@ -510,7 +510,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         System.out.println("    in CatenaryRotated.main");
         // Test utilities for integrals
 
-        int testVerboseLevel = 1; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
+        int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
 
         double downAngles[] = {-Math.PI/2., -Math.PI/4, 0., Math.PI/2, Math.PI};
         double invScales[] = {1., .5, 2., 0.};
