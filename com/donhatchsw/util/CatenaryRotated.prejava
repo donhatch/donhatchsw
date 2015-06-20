@@ -525,9 +525,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             double x0 = x0s[ix0];
             double x1 = x1s[ix1];
 
-            if (x0 > x1)
+            if (x1 < x0)
             {
-                System.out.println("XXX AVOIDING BACKWARDS SINCE IT'S NOT RIGHT YET (and I don't think it's used in practice)");
+                // In constructing the example, we always go left to right.
+                // Don't fret, we'll rotate to all sorts of orientations.
                 continue;
             }
 
@@ -604,12 +605,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double invScale = invScales[iInvScale];
                 double translate[] = {xTranslates[iXTranslate], yTranslates[iYTranslate]};
 
-                if (testVerboseLevel >= 3) System.out.println("    downAngle="+RTOD(downAngle)+"deg invScale="+invScale+" translate="+VecMath.toString(translate));
+                if (testVerboseLevel >= 3) System.out.println("            downAngle="+RTOD(downAngle)+"deg invScale="+invScale+" translate="+VecMath.toString(translate));
 
 
                 // we're really doing two fundamentally different tests,
                 // depending on whether invScale is 0 or not.
                 // I think it ends up exercising everything though.
+                // XXX except near-0 and near-infinity, which we need to exercise too
 
                 double rotateDownAngleToMinusYAxis = -Math.PI/2 - downAngle;
                 double c = Math.cos(rotateDownAngleToMinusYAxis);
@@ -648,11 +650,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     double x = xy[0];
                     double y = xy[1];
                     double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null);
-                    if (testVerboseLevel >= 3) PRINT(arcLengthTransformed);
-                    if (testVerboseLevel >= 3) PRINT(expectedArcLengthTransformed);
+                    if (testVerboseLevel >= 3) System.out.println("                arcLengthTransformed = "+arcLengthTransformed);
+                    if (testVerboseLevel >= 3) System.out.println("                expectedArcLengthTransformed = "+expectedArcLengthTransformed);
                     assert(EQ(arcLengthTransformed, expectedArcLengthTransformed, 1e-6));
-                    if (testVerboseLevel >= 3) PRINTVEC(integralTransformed);
-                    if (testVerboseLevel >= 3) PRINTVEC(expectedIntegralTransformed);
+                    if (testVerboseLevel >= 3) System.out.println("                integralTransformed = "+VecMath.toString(integralTransformed));
+                    if (testVerboseLevel >= 3) System.out.println("                expectedIntegralTransformed = "+VecMath.toString(expectedIntegralTransformed));
                     assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
                 }
 
