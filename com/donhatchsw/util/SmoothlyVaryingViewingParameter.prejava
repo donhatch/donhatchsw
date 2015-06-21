@@ -416,6 +416,7 @@ public class SmoothlyVaryingViewingParameter
                     final double v1[] = v; // on x axis
                     final double desiredIntegral[] = VecMath.vxs(p, A);
                     final boolean inJ[] = {false};
+                    final CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
                     if (verboseLevel >= 2) PRINTVEC(desiredIntegral);
                     NewtonSolver.Fun fun = new NewtonSolver.Fun() {
                         @Override public double[] f(double xy[])
@@ -427,7 +428,8 @@ public class SmoothlyVaryingViewingParameter
                                 xy[0], xy[1],
                                 Double.POSITIVE_INFINITY,
                                 integral,
-                                null); // vFinal
+                                null, // vFinal
+                                scratchCatenaryRotated);
                             if (!inJ[0] && newtonPathFinal != null)
                             {
                                 newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(integral)});
@@ -548,7 +550,8 @@ public class SmoothlyVaryingViewingParameter
                         xyAnswer[0], xyAnswer[1],
                         dt*A, // XXX is this right?
                         partwayIntegral,
-                        vFinal);
+                        vFinal,
+                        scratchCatenaryRotated);
 
                     // XXX undo the temporary fudge
                     v1[0] *= -1;

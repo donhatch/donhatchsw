@@ -55,10 +55,10 @@ package com.donhatchsw.util;
 */
 public class Catenary
 {
-    boolean XXX_TRY_NONTRIVIAL_FOCUS = false;
+    boolean XXX_TRY_NONTRIVIAL_FOCUS = false; // doesn't work yet. need to make it work and get rid of this.
 
     // Scale s, in range [0,infinity].
-    // sNumerator>=1, sDenominator>=1, max(sNumerator,sDenominator)==1.
+    // sNumerator>=0, sDenominator>=0, max(sNumerator,sDenominator)==1.
     public double sNumerator;
     public double sDenominator;
 
