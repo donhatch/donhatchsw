@@ -296,7 +296,7 @@ public class Catenary
         if (sDenominator == 0.)
         {
             // s is infinity
-            assert(false); // coverage; remove when hit
+            //assert(false); // coverage; remove when hit. XXX NOT COVERED BY CONFIDENCE TEST YET! but is covered by demo3
             answer[0] = xFocusInWorld + t * xFocusDirection;
             answer[1] = yFocusInWorld + t * yFocusDirection;
         }

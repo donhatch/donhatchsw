@@ -175,8 +175,7 @@ public class SmoothlyVaryingViewingParameter
         "STRATEGY_TWO_PIECE_QUADRATIC",
         "STRATEGY_TRY_TO_DO_IT_RIGHT",
     };
-    public static int strategy = STRATEGY_SEPARABLE;
-
+    public static int strategy = STRATEGY_SEPARABLE; // DO NOT CHANGE THIS UNLESS YOU ARE CONFIDENT IT WON'T BREAK MC4D
 
     /**
     * Evolves dt seconds towards the target,
@@ -361,6 +360,7 @@ public class SmoothlyVaryingViewingParameter
                     // we will overshoot by exactly distanceBasedBounce.
                     // Worked this out on paper...
                     double A = a * ((1.+distanceBasedBounce)/(1.-distanceBasedBounce));
+                    if (verboseLevel >= 2) PRINT(A);
 
                     // It's easier to think about if we do it backwards,
                     // that is, a trip starting at p=0,v=0
@@ -384,17 +384,27 @@ public class SmoothlyVaryingViewingParameter
                     if (verboseLevel >= 3) PRINTMAT(basis);
                     if (verboseLevel >= 3) PRINT(VecMath.dot(minusVelocity, basis[0]));
                     if (verboseLevel >= 3) PRINT(VecMath.dot(positionDisplacement, basis[1]));
-                    assert(VecMath.dot(minusVelocity, basis[0]) >= 0);
-                    assert(VecMath.dot(positionDisplacement, basis[1]) <= 0);
+                    assert(VecMath.dot(minusVelocity, basis[0]) >= 0.);
+
+                    // I'm seeing it be off by as much as 1e-15 or so
+                    double tol = 1e-12;
+                    if (VecMath.dot(positionDisplacement, basis[1]) > tol)
+                    {
+                        PRINTVEC(positionDisplacement);
+                        PRINTMAT(basis);
+                        PRINT(VecMath.dot(positionDisplacement, basis[1]));
+                    }
+                    assert(VecMath.dot(positionDisplacement, basis[1]) <= tol);
+
                     double v[/*2*/] = VecMath.mxv(basis, minusVelocity);
                     double p[/*2*/] = VecMath.mxv(basis, positionDisplacement);
                     // v should be on non-negative x axis,
                     // p should be in the 3rd or 4th quadrant
                     if (verboseLevel >= 2) PRINTVEC(v);
                     if (verboseLevel >= 2) PRINTVEC(p);
-                    assert(v[0] >= 0);
+                    assert(v[0] >= 0.);
                     assert(EQ(v[1], 0., 1e-6)); // XXX need to make this relative
-                    assert(p[1] <= 0);
+                    assert(p[1] <= tol);
 
                     // We want to find the catenary with end points (0,0),v
                     // and integral p.
@@ -473,7 +483,7 @@ public class SmoothlyVaryingViewingParameter
                             // just get it in the correct quadrant.
                             double xyInitialGuess[] = VecMath.vmv(desiredIntegral,
                                                                   VecMath.vxs(v, .5*VecMath.norm(v)));
-                            if (verboseLevel >= 0) PRINTVEC(xyInitialGuess);
+                            if (verboseLevel >= 2) PRINTVEC(xyInitialGuess);
                             VecMath.copyvec(xyAnswer, xyInitialGuess);
                         }
 
@@ -548,7 +558,9 @@ public class SmoothlyVaryingViewingParameter
                         PRINTVEC(position);
                     }
 
-                    if (arcLength <= dt*A)
+                    // XXX a bit disoriented... how do I tell if it got truncated?
+                    //if (arcLength <= dt*A) // XXX this makes it think we're done wrongly
+                    if (arcLength < dt*A) // XXX this makes it work... I think?
                     {
                         // Done with entire journey!
                         // Position should be target and velocity should be
@@ -556,11 +568,7 @@ public class SmoothlyVaryingViewingParameter
                         // floating point roundoff error.
                         // Set them to exactly what they should be,
                         // so that isMoving()'s criteria will be met.
-                        if (verboseLevel >= 2) PRINT(arcLength);
-                        if (verboseLevel >= 2) PRINT(dt);
-                        if (verboseLevel >= 2) PRINT(A);
-                        if (verboseLevel >= 2) PRINT(dt*A);
-                        if (verboseLevel >= 2) System.out.println("Done!");
+                        if (verboseLevel >= 2) System.out.println("Done with entire journey because arcLength="+arcLength+" <= (dt="+dt+" * A="+A+")="+(dt*A)+"");
                         VecMath.zerovec(velocity);
                         VecMath.copyvec(position, targetPosition);
                         if (verboseLevel >= 2)
@@ -13354,8 +13362,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     private static void interactiveDemo3()
     {
         final int eventVerbose = 0; // set to something else to debug
-        strategy = STRATEGY_SEPARABLE;
+        //strategy = STRATEGY_SEPARABLE;
         //strategy = STRATEGY_TWO_PIECE_QUADRATIC;
+        strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
@@ -13393,7 +13402,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         double frac = i/(n-1.); // uniform from 0 to 1 inclusive
                         referenceTripDistancesInPixels[i] = Math.pow(1., 1-frac)
                                                           * Math.pow(maxDistance, frac);
-                        referenceTripTimesInRepaints[i] = 1.;
+                        //referenceTripTimesInRepaints[i] = 1.; // XXX right when separable or quadratic, too slow when try_to_do_it_right
+                        referenceTripTimesInRepaints[i] = .2;
+                        //referenceTripTimesInRepaints[i] = .1; // XXX usable when try_to_do_it_right... but so fast it messes up I think
 
                         points[i].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
                         points[i].setVelocity(new double[]{0,.25}); // northward a bit
