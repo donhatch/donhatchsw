@@ -13403,7 +13403,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         referenceTripDistancesInPixels[i] = Math.pow(1., 1-frac)
                                                           * Math.pow(maxDistance, frac);
                         //referenceTripTimesInRepaints[i] = 1.; // XXX right when separable or quadratic, too slow when try_to_do_it_right
-                        referenceTripTimesInRepaints[i] = .2;
+                        referenceTripTimesInRepaints[i] = .2; // XXX seems rock solid but still frustratingly slow when try_to_do_it_right
+                        //referenceTripTimesInRepaints[i] = .19; // XXX messes up
+                        //referenceTripTimesInRepaints[i] = .18; // XXX messes up
+                        //referenceTripTimesInRepaints[i] = .15; // XXX messes up a little... bounces, in a bad way, when it's not supposed to
+                        //referenceTripTimesInRepaints[i] = .14; // XXX messes up a little
+                        //referenceTripTimesInRepaints[i] = .13; // XXX messes up a little
+                        //referenceTripTimesInRepaints[i] = .12; // XXX messes up a little
                         //referenceTripTimesInRepaints[i] = .1; // XXX usable when try_to_do_it_right... but so fast it messes up I think
 
                         points[i].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
@@ -13434,6 +13440,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 // Really viewing params...
                 boolean showAccelerations = false;
                 boolean showVelocities = false;
+                boolean biggerIsFaster = true;
             }
             class Controller
             {
@@ -13518,7 +13525,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     //int pointSize = 2*i + 1; // 1, 3, 5, ...
                     //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
                     //int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
-                    int pointSize = 2*i + 2; // 2, 4, 6, ...
+                    //int pointSize = 2*i + 2; // 2, 4, 6, ...
+                    int pointSize;
+                    if (view.biggerIsFaster)
+                        pointSize = 2*i + 2; // 2, 4, 6, ...
+                    else
+                        pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
+
                     model.points[i].get(position);
                     model.points[i].getVelocity(velocity);
                     mg.setColor(model.colors[i]);
@@ -13590,6 +13603,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         {
                             model.distanceBasedBounce += .05;
                             PRINT(model.distanceBasedBounce);
+                            repaint();
+                        }
+                        else if (c == 'f')
+                        {
+                            view.biggerIsFaster ^= true;
+                            PRINT(view.biggerIsFaster);
                             repaint();
                         }
                         else if (c == 'B')
