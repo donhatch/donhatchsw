@@ -102,7 +102,9 @@ public class Catenary
             else
             {
                 if (t0 > 0. || t1 < 0.)
-                    OUT("WARNING: not enforcing validity");
+                {
+                    //OUT("WARNING: not enforcing nontrivial focus");
+                }
             }
         }
         assert(t0 <= t1);
@@ -115,7 +117,7 @@ public class Catenary
                     double x1, double y1,
                     double slack)
     {
-        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: more details
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: more details
         if (verboseLevel >= 1) System.out.println("                        in Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
         assert(slack >= 0.);
         assert(x0 <= x1);
@@ -223,10 +225,10 @@ public class Catenary
                         double yFocusInWorldOld = this.yFocusInWorld;
                         double t0Old = this.t0;
                         double t1Old = this.t1;
-                        PRINT(xFocusInWorldOld);
-                        PRINT(yFocusInWorldOld);
-                        PRINT(t0Old);
-                        PRINT(t1Old);
+                        if (verboseLevel >= 2) PRINT(xFocusInWorldOld);
+                        if (verboseLevel >= 2) PRINT(yFocusInWorldOld);
+                        if (verboseLevel >= 2) PRINT(t0Old);
+                        if (verboseLevel >= 2) PRINT(t1Old);
 
                         // Anything with T in it, here,
                         // is a measurement from the apex of the canonical catenary.
@@ -261,7 +263,7 @@ public class Catenary
                         }
                         else
                         {
-                            System.out.println("WARNING: not doing nontrivial focus");
+                            //System.out.println("WARNING: not doing nontrivial focus");
                         }
                     }
                 }
@@ -321,7 +323,7 @@ public class Catenary
     public void integrate(double t,
                           double answer[/*2*/])
     {
-        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: more details
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: more details
         if (verboseLevel >= 1) System.out.println("                in Catenary.integrate(t="+t+")");
 
         assertValid();
