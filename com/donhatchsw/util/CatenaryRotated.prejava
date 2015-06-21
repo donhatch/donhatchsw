@@ -27,9 +27,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     double answer[/*2*/])
     {
         super.integrate(t, answer);
-        PRINTVEC(answer);
         rotate(this.cosRotation, this.sinRotation, answer[0], answer[1], answer);
-        PRINTVEC(answer);
     }
     /**
     * Set members to be the parameters of the catenary
@@ -132,7 +130,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                           double x, double y, // slack,downAngle in rectangular coords
                                           int verboseLevel)
     {
-        if (verboseLevel >= 1) System.out.println("        in CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
+        if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
         double slack = MyMath.hypot(x, y);
         double downAngle = Math.atan2(y, x);
         double cosDownAngle = Math.cos(downAngle);
@@ -140,7 +138,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         // note cosDownAngle,sinDownAngle are just x,y normalized, robustly.
         // if I had a robust normalization function that I trusted, I'd use that instead.
         this.fitFromPolarCoords(x0,y0, x1,y1, slack, cosDownAngle, sinDownAngle, verboseLevel);
-        if (verboseLevel >= 1) System.out.println("        out CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
+        if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
     } // fitFromRectangularCoords
 
     private void fitFromPolarCoords(double x0, double y0,
@@ -150,7 +148,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     double sinDownAngle,
                                     int verboseLevel)
     {
-        if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromPolarCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+" c="+cosDownAngle+" s="+sinDownAngle+")");
+        if (verboseLevel >= 1) System.out.println("                    in CatenaryRotated.fitFromPolarCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+" c="+cosDownAngle+" s="+sinDownAngle+")");
         // rotation = downAngle - (-pi/2)
         this.cosRotation = -sinDownAngle;
         this.sinRotation = cosDownAngle;
@@ -161,7 +159,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         super.fit(x0Unrotated, y0Unrotated, 
                   x1Unrotated, y1Unrotated,
                   slack);
-        if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromPolarCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+" c="+cosDownAngle+" s="+sinDownAngle+")");
+        if (verboseLevel >= 1) System.out.println("                    out CatenaryRotated.fitFromPolarCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+" c="+cosDownAngle+" s="+sinDownAngle+")");
     } // fitFromPolarCoords
 
     private static final double xPartOfRotated(double cosRotation, double sinRotation, double x, double y)
@@ -401,6 +399,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 continue;
             }
 
+            if (testVerboseLevel >= 1) System.out.println("      ===============================================================");
+            if (testVerboseLevel >= 1) System.out.println("      x0 = "+x0);
+            if (testVerboseLevel >= 1) System.out.println("      x1 = "+x1);
+
             double sinhx0 = MyMath.sinh(x0);
             double sinhx1 = MyMath.sinh(x1);
             double coshx0 = MyMath.cosh(x0);
@@ -424,10 +426,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 ((sinhx1*coshx1+x1)-(sinhx0*coshx0+x0))*.5,
             };
             double integral[] = new double[2]; // scratch
-
-            if (testVerboseLevel >= 1) System.out.println("======================");
-            if (testVerboseLevel >= 1) PRINT(x0);
-            if (testVerboseLevel >= 1) PRINT(x1);
 
             double slack = Math.abs(expectedArcLength) - VecMath.dist(v0,v1);
 
@@ -474,6 +472,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double invScale = invScales[iInvScale];
                 double translate[] = {xTranslates[iXTranslate], yTranslates[iYTranslate]};
 
+                if (testVerboseLevel >= 3) System.out.println("            ---------------------------------------------------------------");
                 if (testVerboseLevel >= 3) System.out.println("            downAngle="+RTOD(downAngle)+"deg invScale="+invScale+" translate="+VecMath.toString(translate));
 
 
@@ -528,8 +527,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
 
                 if (testVerboseLevel == 2) System.out.print(".");
+                if (testVerboseLevel >= 3) System.out.println("            ---------------------------------------------------------------");
             }
             if (testVerboseLevel == 2) System.out.println();
+            if (testVerboseLevel >= 1) System.out.println("      ===============================================================");
         } // for x0,x1
         System.out.println("    out CatenaryRotated.main");
     } // main

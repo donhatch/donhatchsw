@@ -1152,6 +1152,9 @@ public class SmoothlyVaryingViewingParameter
 
 
 #ifdef NOTYET_MAYBE_NEVER
+    // XXX at this moment I don't remember what this was for, and why I had it at one point and not any more.
+    // XXX it might have some comments I might want to salvage.
+
     // utility function, evolves p and v
     // towards zero position and velocity.
     private static void update_p_and_v(double p[],

@@ -25,7 +25,7 @@ package com.donhatchsw.util;
 *        = yFocusInWorld + (sqrt((t + TFocus*s)^2 + s^2) - s)
 * Robustness is achieved, in part, by the following techniques:
 *   - s is represented as a non-negative numerator and a denominator,
-*     either (but not both) of which may be zero.
+*     either (but not both) of which may be zero, and the max of which is 1.
 *   - TFocus,XFocus,YFocus are represented implicitly by "focusDirection" which is the tangent unit
 *     direction vector of the function at the focus point (both in canonical catenary space
 *     and in world space).
@@ -48,13 +48,15 @@ package com.donhatchsw.util;
 *   xFocusDirection >= 0 (no sign restriction on y)
 *   xFocusDirection^2 + yFocusDirection^2 = 1
 *   when s<=1, focusDirection=(1,0)
-*   when s>=1, and fitting to two sample points, the focus must be between the two
+*   when s>1, and fitting to two sample points, the focus must be between the two
 *              sample points.
 *              XXX maybe focusDirection should be from first toward second sample point? not sure
 *   XXX when s<=1 can the slope be represented as / replaced by t distance from apex in world space?  and when s>=1 it's the t disance from apex in canon space.  hmm, maybe some elegant formulation hidden in here that I'm not quite getting.
 */
 public class Catenary
 {
+    boolean XXX_TRY_NONTRIVIAL_FOCUS = false;
+
     // Scale s, in range [0,infinity].
     // sNumerator>=1, sDenominator>=1, max(sNumerator,sDenominator)==1.
     public double sNumerator;
@@ -92,8 +94,16 @@ public class Catenary
         }
         else
         {
-            assert(t0 <= 0.);
-            assert(t1 >= 0.);
+            if (XXX_TRY_NONTRIVIAL_FOCUS)
+            {
+                assert(t0 <= 0.);
+                assert(t1 >= 0.);
+            }
+            else
+            {
+                if (t0 > 0. || t1 < 0.)
+                    OUT("WARNING: not enforcing validity");
+            }
         }
         assert(t0 <= t1);
     }
@@ -105,15 +115,15 @@ public class Catenary
                     double x1, double y1,
                     double slack)
     {
-        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: more details
-        if (verboseLevel >= 1) System.out.println("                in Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
+        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: more details
+        if (verboseLevel >= 1) System.out.println("                        in Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
         assert(slack >= 0.);
         assert(x0 <= x1);
         double dx = x1 - x0;
         double dy = y1 - y0;
         if (slack == 0.) // XXX TODO: need better condition
         {
-            if (verboseLevel >= 1) System.out.println("                    slack=0 s=infinity case");
+            if (verboseLevel >= 1) System.out.println("                          slack=0 s=infinity case");
             // s is infinity
             //assert(false); // coverage; remove when hit
             this.sNumerator = 1.;
@@ -137,7 +147,7 @@ public class Catenary
         }
         else if (dx == 0.) // XXX TODO: need better condition
         {
-            if (verboseLevel >= 1) System.out.println("                    dx=0 s=0 case");
+            if (verboseLevel >= 1) System.out.println("                          dx=0 s=0 case");
             // s is zero
             assert(false); // coverage; remove when hit
             this.sNumerator = 0.;
@@ -151,14 +161,15 @@ public class Catenary
         }
         else
         {
-            if (verboseLevel >= 1) System.out.println("                    s finite and nonzero case");
+            if (verboseLevel >= 1) System.out.println("                          s finite and nonzero case");
             // s is finite and nonzero
             //assert(false); // coverage; remove when hit
             double L = MyMath.hypot(dx, dy) + slack;
             // XXX TODO: make the following totally robust even if s is very large or small
             double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
-            if (s < 1.)
+            if (s <= 1.)
             {
+                if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: focus at apex");
                 //assert(false); // coverage; remove when hit
                 this.sNumerator = s;
                 this.sDenominator = 1.;
@@ -178,6 +189,7 @@ public class Catenary
             }
             else
             {
+                if (verboseLevel >= 1) System.out.println("                              s>1 subcase: focus not at apex");
                 //assert(false); // coverage; remove when hit
                 this.sNumerator = 1.;
                 this.sDenominator = 1./s;
@@ -200,69 +212,73 @@ public class Catenary
                                        - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
                     this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
 
-                    // Adjust to meet validity criteria: t0<=0, t1>=0.
 
-                    // Switch focus from 0 (apex of catenary) to tMid (measured from apex of catenary)
+                    if (true)
+                    {
+                        // Adjust to meet validity criteria: t0<=0, t1>=0.
 
-                    double xFocusInWorldOld = this.xFocusInWorld;
-                    double yFocusInWorldOld = this.yFocusInWorld;
-                    double t0Old = this.t0;
-                    double t1Old = this.t1;
+                        // Switch focus from 0 (apex of catenary) to tMid (measured from apex of catenary)
 
-                    // Anything with T in it, here,
-                    // is a measurement from the apex of the canonical catenary.
-                    double TFocusOld = 0.;
-                    double XFocusOld = 0.;
-                    double YFocusOld = 0.;
-                    double T0Old = t0Old / s;
-                    double T1Old = t1Old / s;
+                        double xFocusInWorldOld = this.xFocusInWorld;
+                        double yFocusInWorldOld = this.yFocusInWorld;
+                        double t0Old = this.t0;
+                        double t1Old = this.t1;
+                        PRINT(xFocusInWorldOld);
+                        PRINT(yFocusInWorldOld);
+                        PRINT(t0Old);
+                        PRINT(t1Old);
 
-                    double TFocusNew = tMid / s;
-                    double XFocusNew = MyMath.asinh(TFocusNew);
-                    double YFocusNew = Math.sqrt(SQR(TFocusNew)+1.)-1.;
-                    double t0New = (T0Old - TFocusNew) * s;
-                    double t1New = (T1Old - TFocusNew) * s;
-                    double xFocusInWorldNew = xFocusInWorldOld + (XFocusNew-XFocusOld) * s;
-                    double yFocusInWorldNew = yFocusInWorldOld + (YFocusNew-YFocusOld) * s;
-                    double focusSlopeNew = TFocusNew;
-                    double xFocusDirectionNew = 1.;
-                    double yFocusDirectionNew = focusSlopeNew;
-                    double temp = Math.hypot(xFocusDirectionNew, yFocusDirectionNew);
-                    xFocusDirectionNew /= temp;
-                    yFocusDirectionNew /= temp;
+                        // Anything with T in it, here,
+                        // is a measurement from the apex of the canonical catenary.
+                        double TFocusOld = 0.;
+                        double XFocusOld = 0.;
+                        double YFocusOld = 0.;
+                        double T0Old = t0Old / s;
+                        double T1Old = t1Old / s;
 
-                    this.t0 = t0New;
-                    this.t1 = t1New;
-                    this.xFocusInWorld = xFocusInWorldNew;
-                    this.yFocusInWorld = yFocusInWorldNew;
-                    this.xFocusDirection = xFocusDirection;
-                    this.yFocusDirection = yFocusDirection;
+                        double TFocusNew = tMid / s;
+                        double XFocusNew = MyMath.asinh(TFocusNew);
+                        double YFocusNew = Math.sqrt(SQR(TFocusNew)+1.)-1.;
+                        double t0New = (T0Old - TFocusNew) * s;
+                        double t1New = (T1Old - TFocusNew) * s;
+                        double xFocusInWorldNew = xFocusInWorldOld + (XFocusNew-XFocusOld) * s;
+                        double yFocusInWorldNew = yFocusInWorldOld + (YFocusNew-YFocusOld) * s;
+                        double focusSlopeNew = TFocusNew;
+                        double xFocusDirectionNew = 1.;
+                        double yFocusDirectionNew = focusSlopeNew;
+                        double temp = Math.hypot(xFocusDirectionNew, yFocusDirectionNew);
+                        xFocusDirectionNew /= temp;
+                        yFocusDirectionNew /= temp;
+
+                        if (XXX_TRY_NONTRIVIAL_FOCUS)
+                        {
+                            this.t0 = t0New;
+                            this.t1 = t1New;
+                            this.xFocusInWorld = xFocusInWorldNew;
+                            this.yFocusInWorld = yFocusInWorldNew;
+                            this.xFocusDirection = xFocusDirection;
+                            this.yFocusDirection = yFocusDirection;
+                        }
+                        else
+                        {
+                            System.out.println("WARNING: not doing nontrivial focus");
+                        }
+                    }
                 }
             }
-
-
-
-            /*
-            y = yFocusInWorld + sqrt(t*t + s*s) - s;
-            yAtTmid = yFocusInWorld + sqrt(tMid*tMid + s*s) - s;
-            yFocusInWorld
-            */
         }
         if (verboseLevel >= 1)
         {
-            System.out.println("                  sNumerator = "+this.sNumerator);
-            System.out.println("                  sDenominator = "+this.sDenominator);
-            System.out.println("                  xFocusDirection = "+this.xFocusDirection);
-            System.out.println("                  yFocusDirection = "+this.yFocusDirection);
-            System.out.println("                  xFocusInWorld = "+this.xFocusInWorld);
-            System.out.println("                  yFocusInWorld = "+this.yFocusInWorld);
-            System.out.println("                  t0 = "+this.t0);
-            System.out.println("                  t0 = "+this.t1);
+            System.out.println("                          s= "+this.sNumerator+"/"+this.sDenominator+" = "+(this.sNumerator/this.sDenominator));
+            System.out.println("                          focusDirection = "+this.xFocusDirection+" "+this.yFocusDirection);
+            System.out.println("                          focusInWorld = "+this.xFocusInWorld+" "+this.yFocusInWorld);
+            System.out.println("                          t0 = "+this.t0);
+            System.out.println("                          t1 = "+this.t1);
 
         }
 
         assertValid();
-        if (verboseLevel >= 1) System.out.println("                out Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
+        if (verboseLevel >= 1) System.out.println("                        out Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
     } // fit
 
 
@@ -342,7 +358,6 @@ public class Catenary
             double T = TFocus;
             answer[0] = xFocusInWorld*t + s*((s*T+t)*MyMath.asinh(t/s+T) - Math.sqrt(SQR(s*T+t) + s*s));
             answer[1] = (yFocusInWorld-s)*t + .5*(s*s)*(Math.sqrt(SQR(t/s+T)+1)*(t/s+T) + MyMath.asinh(t/s+T));
-            PRINTVEC(answer);
 
             // XXX maybe use this from previous implementation?
             // XXX it wasn't as general, but it's a very interesting formulation!
@@ -423,7 +438,6 @@ public class Catenary
             super.integrate(t, answer);
             if (this.leftRightFlipped)
                 answer[0] *= -1.;
-            PRINTVEC(answer);
         }
     } // class FlippedMaybe
 
