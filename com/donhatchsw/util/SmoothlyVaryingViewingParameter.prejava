@@ -476,58 +476,6 @@ public class SmoothlyVaryingViewingParameter
                             if (verboseLevel >= 0) PRINTVEC(xyInitialGuess);
                             VecMath.copyvec(xyAnswer, xyInitialGuess);
                         }
-                        else // tried this when solving for invCatScale directly... maybe improved the situation a little but not much. XXX get rid
-                        {
-                            // Try to make an initial guess based on desired moment.
-                            // All this is sort of dog science, but...
-                            //     moment ~= length * centroid
-                            //            ~= (||apex||*2) * (apex/2)
-                            //             = ||apex||*apex
-                            //             = ||apex||^2 * (apex normalized)
-                            // Therefore
-                            //     apex = sqrt(||moment||) * (moment normalized)
-                            //          = moment / sqrt(||moment||)
-                            double guessApexMagnitude = Math.sqrt(VecMath.norm(desiredIntegral));
-                            assert(guessApexMagnitude != 0.); // XXX what do we need to adjust so this doesn't happen?
-                            double guessApex[] = VecMath.vxs(desiredIntegral, 1./guessApexMagnitude);
-                            // Also
-                            //     ||apex|| = (cosh(||v||cos(theta)/2 / catscale) - 1) * catscale
-                            double pNormalized[] = VecMath.normalize(p); // XXX uh oh, what if p is 0? really need to measure from (v/2)^2 or something similar
-                            double cosTheta = -pNormalized[1];
-                            if (verboseLevel >= 2) PRINT(cosTheta);
-                            assert(cosTheta > 0.);
-                            double thing = VecMath.norm(v)*cosTheta/2.;
-                            // Want catscale such that ||apex|| = (cosh(thing/catcale)-1)*catscale  possibly without the -1.
-                            // Do some binary searching to find catScale that works.
-                            // (something related to lambert W function if we replace cosh with exp)
-                            double lo = .01;
-                            double hi = 100.;
-                            double guessInvCatScale;
-                            int nIters = 0;
-                            while (true)
-                            {
-                                double mid = (lo + hi) * .5;
-                                if (mid == lo || mid == hi)
-                                {
-                                    guessInvCatScale = mid;
-                                    break;
-                                }
-                                // the -1 doesn't seem to make much difference, at least on things I've tried
-                                double apexMagnitudeMaybe = (Math.cosh(thing*mid) - 1) / mid;
-                                //double apexMagnitudeMaybe = (Math.cosh(thing*mid)) / mid;
-                                if (apexMagnitudeMaybe < guessApexMagnitude) // too low
-                                    lo = mid;
-                                else // too high
-                                    hi = mid;
-                                nIters++;
-                                assert(nIters < 100); // typically 50something
-                            }
-                            if (verboseLevel >= 2) PRINT(nIters);
-                            double xyLengthGuess = guessInvCatScale * cosTheta;
-                            double xyInitialGuess[] = VecMath.vxs(pNormalized, xyLengthGuess);
-                            if (verboseLevel >= 2) PRINTVEC(xyInitialGuess);
-                            VecMath.copyvec(xyAnswer, xyInitialGuess);
-                        }
 
                         double stepScale = 1.;
                         //double stepScale = .1;
