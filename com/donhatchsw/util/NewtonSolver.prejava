@@ -6,10 +6,18 @@ public class NewtonSolver
 {
     public abstract static class Fun
     {
+        private double xplusdx[/*x.length*/]; // scratch for J
+        private double f_xplusdx[/*fx.length*/]; // scratch for J
+        public Fun(int dim)
+        {
+            xplusdx = new double[dim];
+            f_xplusdx = new double[dim];
+        }
+
         /**
         * Derived class must implement f
         */
-        public abstract double[] f(double x[]);
+        public abstract void f(double x[], double answer[]);
         /**
         * Derived class may implement jacobian if they wish.
         * if they don't, they will get this default
@@ -18,25 +26,20 @@ public class NewtonSolver
         * The fx that is passed to this function during a newton solve is always f(x),
         * in case the computation of J(x) finds it useful.
         */
-        public double[][] J(double x[], double fx[])
+        public void J(double x[], double fx[], double answer[/*x.length*/][/*fx.length*/])
         {
-            double answer[][] = new double[x.length][fx.length];
             double dx = eps();
             double invdx = 1./dx;
-            double xplusdx[] = VecMath.copyvec(x); // scratch
-            FORI (i, x.length)
+            VecMath.copyvec(xplusdx, x); // into scratch
+            FORI (iCol, x.length)
             {
-                xplusdx[i] += dx;
-                VecMath.setcolumn(answer,
-                                  i,
-                                  VecMath.vxs(
-                                      VecMath.vmv(f(xplusdx),
-                                                  fx),
-                                      invdx));
-                xplusdx[i] = x[i];
+                xplusdx[iCol] += dx; // temporarily change just this entry
+                f(xplusdx, f_xplusdx); // f_xplusdx = f(xplusdx);
+                FORI (iRow, fx.length)
+                    answer[iRow][iCol] = (f_xplusdx[iRow]-fx[iRow]) * invdx;
+                xplusdx[iCol] = x[iCol]; // restore this entry
             }
             //PRINTMAT(answer);
-            return answer;
         }
         // the default J() uses this for the finite difference.
         // derived classes may implement this
@@ -63,14 +66,18 @@ public class NewtonSolver
         double prevPrevErrorLengthSqrd = Double.POSITIVE_INFINITY;
         double prevErrorLengthSqrd = Double.POSITIVE_INFINITY;
         int minIterations = 10; // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm.
+        double fx[] = new double[y.length]; // scratch
+        double error[] = new double[y.length]; // scratch
+        double Jx[][] = new double[x.length][fx.length]; // scratch
+
         FORI (iIter, maxIterations)
         {
             if (debug) PRINT(iIter);
             if (debug) PRINTVEC(x);
             if (debug) PRINTVEC(y);
 
-            double fx[] = fun.f(x);
-            double error[] = VecMath.vmv(fx, y);
+            fun.f(x, fx); // fx = f(x);
+            VecMath.vmv(error, fx, y);
             double errorLengthSqrd = VecMath.normsqrd(error);
             if (debug) PRINT(errorLengthSqrd);
             if (Double.isNaN(errorLengthSqrd) || Double.isInfinite(errorLengthSqrd))
@@ -98,7 +105,7 @@ public class NewtonSolver
             //                    x = xGuess + J^-1 * (y - f(xGuess))
 
 
-            double Jx[][] = fun.J(x, fx);
+            fun.J(x, fx, Jx); // Jx = J(x, fx)
 
             // Sanity check J, so we don't get assert fails down in invmxv
             for (int i = 0; i < Jx.length; ++i)
@@ -124,10 +131,10 @@ public class NewtonSolver
         System.out.println("    in NewtonSolver.main");
         {
             // Find x such that x^2 == 100, with starting guess of 9
-            Fun fun = new Fun() {
-                @Override public double[] f(double x[])
+            Fun fun = new Fun(1) {
+                @Override public void f(double x[], double fx[])
                 {
-                    return new double[]{x[0]*x[0]};
+                    fx[0] = x[0]*x[0];
                 }
             };
             double x[] = {9}; // initial guess
@@ -138,13 +145,11 @@ public class NewtonSolver
         {
             // find x0,x1 such that {x0*x0,x0*x1} == {100,200}
             // (answer is 10,20)
-            Fun fun = new Fun() {
-                @Override public double[] f(double x[])
+            Fun fun = new Fun(2) {
+                @Override public void f(double x[], double fx[])
                 {
-                    return new double[] {
-                        x[0]*x[0],
-                        x[0]*x[1],
-                    };
+                  fx[0] = x[0]*x[0];
+                  fx[1] = x[0]*x[1];
                 }
             };
             double x[] = {5,25}; // initial guess

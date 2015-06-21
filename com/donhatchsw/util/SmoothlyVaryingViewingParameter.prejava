@@ -436,8 +436,8 @@ public class SmoothlyVaryingViewingParameter
                         final com.donhatchsw.compat.ArrayList newtonPathFinal = newtonPath;
                         final boolean inJ[] = {false};
                         if (verboseLevel >= 2) PRINTVEC(desiredIntegral);
-                        NewtonSolver.Fun fun = new NewtonSolver.Fun() {
-                            @Override public double[] f(double xy[])
+                        NewtonSolver.Fun fun = new NewtonSolver.Fun(2) {
+                            @Override public void f(double xy[], double answerIntegral[])
                             {
                                 if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
                                 double integral[] = new double[2];
@@ -445,7 +445,7 @@ public class SmoothlyVaryingViewingParameter
                                     v0, v1,
                                     xy[0], xy[1],
                                     Double.POSITIVE_INFINITY,
-                                    integral,
+                                    answerIntegral,
                                     null, // vFinal
                                     scratchCatenaryRotated);
                                 if (!inJ[0] && newtonPathFinal != null)
@@ -453,16 +453,14 @@ public class SmoothlyVaryingViewingParameter
                                     newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(integral)});
                                 }
                                 if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
-                                return integral;
                             }
-                            @Override public double[][] J(double xy[], double fxy[])
+                            @Override public void J(double xy[], double fxy[], double answer[][])
                             {
                                 if (verboseLevelFinal >= 2) System.out.println("            in J");
-                                double[][] answer = null;
                                 inJ[0] = true;
                                 try
                                 {
-                                    answer = super.J(xy, fxy);
+                                    super.J(xy, fxy, answer);
                                 }
                                 finally
                                 {
@@ -470,7 +468,6 @@ public class SmoothlyVaryingViewingParameter
                                 }
                                 if (verboseLevelFinal >= 2) PRINTMAT(answer);
                                 if (verboseLevelFinal >= 2) System.out.println("            out J");
-                                return answer;
                             }
                         };
 
@@ -11624,12 +11621,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 protected boolean twoQuadraticsMode;
                 public MyFun(double p0[], double v0[], double sign_t1, boolean twoQuadraticsMode)
                 {
+                    super(4);
                     this.p0 = p0;
                     this.v0 = v0;
                     this.sign_t1 = sign_t1;
                     this.twoQuadraticsMode = twoQuadraticsMode;
                 }
-                @Override public double[] f(double x[])
+                @Override public void f(double x[], double answer[])
                 {
                     double A0[] = {x[0],x[1]};
                     double At1[] = {x[2],x[3]};
@@ -11637,7 +11635,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     double A1[] = VecMath.lerp(A0, At1, 1./t1);
                     double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode);
                     double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode);
-                    return new double[] {vt1[0],vt1[1],pt1[0],pt1[1]};
+                    answer[0] = vt1[0];
+                    answer[1] = vt1[1];
+                    answer[2] = pt1[0];
+                    answer[3] = pt1[1];
                 }
             } // class MyFun
 
@@ -11649,8 +11650,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     super(p0, v0, sign_t1, twoQuadraticsMode);
                 }
 
-                @Override public double[][] J(double x[],
-                                              double fx[]) // unused
+                @Override public void J(double x[],
+                                        double fx[], // unused
+                                        double answer[][])
                 {
                     double A0[] = {x[0],x[1]};
                     double At1[] = {x[2],x[3]};
@@ -11658,8 +11660,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     double A1[] = VecMath.lerp(A0, At1, 1./t1);
                     double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode);
                     double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode);
-                    double answer[][] = calcVelocityAndPositionJacobianWithRespectToA0At1(p0,v0,A0,At1,sign_t1, twoQuadraticsMode);
-                    return answer;
+                    VecMath.copymat(answer, calcVelocityAndPositionJacobianWithRespectToA0At1(p0,v0,A0,At1,sign_t1, twoQuadraticsMode)); // XXX memory allocation
+                    assert(false); // coverage  XXX currently never called
                 }
             } // class MyFunTryingToBeSmart
 
@@ -11674,7 +11676,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             {
                 int nIters = 10;
 
-                //NewtonSolver.Fun fun = new MyFunTryingToBeSmart(p0,v0,sign_t1,twoQuadraticsMode); // bombs :-(
+                //NewtonSolver.Fun fun = new MyFunTryingToBeSmart(p0,v0,sign_t1,twoQuadraticsMode); // bombs :-(   XXX does that mean the thousands of lines of code are for naught??? wtf? look into this
                 NewtonSolver.Fun fun = new MyFun(p0,v0,sign_t1,twoQuadraticsMode);
 
                 // Newton solve:

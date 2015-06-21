@@ -68,8 +68,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         final double x1final = x1;
         final double y1final = y1;
 
-        NewtonSolver.Fun fun = new NewtonSolver.Fun() {
-            @Override public double[] f(double xy[])
+        NewtonSolver.Fun fun = new NewtonSolver.Fun(2) {
+            @Override public void f(double xy[], double answerIntegral[])
             {
                 if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
 
@@ -78,31 +78,28 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 self.fitFromRectangularCoords(x0final,y0final, x1final,y1final, xy[0], xy[1], fitVerboseLevelFinal);
 
                 double integral[] = new double[2]; // XXX wtf? change NewtonSolver so it doesn't require allocating a new thing each time
-                self.integrate(self.t0, self.t1, integral);
+                self.integrate(self.t0, self.t1, answerIntegral);
 
                 if (!inJ[0] && newtonPathFinal != null)
                 {
                     newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(integral)});
                 }
                 if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
-                return integral;
             }
-            @Override public double[][] J(double xy[], double fxy[])
+            @Override public void J(double xy[], double fxy[], double answerJacobian[][])
             {
                 if (verboseLevelFinal >= 2) System.out.println("            in J");
-                double[][] answer = null;
                 inJ[0] = true;
                 try
                 {
-                    answer = super.J(xy, fxy);
+                    super.J(xy, fxy, answerJacobian);
                 }
                 finally
                 {
                     inJ[0] = false; // executed even on the way out of a throw
                 }
-                if (verboseLevelFinal >= 2) PRINTMAT(answer);
+                if (verboseLevelFinal >= 2) PRINTMAT(answerJacobian);
                 if (verboseLevelFinal >= 2) System.out.println("            out J");
-                return answer;
             }
         };
 
