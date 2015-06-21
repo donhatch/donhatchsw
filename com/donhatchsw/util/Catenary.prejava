@@ -55,7 +55,8 @@ package com.donhatchsw.util;
 */
 public class Catenary
 {
-    boolean XXX_TRY_NONTRIVIAL_FOCUS = false; // doesn't work yet. need to make it work and get rid of this.
+    public boolean XXX_TRY_NONTRIVIAL_FOCUS = false; // doesn't work yet. need to make it work and get rid of this.
+    public boolean XXX_USE_SIMPLE_PROTECTION = true;
 
     // Scale s, in range [0,infinity].
     // sNumerator>=0, sDenominator>=0, max(sNumerator,sDenominator)==1.
@@ -123,9 +124,10 @@ public class Catenary
         assert(x0 <= x1);
         double dx = x1 - x0;
         double dy = y1 - y0;
-        if (slack == 0.) // XXX TODO: need better condition
+        if (slack == 0.
+         || XXX_USE_SIMPLE_PROTECTION && slack <= 1e-9)
         {
-            if (verboseLevel >= 1) System.out.println("                          slack=0 s=infinity case");
+            if (verboseLevel >= 1) System.out.println("                          slack=0 s=infinity case"+(slack!=0.?" (CLOSE ENOUGH)":""));
             // s is infinity
             //assert(false); // coverage; remove when hit
             this.sNumerator = 1.;
@@ -147,14 +149,15 @@ public class Catenary
             this.t0 = -L*.5;
             this.t1 = L*.5;
         }
-        else if (dx == 0.) // XXX TODO: need better condition
+        else if (dx == 0.
+             || XXX_USE_SIMPLE_PROTECTION && Math.abs(dx) < 1e-9)
         {
-            if (verboseLevel >= 1) System.out.println("                          dx=0 s=0 case");
+            if (verboseLevel >= 1) System.out.println("                          dx=0 s=0 case"+(dx!=0.?" (CLOSE ENOUGH)":""));
             // s is zero
-            assert(false); // coverage; remove when hit
+            //assert(false); // coverage; remove when hit
             this.sNumerator = 0.;
             this.sDenominator = 1.;
-            this.xFocusInWorld = x0;
+            this.xFocusInWorld = (x0+x1)*.5;
             this.yFocusInWorld = Math.min(y0,y1) - slack*.5;
             this.xFocusDirection = 1.;
             this.yFocusDirection = 0.;
@@ -169,6 +172,7 @@ public class Catenary
             double L = MyMath.hypot(dx, dy) + slack;
             // XXX TODO: make the following totally robust even if s is very large or small
             double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
+            if (verboseLevel >= 1) System.out.println("                              s = "+s);
             if (s <= 1.)
             {
                 if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: focus at apex");
@@ -299,7 +303,7 @@ public class Catenary
         else if (sNumerator == 0.)
         {
             // s is 0
-            assert(false); // coverage; remove when hit
+            //assert(false); // coverage; remove when hit. XXX NOT COVERED BY CONFIDENCE TEST YET! but is covered by demo3
             answer[0] = xFocusInWorld;
             answer[1] = yFocusInWorld + Math.abs(t);
         }
@@ -339,7 +343,7 @@ public class Catenary
         {
             if (verboseLevel >= 1) System.out.println("                    dx=0 s=0 case");
             // s is 0
-            assert(false); // coverage; remove when hit
+            //assert(false); // coverage; remove when hit
             answer[0] = t * xFocusInWorld;
             answer[1] = t * (yFocusInWorld + .5*Math.abs(t));
         }
@@ -358,8 +362,18 @@ public class Catenary
             //                        = xFocusInWorld*t + s*((s*T+t)*asinh(t/s+T) - sqrt(SQR(s*T+t) + s*s))
             //     y part of integral = (yFocusInWorld-s)*t + .5*(s*s)*(sqrt(SQR(t/s+T)+1)*(t/s+T) + asinh(t/s+T))
             double T = TFocus;
-            answer[0] = xFocusInWorld*t + s*((s*T+t)*MyMath.asinh(t/s+T) - Math.sqrt(SQR(s*T+t) + s*s));
-            answer[1] = (yFocusInWorld-s)*t + .5*(s*s)*(Math.sqrt(SQR(t/s+T)+1)*(t/s+T) + MyMath.asinh(t/s+T));
+
+            if (verboseLevel >= 2) System.out.println("                        t = "+t);
+            if (verboseLevel >= 2) System.out.println("                        s = "+s);
+            if (verboseLevel >= 2) System.out.println("                        t/s = "+t/s);
+            if (verboseLevel >= 2) System.out.println("                        T = "+T);
+            if (verboseLevel >= 2) System.out.println("                        t/s+T = "+t/s+T);
+            if (verboseLevel >= 2) System.out.println("                        asinh(t/s+T) = "+MyMath.asinh(t/s+T));
+
+            double asinh = MyMath.asinh(t/s+T);
+
+            answer[0] = xFocusInWorld*t + s*((s*T+t)*asinh - Math.sqrt(SQR(s*T+t) + s*s));
+            answer[1] = (yFocusInWorld-s)*t + .5*(s*s)*(Math.sqrt(SQR(t/s+T)+1)*(t/s+T) + asinh);
 
             // XXX maybe use this from previous implementation?
             // XXX it wasn't as general, but it's a very interesting formulation!
@@ -426,6 +440,7 @@ public class Catenary
                 super.fit(x0,y0, x1,y1, slack);
                 this.leftRightFlipped = false;
             }
+            //PRINT(this.leftRightFlipped);
         }
         @Override public void evaluate(double t,
                                        double answer[/*2*/])

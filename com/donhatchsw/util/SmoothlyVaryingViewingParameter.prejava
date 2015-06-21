@@ -396,148 +396,156 @@ public class SmoothlyVaryingViewingParameter
                     assert(EQ(v[1], 0., 1e-6)); // XXX need to make this relative
                     assert(p[1] <= 0);
 
-                    // We want to find the catenary with end points 0,v
+                    // We want to find the catenary with end points (0,0),v
                     // and integral p.
-
-                    // First, parametrize catenary by down-angle and slack
-                    // where:
-                    //    down-angle = atan2(y,x)
-                    //    slack = sqrt(x^2+y^2).
-                    // so if x,y are 0 then down-angle is indeterminate
-                    // but in that case it doesn't matter because scale
-                    // is infinite and so it doesn't matter what
-                    // infinitesimal part of the canonical catenary
-                    // is sitting on 0,v.
-                    // We're going to solve for such x,y.
-
-                    final int verboseLevelFinal = verboseLevel;
-                    final com.donhatchsw.compat.ArrayList newtonPathFinal = newtonPath;
                     final double v0[] = {0,0};
                     final double v1[] = v; // on x axis
                     final double desiredIntegral[] = VecMath.vxs(p, A);
-                    final boolean inJ[] = {false};
+                    double xyAnswer[] = new double[2];
                     final CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
-                    if (verboseLevel >= 2) PRINTVEC(desiredIntegral);
-                    NewtonSolver.Fun fun = new NewtonSolver.Fun() {
-                        @Override public double[] f(double xy[])
-                        {
-                            if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
-                            double integral[] = new double[2];
-                            double unusedArcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
-                                v0, v1,
-                                xy[0], xy[1],
-                                Double.POSITIVE_INFINITY,
-                                integral,
-                                null, // vFinal
-                                scratchCatenaryRotated);
-                            if (!inJ[0] && newtonPathFinal != null)
-                            {
-                                newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(integral)});
-                            }
-                            if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
-                            return integral;
-                        }
-                        @Override public double[][] J(double xy[], double fxy[])
-                        {
-                            if (verboseLevelFinal >= 2) System.out.println("            in J");
-                            double[][] answer = null;
-                            inJ[0] = true;
-                            try
-                            {
-                                answer = super.J(xy, fxy);
-                            }
-                            finally
-                            {
-                                inJ[0] = false; // executed even on the way out of a throw
-                            }
-                            if (verboseLevelFinal >= 2) PRINTMAT(answer);
-                            if (verboseLevelFinal >= 2) System.out.println("            out J");
-                            return answer;
-                        }
-                    };
 
-                    if (newtonPath != null)
-                        newtonPath.add(new double[][]{null, desiredIntegral}); // special entry for the target
-
-                    double xyAnswer[];
                     if (true)
                     {
-                        // initial guess. very crude for starters--
-                        // just get it in the correct quadrant.
-                        double xyInitialGuess[] = VecMath.vmv(desiredIntegral,
-                                                              VecMath.vxs(v, .5*VecMath.norm(v)));
-                        if (verboseLevel >= 0) PRINTVEC(xyInitialGuess);
-                        xyAnswer = xyInitialGuess;
+                        // XXX use catenary method more directly, here
                     }
-                    else // tried this when solving for invCatScale directly... maybe improved the situation a little but not much. XXX get rid
+
+                    if (true) // XXX shouldn't even work
                     {
-                        // Try to make an initial guess based on desired moment.
-                        // All this is sort of dog science, but...
-                        //     moment ~= length * centroid
-                        //            ~= (||apex||*2) * (apex/2)
-                        //             = ||apex||*apex
-                        //             = ||apex||^2 * (apex normalized)
-                        // Therefore
-                        //     apex = sqrt(||moment||) * (moment normalized)
-                        //          = moment / sqrt(||moment||)
-                        double guessApexMagnitude = Math.sqrt(VecMath.norm(desiredIntegral));
-                        assert(guessApexMagnitude != 0.); // XXX what do we need to adjust so this doesn't happen?
-                        double guessApex[] = VecMath.vxs(desiredIntegral, 1./guessApexMagnitude);
-                        // Also
-                        //     ||apex|| = (cosh(||v||cos(theta)/2 / catscale) - 1) * catscale
-                        double pNormalized[] = VecMath.normalize(p); // XXX uh oh, what if p is 0? really need to measure from (v/2)^2 or something similar
-                        double cosTheta = -pNormalized[1];
-                        if (verboseLevel >= 2) PRINT(cosTheta);
-                        assert(cosTheta > 0.);
-                        double thing = VecMath.norm(v)*cosTheta/2.;
-                        // Want catscale such that ||apex|| = (cosh(thing/catcale)-1)*catscale  possibly without the -1.
-                        // Do some binary searching to find catScale that works.
-                        // (something related to lambert W function if we replace cosh with exp)
-                        double lo = .01;
-                        double hi = 100.;
-                        double guessInvCatScale;
-                        int nIters = 0;
-                        while (true)
-                        {
-                            double mid = (lo + hi) * .5;
-                            if (mid == lo || mid == hi)
+                        // First, parametrize catenary by down-angle and slack
+                        // where:
+                        //    down-angle = atan2(y,x)
+                        //    slack = sqrt(x^2+y^2).
+                        // so if x,y are 0 then down-angle is indeterminate
+                        // but in that case it doesn't matter because scale
+                        // is infinite and so it doesn't matter what
+                        // infinitesimal part of the canonical catenary
+                        // is sitting on 0,v.
+                        // We're going to solve for such x,y.
+
+                        final int verboseLevelFinal = verboseLevel;
+                        final com.donhatchsw.compat.ArrayList newtonPathFinal = newtonPath;
+                        final boolean inJ[] = {false};
+                        if (verboseLevel >= 2) PRINTVEC(desiredIntegral);
+                        NewtonSolver.Fun fun = new NewtonSolver.Fun() {
+                            @Override public double[] f(double xy[])
                             {
-                                guessInvCatScale = mid;
-                                break;
+                                if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
+                                double integral[] = new double[2];
+                                double unusedArcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
+                                    v0, v1,
+                                    xy[0], xy[1],
+                                    Double.POSITIVE_INFINITY,
+                                    integral,
+                                    null, // vFinal
+                                    scratchCatenaryRotated);
+                                if (!inJ[0] && newtonPathFinal != null)
+                                {
+                                    newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(integral)});
+                                }
+                                if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
+                                return integral;
                             }
-                            // the -1 doesn't seem to make much difference, at least on things I've tried
-                            double apexMagnitudeMaybe = (Math.cosh(thing*mid) - 1) / mid;
-                            //double apexMagnitudeMaybe = (Math.cosh(thing*mid)) / mid;
-                            if (apexMagnitudeMaybe < guessApexMagnitude) // too low
-                                lo = mid;
-                            else // too high
-                                hi = mid;
-                            nIters++;
-                            assert(nIters < 100); // typically 50something
+                            @Override public double[][] J(double xy[], double fxy[])
+                            {
+                                if (verboseLevelFinal >= 2) System.out.println("            in J");
+                                double[][] answer = null;
+                                inJ[0] = true;
+                                try
+                                {
+                                    answer = super.J(xy, fxy);
+                                }
+                                finally
+                                {
+                                    inJ[0] = false; // executed even on the way out of a throw
+                                }
+                                if (verboseLevelFinal >= 2) PRINTMAT(answer);
+                                if (verboseLevelFinal >= 2) System.out.println("            out J");
+                                return answer;
+                            }
+                        };
+
+                        if (newtonPath != null)
+                            newtonPath.add(new double[][]{null, desiredIntegral}); // special entry for the target
+
+                        if (true)
+                        {
+                            // initial guess. very crude for starters--
+                            // just get it in the correct quadrant.
+                            double xyInitialGuess[] = VecMath.vmv(desiredIntegral,
+                                                                  VecMath.vxs(v, .5*VecMath.norm(v)));
+                            if (verboseLevel >= 0) PRINTVEC(xyInitialGuess);
+                            VecMath.copyvec(xyAnswer, xyInitialGuess);
                         }
-                        if (verboseLevel >= 2) PRINT(nIters);
-                        double xyLengthGuess = guessInvCatScale * cosTheta;
-                        double xyInitialGuess[] = VecMath.vxs(pNormalized, xyLengthGuess);
-                        if (verboseLevel >= 2) PRINTVEC(xyInitialGuess);
-                        xyAnswer = xyInitialGuess;
+                        else // tried this when solving for invCatScale directly... maybe improved the situation a little but not much. XXX get rid
+                        {
+                            // Try to make an initial guess based on desired moment.
+                            // All this is sort of dog science, but...
+                            //     moment ~= length * centroid
+                            //            ~= (||apex||*2) * (apex/2)
+                            //             = ||apex||*apex
+                            //             = ||apex||^2 * (apex normalized)
+                            // Therefore
+                            //     apex = sqrt(||moment||) * (moment normalized)
+                            //          = moment / sqrt(||moment||)
+                            double guessApexMagnitude = Math.sqrt(VecMath.norm(desiredIntegral));
+                            assert(guessApexMagnitude != 0.); // XXX what do we need to adjust so this doesn't happen?
+                            double guessApex[] = VecMath.vxs(desiredIntegral, 1./guessApexMagnitude);
+                            // Also
+                            //     ||apex|| = (cosh(||v||cos(theta)/2 / catscale) - 1) * catscale
+                            double pNormalized[] = VecMath.normalize(p); // XXX uh oh, what if p is 0? really need to measure from (v/2)^2 or something similar
+                            double cosTheta = -pNormalized[1];
+                            if (verboseLevel >= 2) PRINT(cosTheta);
+                            assert(cosTheta > 0.);
+                            double thing = VecMath.norm(v)*cosTheta/2.;
+                            // Want catscale such that ||apex|| = (cosh(thing/catcale)-1)*catscale  possibly without the -1.
+                            // Do some binary searching to find catScale that works.
+                            // (something related to lambert W function if we replace cosh with exp)
+                            double lo = .01;
+                            double hi = 100.;
+                            double guessInvCatScale;
+                            int nIters = 0;
+                            while (true)
+                            {
+                                double mid = (lo + hi) * .5;
+                                if (mid == lo || mid == hi)
+                                {
+                                    guessInvCatScale = mid;
+                                    break;
+                                }
+                                // the -1 doesn't seem to make much difference, at least on things I've tried
+                                double apexMagnitudeMaybe = (Math.cosh(thing*mid) - 1) / mid;
+                                //double apexMagnitudeMaybe = (Math.cosh(thing*mid)) / mid;
+                                if (apexMagnitudeMaybe < guessApexMagnitude) // too low
+                                    lo = mid;
+                                else // too high
+                                    hi = mid;
+                                nIters++;
+                                assert(nIters < 100); // typically 50something
+                            }
+                            if (verboseLevel >= 2) PRINT(nIters);
+                            double xyLengthGuess = guessInvCatScale * cosTheta;
+                            double xyInitialGuess[] = VecMath.vxs(pNormalized, xyLengthGuess);
+                            if (verboseLevel >= 2) PRINTVEC(xyInitialGuess);
+                            VecMath.copyvec(xyAnswer, xyInitialGuess);
+                        }
+
+                        double stepScale = 1.;
+                        //double stepScale = .1;
+                        NewtonSolver.solve(xyAnswer,
+                                           desiredIntegral,
+                                           fun,
+                                           1000,
+                                           stepScale);
+
+                        if (verboseLevel >= 2) PRINTVEC(xyAnswer);
+                        if (verboseLevel >= 2) PRINT(VecMath.norm(xyAnswer));
+
+                        // Okay we've found the catenary shape.
+                        // The next part is tricky since it's kind of backwards.
+                        // We want to integrate along that catenary,
+                        // starting at v1, and going towards v0.
+                        // So the x (but not the y) of the catenary will be minus what we got from the solve.
                     }
-
-                    double stepScale = 1.;
-                    //double stepScale = .1;
-                    NewtonSolver.solve(xyAnswer,
-                                       desiredIntegral,
-                                       fun,
-                                       1000,
-                                       stepScale);
-
-                    if (verboseLevel >= 2) PRINTVEC(xyAnswer);
-                    if (verboseLevel >= 2) PRINT(VecMath.norm(xyAnswer));
-
-                    // Okay we've found the catenary shape.
-                    // The next part is tricky since it's kind of backwards.
-                    // We want to integrate along that catenary,
-                    // starting at v1, and going towards v0.
-                    // So the x (but not the y) of the catenary will be minus what we got from the solve.
 
                     // XXX But I think that's broken, or at least hard to think about, so instead, negate v1 temporarily and try it.
                     v1[0] *= -1;
@@ -1460,7 +1468,7 @@ public class SmoothlyVaryingViewingParameter
 
     private static void confidenceTests()
     {
-        if (true)
+        if (false)
         {
             //
             // Test the double-quadratic behavior.
@@ -13741,6 +13749,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         frame.add(canvas);
         frame.pack();
         frame.show();
+        System.out.println("  Initial strategy is "+strategyNames[strategy]);
     } // interactiveDemo3
 
 

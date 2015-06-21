@@ -12,7 +12,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     @Override public void assertValid()
     {
         super.assertValid();
-        assert(MyMath.hypot(cosRotation, sinRotation) == 1.); // XXX need tolerance... I think?
+        double error = MyMath.hypot(cosRotation, sinRotation) - 1.;
+        assert(SQR(error) + 1. - 1. == 0.); // implicit tolerance
     }
 
     // Position at time t.
@@ -245,7 +246,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double xTranslates[] = {0., 2., -2.};
         double yTranslates[] = {0., 2., -2.};
         double x0s[] = {0.,-1.,-2.,1.,2.};
-        double x1s[] = {1.,2.,0.,-1.,-2.};
+        //double x1s[] = {1.,2.,0.,-1.,-2.};
+        double x1s[] = x0s; // XXX get rid
 
         for (int ix0 = 0; ix0 < x0s.length; ++ix0)
         for (int ix1 = 0; ix1 < x1s.length; ++ix1)
@@ -270,6 +272,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             double coshx1 = MyMath.cosh(x1);
             double v0[] = {x0, coshx0};
             double v1[] = {x1, coshx1};
+            if (testVerboseLevel >= 1) System.out.println("      v0 = "+VecMath.toString(v0));
+            if (testVerboseLevel >= 1) System.out.println("      v1 = "+VecMath.toString(v1));
 
             // Parametrizing cosh by arc length between those endpoints,
             // this part of the cosh curve is:
@@ -293,6 +297,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             if (true)
             {
                 // s=1
+                OUT("        s=1 case");
                 double x = 0.;
                 double y = -slack;
                 double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null, scratchCatenaryRotated);
@@ -306,23 +311,54 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
 
             double halfLength = VecMath.dist(v0,v1)*.5;
-            double expectedIntegralOfSegment[] = VecMath.vxs(VecMath.vpv(v0,v1),halfLength);
+            double expectedIntegralOfSegment[] = VecMath.vxs(VecMath.vpv(v0,v1),halfLength); // length times average
             double expectedArcLengthOfSegment = VecMath.dist(v0,v1);
-            double integralOfSegment[] = new double[2];
+
+            // in degenerate test, slack is 1
+            // and gravity is from v1 towards v0 (or arbitrary direction if they are the same)
+            double slackForDegenerate = 1.; // somewhat arbitrary XXX should try others
+            double expectedArcLengthOfDegenerate = expectedArcLengthOfSegment + slackForDegenerate;
+            double gravityForDegenerate[] = VecMath.normalize(VecMath.vmv(v0, v1));
+            double expectedIntegralOfDegenerate[] = VecMath.vpv(expectedIntegralOfSegment,
+                                                                VecMath.vxs(VecMath.vpsxv(v0,slackForDegenerate/4.,gravityForDegenerate),
+                                                                            slackForDegenerate));
 
             if (true)
             {
                 // s=infinity
+                OUT("        s=infinity case");
                 double x = 0.;
                 double y = 0.;
+                double integralOfSegment[] = new double[2];
                 double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null, scratchCatenaryRotated);
-                if (testVerboseLevel >= 1) PRINTVEC(integralOfSegment);
-                if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfSegment);
-                assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
                 if (testVerboseLevel >= 1) PRINT(arcLengthOfSegment);
                 if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfSegment);
                 assert(EQ(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6));
+                if (testVerboseLevel >= 1) PRINTVEC(integralOfSegment);
+                if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfSegment);
+                assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
             }
+
+            if (true)
+            {
+                // s=0, gravity from v1 towards v0 (or arbitrary dir if v0=v1)
+                OUT("        s=0 case");
+                PRINTVEC(gravityForDegenerate);
+                PRINTVEC(v0);
+                PRINTVEC(v1);
+                double x = slackForDegenerate * gravityForDegenerate[0];
+                double y = slackForDegenerate * gravityForDegenerate[1];
+                double integralOfDegenerate[] = new double[2];
+                double arcLengthOfDegenerate = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfDegenerate, null, scratchCatenaryRotated);
+                if (testVerboseLevel >= 1) PRINT(arcLengthOfDegenerate);
+                if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfDegenerate);
+                assert(EQ(arcLengthOfDegenerate, expectedArcLengthOfDegenerate, 1e-6));
+                if (testVerboseLevel >= 1) PRINTVEC(integralOfDegenerate);
+                if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfDegenerate);
+                assert(VecMath.dist(integralOfDegenerate, expectedIntegralOfDegenerate) < 1e-6);
+            }
+
+            if (testVerboseLevel == 2) System.out.print("        "); // indent for dots
 
             for (int iDownAngle = 0; iDownAngle < downAngles.length; ++iDownAngle)
             for (int iInvScale = 0; iInvScale < invScales.length; ++iInvScale)
@@ -390,7 +426,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 if (testVerboseLevel == 2) System.out.print(".");
                 if (testVerboseLevel >= 3) System.out.println("            ---------------------------------------------------------------");
             }
-            if (testVerboseLevel == 2) System.out.println();
+            if (testVerboseLevel == 2) System.out.println(); // newline after dots
             if (testVerboseLevel >= 1) System.out.println("      ===============================================================");
         } // for x0,x1
         System.out.println("    out CatenaryRotated.main");
