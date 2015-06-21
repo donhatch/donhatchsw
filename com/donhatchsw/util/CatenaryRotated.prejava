@@ -27,7 +27,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     double answer[/*2*/])
     {
         super.integrate(t, answer);
-        rotate(cosRotation, sinRotation, answer[0], answer[1], answer);
+        PRINTVEC(answer);
+        rotate(this.cosRotation, this.sinRotation, answer[0], answer[1], answer);
+        PRINTVEC(answer);
     }
     /**
     * Set members to be the parameters of the catenary
@@ -191,141 +193,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
 
 
-#ifdef NOTYET
-    // XXX phase this out...
-    // XXX or maybe Catenary.integrate() should call this?
-    // XXX oh right! this is the new function that no one calls yet I think?  Hmm.
-    // Path-length integrate from v0 to either v1, or to a length of maxLengthToIntegrate,
-    // which ever comes first.
-    // Answer gets put into answer. The function return value is the arc length.
-    // vFinal is the point that the integral went to (either v1, or the point at distance maxLengthToIntegrate along the curve).
-    private static double integralOfTranslatedCoshGraphWithEndpoints(double v0[/*2*/],
-                                                                     double v1[/*2*/],
-                                                                     double maxLengthToIntegrate,
-                                                                     double answer[/*2*/],
-                                                                     double vFinal[/*2*/]) // optional
-    {
-        int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
-        if (debugLevel >= 1) System.out.println("                in integralOfTranslatedCoshGraphWithEndpoints");
-        if (debugLevel >= 2) PRINTARRAY(v0);
-        if (debugLevel >= 2) PRINTARRAY(v1);
-        if (debugLevel >= 2) PRINT(maxLengthToIntegrate);
-
-        double a = v1[0]-v0[0];
-        double b = v1[1]-v0[1];
-        if (debugLevel >= 2) PRINT(a);
-        if (debugLevel >= 2) PRINT(b);
-        double sinhHalfA = MyMath.sinh(a*.5);
-        // Test for a==0.
-        // Actually test for sinh(a*.5)==0 (which underflows faster than a does)
-        // since that's what we're going to divide by.
-        if (sinhHalfA == 0.)
-        {
-            // Segment is vertical.
-            // The catenary piece is infinitely far up the catenary graph,
-            // and its shape is just a segment.
-            // So, just return the integral (i.e. centroid times length) of the segment.
-            // (Note, the case b==0 could use any point on the catenary,
-            // but the answer is zero in that case regardless,
-            // so it doesn't need to be a special case.)
-            double length = ABS(b);
-            if (maxLengthToIntegrate < length)
-            {
-                double wayPoint[] = VecMath.lerp(v0, v1, maxLengthToIntegrate/length);
-                VecMath.sxvpsxv(answer,
-                                maxLengthToIntegrate*.5, v0,
-                                maxLengthToIntegrate*.5, wayPoint);
-            }
-            else
-            {
-                VecMath.sxvpsxv(answer,
-                                length*.5, v0,
-                                length*.5, v1);
-            }
-            if (debugLevel >= 1) System.out.println("                out integralOfTranslatedCoshGraphWithEndpoints (degenerate case), returning length="+length);
-            return length;
-        }
-
-        // Given a,b, ask mathematica for the points x-a/2, x+a/2
-        // whose cosh's are b apart:
-        //      Solve[Cosh[x+a/2] == Cosh[x-a/2] + b, x]
-        // the answer is:
-        //      x = asinh(b/2 / sinh(a/2))
-        // This works whether a is positive or negative,
-        // although it goes to +inf or -inf as a approaches 0.
-        // XXX should look into whether we lose accuracy near a==0 and would do better using the linear method sooner
-        // This is a totally surprising formula!!
-        // Why is the formula for the x center so surprisingly nice
-        // (and formula for arc length from 0 to x center even more so)
-        // when the formulas for the endpoints are not?
-        // TODO:
-        //      - Understand it geometrically.
-        //        For starters, note that the arc length from 0 to that x center
-        //        is sinh of that x center, i.e. b/2 / sinh(a/2)):
-        //              x = asinh(b/2 / sinh(a/2)
-        //              t = b/2 / sinh(a/2)
-        //              y = sqrt((b/2/sinh(a/2))^2 + 1)
-        //              x0 = asinh(b/2 / sinh(a/2)) - a/2
-        //              y0 = sqrt((b/2/sinh(a/2))^2 + 1) - b/2
-        //              t0 = sinh( asinh(b/2 / sinh(a/2)) - a/2 )
-        //              t0 = sqrt(y0^2 - 1) where y0 is as above.  XXX expand this out
-        //        Ultimately I think we really want t0 and t1,
-        //        in a form that combines with scale nicely.
-        //      - Figure out how to combine it with scale,
-        //        so that we get a formula that is usable
-        //        and well behaved as scale approaches zero!
-        double xAvg = MyMath.asinh(b*.5 / sinhHalfA);
-        double x0 = xAvg - a*.5;
-        double x1 = xAvg + a*.5;
-
-        // Parametrizing cosh by arc length between those endpoints,
-        // this part of the cosh curve is:
-        //      <asinh(t), sqrt(1+t^2)> for x in [x0,x1]
-        //                              i.e. for t in [sinh(x0),sinh(x1)]
-        // The integral of that part is:
-        //      {-sqrt(1+t^2) + t*asinh(t),
-        //       (t*sqrt(1+t^2) + asinh(t))/2}.
-        // Evaluating that at the two endpoints, subtracting, and simplifying,
-        // we get:
-        //      x part = (-sqrt(1+sinh(x1)^2) + sinh(x1)*x1)
-        //             - (-sqrt(1+sinh(x0)^2) + sinh(x0)*x0)
-        //             = (-cosh(x1) + sinh(x1)*x1)
-        //             - (-cosh(x0) + sinh(x0)*x0)
-        //
-        //      y part = (sinh(x1)*sqrt(1+sinh(x1)^2) + x1)/2
-        //             - (sinh(x0)*sqrt(1+sinh(x0)^2) + x0)/2
-        //             = (sinh(x1)*cosh(x1) + x1)/2
-        //             - (sinh(x0)*cosh(x0) + x0)/2
-        // But we also have to add the arc length
-        // times the translation taking the cosh curve to v0,v1.
-        // The arc length is sinh(x1)-sinh(x0)
-        // and the translation is <v0[0]-x0, v0[1]-cosh(x0)>
-        double coshx0 = MyMath.cosh(x0);
-        double sinhx0 = MyMath.sinh(x0);
-        double coshx1 = MyMath.cosh(x1);
-        double sinhx1 = MyMath.sinh(x1);
-        double wholeArcLength = sinhx1 - sinhx0; // function return value
-        double partialArcLength = wholeArcLength;
-        if (maxLengthToIntegrate < wholeArcLength)
-        {
-            partialArcLength = maxLengthToIntegrate;
-            sinhx1 = sinhx0 + partialArcLength;
-            x1 = MyMath.asinh(sinhx1);
-            coshx1 = MyMath.cosh(x1);
-        }
-        answer[0] = (sinhx1*x1 - coshx1) - (sinhx0*x0 - coshx0)  + (v0[0]-x0) * partialArcLength;
-        answer[1] = ((sinhx1*coshx1 + x1) - (sinhx0*coshx0 + x0))*.5 + (v0[1]-coshx0) * partialArcLength;
-        // XXX TODO: there has got to be some clever cancellation here that will save us from subtracting huge values that are close to each other.  Understanding the geometric situation better may help, see above
-        if (vFinal != null)
-        {
-            vFinal[0] = x1     + (v0[0]-x0);
-            vFinal[1] = coshx1 + (v0[1]-coshx0);
-        }
-        if (debugLevel >= 1) System.out.println("                out integralOfTranslatedCoshGraphWithEndpoints, returning wholeArcLength="+wholeArcLength);
-        return wholeArcLength;
-    } // integralOfTranslatedCoshGraphWithEndpoints
-#endif // NOTYET
-
     // XXX phase this out, moving to pure catenary routines... I think?
     // XXX start by making private so SmoothlyVaryingViewingParameter can't see it
     // A catenary is a scaled rotated translated cosh.
@@ -341,7 +208,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                                      double vFinal[/*2*/])
     {
         int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
-        int fitVerboseLevel = 0;
+        int fitVerboseLevel = 2;
         if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsRectangular");
         if (debugLevel >= 2) System.out.println("              v0 = "+VecMath.toString(v0));
         if (debugLevel >= 2) System.out.println("              v1 = "+VecMath.toString(v1));
@@ -352,20 +219,22 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             CatenaryRotated catenaryRotated = new CatenaryRotated();
             catenaryRotated.fitFromRectangularCoords(v0[0], v0[1], v1[0], v1[1], x, y, fitVerboseLevel);
-
-            /*
-            double slack = MyMath.hypot(x, y);
-            double downAngle = Math.atan2(y, x);
-            double L = MyMath.hypot(dx, dy) + slack;
-            if (maxLengthToIntegrate < L)
+            double t0 = catenaryRotated.t0;
+            double t1 = catenaryRotated.t1;
+            double arcLength = t1 - t0;
+            if (maxLengthToIntegrate < arcLength)
             {
                 if (debugLevel >= 2) System.out.println("                  clamping! = ");
-                L = maxLengthToIntegrate;
+                arcLength = maxLengthToIntegrate;
+                t1 = t0 + maxLengthToIntegrate;
             }
-            */
-            //if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning L="+L);
-            //return L;
+            catenaryRotated.integrate(t0, t1, answer);
+            if (vFinal != null)
+                catenaryRotated.evaluate(t1, vFinal);
+            if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning arcLength="+arcLength);
+            return arcLength;
         }
+
         if (true)
         {
             double slack = MyMath.hypot(x, y);
@@ -510,7 +379,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         System.out.println("    in CatenaryRotated.main");
         // Test utilities for integrals
 
-        int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
+        int testVerboseLevel = 3; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
 
         double downAngles[] = {-Math.PI/2., -Math.PI/4, 0., Math.PI/2, Math.PI};
         double invScales[] = {1., .5, 2., 0.};

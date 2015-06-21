@@ -20,8 +20,9 @@ package com.donhatchsw.util;
 *       on the canonical catenary graph Y=cosh(X)-1
 *   - the corresponding focus point xFocusInWorld,yFocusInWorld in world space
 * The parametrization is then nominally:
-*   x(t) = xFocusInWorld + s*asinh(t/s + TFocus0)
-*   y(t) = yFocusInWorld + s*(sqrt((t/s + TFocus0)^2 + 1) - 1)
+*   x(t) = xFocusInWorld + s*asinh(t/s + TFocus)
+*   y(t) = yFocusInWorld + s*(sqrt((t/s + TFocus)^2 + 1) - 1)
+*        = yFocusInWorld + (sqrt((t + TFocus*s)^2 + s^2) - s)
 * Robustness is achieved, in part, by the following techniques:
 *   - s is represented as a non-negative numerator and a denominator,
 *     either (but not both) of which may be zero.
@@ -287,24 +288,38 @@ public class Catenary
         else
         {
             // 0 < s < infinity
-            assert(false); // coverage; remove when hit
-            assert(false); // XXX implement me!
+            //assert(false); // coverage; remove when hit
+
+            // Not robust yet, but...
+            //     x(t) = xFocusInWorld + s*asinh(t/s + TFocus)
+            //     y(t) = yFocusInWorld + s*(sqrt((t/s + TFocus)^2 + 1) - 1)
+            //          = yFocusInWorld + sqrt((t + TFocus*s)^2 + s^2) - s
+            double s = sNumerator / sDenominator; // XXX obviously not robust
+            assert(xFocusDirection != 0.);
+            double TFocus = yFocusDirection / xFocusDirection; // XXX obviously not robust
+            answer[0] = xFocusInWorld + s*MyMath.asinh(t/s + TFocus);
+            answer[1] = yFocusInWorld + Math.sqrt(SQR(t + TFocus*s) + s*s) - s;
         }
     } // evaluate
     // Arc length integral from focus to t.
     public void integrate(double t,
                           double answer[/*2*/])
     {
+        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: more details
+        if (verboseLevel >= 1) System.out.println("                in Catenary.integrate(t="+t+")");
+
         assertValid();
         if (sDenominator == 0.)
         {
+            if (verboseLevel >= 1) System.out.println("                    slack=0 s=infinity case");
             // s is infinity
-            assert(false); // coverage; remove when hit
+            //assert(false); // coverage; remove when hit
             answer[0] = t * (xFocusInWorld + .5*t*xFocusDirection);
             answer[1] = t * (yFocusInWorld + .5*t*yFocusDirection);
         }
         else if (sNumerator == 0.)
         {
+            if (verboseLevel >= 1) System.out.println("                    dx=0 s=0 case");
             // s is 0
             assert(false); // coverage; remove when hit
             answer[0] = t * xFocusInWorld;
@@ -312,9 +327,50 @@ public class Catenary
         }
         else
         {
-            assert(false); // coverage; remove when hit
-            assert(false); // XXX implement me!
+            if (verboseLevel >= 1) System.out.println("                    s finite and nonzero case");
+            //assert(false); // coverage; remove when hit
+            double s = sNumerator / sDenominator; // XXX obviously not robust
+            assert(xFocusDirection != 0.);
+            double TFocus = yFocusDirection / xFocusDirection; // XXX obviously not robust
+            //     x(t) = xFocusInWorld + s*asinh(t/s + TFocus)
+            //     y(t) = yFocusInWorld + s*(sqrt((t/s + TFocus)^2 + 1) - 1)   (integrate this one, it's easier)
+            //          = yFocusInWorld + sqrt((t + TFocus*s)^2 + s^2) - s
+            // Per wolframalpha:
+            //     x part of integral = xFocusInWorld*t + s*((s*T+t)*asinh(t/s+T)-s*sqrt(SQR(s*T+t)/(s*s)+1))
+            //                        = xFocusInWorld*t + s*((s*T+t)*asinh(t/s+T) - sqrt(SQR(s*T+t) + s*s))
+            //     y part of integral = (yFocusInWorld-s)*t + .5*(s*s)*(sqrt(SQR(t/s+T)+1)*(t/s+T) + asinh(t/s+T))
+            double T = TFocus;
+            answer[0] = xFocusInWorld*t + s*((s*T+t)*MyMath.asinh(t/s+T) - Math.sqrt(SQR(s*T+t) + s*s));
+            answer[1] = (yFocusInWorld-s)*t + .5*(s*s)*(Math.sqrt(SQR(t/s+T)+1)*(t/s+T) + MyMath.asinh(t/s+T));
+            PRINTVEC(answer);
+
+            // XXX maybe use this from previous implementation?
+            // XXX it wasn't as general, but it's a very interesting formulation!
+            // XXX does it require both t0 and t1 though? Actually I don't think so!
+            // Parametrizing cosh by arc length between those endpoints,
+            // this part of the cosh curve is:
+            //      <asinh(t), sqrt(1+t^2)> for x in [x0,x1]
+            //                              i.e. for t in [sinh(x0),sinh(x1)]
+            // The integral of that part is:
+            //      {-sqrt(1+t^2) + t*asinh(t),
+            //       (t*sqrt(1+t^2) + asinh(t))/2}.
+            // Evaluating that at the two endpoints, subtracting, and simplifying,
+            // we get:
+            //      x part = (-sqrt(1+sinh(x1)^2) + sinh(x1)*x1)
+            //             - (-sqrt(1+sinh(x0)^2) + sinh(x0)*x0)
+            //             = (-cosh(x1) + sinh(x1)*x1)
+            //             - (-cosh(x0) + sinh(x0)*x0)
+            //
+            //      y part = (sinh(x1)*sqrt(1+sinh(x1)^2) + x1)/2
+            //             - (sinh(x0)*sqrt(1+sinh(x0)^2) + x0)/2
+            //             = (sinh(x1)*cosh(x1) + x1)/2
+            //             - (sinh(x0)*cosh(x0) + x0)/2
+            // But we also have to add the arc length
+            // times the translation taking the cosh curve to v0,v1.
+            // The arc length is sinh(x1)-sinh(x0)
+            // and the translation is <v0[0]-x0, v0[1]-cosh(x0)>
         }
+        if (verboseLevel >= 1) System.out.println("                out Catenary.integrate(t="+t+"), returning "+VecMath.toString(answer));
     } // integrate
 
     // subclasses don't need to override this--
@@ -324,18 +380,16 @@ public class Catenary
                           double t1, // not necessarily this.t1
                           double answer[/*2*/])
     {
-        integrate(t0, answer);
+        integrate(t0, answer); // note this might be a subclass's integrate
         double answer0x = answer[0];
         double answer0y = answer[1];
-        integrate(t0, answer); // note this might be a subclass's integrate
+        integrate(t1, answer); // note this might be a subclass's integrate
         answer[0] -= answer0x;
         answer[1] -= answer0y;
     } // integrate
 
-
-
     // Catenary always has non-negative scale,
-    // and fit points must satisfy x0<=x1.
+    // and its fit() requires x0<=x1.
     // This class has no such restriction.
     // The catenary still hangs downward but may be left-right flipped.
     public static class FlippedMaybe extends Catenary
@@ -369,6 +423,7 @@ public class Catenary
             super.integrate(t, answer);
             if (this.leftRightFlipped)
                 answer[0] *= -1.;
+            PRINTVEC(answer);
         }
     } // class FlippedMaybe
 
