@@ -17,7 +17,7 @@
 
 #define INRANGE(foo,bar,baz) ((foo(bar))&&((bar)baz))
 
-#define OUT(s) System.out.println(""+s);
+#define OUT(s) System.out.println(""+s)
 #define _PRINT(x) System.out.println(#x + " = " + (x))
 #define _PRINT_(x) System.out.print(#x + " = " + (x) + ", ")
 #define _PRINT2(x0,x1) {_PRINT_(x0);_PRINT(x1);}
