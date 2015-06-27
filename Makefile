@@ -13,10 +13,14 @@
 # That's needed at runtime but not compile time (since
 # we use reflection to get at the API).
 
+# Uncomment one of the following sections.
+
 
 ##JAVAROOT=/usr/java/jdk1.2.2
 #JAVAROOT=/usr/java/jdk1.3.1_18
 #JAVAC=${JAVAROOT}/bin/javac -target 1.1
+#JAR=${JAVAROOT}/bin/jar
+#JAVADOC=${JAVADOCROOT}/bin/javadoc
 
 ##JAVAROOT=/usr/java/j2sdk1.4.2
 ##JAVAROOT=/usr/java/jdk1.5.0
@@ -24,12 +28,16 @@
 #JAVAROOT=/usr/java/jdk1.6.0
 #JAVAC=${JAVAROOT}/bin/javac -source 1.2 -target 1.1 -g
 ##JAVAC=${JAVAROOT}/bin/javac -source 1.4 -target 1.4 -g
+#JAR=${JAVAROOT}/bin/jar
+#JAVADOC=${JAVADOCROOT}/bin/javadoc
 
 ##JAVAROOT=/usr/java/jdk1.2.2
 #JAVAROOT=/usr/java/jdk1.3.1_18
 ##JAVAROOT=/usr/java/j2sdk1.4.2
 ## there is no -source 1.2 or -source 1.1 for jikes
 #JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
+#JAR=${JAVAROOT}/bin/jar
+#JAVADOC=${JAVADOCROOT}/bin/javadoc
 
 
 # cygwin on my laptop
@@ -46,11 +54,13 @@
 ## there is no -source 1.2 or -source 1.1 for jikes
 ##JAVAC=jikes +P -source 1.3 -target 1.1 -classpath ${JAVAROOT}/jre/lib/rt.jar
 ## hmm, if I do it that way, with jikes 1.22, and run it using java1.2, I get a "monitor is in illegal state" error in the jikes-compiled code... specifically, on exiting from any synchronized(someObject) {...} block.  So it seems I have to use javac1.2 instead of jikes.
+#JAR=${JAVAROOT}/bin/jar
+#JAVADOC=${JAVADOCROOT}/bin/javadoc
 
-# at google
+# at google (desktop or mac)
 JAVAC=javac
-JAVAROOT=/usr/local/buildtools/java/jdk
-JAVADOCROOT=/usr/local/buildtools/java/jdk
+JAR=jar
+JAVADOC=javadoc
 
 
 # Pattern rule for making a .class file out of a .prejava file.
@@ -143,7 +153,7 @@ donhatchsw.jar: \
 	/bin/rm -rf scratch
 	mkdir scratch
 	cp -a Makefile com scratch
-	(cd scratch; ${JAVAROOT}/bin/jar -cfm ../donhatchsw.jar ../META-INF/MANIFEST.MF \
+	(cd scratch; ${JAR} -cfm ../donhatchsw.jar ../META-INF/MANIFEST.MF \
             com/donhatchsw/javacpp/*.class \
             com/donhatchsw/javacpp/*.java \
             com/donhatchsw/util/*.class \
@@ -198,7 +208,7 @@ doc: donhatchsw.jar
 	    chmod a-w $$g; \
 	done
 
-	${JAVADOCROOT}/bin/javadoc com/donhatchsw/*/*.java
+	${JAVADOC} com/donhatchsw/*/*.java
 sendMinimal: donhatchsw.jar
 	scp donhatchsw.jar hatch@plunk.org:public_html/donhatchsw/.
 send: doc
