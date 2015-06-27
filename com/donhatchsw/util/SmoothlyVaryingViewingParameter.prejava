@@ -13389,8 +13389,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public boolean paused = false;
                 public Model()
                 {
-                    int n = 10;
-                    //int n = 2;
+                    //int n = 10;
+                    int n = 2;
                     points = new SmoothlyVaryingViewingParameter[n];
                     referenceTripDistancesInPixels = new double[n];
                     referenceTripTimesInRepaints = new double[n];
@@ -13405,14 +13405,14 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         referenceTripDistancesInPixels[i] = Math.pow(1., 1-frac)
                                                           * Math.pow(maxDistance, frac);
                         //referenceTripTimesInRepaints[i] = 1.; // XXX right when separable or quadratic, too slow when try_to_do_it_right
-                        referenceTripTimesInRepaints[i] = .2; // XXX seems rock solid but still frustratingly slow when try_to_do_it_right
+                        //referenceTripTimesInRepaints[i] = .2; // XXX seems rock solid but still frustratingly slow when try_to_do_it_right
                         //referenceTripTimesInRepaints[i] = .19; // XXX messes up
                         //referenceTripTimesInRepaints[i] = .18; // XXX messes up
                         //referenceTripTimesInRepaints[i] = .15; // XXX messes up a little... bounces, in a bad way, when it's not supposed to
                         //referenceTripTimesInRepaints[i] = .14; // XXX messes up a little
                         //referenceTripTimesInRepaints[i] = .13; // XXX messes up a little
                         //referenceTripTimesInRepaints[i] = .12; // XXX messes up a little
-                        //referenceTripTimesInRepaints[i] = .1; // XXX usable when try_to_do_it_right... but so fast it messes up I think
+                        referenceTripTimesInRepaints[i] = .1; // XXX usable when try_to_do_it_right... but so fast it messes up I think. the big one never calms down?
 
                         points[i].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
                         points[i].setVelocity(new double[]{0,.25}); // northward a bit
@@ -13491,9 +13491,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                 int minSize = Math.min(w,h);
                 com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
-                                               0,w,
-                                               0,h);
-
+                                               .5,w-.5,
+                                               h-.5,.5);
 
                 // Clear to black
                 if (g != frontBufferGraphics) // if not single buffered
@@ -13597,7 +13596,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         }
                         else if (c == 'v' || c == 'V') // doesn't really do anything currently
                         {
-                            view.showVelocities ^= true;
+                            //view.showVelocities ^= true;
                             verboseLevel = (verboseLevel+1)%3;
                             repaint();
                         }
@@ -13607,7 +13606,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             PRINT(model.distanceBasedBounce);
                             repaint();
                         }
-                        else if (c == 'f')
+                        else if (c == 'r')
                         {
                             view.biggerIsFaster ^= true;
                             PRINT(view.biggerIsFaster);
@@ -13642,6 +13641,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             System.out.println("    b/B - increment/decrement distanceBasedBounce by .05");
                             System.out.println("    p - pause/resume");
                             System.out.println("    h - show this help message");
+                            System.out.println("    r - reverse sizes");
                         }
                         #define CTRL(lowerCaseLetter) ((lowerCaseLetter)-'a'+1)
                         else
@@ -13664,6 +13664,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         {
                             double thisPoint[] = new double[2];
                             mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+                            if (eventVerbose >= 1) System.out.println("        thisPoint = "+Arrays.toStringCompact(thisPoint));
 
                             FORI (i, model.points.length)
                                 model.points[i].set(thisPoint);
