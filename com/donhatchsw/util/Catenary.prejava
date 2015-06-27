@@ -303,24 +303,71 @@ public class Catenary
         else if (sNumerator == 0.)
         {
             // s is 0
-            //assert(false); // coverage; remove when hit. XXX NOT COVERED BY CONFIDENCE TEST YET! but is covered by demo3
+            assert(false); // coverage; remove when hit. XXX NOT COVERED BY CONFIDENCE TEST YET! but is covered by demo3
             answer[0] = xFocusInWorld;
             answer[1] = yFocusInWorld + Math.abs(t);
         }
         else
         {
-            // 0 < s < infinity
-            //assert(false); // coverage; remove when hit
+            // keep in mind: when s<1, we know Tfocus=0, so that can simplify things.
+            // conversely, when Tfocus!=0 we know s>=1.
+            // i.e. it never happens that s<1 and Tfocus!=0.
 
-            // Not robust yet, but...
-            //     x(t) = xFocusInWorld + s*asinh(t/s + TFocus)
-            //     y(t) = yFocusInWorld + s*(sqrt((t/s + TFocus)^2 + 1) - 1)
-            //          = yFocusInWorld + sqrt((t + TFocus*s)^2 + s^2) - s
+            // 0 < s < infinity
+            assert(false); // coverage; remove when hit
+
+            //     x(t) = xFocusInWorld + s*(asinh(TFocus + t/s) - asinh(TFocus))
+            //     y(t) = yFocusInWorld + s*(sqrt((TFocus + t/s)^2 + 1) - sqrt(TFocus^2 + 1))
+            //          = yFocusInWorld + (sqrt((s*TFocus + t)^2 + s^2) - sqrt((s*TFocus)^2 + s^2))
+            //          = yFocusInWorld + (((s*TFocus + t)^2 + s^2) - ((s*TFocus)^2 + s^2))
+            //                          / (sqrt((s*TFocus + t)^2 + s^2) + sqrt((s*TFocus)^2 + s^2))
+            //          = yFocusInWorld + (2*s*TFocus*t + t^2)
+            //                          / (sqrt((s*TFocus + t)^2 + s^2) + sqrt((s*TFocus)^2 + s^2))
+            // Where TFocus = slope = yFocusDirection/xFocusDirection.
+            // XXX you are here
             double s = sNumerator / sDenominator; // XXX obviously not robust
-            assert(xFocusDirection != 0.);
-            double TFocus = yFocusDirection / xFocusDirection; // XXX obviously not robust
-            answer[0] = xFocusInWorld + s*MyMath.asinh(t/s + TFocus);
-            answer[1] = yFocusInWorld + Math.sqrt(SQR(t + TFocus*s) + s*s) - s;
+
+            // This should work no matter whether Tfocus is
+            // entirely vertical, mainly vertical, mainly horizontal, or entirely horizontal,
+            // as long as s is not too huge or infinity. XXX think about that case
+            double TFocusNumerator = yFocusDirection;
+            double TFocusDenominator = xFocusDirection;
+            answer[0] = xFocusInWorld + s * MyMath.asinh_difference(TFocusNumerator, TFocusDenominator, t/s);
+
+#ifdef NOTYET
+            answer[1] = yFocusInWorld + 
+#endif
+
+            if (SQR(xFocusDirection) >= .5)
+            {
+                // mostly horizontal; Tfocus relatively small (or zero),
+                // so we're not subtracting huge numbers.
+                // (XXX assuming s not huge... need to think about case s huge)
+                assert(false); // coverage; remove when hit
+                double TFocus = TFocusNumerator / TFocusDenominator; // stable
+                answer[1] = yFocusInWorld + (Math.sqrt(SQR(TFocus*s + t) + s*s)
+                                           - Math.sqrt(SQR(TFocus*s) + s*s));
+            }
+            else
+            {
+                // mostly vertical.
+
+                // For the y part:
+                // shorthand T=Tfocus
+                //     sqrt((T+t/s)^2+1) - sqrt(T^2+1)
+                //   = ((T+t/s)^2+1) - (T^2+1)) / (sqrt((T+t/s)^2+1) + sqrt(T^2+1))
+                //   = (T+t/s)^2 - T^2) / (sqrt((T+t/s)^2+1) + sqrt(T^2+1))
+                //   = (2*T*(t/s)+(t/s)^2) / (sqrt((T+t/s)^2+1) + sqrt(T^2+1))
+                //   = (2*(t/s) + (t/s)^2/T) / (sqrt((1+t/s/T)^2+1/T^2) + sqrt(1+1/T^2)
+                // so s times that is:
+                //   = (2*t + t^2/s/T) / (...)
+                //   = t*(2 + t/s/T) / (...)
+                // XXX redo this using the second version of y(t) throughout
+                assert(false); // coverage; remove when hit
+                double invTFocus = TFocusDenominator / TFocusNumerator; // stable
+                answer[1] = yFocusInWorld
+                          + t*(2+t*invTFocus/s) / (Math.sqrt(SQR(1+t*invTFocus/s)+SQR(invTFocus)) + Math.sqrt(1+SQR(invTFocus)));
+            }
         }
     } // evaluate
     // Arc length integral from focus to t.

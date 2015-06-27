@@ -12,6 +12,14 @@ package com.donhatchsw.util;
 * <br>
 * For explanations of some of the robust algorithms used, see:
 * <a href="http://plunk.org/~hatch/rightway.php">http://plunk.org/~hatch/rightway.php</a>
+* <br>
+* TODO: more stuff to add: acosf1 (inverse of cosf1? or 1-acos(f)? get it straight, sincm1, asinh1p, sinhc, sinhcm1, asinhc1p... get it all straight.)
+* <br>
+* TODO: higher order stuff... is there a methodology? e.g. exp(x) -> exp(x)-1 -> (exp(x)-1)/x -> (exp(x)-1)/x-1 -> ((exp(x)-1.)/x-1.)/(x/2.) -> ((exp(x)-1.)/x-1.)/(x/2.)-1. -> (((exp(x)-1.)/x-1.)/(x/2.)-1.)/(x/3.) -> (((exp(x)-1.)/x-1.)/(x/2.)-1.)/(x/3.)-1. -> ((((exp(x)-1.)/x-1.)/(x/2.)-1.)/(x/3.)-1.)/(x/4.)
+* <br>
+* TODO: confidence tests actually verifying accuracy of some of these in the problem cases, e.g. my acosh wasn't that good and the new one is great
+* <br>
+* TODO: implement asinh_difference (needed for Catenary)
 */
 
 public class MyMath
@@ -78,6 +86,159 @@ public class MyMath
         return Math.log(u) - ((u-1.)-x)/u; // cancels errors with IEEE arithmetic
     }
 
+    /** exp(X+x)-exp(X), accurate even when x is small. */
+    public static double
+    exp_difference(double X, double x)
+    {
+        // exp(X+x)-exp(X) = exp(X)*exp(x) - exp(X)
+        //                 = exp(X)*(exp(x)-1)
+        //                 = exp(X)*expm1(x)
+        return expm1(x) * Math.exp(X);
+    }
+    /** log(X+x)-log(X), accurate even when x is small. */
+    public static double
+    log_difference(double X, double x)
+    {
+        // log(X+x)-log(X) = log((X+x)/X)
+        //                 = log(1+x/X)
+        //                 = log1p(x/X)
+        return log1p(x/X);
+    }
+    /** sqrt(X+x)-sqrt(X), accurate even when x is small. */
+    public static double
+    sqrt_difference(double X, double x)
+    {
+        // sqrt(X+x)-sqrt(X) = (sqrt(X+x)-sqrt(X))*(sqrt(X+x)+sqrt(X))/(sqrt(X+x)+sqrt(X))
+        //                   = (X+x-X) / (sqrt(X+x) + sqrt(X))
+        //                   = x / (sqrt(X+x) + sqrt(X))
+        return x / (Math.sqrt(X+x) + Math.sqrt(X));
+    }
+    /** (X+x)^2-X^2, accurate even when x is small. */
+    public static double
+    sqr_difference(double X, double x)
+    {
+        // (X+x)^2 - X^2 = 2*X*x + x^2 = x*(2*X+x)
+        return x * (2*X + x);
+    }
+
+    /** cos(T+x)-cos(T), accurate even when x is small. */
+    public static double
+    cos_difference(double T, double t)
+    {
+        // cos(T+t)-cos(t) = cos(t)*cos(T) - sin(t)*sin(T) - cos(T) according to wolframalpha
+        //                 = cos(T)*(cos(t)-1) - sin(t)*sin(T)
+        //                 = -cosf1(t)*cos(T) - sin(t)*sin(T)
+        return -cosf1(t)*Math.cos(T) - Math.sin(t)*Math.sin(T);
+    }
+    /** sin(T+t)-sin(T), accurate even when t is small. */
+    public static double
+    sin_difference(double T, double t)
+    {
+        // sin(T+t)-cos(t) = sin(t)*cos(T) + cos(t)*sin(T) - sin(T) according to wolframalpha
+        //                 = sin(t)*cos(T) + (cos(t)-1)*sin(T)
+        //                 = sin(t)*cos(T) - cosf1(t)*sin(T)
+        return Math.sin(t)*Math.cos(T) - cosf1(t)*Math.sin(T);
+    }
+    /** tan(T+t)-tan(T), accurate even when t is small. */
+    public static double
+    tan_difference(double T, double t)
+    {
+        System.err.println("WARNING: tan_difference implemented naively");
+        return Math.tan(T+t) - Math.tan(T);
+    }
+    /** cosh(X+x)-cosh(X), accurate even when x is small; X may be infinite. */
+    public static double
+    cosh_difference(double Xnumerator, double Xdenominator, double x)
+    {
+        // cosh(X+x)-cosh(X) = (exp(X+x)+exp(-(X+x)))/2 - (exp(X)+exp(-X))/2
+        //                   = (exp(X+x)-exp(X))/2 + (exp(-X-x)-exp(-X))/2
+        //                   = (exp_difference(X,x) + exp_difference(-X,-x)) / 2
+        //                   = expm1(x)*exp(X) + expm1(-x)*exp(-X)
+        if (Math.abs(Xnumerator) <= Math.abs(Xdenominator))
+        {
+            double X = Xnumerator/Xdenominator; // stable in this case
+            return exp_difference(X, x)*.5 + exp_difference(-X, -x)*.5; // ordered to prevent overflow
+        }
+        else
+        {
+            assert(false); // XXX implement me!
+            return 0.;
+        }
+    }
+    /** sinh(X+x)-sinh(X), accurate even when x is small; X may be infinite. */
+    public static double
+    sinh_difference(double Xnumerator, double Xdenominator, double x)
+    {
+        // sinh(X+x)-sinh(X) = (exp(X+x)-exp(-(X+x)))/2 - (exp(X)-exp(-X))/2
+        //                   = (exp(X+x)-exp(X))/2 - (exp(-X-x)-exp(-X))/2
+        //                   = (exp_difference(X,x) - exp_difference(-X,-x)) / 2
+        //                   = expm1(x)*exp(X) - expm1(-x)*exp(-X)
+        if (Math.abs(Xnumerator) <= Math.abs(Xdenominator))
+        {
+            double X = Xnumerator/Xdenominator; // stable in this case
+            return exp_difference(X, x)*.5 - exp_difference(-X, -x)*.5; // ordered to prevent overflow
+        }
+        else
+        {
+            assert(false); // XXX implement me!
+            return 0.;
+        }
+    }
+    /** tanh(X+x)-tanh(X), accurate even when x is small; X may be infinite. */
+    public static double
+    tanh_difference(double Xnumerator, double Xdenominator, double x)
+    {
+        System.err.println("WARNING: tanh_difference implemented naively");
+        double X = Xnumerator / Xdenominator;
+        return Math.tanh(X+x) - Math.tanh(X);
+    }
+    /** sinc(T+t)-sinc(T), accurate even when t is small. */
+    public static double
+    sinc_difference(double T, double t)
+    {
+        // TODO: does it make sense for T to be infinite?  Maybe there needs to be more fine-grained params in that case?  (Tnumerator, Tdenominator, T mod 2*pi)
+        // sinc(T+t)-sinc(T) = sin(T+t)/(T+t) - sin(T)/T
+        //                   = (sin(T+t)*T - sin(T)*(T+t)) / ((T+t)*T)
+        //                   = (sin(T+t)*T - sin(T)*T - sin(T)*t) / ((T+t)*T)
+        //                   = (sin_difference(T,t)*T - t*sin(T)) / ((T+t)*T)
+        //                   = (sin_difference(T,t) - t*sinc(T)) / (T+t)
+        // XXX TODO: clearly need to check for 0/0
+        if (T+t == 0.) // XXX haven't thought about what this means. seems weird if it's asymmetric... ? i.e. different behavior when T+t from when T==0
+            return sin_over_x(T+t) - sin_over_x(T);
+        return (sin_difference(T,t) - t*sin_over_x(T)) / (T+t);
+    }
+
+    /** acos(X+x)-acos(X), accurate even when x is small. */
+    public static double
+    acos_difference(double X, double x)
+    {
+        System.err.println("WARNING: acos_difference implemented naively");
+        return Math.acos(X+x) - Math.acos(X);
+    }
+    /** asin(Y+y)-asin(y), accurate even when y is small. */
+    public static double
+    asin_difference(double Y, double y)
+    {
+        System.err.println("WARNING: asin_difference implemented naively");
+        return Math.asin(Y+y) - Math.asin(Y);
+    }
+    /** acosh(Y+y)-acosh(Y), accurate even when y is small; Y may be infinite. */
+    public static double
+    acosh_difference(double Ynumerator, double Ydenominator, double y)
+    {
+        System.err.println("WARNING: acosh_difference implemented naively");
+        double Y = Ynumerator / Ydenominator;
+        return MyMath.acosh(Y+y) - MyMath.acosh(Y);
+    }
+    /** asinh(T+t)-asinh(T), accurate even when t is small; T may be infinite. */
+    public static double
+    asinh_difference(double Tnumerator, double Tdenominator, double t)
+    {
+        System.err.println("WARNING: asinh_difference implemented naively");
+        double T = Tnumerator / Tdenominator;
+        return MyMath.asinh(T+t) - MyMath.asinh(T);
+    }
+
     /* 
         XXX the following might be preferable...
  from http://www.hursley.ibm.com/majordomo/JSR-DECIMAL/archives/jsr-decimal.archive.0102/Author/article-6.html:
@@ -137,6 +298,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // sinh(x) = (e^x - e^-x) / 2
         //         = (e^x - 1)(e^x + 1) / e^x / 2;
         //         = expm1(x) * (expm1(x)+2) / (expm1(x)+1) / 2
+        // XXX or:  (expm1(x)-expm1(-x))/2 ... is that more accurate?
         if (x >= 0.)
         {
             double u = expm1(x);
@@ -162,6 +324,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // (though probably coshm1, below, is more useful).
         // We start by taking abs(x), just to make sure we get the exact same
         // result for x and -x.
+        // XXX should we be doing coshm1(x) + 1? not sure
         double e_x = Math.exp(Math.abs(x));
         return (e_x + 1./e_x) * .5;
     }
@@ -185,12 +348,13 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         else
         {
             // Seemingly more straightforward,
-            // but actually more expensive since it takes two different expm1's
+            // but actually more expensive since it takes two different expm1's.
+            // But... should check to see whether it's more accurate?
             // cosh(x) - 1 = (e^x + e^-x) / 2 - 1
             //             = (e^x - 1 + e^-x - 1) / 2
             //             = (e^x - 1)/2 + (e^-x - 1)/2
             //             = (expm1(x) + expm1(-x)) / 2
-            return .5 * (expm1(x) + expm1(-x));
+            return .5*expm1(x) + .5*expm1(-x); // ordered to avoid overflow when big
         }
         // TODO: 2*sinh(.5*x)^2 ? yeah I think so.  inverse of what we do with acosh1p below.
     }
@@ -199,7 +363,16 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     acosh1p(double x)
     {
-        return 2 * asinh(Math.sqrt(x/2));
+        // previous version-- not as direct, but interesting because it only
+        // refers to x once, so it's easily invertible, leading to a formula
+        // for the inverse function coshm1 above
+        //return 2 * asinh(Math.sqrt(x/2));
+
+        // acosh(X) = log(X + sqrt((X+1)*(X-1))
+        // So acosh1p(x) = acosh(1+x)
+        //               = log((1+x) + sqrt((1+x)+1)*((1+x)-1))
+        //               = log1p(x + sqrt(x*(x+2))
+        return log1p(x + Math.sqrt(x * (x+2.)));
     }
 
 
@@ -244,8 +417,14 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // even though the function is symmetric, and furthermore
         // it behaves rather atrociously for large negative arguments:
         //     gnuplot> plot [-1e9:1e9] asinh(x), asinh_smart(x)
+        // (where asinh_smart is the above).
+        // (Note that gnuplot's is just as bad, and in fact seems to give up fairly early as well... XXX file a bug against gnuplot!)
         // Therefore we special case negative arguments.
-        // XXX TODO: might want to switch to more naive log-based when args very large-- might be better behaved? not sure
+        // XXX TODO: might want to switch to more naive log-based when args very large-- might be better behaved? not sure.
+        // see https://code.google.com/p/v8/issues/detail?id=3468 and 3 derived bugs for possibly good ideas.
+        // also it looks like the python math library is well-thought-out
+        // and probably gets it right:
+        //     http://svn.python.org/projects/python/branches/pep-0384/Modules/_math.c
         if (x >= 0)
             return  log1p( x * (1. + x / (hypot(x,1.)+1.)));
         else
@@ -263,7 +442,54 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // "Branch Cuts for Complex Elementary Functions",
         // as quoted by Cleve Moler in:
         // http://www.mathworks.com/company/newsletter/clevescorner/sum98cleve.shtml
-        return 2 * Math.log(Math.sqrt((x+1)*.5) + Math.sqrt((x-1)*.5));
+        //
+        // XXX possibly not nearly as good as it could be?
+        // see https://code.google.com/p/v8/issues/detail?id=3509
+        // it says:
+        //      Math.acosh(1+1e-10) -> 0.000014142136208733941
+        // the correct answer is 1.4142136208675862d-5.
+        // They suggest what fdlibm uses (for x near 1):
+        //      log(2x-1/(sqrt(x*x-1)+x))
+        // That gives exactly the above answer, but... ?
+        // Mine gives:
+        //     1.4142136208643407e-05
+        // But wolframalpha acosh(1+10^-10) says:
+        //     .0000141421356236130993578217
+        // HOWEVER... worlframalpha isn't really calculating the same thing.
+        // How do I get it to?
+        // Well... to start with, in python, let's get a mathematically exact
+        // representation of (double)(1+1e-10):
+        //      `(1+1e-10 - 1) * (1<<49)`
+        //      '56295.0'
+        // So that says that (double)(1+1e-10) is exactly 1+56295/2^49.
+        // Feeding into wolframalpha:
+        //      acosh(1+56295/2^49)
+        // It says:
+        //      .00001414213620867586 135459
+        // Hmph!  So they were right in the bug description :-(
+        // Except maybe the last digit?
+        //      `.00001414213620867586135459`
+        // Nope they were right in the last digit, too.
+        // Hmph!  All right I guess I should use their formulation?
+
+        // But WAIT a minute...
+        // if acosh1p(u=x-1) is 2 * asinh(Math.sqrt(u/2))
+        //    acosh(x) = acosh1p(x-1) = 2*asinh(sqrt((x-1)/2))
+        // Yes!  In python:
+        //    x = 1+1e-10
+        //    from math import *
+        //    2*asinh(sqrt((x-1)/2))
+        // So: cosh1p(x) = 2*asinh(sqrt(x/2.))
+        // So: cosh(x) = cosh1p(x-1) = 2*asinh(sqrt((x-1)/2.))
+        // So, could use this, and it's just as accurate I think...
+        // However I think it does one more sqrt than their formulation does.
+
+        // OLD-- less good!
+        // return 2 * Math.log(Math.sqrt((x+1)*.5) + Math.sqrt((x-1)*.5));
+
+        // NEW-- better!
+        // XXX TODO: add confidence test verifying it's very well behaved near 1, as shown above
+        return acosh1p(x-1.);
     }
 
     /** inverse hyperbolic tangent function */
@@ -276,6 +502,118 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //          = log((1 - x + 2x) / (1-x)) / 2
         //          = log(1 + 2x/(1-x)) / 2
         //          = log1p(2x/(1-x)) / 2
+        // XXX https://code.google.com/p/v8/issues/detail?id=3266#c4  gives: 1/2*log1p(-2*x/(1+x))
+        // XXX is that the same?? confused now.
+        // XXX their derivation is:
+        //      atanh(x) = 1/2*log((1-x)/(1+x))
+        //               = 1/2 * log(1-2*x/(1+x))
+        //               = 1/2*log1p(-2*x/(1+x))
+        // But... is (1-x)/(1+x) equal to 1-2*x/(1+x) ?
+        // oh wait!  did I mess up?
+        // Oh! I see, mine is right in that it's log((1+x)/(1-x))/2 .
+        // I think his is wrong since he's got (1-x)/(1+x) instead of (1+x)/(1-x).
+        // (I added a comment about that).
+        // Q: he conjectures log1p(x)/2-log1p(-x)/2 is more accurate than .5 * log1p(2.*x/(1.-x)) ... is that true?  I doubt it.
+        // gnuplot:
+        //      log1p(x) = log(1.+x) - ((1.+x-1.)-x)/(1.+x)
+        //      plot [-1e-15:1e-15] log(1.+x), log1p(x)
+        //      plot [-4e-305:4e-305] log(1.+x), log1p(x)
+        //      atanh_1(x) = .5 * (log1p(x) - log1p(-x))
+        //      atanh_2(x) = .5 * log1p(2*x/(1.-x))
+        //      plot [-1e-15:1e-15] atanh(x), atanh_1(x)*1.1, atanh_2(x)*1.2
+        // Can I argue:
+        //      atanh_1 is subtracting two things, so it must be less accurate?
+        //      especially when the two things being subtracted are nearly equal and large compared to zero?
+        // note atanh is only defined strictly in (-1,1)...
+        // Huh!  Here is some evidence for atan_1 being more accurate:
+        //      EXACT(x) = sprintf("%.17g",x)
+        //      print EXACT(atanh(1e-10)), ' ', EXACT(atanh_1(1e-10)), ' ', EXACT(atanh_2(1e-10))
+        //        1.000000082540371e-10 1e-10 9.9999999999999991e-11
+        // oh but wait-- are we sure 1e-10 is in fact the right answer???
+        // Well, if ask wolframalpha for exactly atanh(1e-10),
+        // then we get 1.000 ... (20 0's)...0003333333333 something something...
+        // so I guess that's some evidence... but still not conclusive!
+        // Q: how do I express (double)(1e-10) to wolframalpha?
+        // (and I guess that's a general question about how to express arbitrary doubles)
+        //     `1e-10 * (1<<34)`
+        //     `1e-10 * (1<<34) - 1`
+        // Recall analysis above:
+        //                Well... to start with, in python, let's get a mathematically exact
+        //                representation of (double)(1+1e-10):
+        //                `(1+1e-10 - 1) * (1<<49)`
+        //                '56295.0'
+        //                So that says that (double)(1+1e-10) is exactly 1+56295/2^49.
+        // So how do we get (double)1e-10 exactly?
+        // I.e. to exactly 53 bits of precision... or so.
+        //     `1e-10 * (1<<34)`
+        //         '1.7179869184'
+        //     `1e-10 * (1<<33)`
+        //         '0.8589934592'
+        // Then how many further, to get an integer?
+        //     `1e-10 * (1<<33) * (1<<53)`
+        //         '7737125245533627.0'
+        // Okay that says that 1e-10 * (1<<33) is exactly:
+        //      7737125245533627 / (1<<53)
+        //      7737125245533627 / 77371252455336267181195264
+        // So 1e-10 is exactly:
+        //      = 7737125245533627 / 2^86
+        //      = 1.00000000000000003643219731549...  (16 zeros)
+        // And wolframalpha says:
+        //     atanh(7737125245533627 / 2^86) = 1.000...(16 0's)...000364355306e-10
+        //                               = 1.0000000000000000364355306e-10
+        // which is indeed (double)1e-10 :-(
+        // Dammit!  I think that does give evidence that
+        // the one we are using is not as good!?  That sucks!
+        // Surely I can still make a counterargument?
+        // Like, they both suck, atanh_1 *happens* to give a better
+        // answer for this one, but atanh_2 gives a better answer
+        // for others.
+        // Can we actually do an error analysis?
+        // Also what are adjacent doubles?
+        //       7737125245533626 / 2^86 = 9.99999999999999907185...e-11  (yeah that was my answer)
+        //       7737125245533627 / 2^86 = 1.00000000000000003643219731549...e-10
+        //       7737125245533628 / 2^86 = 1.0000000000000001656791680...e-10
+        // mathematically correct answer = 1.0000000000000000364355306...e-10
+        // bleah, so actually they hit it spot-on... *still* I want to argue it was by luck!!
+        //     q(x) = sprintf('%.17g %.17g %.17g %.17g', x, atanh(x), atanh_1(x), atanh_2(x))
+        // oh fooey, it isn't looking good...
+        // atanh_1 always seems to get it spot on; atanh_2 either gets it spot on or is off by 1 ulp
+        // (and it can be either too low or too high):
+        //     gnuplot> print q(1e-10)
+        //         1e-10 1.000000082540371e-10 1e-10 9.9999999999999991e-11
+        //     gnuplot> print q(1e-12)
+        //         9.9999999999999998e-13 1.0000333894291097e-12 9.9999999999999998e-13 9.9999999999999978e-13
+        //     gnuplot> print q(1e-13)
+        //         1e-13 9.9975583367475354e-14 1e-13 9.999999999999999e-14
+        //     gnuplot> print q(1e-14)
+        //         1e-14 9.9920072216262085e-15 1e-14 1.0000000000000002e-14
+        // dammit!
+        // wait wtf; my atanh_2 seems to systematically wrong?  why??
+        //     Q = 1e-10
+        //     q = 1e-25
+        //     plot [Q-q:Q+q] x, atanh_1(x), atanh_2(x)
+        //     q = 1e-15
+        //     set samples 100001
+        //     plot [Q-q:Q+q] atanh_1(x)-x, atanh_2(x)-x
+        // That gives the picture.
+        // So I guess atanh_2 really does screw up more often :-( bleah!
+        // Well, atanh is:
+        //      x + x^3/3 + x^5/5 + x^7/7 + x^9/9 + ...
+        // Still wondering about the error analysis
+        // and if there's an intuitive explanation.
+        // Hmm is it that the two calls' average errors cancel out?
+        // No that doesn't explain it, it seems like the *worst* case error will be *more*
+        // than the worst case error from atanh_2, won't it?
+        // Hmm can I find an example of that??
+        // This is actually a pretty wacky example... the function's behavior
+        // definitely aliases with the floating point representation,
+        // and the proof may involve that.
+        // Hmm let's break down what the successful one actually is:
+        //      log1p(x) = log(1.+x) - ((1.+x-1.)-x)/(1.+x)
+        //      atanh_1(x) = .5 * (log1p(x) - log1p(-x))
+        // so that's:
+        //      .5 * ((log(1+x) - ((x+1-1-x)/(1.+x)) - (log(1-x) -   (-x+1-1+x)/(1.-x))
+        // huh, not helpful.
         return .5 * log1p(2.*x/(1.-x));
     }
 
@@ -293,7 +631,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return 2.*Math.asin(Math.sqrt(.5*x));
     }
 
-    /** sin(x)/x, but stable when small */
+    /** sin(x)/x, but stable when small; aka sinc(x). TODO: change name.  TODO: sincm1? */
     public static double
     sin_over_x(double x)
     {
@@ -478,6 +816,36 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     {
         System.out.println("    in MyMath.main");
 
+        if (true)
+        {
+            // Difference tests.
+            // X and X+x between 0 and 1, so should work for all these functions except cosh.
+            // TODO: some of the functions do something different depending on when X is top-heavy or bottom-heavy; should test both
+            double Xn = .6; // X numerator
+            double Xd = 2.; // X denominator
+            double X = .3;
+            assert(X == Xn / Xd);
+            double x = .1;
+            double tol = 1e-12;
+            assert_almost_eq(exp_difference(X,x),  Math.exp(X+x)-Math.exp(X), tol);
+            assert_almost_eq(log_difference(X,x),  Math.log(X+x)-Math.log(X), tol);
+            assert_almost_eq(sqrt_difference(X,x), Math.sqrt(X+x)-Math.sqrt(X), tol);
+            assert_almost_eq(sqr_difference(X,x),  SQR(X+x)-SQR(X), tol);
+            assert_almost_eq(cos_difference(X,x),  Math.cos(X+x)-Math.cos(X), tol);
+            assert_almost_eq(sin_difference(X,x),  Math.sin(X+x)-Math.sin(X), tol);
+            assert_almost_eq(tan_difference(X,x),  Math.tan(X+x)-Math.tan(X), tol);
+            assert_almost_eq(cosh_difference(Xn,Xd,x),  cosh(X+x)-cosh(X), tol);
+            assert_almost_eq(sinh_difference(Xn,Xd,x),  sinh(X+x)-sinh(X), tol);
+            assert_almost_eq(tanh_difference(Xn,Xd,x),  tanh(X+x)-tanh(X), tol);
+            assert_almost_eq(sinc_difference(X,x),  sin_over_x(X+x)-sin_over_x(X), tol);
+            assert_almost_eq(acos_difference(X,x),  Math.acos(X+x)-Math.acos(X), tol);
+            assert_almost_eq(asin_difference(X,x),  Math.asin(X+x)-Math.asin(X), tol);
+            //assert_almost_eq(atan_difference(X,x),  atan(X+x)-atan(X), tol);
+            assert_almost_eq(acosh_difference(10.*Xn,Xd,x),  acosh(10.*X+x)-acosh(10.*X), tol); // fudge to make arg > 1
+            assert_almost_eq(asinh_difference(Xn,Xd,x),  asinh(X+x)-asinh(X), tol);
+            //assert_almost_eq(atanh_difference(Xn,Xd,x),  atanh(X+x)-atanh(X), tol);
+        }
+
         assert_nan(Math.log(Double.NEGATIVE_INFINITY));
         assert_eq(MyMath.expm1(Double.NEGATIVE_INFINITY), -1.);
         assert_eq(MyMath.sinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
@@ -565,11 +933,13 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 System.out.println("    acosh1p("+x+") = "+MyMath.acosh1p(x)+"");
                 // TODO: come up with something more sensible I think? I'm a bit confused.
                 assert_eq((float)MyMath.acosh1p(x), (float)MyMath.acosh(1.+x));
+                // TODO: since acosh is defined in terms of acosh1p, that didn't test much, in fact I can deliberately introduce errors in it and they don't get caught :-(
             }
 
-            if (false)
+            if (true)
             {
                 // hmm, not quite exact, apparently
+                // TODO: actually this succeeds now? figure out if I want it
                 PRINT(MyMath.coshm1(x) + 1.);
                 PRINT(MyMath.cosh(x) - 1. + 1.);
                 assert_eq(MyMath.coshm1(x) + 1., MyMath.cosh(x) - 1. + 1.);
