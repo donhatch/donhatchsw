@@ -8,7 +8,8 @@ package com.donhatchsw.util;
 * all over the place, and the actual value will smoothly move towards to it,
 * without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
 *
-* TODO: with referenceTripTimesInRepaints[i] = .1, one of the particles overshoots. why?
+* TODO: multiple views with different behavior in each
+* TODO: with referenceTripTimesInRepaints[i] = .1, one of the particles overshoots substantially. why?
 * TODO: lots of "OH NO! SOMETHING AWFUL HAPPENED!" with refTripTimesInRepaings=1
 
 * XXX TODO: lines connecting velocity dots with acceleration dots? not sure
@@ -32,7 +33,7 @@ package com.donhatchsw.util;
 
             Hmm. Advantage of distance based is it's easier to actually visually verify that it's working right.
             E.g. bounce=.5 means a 90 degree rotation will actually overshoot to exactly 135 degrees.
-            Hmm I think maybe I like it that way.
+            Hmm I think maybe I like it that way.  E.g. intuitive for mc4d.
 */
 public class SmoothlyVaryingViewingParameter
 {
@@ -379,6 +380,20 @@ public class SmoothlyVaryingViewingParameter
                     VecMath.vxs(minusVelocity, minusVelocity, 1./A);
                     VecMath.vxs(positionDisplacement, positionDisplacement, 1./A);
 
+                    // Normalize by dividing by the problem size.
+                    // If we multiply minusVelocity by something,
+                    // we must multiply positionDisplacement by something^2.
+                    // XXX wait is that true?  I don't think it is.
+                    // XXX actually haven't gotten any flavor of this to work... should figure out why.
+                    // XXX NOTE: if I enable this, need to get rid of all the problemSize adjustments throughout the code
+                    double problemSize = Math.max(VecMath.norm(minusVelocity),
+                                                  VecMath.norm(positionDisplacement));
+                    if (false)
+                    {
+                        VecMath.vxs(minusVelocity, minusVelocity, 1./(problemSize*problemSize));
+                        VecMath.vxs(positionDisplacement, positionDisplacement, 1./problemSize);
+                    }
+
                     // We want to work in 2 dimensions.
                     // So find two orthogonal vectors spanning the space
                     // containing 0, -velocity, and positionDisplacement.
@@ -397,15 +412,22 @@ public class SmoothlyVaryingViewingParameter
                     if (verboseLevel >= 3) PRINT(VecMath.dot(positionDisplacement, basis[1]));
                     assert(VecMath.dot(minusVelocity, basis[0]) >= 0.);
 
-                    // I'm seeing it be off by as much as 1e-15 or so
                     double tol = 1e-12;
-                    if (VecMath.dot(positionDisplacement, basis[1]) > tol)
-                    {
-                        PRINTVEC(positionDisplacement);
-                        PRINTMAT(basis);
-                        PRINT(VecMath.dot(positionDisplacement, basis[1]));
-                    }
-                    assert(VecMath.dot(positionDisplacement, basis[1]) <= tol);
+                    // XXX TODO: actually the following isn't quite the right condition...
+                    // should do something based on condition number of matrix, or something?
+                    // hmm https://answers.yahoo.com/question/index?qid=20111206034618AAI8OvC
+                    // says condition number is ||M|| ||M^-1|| where ||.|| can be any of a number of norms:
+                    //  1-norm = max value of sum of abs values of col elements
+                    //  infinity-norm = max value of sum of absolute values of row elements.
+                    //  2-norm = square root of largest eigenvalue of A^T A -- necessarily nonnegative
+                    // but really can't we do a decent estimate without inverting?
+                    // just from M M^T, I think, i.e. lengths squared and dot prods
+                    // of the two vectors.
+                    // Also see: http://www.maths.manchester.ac.uk/~higham/talks/claode13.pdf
+                    //  || a b c d || || d -b -c a || / (ad-bc)^2
+                    // So that's: (max row sum) * (max col sum) / det^2
+                    assert(VecMath.dot(positionDisplacement, basis[1]) * (1./problemSize)
+                        <= tol);
 
                     double v[/*2*/] = VecMath.mxv(basis, minusVelocity); // from nd to 2d space
                     double p[/*2*/] = VecMath.mxv(basis, positionDisplacement);// from nd to 2d space
@@ -415,7 +437,13 @@ public class SmoothlyVaryingViewingParameter
                     if (verboseLevel >= 2) PRINTVEC(p);
                     assert(v[0] >= 0.);
                     assert(EQ(v[1], 0., 1e-6)); // XXX need to make this relative
-                    assert(p[1] <= tol);
+                    if (!(p[1] * (1./problemSize) <= tol))
+                    {
+                        PRINTVEC(v);
+                        PRINTVEC(p);
+                        PRINT(problemSize);
+                    }
+                    assert(p[1]/problemSize <= tol);
 
                     // We want to find the catenary with end points (0,0),v
                     // and integral p.
@@ -560,6 +588,13 @@ public class SmoothlyVaryingViewingParameter
                     // 2d back to original space
                     VecMath.vxm(minusVelocity, vFinal, basis);
                     VecMath.vxm(positionDisplacement, p, basis);
+
+                    if (false)
+                    {
+                        // Undo the problem size scale
+                        VecMath.vxs(minusVelocity, minusVelocity, problemSize*problemSize);
+                        VecMath.vxs(positionDisplacement, positionDisplacement, problemSize);
+                    }
 
                     // Undo the acceleraton scale
                     VecMath.vxs(minusVelocity, minusVelocity, A);
@@ -12678,7 +12713,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 model.interestingIndex += (c=='-' ? -1 : 1);
                                 PRINT(model.interestingIndex);
 
-                                // Ridiculous hack: inject an 'e' event
+                                // Ridiculous hack: inject an 'e' event, to try some evolves
                                 java.awt.event.KeyEvent syntheticKeyEvent = new java.awt.event.KeyEvent(
                                     e.getComponent(),
                                     e.getID(),
@@ -13505,20 +13540,23 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     {
                         points[i] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
 
-                        // Uniformly spaced in log space, between 1 and 100.
+                        // Uniformly spaced speeds in log space, between 1 and 100
+                        // (in pixels per frame).
+                        double minDistance = 1.;
                         double maxDistance = 100.;
                         double frac = i/(n-1.); // uniform from 0 to 1 inclusive
-                        referenceTripDistancesInPixels[i] = Math.pow(1., 1-frac)
+                        referenceTripDistancesInPixels[i] = Math.pow(minDistance, 1-frac)
                                                           * Math.pow(maxDistance, frac);
-                        //referenceTripTimesInRepaints[i] = 1.; // XXX currently messes up a lot
-                        //referenceTripTimesInRepaints[i] = .2; // XXX currently messes up a lot
+                        //referenceTripTimesInRepaints[i] = 1.;
+                        referenceTripTimesInRepaints[i] = .5;
+                        //referenceTripTimesInRepaints[i] = .2;
                         //referenceTripTimesInRepaints[i] = .19;
                         //referenceTripTimesInRepaints[i] = .18;
-                        //referenceTripTimesInRepaints[i] = .15; // XXX currently messes up a lot
+                        //referenceTripTimesInRepaints[i] = .15;
                         //referenceTripTimesInRepaints[i] = .14;
                         //referenceTripTimesInRepaints[i] = .13;
                         //referenceTripTimesInRepaints[i] = .12;
-                        referenceTripTimesInRepaints[i] = .1;
+                        //referenceTripTimesInRepaints[i] = .1;
 
                         points[i].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
                         points[i].setVelocity(new double[]{0,.25}); // northward a bit
@@ -13647,6 +13685,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 double velocity[] = new double[2];
                 FORI (i, n)
                 {
+                    // Even point sizes, so centers nicely on a pixel corner
+
                     //int pointSize = 2*i + 1; // 1, 3, 5, ...
                     //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
                     //int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
@@ -13660,8 +13700,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     model.points[i].get(position);
                     model.points[i].getVelocity(velocity);
                     mg.setColor(model.colors[i]);
-                    mg.drawHollowPoint(position[0],
-                                       position[1],
+                    // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
+                    mg.drawHollowPoint(position[0]+.5,
+                                       position[1]+.5,
                                        pointSize);
                 }
 
@@ -13702,11 +13743,63 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     public void keyPressed(java.awt.event.KeyEvent e)
                     {
                         boolean controlIsDown = ((e.getModifiers() & java.awt.event.InputEvent.CTRL_MASK) != 0);
+                        int keyCode = e.getKeyCode();
                         char c = e.getKeyChar();
                         if (eventVerbose >= 1) System.out.println("    in keyPressed, keyEvent = "+e+" keyChar = (char)"+(int)c+"");
-                        if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
+
+                        if (false) {}
+                        else if (keyCode == java.awt.event.KeyEvent.VK_LEFT)
                         {
-                            // This is the case for control keys
+                            double target[] = new double[2];
+                            FORI (i, model.points.length)
+                            {
+                                model.points[i].getTarget(target);
+                                target[0] -= 1/9.;
+                                model.points[i].set(target);
+                            }
+                            PRINTVEC(target);
+                            repaint();
+                        }
+                        else if (keyCode == java.awt.event.KeyEvent.VK_RIGHT)
+                        {
+                            double target[] = new double[2];
+                            FORI (i, model.points.length)
+                            {
+                                model.points[i].getTarget(target);
+                                target[0] += 1/9.;
+                                model.points[i].set(target);
+                            }
+                            PRINTVEC(target);
+                            repaint();
+                        }
+                        else if (keyCode == java.awt.event.KeyEvent.VK_UP)
+                        {
+                            double target[] = new double[2];
+                            FORI (i, model.points.length)
+                            {
+                                model.points[i].getTarget(target);
+                                target[1] += 1/9.;
+                                model.points[i].set(target);
+                            }
+                            PRINTVEC(target);
+                            repaint();
+                        }
+                        else if (keyCode == java.awt.event.KeyEvent.VK_DOWN)
+                        {
+                            double target[] = new double[2];
+                            FORI (i, model.points.length)
+                            {
+                                model.points[i].getTarget(target);
+                                target[1] -= 1/9.;
+                                model.points[i].set(target);
+                            }
+                            PRINTVEC(target);
+                            repaint();
+                        }
+                        else if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
+                        {
+                            // This is the case for things like arrow keys
+                            //System.out.println("CHAR_UNDEFINED");
                         }
                         else if (c == java.awt.event.KeyEvent.VK_ESCAPE)
                         {
@@ -13763,12 +13856,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         else if (c == 'h')
                         {
                             System.out.println("The following keys do things:");
-                            System.out.println("    s - cycle strategy TWO_PIECE_QUADRATIC -> TRY_TO_DO_IT_RIGHT -> SEPARABLE");
-                            System.out.println("        (TRY_TO_DO_IT_RIGHT doesn't work well)");
-                            System.out.println("    b/B - increment/decrement distanceBasedBounce by .05");
-                            System.out.println("    p - pause/resume");
-                            System.out.println("    h - show this help message");
-                            System.out.println("    r - reverse sizes");
+                            System.out.println("      s - cycle strategy TWO_PIECE_QUADRATIC -> TRY_TO_DO_IT_RIGHT -> SEPARABLE");
+                            System.out.println("          (TRY_TO_DO_IT_RIGHT doesn't work well)");
+                            System.out.println("      b/B - increment/decrement distanceBasedBounce by .05");
+                            System.out.println("      p - pause/resume");
+                            System.out.println("      h - show this help message");
+                            System.out.println("      r - reverse sizes");
+                            System.out.println(" arrows - move target by 1/9 pixel");
                         }
                         #define CTRL(lowerCaseLetter) ((lowerCaseLetter)-'a'+1)
                         else
