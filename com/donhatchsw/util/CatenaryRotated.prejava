@@ -27,16 +27,19 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     @Override public void integrate(double t,
                                     double answer[/*2*/])
     {
+        int verboseLevel = 0;
+        if (verboseLevel >= 1) System.out.println("                            in CatenaryRotated.integrate(t="+t+")");
         super.integrate(t, answer);
         rotate(this.cosRotation, this.sinRotation, answer[0], answer[1], answer);
+        if (verboseLevel >= 1) System.out.println("                            out CatenaryRotated.integrate(t="+t+"), returning answer="+VecMath.toString(answer));
     }
     /**
     * Set members to be the parameters of the catenary
     * passing through points (x0,y0),(x1,y1)
     * with given moment (i.e. integral with respect to arc length).
     * Caveat: this is done numerically.
-    * In general there may be 1 or 2 solutions;
-    * if there are 2 solutions, this function may find one of them,
+    * In general there may be 1, 3, or 2 solutions;
+    * if there are more than 1 solutions, this function may find one of them,
     * or it may fail to converge.
     * If the function is not 1-to-1 in a neighborhood of the solution,
     * it will fail to converge.
@@ -120,7 +123,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                            stepScale);
 
         this.fitFromRectangularCoords(x0,y0, x1,y1, xyAnswer[0], xyAnswer[1], fitVerboseLevelFinal);
-    } // fit
+    } // fitFromMoment
 
 
     private void fitFromRectangularCoords(double x0, double y0,
@@ -156,7 +159,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double y1Unrotated = yPartOfUnrotated(this.cosRotation, this.sinRotation, x1, y1);
         super.fit(x0Unrotated, y0Unrotated, 
                   x1Unrotated, y1Unrotated,
-                  slack);
+                  slack,
+                  verboseLevel);
         if (verboseLevel >= 1) System.out.println("                    out CatenaryRotated.fitFromPolarCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+" c="+cosDownAngle+" s="+sinDownAngle+")");
     } // fitFromPolarCoords
 
@@ -202,10 +206,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                                     double maxLengthToIntegrate,
                                                                     double answer[/*2*/],
                                                                     double vFinal[/*2*/],
-                                                                    CatenaryRotated scratchCatenaryRotated)
+                                                                    CatenaryRotated scratchCatenaryRotated,
+                                                                    int debugLevel) // 0: nothing, 1: in/out, 2: a bit more
     {
-        int debugLevel = 0; // 0: nothing, 1: in/out, 2: a bit more
-        int fitVerboseLevel = 0;
+        int fitVerboseLevel = debugLevel;
         if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsRectangular");
         if (debugLevel >= 2) System.out.println("              v0 = "+VecMath.toString(v0));
         if (debugLevel >= 2) System.out.println("              v1 = "+VecMath.toString(v1));
@@ -218,13 +222,18 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double arcLength = t1 - t0;
         if (maxLengthToIntegrate < arcLength)
         {
-            if (debugLevel >= 2) System.out.println("                  clamping! = ");
+            if (debugLevel >= 2) System.out.println("              clamping arcLength from "+arcLength+" to "+maxLengthToIntegrate);
             arcLength = maxLengthToIntegrate;
             t1 = t0 + maxLengthToIntegrate;
         }
+        if (debugLevel >= 1) System.out.println("                scratchCatenaryRotated.{cos,sin}Rotation = "+scratchCatenaryRotated.cosRotation+", "+scratchCatenaryRotated.sinRotation);
         scratchCatenaryRotated.integrate(t0, t1, answer);
+        if (debugLevel >= 1) System.out.println("              integral answer = "+VecMath.toString(answer));
         if (vFinal != null)
+        {
             scratchCatenaryRotated.evaluate(t1, vFinal);
+            if (debugLevel >= 1) System.out.println("              vFinal = "+VecMath.toString(vFinal));
+        }
         if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning arcLength="+arcLength);
         return arcLength;
     } // integralOfCatenaryWithEndpointsRectangular
@@ -297,7 +306,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 OUT("        s=1 case");
                 double x = 0.;
                 double y = -slack;
-                double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null, scratchCatenaryRotated);
+                double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null, scratchCatenaryRotated, 0);
                 if (testVerboseLevel >= 1) PRINT(arcLength);
                 if (testVerboseLevel >= 1) PRINT(expectedArcLength);
                 assert(EQ(arcLength, expectedArcLength, 1e-6));
@@ -327,7 +336,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double x = 0.;
                 double y = 0.;
                 double integralOfSegment[] = new double[2];
-                double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null, scratchCatenaryRotated);
+                double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null, scratchCatenaryRotated, 0);
                 if (testVerboseLevel >= 1) PRINT(arcLengthOfSegment);
                 if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfSegment);
                 assert(EQ(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6));
@@ -346,7 +355,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double x = slackForDegenerate * gravityForDegenerate[0];
                 double y = slackForDegenerate * gravityForDegenerate[1];
                 double integralOfDegenerate[] = new double[2];
-                double arcLengthOfDegenerate = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfDegenerate, null, scratchCatenaryRotated);
+                double arcLengthOfDegenerate = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfDegenerate, null, scratchCatenaryRotated, 0);
                 if (testVerboseLevel >= 1) PRINT(arcLengthOfDegenerate);
                 if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfDegenerate);
                 assert(EQ(arcLengthOfDegenerate, expectedArcLengthOfDegenerate, 1e-6));
@@ -411,7 +420,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     xy = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, xy); // by inverse of matrix
                     double x = xy[0];
                     double y = xy[1];
-                    double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null, scratchCatenaryRotated);
+                    double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null, scratchCatenaryRotated, 0);
                     if (testVerboseLevel >= 3) System.out.println("                arcLengthTransformed = "+arcLengthTransformed);
                     if (testVerboseLevel >= 3) System.out.println("                expectedArcLengthTransformed = "+expectedArcLengthTransformed);
                     assert(EQ(arcLengthTransformed, expectedArcLengthTransformed, 1e-6));

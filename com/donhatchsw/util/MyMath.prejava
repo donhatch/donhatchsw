@@ -19,7 +19,9 @@ package com.donhatchsw.util;
 * <br>
 * TODO: confidence tests actually verifying accuracy of some of these in the problem cases, e.g. my acosh wasn't that good and the new one is great
 * <br>
-* TODO: implement asinh_difference (needed for Catenary)
+* TODO: implement asinh_difference at least (needed for Catenary)
+* TODO: change *_difference functions to *_difference_quotient
+* TODO: implement various *_difference_integral functions? I think
 */
 
 public class MyMath
@@ -234,9 +236,16 @@ public class MyMath
     public static double
     asinh_difference(double Tnumerator, double Tdenominator, double t)
     {
-        System.err.println("WARNING: asinh_difference implemented naively");
+        //System.err.println("WARNING: asinh_difference implemented naively");
         double T = Tnumerator / Tdenominator;
         return MyMath.asinh(T+t) - MyMath.asinh(T);
+    }
+    /** atanh(T+t)-atanh(T), accurate even when t is small. */
+    public static double
+    atanh_difference(double T, double t)
+    {
+        System.err.println("WARNING: atanh_difference implemented naively");
+        return MyMath.atanh(T+t) - MyMath.atanh(T);
     }
 
     /* 
@@ -631,9 +640,9 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return 2.*Math.asin(Math.sqrt(.5*x));
     }
 
-    /** sin(x)/x, but stable when small; aka sinc(x). TODO: change name.  TODO: sincm1? */
+    /** sin(x)/x, but stable when small; same as sin_over_x(x). TODO: sincm1? */
     public static double
-    sin_over_x(double x)
+    sinc(double x)
     {
         //
         // It's 1 - x^2/3! + x^4/5! - ...
@@ -650,6 +659,13 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             return 0.;
         else
             return Math.sin(x)/x;
+    }
+
+    /** sin(x)/x, but stable when small; same as sinc(x). */
+    public static double
+    sin_over_x(double x)
+    {
+        return sinc(x);
     }
 
     /** sinh(x)/x, but stable when small */
@@ -812,6 +828,12 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return -lambertw(-1./x, -1-branch);
     }
 
+    /* XXX just for unit testing sqr_difference. should probably make private, and access it through more obscure getDeclaredMethod() or make it a special case*/
+    public static double sqr(double x)
+    {
+        return x*x;
+    }
+
     public static void main(String args[])
     {
         System.out.println("    in MyMath.main");
@@ -844,6 +866,65 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             assert_almost_eq(acosh_difference(10.*Xn,Xd,x),  acosh(10.*X+x)-acosh(10.*X), tol); // fudge to make arg > 1
             assert_almost_eq(asinh_difference(Xn,Xd,x),  asinh(X+x)-asinh(X), tol);
             //assert_almost_eq(atanh_difference(Xn,Xd,x),  atanh(X+x)-atanh(X), tol);
+        }
+        if (true)
+        {
+            // More complete difference tests.
+            java.lang.reflect.Method[] methods = MyMath.class.getMethods();
+            for (int i = 0; i < methods.length; ++i)
+            {
+                java.lang.reflect.Method method = methods[i];
+                String name = method.getName();
+                if (!name.endsWith("_difference"))
+                    continue;
+                Class[] signature = method.getParameterTypes();
+                System.out.println("    Testing "+name+" ("+signature.length+" args)");
+                String prefix_function_name = name.substring(0, name.length()-"_difference".length());
+                System.out.println("        prefix_function_name = "+prefix_function_name);
+                // Find prefix method, in MyMath or Math.
+                // Some are in both (e.g. cosh,sinh,tanh, in java 1.5 and later).
+                Class mathClasses[] = {Math.class, MyMath.class};
+                int nFound = 0;
+                for (int iMathClass = 0; iMathClass < mathClasses.length; ++iMathClass)
+                {
+                    Class mathClass = mathClasses[iMathClass];
+                    java.lang.reflect.Method mathMethod = null;
+                    try
+                    {
+                        mathMethod = mathClass.getMethod(prefix_function_name, new Class[]{double.class});
+                    }
+                    catch (NoSuchMethodException e)
+                    {
+                        System.out.println("        no method "+prefix_function_name+" in "+mathClass.getName());
+                        continue;
+                    }
+                    nFound++;
+                    System.out.println("        found "+mathMethod.getName()+" in "+mathClass.getName());
+                    if (signature.length == 2)
+                    {
+                        double Ts[] = {0., .1, .4, .5, .7, Math.sqrt(.5), .8, .9, 1., 1.1, Math.sqrt(2.)};
+                        double ts[] = {0, .1, .2}; // XXX should test negative... but only for functions that can handle it
+                        for (int iT = 0; iT < Ts.length; ++iT)
+                        for (int it = 0; it < ts.length; ++it)
+                        {
+                            double T = Ts[iT];
+                            double t = ts[it];
+                            if (name.startsWith("cosh") && (T<1. || T+t<1.))
+                                continue;
+                        }
+                        //test_difference_function(method, mathMethod, T, t);
+                    }
+                    else if (signature.length == 3)
+                    {
+                        //test_difference_function(method, mathMethod, .6, 2., .1);
+                    }
+                    else
+                        assert(false);
+                }
+                assert(nFound > 0);
+            }
+            
+            return;
         }
 
         assert_nan(Math.log(Double.NEGATIVE_INFINITY));

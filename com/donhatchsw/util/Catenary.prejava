@@ -116,9 +116,9 @@ public class Catenary
     // Does no memory allocations.
     public void fit(double x0, double y0,
                     double x1, double y1,
-                    double slack)
+                    double slack,
+                    int verboseLevel) // 0: nothing, 1: in/out, 2: more details
     {
-        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: more details
         if (verboseLevel >= 1) System.out.println("                        in Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
         assert(slack >= 0.);
         assert(x0 <= x1);
@@ -292,29 +292,34 @@ public class Catenary
     public void evaluate(double t,
                          double answer[/*2*/])
     {
+        int verboseLevel = 0;
+        if (verboseLevel >= 1) System.out.println("                        in Catenary.evaluate(t="+t+")");
         assertValid();
         if (sDenominator == 0.)
         {
             // s is infinity
-            //assert(false); // coverage; remove when hit. XXX NOT COVERED BY CONFIDENCE TEST YET! but is covered by demo3
+            if (verboseLevel >= 1) System.out.println("                          slack=0 s=infinity case");
+            //assert(false); // coverage; remove when hit.
             answer[0] = xFocusInWorld + t * xFocusDirection;
             answer[1] = yFocusInWorld + t * yFocusDirection;
         }
         else if (sNumerator == 0.)
         {
             // s is 0
-            assert(false); // coverage; remove when hit. XXX NOT COVERED BY CONFIDENCE TEST YET! but is covered by demo3
+            if (verboseLevel >= 1) System.out.println("                          dx=0 s=0 case");
+            //assert(false); // coverage; remove when hit.
             answer[0] = xFocusInWorld;
             answer[1] = yFocusInWorld + Math.abs(t);
         }
         else
         {
+            if (verboseLevel >= 1) System.out.println("                          s finite and nonzero case");
             // keep in mind: when s<1, we know Tfocus=0, so that can simplify things.
             // conversely, when Tfocus!=0 we know s>=1.
             // i.e. it never happens that s<1 and Tfocus!=0.
 
             // 0 < s < infinity
-            assert(false); // coverage; remove when hit
+            //assert(false); // coverage; remove when hit
 
             //     x(t) = xFocusInWorld + s*(asinh(TFocus + t/s) - asinh(TFocus))
             //     y(t) = yFocusInWorld + s*(sqrt((TFocus + t/s)^2 + 1) - sqrt(TFocus^2 + 1))
@@ -340,16 +345,18 @@ public class Catenary
 
             if (SQR(xFocusDirection) >= .5)
             {
+                if (verboseLevel >= 1) System.out.println("                              mostly horizontal");
                 // mostly horizontal; Tfocus relatively small (or zero),
                 // so we're not subtracting huge numbers.
                 // (XXX assuming s not huge... need to think about case s huge)
-                assert(false); // coverage; remove when hit
+                //assert(false); // coverage; remove when hit
                 double TFocus = TFocusNumerator / TFocusDenominator; // stable
                 answer[1] = yFocusInWorld + (Math.sqrt(SQR(TFocus*s + t) + s*s)
                                            - Math.sqrt(SQR(TFocus*s) + s*s));
             }
             else
             {
+                if (verboseLevel >= 1) System.out.println("                              mostly vertical");
                 // mostly vertical.
 
                 // For the y part:
@@ -369,18 +376,19 @@ public class Catenary
                           + t*(2+t*invTFocus/s) / (Math.sqrt(SQR(1+t*invTFocus/s)+SQR(invTFocus)) + Math.sqrt(1+SQR(invTFocus)));
             }
         }
+        if (verboseLevel >= 1) System.out.println("                        out Catenary.evaluate(t="+t+"), returning answer="+VecMath.toString(answer));
     } // evaluate
     // Arc length integral from focus to t.
     public void integrate(double t,
                           double answer[/*2*/])
     {
         int verboseLevel = 0; // 0: nothing, 1: in/out, 2: more details
-        if (verboseLevel >= 1) System.out.println("                in Catenary.integrate(t="+t+")");
+        if (verboseLevel >= 1) System.out.println("                                in Catenary.integrate(t="+t+")");
 
         assertValid();
         if (sDenominator == 0.)
         {
-            if (verboseLevel >= 1) System.out.println("                    slack=0 s=infinity case");
+            if (verboseLevel >= 1) System.out.println("                                    slack=0 s=infinity case");
             // s is infinity
             //assert(false); // coverage; remove when hit
             answer[0] = t * (xFocusInWorld + .5*t*xFocusDirection);
@@ -388,7 +396,7 @@ public class Catenary
         }
         else if (sNumerator == 0.)
         {
-            if (verboseLevel >= 1) System.out.println("                    dx=0 s=0 case");
+            if (verboseLevel >= 1) System.out.println("                                    dx=0 s=0 case");
             // s is 0
             //assert(false); // coverage; remove when hit
             answer[0] = t * xFocusInWorld;
@@ -396,7 +404,7 @@ public class Catenary
         }
         else
         {
-            if (verboseLevel >= 1) System.out.println("                    s finite and nonzero case");
+            if (verboseLevel >= 1) System.out.println("                                    s finite and nonzero case");
             //assert(false); // coverage; remove when hit
             double s = sNumerator / sDenominator; // XXX obviously not robust
             assert(xFocusDirection != 0.);
@@ -410,12 +418,12 @@ public class Catenary
             //     y part of integral = (yFocusInWorld-s)*t + .5*(s*s)*(sqrt(SQR(t/s+T)+1)*(t/s+T) + asinh(t/s+T))
             double T = TFocus;
 
-            if (verboseLevel >= 2) System.out.println("                        t = "+t);
-            if (verboseLevel >= 2) System.out.println("                        s = "+s);
-            if (verboseLevel >= 2) System.out.println("                        t/s = "+t/s);
-            if (verboseLevel >= 2) System.out.println("                        T = "+T);
-            if (verboseLevel >= 2) System.out.println("                        t/s+T = "+t/s+T);
-            if (verboseLevel >= 2) System.out.println("                        asinh(t/s+T) = "+MyMath.asinh(t/s+T));
+            if (verboseLevel >= 2) System.out.println("                                        t = "+t);
+            if (verboseLevel >= 2) System.out.println("                                        s = "+s);
+            if (verboseLevel >= 2) System.out.println("                                        t/s = "+t/s);
+            if (verboseLevel >= 2) System.out.println("                                        T = "+T);
+            if (verboseLevel >= 2) System.out.println("                                        t/s+T = "+t/s+T);
+            if (verboseLevel >= 2) System.out.println("                                        asinh(t/s+T) = "+MyMath.asinh(t/s+T));
 
             double asinh = MyMath.asinh(t/s+T);
 
@@ -448,7 +456,7 @@ public class Catenary
             // The arc length is sinh(x1)-sinh(x0)
             // and the translation is <v0[0]-x0, v0[1]-cosh(x0)>
         }
-        if (verboseLevel >= 1) System.out.println("                out Catenary.integrate(t="+t+"), returning "+VecMath.toString(answer));
+        if (verboseLevel >= 1) System.out.println("                                out Catenary.integrate(t="+t+"), returning "+VecMath.toString(answer));
     } // integrate
 
     // subclasses don't need to override this--
@@ -458,12 +466,15 @@ public class Catenary
                           double t1, // not necessarily this.t1
                           double answer[/*2*/])
     {
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: more details
+        if (verboseLevel >= 1) System.out.println("                        in Catenary.integrate(t0="+t0+", t1="+t1+")");
         integrate(t0, answer); // note this might be a subclass's integrate
         double answer0x = answer[0];
         double answer0y = answer[1];
         integrate(t1, answer); // note this might be a subclass's integrate
         answer[0] -= answer0x;
         answer[1] -= answer0y;
+        if (verboseLevel >= 1) System.out.println("                        out Catenary.integrate(t0="+t0+", t1="+t1+"), returning answer="+VecMath.toString(answer));
     } // integrate
 
     // Catenary always has non-negative scale,
@@ -475,16 +486,17 @@ public class Catenary
         public boolean leftRightFlipped;
         @Override public void fit(double x0, double y0,
                                   double x1, double y1,
-                                  double slack)
+                                  double slack,
+                                  int verboseLevel)
         {
             if (x1 < x0)
             {
-                super.fit(-x0,y0, -x1,y1, slack);
+                super.fit(-x0,y0, -x1,y1, slack, verboseLevel);
                 this.leftRightFlipped = true;
             }
             else
             {
-                super.fit(x0,y0, x1,y1, slack);
+                super.fit(x0,y0, x1,y1, slack, verboseLevel);
                 this.leftRightFlipped = false;
             }
             //PRINT(this.leftRightFlipped);
