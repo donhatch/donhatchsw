@@ -8,7 +8,10 @@ import cmath
 import sys
 
 if len(sys.argv) != 9:
-  exit("Usage: sim.py px py vx vy a DT dtsPerDT t1")
+  print >>sys.stderr, "Usage: sim.py px py vx vy a DT dtsPerDT t1"
+  print >>sys.stderr, "Example: sim.py  1. 0.  0. 1.  1.  '2*pi/360' 10000  '2*pi'"
+  print >>sys.stderr, "Example: sim.py  1. 0.  0. 1.75  1.  '2*pi/360' 10000  '2*pi'"
+  exit(1)
 
 px = eval(sys.argv[1])
 py = eval(sys.argv[2])
@@ -36,7 +39,7 @@ print >>sys.stderr, "aMagnitude = "+`aMagnitude`
 print >>sys.stderr, "dt = "+`dt`
 print >>sys.stderr, "t1 = "+`t1`
 
-exponent = 1
+exponent = 1 # hard-code to something other than 1 here to experiment
 
 i = 0
 while i*dt <= t1:
@@ -51,7 +54,7 @@ while i*dt <= t1:
   p += v * dt
   i += 1
 
-# sweet spots for v:
+# sweet spots for v_y (p=1,0 v=0,v_y aMag=1
 #       7/4?          .621   oh I see, it's going in rather than out
 
 #       hmm can't get to 5/2
