@@ -3,6 +3,12 @@
 # Simulate bounce=1, i.e. aim as if we had infinite power,
 # i.e. always aim straight for the target.
 
+# gnuplot:
+#       set size square
+#       q = 1.5
+#       plot [-q:q] [-q:q] 'OUT'
+
+
 from math import * # for the evals, so you can say sqrt(pi) etc.
 import cmath
 import sys
