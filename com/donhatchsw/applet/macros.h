@@ -70,9 +70,9 @@
 #define RTOD(r) ((r)*(180./Math.PI))
 #define DTOR(r) ((r)*(Math.PI/180.))
 
-#define LT(a,b,eps) (((b)-(a)) > eps)
-#define GT(a,b,eps) (((a)-(b)) > eps)
-#define LEQ(a,b,eps) (((a)-(b)) <= eps)
-#define GEQ(a,b,eps) (((b)-(a)) <= eps)
+#define LT(a,b,eps) (((b)-(a)) > (eps))
+#define GT(a,b,eps) (((a)-(b)) > (eps))
+#define LEQ(a,b,eps) (((a)-(b)) <= (eps))
+#define GEQ(a,b,eps) (((b)-(a)) <= (eps))
 #define EQ(a,b,eps) (LEQ(a,b,eps) && GEQ(a,b,eps))
 #define MOD(a,b) (((a)+(b))%(b)) // XXX not general! only use it when a+b is known to be >= 0

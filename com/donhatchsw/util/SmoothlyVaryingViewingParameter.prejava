@@ -8,9 +8,8 @@ package com.donhatchsw.util;
 * all over the place, and the actual value will smoothly move towards to it,
 * without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
 *
-* TODO: multiple views with different behavior in each
-* TODO: with referenceTripTimesInRepaints[i] = .1, one of the particles overshoots substantially. why?
-* TODO: lots of "OH NO! SOMETHING AWFUL HAPPENED!" with refTripTimesInRepaings=1
+* TODO: demo3: multiple views with different behavior in each
+# TODO: demo3: and they all overshoot a bit it seems, with refTripTime=1?
 
 * XXX TODO: lines connecting velocity dots with acceleration dots? not sure
 * XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
@@ -358,7 +357,7 @@ public class SmoothlyVaryingViewingParameter
                     double n = position.length;
                     double a = 4 * referenceTripDistance
                                  / SQR(referenceTripTime);
-                    distanceBasedBounce = MIN(distanceBasedBounce, 1-1e-6); // XXX should try to do something real in that case intead-- always pull directly towards the target.  what's the resulting path?  I don't know
+                    distanceBasedBounce = MIN(distanceBasedBounce, 1-1e-6); // XXX should try to do something real in that case intead-- always pull directly towards the target.  what's the resulting path?  Did a sim about it... it's basically a spirograph drawing.  Can I characterize it analytically?  Hmm.  Oh!  Should draw the velocities!
                     // A is the overoptimistic acceleration
                     // such that, if we plan using it,
                     // we will overshoot by exactly distanceBasedBounce.
@@ -377,21 +376,28 @@ public class SmoothlyVaryingViewingParameter
                     // For example if A=10, then we can scale velocity,position,targetPosition
                     // by 1/10, solve the problem (same dt), and then scale answer
                     // position and velocity by 10.
+                    // XXX think about variations on this, changing dt
                     VecMath.vxs(minusVelocity, minusVelocity, 1./A);
                     VecMath.vxs(positionDisplacement, positionDisplacement, 1./A);
 
-                    // Normalize by dividing by the problem size.
+                    // Normalize minusVelocity and positionDisplacement so that
+                    // the max of their magnitudes is 1.
                     // If we multiply minusVelocity by something,
-                    // we must multiply positionDisplacement by something^2.
-                    // XXX wait is that true?  I don't think it is.
-                    // XXX actually haven't gotten any flavor of this to work... should figure out why.
-                    // XXX NOTE: if I enable this, need to get rid of all the problemSize adjustments throughout the code
-                    double problemSize = Math.max(VecMath.norm(minusVelocity),
-                                                  VecMath.norm(positionDisplacement));
-                    if (false)
+                    // we must multiply positionDisplacement by something^2,
+                    // and we must also divide dt by something.
+                    // This is so we don't unnecessarily feed huge numbers to the catenary math,
+                    // and also so that the next few assertions (about dot products of vectors)
+                    // will be more sensible.
+                    double normsqrdMinusVelocity = VecMath.normsqrd(minusVelocity);
+                    double normPositionDisplacement = VecMath.norm(positionDisplacement);
+                    double problemSizeSqrd = Math.max(normsqrdMinusVelocity, normPositionDisplacement);
+                    double problemSize = Math.sqrt(problemSizeSqrd);
+                    boolean problemSizeScaleFlag = true;
+                    if (problemSizeScaleFlag)
                     {
-                        VecMath.vxs(minusVelocity, minusVelocity, 1./(problemSize*problemSize));
-                        VecMath.vxs(positionDisplacement, positionDisplacement, 1./problemSize);
+                        VecMath.vxs(minusVelocity, minusVelocity, 1./problemSize);
+                        VecMath.vxs(positionDisplacement, positionDisplacement, 1./problemSizeSqrd);
+                        assert_almost_eq(Math.max(VecMath.norm(minusVelocity), VecMath.norm(positionDisplacement)), 1., 1e-12);
                     }
 
                     // We want to work in 2 dimensions.
@@ -426,7 +432,7 @@ public class SmoothlyVaryingViewingParameter
                     // Also see: http://www.maths.manchester.ac.uk/~higham/talks/claode13.pdf
                     //  || a b c d || || d -b -c a || / (ad-bc)^2
                     // So that's: (max row sum) * (max col sum) / det^2
-                    assert(VecMath.dot(positionDisplacement, basis[1]) * (1./problemSize)
+                    assert(VecMath.dot(positionDisplacement, basis[1])
                         <= tol);
 
                     double v[/*2*/] = VecMath.mxv(basis, minusVelocity); // from nd to 2d space
@@ -437,13 +443,12 @@ public class SmoothlyVaryingViewingParameter
                     if (verboseLevel >= 2) PRINTVEC(p);
                     assert(v[0] >= 0.);
                     assert(EQ(v[1], 0., 1e-6)); // XXX need to make this relative
-                    if (!(p[1] * (1./problemSize) <= tol))
+                    if (!(p[1] <= tol))
                     {
                         PRINTVEC(v);
                         PRINTVEC(p);
-                        PRINT(problemSize);
                     }
-                    assert(p[1]/problemSize <= tol);
+                    assert(p[1] <= tol);
 
                     // We want to find the catenary with end points (0,0),v
                     // and integral p.
@@ -557,10 +562,11 @@ public class SmoothlyVaryingViewingParameter
                     double partwayIntegral[] = new double[2];
                     double vFinal[] = new double[2];
                     if (verboseLevel >= 2) PRINT(dt);
+                    double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
                     double arcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
                         v1, v0,
                         xyAnswer[0], xyAnswer[1],
-                        dt, // maxArcLength
+                        maxArcLength,
                         partwayIntegral,
                         vFinal,
                         scratchCatenaryRotated,
@@ -589,11 +595,11 @@ public class SmoothlyVaryingViewingParameter
                     VecMath.vxm(minusVelocity, vFinal, basis);
                     VecMath.vxm(positionDisplacement, p, basis);
 
-                    if (false)
+                    if (problemSizeScaleFlag)
                     {
                         // Undo the problem size scale
-                        VecMath.vxs(minusVelocity, minusVelocity, problemSize*problemSize);
-                        VecMath.vxs(positionDisplacement, positionDisplacement, problemSize);
+                        VecMath.vxs(minusVelocity, minusVelocity, problemSize);
+                        VecMath.vxs(positionDisplacement, positionDisplacement, problemSizeSqrd);
                     }
 
                     // Undo the acceleraton scale
@@ -616,7 +622,7 @@ public class SmoothlyVaryingViewingParameter
                         PRINTVEC(position);
                     }
 
-                    if (arcLength < dt)
+                    if (arcLength < maxArcLength)
                     {
                         // Done with entire journey!
                         // Position should be target and velocity should be
@@ -624,7 +630,7 @@ public class SmoothlyVaryingViewingParameter
                         // floating point roundoff error.
                         // Set them to exactly what they should be,
                         // so that isMoving()'s criteria will be met.
-                        if (verboseLevel >= 2) System.out.println("Done with entire journey because arcLength="+arcLength+" <= dt="+dt+"");
+                        if (verboseLevel >= 2) System.out.println("Done with entire journey because arcLength="+arcLength+" <= maxArcLength="+maxArcLength+"");
                         VecMath.zerovec(this.velocity);
                         VecMath.copyvec(this.position, this.targetPosition);
                         if (verboseLevel >= 2)
@@ -13525,7 +13531,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public double referenceTripDistancesInPixels[];
                 public double referenceTripTimesInRepaints[];
                 public java.awt.Color colors[];
-                //public double distanceBasedBounce = .53; // zeroing in on threshold of whether it does or doesn't settle
+                //public double distanceBasedBounce = .53; // zeroing in on threshold of whether it does or doesn't settle, for QUADRATIC
                 //public double distanceBasedBounce = 1.;
                 public double distanceBasedBounce = 0.;
                 public boolean paused = false;
@@ -13545,10 +13551,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         double minDistance = 1.;
                         double maxDistance = 100.;
                         double frac = i/(n-1.); // uniform from 0 to 1 inclusive
-                        referenceTripDistancesInPixels[i] = Math.pow(minDistance, 1-frac)
-                                                          * Math.pow(maxDistance, frac);
+                        referenceTripDistancesInPixels[i] = minDistance
+                                                          * Math.pow(maxDistance/minDistance,
+                                                                     frac);
+                        //referenceTripTimesInRepaints[i] = 2.;
                         //referenceTripTimesInRepaints[i] = 1.;
-                        referenceTripTimesInRepaints[i] = .5;
+                        //referenceTripTimesInRepaints[i] = .5;
+                        referenceTripTimesInRepaints[i] = .25;
                         //referenceTripTimesInRepaints[i] = .2;
                         //referenceTripTimesInRepaints[i] = .19;
                         //referenceTripTimesInRepaints[i] = .18;
@@ -13557,6 +13566,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         //referenceTripTimesInRepaints[i] = .13;
                         //referenceTripTimesInRepaints[i] = .12;
                         //referenceTripTimesInRepaints[i] = .1;
+                        //referenceTripTimesInRepaints[i] = .05;
 
                         points[i].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
                         points[i].setVelocity(new double[]{0,.25}); // northward a bit
