@@ -7,6 +7,7 @@
 
 # note, some day I think there will be a -c option that will allow args to be passed in more easily, but not today.
 
+# TODO: 'do' loop inside function?? instead of recursion? hmm
 # TODO: implement for arbitrary angle from v0 to v1
 
 # Things that can be tweaked:
