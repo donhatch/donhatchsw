@@ -36,7 +36,29 @@ package com.donhatchsw.util;
 */
 public class SmoothlyVaryingViewingParameter
 {
+    /**
+    * STRATEGY_SEPARABLE means handle each coordinate separately,
+    * using the exact algorithm for 1 dimension,
+    * with an attempt to scale the accelerations in each dimension
+    * so that they all arrive at the same time.
+    * STRATEGY_TWO_PIECE_QUADRATIC means use the general two-piece
+    * quadratic solution.
+    * WARNING: this setting makes mc4d hang, currently.
+    * STRATEY_TRY_TO_DO_IT_RIGHT means use the optimal solution;
+    * that is, the velocity traces out a catenary at unit speed
+    * in velocity space.
+    */
+    public static final int STRATEGY_SEPARABLE = 0;
+    public static final int STRATEGY_TWO_PIECE_QUADRATIC = 1;
+    public static final int STRATEGY_TRY_TO_DO_IT_RIGHT = 2;
+    public static final String strategyNames[] = {
+        "STRATEGY_SEPARABLE",
+        "STRATEGY_TWO_PIECE_QUADRATIC",
+        "STRATEGY_TRY_TO_DO_IT_RIGHT",
+    };
+
     // This is the entire state
+    public int strategy;
     private double[] position;
     private double[] velocity;
     private double[] targetPosition;
@@ -51,6 +73,7 @@ public class SmoothlyVaryingViewingParameter
         this.position = VecMath.copyvec(new double[]{initialPosition});
         this.velocity = new double[this.position.length]; // zero
         this.targetPosition = VecMath.copyvec(new double[]{initialPosition});
+        this.strategy = (this.position.length==1 ? STRATEGY_SEPARABLE : STRATEGY_TRY_TO_DO_IT_RIGHT);
     }
     /** Constructor. */
     public SmoothlyVaryingViewingParameter(double initialPosition[])
@@ -58,6 +81,7 @@ public class SmoothlyVaryingViewingParameter
         this.position = VecMath.copyvec(initialPosition);
         this.velocity = new double[this.position.length]; // zero
         this.targetPosition = VecMath.copyvec(initialPosition);
+        this.strategy = (this.position.length==1 ? STRATEGY_SEPARABLE : STRATEGY_TRY_TO_DO_IT_RIGHT);
     }
 
     /** Sets the target value of this scalar variable. Equivalent to set(new double[]{targetPosition}); */
@@ -163,22 +187,6 @@ public class SmoothlyVaryingViewingParameter
     */
     public static int verboseLevel = 0;
 
-    /**
-    * If true, handle each coordinate separately,
-    * using the exact algorithm for 1 dimension.
-    * If false, get a general two-piece quadratic solution.
-    * (this is not the optimal solution!).
-    * WARNING: setting this to non-separable makes mc4d hang, currently.
-    */
-    public static final int STRATEGY_SEPARABLE = 0;
-    public static final int STRATEGY_TWO_PIECE_QUADRATIC = 1;
-    public static final int STRATEGY_TRY_TO_DO_IT_RIGHT = 2;
-    public static final String strategyNames[] = {
-        "STRATEGY_SEPARABLE",
-        "STRATEGY_TWO_PIECE_QUADRATIC",
-        "STRATEGY_TRY_TO_DO_IT_RIGHT",
-    };
-    public static int strategy = STRATEGY_SEPARABLE; // DO NOT CHANGE THIS UNLESS YOU ARE CONFIDENT IT WON'T BREAK MC4D
 
     /**
     * Evolves dt seconds towards the target,
@@ -1492,8 +1500,11 @@ public class SmoothlyVaryingViewingParameter
         {
             // Verify that TRY_TO_DO_IT_RIGHT gives same answer
             // as SEPARABLE 1d when given a 1d problem
+            // XXX TODO: actually all three should? hmm
             SmoothlyVaryingViewingParameter x1 = new SmoothlyVaryingViewingParameter(0.);
+            x1.strategy = STRATEGY_SEPARABLE;
             SmoothlyVaryingViewingParameter x2 = new SmoothlyVaryingViewingParameter(new double[2]);
+            x2.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
             //double referenceTripDistance = .01;
             //double referenceTripDistance = .1;
             // acceleration = 4*d/t^2
@@ -1547,11 +1558,9 @@ public class SmoothlyVaryingViewingParameter
                     break;
 
                 System.out.println("            evolving x1...");
-                strategy = STRATEGY_SEPARABLE;
                 x1.evolve(referenceTripDistance,referenceTripTime, dt, distanceBasedBounce);
 
                 System.out.println("            evolving x2...");
-                strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
                 x2.evolve(referenceTripDistance,referenceTripTime, dt, distanceBasedBounce);
 
                 double tol = 1e-12;
@@ -1576,11 +1585,11 @@ public class SmoothlyVaryingViewingParameter
             // XXX or whatever the default is? I'm a bit confused.  maybe switch and switch back
             //
             System.out.println("    Testing double-quadratic behavior");
-            int savedStrategy = strategy;
-            strategy = STRATEGY_TWO_PIECE_QUADRATIC;
 
             SmoothlyVaryingViewingParameter x2 = new SmoothlyVaryingViewingParameter(new double[2]);
+            x2.strategy = STRATEGY_TWO_PIECE_QUADRATIC;
             SmoothlyVaryingViewingParameter x3 = new SmoothlyVaryingViewingParameter(new double[2]);
+            x3.strategy = STRATEGY_TWO_PIECE_QUADRATIC;
             double distanceBasedBounce = 0.; // XXX should write some tests with this varying
             double eps = 1e-5;
             double referenceTripDistances[] = {1, .5, 2.};
@@ -1742,8 +1751,6 @@ public class SmoothlyVaryingViewingParameter
 
             //System.out.println("EXITING EARLY");
             //System.exit(0);
-
-            strategy = savedStrategy;
         }
 
         {
@@ -11882,11 +11889,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         for (int i = 0; ; i++)
         {
             SmoothlyVaryingViewingParameter foo = new SmoothlyVaryingViewingParameter(initialPosition);
+            foo.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
             foo.setVelocity(initialVelocity);
             foo.set(targetPosition);
             double p[] = new double[initialPosition.length];
             double v[] = new double[initialPosition.length];
-            SmoothlyVaryingViewingParameter.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT; // global!
             foo.evolve(referenceTripDistance,
                        referenceTripTime,
                        i * dt,
@@ -11922,11 +11929,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 double vExpected[] = velocities[j];
 
                 SmoothlyVaryingViewingParameter foo = new SmoothlyVaryingViewingParameter(positions[i]);
+                foo.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
                 foo.setVelocity(velocities[i]);
                 foo.set(targetPosition);
                 double pActual__[] = new double[initialPosition.length];
                 double vActual__[] = new double[initialPosition.length];
-                SmoothlyVaryingViewingParameter.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT; // global!
                 int verboseLevel = i==interestingIndex&&j==interestingIndex ? 3 : 0; // XXX YYY
                 com.donhatchsw.compat.ArrayList newtonPathArrayList = i==interestingIndex&&j==interestingIndex ? new com.donhatchsw.compat.ArrayList() : null;
                 foo.evolve(referenceTripDistance,
@@ -13512,9 +13519,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     private static void interactiveDemo3()
     {
         final int eventVerbose = 0; // set to something else to debug
-        //strategy = STRATEGY_SEPARABLE;
-        //strategy = STRATEGY_TWO_PIECE_QUADRATIC;
-        strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
+        //int strategy = STRATEGY_SEPARABLE;
+        //int strategy = STRATEGY_TWO_PIECE_QUADRATIC;
+        int strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
@@ -13535,6 +13542,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //public double distanceBasedBounce = 1.;
                 public double distanceBasedBounce = 0.;
                 public boolean paused = false;
+                public int strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
                 public Model()
                 {
                     int n = 10;
@@ -13545,6 +13553,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     FORI (i, n)
                     {
                         points[i] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
+                        points[i].strategy = strategy;
 
                         // Uniformly spaced speeds in log space, between 1 and 100
                         // (in pixels per frame).
@@ -13848,9 +13857,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         }
                         else if (c == 's')
                         {
-                            int newStrategy = (strategy+1) % strategyNames.length;
-                            System.out.println("changing strategy from "+strategyNames[strategy]+" to "+strategyNames[newStrategy]);
-                            strategy = newStrategy;
+                            int newStrategy = (model.strategy+1) % strategyNames.length;
+                            System.out.println("changing strategy from "+strategyNames[model.strategy]+" to "+strategyNames[newStrategy]);
+                            model.strategy = newStrategy;
+                            FORI (i, model.points.length)
+                                model.points[i].strategy = model.strategy;
                         }
                         else if (c == 'p')
                         {
