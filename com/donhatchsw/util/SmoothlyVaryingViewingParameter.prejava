@@ -9,7 +9,8 @@ package com.donhatchsw.util;
 * without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
 *
 * TODO: demo3: multiple views with different behavior in each!
-* TODO: demo3: and they all overshoot a bit it seems, with refTripTime=1?
+* BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
+* BUG: demo3: and in general quadratic seems to be the winner
 * BUG: demo3: some of the start particles start at the edge and some not?? wtf?
 
 * XXX TODO: lines connecting velocity dots with acceleration dots? not sure
@@ -13554,8 +13555,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         referenceTripDistancesInPixels[i] = minDistance
                                                           * Math.pow(maxDistance/minDistance,
                                                                      frac);
-                        referenceTripTimesInRepaints[i] = 2.;
-                        //referenceTripTimesInRepaints[i] = 1.;
+                        //referenceTripTimesInRepaints[i] = 2.;
+                        referenceTripTimesInRepaints[i] = 1.;
                         //referenceTripTimesInRepaints[i] = .5;
                         //referenceTripTimesInRepaints[i] = .25;
                         //referenceTripTimesInRepaints[i] = .2;
@@ -13590,7 +13591,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 // after window resize, target will be set to window center.
                             }
                             float hue = i/(n-1.f);
-                            float sat = j==0 ? .3f : j==1 ? .6f : j==2 ? .9f : 0.f;
+                            float sat = j==0 ? .2f : j==1 ? .6f : j==2 ? 1.f : 0.f;
                             float val = 1.f;
                             float rgb[] = new float[3];
                             HSVtoRGB(hue,sat,val,rgb);
