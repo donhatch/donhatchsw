@@ -66,14 +66,7 @@ public class SmoothlyVaryingViewingParameter
     /** Convenience constructor for a scalar parameter; equivalent to SmoothlyVaryingViewingParameter(new double[]{initialPosition}). */
     public SmoothlyVaryingViewingParameter(double initialPosition)
     {
-        // XXX huh?  why can't I do the following? weird, maybe a typo
-        //SmoothlyVaryingViewingParameter(new double[]{initialPosition});
-
-        // so copy the code instead...
-        this.position = VecMath.copyvec(new double[]{initialPosition});
-        this.velocity = new double[this.position.length]; // zero
-        this.targetPosition = VecMath.copyvec(new double[]{initialPosition});
-        this.strategy = (this.position.length==1 ? STRATEGY_SEPARABLE : STRATEGY_TRY_TO_DO_IT_RIGHT);
+        this(new double[]{initialPosition});
     }
     /** Constructor. */
     public SmoothlyVaryingViewingParameter(double initialPosition[])
