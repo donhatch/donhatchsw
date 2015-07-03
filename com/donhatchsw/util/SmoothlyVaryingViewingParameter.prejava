@@ -8,8 +8,9 @@ package com.donhatchsw.util;
 * all over the place, and the actual value will smoothly move towards to it,
 * without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
 *
-* TODO: demo3: multiple views with different behavior in each
-# TODO: demo3: and they all overshoot a bit it seems, with refTripTime=1?
+* TODO: demo3: multiple views with different behavior in each!
+* TODO: demo3: and they all overshoot a bit it seems, with refTripTime=1?
+* BUG: demo3: some of the start particles start at the edge and some not?? wtf?
 
 * XXX TODO: lines connecting velocity dots with acceleration dots? not sure
 * XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
@@ -13539,15 +13540,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public Model()
                 {
                     int n = 10;
-                    points = new SmoothlyVaryingViewingParameter[n];
+                    points = new SmoothlyVaryingViewingParameter[n*3];
                     referenceTripDistancesInPixels = new double[n];
                     referenceTripTimesInRepaints = new double[n];
-                    colors = new java.awt.Color[n];
+                    colors = new java.awt.Color[n*3];
                     FORI (i, n)
                     {
-                        points[i] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
-                        points[i].strategy = strategy;
-
                         // Uniformly spaced speeds in log space, between 1 and 100
                         // (in pixels per frame).
                         double minDistance = 1.;
@@ -13556,10 +13554,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         referenceTripDistancesInPixels[i] = minDistance
                                                           * Math.pow(maxDistance/minDistance,
                                                                      frac);
-                        //referenceTripTimesInRepaints[i] = 2.;
+                        referenceTripTimesInRepaints[i] = 2.;
                         //referenceTripTimesInRepaints[i] = 1.;
                         //referenceTripTimesInRepaints[i] = .5;
-                        referenceTripTimesInRepaints[i] = .25;
+                        //referenceTripTimesInRepaints[i] = .25;
                         //referenceTripTimesInRepaints[i] = .2;
                         //referenceTripTimesInRepaints[i] = .19;
                         //referenceTripTimesInRepaints[i] = .18;
@@ -13570,26 +13568,35 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         //referenceTripTimesInRepaints[i] = .1;
                         //referenceTripTimesInRepaints[i] = .05;
 
-                        points[i].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
-                        points[i].setVelocity(new double[]{0,.25}); // northward a bit
-
-                        if (true)
+                        FORI (j, 3)
                         {
-                            // debug pure diagonal motion.  WTF, this makes the bounce not happen for separable??
-                            points[i].warp(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bogus bounce doesn't happen!
-                            points[i].warp(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                            points[i].warp(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                            points[i].warp(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                            points[i].setVelocity(new double[]{0.,0.});
-                            // after window resize, target will be set to window center.
+                              points[i*3+j] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
+                              points[i*3+j].strategy = j==0 ? STRATEGY_SEPARABLE
+                                                     : j==1 ? STRATEGY_TWO_PIECE_QUADRATIC
+                                                            : STRATEGY_TRY_TO_DO_IT_RIGHT;
+
+
+                            points[3*i+j].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
+                            points[3*i+j].setVelocity(new double[]{0,.25}); // northward a bit
+
+                            if (true)
+                            {
+                                // debug pure diagonal motion.  WTF, this makes the bounce not happen for separable??
+                                points[i].warp(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bogus bounce doesn't happen!
+                                points[i].warp(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[i].warp(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[i].warp(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[i].setVelocity(new double[]{0.,0.});
+                                // after window resize, target will be set to window center.
+                            }
+                            float hue = i/(n-1.f);
+                            float sat = j==0 ? .3f : j==1 ? .6f : j==2 ? .9f : 0.f;
+                            float val = 1.f;
+                            float rgb[] = new float[3];
+                            HSVtoRGB(hue,sat,val,rgb);
+                            colors[i*3+j] = new java.awt.Color(rgb[0],rgb[1],rgb[2]);
                         }
 
-                        float hue = i/(n-1.f);
-                        float sat = .4f;
-                        float val = 1.f;
-                        float rgb[] = new float[3];
-                        HSVtoRGB(hue,sat,val,rgb);
-                        colors[i] = new java.awt.Color(rgb[0],rgb[1],rgb[2]);
                     }
                 } // class Model
             }
@@ -13638,24 +13645,24 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     backBuffer = this.createImage(w, h);
                     backBufferSize = size;
                     // After window resize, set target to window center
-                    FORI (i, model.points.length)
-                        model.points[i].set(new double[]{w*.5, h*.5});
+                    FORI (I, model.points.length)
+                        model.points[I].set(new double[]{w*.5, h*.5});
 
                     if (false)
                     {
                         // to 0,0
                         System.out.println("    HACK for debugging: setting target to 0,0");
-                        FORI (i, model.points.length)
+                        FORI (I, model.points.length)
                         {
-                            //model.points[i].set(new double[]{0., 0.});
+                            //model.points[I].set(new double[]{0., 0.});
 
                             double position[] = new double[2];
-                            model.points[i].getTarget(position);
+                            model.points[I].getTarget(position);
                             position[1] += 100.;
-                            model.points[i].warp(position);
+                            model.points[I].warp(position);
 
-                            //model.points[i].setVelocity(new double[]{-1., 0.});
-                            model.points[i].setVelocity(new double[]{0., 0.});
+                            //model.points[I].setVelocity(new double[]{-1., 0.});
+                            model.points[I].setVelocity(new double[]{0., 0.});
                         }
                     }
                 }
@@ -13679,12 +13686,15 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //
                 // Evolve.
                 //
-                int n = model.points.length;
-                FORI (i, n)
+                int N = model.points.length;
+                int n = N/3;
+                FORI (I, N)
                 {
+                    int i = I/3;
+                    int j = i%3;
                     //PRINTSUB(model.referenceTripDistancesInPixels,i);
                     //PRINTSUB(model.referenceTripTimesInRepaints,i);
-                    model.points[i].evolve(model.referenceTripDistancesInPixels[i]/10000.,
+                    model.points[I].evolve(model.referenceTripDistancesInPixels[i]/10000.,
                                            model.referenceTripTimesInRepaints[i],
                                            1., // dt, in repaints
                                            model.distanceBasedBounce);
@@ -13695,8 +13705,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //
                 double position[] = new double[2];
                 double velocity[] = new double[2];
-                FORI (i, n)
+                FORI (I, N)
                 {
+                    int i = I/3;
+                    int j = i%3;
                     // Even point sizes, so centers nicely on a pixel corner
 
                     //int pointSize = 2*i + 1; // 1, 3, 5, ...
@@ -13709,9 +13721,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     else
                         pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
 
-                    model.points[i].get(position);
-                    model.points[i].getVelocity(velocity);
-                    mg.setColor(model.colors[i]);
+                    model.points[I].get(position);
+                    model.points[I].getVelocity(velocity);
+                    mg.setColor(model.colors[I]);
                     // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
                     mg.drawHollowPoint(position[0]+.5,
                                        position[1]+.5,
@@ -13724,9 +13736,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 if (!model.paused)
                 {
                     boolean someoneIsStillMoving = false;
-                    FORI (i, n)
+                    FORI (I, N)
                     {
-                        if (model.points[i].isMoving())
+                        if (model.points[I].isMoving())
                         {
                             someoneIsStillMoving = true;
                             break;
@@ -13763,11 +13775,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         else if (keyCode == java.awt.event.KeyEvent.VK_LEFT)
                         {
                             double target[] = new double[2];
-                            FORI (i, model.points.length)
+                            FORI (I, model.points.length)
                             {
-                                model.points[i].getTarget(target);
+                                model.points[I].getTarget(target);
                                 target[0] -= 1/9.;
-                                model.points[i].set(target);
+                                model.points[I].set(target);
                             }
                             PRINTVEC(target);
                             repaint();
@@ -13775,11 +13787,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         else if (keyCode == java.awt.event.KeyEvent.VK_RIGHT)
                         {
                             double target[] = new double[2];
-                            FORI (i, model.points.length)
+                            FORI (I, model.points.length)
                             {
-                                model.points[i].getTarget(target);
+                                model.points[I].getTarget(target);
                                 target[0] += 1/9.;
-                                model.points[i].set(target);
+                                model.points[I].set(target);
                             }
                             PRINTVEC(target);
                             repaint();
@@ -13787,11 +13799,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         else if (keyCode == java.awt.event.KeyEvent.VK_UP)
                         {
                             double target[] = new double[2];
-                            FORI (i, model.points.length)
+                            FORI (I, model.points.length)
                             {
-                                model.points[i].getTarget(target);
+                                model.points[I].getTarget(target);
                                 target[1] += 1/9.;
-                                model.points[i].set(target);
+                                model.points[I].set(target);
                             }
                             PRINTVEC(target);
                             repaint();
@@ -13799,11 +13811,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         else if (keyCode == java.awt.event.KeyEvent.VK_DOWN)
                         {
                             double target[] = new double[2];
-                            FORI (i, model.points.length)
+                            FORI (I, model.points.length)
                             {
-                                model.points[i].getTarget(target);
+                                model.points[I].getTarget(target);
                                 target[1] -= 1/9.;
-                                model.points[i].set(target);
+                                model.points[I].set(target);
                             }
                             PRINTVEC(target);
                             repaint();
@@ -13848,14 +13860,16 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             PRINT(model.distanceBasedBounce);
                             repaint();
                         }
+#ifdef DEFUNCT
                         else if (c == 's')
                         {
                             int newStrategy = (model.strategy+1) % strategyNames.length;
                             System.out.println("changing strategy from "+strategyNames[model.strategy]+" to "+strategyNames[newStrategy]);
                             model.strategy = newStrategy;
-                            FORI (i, model.points.length)
-                                model.points[i].strategy = model.strategy;
+                            FORI (I, model.points.length)
+                                model.points[I].strategy = model.strategy;
                         }
+#endif
                         else if (c == 'p')
                         {
                             model.paused = !model.paused;
@@ -13901,8 +13915,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
                             if (eventVerbose >= 1) System.out.println("        thisPoint = "+Arrays.toStringCompact(thisPoint));
 
-                            FORI (i, model.points.length)
-                                model.points[i].set(thisPoint);
+                            FORI (I, model.points.length)
+                                model.points[I].set(thisPoint);
 
                             repaint();
                         }
@@ -13940,8 +13954,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             double thisPoint[] = new double[2];
                             mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
 
-                            FORI (i, model.points.length)
-                                model.points[i].set(thisPoint);
+                            FORI (I, model.points.length)
+                                model.points[I].set(thisPoint);
                             repaint();
                         }
                         if (eventVerbose >= 1) System.out.println("    out mouseDragged");
