@@ -8,12 +8,13 @@ package com.donhatchsw.util;
 * all over the place, and the actual value will smoothly move towards to it,
 * without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
 *
-* TODO: demo3: multiple views with different behavior in each!
+* XXX TODO: get/set/warp was clever, but I keep confusing myself-- I think getPosition/setTarget/setPosition would be better
+*
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
 * BUG: demo3: and in general quadratic seems to be the winner
-* BUG: demo3: some of the start particles start at the edge and some not?? wtf?
 
-* XXX TODO: lines connecting velocity dots with acceleration dots? not sure
+* XXX TODO: store acceleration
+* XXX TODO: demo2: lines connecting velocity dots with acceleration dots? not sure
 * XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
 * XXX TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
 * XXX TODO: picking should only see things that are visible
@@ -13571,10 +13572,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                         FORI (j, 3)
                         {
-                              points[i*3+j] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
-                              points[i*3+j].strategy = j==0 ? STRATEGY_SEPARABLE
-                                                     : j==1 ? STRATEGY_TWO_PIECE_QUADRATIC
-                                                            : STRATEGY_TRY_TO_DO_IT_RIGHT;
+                            points[i*3+j] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
+                            points[i*3+j].strategy = j==0 ? STRATEGY_SEPARABLE
+                                                   : j==1 ? STRATEGY_TWO_PIECE_QUADRATIC
+                                                          : STRATEGY_TRY_TO_DO_IT_RIGHT;
 
 
                             points[3*i+j].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
@@ -13583,11 +13584,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             if (true)
                             {
                                 // debug pure diagonal motion.  WTF, this makes the bounce not happen for separable??
-                                points[i].warp(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bogus bounce doesn't happen!
-                                points[i].warp(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                                points[i].warp(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                                points[i].warp(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                                points[i].setVelocity(new double[]{0.,0.});
+                                points[3*i+j].warp(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bogus bounce doesn't happen!
+                                points[3*i+j].warp(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].warp(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].warp(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].setVelocity(new double[]{0.,0.});
                                 // after window resize, target will be set to window center.
                             }
                             float hue = i/(n-1.f);
@@ -13597,7 +13598,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             HSVtoRGB(hue,sat,val,rgb);
                             colors[i*3+j] = new java.awt.Color(rgb[0],rgb[1],rgb[2]);
                         }
-
                     }
                 } // class Model
             }
