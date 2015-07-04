@@ -791,6 +791,9 @@ public class SmoothlyVaryingViewingParameter
                     VecMath.vpsxv(velocity,
                                   velocity,
                                   dt*a, beforeKneeVelocityDirection);
+                    VecMath.vxs(acceleration,
+                                beforeKneeVelocityDirection,
+                                a);
                 }
                 else // dt > timeBeforeKnee
                 {
@@ -804,6 +807,7 @@ public class SmoothlyVaryingViewingParameter
                         // done   XXX wait, no!  not necessarily done if there was bounce, because in that case when we integrate, we won't get p=0
                         VecMath.copyvec(position, targetPosition);
                         VecMath.zerovec(velocity);
+                        VecMath.zerovec(acceleration);
                         if (verboseLevel >= 1) System.out.println("    out evolve (dt >= timeBeforeKnee + timeAfterKnee)");
                         return;
                     }
@@ -825,6 +829,9 @@ public class SmoothlyVaryingViewingParameter
                     VecMath.vpsxv(velocity,
                                   velocity,
                                   timeAfterKnee*a, afterKneeVelocityDirection);
+                    VecMath.vxs(acceleration,
+                                afterKneeVelocityDirection,
+                                a);
                 }
                 //assert(false); // XXX coverage-- remove when hit
             } // if strategy == STRATEGY_TWO_PIECE_QUADRATIC
