@@ -13767,7 +13767,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 // after window resize, target will be set to window center.
                             }
                             float hue = i/(n-1.f);
-                            float sat = j==0 ? .2f : j==1 ? .6f : j==2 ? 1.f : 0.f;
+                            float sat = j==0 ? .2f : j==1 ? .45f : j==2 ? 1.f : 0.f;
                             float val = 1.f;
                             float rgb[] = new float[3];
                             HSVtoRGB(hue,sat,val,rgb);
