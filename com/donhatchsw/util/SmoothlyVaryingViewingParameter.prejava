@@ -547,6 +547,7 @@ public class SmoothlyVaryingViewingParameter
                                     Double.POSITIVE_INFINITY,
                                     answerIntegral,
                                     null, // vFinal
+                                    null, // aFinal
                                     scratchCatenaryRotated,
                                     0); // verboseLevel
                                 if (!inJ[0] && newtonPathFinal != null)
@@ -618,6 +619,7 @@ public class SmoothlyVaryingViewingParameter
 
                     double partwayIntegral[] = new double[2];
                     double vFinal[] = new double[2];
+                    double aFinal[] = new double[2];
                     if (verboseLevel >= 2) PRINT(dt);
                     double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
                     double arcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
@@ -626,6 +628,7 @@ public class SmoothlyVaryingViewingParameter
                         maxArcLength,
                         partwayIntegral,
                         vFinal,
+                        aFinal,
                         scratchCatenaryRotated,
                         verboseLevel);
 
@@ -651,30 +654,35 @@ public class SmoothlyVaryingViewingParameter
                     // 2d back to original space
                     VecMath.vxm(minusVelocity, vFinal, basis);
                     VecMath.vxm(positionDisplacement, p, basis);
+                    VecMath.vxm(this.acceleration, aFinal, basis); // still unit length
 
                     if (problemSizeScaleFlag)
                     {
                         // Undo the problem size scale
                         VecMath.vxs(minusVelocity, minusVelocity, problemSize);
                         VecMath.vxs(positionDisplacement, positionDisplacement, problemSizeSqrd);
+                        // this.acceleration still unit length
                     }
 
                     // Undo the acceleraton scale
+                    VecMath.vxs(this.acceleration, this.acceleration, A); // now length A XXX what? should be a. but I think others are similarly wrong?  well it's known that bounce isn't working for this case yet anyway...
                     VecMath.vxs(minusVelocity, minusVelocity, A);
                     VecMath.vxs(positionDisplacement, positionDisplacement, A);
 
                     // We were working with minusVelocity = -velocity
                     VecMath.vxs(this.velocity, minusVelocity, -1.);
+                    // XXX TODO: same for acceleration?
                     // We were actually working with
                     // positionDisplacement = position-targetPosition
                     VecMath.vpv(this.position, positionDisplacement, targetPosition);
 
-                    // We've set the new position and velocity.
+                    // We've set the new position and velocity and acceleration.
                     // Done with this timestep.
 
                     if (verboseLevel >= 2)
                     {
                         OUT("      new:");
+                        PRINTVEC(acceleration);
                         PRINTVEC(velocity);
                         PRINTVEC(position);
                     }
@@ -688,11 +696,13 @@ public class SmoothlyVaryingViewingParameter
                         // Set them to exactly what they should be,
                         // so that isMoving()'s criteria will be met.
                         if (verboseLevel >= 2) System.out.println("Done with entire journey because arcLength="+arcLength+" <= maxArcLength="+maxArcLength+"");
+                        VecMath.zerovec(this.acceleration);
                         VecMath.zerovec(this.velocity);
                         VecMath.copyvec(this.position, this.targetPosition);
                         if (verboseLevel >= 2)
                         {
                             OUT("      adjusted new:");
+                            PRINTVEC(acceleration);
                             PRINTVEC(velocity);
                             PRINTVEC(position);
                         }
@@ -739,7 +749,7 @@ public class SmoothlyVaryingViewingParameter
                     }
                     if (verboseLevel >= 1)
                     {
-                        System.out.println("    out evolve (outer STRATEGY_TRY_TO_DO_IT_RIGHT)");
+                        System.out.println("    out evolve (outer STRATEGY_TRY_TO_DO_IT_RIGHT bail-out)");
                     }
                     return;
                 }
@@ -14015,7 +14025,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             // This is the case for things like arrow keys
                             //System.out.println("CHAR_UNDEFINED");
                         }
-                        else if (c == java.awt.event.KeyEvent.VK_ESCAPE)
+                        else if (c == java.awt.event.KeyEvent.VK_ESCAPE
+                              || c == CTRL('c')) // XXX do I want this? should be control panel I think, if I ever make one for this demo3
                         {
                             System.out.println("ciao!");
                             System.exit(0); // asinine way of doing things

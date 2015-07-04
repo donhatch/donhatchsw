@@ -288,6 +288,67 @@ public class Catenary
     } // fit
 
 
+    // Unit-length derivative at time t. 
+    public void differentiate(double t,
+                              double answer[/*2*/])
+    {
+        int verboseLevel = 0;
+        if (verboseLevel >= 1) System.out.println("                        in Catenary.differentiate(t="+t+")");
+        assertValid();
+
+        if (sDenominator == 0.)
+        {
+            // s is infinity
+            if (verboseLevel >= 1) System.out.println("                          slack=0 s=infinity case");
+            //assert(false); // coverage; remove when hit.
+            answer[0] = xFocusDirection;
+            answer[1] = yFocusDirection;
+            // guaranteed to be unit length! hooray!
+        }
+        else if (sNumerator == 0.)
+        {
+            // s is 0
+            if (verboseLevel >= 1) System.out.println("                          dx=0 s=0 case");
+            //assert(false); // coverage; remove when hit.
+            answer[0] = 0.;
+            answer[1] = t>=0. ? 1. : -1.;
+        }
+        else
+        {
+            if (verboseLevel >= 1) System.out.println("                          s finite and nonzero case");
+            double s = sNumerator / sDenominator; // XXX obviously not robust
+            double TFocusNumerator = yFocusDirection;
+            double TFocusDenominator = xFocusDirection;
+            if (SQR(xFocusDirection) >= .5)
+            {
+                if (verboseLevel >= 1) System.out.println("                              mostly horizontal");
+                // mostly horizontal; Tfocus relatively small (or zero),
+                // so we're not subtracting huge numbers.
+                // (XXX assuming s not huge... need to think about case s huge)
+                //assert(false); // coverage; remove when hit
+                double TFocus = TFocusNumerator / TFocusDenominator; // stable
+                double T = TFocus + t/s;
+                answer[0] = 1.;
+                answer[1] = T;
+                VecMath.normalize(answer, answer);
+            }
+            else
+            {
+                if (verboseLevel >= 1) System.out.println("                              mostly vertical");
+                // mostly vertical.
+
+                assert(false); // coverage; remove when hit
+                double invTFocus = TFocusDenominator / TFocusNumerator; // stable
+                assert(false); // XXX implement me!
+            }
+        }
+
+        if (verboseLevel >= 1) PRINT(VecMath.norm(answer));
+        double normsqrd = VecMath.normsqrd(answer);
+        assert(Math.abs(normsqrd - 1.) < 1e-6); // very rough; just make sure we didn't do anything blatantly wrong
+        if (verboseLevel >= 1) System.out.println("                        out Catenary.differentiate(t="+t+"), returning answer="+VecMath.toString(answer));
+    } // differentiate
+
     // Position at time t.
     public void evaluate(double t,
                          double answer[/*2*/])
@@ -500,6 +561,13 @@ public class Catenary
                 this.leftRightFlipped = false;
             }
             //PRINT(this.leftRightFlipped);
+        }
+        @Override public void differentiate(double t,
+                                            double answer[/*2*/])
+        {
+            super.differentiate(t, answer);
+            if (this.leftRightFlipped)
+                answer[0] *= -1.;
         }
         @Override public void evaluate(double t,
                                        double answer[/*2*/])
