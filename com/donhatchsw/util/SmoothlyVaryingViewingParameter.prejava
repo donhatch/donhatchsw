@@ -146,6 +146,20 @@ public class SmoothlyVaryingViewingParameter
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getVelocity: return buffer size is "+velocity.length+", expected "+this.velocity.length+"");
         VecMath.copyvec(velocity, this.velocity);
     }
+    /** Gets the acceleration of this scalar variable now.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    public double getAcceleration()
+    {
+        if (position.length != 1)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getAcceleration: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
+        return acceleration[0];
+    }
+    /** Gets the acceleration of this scalar variable now. */
+    public void getAcceleration(double acceleration[])
+    {
+        if (acceleration.length != this.acceleration.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getAcceleration: return buffer size is "+acceleration.length+", expected "+this.acceleration.length+"");
+        VecMath.copyvec(acceleration, this.acceleration);
+    }
 
     /** Sets the current velocity.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
     public void setVelocity(double velocity[])
@@ -252,7 +266,12 @@ public class SmoothlyVaryingViewingParameter
             PRINTVEC(this.targetPosition);
         }
 
-        if (isMoving())
+        if (!isMoving())
+        {
+            if (verboseLevel >= 1) System.out.println("        (not moving)");
+            VecMath.fillvec(this.acceleration, 0.);
+        }
+        else
         {
             if (verboseLevel >= 2) System.out.println("      moving");
             //assert(false); // XXX coverage-- remove when hit
@@ -276,7 +295,7 @@ public class SmoothlyVaryingViewingParameter
                 if (verboseLevel >= 2) System.out.println("      SEPARABLE");
 
                 //assert(false); // XXX coverage-- remove when hit
-                double p_and_v[] = new double[2]; // scratch
+                double p_and_v_and_a[] = new double[3]; // scratch
 
                 double scales[] = null;
                 if (position.length >= 2)
@@ -304,10 +323,11 @@ public class SmoothlyVaryingViewingParameter
                             {
                                 if (scales[i] != 0.)
                                 {
-                                    p_and_v[0] = this.position[i] - this.targetPosition[i];
-                                    p_and_v[1] = this.velocity[i];
-                                    double settleTime = update_p_and_v_1d(p_and_v, referenceTripDistance*scales[i], referenceTripTime, dt, distanceBasedBounce);
-                                    // discard p_and_v result; we are only interested in settleTime, for this preflight
+                                    p_and_v_and_a[0] = this.position[i] - this.targetPosition[i];
+                                    p_and_v_and_a[1] = this.velocity[i];
+                                    p_and_v_and_a[2] = Double.NaN;
+                                    double settleTime = update_p_and_v_and_a_1d(p_and_v_and_a, referenceTripDistance*scales[i], referenceTripTime, dt, distanceBasedBounce);
+                                    // discard p_and_v_and_a result; we are only interested in settleTime, for this preflight
                                     if (verboseLevel >= 2) System.out.println("            i="+i+": settleTime="+settleTime);
                                     double correction;
                                     //correction = settleTime*settleTime; // I think that's theoretically right, and converges far faster in some cases, but causes wacko behavior in others
@@ -371,15 +391,18 @@ public class SmoothlyVaryingViewingParameter
                 for (int i = 0; i < position.length; ++i)
                 {
                     //assert(false); // XXX coverage-- remove when hit
-                    p_and_v[0] = this.position[i] - this.targetPosition[i];
-                    p_and_v[1] = this.velocity[i];
-                    double settleTime_ignored = update_p_and_v_1d(p_and_v,
-                                                                  referenceTripDistance*(scales!=null ? scales[i] : 1.),
-                                                                  referenceTripTime,
-                                                                  dt,
-                                                                  distanceBasedBounce);
-                    this.position[i] = p_and_v[0] + this.targetPosition[i];
-                    this.velocity[i] = p_and_v[1];
+                    p_and_v_and_a[0] = this.position[i] - this.targetPosition[i];
+                    p_and_v_and_a[1] = this.velocity[i];
+                    p_and_v_and_a[2] = Double.NaN;
+                    double settleTime_ignored = update_p_and_v_and_a_1d(p_and_v_and_a,
+                                                                        referenceTripDistance*(scales!=null ? scales[i] : 1.),
+                                                                        referenceTripTime,
+                                                                        dt,
+                                                                        distanceBasedBounce);
+                    this.position[i] = p_and_v_and_a[0] + this.targetPosition[i];
+                    this.velocity[i] = p_and_v_and_a[1];
+                    this.acceleration[i] = p_and_v_and_a[2];
+                    assert(!Double.isNaN(this.acceleration[i]));
                 }
             }
             else if (strategy == STRATEGY_TRY_TO_DO_IT_RIGHT)
@@ -812,10 +835,6 @@ public class SmoothlyVaryingViewingParameter
             }
 
         } // if isMoving()
-        else
-        {
-            if (verboseLevel >= 1) System.out.println("        (not moving)");
-        }
         if (verboseLevel >= 1)
         {
             System.out.println("      after:");
@@ -1335,26 +1354,28 @@ public class SmoothlyVaryingViewingParameter
     // utility function, evolves a single coordinate
     // towards zero position and velocity.
     // returns the amount of time, starting at the original time, needed to settle.
-    private static double update_p_and_v_1d(double p_and_v[/*2*/],
-                                            double referenceTripDistance,
-                                            double referenceTripTime,
-                                            double dt,
-                                            double distanceBasedBounce)
+    private static double update_p_and_v_and_a_1d(double p_and_v_and_a[/*3*/],
+                                                  double referenceTripDistance,
+                                                  double referenceTripTime,
+                                                  double dt,
+                                                  double distanceBasedBounce)
     {
         boolean debug = false;
-        if (debug) System.out.println("in update_p_and_v_1d");
+        if (debug) System.out.println("in update_p_and_v_and_a_1d");
         assert(distanceBasedBounce >= 0); // XXX make this a bad param exception or something
 
         if (referenceTripDistance == 0.)
         {
             // no acceleration, don't move
+            p_and_v_and_a[2] = 0.;
             return Double.POSITIVE_INFINITY; // XXX or zero if there already? not sure
         }
         if (referenceTripTime == 0.)
         {
             // infinite acceleration-- snap to target
-            p_and_v[0] = 0.;
-            p_and_v[1] = 0.;
+            p_and_v_and_a[0] = 0.;
+            p_and_v_and_a[1] = 0.;
+            p_and_v_and_a[2] = 0.;
             return 0.;
         }
 
@@ -1362,8 +1383,10 @@ public class SmoothlyVaryingViewingParameter
         double aMag = 4 * referenceTripDistance
                         / SQR(referenceTripTime);
         // XXX um, what if referenceTripTime is 0? shouldn't this get the code from the old implementation?
-        double p = p_and_v[0];
-        double v = p_and_v[1];
+        double p = p_and_v_and_a[0];
+        double v = p_and_v_and_a[1];
+        double a = Double.NaN; // old acceleration from p_and_v_and_a irrelevant here
+
         double vSign = (v<0 ? -1. : 1.);
         double vMag = vSign*v;
         if (debug) System.out.println("    p = "+p);
@@ -1444,6 +1467,7 @@ public class SmoothlyVaryingViewingParameter
             if (debug) System.out.println("    Settled");
             p = 0;
             v = 0;
+            a = 0;
         }
         else
         {
@@ -1475,8 +1499,9 @@ public class SmoothlyVaryingViewingParameter
                     // We are probably very close to the settling point,
                     // and stuck due to floating point roundoff error.
                     assert(false); // coverage
-                    p_and_v[0] = 0;
-                    p_and_v[1] = 0;
+                    p_and_v_and_a[0] = 0.;
+                    p_and_v_and_a[1] = 0.;
+                    p_and_v_and_a[2] = 0.;
                     return settleTime;
                 }
             }
@@ -1488,6 +1513,7 @@ public class SmoothlyVaryingViewingParameter
             {
                 // Follow the parabola forwards
                 // from the previous still point t_iminus1,p_iminus1
+                a = a_iminus1;
                 v = (dt-t_iminus1) * a_iminus1;
                 p = p_iminus1 + .5*a_iminus1*SQR(dt-t_iminus1);
                 if (debug) System.out.println("    a_iminus1 = "+a_iminus1);
@@ -1498,12 +1524,14 @@ public class SmoothlyVaryingViewingParameter
             {
                 // Follow the parabola backwards
                 // from the next still point t_i,p_i
+                a = a_i;
                 v = (t_i-dt) * -a_i;
                 p = p_i - .5* -a_i *SQR(t_i-dt);
             }
         }
-        p_and_v[0] = p;
-        p_and_v[1] = v;
+        p_and_v_and_a[0] = p;
+        p_and_v_and_a[1] = v;
+        p_and_v_and_a[2] = a;
         if (debug) System.out.println("out update_p_and_v_1d, returning settleTime="+settleTime);
         return settleTime;
     } // private update_p_and_v_1d
@@ -13825,6 +13853,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     int j = i%3;
                     //PRINTSUB(model.referenceTripDistancesInPixels,i);
                     //PRINTSUB(model.referenceTripTimesInRepaints,i);
+                    // XXX huh? what is that 10000, fudge? so the numbers aren't what they claim tobe?
                     model.points[I].evolve(model.referenceTripDistancesInPixels[i]/10000.,
                                            model.referenceTripTimesInRepaints[i],
                                            1., // dt, in repaints
@@ -13836,6 +13865,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //
                 double position[] = new double[2];
                 double velocity[] = new double[2];
+                double acceleration[] = new double[2];
                 //FORI (i, n) // slower first, so faster on top
                 FORIDOWN (i, n) // faster first, so slower on top
                 {
@@ -13858,11 +13888,28 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                         model.points[I].get(position);
                         model.points[I].getVelocity(velocity);
+                        model.points[I].getAcceleration(acceleration);
                         mg.setColor(model.colors[I]);
                         // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
                         mg.drawHollowPoint(position[0]+.5,
                                            position[1]+.5,
                                            pointSize);
+                        assert(Double.isNaN(acceleration[0])
+                            == Double.isNaN(acceleration[1]));
+                        if (!Double.isNaN(acceleration[0])
+                         && VecMath.normsqrd(acceleration) != 0.)
+                        {
+                            double accelerationVisualScale = 20.;
+                            double a = 4*model.referenceTripDistancesInPixels[i]/10000.
+                                       / SQR(model.referenceTripTimesInRepaints[i]);
+                            accelerationVisualScale /= a;
+                            // so should all come out same length on screen
+                            // XXX actually kind of silly, could just normalize to that length... but the existing method is kind of a sanity check
+                            mg.drawLine(position[0]+.5,
+                                        position[1]+.5,
+                                        position[0]+.5-acceleration[0]*accelerationVisualScale,
+                                        position[1]+.5-acceleration[1]*accelerationVisualScale);
+                        }
                      }
                 }
 
