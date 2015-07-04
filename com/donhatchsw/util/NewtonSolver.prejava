@@ -65,6 +65,7 @@ public class NewtonSolver
         boolean debug = false;
         if (debug) System.out.println("    in solve(x="+VecMath.toString(x)+", y="+VecMath.toString(y)+", maxIterations="+maxIterations+", stepScale="+stepScale);
         if (debug) PRINT(maxIterations);
+        int dim = fun.dim;
         double prevPrevErrorLengthSqrd = Double.POSITIVE_INFINITY;
         double prevErrorLengthSqrd = Double.POSITIVE_INFINITY;
         int minIterations = 10; // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm.
