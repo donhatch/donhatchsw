@@ -14,6 +14,7 @@ package com.donhatchsw.util;
 * BUG: demo3: and in general quadratic seems to be the winner
 
 * XXX TODO: store acceleration
+* XXX TODO: ooh and they should look like the little spaceship from asteroids, pointing in dir of acceleration?
 * XXX TODO: demo2: lines connecting velocity dots with acceleration dots? not sure
 * XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
 * XXX TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
@@ -64,6 +65,7 @@ public class SmoothlyVaryingViewingParameter
     public int strategy;
     private double[] position;
     private double[] velocity;
+    private double[] acceleration; // from most recent evolve if any
     private double[] targetPosition;
 
     /** Convenience constructor for a scalar parameter; equivalent to SmoothlyVaryingViewingParameter(new double[]{initialPosition}). */
@@ -76,6 +78,7 @@ public class SmoothlyVaryingViewingParameter
     {
         this.position = VecMath.copyvec(initialPosition);
         this.velocity = new double[this.position.length]; // zero
+        this.acceleration = VecMath.fillvec(this.position.length, Double.NaN);
         this.targetPosition = VecMath.copyvec(initialPosition);
         this.strategy = (this.position.length==1 ? STRATEGY_SEPARABLE : STRATEGY_TRY_TO_DO_IT_RIGHT);
     }
@@ -267,6 +270,7 @@ public class SmoothlyVaryingViewingParameter
             }
             //assert(false); // XXX coverage-- remove when hit
 
+
             if (strategy == STRATEGY_SEPARABLE)
             {
                 if (verboseLevel >= 2) System.out.println("      SEPARABLE");
@@ -277,64 +281,90 @@ public class SmoothlyVaryingViewingParameter
                 double scales[] = null;
                 if (position.length >= 2)
                 {
-                    if (verboseLevel >= 2) PRINTVEC(scales);
-                    scales = VecMath.fillvec(position.length, 1./Math.sqrt(position.length));
-                    int nPreflights = 10;
-                    for (int iPreflight = 0; iPreflight < nPreflights; ++iPreflight)
+                    if (true)
                     {
-                        // XXX this results in bouncing, when close to diagonal but not exactly?? weird!
-                        // Goal is to give each component an acceleration
-                        // so that the norm of the vector of accelerations is the overall acceleration
-                        // and each component arrives at the same time.
-                        // Do a preflight to get estimates on the amount of work needed
-                        // by each coordinate.
-                        // The accelerations given to the various coords
-                        // should be proportional to the squares of the times each thinks it will take to settle
-                        // given equal portions. (Can repeat this any number of times if desired.)
-                        for (int i = 0; i < position.length; ++i)
+                        // previous way... left something to be desired.
+                        // Hmm now that I think about it, this might actually
+                        // be an extremely sane way of doing this??
+                        scales = VecMath.fillvec(position.length, 1./Math.sqrt(position.length));
+                        if (verboseLevel >= 2) PRINTVEC(scales);
+                        int nPreflights = 100;
+                        for (int iPreflight = 0; iPreflight < nPreflights; ++iPreflight)
                         {
-                            if (scales[i] != 0.)
+                            // XXX this results in bouncing, when close to diagonal but not exactly?? weird!
+                            // Goal is to give each component an acceleration
+                            // so that the norm of the vector of accelerations is the overall acceleration
+                            // and each component arrives at the same time.
+                            // Do a preflight to get estimates on the amount of work needed
+                            // by each coordinate.
+                            // The accelerations given to the various coords
+                            // should be proportional to the squares of the times each thinks it will take to settle
+                            // given equal portions. (Can repeat this any number of times if desired.)
+                            for (int i = 0; i < position.length; ++i)
                             {
-                                p_and_v[0] = this.position[i] - this.targetPosition[i];
-                                p_and_v[1] = this.velocity[i];
-                                double settleTime = update_p_and_v(p_and_v, referenceTripDistance*scales[i], referenceTripTime, dt, distanceBasedBounce);
-                                // discard p_and_v result; we are only interested in settleTime, for this preflight
-                                if (verboseLevel >= 2) System.out.println("            i="+i+": settleTime="+settleTime);
-                                //scales[i] *= settleTime*settleTime; // I think that's theoretically right, but causes instability?
-                                scales[i] *= settleTime;
-                                //scales[i] *= Math.sqrt(settleTime);
-                            }
-                        }
-                        //PRINTVEC(scales);
-                        if (VecMath.normsqrd(scales) == 0.)
-                        {
-                            System.out.println("SURPRISE: SmoothlyVaryingViewingParameter strategy=separable: scales unexpectedly zero after "+(iPreflight+1)+"/"+nPreflights+" preflights: position="+VecMath.toString(position)+" targetPosition="+VecMath.toString(targetPosition)+" position-targetPosition="+VecMath.toString(VecMath.vmv(position,targetPosition))+" velocity="+VecMath.toString(velocity));
-                            assert(VecMath.normsqrd(scales) == 0.);
-                        }
-                        VecMath.normalize(scales, scales);
-                        if (verboseLevel >= 2) PRINTVEC(scales); // XXX bleah, if using settleTime^2, when I print these out, they oscillate sometimes, e.g.
-                        // scales = <0.900401218490184,0.43506050813811153>
-                        // scales = <0.21387558341269755,0.9768609086353484>
-                        // scales = <0.9985446970692868,0.05393039917158324>
-                        // scales = <0.016514494716214887,0.9998636264332591>
-                        // scales = <0.9999938828297847,0.00349775685413743>
-                        // That's not the desired behavior!!
-                        // and even if just using settleTime, they oscillate a little, which is weird.
-                        // Clearest weirdness:  just click at 45 degrees, they all overshoot a little!  Wtf?
-                        // That doesn't seem to make any sense-- if none of them would overshoot by itself,
-                        // why would they overshoot together?
-                        // Well, overshooting comes from when someone thinks they will have more power than they actually do,
-                        // so they don't slow down as much as they should.
-                        // Is that what's going on??
-                        // Or... does one guy have more power at the beginning so it gets overconfident,
-                        // but then that power gets taken away when it turns out the other guy needs it more?
-                        //
-                        // Or... do I have some logic bug that is making it overconfident by a factor of sqrt(2) or something?
+                                if (scales[i] != 0.)
+                                {
+                                    p_and_v[0] = this.position[i] - this.targetPosition[i];
+                                    p_and_v[1] = this.velocity[i];
+                                    double settleTime = update_p_and_v_1d(p_and_v, referenceTripDistance*scales[i], referenceTripTime, dt, distanceBasedBounce);
+                                    // discard p_and_v result; we are only interested in settleTime, for this preflight
+                                    if (verboseLevel >= 2) System.out.println("            i="+i+": settleTime="+settleTime);
+                                    double correction;
+                                    //correction = settleTime*settleTime; // I think that's theoretically right, and converges far faster in some cases, but causes wacko behavior in others
+                                    correction = Math.pow(settleTime, 1.5); // compromise
+                                    //correction = settleTime; // not as correct but more stable
+                                    //correction = Math.sqrt(settleTime); // totally wrong
 
-                        // Get straight on this:
-                        // With twice the acceleration, we go twice as far in a given time, right?
+                                    // conservative for first 3, then less conservative for next 3,
+                                    // then go for it.
+                                    // Nope, just not stable, even with 100 iterations :-(
+                                    if (false)
+                                    correction = iPreflight < nPreflights/3 ? settleTime :
+                                                 iPreflight < 2*nPreflights/3 ? Math.pow(settleTime, 1.5) :
+                                                 settleTime*settleTime;
+                                    scales[i] *= correction;
+                                }
+                            }
+                            //PRINTVEC(scales);
+                            if (VecMath.normsqrd(scales) == 0.)
+                            {
+                                System.out.println("SURPRISE: SmoothlyVaryingViewingParameter strategy=separable: scales unexpectedly zero after "+(iPreflight+1)+"/"+nPreflights+" preflights: position="+VecMath.toString(position)+" targetPosition="+VecMath.toString(targetPosition)+" position-targetPosition="+VecMath.toString(VecMath.vmv(position,targetPosition))+" velocity="+VecMath.toString(velocity));
+                                assert(VecMath.normsqrd(scales) == 0.);
+                            }
+                            VecMath.normalize(scales, scales);
+                            if (verboseLevel >= 2) PRINTVEC(scales); // XXX bleah, if using settleTime^2, when I print these out, they oscillate sometimes, e.g.
+                            // scales = <0.900401218490184,0.43506050813811153>
+                            // scales = <0.21387558341269755,0.9768609086353484>
+                            // scales = <0.9985446970692868,0.05393039917158324>
+                            // scales = <0.016514494716214887,0.9998636264332591>
+                            // scales = <0.9999938828297847,0.00349775685413743>
+                            // That's not the desired behavior!!
+                            // and even if just using settleTime, they oscillate a little, which is weird.
+                            // Clearest weirdness:  just click at 45 degrees, they all overshoot a little!  Wtf?
+                            // That doesn't seem to make any sense-- if none of them would overshoot by itself,
+                            // why would they overshoot together?
+                            // Well, overshooting comes from when someone thinks they will have more power than they actually do,
+                            // so they don't slow down as much as they should.
+                            // Is that what's going on??
+                            // Or... does one guy have more power at the beginning so it gets overconfident,
+                            // but then that power gets taken away when it turns out the other guy needs it more?
+                            //
+                            // Or... do I have some logic bug that is making it overconfident by a factor of sqrt(2) or something?
+
+                            // Get straight on this:
+                            // With twice the acceleration, we go twice as far in a given time, right?
+                        }
+                        if (verboseLevel >= 2) OUT("======");
                     }
-                    if (verboseLevel >= 2) OUT("======");
+                    if (false) // bleah! salvageable or not?
+                    {
+                        scales = new double[position.length];
+                        double aMag = 4*referenceTripDistance/SQR(referenceTripTime);
+                        boolean bounceAware = false; // only works with false, currently
+                        computeSeparableWeights(targetPosition, position, velocity, aMag, distanceBasedBounce, bounceAware, scales);
+
+                        //PRINTVEC(scales);
+                    }
                 }
 
 
@@ -343,11 +373,11 @@ public class SmoothlyVaryingViewingParameter
                     //assert(false); // XXX coverage-- remove when hit
                     p_and_v[0] = this.position[i] - this.targetPosition[i];
                     p_and_v[1] = this.velocity[i];
-                    double settleTime_ignored = update_p_and_v(p_and_v,
-                                                               referenceTripDistance*(scales!=null ? scales[i] : 1.),
-                                                               referenceTripTime,
-                                                               dt,
-                                                               distanceBasedBounce);
+                    double settleTime_ignored = update_p_and_v_1d(p_and_v,
+                                                                  referenceTripDistance*(scales!=null ? scales[i] : 1.),
+                                                                  referenceTripTime,
+                                                                  dt,
+                                                                  distanceBasedBounce);
                     this.position[i] = p_and_v[0] + this.targetPosition[i];
                     this.velocity[i] = p_and_v[1];
                 }
@@ -1305,14 +1335,14 @@ public class SmoothlyVaryingViewingParameter
     // utility function, evolves a single coordinate
     // towards zero position and velocity.
     // returns the amount of time, starting at the original time, needed to settle.
-    private static double update_p_and_v(double p_and_v[/*2*/],
-                                         double referenceTripDistance,
-                                         double referenceTripTime,
-                                         double dt,
-                                         double distanceBasedBounce)
+    private static double update_p_and_v_1d(double p_and_v[/*2*/],
+                                            double referenceTripDistance,
+                                            double referenceTripTime,
+                                            double dt,
+                                            double distanceBasedBounce)
     {
         boolean debug = false;
-        if (debug) System.out.println("in update_p_and_v");
+        if (debug) System.out.println("in update_p_and_v_1d");
         assert(distanceBasedBounce >= 0); // XXX make this a bad param exception or something
 
         if (referenceTripDistance == 0.)
@@ -1474,9 +1504,109 @@ public class SmoothlyVaryingViewingParameter
         }
         p_and_v[0] = p;
         p_and_v[1] = v;
-        if (debug) System.out.println("out update_p_and_v, returning settleTime="+settleTime);
+        if (debug) System.out.println("out update_p_and_v_1d, returning settleTime="+settleTime);
         return settleTime;
-    } // private update_p_and_v single coordinate version
+    } // private update_p_and_v_1d
+
+    private double settleTime1d(double p, double v, double aMag, double bounce, boolean bounceAware)
+    {
+        // The math below assumes p is nonnegative.
+        // If not, just negate the problem.
+        if (p < 0.)
+        {
+            p = -p;
+            v = -v;
+        }
+
+        double answer;
+        if (!bounceAware)
+        {
+            // Just compute answer using overoptimistic acceleration
+            double A = aMag * (1.+bounce)/(1.-bounce);
+            if (v < 0. && ((v*v)/(2.*A) - p) > 0.)
+            {
+                // Positive then negative acceleration.
+                // Positive (decelerate) to still point which is past origin,
+                // then canonical journey (still positive, then negative) to origin.
+                answer = -v/A + 2.*Math.sqrt((v*v/(2.*A) - p)/A);
+            }
+            else
+            {
+                // Negative then positive acceleration.
+                // If v>=0: negative (decelerate) to still point,
+                // then canonical journey (still negative, then positive) to target.
+                // And same formula works if v not too negative.
+                answer = 2.*Math.sqrt((v*v/(2.*A) + p)/A) + v/A;
+            }
+        }
+        else
+        {
+            assert(false); // XXX implement me!
+        }
+        return answer;
+    } // settleTime
+
+    // Compute acceleration weights for the components of acceleration
+    // so that all components will arrive at the same time.
+    // If bounceAware: equalize actual infinite-sum settle times with original accels
+    // If not bounceAware: equalize simple settle times with overoptimistic accels
+    private void computeSeparableWeights(double pTarget[], double p[], double v[], double aMag,
+                                         double bounce, boolean bounceAware,
+                                         double answerWeights[])
+    {
+        final int verboseLevel = 0;
+        if (verboseLevel >= 1) System.out.println("            in computeSeparableWeights(p="+VecMath.toString(p)+", v="+VecMath.toString(v)+", aMag="+aMag+", bounce="+bounce+", bounceAware="+bounceAware);
+        final int n = p.length;
+        assert(v.length == n); // precondition
+        assert(answerWeights.length == n); // precondition
+        if (n == 0) return;
+        if (n == 1) {answerWeights[0] = 1.; return;}
+        assert(n >= 2); // logical assertion
+
+        // Solve for barycentric weights for squares of the components.
+        final double pTargetFinal[] = pTarget;
+        final double pFinal[] = p;
+        final double vFinal[] = v;
+        final double aMagFinal = aMag;
+        final double bounceFinal = bounce;
+        final boolean bounceAwareFinal = bounceAware;
+        NewtonSolver.Fun fun = new NewtonSolver.Fun(n-1) {
+            @Override public void f(double barys[], double answerDiffs[])
+            {
+                if (verboseLevel >= 3) System.out.println("                in f(barys = "+Arrays.toStringCompact(barys)+")");
+                double lastBary = 1. - VecMath.sum(barys);
+                double lastSettleTime = Double.NaN; // to shut up compiler
+                for (int i = 0; i < n; ++i)
+                {
+                    double bary = i==n-1 ? lastBary : barys[i];
+                    if (bary < 0.) PRINT(bary);
+                    assert(bary >= 0.);
+                    double settleTime = settleTime1d(pFinal[i]-pTargetFinal[i], vFinal[i], aMagFinal*Math.sqrt(bary), bounceFinal, bounceAwareFinal);
+                    if (i == n-1)
+                        lastSettleTime = settleTime;
+                    else
+                        answerDiffs[i] = settleTime;
+                }
+                if (verboseLevel >= 2) System.out.println("                  settleTimes = "+Arrays.toStringCompact(answerDiffs)+" and finally "+lastSettleTime);
+                for (int i = 0; i < answerDiffs.length; ++i)
+                    answerDiffs[i] -= lastSettleTime;
+                if (verboseLevel == 2) System.out.println("                f(barys = "+Arrays.toStringCompact(barys)+") = answerDiffs="+Arrays.toStringCompact(answerDiffs));
+                if (verboseLevel >= 3) System.out.println("                out f(barys = "+Arrays.toStringCompact(barys)+"), returning answerDiffs="+Arrays.toStringCompact(answerDiffs));
+            }
+        };
+        double barys[] = VecMath.fillvec(position.length-1, 1./position.length); // initial guess
+        int maxIterations = 1000;
+        //double stepScale = 1.;
+        double stepScale = .1;
+        double zeros[] = VecMath.fillvec(position.length-1, 0.);
+        NewtonSolver.solve(barys, zeros, fun, maxIterations, stepScale);
+        for (int i = 0; i < n; ++i)
+        {
+            double bary = i==n-1 ? 1.-VecMath.sum(barys) : barys[i];
+            answerWeights[i] = Math.sqrt(bary);
+        }
+        if (verboseLevel >= 1) System.out.println("            out computeSeparableWeights(p="+VecMath.toString(p)+", v="+VecMath.toString(v)+", aMag="+aMag+", bounce="+bounce+", bounceAware="+bounceAware+", returning "+VecMath.toString(answerWeights));
+    } // computeSeparableWeights
 
 
 
@@ -13706,29 +13836,34 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //
                 double position[] = new double[2];
                 double velocity[] = new double[2];
-                FORI (I, N)
+                //FORI (i, n) // slower first, so faster on top
+                FORIDOWN (i, n) // faster first, so slower on top
                 {
-                    int i = I/3;
-                    int j = i%3;
-                    // Even point sizes, so centers nicely on a pixel corner
+                    FORI (j, 3) // separable first, so try_to_do_it_right on top
+                    //FORIDOWN (j, 3) // try_to_do_it_right first, so separable on top
+                    {
+                        int I = 3*i+j;
+                        // Even point sizes, target lands nicely on a pixel corner
+                        // when it's an integer, which it generally is.
 
-                    //int pointSize = 2*i + 1; // 1, 3, 5, ...
-                    //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
-                    //int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
-                    //int pointSize = 2*i + 2; // 2, 4, 6, ...
-                    int pointSize;
-                    if (view.biggerIsFaster)
-                        pointSize = 2*i + 2; // 2, 4, 6, ...
-                    else
-                        pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
+                        //int pointSize = 2*i + 1; // 1, 3, 5, ...
+                        //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
+                        //int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
+                        //int pointSize = 2*i + 2; // 2, 4, 6, ...
+                        int pointSize;
+                        if (view.biggerIsFaster)
+                            pointSize = 2*i + 2; // 2, 4, 6, ...
+                        else
+                            pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
 
-                    model.points[I].get(position);
-                    model.points[I].getVelocity(velocity);
-                    mg.setColor(model.colors[I]);
-                    // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
-                    mg.drawHollowPoint(position[0]+.5,
-                                       position[1]+.5,
-                                       pointSize);
+                        model.points[I].get(position);
+                        model.points[I].getVelocity(velocity);
+                        mg.setColor(model.colors[I]);
+                        // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
+                        mg.drawHollowPoint(position[0]+.5,
+                                           position[1]+.5,
+                                           pointSize);
+                     }
                 }
 
                 //
@@ -13849,7 +13984,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             PRINT(model.distanceBasedBounce);
                             repaint();
                         }
-                        else if (c == 'r')
+                        else if (c == 'r') // reverse sizes. biggerIsFaster really seems like the way to go though, the reversed way sucks.
                         {
                             view.biggerIsFaster ^= true;
                             PRINT(view.biggerIsFaster);
