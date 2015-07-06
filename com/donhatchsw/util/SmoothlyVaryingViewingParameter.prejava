@@ -66,6 +66,7 @@ public class SmoothlyVaryingViewingParameter
     private double[] position;
     private double[] velocity;
     private double[] acceleration; // from most recent evolve if any
+    private double[] observedAcceleration; // from begin and end velocities of most recent evolve
     private double[] targetPosition;
 
     /** Convenience constructor for a scalar parameter; equivalent to SmoothlyVaryingViewingParameter(new double[]{initialPosition}). */
@@ -79,6 +80,7 @@ public class SmoothlyVaryingViewingParameter
         this.position = VecMath.copyvec(initialPosition);
         this.velocity = new double[this.position.length]; // zero
         this.acceleration = VecMath.fillvec(this.position.length, Double.NaN);
+        this.observedAcceleration = VecMath.fillvec(this.position.length, Double.NaN);
         this.targetPosition = VecMath.copyvec(initialPosition);
         this.strategy = (this.position.length==1 ? STRATEGY_SEPARABLE : STRATEGY_TRY_TO_DO_IT_RIGHT);
     }
@@ -159,6 +161,20 @@ public class SmoothlyVaryingViewingParameter
         if (acceleration.length != this.acceleration.length)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getAcceleration: return buffer size is "+acceleration.length+", expected "+this.acceleration.length+"");
         VecMath.copyvec(acceleration, this.acceleration);
+    }
+    /** Gets the observed acceleration of this scalar variable now; this is calculated from te velocity before and after the most recent evolve.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    public double getObservedAcceleration()
+    {
+        if (position.length != 1)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getObservedAcceleration: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
+        return observedAcceleration[0];
+    }
+    /** Gets the observed acceleration of this scalar variable now; this is calculated from te velocity before and after the most recent evolve. */
+    public void getObservedAcceleration(double observedAcceleration[])
+    {
+        if (acceleration.length != this.acceleration.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getObservedAcceleration: return buffer size is "+acceleration.length+", expected "+this.acceleration.length+"");
+        VecMath.copyvec(observedAcceleration, this.observedAcceleration);
     }
 
     /** Sets the current velocity.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
@@ -284,11 +300,15 @@ public class SmoothlyVaryingViewingParameter
                 // isMoving() will subsequently return false.
                 VecMath.copyvec(this.position, targetPosition);
                 VecMath.zerovec(this.velocity);
+                VecMath.fillvec(this.acceleration, Double.NaN); // actually infinite
+                VecMath.fillvec(this.observedAcceleration, Double.NaN); // actually infinite
                 if (verboseLevel >= 1) System.out.println("    out evolve (referenceTripTime is 0)");
                 return;
             }
             //assert(false); // XXX coverage-- remove when hit
 
+            // Save initial velocity in observedAcceleration...
+            VecMath.copyvec(this.observedAcceleration, this.velocity);
 
             if (strategy == STRATEGY_SEPARABLE)
             {
@@ -852,6 +872,10 @@ public class SmoothlyVaryingViewingParameter
                 // strategy isn't one of the possible strategies
                 assert(false);
             }
+
+            VecMath.vmv(this.observedAcceleration,
+                        this.velocity, this.observedAcceleration);
+            VecMath.vxs(this.observedAcceleration, this.observedAcceleration, 1./dt);
 
         } // if isMoving()
         if (verboseLevel >= 1)
@@ -13716,6 +13740,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public double distanceBasedBounce = 0.;
                 public boolean paused = false;
                 public int strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
+                public double time = 0.;
                 public Model()
                 {
                     int n = 10;
@@ -13776,14 +13801,34 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             colors[i*3+j] = new java.awt.Color(rgb[0],rgb[1],rgb[2]);
                         }
                     }
-                } // class Model
-            }
+                } // Model ctor
+                public void evolve(double dt)
+                {
+                    int N = points.length;
+                    int n = N/3;
+                    FORI (I, N)
+                    {
+                        int i = I/3;
+                        int j = i%3;
+                        //PRINTSUB(referenceTripDistancesInPixels,i);
+                        //PRINTSUB(referenceTripTimesInRepaints,i);
+                        // XXX huh? what is that 10000, fudge? so the numbers aren't what they claim tobe?
+                        points[I].evolve(referenceTripDistancesInPixels[i]/10000.,
+                                         referenceTripTimesInRepaints[i],
+                                         dt,
+                                         distanceBasedBounce);
+                    }
+                    time += dt;
+                }
+            } // class Model
             class View
             {
-                // Really viewing params...
+                // Really viewing params (could separate into ViewParams and ViewState)...
                 boolean showAccelerations = false;
                 boolean showVelocities = false;
                 boolean biggerIsFaster = true;
+
+                int nPaintsDone = 0;
             }
             class Controller
             {
@@ -13809,7 +13854,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private java.awt.Dimension backBufferSize = null;
 
             public void update(java.awt.Graphics g) { paint(g); } // don't flash
-            int nPaintsDone = 0;
             // PAINT (demo3)
             public void paint(java.awt.Graphics frontBufferGraphics)
             {
@@ -13865,25 +13909,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //
                 // Evolve.
                 //
-                int N = model.points.length;
-                int n = N/3;
-                double observedAcceleration[][] = new double[N][2];
-                double scratch[][] = new double[2][2];
-                FORI (I, N)
-                {
-                    int i = I/3;
-                    int j = i%3;
-                    //PRINTSUB(model.referenceTripDistancesInPixels,i);
-                    //PRINTSUB(model.referenceTripTimesInRepaints,i);
-                    // XXX huh? what is that 10000, fudge? so the numbers aren't what they claim tobe?
-                    model.points[I].getVelocity(scratch[0]);
-                    model.points[I].evolve(model.referenceTripDistancesInPixels[i]/10000.,
-                                           model.referenceTripTimesInRepaints[i],
-                                           1., // dt, in repaints
-                                           model.distanceBasedBounce);
-                    model.points[I].getVelocity(scratch[1]);
-                    VecMath.vmv(observedAcceleration[I], scratch[1], scratch[0]);
-                }
+                if (!model.paused)
+                    model.evolve(1.); // dt, in repaints
+
 
                 //
                 // Draw.
@@ -13891,6 +13919,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 double position[] = new double[2];
                 double velocity[] = new double[2];
                 double acceleration[] = new double[2];
+                double observedAcceleration[] = new double[2];
+                int N = model.points.length;
+                int n = N/3;
+
                 //FORI (i, n) // slower first, so faster on top
                 FORIDOWN (i, n) // faster first, so slower on top
                 {
@@ -13914,25 +13946,28 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         model.points[I].get(position);
                         model.points[I].getVelocity(velocity);
                         model.points[I].getAcceleration(acceleration);
+                        model.points[I].getObservedAcceleration(observedAcceleration);
                         //PRINTVEC(acceleration);
-                        //PRINTVEC(observedAcceleration[I]);
+                        //PRINTVEC(observedAcceleration);
                         mg.setColor(model.colors[I]);
                         // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
                         mg.drawHollowPoint(position[0]+.5,
                                            position[1]+.5,
                                            pointSize);
+
+                        double accelerationVisualScale = 20.;
+                        double a = 4*model.referenceTripDistancesInPixels[i]/10000.
+                                   / SQR(model.referenceTripTimesInRepaints[i]);
+                        accelerationVisualScale /= a;
+                        // So should all come out same length on screen.
+                        // Note that we could accomplish that by just normalizing to that
+                        // length... but the existing method is kind of a sanity check.
+
                         assert(Double.isNaN(acceleration[0])
                             == Double.isNaN(acceleration[1]));
                         if (!Double.isNaN(acceleration[0])
                          && VecMath.normsqrd(acceleration) != 0.)
                         {
-                            double accelerationVisualScale = 20.;
-                            double a = 4*model.referenceTripDistancesInPixels[i]/10000.
-                                       / SQR(model.referenceTripTimesInRepaints[i]);
-                            accelerationVisualScale /= a;
-                            // So should all come out same length on screen.
-                            // Note that we could accomplish that by just normalizing to that
-                            // length... but the existing method is kind of a sanity check.
                             mg.drawLine(position[0]+.5,
                                         position[1]+.5,
                                         position[0]+.5-acceleration[0]*accelerationVisualScale,
@@ -13943,12 +13978,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             // so should not not be noticeable.
                             mg.drawLine(position[0]+.5,
                                         position[1]+.5,
-                                        position[0]+.5-observedAcceleration[I][0]*accelerationVisualScale*.5,
-                                        position[1]+.5-observedAcceleration[I][1]*accelerationVisualScale*.5);
+                                        position[0]+.5-observedAcceleration[0]*accelerationVisualScale*.5,
+                                        position[1]+.5-observedAcceleration[1]*accelerationVisualScale*.5);
                         }
                         if (i >= n-1)
                         {
                             com.donhatchsw.compat.ArrayList plannedPositions = new com.donhatchsw.compat.ArrayList();
+                            com.donhatchsw.compat.ArrayList plannedAccelerations = new com.donhatchsw.compat.ArrayList();
                             double savedPosition[] = new double[2];
                             double savedVelocity[] = new double[2];
                             // save position and velocity
@@ -13958,7 +13994,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             int skip = 5;
                             int nTimestepsInFuture = 1;
                             //int nTimestepsInFuture = -11*skip; // step backwards too. cute but I think would be better to show actual history
-                            while ((nPaintsDone + nTimestepsInFuture) % skip != 0)
+                            while (((int)model.time + nTimestepsInFuture) % skip != 0)
                                 nTimestepsInFuture++;
                             for (; model.points[I].isMoving(); nTimestepsInFuture += skip)
                             {
@@ -13970,8 +14006,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                                        nTimestepsInFuture*1., // dt, in repaints
                                                        model.distanceBasedBounce);
                                 double plannedPosition[] = new double[2];
+                                double plannedAcceleration[] = new double[2];
                                 model.points[I].get(plannedPosition);
                                 plannedPositions.add(plannedPosition);
+                                model.points[I].getAcceleration(plannedAcceleration);
+                                plannedAccelerations.add(plannedAcceleration);
                             }
 
                             // restore position and velocity
@@ -13982,9 +14021,14 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             for (int iPlan = 0; iPlan < plannedPositions.size(); ++iPlan)
                             {
                                 double plannedPosition[] = (double[])plannedPositions.get(iPlan);
+                                double plannedAcceleration[] = (double[])plannedAccelerations.get(iPlan);
                                 mg.drawHollowPoint(plannedPosition[0]+.5,
                                                    plannedPosition[1]+.5,
                                                    2);
+                                mg.drawLine(plannedPosition[0]+.5,
+                                            plannedPosition[1]+.5,
+                                            plannedPosition[0]+.5-plannedAcceleration[0]*accelerationVisualScale,
+                                            plannedPosition[1]+.5-plannedAcceleration[1]*accelerationVisualScale);
                             }
                         }
                      }
@@ -14016,11 +14060,25 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
 
 
+                view.nPaintsDone++;
+                //if (viewParams.showNumPaintsDone.get())
+                {
+                    g.setColor(java.awt.Color.white);
+                    java.awt.Dimension viewSize = getSize(); // getWidth,getHeight don't exist in 1.1
+                    int W = viewSize.width;
+                    int H = viewSize.height;
+                    com.donhatchsw.awt.MyGraphics mgTemp = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
+                    //mgTemp.drawString("("+view.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.);
+                    String timeString = ((double)(int)model.time==model.time
+                                      ? ""+(int)model.time
+                                      : ""+model.time);
+                    mgTemp.drawString("t="+timeString, W-2, 2, 1, -1.);
+                }
+
                 if (g != frontBufferGraphics)
                     frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
                 mostRecentGraphics = mg;
 
-                nPaintsDone++;
 
                 if (eventVerbose >= 2) System.out.println("    out paint");
             } // paint
@@ -14142,6 +14200,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         }
                         else if (c == ' ')
                         {
+                            if (model.paused) // otherwise evolving with each paint
+                                model.evolve(1.);
                             repaint();
                         }
                         else if (c == 'h')
