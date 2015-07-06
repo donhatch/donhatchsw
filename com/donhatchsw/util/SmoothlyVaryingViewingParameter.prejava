@@ -13,13 +13,13 @@ package com.donhatchsw.util;
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
 * BUG: demo3: and in general quadratic seems to be the winner
 
-* XXX TODO: store acceleration
 * XXX TODO: ooh and they should look like the little spaceship from asteroids, pointing in dir of acceleration?
 * XXX TODO: demo2: lines connecting velocity dots with acceleration dots? not sure
 * XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
+* XXX TODO: provide api for computing lots of times on planned trip at once, I think? and/or store catenary params so don't need to recompute if nothing changed... ? not sure
 * XXX TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
 * XXX TODO: picking should only see things that are visible
-* XXX TODO: SEPARABLE should choose x and y accelerations so that they land at the same time
+* XXX TODO: the following is resolved... can remove most of the discussion, but could leave in a description of how to convert from/to time-based bounce if desired
 * XXX TODO: Think about whether bounce should be in terms of time or distance.  The current code says "each piece takes sqrt(bounce) as much time as the previous",
 *           i.e. it takes bounce as much distance as the previous. is that what we want? seems like for small bounce, distance-based will be really tiny, making it less manageable,
             say, with a slider.  I.e. the question is, if we have a bounce slider from 0 to 1,
