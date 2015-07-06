@@ -16,6 +16,14 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         assert(SQR(error) + 1. - 1. == 0.); // implicit tolerance
     }
 
+    // Unit-length derivative at time t.
+    @Override public void differentiate(double t,
+                                        double answer[/*2*/])
+    {
+        super.differentiate(t, answer);
+        rotate(this.cosRotation, this.sinRotation, answer[0], answer[1], answer);
+    }
+
     // Position at time t.
     @Override public void evaluate(double t,
                                    double answer[/*2*/])
@@ -206,6 +214,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                                     double maxLengthToIntegrate,
                                                                     double answer[/*2*/],
                                                                     double vFinal[/*2*/],
+                                                                    double aFinal[/*2*/],
                                                                     CatenaryRotated scratchCatenaryRotated,
                                                                     int debugLevel) // 0: nothing, 1: in/out, 2: a bit more
     {
@@ -233,6 +242,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             scratchCatenaryRotated.evaluate(t1, vFinal);
             if (debugLevel >= 1) System.out.println("              vFinal = "+VecMath.toString(vFinal));
+        }
+        if (aFinal != null)
+        {
+            scratchCatenaryRotated.differentiate(t1, aFinal);
+            if (debugLevel >= 1) System.out.println("              aFinal = "+VecMath.toString(aFinal));
         }
         if (debugLevel >= 1) System.out.println("            out integralOfCatenaryWithEndpointsRectangular, returning arcLength="+arcLength);
         return arcLength;
@@ -306,7 +320,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 OUT("        s=1 case");
                 double x = 0.;
                 double y = -slack;
-                double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null, scratchCatenaryRotated, 0);
+                double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null, null, scratchCatenaryRotated, 0);
                 if (testVerboseLevel >= 1) PRINT(arcLength);
                 if (testVerboseLevel >= 1) PRINT(expectedArcLength);
                 assert(EQ(arcLength, expectedArcLength, 1e-6));
@@ -336,7 +350,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double x = 0.;
                 double y = 0.;
                 double integralOfSegment[] = new double[2];
-                double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null, scratchCatenaryRotated, 0);
+                double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null, null, scratchCatenaryRotated, 0);
                 if (testVerboseLevel >= 1) PRINT(arcLengthOfSegment);
                 if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfSegment);
                 assert(EQ(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6));
@@ -355,7 +369,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double x = slackForDegenerate * gravityForDegenerate[0];
                 double y = slackForDegenerate * gravityForDegenerate[1];
                 double integralOfDegenerate[] = new double[2];
-                double arcLengthOfDegenerate = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfDegenerate, null, scratchCatenaryRotated, 0);
+                double arcLengthOfDegenerate = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfDegenerate, null, null, scratchCatenaryRotated, 0);
                 if (testVerboseLevel >= 1) PRINT(arcLengthOfDegenerate);
                 if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfDegenerate);
                 assert(EQ(arcLengthOfDegenerate, expectedArcLengthOfDegenerate, 1e-6));
@@ -420,7 +434,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     xy = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, xy); // by inverse of matrix
                     double x = xy[0];
                     double y = xy[1];
-                    double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null, scratchCatenaryRotated, 0);
+                    double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null, null, scratchCatenaryRotated, 0);
                     if (testVerboseLevel >= 3) System.out.println("                arcLengthTransformed = "+arcLengthTransformed);
                     if (testVerboseLevel >= 3) System.out.println("                expectedArcLengthTransformed = "+expectedArcLengthTransformed);
                     assert(EQ(arcLengthTransformed, expectedArcLengthTransformed, 1e-6));

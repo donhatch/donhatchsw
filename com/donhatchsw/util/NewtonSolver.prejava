@@ -6,12 +6,14 @@ public class NewtonSolver
 {
     public abstract static class Fun
     {
-        private double xplusdx[/*x.length*/]; // scratch for J
-        private double f_xplusdx[/*fx.length*/]; // scratch for J
+        int dim;
+        private double xplusdx[/*dim*/]; // scratch for J
+        private double f_xplusdx[/*dim*/]; // scratch for J
         public Fun(int dim)
         {
-            xplusdx = new double[dim];
-            f_xplusdx = new double[dim];
+            this.dim = dim;
+            this.xplusdx = new double[dim];
+            this.f_xplusdx = new double[dim];
         }
 
         /**
@@ -26,16 +28,16 @@ public class NewtonSolver
         * The fx that is passed to this function during a newton solve is always f(x),
         * in case the computation of J(x) finds it useful.
         */
-        public void J(double x[], double fx[], double answer[/*x.length*/][/*fx.length*/])
+        public void J(double x[], double fx[], double answer[/*dim*/][/*dim*/])
         {
             double dx = eps();
             double invdx = 1./dx;
-            VecMath.copyvec(xplusdx, x); // into scratch
-            FORI (iCol, x.length)
+            VecMath.copyvec(dim, xplusdx, x); // into scratch
+            FORI (iCol, dim)
             {
                 xplusdx[iCol] += dx; // temporarily change just this entry
                 f(xplusdx, f_xplusdx); // f_xplusdx = f(xplusdx);
-                FORI (iRow, fx.length)
+                FORI (iRow, dim)
                     answer[iRow][iCol] = (f_xplusdx[iRow]-fx[iRow]) * invdx;
                 xplusdx[iCol] = x[iCol]; // restore this entry
             }
@@ -48,7 +50,7 @@ public class NewtonSolver
         {
             return 1e-4;
         }
-    } // interface Fun
+    } // abstract static class Fun
 
     /**
     * x should be loaded with the initial guess;
@@ -63,12 +65,13 @@ public class NewtonSolver
         boolean debug = false;
         if (debug) System.out.println("    in solve(x="+VecMath.toString(x)+", y="+VecMath.toString(y)+", maxIterations="+maxIterations+", stepScale="+stepScale);
         if (debug) PRINT(maxIterations);
+        int dim = fun.dim;
         double prevPrevErrorLengthSqrd = Double.POSITIVE_INFINITY;
         double prevErrorLengthSqrd = Double.POSITIVE_INFINITY;
         int minIterations = 10; // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm.
-        double fx[] = new double[y.length]; // scratch
-        double error[] = new double[y.length]; // scratch
-        double Jx[][] = new double[x.length][fx.length]; // scratch
+        double fx[] = new double[dim]; // scratch
+        double error[] = new double[dim]; // scratch
+        double Jx[][] = new double[dim][dim]; // scratch
 
         FORI (iIter, maxIterations)
         {
