@@ -327,6 +327,7 @@ public class Catenary
                 // (XXX assuming s not huge... need to think about case s huge)
                 //assert(false); // coverage; remove when hit
                 double TFocus = TFocusNumerator / TFocusDenominator; // stable
+                assert(TFocus == 0.); // XXX won't be true when I fix everything
                 double T = TFocus + t/s;
                 answer[0] = 1.;
                 answer[1] = T;
@@ -346,6 +347,7 @@ public class Catenary
         if (verboseLevel >= 1) PRINT(VecMath.norm(answer));
         double normsqrd = VecMath.normsqrd(answer);
         assert(Math.abs(normsqrd - 1.) < 1e-6); // very rough; just make sure we didn't do anything blatantly wrong
+        assert(answer[0] >= 0.);
         if (verboseLevel >= 1) System.out.println("                        out Catenary.differentiate(t="+t+"), returning answer="+VecMath.toString(answer));
     } // differentiate
 

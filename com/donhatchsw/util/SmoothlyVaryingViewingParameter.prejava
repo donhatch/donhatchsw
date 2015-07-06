@@ -6,7 +6,7 @@ package com.donhatchsw.util;
 * Viewing parameters that always change SMOOTHLY
 * so I don't have an anxiety attack.  You can knock the target value
 * all over the place, and the actual value will smoothly move towards to it,
-* without any instantaneous changes in velocity.  Well, except you can tell it to linearly interpolate if you want to.
+* without any instantaneous changes in velocity.
 *
 * XXX TODO: get/set/warp was clever, but I keep confusing myself-- I think getPosition/setTarget/setPosition would be better
 *
@@ -637,6 +637,7 @@ public class SmoothlyVaryingViewingParameter
                     xyAnswer[0] *= -1;
                     partwayIntegral[0] *= -1;
                     vFinal[0] *= -1;
+                    aFinal[0] *= -1;
 
                     if (verboseLevel >= 2)
                     {
@@ -671,7 +672,7 @@ public class SmoothlyVaryingViewingParameter
 
                     // We were working with minusVelocity = -velocity
                     VecMath.vxs(this.velocity, minusVelocity, -1.);
-                    // XXX TODO: same for acceleration?
+                    VecMath.vxs(this.acceleration, this.acceleration, -1.);
                     // We were actually working with
                     // positionDisplacement = position-targetPosition
                     VecMath.vpv(this.position, positionDisplacement, targetPosition);
@@ -689,7 +690,8 @@ public class SmoothlyVaryingViewingParameter
 
                     if (arcLength < maxArcLength)
                     {
-                        // Done with entire journey!
+                        // Did not get clamped by maxArcLength,
+                        // so we are done with entire journey!
                         // Position should be target and velocity should be
                         // zero, but they may be slightly different due to
                         // floating point roundoff error.
@@ -13807,6 +13809,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private java.awt.Dimension backBufferSize = null;
 
             public void update(java.awt.Graphics g) { paint(g); } // don't flash
+            int nPaintsDone = 0;
             // PAINT (demo3)
             public void paint(java.awt.Graphics frontBufferGraphics)
             {
@@ -13864,6 +13867,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //
                 int N = model.points.length;
                 int n = N/3;
+                double observedAcceleration[][] = new double[N][2];
+                double scratch[][] = new double[2][2];
                 FORI (I, N)
                 {
                     int i = I/3;
@@ -13871,10 +13876,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     //PRINTSUB(model.referenceTripDistancesInPixels,i);
                     //PRINTSUB(model.referenceTripTimesInRepaints,i);
                     // XXX huh? what is that 10000, fudge? so the numbers aren't what they claim tobe?
+                    model.points[I].getVelocity(scratch[0]);
                     model.points[I].evolve(model.referenceTripDistancesInPixels[i]/10000.,
                                            model.referenceTripTimesInRepaints[i],
                                            1., // dt, in repaints
                                            model.distanceBasedBounce);
+                    model.points[I].getVelocity(scratch[1]);
+                    VecMath.vmv(observedAcceleration[I], scratch[1], scratch[0]);
                 }
 
                 //
@@ -13906,6 +13914,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         model.points[I].get(position);
                         model.points[I].getVelocity(velocity);
                         model.points[I].getAcceleration(acceleration);
+                        //PRINTVEC(acceleration);
+                        //PRINTVEC(observedAcceleration[I]);
                         mg.setColor(model.colors[I]);
                         // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
                         mg.drawHollowPoint(position[0]+.5,
@@ -13920,12 +13930,62 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             double a = 4*model.referenceTripDistancesInPixels[i]/10000.
                                        / SQR(model.referenceTripTimesInRepaints[i]);
                             accelerationVisualScale /= a;
-                            // so should all come out same length on screen
-                            // XXX actually kind of silly, could just normalize to that length... but the existing method is kind of a sanity check
+                            // So should all come out same length on screen.
+                            // Note that we could accomplish that by just normalizing to that
+                            // length... but the existing method is kind of a sanity check.
                             mg.drawLine(position[0]+.5,
                                         position[1]+.5,
                                         position[0]+.5-acceleration[0]*accelerationVisualScale,
                                         position[1]+.5-acceleration[1]*accelerationVisualScale);
+                            // And the observed acceleration, half as big.
+                            // If things are working correctly, this should be in
+                            // almost exactly the same direction as the actual acceleration,
+                            // so should not not be noticeable.
+                            mg.drawLine(position[0]+.5,
+                                        position[1]+.5,
+                                        position[0]+.5-observedAcceleration[I][0]*accelerationVisualScale*.5,
+                                        position[1]+.5-observedAcceleration[I][1]*accelerationVisualScale*.5);
+                        }
+                        if (i >= n-1)
+                        {
+                            com.donhatchsw.compat.ArrayList plannedPositions = new com.donhatchsw.compat.ArrayList();
+                            double savedPosition[] = new double[2];
+                            double savedVelocity[] = new double[2];
+                            // save position and velocity
+                            model.points[I].get(savedPosition);
+                            model.points[I].getVelocity(savedVelocity);
+
+                            int skip = 5;
+                            int nTimestepsInFuture = 1;
+                            //int nTimestepsInFuture = -11*skip; // step backwards too. cute but I think would be better to show actual history
+                            while ((nPaintsDone + nTimestepsInFuture) % skip != 0)
+                                nTimestepsInFuture++;
+                            for (; model.points[I].isMoving(); nTimestepsInFuture += skip)
+                            {
+                                // restore position and velocity
+                                model.points[I].setVelocity(savedVelocity);
+                                model.points[I].warp(savedPosition);
+                                model.points[I].evolve(model.referenceTripDistancesInPixels[i]/10000.,
+                                                       model.referenceTripTimesInRepaints[i],
+                                                       nTimestepsInFuture*1., // dt, in repaints
+                                                       model.distanceBasedBounce);
+                                double plannedPosition[] = new double[2];
+                                model.points[I].get(plannedPosition);
+                                plannedPositions.add(plannedPosition);
+                            }
+
+                            // restore position and velocity
+                            model.points[I].setVelocity(savedVelocity);
+                            model.points[I].warp(savedPosition);
+
+
+                            for (int iPlan = 0; iPlan < plannedPositions.size(); ++iPlan)
+                            {
+                                double plannedPosition[] = (double[])plannedPositions.get(iPlan);
+                                mg.drawHollowPoint(plannedPosition[0]+.5,
+                                                   plannedPosition[1]+.5,
+                                                   2);
+                            }
                         }
                      }
                 }
@@ -13959,6 +14019,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 if (g != frontBufferGraphics)
                     frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
                 mostRecentGraphics = mg;
+
+                nPaintsDone++;
 
                 if (eventVerbose >= 2) System.out.println("    out paint");
             } // paint
