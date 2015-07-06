@@ -13,6 +13,7 @@ package com.donhatchsw.util;
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
 * BUG: demo3: and in general quadratic seems to be the winner
 
+* XXX TODO: time for a control panel I think
 * XXX TODO: ooh and they should look like the little spaceship from asteroids, pointing in dir of acceleration?
 * XXX TODO: demo2: lines connecting velocity dots with acceleration dots? not sure
 * XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
