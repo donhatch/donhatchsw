@@ -9,6 +9,7 @@ package com.donhatchsw.util;
 * without any instantaneous changes in velocity.
 *
 * XXX TODO: get/set/warp was clever, but I keep confusing myself-- I think getPosition/setTarget/setPosition would be better
+* XXX TODO: demo3: bug: when paused, doesn't show acceleration. need setAcceleration I think
 *
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
 * BUG: demo3: and in general quadratic seems to be the winner
@@ -13822,9 +13823,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             class View
             {
                 // Really viewing params (could separate into ViewParams and ViewState)...
-                boolean showAccelerations = false;
                 boolean showVelocities = false;
-                boolean biggerIsFaster = true;
+                int nPlansToShow = 0;
+                boolean showPlanAccelerationsFlag = false;
 
                 int nPaintsDone = 0;
             }
@@ -13935,11 +13936,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
                         //int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
                         //int pointSize = 2*i + 2; // 2, 4, 6, ...
-                        int pointSize;
-                        if (view.biggerIsFaster)
-                            pointSize = 2*i + 2; // 2, 4, 6, ...
-                        else
-                            pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
+                        int pointSize = 2*i + 2; // 2, 4, 6, ...
 
                         model.points[I].get(position);
                         model.points[I].getVelocity(velocity);
@@ -13979,7 +13976,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                         position[0]+.5-observedAcceleration[0]*accelerationVisualScale*.5,
                                         position[1]+.5-observedAcceleration[1]*accelerationVisualScale*.5);
                         }
-                        if (i >= n-1)
+                        if (I >= N-view.nPlansToShow)
                         {
                             com.donhatchsw.compat.ArrayList plannedPositions = new com.donhatchsw.compat.ArrayList();
                             com.donhatchsw.compat.ArrayList plannedAccelerations = new com.donhatchsw.compat.ArrayList();
@@ -14023,14 +14020,17 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 mg.drawHollowPoint(plannedPosition[0]+.5,
                                                    plannedPosition[1]+.5,
                                                    2);
-                                mg.drawLine(plannedPosition[0]+.5,
-                                            plannedPosition[1]+.5,
-                                            plannedPosition[0]+.5-plannedAcceleration[0]*accelerationVisualScale,
-                                            plannedPosition[1]+.5-plannedAcceleration[1]*accelerationVisualScale);
+                                if (view.showPlanAccelerationsFlag)
+                                {
+                                    mg.drawLine(plannedPosition[0]+.5,
+                                                plannedPosition[1]+.5,
+                                                plannedPosition[0]+.5-plannedAcceleration[0]*accelerationVisualScale,
+                                                plannedPosition[1]+.5-plannedAcceleration[1]*accelerationVisualScale);
+                                }
                             }
-                        }
-                     }
-                }
+                        } // if I >= nPlansToShow
+                     } // for j
+                } // for i
 
                 //
                 // If anything's still moving, make paint get called again
@@ -14080,6 +14080,19 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                 if (eventVerbose >= 2) System.out.println("    out paint");
             } // paint
+            void tweakTarget(double dx, double dy)
+            {
+                double target[] = new double[2];
+                FORI (I, model.points.length)
+                {
+                    model.points[I].getTarget(target);
+                    target[0] += dx;
+                    target[1] += dy;
+                    model.points[I].set(target);
+                }
+                PRINTVEC(target);
+                repaint();
+            }
             {
                 addKeyListener(new java.awt.event.KeyAdapter() {
                     public void keyPressed(java.awt.event.KeyEvent e)
@@ -14092,51 +14105,39 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         if (false) {}
                         else if (keyCode == java.awt.event.KeyEvent.VK_LEFT)
                         {
-                            double target[] = new double[2];
-                            FORI (I, model.points.length)
+                            if (model.paused)
                             {
-                                model.points[I].getTarget(target);
-                                target[0] -= 1/9.;
-                                model.points[I].set(target);
                             }
-                            PRINTVEC(target);
-                            repaint();
+                            else
+                                tweakTarget(-1/9., 0.);
                         }
                         else if (keyCode == java.awt.event.KeyEvent.VK_RIGHT)
                         {
-                            double target[] = new double[2];
-                            FORI (I, model.points.length)
+                            if (model.paused)
                             {
-                                model.points[I].getTarget(target);
-                                target[0] += 1/9.;
-                                model.points[I].set(target);
                             }
-                            PRINTVEC(target);
-                            repaint();
+                            else
+                                tweakTarget(1/9., 0.);
                         }
                         else if (keyCode == java.awt.event.KeyEvent.VK_UP)
                         {
-                            double target[] = new double[2];
-                            FORI (I, model.points.length)
+                            if (model.paused)
                             {
-                                model.points[I].getTarget(target);
-                                target[1] += 1/9.;
-                                model.points[I].set(target);
+                                model.evolve(1.);
+                                repaint();
                             }
-                            PRINTVEC(target);
-                            repaint();
+                            else
+                                tweakTarget(0., 1/9.);
                         }
                         else if (keyCode == java.awt.event.KeyEvent.VK_DOWN)
                         {
-                            double target[] = new double[2];
-                            FORI (I, model.points.length)
+                            if (model.paused)
                             {
-                                model.points[I].getTarget(target);
-                                target[1] -= 1/9.;
-                                model.points[I].set(target);
+                                model.evolve(-1.);
+                                repaint();
                             }
-                            PRINTVEC(target);
-                            repaint();
+                            else
+                                tweakTarget(0., -1/9.);
                         }
                         else if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
                         {
@@ -14149,9 +14150,30 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             System.out.println("ciao!");
                             System.exit(0); // asinine way of doing things
                         }
-                        else if (c == 'a' || c == 'A') // doesn't really do anything currently
+                        else if (c == ' ')
                         {
-                            view.showAccelerations ^= true;
+                            model.paused = !model.paused;
+                            PRINT(model.paused);
+                            if (!model.paused)
+                              repaint();
+                        }
+                        else if (c == 'p')
+                        {
+                            view.nPlansToShow++;
+                            PRINT(view.nPlansToShow);
+                            repaint();
+                        }
+                        else if (c == 'P')
+                        {
+                            if (view.nPlansToShow > 0)
+                                view.nPlansToShow--;
+                            PRINT(view.nPlansToShow);
+                            repaint();
+                        }
+                        else if (c == 'a' || c == 'A')
+                        {
+                            view.showPlanAccelerationsFlag ^= true;
+                            PRINT(view.showPlanAccelerationsFlag);
                             repaint();
                         }
                         else if (c == 'v' || c == 'V') // doesn't really do anything currently
@@ -14167,46 +14189,22 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             PRINT(model.distanceBasedBounce);
                             repaint();
                         }
-                        else if (c == 'r') // reverse sizes. biggerIsFaster really seems like the way to go though, the reversed way sucks.
-                        {
-                            view.biggerIsFaster ^= true;
-                            PRINT(view.biggerIsFaster);
-                            repaint();
-                        }
                         else if (c == 'B')
                         {
                             model.distanceBasedBounce -= .05;
                             PRINT(model.distanceBasedBounce);
                             repaint();
                         }
-                        else if (c == 'p')
-                        {
-                            model.paused = !model.paused;
-                            PRINT(model.paused);
-                            if (!model.paused)
-                              repaint();
-                        }
-                        else if (keyCode == java.awt.event.KeyEvent.VK_SPACE)
-                        {
-                            if (model.paused) // otherwise evolving with each paint
-                            {
-                                if (controlIsDown)
-                                    model.evolve(-1.);
-                                else
-                                    model.evolve(1.);
-                            }
-                            repaint();
-                        }
                         else if (c == 'h')
                         {
                             System.out.println("The following keys do things:");
-                            System.out.println("           b/B - increment/decrement distanceBasedBounce by .05");
-                            System.out.println("           p - pause/resume");
-                            System.out.println("           h - show this help message");
-                            System.out.println("           r - reverse sizes");
-                            System.out.println("       space - advance one timestep if paused");
-                            System.out.println("  ctrl-space - retreat one timestep if paused");
-                            System.out.println("      arrows - move target by 1/9 pixel");
+                            System.out.println("            b/B - increment/decrement distanceBasedBounce by .05");
+                            System.out.println("              h - show this help message");
+                            System.out.println("            p/P - increase/decrease number of plan curves to show");
+                            System.out.println("              a - toggle accelerations on plan curves");
+                            System.out.println("          space - pause/resume");
+                            System.out.println("         arrows - move target by 1/9 pixel if not paused");
+                            System.out.println("  up/down arrow - advance/retreat one timestep if paused");
                         }
                         #define CTRL(lowerCaseLetter) ((lowerCaseLetter)-'a'+1)
                         else
