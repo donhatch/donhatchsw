@@ -13716,9 +13716,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
     private static void interactiveDemo3()
     {
         final int eventVerbose = 0; // set to something else to debug
-        //int strategy = STRATEGY_SEPARABLE;
-        //int strategy = STRATEGY_TWO_PIECE_QUADRATIC;
-        int strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
 
         java.awt.Canvas canvas = new java.awt.Canvas() {
 
@@ -14181,16 +14178,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             PRINT(model.distanceBasedBounce);
                             repaint();
                         }
-#ifdef DEFUNCT
-                        else if (c == 's')
-                        {
-                            int newStrategy = (model.strategy+1) % strategyNames.length;
-                            System.out.println("changing strategy from "+strategyNames[model.strategy]+" to "+strategyNames[newStrategy]);
-                            model.strategy = newStrategy;
-                            FORI (I, model.points.length)
-                                model.points[I].strategy = model.strategy;
-                        }
-#endif
                         else if (c == 'p')
                         {
                             model.paused = !model.paused;
@@ -14198,22 +14185,27 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             if (!model.paused)
                               repaint();
                         }
-                        else if (c == ' ')
+                        else if (keyCode == java.awt.event.KeyEvent.VK_SPACE)
                         {
                             if (model.paused) // otherwise evolving with each paint
-                                model.evolve(1.);
+                            {
+                                if (controlIsDown)
+                                    model.evolve(-1.);
+                                else
+                                    model.evolve(1.);
+                            }
                             repaint();
                         }
                         else if (c == 'h')
                         {
                             System.out.println("The following keys do things:");
-                            System.out.println("      s - cycle strategy TWO_PIECE_QUADRATIC -> TRY_TO_DO_IT_RIGHT -> SEPARABLE");
-                            System.out.println("          (TRY_TO_DO_IT_RIGHT doesn't work well)");
-                            System.out.println("      b/B - increment/decrement distanceBasedBounce by .05");
-                            System.out.println("      p - pause/resume");
-                            System.out.println("      h - show this help message");
-                            System.out.println("      r - reverse sizes");
-                            System.out.println(" arrows - move target by 1/9 pixel");
+                            System.out.println("           b/B - increment/decrement distanceBasedBounce by .05");
+                            System.out.println("           p - pause/resume");
+                            System.out.println("           h - show this help message");
+                            System.out.println("           r - reverse sizes");
+                            System.out.println("       space - advance one timestep if paused");
+                            System.out.println("  ctrl-space - retreat one timestep if paused");
+                            System.out.println("      arrows - move target by 1/9 pixel");
                         }
                         #define CTRL(lowerCaseLetter) ((lowerCaseLetter)-'a'+1)
                         else
@@ -14302,7 +14294,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         frame.add(canvas);
         frame.pack();
         frame.show();
-        System.out.println("  Initial strategy is "+strategyNames[strategy]);
     } // interactiveDemo3
 
 
