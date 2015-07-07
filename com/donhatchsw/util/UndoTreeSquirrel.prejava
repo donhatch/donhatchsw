@@ -253,7 +253,7 @@ public class UndoTreeSquirrel
         {
             this.model = other.model;
             this.currentNodeIndex = other.currentNodeIndex;
-            this.currentNodeFraction.set(other.currentNodeFraction.getTarget());
+            this.currentNodeFraction.setTargetPosition(other.currentNodeFraction.getTargetPosition());
             this.currentNodeFraction.snap(other.currentNodeFraction.get());
             // XXX should copy preferred child indices from the other too! and maybe private labels, but not sure about that. maybe that should be an argument to the constructor?
         }
@@ -269,7 +269,7 @@ public class UndoTreeSquirrel
             this.model = tree;
         }
         this.currentNodeIndex = 0; // XXX might an existing tree have this pruned away?
-        this.currentNodeFraction.set(1.);
+        this.currentNodeFraction.setTargetPosition(1.);
         this.currentNodeFraction.snap(1.);
 
         // Propagate model change notifications
@@ -500,7 +500,7 @@ public class UndoTreeSquirrel
         if (currentNodeIndex == targetNodeIndex)
         {
             if (debug) System.out.println("    home stretch");
-            currentNodeFraction.set(targetNodeFraction); // if it wasn't already
+            currentNodeFraction.setTargetPosition(targetNodeFraction); // if it wasn't already
             if (!currentNodeFraction.isMoving())
             {
                 if (debug) System.out.println("        already there");
@@ -512,7 +512,7 @@ public class UndoTreeSquirrel
             // between the target's parent and the target...
             // Just need to redo a little more (or undo if we overshot).
             //
-            if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
+            if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTargetPosition()+"");
             double referenceTripFraction = referenceTripDistance/lengthizer.length(currentNode.itemOnEdgeFromParentToMe);
             currentNodeFraction.evolve(referenceTripFraction,
                                        referenceTripTime,
@@ -530,7 +530,7 @@ public class UndoTreeSquirrel
         {
             // Go down in the redo direction
             if (debug) System.out.println("    going in redo direction");
-            currentNodeFraction.set(1.); // if it wasn't already
+            currentNodeFraction.setTargetPosition(1.); // if it wasn't already
             if (!currentNodeFraction.isMoving())
             {
                 if (debug) System.out.println("        already there, transitioning");
@@ -567,7 +567,7 @@ public class UndoTreeSquirrel
             }
             else // currentNodeFraction.isMoving()
             {
-                if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
+                if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTargetPosition()+"");
 
                 //
                 // Okay, this will be the coolest thing ever
@@ -614,11 +614,11 @@ public class UndoTreeSquirrel
                         //
                         // Advance the target farther.
                         //
-                        currentNodeFraction.set(currentNodeFraction.getTarget()
+                        currentNodeFraction.setTargetPosition(currentNodeFraction.getTargetPosition()
                                 + (lengthizer.length(childItem)
                                  / currentItemLength));
 
-                        //System.out.println("            power -> "+currentNodeFraction.getTarget()+" baby!");
+                        //System.out.println("            power -> "+currentNodeFraction.getTargetPosition()+" baby!");
                         //System.out.println("        should I add more?");
                         nodeIndex = childIndex;
                         node = childNode;
@@ -643,7 +643,7 @@ public class UndoTreeSquirrel
                 //
                 // Switch rails here!
                 //
-                if (currentNodeFraction.getTarget() > 1.
+                if (currentNodeFraction.getTargetPosition() > 1.
                  && currentNodeFraction.get() > 1.)
                 {
                     // Just do one switch even though potentially get()
@@ -651,7 +651,7 @@ public class UndoTreeSquirrel
                     // one discrete state change to the caller.
                     // We'll get the next one next time around (hopefully).
                     //System.out.println("SWITCHING HORSES, BABY!");
-                    currentNodeFraction.warp(currentNodeFraction.get()-1.); // i.e. change position without changing velocity   XXX in more general circumstances, we may have to rescale the velocity, although this is fine for now since we only merge when consecutive edges are identical
+                    currentNodeFraction.setPosition(currentNodeFraction.get()-1.); // i.e. change position without changing velocity   XXX in more general circumstances, we may have to rescale the velocity, although this is fine for now since we only merge when consecutive edges are identical
                     assert_eq(currentNode.children.length, 1); // XXX for now
                     currentNodeIndex += currentNode.children[0]; // XXX should be preferred child index
                     currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
@@ -664,7 +664,7 @@ public class UndoTreeSquirrel
         {
             // Go up in the undo direction
             if (debug) System.out.println("    going in undo direction");
-            currentNodeFraction.set(0.); // if it wasn't already
+            currentNodeFraction.setTargetPosition(0.); // if it wasn't already
             if (!currentNodeFraction.isMoving())
             {
                 if (debug) System.out.println("        already there, transitioning");
@@ -713,12 +713,12 @@ public class UndoTreeSquirrel
                         //
                         // Advance the immediate target farther.
                         //
-                        currentNodeFraction.set(currentNodeFraction.getTarget()
+                        currentNodeFraction.setTargetPosition(currentNodeFraction.getTargetPosition()
                                 - (lengthizer.length(immediateTargetNode.itemOnEdgeFromParentToMe)
                                  / currentItemLength));
                         immediateTargetNodeIndex += immediateTargetNode.parent;
                         immediateTargetNode = (UndoTree.Node)model.nodes.get(immediateTargetNodeIndex);
-                        //System.out.println("            power -> "+currentNodeFraction.getTarget()+" baby!");
+                        //System.out.println("            power -> "+currentNodeFraction.getTargetPosition()+" baby!");
                         //System.out.println("        should I add more?");
                     }
                     if (!currentNodeFraction.isMoving())
@@ -734,7 +734,7 @@ public class UndoTreeSquirrel
                 }
 
 
-                if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTarget()+"");
+                if (debug) System.out.println("        evolving "+currentNodeFraction.get()+" -> "+currentNodeFraction.getTargetPosition()+"");
                 double referenceTripFraction = referenceTripDistance/lengthizer.length(currentNode.itemOnEdgeFromParentToMe);
                 currentNodeFraction.evolve(referenceTripFraction,
                                            referenceTripTime,
@@ -743,7 +743,7 @@ public class UndoTreeSquirrel
                 //
                 // Switch rails here!
                 //
-                if (currentNodeFraction.getTarget() < 0.
+                if (currentNodeFraction.getTargetPosition() < 0.
                  && currentNodeFraction.get() < 0.)
                 {
                     // Just do one switch even though potentially get()
@@ -751,7 +751,7 @@ public class UndoTreeSquirrel
                     // one discrete state change to the caller.
                     // We'll get the next one next time around (hopefully).
                     //System.out.println("SWITCHING HORSES, BABY!");
-                    currentNodeFraction.warp(currentNodeFraction.get()+1.); // i.e. change position without changing velocity   XXX in more general circumstances, we may have to rescale the velocity, although this is fine for now since we only merge when consecutive edges are identical
+                    currentNodeFraction.setPosition(currentNodeFraction.get()+1.); // i.e. change position without changing velocity   XXX in more general circumstances, we may have to rescale the velocity, although this is fine for now since we only merge when consecutive edges are identical
 
                     assert_eq(returnVal, null); // there shouldn't be any other discrete change we're trying to return
                     returnVal = new ReturnValueOfIncrementViewTowardsOtherView(-1, currentNode.itemOnEdgeFromParentToMe/*BEFORE we change current node*/); // tell caller there was a discrete undo

@@ -1701,7 +1701,7 @@ public class MC4DViewGuts
 
             // XXX need accessors for these instead of making them public I think
             controllerUndoTreeViewer.showLabels = false; // XXX need an accessor for this
-            controllerUndoTreeViewer.centerCurrentNode.set(0.); // false
+            controllerUndoTreeViewer.centerCurrentNode.setTargetPosition(0.); // false
 
 
             com.donhatchsw.util.UndoTreeViewer animationUndoTreeViewer = 
@@ -1720,7 +1720,7 @@ public class MC4DViewGuts
 
             // XXX need accessors for these instead of making them public I think
             animationUndoTreeViewer.showLabels = false;
-            animationUndoTreeViewer.centerCurrentNode.set(0.); // false
+            animationUndoTreeViewer.centerCurrentNode.setTargetPosition(0.); // false
         }
 
         // release the main token

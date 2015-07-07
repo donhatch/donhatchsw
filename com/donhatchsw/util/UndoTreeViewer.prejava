@@ -422,22 +422,22 @@ public class UndoTreeViewer
                 if (c == '0') // toggle center current node
                 {
                     boolean justUseLerp = (ke.isShiftDown());
-                    centerCurrentNode.set(1.-centerCurrentNode.getTarget());
+                    centerCurrentNode.setTargetPosition(1.-centerCurrentNode.getTargetPosition());
                 }
                 else if (c == '+' || c == '=') // zoom in
                 {
                     boolean justUseLerp = (ke.isShiftDown());
-                    log2ViewScale.set(log2ViewScale.getTarget() + .5f);
+                    log2ViewScale.setTargetPosition(log2ViewScale.getTargetPosition() + .5f);
                 }
                 else if (c == '-') // zoom out
                 {
                     boolean justUseLerp = (ke.isShiftDown());
-                    log2ViewScale.set(log2ViewScale.getTarget() - .5f);
+                    log2ViewScale.setTargetPosition(log2ViewScale.getTargetPosition() - .5f);
                 }
                 else if (c == 't') // stretch out along time line
                 {
                     boolean justUseLerp = (ke.isShiftDown());
-                    stretchOutAlongTimeLine.set(1.-stretchOutAlongTimeLine.getTarget());
+                    stretchOutAlongTimeLine.setTargetPosition(1.-stretchOutAlongTimeLine.getTargetPosition());
                 }
                 else if (c == 'a') // ascii dump
                 {

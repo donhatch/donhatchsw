@@ -1226,7 +1226,7 @@ public class MC4DApplet
 
                 // XXX need accessors for these instead of making them public I think
                 controllerUndoTreeViewer.showLabels = false; // XXX need an accessor for this
-                controllerUndoTreeViewer.centerCurrentNode.set(0.); // false
+                controllerUndoTreeViewer.centerCurrentNode.setTargetPosition(0.); // false
             }
 
         } // makeNewUndoTreeWindow

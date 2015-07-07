@@ -12,7 +12,6 @@ package com.donhatchsw.util;
 * and the actual value will smoothly move towards it,
 * without any instantaneous changes in velocity.
 *
-* TODO: get/set/warp was clever, but I keep confusing myself-- I think getPosition/setTarget/setPosition would be better
 * TODO: get rid of the thousands of lines of mathematica crap that never worked I don't think
 *
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
@@ -96,23 +95,23 @@ public class SmoothlyVaryingViewingParameter
         this.strategy = (this.position.length==1 ? STRATEGY_SEPARABLE : STRATEGY_TRY_TO_DO_IT_RIGHT);
     }
 
-    /** Sets the target value of this scalar variable. Equivalent to set(new double[]{targetPosition}); */
-    public void set(double targetPosition)
+    /** Sets the target value of this scalar variable. Equivalent to setTargetPosition(new double[]{targetPosition}); */
+    public void setTargetPosition(double targetPosition)
     {
-        set(new double[]{targetPosition});
+        setTargetPosition(new double[]{targetPosition});
     }
 
     /** Sets the target value of this variable. */
-    public void set(double[] targetPosition)
+    public void setTargetPosition(double[] targetPosition)
     {
         if (targetPosition.length != this.targetPosition.length)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.get: new target has dimension "+targetPosition.length+", expected "+this.targetPosition.length+"");
         VecMath.copyvec(this.targetPosition, targetPosition);
     }
-    /** Snaps to the specified position. Equivalent to set(targetPosition) followed by evolve(1.,0.,1.) (i.e. infinite power). */
+    /** Snaps to the specified position. Equivalent to setTargetPosition(targetPosition) followed by evolve(1.,0.,1.) (i.e. infinite power). */
     public void snap(double[] targetPosition)
     {
-        set(targetPosition);
+        setTargetPosition(targetPosition);
         evolve(1,0,1,0); // infinite power
     }
     /** Snaps to the specified position (scalar version).  Equivalent to snap(new double[]{targetPosition}). */
@@ -120,15 +119,15 @@ public class SmoothlyVaryingViewingParameter
     {
         snap(new double[]{targetPosition});
     }
-    /** Warps to the specified position, without changing velocity or target. If you want to do this, you are weird. */
-    public void warp(double[] newPosition)
+    /** Sets current position, without changing velocity or target. If you want to do this, you are weird. */
+    public void setPosition(double[] newPosition)
     {
         VecMath.copyvec(this.position, newPosition);
     }
-    /** Warps to the specified position (scalar version).  Equivalent to warp(new double[]{targetPosition}). */
-    public void warp(double targetPosition)
+    /** Sets current position (scalar version).  Equivalent to setPosition(new double[]{targetPosition}). */
+    public void setPosition(double newPosition)
     {
-        warp(new double[]{targetPosition});
+        setPosition(new double[]{newPosition});
     }
 
     /** Gets the value of this scalar variable now.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
@@ -218,15 +217,14 @@ public class SmoothlyVaryingViewingParameter
     }
 
     /** Gets the target value of this scalar variable now, if it's a scalar, otherwise throws an IllegalArgumentException. */
-    // XXX needs a vector version
-    public double getTarget()
+    public double getTargetPosition()
     {
         if (position.length != 1)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getTarget: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
         return targetPosition[0];
     }
     /** Gets the target value of this scalar variable now. */
-    public void getTarget(double target[])
+    public void getTargetPosition(double target[])
     {
         if (target.length != this.targetPosition.length)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getTarget: return buffer size is "+target.length+", expected "+this.targetPosition.length+"");
@@ -1746,10 +1744,10 @@ public class SmoothlyVaryingViewingParameter
 
             x1.setVelocity(vStart);
             x2.setVelocity(new double[] {vStart, 0.});
-            x1.set(targetPosition);
-            x2.set(new double[] {targetPosition, 0.});
-            x1.warp(pStart);
-            x2.warp(new double[] {pStart, 0.});
+            x1.setTargetPosition(targetPosition);
+            x2.setTargetPosition(new double[] {targetPosition, 0.});
+            x1.setPosition(pStart);
+            x2.setPosition(new double[] {pStart, 0.});
 
             int maxIters = 100;
 
@@ -1890,7 +1888,7 @@ public class SmoothlyVaryingViewingParameter
                     assert(VecMath.equalsExactly(scratch, VecMath.zerovec(p.length)));
                     assert(!x2.isMoving());
 
-                    x2.set(pTarget);
+                    x2.setTargetPosition(pTarget);
                     x2.get(scratch);
                     assert(VecMath.equalsExactly(scratch, p));
                     x2.getVelocity(scratch);
@@ -1944,7 +1942,7 @@ public class SmoothlyVaryingViewingParameter
                             // if we make the trip all at once
                             SmoothlyVaryingViewingParameter allAtOnce = new SmoothlyVaryingViewingParameter(p);
                             allAtOnce.setVelocity(v);
-                            allAtOnce.set(pTarget);
+                            allAtOnce.setTargetPosition(pTarget);
                             allAtOnce.evolve(referenceTripDistance,referenceTripTime, t, distanceBasedBounce);
                             double p1AllAtOnce[] = new double[2];
                             double v1AllAtOnce[] = new double[2];
@@ -1981,9 +1979,9 @@ public class SmoothlyVaryingViewingParameter
 
         {
             SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
-            x.set(1.);
+            x.setTargetPosition(1.);
             PRINT(x.get());
-            PRINT(x.getTarget());
+            PRINT(x.getTargetPosition());
             PRINT(x.getVelocity());
             x.evolve(1, 1, .1, 0);
             PRINT(x.get());
@@ -1991,9 +1989,9 @@ public class SmoothlyVaryingViewingParameter
         }
         {
             SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(1.);
-            x.set(0.);
+            x.setTargetPosition(0.);
             PRINT(x.get());
-            PRINT(x.getTarget());
+            PRINT(x.getTargetPosition());
             PRINT(x.getVelocity());
             x.evolve(1, 1, .1, 0);
             PRINT(x.get());
@@ -2004,7 +2002,7 @@ public class SmoothlyVaryingViewingParameter
         double eps = 1e-5;
         {
             SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
-            x.set(1.);
+            x.setTargetPosition(1.);
             // Try the canonical trip: 1 second to go 1 unit of distance,
             // with time steps of 1/10 second.
             // It should get there in exactly 10 steps and then stay there.
@@ -2043,7 +2041,7 @@ public class SmoothlyVaryingViewingParameter
             // during the landing.
             //
             SmoothlyVaryingViewingParameter x = new SmoothlyVaryingViewingParameter(0.);
-            x.set(1.);
+            x.setTargetPosition(1.);
             double dt = .1;
             double t = 0.;
             for (int i = 0; i < 55; ++i)
@@ -2120,7 +2118,7 @@ public class SmoothlyVaryingViewingParameter
                 assert_eq(x.getVelocity(), 0.);
                 assert(!x.isMoving());
 
-                x.set(target);
+                x.setTargetPosition(target);
 
                 int overallDir = LT(start,target,eps) ? 1 : GT(start,target,eps) ? -1 : 0;
                 double t = 0.;
@@ -12117,7 +12115,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             SmoothlyVaryingViewingParameter foo = new SmoothlyVaryingViewingParameter(initialPosition);
             foo.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
             foo.setVelocity(initialVelocity);
-            foo.set(targetPosition);
+            foo.setTargetPosition(targetPosition);
             double p[] = new double[initialPosition.length];
             double v[] = new double[initialPosition.length];
             foo.evolve(referenceTripDistance,
@@ -12157,7 +12155,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 SmoothlyVaryingViewingParameter foo = new SmoothlyVaryingViewingParameter(positions[i]);
                 foo.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
                 foo.setVelocity(velocities[i]);
-                foo.set(targetPosition);
+                foo.setTargetPosition(targetPosition);
                 double pActual__[] = new double[initialPosition.length];
                 double vActual__[] = new double[initialPosition.length];
                 int verboseLevel = i==interestingIndex&&j==interestingIndex ? 3 : 0; // XXX YYY
@@ -13533,7 +13531,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     // goes to exactly referenceTripDistance.
                     // So it should be -1 + refTripDistance * 
                     //                  (1 - b + b^2 - ...)
-                    param.set(-1. + model.referenceTripDistance / (1.+distanceBasedBounce));
+                    param.setTargetPosition(-1. + model.referenceTripDistance / (1.+distanceBasedBounce));
 
                     double dt = 1/1000.;
                     double t = -1.;
@@ -13580,7 +13578,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         assert(x1 > x0);
                         double v = (y1-y0)/(x1-x0);
                         SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(y1);
-                        param.set(0.); // target
+                        param.setTargetPosition(0.); // target
                         param.setVelocity(v);
                         double t = x1;
                         double dt = 1/1000.;
@@ -13600,7 +13598,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         assert(x1 > x0);
                         double v = -(y1-y0)/(x1-x0);
                         SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(y0);
-                        param.set(0.); // target
+                        param.setTargetPosition(0.); // target
                         param.setVelocity(v);
                         double t = x0;
                         double dt = 1/1000.;
@@ -13806,16 +13804,16 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                                           : STRATEGY_TRY_TO_DO_IT_RIGHT;
 
 
-                            points[3*i+j].warp(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
+                            points[3*i+j].setPosition(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
                             points[3*i+j].setVelocity(new double[]{0,.25}); // northward a bit
 
                             if (true)
                             {
                                 // debug pure diagonal motion.  WTF, this makes the bounce not happen for separable??
-                                points[3*i+j].warp(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bogus bounce doesn't happen!
-                                points[3*i+j].warp(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                                points[3*i+j].warp(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                                points[3*i+j].warp(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].setPosition(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bogus bounce doesn't happen!
+                                points[3*i+j].setPosition(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].setPosition(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].setPosition(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
                                 points[3*i+j].setVelocity(new double[]{0.,0.});
                                 // after window resize, target will be set to window center.
                             }
@@ -13895,7 +13893,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     backBufferSize = size;
                     // After window resize, set target to window center
                     FORI (I, model.points.length)
-                        model.points[I].set(new double[]{w*.5, h*.5});
+                        model.points[I].setTargetPosition(new double[]{w*.5, h*.5});
 
                     if (false)
                     {
@@ -13903,12 +13901,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         System.out.println("    HACK for debugging: setting target to 0,0");
                         FORI (I, model.points.length)
                         {
-                            //model.points[I].set(new double[]{0., 0.});
+                            //model.points[I].setTargetPosition(new double[]{0., 0.});
 
                             double position[] = new double[2];
-                            model.points[I].getTarget(position);
+                            model.points[I].getTargetPosition(position);
                             position[1] += 100.;
-                            model.points[I].warp(position);
+                            model.points[I].setPosition(position);
 
                             //model.points[I].setVelocity(new double[]{-1., 0.});
                             model.points[I].setVelocity(new double[]{0., 0.});
@@ -14024,7 +14022,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             {
                                 // restore position and velocity
                                 model.points[I].setVelocity(savedVelocity);
-                                model.points[I].warp(savedPosition);
+                                model.points[I].setPosition(savedPosition);
                                 model.points[I].evolve(model.referenceTripDistancesInPixels[i]/10000.,
                                                        model.referenceTripTimesInRepaints[i],
                                                        nTimestepsInFuture*1., // dt, in repaints
@@ -14040,7 +14038,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             // restore state
                             model.points[I].setAcceleration(savedAcceleration);
                             model.points[I].setVelocity(savedVelocity);
-                            model.points[I].warp(savedPosition);
+                            model.points[I].setPosition(savedPosition);
 
 
                             for (int iPlan = 0; iPlan < plannedPositions.size(); ++iPlan)
@@ -14115,10 +14113,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 double target[] = new double[2];
                 FORI (I, model.points.length)
                 {
-                    model.points[I].getTarget(target);
+                    model.points[I].getTargetPosition(target);
                     target[0] += dx;
                     target[1] += dy;
-                    model.points[I].set(target);
+                    model.points[I].setTargetPosition(target);
                 }
                 PRINTVEC(target);
                 repaint();
@@ -14260,7 +14258,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             if (eventVerbose >= 1) System.out.println("        thisPoint = "+Arrays.toStringCompact(thisPoint));
 
                             FORI (I, model.points.length)
-                                model.points[I].set(thisPoint);
+                                model.points[I].setTargetPosition(thisPoint);
 
                             repaint();
                         }
@@ -14299,7 +14297,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
 
                             FORI (I, model.points.length)
-                                model.points[I].set(thisPoint);
+                                model.points[I].setTargetPosition(thisPoint);
                             repaint();
                         }
                         if (eventVerbose >= 1) System.out.println("    out mouseDragged");
