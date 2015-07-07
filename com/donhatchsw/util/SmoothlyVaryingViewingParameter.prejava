@@ -3,14 +3,19 @@ package com.donhatchsw.util;
 #include "macros.h" 
 
 /**
-* Viewing parameters that always change SMOOTHLY
-* so I don't have an anxiety attack.  You can knock the target value
-* all over the place, and the actual value will smoothly move towards to it,
+* A viewing parameter that always changes smoothly;
+* that is, its position and velocity are continous,
+* like an object with mass in the real world.
+* You can set its target and it will take the quickest path
+* to that target given a bound on acceleration;
+* furthermore you can knock that target all over the place
+* and the actual value will smoothly move towards it,
 * without any instantaneous changes in velocity.
 *
 * TODO: get/set/warp was clever, but I keep confusing myself-- I think getPosition/setTarget/setPosition would be better
-* TODO: is the position curve a catenary?? maybe best-fit something and see.
+* TODO: get rid of the thousands of lines of mathematica crap that never worked I don't think
 *
+* BUG: demo3: when showing plan accelerations, just after pause, QUADRATIC's "observed acceleration" becomes quite large
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1? ah it's just numerical instability I think
 * BUG: demo3: and in general quadratic seems to be the winner? not sure. need to provide api to query settle time.
 
