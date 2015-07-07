@@ -3,7 +3,12 @@
 # Script for producing Figure 4 that I added to
 # http://math.stackexchange.com/questions/1345571/what-would-a-planetary-orbit-look-like-if-gravity-had-constant-magnitude
 
+# XXX Interesting fact: if I plot the velocity instead of the position,
+# and scale the hypotrochoid given by these a,b,c by exactly 1.75 and rotate it 90 degrees,
+# I get an almost-match again-- but in this case the velocity curve is too wide instead of too narrow
+
 # time ./sim.py  0.  1. 0.  0. 1.6626561281062888  1.  '2*pi/36' 10000  '10.11*pi' >| OUT_closed_7
+# time ./sim.py  0.  1. 0.  0. 1.6626561281062888  1.  '2*pi/360' 1000  '10.11*pi' >| OUT_closed_7_fine
 # bbox = [-1.9183277185439316,2.0548661125202106]x[-2.019910834613428,2.0198654059866596]
 
 EXACT(z) = imag(z)==0. ? sprintf("%.17g", z) : sprintf("{%.17g, %.17g}", real(z), imag(z))

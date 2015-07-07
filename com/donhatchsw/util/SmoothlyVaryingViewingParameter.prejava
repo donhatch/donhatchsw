@@ -3,27 +3,35 @@ package com.donhatchsw.util;
 #include "macros.h" 
 
 /**
-* Viewing parameters that always change SMOOTHLY
-* so I don't have an anxiety attack.  You can knock the target value
-* all over the place, and the actual value will smoothly move towards to it,
+* A viewing parameter that always changes smoothly;
+* that is, its position and velocity are continous,
+* like an object with mass in the real world.
+* You can set its target and it will take the quickest path
+* to that target given a bound on acceleration;
+* furthermore you can knock that target all over the place
+* and the actual value will smoothly move towards it,
 * without any instantaneous changes in velocity.
 *
-* XXX TODO: get/set/warp was clever, but I keep confusing myself-- I think getPosition/setTarget/setPosition would be better
-* XXX TODO: demo3: bug: when paused, doesn't show acceleration. need setAcceleration I think
+* TODO: get/set/warp was clever, but I keep confusing myself-- I think getPosition/setTarget/setPosition would be better
+* TODO: get rid of the thousands of lines of mathematica crap that never worked I don't think
 *
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
 * BUG: demo3: and in general quadratic seems to be the winner
 * BUG: demo2: I think the more I zoom out, the more difficult it is to select things
 
-* XXX TODO: time for a control panel I think
-* XXX TODO: ooh and they should look like the little spaceship from asteroids, pointing in dir of acceleration?
-* XXX TODO: demo2: lines connecting velocity dots with acceleration dots? not sure
-* XXX TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
-* XXX TODO: provide api for computing lots of times on planned trip at once, I think? and/or store catenary params so don't need to recompute if nothing changed... ? not sure
-* XXX TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
-* XXX TODO: picking should only see things that are visible
-* XXX TODO: the following is resolved... can remove most of the discussion, but could leave in a description of how to convert from/to time-based bounce if desired
-* XXX TODO: Think about whether bounce should be in terms of time or distance.  The current code says "each piece takes sqrt(bounce) as much time as the previous",
+* BUG: demo3: when showing plan accelerations, just after pause, QUADRATIC's "observed acceleration" becomes quite large
+* BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1? ah it's just numerical instability I think
+* BUG: demo3: and in general quadratic seems to be the winner? not sure. need to provide api to query settle time.
+
+* TODO: time for a control panel I think
+* TODO: ooh and they should look like the little spaceship from asteroids, pointing in dir of acceleration?
+* TODO: demo2: lines connecting velocity dots with acceleration dots? not sure
+* TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
+* TODO: provide api for computing lots of times on planned trip at once, I think? and/or store catenary params so don't need to recompute if nothing changed... ? not sure
+* TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
+* TODO: picking should only see things that are visible
+* TODO: the following is resolved... can remove most of the discussion, but could leave in a description of how to convert from/to time-based bounce if desired
+* TODO: Think about whether bounce should be in terms of time or distance.  The current code says "each piece takes sqrt(bounce) as much time as the previous",
 *           i.e. it takes bounce as much distance as the previous. is that what we want? seems like for small bounce, distance-based will be really tiny, making it less manageable,
             say, with a slider.  I.e. the question is, if we have a bounce slider from 0 to 1,
             what does 1/2 mean?
@@ -165,7 +173,7 @@ public class SmoothlyVaryingViewingParameter
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.getAcceleration: return buffer size is "+acceleration.length+", expected "+this.acceleration.length+"");
         VecMath.copyvec(acceleration, this.acceleration);
     }
-    /** Gets the observed acceleration of this scalar variable now; this is calculated from te velocity before and after the most recent evolve.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    /** Gets the observed acceleration of this scalar variable now; this is calculated from the velocity before and after the most recent evolve.  Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
     public double getObservedAcceleration()
     {
         if (position.length != 1)
@@ -193,6 +201,20 @@ public class SmoothlyVaryingViewingParameter
         if (this.velocity.length != 1)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setVelocity: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
         setVelocity(new double[]{velocity});
+    }
+    /** Sets the current acceleration.  Has no effect on anything except for getAcceleration(). Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    public void setAcceleration(double acceleration[])
+    {
+        if (acceleration.length != this.acceleration.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setAcceleration: new acceleration has dimension "+acceleration.length+", expected "+this.acceleration.length+"");
+        VecMath.copyvec(this.acceleration, acceleration);
+    }
+    /** Sets the current acceleration (scalar version). */
+    public void setAcceleration(double acceleration)
+    {
+        if (this.acceleration.length != 1)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setAcceleration: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
+        setAcceleration(new double[]{acceleration});
     }
 
     /** Gets the target value of this scalar variable now, if it's a scalar, otherwise throws an IllegalArgumentException. */
@@ -328,6 +350,7 @@ public class SmoothlyVaryingViewingParameter
                         // previous way... left something to be desired.
                         // Hmm now that I think about it, this might actually
                         // be an extremely sane way of doing this??
+                        // Way better than newton, I bet.  Maybe.
                         scales = VecMath.fillvec(position.length, 1./Math.sqrt(position.length));
                         if (verboseLevel >= 2) PRINTVEC(scales);
                         int nPreflights = 100;
@@ -354,17 +377,20 @@ public class SmoothlyVaryingViewingParameter
                                     if (verboseLevel >= 2) System.out.println("            i="+i+": settleTime="+settleTime);
                                     double correction;
                                     //correction = settleTime*settleTime; // I think that's theoretically right, and converges far faster in some cases, but causes wacko behavior in others
-                                    correction = Math.pow(settleTime, 1.5); // compromise
-                                    //correction = settleTime; // not as correct but more stable
+                                    //correction = Math.pow(settleTime, 1.5); // compromise
+                                    correction = settleTime; // not as correct but more stable
                                     //correction = Math.sqrt(settleTime); // totally wrong
 
                                     // conservative for first 3, then less conservative for next 3,
                                     // then go for it.
                                     // Nope, just not stable, even with 100 iterations :-(
                                     if (false)
-                                    correction = iPreflight < nPreflights/3 ? settleTime :
-                                                 iPreflight < 2*nPreflights/3 ? Math.pow(settleTime, 1.5) :
-                                                 settleTime*settleTime;
+                                        correction = iPreflight < nPreflights/3 ? settleTime :
+                                                     iPreflight < 2*nPreflights/3 ? Math.pow(settleTime, 1.5) :
+                                                     settleTime*settleTime;
+                                    if (false)
+                                        correction = iPreflight < nPreflights/2 ? settleTime :
+                                                     Math.pow(settleTime, 1.5);
                                     scales[i] *= correction;
                                 }
                             }
@@ -13983,9 +14009,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             com.donhatchsw.compat.ArrayList plannedAccelerations = new com.donhatchsw.compat.ArrayList();
                             double savedPosition[] = new double[2];
                             double savedVelocity[] = new double[2];
+                            double savedAcceleration[] = new double[2];
                             // save position and velocity
                             model.points[I].get(savedPosition);
                             model.points[I].getVelocity(savedVelocity);
+                            model.points[I].getAcceleration(savedAcceleration);
 
                             int skip = 5;
                             int nTimestepsInFuture = 1;
@@ -14009,7 +14037,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 plannedAccelerations.add(plannedAcceleration);
                             }
 
-                            // restore position and velocity
+                            // restore state
+                            model.points[I].setAcceleration(savedAcceleration);
                             model.points[I].setVelocity(savedVelocity);
                             model.points[I].warp(savedPosition);
 
