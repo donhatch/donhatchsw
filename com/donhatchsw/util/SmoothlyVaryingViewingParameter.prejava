@@ -13,6 +13,7 @@ package com.donhatchsw.util;
 *
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
 * BUG: demo3: and in general quadratic seems to be the winner
+* BUG: demo2: I think the more I zoom out, the more difficult it is to select things
 
 * XXX TODO: time for a control panel I think
 * XXX TODO: ooh and they should look like the little spaceship from asteroids, pointing in dir of acceleration?
