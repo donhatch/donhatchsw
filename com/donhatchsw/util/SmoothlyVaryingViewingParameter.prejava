@@ -12,13 +12,13 @@ package com.donhatchsw.util;
 * and the actual value will smoothly move towards it,
 * without any instantaneous changes in velocity.
 *
+* TODO: make copy ctor instead of saving/restoring state... I think?
 * TODO: get rid of the thousands of lines of mathematica crap that never worked I don't think
 *
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1?
 * BUG: demo3: and in general quadratic seems to be the winner
 * BUG: demo2: I think the more I zoom out, the more difficult it is to select things
 
-* BUG: demo3: when showing plan accelerations, just after pause, QUADRATIC's "observed acceleration" becomes quite large
 * BUG: demo3: TRY_TO_DO_IT_RIGHT: they all overshoot a bit it seems, with refTripTime=1? ah it's just numerical instability I think
 * BUG: demo3: and in general quadratic seems to be the winner? not sure. need to provide api to query settle time.
 
@@ -214,6 +214,20 @@ public class SmoothlyVaryingViewingParameter
         if (this.acceleration.length != 1)
             throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setAcceleration: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
         setAcceleration(new double[]{acceleration});
+    }
+    /** Sets the current "observed acceleration".  Has no effect on anything except for getObservedAcceleration(). Throws an IllegalArgumentException if this parameter was initialized as a vector of dimension other than 1. */
+    public void setObservedAcceleration(double observedAcceleration[])
+    {
+        if (observedAcceleration.length != this.observedAcceleration.length)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setObservedAcceleration: new observedAcceleration has dimension "+observedAcceleration.length+", expected "+this.observedAcceleration.length+"");
+        VecMath.copyvec(this.observedAcceleration, observedAcceleration);
+    }
+    /** Sets the current observedAcceleration (scalar version). */
+    public void setObservedAcceleration(double observedAcceleration)
+    {
+        if (this.observedAcceleration.length != 1)
+            throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.setObservedAcceleration: no-arg version is only for scalars, this one is a vector of dimension "+position.length);
+        setObservedAcceleration(new double[]{observedAcceleration});
     }
 
     /** Gets the target value of this scalar variable now, if it's a scalar, otherwise throws an IllegalArgumentException. */
@@ -14020,7 +14034,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 nTimestepsInFuture++;
                             for (; model.points[I].isMoving(); nTimestepsInFuture += skip)
                             {
-                                // restore position and velocity
+                                // restore position and velocity for before evolve
+                                // (evolve doesn't use prior accelerations so don't bother with those)
                                 model.points[I].setVelocity(savedVelocity);
                                 model.points[I].setPosition(savedPosition);
                                 model.points[I].evolve(model.referenceTripDistancesInPixels[i]/10000.,
@@ -14036,6 +14051,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             }
 
                             // restore state
+                            model.points[I].setObservedAcceleration(savedAcceleration);
                             model.points[I].setAcceleration(savedAcceleration);
                             model.points[I].setVelocity(savedVelocity);
                             model.points[I].setPosition(savedPosition);
