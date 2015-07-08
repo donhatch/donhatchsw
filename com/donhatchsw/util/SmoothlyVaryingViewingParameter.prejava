@@ -2,7 +2,7 @@
 package com.donhatchsw.util;
 #include "macros.h" 
 
-#define XXX_TRY_NEW_WAY false 
+#define XXX_TRY_NEW_WAY true 
 
 /**
 * A viewing parameter that always changes smoothly;
@@ -236,7 +236,7 @@ public class SmoothlyVaryingViewingParameter
     * 1: some haphazard stuff
     * 2: more detailed haphazard stuff
     */
-    public static int verboseLevel = 0;
+    public static int verboseLevel = 2;
 
 
     /**
@@ -558,7 +558,51 @@ public class SmoothlyVaryingViewingParameter
                             0., 0.,      // v1
                             p[0], p[1]); // desired integral
 
-                        double t1 = MIN(catenaryRotated.t0+dt, catenaryRotated.t1);
+                        if (true)
+                        {
+                            // sanity check!
+                            OUT("=============");
+                            double pos[] = new double[2];
+                            double vel[] = new double[2];
+                            double acc[] = new double[2];
+                            // vel at t0 should be v
+                            catenaryRotated.evaluate(catenaryRotated.t0, vel);
+                            PRINTVEC(vel);
+                            PRINTVEC(v);
+                            assert(VecMath.distsqrd(vel, v) <= SQR(tol));
+                            OUT("---");
+                            // velocity at t1 should be 0
+                            catenaryRotated.evaluate(catenaryRotated.t1, vel);
+                            PRINTVEC(vel);
+                            PRINTVEC(VecMath.zerovec(2));
+                            assert(VecMath.normsqrd(vel) <= SQR(tol));
+                            OUT("---");
+                            // integral from t0 to t1 should be p
+                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, pos);
+                            PRINTVEC(pos);
+                            PRINTVEC(p);
+                            assert(VecMath.distsqrd(pos, p) <= SQR(tol));
+                            OUT("---");
+                            // acceleration at t0 and t1 should have magnitude 1
+                            catenaryRotated.differentiate(catenaryRotated.t0, acc);
+                            PRINT(VecMath.norm(acc));
+                            PRINT(1.);
+                            assert(Math.abs(VecMath.norm(acc) - 1.) <= tol);
+                            OUT("---");
+                            catenaryRotated.differentiate(catenaryRotated.t1, acc);
+                            PRINT(VecMath.norm(acc));
+                            PRINT(1.);
+                            assert(Math.abs(VecMath.norm(acc) - 1.) <= tol);
+                            OUT("---");
+
+                            OUT("=============");
+                        }
+
+                        PRINT(catenaryRotated.t0);
+                        PRINT(catenaryRotated.t0+dt);
+                        PRINT(catenaryRotated.t1);
+                        double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
+                        double t1 = MIN(catenaryRotated.t0+maxArcLength, catenaryRotated.t1);
 
                         double pos[] = new double[2];
                         double vel[] = new double[2];
@@ -586,10 +630,11 @@ public class SmoothlyVaryingViewingParameter
 
                         if (verboseLevel >= 2)
                         {
+                            PRINT(catenaryRotated);
                             System.out.println("        basis = "+Arrays.toStringCompact(basis));
                             OUT("      old:");
-                            PRINTVEC(this.velocity);
-                            PRINTVEC(this.position);
+                            PRINTVEC(velocity);
+                            PRINTVEC(position);
                         }
 
                         // Undo the acceleraton scale, back into member vars.
@@ -882,6 +927,7 @@ public class SmoothlyVaryingViewingParameter
 
                         if (verboseLevel >= 2)
                         {
+                            PRINT(scratchCatenaryRotated);
                             System.out.println("        basis = "+Arrays.toStringCompact(basis));
                             OUT("      old:");
                             PRINTVEC(velocity);
@@ -1925,9 +1971,10 @@ public class SmoothlyVaryingViewingParameter
             x1.strategy = STRATEGY_SEPARABLE;
             SmoothlyVaryingViewingParameter x2 = new SmoothlyVaryingViewingParameter(new double[2]);
             x2.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
+            // acceleration = 4*d/t^2
             //double referenceTripDistance = .01;
             //double referenceTripDistance = .1;
-            // acceleration = 4*d/t^2
+            //double referenceTripDistance = .5; // for acceleration=1
             double referenceTripDistance = 5.;
             double referenceTripTime = 1.;
             double dt = 1.;
