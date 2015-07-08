@@ -236,7 +236,7 @@ public class SmoothlyVaryingViewingParameter
     * 1: some haphazard stuff
     * 2: more detailed haphazard stuff
     */
-    public static int verboseLevel = 2;
+    public static int verboseLevel = 0;
 
 
     /**
@@ -558,9 +558,9 @@ public class SmoothlyVaryingViewingParameter
                             0., 0.,      // v1
                             p[0], p[1]); // desired integral
 
-                        if (true)
+                        if (false)
                         {
-                            // sanity check!
+                            // sanity check! XXX do this? how much of it?
                             OUT("=============");
                             double pos[] = new double[2];
                             double vel[] = new double[2];
@@ -598,9 +598,6 @@ public class SmoothlyVaryingViewingParameter
                             OUT("=============");
                         }
 
-                        PRINT(catenaryRotated.t0);
-                        PRINT(catenaryRotated.t0+dt);
-                        PRINT(catenaryRotated.t1);
                         double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
                         double t1 = MIN(catenaryRotated.t0+maxArcLength, catenaryRotated.t1);
 
@@ -641,7 +638,7 @@ public class SmoothlyVaryingViewingParameter
                         VecMath.vxs(this.acceleration, this.acceleration, A); // now length A XXX what? should be a. but I think others are similarly wrong?  well it's known that bounce isn't working for this case yet anyway...
                         VecMath.vxs(this.velocity, velocityScaled, A);
                         VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, A);
-                        VecMath.vpv(this.position, positionDisplacementScaled, targetPosition);
+                        VecMath.vpv(this.position, this.position, positionDisplacementScaled);
 
                         // We've set the new position and velocity and acceleration.
                         // Done with this timestep.
@@ -2010,6 +2007,12 @@ public class SmoothlyVaryingViewingParameter
                 System.out.println("        v1 = "+VecMath.toString(v1));
                 System.out.println("        v2 = "+VecMath.toString(v2));
 
+                double tol = 1e-12;
+                assert_almost_eq(p1[0], p2[0], tol);
+                assert_almost_eq(v1[0], v2[0], tol);
+                assert_almost_eq(p2[1], 0., tol);
+                assert_almost_eq(v2[1], 0., tol);
+
                 if (false) // XXX not ready for this yet, but eventually... the slop can actually be useful since it tests tolerance for it, but should be systematic about it
                 {
                     assert(p2[1] == 0.);
@@ -2029,12 +2032,6 @@ public class SmoothlyVaryingViewingParameter
 
                 System.out.println("            evolving x2...");
                 x2.evolve(referenceTripDistance,referenceTripTime, dt, distanceBasedBounce);
-
-                double tol = 1e-12;
-                assert_almost_eq(p1[0], p2[0], tol);
-                assert_almost_eq(v1[0], v2[0], tol);
-                assert_almost_eq(p2[1], 0., tol);
-                assert_almost_eq(v2[1], 0., tol);
 
                 nItersDone++;
             }
