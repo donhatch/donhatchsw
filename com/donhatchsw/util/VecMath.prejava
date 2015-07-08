@@ -2649,6 +2649,18 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
 
+    /** exact vector equality to zero */
+    public static boolean isZeroExactly(double v[])
+    {
+        if (v == null)
+            return false;
+        int n = v.length;
+        FORI (i, n)
+            if (v[i] != 0.)
+                return false;
+        return true;
+    }
+
     /** int vector equality test */
     public static boolean equals(int v0[], int v1[])
     {
