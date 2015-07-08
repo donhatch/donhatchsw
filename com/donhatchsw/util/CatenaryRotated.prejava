@@ -202,24 +202,21 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         answer[1] = yPartOfUnrotated(cosRotation, sinRotation, x, y);
     }
 
-
-
-    // XXX phase this out, moving to pure catenary routines... I think?
-    // XXX start by making private so SmoothlyVaryingViewingParameter can't see it!
+    // XXX phase this out, moving to pure catenary routines... I think? confidence test still uses it at the moment.
     // A catenary is a scaled rotated translated cosh.
     // Path-length integrate from v0 to either v1, or to a length of maxLengthToIntegrate,
     // which ever comes first.
     // Answer gets put into answer. The function return value is the arc length.
     // vFinal is the point that the integral went to (either v1, or the point at distance maxLengthToIntegrate along the curve).
-    public static double integralOfCatenaryWithEndpointsRectangular(double v0[/*2*/],
-                                                                    double v1[/*2*/],
-                                                                    double x, double y, // slack,downAngle in rectangular coords
-                                                                    double maxLengthToIntegrate,
-                                                                    double answer[/*2*/],
-                                                                    double vFinal[/*2*/],
-                                                                    double aFinal[/*2*/],
-                                                                    CatenaryRotated scratchCatenaryRotated,
-                                                                    int debugLevel) // 0: nothing, 1: in/out, 2: a bit more
+    private static double integralOfCatenaryWithEndpointsRectangular(double v0[/*2*/],
+                                                                     double v1[/*2*/],
+                                                                     double x, double y, // slack,downAngle in rectangular coords
+                                                                     double maxLengthToIntegrate,
+                                                                     double answer[/*2*/],
+                                                                     double vFinal[/*2*/],
+                                                                     double aFinal[/*2*/],
+                                                                     CatenaryRotated scratchCatenaryRotated,
+                                                                     int debugLevel) // 0: nothing, 1: in/out, 2: a bit more
     {
         int fitVerboseLevel = debugLevel;
         if (debugLevel >= 1) System.out.println("            in integralOfCatenaryWithEndpointsRectangular");

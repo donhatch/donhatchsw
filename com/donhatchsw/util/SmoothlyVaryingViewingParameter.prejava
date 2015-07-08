@@ -2,8 +2,6 @@
 package com.donhatchsw.util;
 #include "macros.h" 
 
-#define XXX_TRY_NEW_WAY true 
-
 /**
 * A viewing parameter that always changes smoothly;
 * that is, its position and velocity are continous,
@@ -468,533 +466,208 @@ public class SmoothlyVaryingViewingParameter
                     double A = a * ((1.+distanceBasedBounce)/(1.-distanceBasedBounce));
                     if (verboseLevel >= 2) PRINT(A);
 
-                    if (XXX_TRY_NEW_WAY) // new way
+                    double velocityScaled[] = VecMath.copyvec(this.velocity);
+                    double positionDisplacementScaled[] = VecMath.vmv(this.targetPosition, this.position);
+                    // How do we deal with acceleration?
+                    // For example if A=10, then we can scale velocity,position,targetPosition
+                    // by 1/10, solve the problem (same dt), and then scale answer
+                    // position and velocity by 10.
+                    // XXX think about variations on this, changing dt
+                    VecMath.vxs(velocityScaled, velocityScaled, 1./A);
+                    VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, 1./A);
+
+                    // Normalize velocityScaled and positionDisplacementScaled so that
+                    // the max of their magnitudes is 1.
+                    // If we multiply velocityScaled by something,
+                    // we must multiply positionDisplacementScaled by something^2,
+                    // and we must also divide dt by something.
+                    // This is so we don't unnecessarily feed huge numbers to the catenary math,
+                    // and also so that the next few assertions (about dot products of vectors)
+                    // will be more sensible.
+                    double normsqrdVelocity0Scaled = VecMath.normsqrd(velocityScaled);
+                    double normPositionDisplacement = VecMath.norm(positionDisplacementScaled);
+                    double problemSizeSqrd = Math.max(normsqrdVelocity0Scaled, normPositionDisplacement);
+                    double problemSize = Math.sqrt(problemSizeSqrd);
+                    boolean problemSizeScaleFlag = true;
+                    if (problemSizeScaleFlag)
                     {
-                        double velocityScaled[] = VecMath.copyvec(this.velocity);
-                        double positionDisplacementScaled[] = VecMath.vmv(this.targetPosition, this.position);
-                        // How do we deal with acceleration?
-                        // For example if A=10, then we can scale velocity,position,targetPosition
-                        // by 1/10, solve the problem (same dt), and then scale answer
-                        // position and velocity by 10.
-                        // XXX think about variations on this, changing dt
-                        VecMath.vxs(velocityScaled, velocityScaled, 1./A);
-                        VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, 1./A);
+                        VecMath.vxs(velocityScaled, velocityScaled, 1./problemSize);
+                        VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, 1./problemSizeSqrd);
+                        assert_almost_eq(Math.max(VecMath.norm(velocityScaled), VecMath.norm(positionDisplacementScaled)), 1., 1e-12);
+                    }
 
-                        // Normalize velocityScaled and positionDisplacementScaled so that
-                        // the max of their magnitudes is 1.
-                        // If we multiply velocityScaled by something,
-                        // we must multiply positionDisplacementScaled by something^2,
-                        // and we must also divide dt by something.
-                        // This is so we don't unnecessarily feed huge numbers to the catenary math,
-                        // and also so that the next few assertions (about dot products of vectors)
-                        // will be more sensible.
-                        double normsqrdVelocity0Scaled = VecMath.normsqrd(velocityScaled);
-                        double normPositionDisplacement = VecMath.norm(positionDisplacementScaled);
-                        double problemSizeSqrd = Math.max(normsqrdVelocity0Scaled, normPositionDisplacement);
-                        double problemSize = Math.sqrt(problemSizeSqrd);
-                        boolean problemSizeScaleFlag = true;
-                        if (problemSizeScaleFlag)
-                        {
-                            VecMath.vxs(velocityScaled, velocityScaled, 1./problemSize);
-                            VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, 1./problemSizeSqrd);
-                            assert_almost_eq(Math.max(VecMath.norm(velocityScaled), VecMath.norm(positionDisplacementScaled)), 1., 1e-12);
-                        }
+                    // We want to work in 2 dimensions.
+                    // So find two orthogonal vectors spanning the space
+                    // containing 0, velocityScaled, and positionDisplacementScaled.
+                    // With respect to this basis, we want velocityScaled to go on the negative x axis
+                    // and positionDisplacement to be in the 3rd or 4th quadrant.
+                    // XXX TODO: this messes up if n is 1. maybe try to fix it just so we can exercise this path that should work, not sure
+                    if (verboseLevel >= 2) PRINTVEC(velocityScaled);
+                    if (verboseLevel >= 2) PRINTVEC(positionDisplacementScaled);
+                    double basis[][] = VecMath.extendAndOrthogonalize(2, 2, new double[][]{
+                        velocityScaled,
+                        positionDisplacementScaled,
+                    });
+                    VecMath.sxm(basis, -1., basis);
+                    if (verboseLevel >= 3) PRINTMAT(basis);
+                    if (verboseLevel >= 3) PRINT(VecMath.dot(velocityScaled, basis[0]));
+                    if (verboseLevel >= 3) PRINT(VecMath.dot(positionDisplacementScaled, basis[1]));
+                    assert(VecMath.dot(velocityScaled, basis[0]) <= 0.);
 
-                        // We want to work in 2 dimensions.
-                        // So find two orthogonal vectors spanning the space
-                        // containing 0, velocityScaled, and positionDisplacementScaled.
-                        // With respect to this basis, we want velocityScaled to go on the negative x axis
-                        // and positionDisplacement to be in the 3rd or 4th quadrant.
-                        // XXX TODO: this messes up if n is 1. maybe try to fix it just so we can exercise this path that should work, not sure
-                        if (verboseLevel >= 2) PRINTVEC(velocityScaled);
-                        if (verboseLevel >= 2) PRINTVEC(positionDisplacementScaled);
-                        double basis[][] = VecMath.extendAndOrthogonalize(2, 2, new double[][]{
-                            velocityScaled,
-                            positionDisplacementScaled,
-                        });
-                        VecMath.sxm(basis, -1., basis);
-                        if (verboseLevel >= 3) PRINTMAT(basis);
-                        if (verboseLevel >= 3) PRINT(VecMath.dot(velocityScaled, basis[0]));
-                        if (verboseLevel >= 3) PRINT(VecMath.dot(positionDisplacementScaled, basis[1]));
-                        assert(VecMath.dot(velocityScaled, basis[0]) <= 0.);
+                    double tol = 1e-12;
+                    // XXX TODO: actually the following isn't quite the right condition...
+                    // should do something based on condition number of matrix, or something?
+                    // hmm https://answers.yahoo.com/question/index?qid=20111206034618AAI8OvC
+                    // says condition number is ||M|| ||M^-1|| where ||.|| can be any of a number of norms:
+                    //  1-norm = max value of sum of abs values of col elements
+                    //  infinity-norm = max value of sum of absolute values of row elements.
+                    //  2-norm = square root of largest eigenvalue of A^T A -- necessarily nonnegative
+                    // but really can't we do a decent estimate without inverting?
+                    // just from M M^T, I think, i.e. lengths squared and dot prods
+                    // of the two vectors.
+                    // Also see: http://www.maths.manchester.ac.uk/~higham/talks/claode13.pdf
+                    //  || a b c d || || d -b -c a || / (ad-bc)^2
+                    // So that's: (max row sum) * (max col sum) / det^2
+                    assert(VecMath.dot(positionDisplacementScaled, basis[1])
+                        <= tol);
 
-                        double tol = 1e-12;
-                        // XXX TODO: actually the following isn't quite the right condition...
-                        // should do something based on condition number of matrix, or something?
-                        // hmm https://answers.yahoo.com/question/index?qid=20111206034618AAI8OvC
-                        // says condition number is ||M|| ||M^-1|| where ||.|| can be any of a number of norms:
-                        //  1-norm = max value of sum of abs values of col elements
-                        //  infinity-norm = max value of sum of absolute values of row elements.
-                        //  2-norm = square root of largest eigenvalue of A^T A -- necessarily nonnegative
-                        // but really can't we do a decent estimate without inverting?
-                        // just from M M^T, I think, i.e. lengths squared and dot prods
-                        // of the two vectors.
-                        // Also see: http://www.maths.manchester.ac.uk/~higham/talks/claode13.pdf
-                        //  || a b c d || || d -b -c a || / (ad-bc)^2
-                        // So that's: (max row sum) * (max col sum) / det^2
-                        assert(VecMath.dot(positionDisplacementScaled, basis[1])
-                            <= tol);
+                    double v[/*2*/] = VecMath.mxv(basis, velocityScaled); // from nd to 2d space
+                    double p[/*2*/] = VecMath.mxv(basis, positionDisplacementScaled);// from nd to 2d space
+                    // v should be on non-negative x axis,
+                    // p should be in the 3rd or 4th quadrant
+                    if (verboseLevel >= 2) PRINTVEC(v);
+                    if (verboseLevel >= 2) PRINTVEC(p);
+                    assert(v[0] <= 0.); // ok to make this one exact
+                    assert(EQ(v[1], 0., tol));
+                    if (!(p[1] <= tol))
+                    {
+                        PRINTVEC(v);
+                        PRINTVEC(p);
+                    }
+                    assert(p[1] <= tol);
 
-                        double v[/*2*/] = VecMath.mxv(basis, velocityScaled); // from nd to 2d space
-                        double p[/*2*/] = VecMath.mxv(basis, positionDisplacementScaled);// from nd to 2d space
-                        // v should be on non-negative x axis,
-                        // p should be in the 3rd or 4th quadrant
-                        if (verboseLevel >= 2) PRINTVEC(v);
-                        if (verboseLevel >= 2) PRINTVEC(p);
-                        assert(v[0] <= 0.); // ok to make this one exact
-                        assert(EQ(v[1], 0., tol));
-                        if (!(p[1] <= tol))
-                        {
-                            PRINTVEC(v);
-                            PRINTVEC(p);
-                        }
-                        assert(p[1] <= tol);
+                    // We want to find the catenary with end points v,(0,0)
+                    // and integral p.
+                    final CatenaryRotated catenaryRotated = new CatenaryRotated();
+                    catenaryRotated.fitFromMoment(
+                        v[0], v[1],  // v0; happens to be on -x axis now, but doesn't need to be
+                        0., 0.,      // v1
+                        p[0], p[1]); // desired integral
 
-                        // We want to find the catenary with end points v,(0,0)
-                        // and integral p.
-                        final CatenaryRotated catenaryRotated = new CatenaryRotated();
-                        catenaryRotated.fitFromMoment(
-                            v[0], v[1],  // v0; happens to be on -x axis now, but doesn't need to be
-                            0., 0.,      // v1
-                            p[0], p[1]); // desired integral
-
-                        if (false)
-                        {
-                            // sanity check! XXX do this? how much of it?
-                            OUT("=============");
-                            double pos[] = new double[2];
-                            double vel[] = new double[2];
-                            double acc[] = new double[2];
-                            // vel at t0 should be v
-                            catenaryRotated.evaluate(catenaryRotated.t0, vel);
-                            PRINTVEC(vel);
-                            PRINTVEC(v);
-                            assert(VecMath.distsqrd(vel, v) <= SQR(tol));
-                            OUT("---");
-                            // velocity at t1 should be 0
-                            catenaryRotated.evaluate(catenaryRotated.t1, vel);
-                            PRINTVEC(vel);
-                            PRINTVEC(VecMath.zerovec(2));
-                            assert(VecMath.normsqrd(vel) <= SQR(tol));
-                            OUT("---");
-                            // integral from t0 to t1 should be p
-                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, pos);
-                            PRINTVEC(pos);
-                            PRINTVEC(p);
-                            assert(VecMath.distsqrd(pos, p) <= SQR(tol));
-                            OUT("---");
-                            // acceleration at t0 and t1 should have magnitude 1
-                            catenaryRotated.differentiate(catenaryRotated.t0, acc);
-                            PRINT(VecMath.norm(acc));
-                            PRINT(1.);
-                            assert(Math.abs(VecMath.norm(acc) - 1.) <= tol);
-                            OUT("---");
-                            catenaryRotated.differentiate(catenaryRotated.t1, acc);
-                            PRINT(VecMath.norm(acc));
-                            PRINT(1.);
-                            assert(Math.abs(VecMath.norm(acc) - 1.) <= tol);
-                            OUT("---");
-
-                            OUT("=============");
-                        }
-
-                        double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
-                        double t1 = MIN(catenaryRotated.t0+maxArcLength, catenaryRotated.t1);
-
+                    if (false)
+                    {
+                        // sanity check! XXX do this? how much of it?
+                        OUT("=============");
                         double pos[] = new double[2];
                         double vel[] = new double[2];
                         double acc[] = new double[2];
-                        // compute new position displacement
-                        catenaryRotated.integrate(catenaryRotated.t0, t1, pos);
-                        // compute new velocity
-                        catenaryRotated.evaluate(t1, vel);
-                        // compute new acceleration
-                        catenaryRotated.differentiate(t1, acc);
+                        // vel at t0 should be v
+                        catenaryRotated.evaluate(catenaryRotated.t0, vel);
+                        PRINTVEC(vel);
+                        PRINTVEC(v);
+                        assert(VecMath.distsqrd(vel, v) <= SQR(tol));
+                        OUT("---");
+                        // velocity at t1 should be 0
+                        catenaryRotated.evaluate(catenaryRotated.t1, vel);
+                        PRINTVEC(vel);
+                        PRINTVEC(VecMath.zerovec(2));
+                        assert(VecMath.normsqrd(vel) <= SQR(tol));
+                        OUT("---");
+                        // integral from t0 to t1 should be p
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, pos);
+                        PRINTVEC(pos);
+                        PRINTVEC(p);
+                        assert(VecMath.distsqrd(pos, p) <= SQR(tol));
+                        OUT("---");
+                        // acceleration at t0 and t1 should have magnitude 1
+                        catenaryRotated.differentiate(catenaryRotated.t0, acc);
+                        PRINT(VecMath.norm(acc));
+                        PRINT(1.);
+                        assert(Math.abs(VecMath.norm(acc) - 1.) <= tol);
+                        OUT("---");
+                        catenaryRotated.differentiate(catenaryRotated.t1, acc);
+                        PRINT(VecMath.norm(acc));
+                        PRINT(1.);
+                        assert(Math.abs(VecMath.norm(acc) - 1.) <= tol);
+                        OUT("---");
 
-                        // Convert new velocityScaled and positionDisplacementScaled from
-                        // 2d back to original space
-                        VecMath.vxm(velocityScaled, vel, basis);
-                        VecMath.vxm(positionDisplacementScaled, pos, basis);
-                        VecMath.vxm(this.acceleration, acc, basis); // still unit length
+                        OUT("=============");
+                    }
 
-                        if (problemSizeScaleFlag)
-                        {
-                            // Undo the problem size scale
-                            VecMath.vxs(velocityScaled, velocityScaled, problemSize);
-                            VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, problemSizeSqrd);
-                            // this.acceleration still unit length
-                        }
+                    double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
+                    double t1 = MIN(catenaryRotated.t0+maxArcLength, catenaryRotated.t1);
 
-                        if (verboseLevel >= 2)
-                        {
-                            PRINT(catenaryRotated);
-                            System.out.println("        basis = "+Arrays.toStringCompact(basis));
-                            OUT("      old:");
-                            PRINTVEC(velocity);
-                            PRINTVEC(position);
-                        }
+                    double pos[] = new double[2];
+                    double vel[] = new double[2];
+                    double acc[] = new double[2];
+                    // compute new position displacement
+                    catenaryRotated.integrate(catenaryRotated.t0, t1, pos);
+                    // compute new velocity
+                    catenaryRotated.evaluate(t1, vel);
+                    // compute new acceleration
+                    catenaryRotated.differentiate(t1, acc);
 
-                        // Undo the acceleraton scale, back into member vars.
-                        VecMath.vxs(this.acceleration, this.acceleration, A); // now length A XXX what? should be a. but I think others are similarly wrong?  well it's known that bounce isn't working for this case yet anyway...
-                        VecMath.vxs(this.velocity, velocityScaled, A);
-                        VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, A);
-                        VecMath.vpv(this.position, this.position, positionDisplacementScaled);
+                    // Convert new velocityScaled and positionDisplacementScaled from
+                    // 2d back to original space
+                    VecMath.vxm(velocityScaled, vel, basis);
+                    VecMath.vxm(positionDisplacementScaled, pos, basis);
+                    VecMath.vxm(this.acceleration, acc, basis); // still unit length
 
-                        // We've set the new position and velocity and acceleration.
-                        // Done with this timestep.
-
-                        if (verboseLevel >= 2)
-                        {
-                            OUT("      new:");
-                            PRINTVEC(this.acceleration);
-                            PRINTVEC(this.velocity);
-                            PRINTVEC(this.position);
-                        }
-
-                        if (t1 == catenaryRotated.t1)
-                        {
-                            // We are done with entire journey!
-                            // Position should be target and velocity should be
-                            // zero, but they may be slightly different due to
-                            // floating point roundoff error.
-                            // Set them to exactly what they should be,
-                            // so that isMoving()'s criteria will be met.
-                            // TODO: sanity check mode? what should be done along these lines?
-                            if (verboseLevel >= 2) System.out.println("Done with entire journey because t1="+t1+" == catenary.t1");
-                            VecMath.zerovec(this.acceleration);
-                            VecMath.zerovec(this.velocity);
-                            VecMath.copyvec(this.position, this.targetPosition);
-                            if (verboseLevel >= 2)
-                            {
-                                OUT("      adjusted new:");
-                                PRINTVEC(acceleration);
-                                PRINTVEC(velocity);
-                                PRINTVEC(position);
-                            }
-                        }
-                    } // new way
-                    else // old way
+                    if (problemSizeScaleFlag)
                     {
-                        // It's easier to think about if we do it backwards,
-                        // that is, a trip starting at p=0,v=0
-                        // and ending with p=(position-targetPosition),v=-velocity.
-                        // I.e. find the catenary connecting 0 with -velocity
-                        // whose moment is position.
-                        double minusVelocity[] = VecMath.sxv(-1., this.velocity);
-                        double positionDisplacement[] = VecMath.vmv(this.position, this.targetPosition);
-                        // How do we deal with acceleration?
-                        // For example if A=10, then we can scale velocity,position,targetPosition
-                        // by 1/10, solve the problem (same dt), and then scale answer
-                        // position and velocity by 10.
-                        // XXX think about variations on this, changing dt
-                        VecMath.vxs(minusVelocity, minusVelocity, 1./A);
-                        VecMath.vxs(positionDisplacement, positionDisplacement, 1./A);
+                        // Undo the problem size scale
+                        VecMath.vxs(velocityScaled, velocityScaled, problemSize);
+                        VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, problemSizeSqrd);
+                        // this.acceleration still unit length
+                    }
 
-                        // Normalize minusVelocity and positionDisplacement so that
-                        // the max of their magnitudes is 1.
-                        // If we multiply minusVelocity by something,
-                        // we must multiply positionDisplacement by something^2,
-                        // and we must also divide dt by something.
-                        // This is so we don't unnecessarily feed huge numbers to the catenary math,
-                        // and also so that the next few assertions (about dot products of vectors)
-                        // will be more sensible.
-                        double normsqrdMinusVelocity = VecMath.normsqrd(minusVelocity);
-                        double normPositionDisplacement = VecMath.norm(positionDisplacement);
-                        double problemSizeSqrd = Math.max(normsqrdMinusVelocity, normPositionDisplacement);
-                        double problemSize = Math.sqrt(problemSizeSqrd);
-                        boolean problemSizeScaleFlag = true;
-                        if (problemSizeScaleFlag)
-                        {
-                            VecMath.vxs(minusVelocity, minusVelocity, 1./problemSize);
-                            VecMath.vxs(positionDisplacement, positionDisplacement, 1./problemSizeSqrd);
-                            assert_almost_eq(Math.max(VecMath.norm(minusVelocity), VecMath.norm(positionDisplacement)), 1., 1e-12);
-                        }
+                    if (verboseLevel >= 2)
+                    {
+                        PRINT(catenaryRotated);
+                        System.out.println("        basis = "+Arrays.toStringCompact(basis));
+                        OUT("      old:");
+                        PRINTVEC(velocity);
+                        PRINTVEC(position);
+                    }
 
-                        // We want to work in 2 dimensions.
-                        // So find two orthogonal vectors spanning the space
-                        // containing 0, -velocity, and positionDisplacement.
-                        // With respect to this basis, we want -velocity to go on the non-negative x axis
-                        // and positionDisplacement to be in the 3rd or 4th quadrant.
-                        // XXX TODO: this messes up if n is 1. maybe try to fix it just so we can exercise this path that should work, not sure
-                        if (verboseLevel >= 2) PRINTVEC(minusVelocity);
-                        if (verboseLevel >= 2) PRINTVEC(positionDisplacement);
-                        double basis[][] = VecMath.extendAndOrthogonalize(2, 2, new double[][]{
-                            minusVelocity,
-                            positionDisplacement,
-                        });
-                        VecMath.sxv(basis[1], -1., basis[1]);
-                        if (verboseLevel >= 3) PRINTMAT(basis);
-                        if (verboseLevel >= 3) PRINT(VecMath.dot(minusVelocity, basis[0]));
-                        if (verboseLevel >= 3) PRINT(VecMath.dot(positionDisplacement, basis[1]));
-                        assert(VecMath.dot(minusVelocity, basis[0]) >= 0.);
+                    // Undo the acceleraton scale, back into member vars.
+                    VecMath.vxs(this.acceleration, this.acceleration, A); // now length A XXX what? should be a. but I think others are similarly wrong?  well it's known that bounce isn't working for this case yet anyway...
+                    VecMath.vxs(this.velocity, velocityScaled, A);
+                    VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, A);
+                    VecMath.vpv(this.position, this.position, positionDisplacementScaled);
 
-                        double tol = 1e-12;
-                        // XXX TODO: actually the following isn't quite the right condition...
-                        // should do something based on condition number of matrix, or something?
-                        // hmm https://answers.yahoo.com/question/index?qid=20111206034618AAI8OvC
-                        // says condition number is ||M|| ||M^-1|| where ||.|| can be any of a number of norms:
-                        //  1-norm = max value of sum of abs values of col elements
-                        //  infinity-norm = max value of sum of absolute values of row elements.
-                        //  2-norm = square root of largest eigenvalue of A^T A -- necessarily nonnegative
-                        // but really can't we do a decent estimate without inverting?
-                        // just from M M^T, I think, i.e. lengths squared and dot prods
-                        // of the two vectors.
-                        // Also see: http://www.maths.manchester.ac.uk/~higham/talks/claode13.pdf
-                        //  || a b c d || || d -b -c a || / (ad-bc)^2
-                        // So that's: (max row sum) * (max col sum) / det^2
-                        assert(VecMath.dot(positionDisplacement, basis[1])
-                            <= tol);
+                    // We've set the new position and velocity and acceleration.
+                    // Done with this timestep.
 
-                        double v[/*2*/] = VecMath.mxv(basis, minusVelocity); // from nd to 2d space
-                        double p[/*2*/] = VecMath.mxv(basis, positionDisplacement);// from nd to 2d space
-                        // v should be on non-negative x axis,
-                        // p should be in the 3rd or 4th quadrant
-                        if (verboseLevel >= 2) PRINTVEC(v);
-                        if (verboseLevel >= 2) PRINTVEC(p);
-                        assert(v[0] >= 0.);
-                        assert(EQ(v[1], 0., 1e-6)); // XXX need to make this relative
-                        if (!(p[1] <= tol))
-                        {
-                            PRINTVEC(v);
-                            PRINTVEC(p);
-                        }
-                        assert(p[1] <= tol);
+                    if (verboseLevel >= 2)
+                    {
+                        OUT("      new:");
+                        PRINTVEC(this.acceleration);
+                        PRINTVEC(this.velocity);
+                        PRINTVEC(this.position);
+                    }
 
-                        // We want to find the catenary with end points (0,0),v
-                        // and integral p.
-                        final double v0[] = {0,0};
-                        final double v1[] = v; // on x axis
-                        final double desiredIntegral[] = p;
-                        double xyAnswer[] = new double[2];
-                        final CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
-
-    #ifdef NOTYET
-                        if (true)
-                        {
-                            CatenaryRotated catenaryRotated = new CatenaryRotated();
-                            catenaryRotated.fitFromMoment(v0[0], v0[1],
-                                                          v1[0], v1[1],
-                                                          desiredIntegral[0], desiredIntegral[1]);
-                            // Okay we've found the catenary shape.
-                            // The next part is tricky since it's kind of backwards.
-                            // XXX actually do we even need to make it backwards any more??
-                            // XXX well yeah I think so... it matters to get target exactly right... hmm.
-                            // We want to integrate along that catenary,
-                            // starting at v1, and going towards v0.
-
-                            double t = catenaryRotated.t1 - dt;
-                            if (t <= catenaryRotated.t0)
-                            {
-                                // done!
-                                // could just snap there, but I'd like to be able to verify result
-                                t = catenaryRotated.t0;
-                            }
-                            // compute new position
-                            catenaryRotated.integrate(catenaryRotated.t0, t, p);
-                            // compute new velocity
-                            catenaryRotated.evaluate(t, v);
-                            // compute new acceleration
-                            catenaryRotated.differentiate(t, this.acceleration);
-                        }
-    #endif // NOTYET
-
-                        if (true) // XXX shouldn't even work XXX what did I mean??
-                        {
-                            // First, parametrize catenary by down-angle and slack
-                            // where:
-                            //    down-angle = atan2(y,x)
-                            //    slack = sqrt(x^2+y^2).
-                            // so if x,y are 0 then down-angle is indeterminate
-                            // but in that case it doesn't matter because scale
-                            // is infinite and so it doesn't matter what
-                            // infinitesimal part of the canonical catenary
-                            // is sitting on 0,v.
-                            // We're going to solve for such x,y.
-
-                            final int verboseLevelFinal = verboseLevel;
-                            final com.donhatchsw.compat.ArrayList newtonPathFinal = newtonPath;
-                            final boolean inJ[] = {false};
-                            if (verboseLevel >= 2) PRINTVEC(desiredIntegral);
-                            NewtonSolver.Fun fun = new NewtonSolver.Fun(2) {
-                                @Override public void f(double xy[], double answerIntegral[])
-                                {
-                                    if (verboseLevelFinal >= 3) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
-                                    double unusedArcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
-                                        v0, v1,
-                                        xy[0], xy[1],
-                                        Double.POSITIVE_INFINITY,
-                                        answerIntegral,
-                                        null, // vFinal
-                                        null, // aFinal
-                                        scratchCatenaryRotated,
-                                        0); // verboseLevel
-                                    if (!inJ[0] && newtonPathFinal != null)
-                                    {
-                                        newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(answerIntegral)});
-                                    }
-                                    if (verboseLevelFinal >= 2) System.out.println("                f(xy = "+Arrays.toStringCompact(xy)+") = integral="+Arrays.toStringCompact(answerIntegral));
-                                    if (verboseLevelFinal >= 3) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning answerIntegral="+Arrays.toStringCompact(answerIntegral));
-                                }
-                                @Override public void J(double xy[], double fxy[], double answer[][])
-                                {
-                                    if (verboseLevelFinal >= 2) System.out.println("            in J");
-                                    inJ[0] = true;
-                                    try
-                                    {
-                                        super.J(xy, fxy, answer);
-                                    }
-                                    finally
-                                    {
-                                        inJ[0] = false; // executed even on the way out of a throw
-                                    }
-                                    if (verboseLevelFinal >= 2) System.out.println("                jacobian = "+Arrays.toStringCompact(answer));
-                                    if (verboseLevelFinal >= 2) System.out.println("            out J");
-                                }
-                            };
-
-                            if (newtonPath != null)
-                                newtonPath.add(new double[][]{null, desiredIntegral}); // special entry for the target
-
-                            if (true)
-                            {
-                                // initial guess. very crude for starters--
-                                // just get it in the correct quadrant.
-                                double xyInitialGuess[] = VecMath.vmv(desiredIntegral,
-                                                                      VecMath.vxs(v, .5*VecMath.norm(v)));
-                                if (verboseLevel >= 2) PRINTVEC(xyInitialGuess);
-                                VecMath.copyvec(xyAnswer, xyInitialGuess);
-                            }
-
-                            double stepScale = 1.;
-                            //double stepScale = .1;
-                            NewtonSolver.solve(xyAnswer,
-                                               desiredIntegral,
-                                               fun,
-                                               1000,
-                                               stepScale);
-
-                            if (verboseLevel >= 2) PRINTVEC(xyAnswer);
-                            if (verboseLevel >= 2) PRINT(VecMath.norm(xyAnswer));
-                            if (verboseLevel >= 2)
-                            {
-                                double f_xyAnswer[] = new double[2];
-                                fun.f(xyAnswer, f_xyAnswer);
-                                System.out.println("        f(xyAnswer) = "+VecMath.toString(f_xyAnswer));
-                            }
-                            if (verboseLevel >= 2) PRINTVEC(desiredIntegral);
-                        }
-
-
-
-                        double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
-                        double arcLength = Double.NaN;
-                      if (true)
-                      {
-                        // Okay we've found the catenary shape
-                        // The next part is tricky since it's kind of backwards.
-                        // We want to integrate along that catenary,
-                        // starting at v1, and going towards v0.
-                        // So the x (but not the y) of the catenary will be minus what we got from the solve.
-                        // XXX actually how can that possibly make sense, since catenary is arbitrarily rotated??
-
-                        // XXX But I think that's broken, or at least hard to think about, so instead, negate v1 temporarily and try it.
-                        v1[0] *= -1;
-                        xyAnswer[0] *= -1;
-
-                        double partwayIntegral[] = new double[2];
-                        double vFinal[] = new double[2];
-                        double aFinal[] = new double[2];
-                        if (verboseLevel >= 2) PRINT(dt);
-                        arcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
-                            v1, v0,
-                            xyAnswer[0], xyAnswer[1],
-                            maxArcLength,
-                            partwayIntegral,
-                            vFinal,
-                            aFinal,
-                            scratchCatenaryRotated,
-                            verboseLevel);
-
-                        // XXX undo the temporary fudge
-                        v1[0] *= -1;
-                        xyAnswer[0] *= -1;
-                        partwayIntegral[0] *= -1;
-                        vFinal[0] *= -1;
-                        aFinal[0] *= -1;
-
+                    if (t1 == catenaryRotated.t1)
+                    {
+                        // We are done with entire journey!
+                        // Position should be target and velocity should be
+                        // zero, but they may be slightly different due to
+                        // floating point roundoff error.
+                        // Set them to exactly what they should be,
+                        // so that isMoving()'s criteria will be met.
+                        // TODO: sanity check mode? what should be done along these lines?
+                        if (verboseLevel >= 2) System.out.println("Done with entire journey because t1="+t1+" == catenary.t1");
+                        VecMath.zerovec(this.acceleration);
+                        VecMath.zerovec(this.velocity);
+                        VecMath.copyvec(this.position, this.targetPosition);
                         if (verboseLevel >= 2)
                         {
-                            PRINT(scratchCatenaryRotated);
-                            System.out.println("        basis = "+Arrays.toStringCompact(basis));
-                            OUT("      old:");
-                            PRINTVEC(velocity);
-                            PRINTVEC(position);
-                        }
-
-                        // p gets adjusted by cutting off the last part of it,
-                        // i.e. subtracting partwayIntegral
-                        VecMath.vmv(p, p, partwayIntegral);
-
-                        // Convert new minusVelocity and positionDisplacement from
-                        // 2d back to original space
-                        VecMath.vxm(minusVelocity, vFinal, basis);
-                        VecMath.vxm(positionDisplacement, p, basis);
-                        VecMath.vxm(this.acceleration, aFinal, basis); // still unit length
-                      }
-
-                        if (problemSizeScaleFlag)
-                        {
-                            // Undo the problem size scale
-                            VecMath.vxs(minusVelocity, minusVelocity, problemSize);
-                            VecMath.vxs(positionDisplacement, positionDisplacement, problemSizeSqrd);
-                            // this.acceleration still unit length
-                        }
-
-                        // Undo the acceleraton scale
-                        VecMath.vxs(this.acceleration, this.acceleration, A); // now length A XXX what? should be a. but I think others are similarly wrong?  well it's known that bounce isn't working for this case yet anyway...
-                        VecMath.vxs(minusVelocity, minusVelocity, A);
-                        VecMath.vxs(positionDisplacement, positionDisplacement, A);
-
-                        // We were working with minusVelocity = -velocity
-                        VecMath.vxs(this.velocity, minusVelocity, -1.);
-                        VecMath.vxs(this.acceleration, this.acceleration, -1.);
-                        // We were actually working with
-                        // positionDisplacement = position-targetPosition
-                        VecMath.vpv(this.position, positionDisplacement, targetPosition);
-
-                        // We've set the new position and velocity and acceleration.
-                        // Done with this timestep.
-
-                        if (verboseLevel >= 2)
-                        {
-                            OUT("      new:");
+                            OUT("      adjusted new:");
                             PRINTVEC(acceleration);
                             PRINTVEC(velocity);
                             PRINTVEC(position);
                         }
-
-                        if (arcLength < maxArcLength)
-                        {
-                            // Did not get clamped by maxArcLength,
-                            // so we are done with entire journey!
-                            // Position should be target and velocity should be
-                            // zero, but they may be slightly different due to
-                            // floating point roundoff error.
-                            // Set them to exactly what they should be,
-                            // so that isMoving()'s criteria will be met.
-                            if (verboseLevel >= 2) System.out.println("Done with entire journey because arcLength="+arcLength+" <= maxArcLength="+maxArcLength+"");
-                            VecMath.zerovec(this.acceleration);
-                            VecMath.zerovec(this.velocity);
-                            VecMath.copyvec(this.position, this.targetPosition);
-                            if (verboseLevel >= 2)
-                            {
-                                OUT("      adjusted new:");
-                                PRINTVEC(acceleration);
-                                PRINTVEC(velocity);
-                                PRINTVEC(position);
-                            }
-                        }
-                    } // old way
+                    }
                 }
                 catch (Throwable throwable)
                 {
