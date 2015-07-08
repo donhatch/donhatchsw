@@ -559,12 +559,37 @@ public class SmoothlyVaryingViewingParameter
                     double xyAnswer[] = new double[2];
                     final CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
 
+#ifdef NOTYET
                     if (true)
                     {
-                        // XXX use catenary method more directly, here
-                    }
+                        CatenaryRotated catenaryRotated = new CatenaryRotated();
+                        catenaryRotated.fitFromMoment(v0[0], v0[1],
+                                                      v1[0], v1[1],
+                                                      desiredIntegral[0], desiredIntegral[1]);
+                        // Okay we've found the catenary shape.
+                        // The next part is tricky since it's kind of backwards.
+                        // XXX actually do we even need to make it backwards any more??
+                        // XXX well yeah I think so... it matters to get target exactly right... hmm.
+                        // We want to integrate along that catenary,
+                        // starting at v1, and going towards v0.
 
-                    if (true) // XXX shouldn't even work
+                        double t = catenaryRotated.t1 - dt;
+                        if (t <= catenaryRotated.t0)
+                        {
+                            // done!
+                            // could just snap there, but I'd like to be able to verify result
+                            t = catenaryRotated.t0;
+                        }
+                        // compute new position
+                        catenaryRotated.integrate(catenaryRotated.t0, t, p);
+                        // compute new velocity
+                        catenaryRotated.evaluate(t, v);
+                        // compute new acceleration
+                        catenaryRotated.differentiate(t, this.acceleration);
+                    }
+#endif // NOTYET
+
+                    if (true) // XXX shouldn't even work XXX what did I mean??
                     {
                         // First, parametrize catenary by down-angle and slack
                         // where:
@@ -648,9 +673,15 @@ public class SmoothlyVaryingViewingParameter
                             System.out.println("        f(xyAnswer) = "+VecMath.toString(f_xyAnswer));
                         }
                         if (verboseLevel >= 2) PRINTVEC(desiredIntegral);
-
                     }
-                    // Okay we've found the catenary shape.
+
+
+
+                    double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
+                    double arcLength = Double.NaN;
+                  if (true)
+                  {
+                    // Okay we've found the catenary shape
                     // The next part is tricky since it's kind of backwards.
                     // We want to integrate along that catenary,
                     // starting at v1, and going towards v0.
@@ -665,8 +696,7 @@ public class SmoothlyVaryingViewingParameter
                     double vFinal[] = new double[2];
                     double aFinal[] = new double[2];
                     if (verboseLevel >= 2) PRINT(dt);
-                    double maxArcLength = dt / (problemSizeScaleFlag ? problemSize : 1.);
-                    double arcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
+                    arcLength = CatenaryRotated.integralOfCatenaryWithEndpointsRectangular(
                         v1, v0,
                         xyAnswer[0], xyAnswer[1],
                         maxArcLength,
@@ -700,6 +730,7 @@ public class SmoothlyVaryingViewingParameter
                     VecMath.vxm(minusVelocity, vFinal, basis);
                     VecMath.vxm(positionDisplacement, p, basis);
                     VecMath.vxm(this.acceleration, aFinal, basis); // still unit length
+                  }
 
                     if (problemSizeScaleFlag)
                     {
