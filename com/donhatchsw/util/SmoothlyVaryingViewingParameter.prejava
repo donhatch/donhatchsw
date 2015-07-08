@@ -13390,7 +13390,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         }; // canvas
         canvas.requestFocus(); // seems to be needed initially XXX see whether this is true
 
-        final java.awt.Frame frame = new java.awt.Frame("Optimal (I think) Trajectories");
+        final java.awt.Frame frame = new java.awt.Frame("Optimal Trajectories");
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent we)
             {
@@ -14315,7 +14315,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         }; // canvas
         canvas.requestFocus(); // seems to be needed initially XXX see whether this is true
 
-        final java.awt.Frame frame = new java.awt.Frame("Optimal (I think) Trajectories");
+        final java.awt.Frame frame = new java.awt.Frame("Optimal Trajectories");
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent we)
             {
