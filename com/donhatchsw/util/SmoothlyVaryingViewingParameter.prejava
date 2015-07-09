@@ -1611,7 +1611,7 @@ public class SmoothlyVaryingViewingParameter
         int minIterations = 10;
         int maxIterations = 1000;
         //double stepScale = 1.;
-        double stepScale = .1;
+        double stepScale = .1; // argh! haven't got anything that really works well
         double zeros[] = VecMath.fillvec(position.length-1, 0.);
         NewtonSolver.solve(barys, zeros, fun, minIterations, maxIterations, stepScale);
         for (int i = 0; i < n; ++i)

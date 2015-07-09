@@ -58,8 +58,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                               double x1, double y1,
                               double xMoment, double yMoment)
     {
-        int verboseLevel = 1; // XXX think about what we want here. make this a parameter?
+        int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
         if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
+        if (verboseLevel >= 1) System.out.println("              {"+x0+","+y0+", "+x1+","+y1+", "+xMoment+","+yMoment+"},"); // suitable for copying into confidence test
         int fitVerboseLevel = 0; // XXX and this too?
         com.donhatchsw.compat.ArrayList newtonPath = null; // XXX think about what we want here.  make this a parameter?
 
@@ -122,7 +123,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double yInitialGuess = yMoment - yMomentIfZeroSlack;
         double xyAnswer[] = {xInitialGuess, yInitialGuess};
 
+        // XXX TODO: this is the crux of the problem it seems... stepScale=1 makes it not converge! or makes it think it converged... or something. makes the confidence test fail, anyway.
         double stepScale = 1.;
+        //double stepScale = .8;
+        //double stepScale = .5; // smaller stepScale makes it slower but more likely to converge
+        //double stepScale = .2; // smaller stepScale makes it slower but more likely to converge
         //double stepScale = .1; // smaller stepScale makes it slower but more likely to converge
         NewtonSolver.solve(xyAnswer,
                            desiredMoment,
@@ -279,196 +284,263 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
 
-        CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
 
-        double downAngles[] = {-Math.PI/2., -Math.PI/4, 0., Math.PI/2, Math.PI};
-        double invScales[] = {1., .5, 2., 0.};
-        double xTranslates[] = {0., 2., -2.};
-        double yTranslates[] = {0., 2., -2.};
-        double x0s[] = {0.,-1.,-2.,1.,2.};
-        //double x1s[] = {1.,2.,0.,-1.,-2.};
-        double x1s[] = x0s; // XXX get rid
-
-        for (int ix0 = 0; ix0 < x0s.length; ++ix0)
-        for (int ix1 = 0; ix1 < x1s.length; ++ix1)
+        if (true)
         {
-            double x0 = x0s[ix0];
-            double x1 = x1s[ix1];
+            CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
 
-            if (x1 < x0)
+            double downAngles[] = {-Math.PI/2., -Math.PI/4, 0., Math.PI/2, Math.PI};
+            double invScales[] = {1., .5, 2., 0.};
+            double xTranslates[] = {0., 2., -2.};
+            double yTranslates[] = {0., 2., -2.};
+            double x0s[] = {0.,-1.,-2.,1.,2.};
+            //double x1s[] = {1.,2.,0.,-1.,-2.};
+            double x1s[] = x0s; // XXX get rid
+
+            for (int ix0 = 0; ix0 < x0s.length; ++ix0)
+            for (int ix1 = 0; ix1 < x1s.length; ++ix1)
             {
-                // In constructing the example, we always go left to right.
-                // Don't fret, we'll rotate to all sorts of orientations.
-                continue;
-            }
+                double x0 = x0s[ix0];
+                double x1 = x1s[ix1];
 
-            if (testVerboseLevel >= 1) System.out.println("      ===============================================================");
-            if (testVerboseLevel >= 1) System.out.println("      x0 = "+x0);
-            if (testVerboseLevel >= 1) System.out.println("      x1 = "+x1);
+                if (x1 < x0)
+                {
+                    // In constructing the example, we always go left to right.
+                    // Don't fret, we'll rotate to all sorts of orientations.
+                    continue;
+                }
 
-            double sinhx0 = MyMath.sinh(x0);
-            double sinhx1 = MyMath.sinh(x1);
-            double coshx0 = MyMath.cosh(x0);
-            double coshx1 = MyMath.cosh(x1);
-            double v0[] = {x0, coshx0};
-            double v1[] = {x1, coshx1};
-            if (testVerboseLevel >= 1) System.out.println("      v0 = "+VecMath.toString(v0));
-            if (testVerboseLevel >= 1) System.out.println("      v1 = "+VecMath.toString(v1));
+                if (testVerboseLevel >= 1) System.out.println("      ===============================================================");
+                if (testVerboseLevel >= 1) System.out.println("      x0 = "+x0);
+                if (testVerboseLevel >= 1) System.out.println("      x1 = "+x1);
 
-            // Parametrizing cosh by arc length between those endpoints,
-            // this part of the cosh curve is:
-            //      <asinh(t), sqrt(1+t^2)> for x in [x0,x1]
-            //                              i.e. for t in [sinh(x0),sinh(x1)]
-            // The arc length of that part is sinh(x1) - sinh(x0).
-            // The integral of that part is:
-            //      {-sqrt(1+t^2) + t*asinh(t),
-            //       (t*sqrt(1+t^2) + asinh(t))/2}
-            // =    {-cosh(x) + sinh(x)*x,
-            //       (sinh(x)*cosh(x) + x) / 2}
-            double expectedArcLength = sinhx1 - sinhx0;
-            double expectedIntegral[] = {
-                (sinhx1*x1-coshx1)-(sinhx0*x0-coshx0),
-                ((sinhx1*coshx1+x1)-(sinhx0*coshx0+x0))*.5,
-            };
-            double integral[] = new double[2]; // scratch
+                double sinhx0 = MyMath.sinh(x0);
+                double sinhx1 = MyMath.sinh(x1);
+                double coshx0 = MyMath.cosh(x0);
+                double coshx1 = MyMath.cosh(x1);
+                double v0[] = {x0, coshx0};
+                double v1[] = {x1, coshx1};
+                if (testVerboseLevel >= 1) System.out.println("      v0 = "+VecMath.toString(v0));
+                if (testVerboseLevel >= 1) System.out.println("      v1 = "+VecMath.toString(v1));
 
-            double slack = Math.abs(expectedArcLength) - VecMath.dist(v0,v1);
-
-            if (true)
-            {
-                // s=1
-                OUT("        s=1 case");
-                double x = 0.;
-                double y = -slack;
-                double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null, null, scratchCatenaryRotated, 0);
-                if (testVerboseLevel >= 1) PRINT(arcLength);
-                if (testVerboseLevel >= 1) PRINT(expectedArcLength);
-                assert(EQ(arcLength, expectedArcLength, 1e-6));
-                if (testVerboseLevel >= 1) PRINTVEC(integral);
-                if (testVerboseLevel >= 1) PRINTVEC(expectedIntegral);
-                assert(VecMath.dist(integral, expectedIntegral) < 1e-6);
-            }
-
-
-            double halfLength = VecMath.dist(v0,v1)*.5;
-            double expectedIntegralOfSegment[] = VecMath.vxs(VecMath.vpv(v0,v1),halfLength); // length times average
-            double expectedArcLengthOfSegment = VecMath.dist(v0,v1);
-
-            // in degenerate test, slack is 1
-            // and gravity is from v1 towards v0 (or arbitrary direction if they are the same)
-            double slackForDegenerate = 1.; // somewhat arbitrary XXX should try others
-            double expectedArcLengthOfDegenerate = expectedArcLengthOfSegment + slackForDegenerate;
-            double gravityForDegenerate[] = VecMath.normalize(VecMath.vmv(v0, v1));
-            double expectedIntegralOfDegenerate[] = VecMath.vpv(expectedIntegralOfSegment,
-                                                                VecMath.vxs(VecMath.vpsxv(v0,slackForDegenerate/4.,gravityForDegenerate),
-                                                                            slackForDegenerate));
-
-            if (true)
-            {
-                // s=infinity
-                OUT("        s=infinity case");
-                double x = 0.;
-                double y = 0.;
-                double integralOfSegment[] = new double[2];
-                double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null, null, scratchCatenaryRotated, 0);
-                if (testVerboseLevel >= 1) PRINT(arcLengthOfSegment);
-                if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfSegment);
-                assert(EQ(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6));
-                if (testVerboseLevel >= 1) PRINTVEC(integralOfSegment);
-                if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfSegment);
-                assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
-            }
-
-            if (true)
-            {
-                // s=0, gravity from v1 towards v0 (or arbitrary dir if v0=v1)
-                OUT("        s=0 case");
-                PRINTVEC(gravityForDegenerate);
-                PRINTVEC(v0);
-                PRINTVEC(v1);
-                double x = slackForDegenerate * gravityForDegenerate[0];
-                double y = slackForDegenerate * gravityForDegenerate[1];
-                double integralOfDegenerate[] = new double[2];
-                double arcLengthOfDegenerate = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfDegenerate, null, null, scratchCatenaryRotated, 0);
-                if (testVerboseLevel >= 1) PRINT(arcLengthOfDegenerate);
-                if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfDegenerate);
-                assert(EQ(arcLengthOfDegenerate, expectedArcLengthOfDegenerate, 1e-6));
-                if (testVerboseLevel >= 1) PRINTVEC(integralOfDegenerate);
-                if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfDegenerate);
-                assert(VecMath.dist(integralOfDegenerate, expectedIntegralOfDegenerate) < 1e-6);
-            }
-
-            if (testVerboseLevel == 2) System.out.print("        "); // indent for dots
-
-            for (int iDownAngle = 0; iDownAngle < downAngles.length; ++iDownAngle)
-            for (int iInvScale = 0; iInvScale < invScales.length; ++iInvScale)
-            for (int iXTranslate = 0; iXTranslate < xTranslates.length; ++iXTranslate)
-            for (int iYTranslate = 0; iYTranslate < yTranslates.length; ++iYTranslate)
-            {
-                double downAngle = downAngles[iDownAngle];
-                double invScale = invScales[iInvScale];
-                double translate[] = {xTranslates[iXTranslate], yTranslates[iYTranslate]};
-
-                if (testVerboseLevel >= 3) System.out.println("            ---------------------------------------------------------------");
-                if (testVerboseLevel >= 3) System.out.println("            downAngle="+RTOD(downAngle)+"deg invScale="+invScale+" translate="+VecMath.toString(translate));
-
-
-                // we're really doing two fundamentally different tests,
-                // depending on whether invScale is 0 or not.
-                // I think it ends up exercising everything though.
-                // XXX except near-0 and near-infinity, which we need to exercise too
-
-                double rotateDownAngleToMinusYAxis = -Math.PI/2 - downAngle;
-                double c = Math.cos(rotateDownAngleToMinusYAxis);
-                double s = Math.sin(rotateDownAngleToMinusYAxis);
-                double rotateDownAngleToMinusYAxisMatrix[][] = { // row oriented
-                   { c,s},
-                   {-s,c},
+                // Parametrizing cosh by arc length between those endpoints,
+                // this part of the cosh curve is:
+                //      <asinh(t), sqrt(1+t^2)> for x in [x0,x1]
+                //                              i.e. for t in [sinh(x0),sinh(x1)]
+                // The arc length of that part is sinh(x1) - sinh(x0).
+                // The integral of that part is:
+                //      {-sqrt(1+t^2) + t*asinh(t),
+                //       (t*sqrt(1+t^2) + asinh(t))/2}
+                // =    {-cosh(x) + sinh(x)*x,
+                //       (sinh(x)*cosh(x) + x) / 2}
+                double expectedArcLength = sinhx1 - sinhx0;
+                double expectedIntegral[] = {
+                    (sinhx1*x1-coshx1)-(sinhx0*x0-coshx0),
+                    ((sinhx1*coshx1+x1)-(sinhx0*coshx0+x0))*.5,
                 };
-                // rotate minus Y axis to down angle
-                double v0Transformed[] = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, v0); // by inverse of matrix
-                if (invScale != 0.)
-                    VecMath.vxs(v0Transformed, v0Transformed, 1./invScale);
-                VecMath.vpv(v0Transformed, v0Transformed, translate);
-                double v1Transformed[] = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, v1); // by inverse of matrix
-                if (invScale != 0.)
-                    VecMath.vxs(v1Transformed, v1Transformed, 1./invScale);
-                VecMath.vpv(v1Transformed, v1Transformed, translate);
+                double integral[] = new double[2]; // scratch
 
-                double expectedIntegralTransformed[] = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix,
-                                                                   invScale==0. ? expectedIntegralOfSegment : expectedIntegral);
-                if (invScale != 0.)
-                    VecMath.vxs(expectedIntegralTransformed, expectedIntegralTransformed, 1./(invScale*invScale));
-                VecMath.vpsxv(expectedIntegralTransformed, expectedIntegralTransformed,
-                              invScale==0. ? VecMath.dist(v0,v1) : expectedArcLength/invScale,
-                              translate);
-                double expectedArcLengthTransformed = invScale==0. ? expectedArcLengthOfSegment : expectedArcLength/invScale;
+                double slack = Math.abs(expectedArcLength) - VecMath.dist(v0,v1);
 
                 if (true)
                 {
-                    double integralTransformed[] = new double[2];
-                    // 0,-slack/invScale rotated by rotation that takes YAxis to downAngle
-
-                    // keep in mind the invScale=0 test is really a different test, don't expect it to be totally analogous
-                    double xy[] = {0, invScale==0. ? 0. : -slack/invScale};
-                    xy = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, xy); // by inverse of matrix
-                    double x = xy[0];
-                    double y = xy[1];
-                    double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null, null, scratchCatenaryRotated, 0);
-                    if (testVerboseLevel >= 3) System.out.println("                arcLengthTransformed = "+arcLengthTransformed);
-                    if (testVerboseLevel >= 3) System.out.println("                expectedArcLengthTransformed = "+expectedArcLengthTransformed);
-                    assert(EQ(arcLengthTransformed, expectedArcLengthTransformed, 1e-6));
-                    if (testVerboseLevel >= 3) System.out.println("                integralTransformed = "+VecMath.toString(integralTransformed));
-                    if (testVerboseLevel >= 3) System.out.println("                expectedIntegralTransformed = "+VecMath.toString(expectedIntegralTransformed));
-                    assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
+                    // s=1
+                    OUT("        s=1 case");
+                    double x = 0.;
+                    double y = -slack;
+                    double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null, null, scratchCatenaryRotated, 0);
+                    if (testVerboseLevel >= 1) PRINT(arcLength);
+                    if (testVerboseLevel >= 1) PRINT(expectedArcLength);
+                    assert_almost_eq(arcLength, expectedArcLength, 1e-6);
+                    if (testVerboseLevel >= 1) PRINTVEC(integral);
+                    if (testVerboseLevel >= 1) PRINTVEC(expectedIntegral);
+                    assert(VecMath.dist(integral, expectedIntegral) < 1e-6);
                 }
 
-                if (testVerboseLevel == 2) System.out.print(".");
-                if (testVerboseLevel >= 3) System.out.println("            ---------------------------------------------------------------");
+
+                double halfLength = VecMath.dist(v0,v1)*.5;
+                double expectedIntegralOfSegment[] = VecMath.vxs(VecMath.vpv(v0,v1),halfLength); // length times average
+                double expectedArcLengthOfSegment = VecMath.dist(v0,v1);
+
+                // in degenerate test, slack is 1
+                // and gravity is from v1 towards v0 (or arbitrary direction if they are the same)
+                double slackForDegenerate = 1.; // somewhat arbitrary XXX should try others
+                double expectedArcLengthOfDegenerate = expectedArcLengthOfSegment + slackForDegenerate;
+                double gravityForDegenerate[] = VecMath.normalize(VecMath.vmv(v0, v1));
+                double expectedIntegralOfDegenerate[] = VecMath.vpv(expectedIntegralOfSegment,
+                                                                    VecMath.vxs(VecMath.vpsxv(v0,slackForDegenerate/4.,gravityForDegenerate),
+                                                                                slackForDegenerate));
+
+                if (true)
+                {
+                    // s=infinity
+                    OUT("        s=infinity case");
+                    double x = 0.;
+                    double y = 0.;
+                    double integralOfSegment[] = new double[2];
+                    double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null, null, scratchCatenaryRotated, 0);
+                    if (testVerboseLevel >= 1) PRINT(arcLengthOfSegment);
+                    if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfSegment);
+                    assert_almost_eq(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6);
+                    if (testVerboseLevel >= 1) PRINTVEC(integralOfSegment);
+                    if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfSegment);
+                    assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
+                }
+
+                if (true)
+                {
+                    // s=0, gravity from v1 towards v0 (or arbitrary dir if v0=v1)
+                    OUT("        s=0 case");
+                    PRINTVEC(gravityForDegenerate);
+                    PRINTVEC(v0);
+                    PRINTVEC(v1);
+                    double x = slackForDegenerate * gravityForDegenerate[0];
+                    double y = slackForDegenerate * gravityForDegenerate[1];
+                    double integralOfDegenerate[] = new double[2];
+                    double arcLengthOfDegenerate = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfDegenerate, null, null, scratchCatenaryRotated, 0);
+                    if (testVerboseLevel >= 1) PRINT(arcLengthOfDegenerate);
+                    if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfDegenerate);
+                    assert_almost_eq(arcLengthOfDegenerate, expectedArcLengthOfDegenerate, 1e-6);
+                    if (testVerboseLevel >= 1) PRINTVEC(integralOfDegenerate);
+                    if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfDegenerate);
+                    assert(VecMath.dist(integralOfDegenerate, expectedIntegralOfDegenerate) < 1e-6);
+                }
+
+                if (testVerboseLevel == 2) System.out.print("        "); // indent for dots
+
+                for (int iDownAngle = 0; iDownAngle < downAngles.length; ++iDownAngle)
+                for (int iInvScale = 0; iInvScale < invScales.length; ++iInvScale)
+                for (int iXTranslate = 0; iXTranslate < xTranslates.length; ++iXTranslate)
+                for (int iYTranslate = 0; iYTranslate < yTranslates.length; ++iYTranslate)
+                {
+                    double downAngle = downAngles[iDownAngle];
+                    double invScale = invScales[iInvScale];
+                    double translate[] = {xTranslates[iXTranslate], yTranslates[iYTranslate]};
+
+                    if (testVerboseLevel >= 3) System.out.println("            ---------------------------------------------------------------");
+                    if (testVerboseLevel >= 3) System.out.println("            downAngle="+RTOD(downAngle)+"deg invScale="+invScale+" translate="+VecMath.toString(translate));
+
+
+                    // we're really doing two fundamentally different tests,
+                    // depending on whether invScale is 0 or not.
+                    // I think it ends up exercising everything though.
+                    // XXX except near-0 and near-infinity, which we need to exercise too
+
+                    double rotateDownAngleToMinusYAxis = -Math.PI/2 - downAngle;
+                    double c = Math.cos(rotateDownAngleToMinusYAxis);
+                    double s = Math.sin(rotateDownAngleToMinusYAxis);
+                    double rotateDownAngleToMinusYAxisMatrix[][] = { // row oriented
+                       { c,s},
+                       {-s,c},
+                    };
+                    // rotate minus Y axis to down angle
+                    double v0Transformed[] = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, v0); // by inverse of matrix
+                    if (invScale != 0.)
+                        VecMath.vxs(v0Transformed, v0Transformed, 1./invScale);
+                    VecMath.vpv(v0Transformed, v0Transformed, translate);
+                    double v1Transformed[] = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, v1); // by inverse of matrix
+                    if (invScale != 0.)
+                        VecMath.vxs(v1Transformed, v1Transformed, 1./invScale);
+                    VecMath.vpv(v1Transformed, v1Transformed, translate);
+
+                    double expectedIntegralTransformed[] = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix,
+                                                                       invScale==0. ? expectedIntegralOfSegment : expectedIntegral);
+                    if (invScale != 0.)
+                        VecMath.vxs(expectedIntegralTransformed, expectedIntegralTransformed, 1./(invScale*invScale));
+                    VecMath.vpsxv(expectedIntegralTransformed, expectedIntegralTransformed,
+                                  invScale==0. ? VecMath.dist(v0,v1) : expectedArcLength/invScale,
+                                  translate);
+                    double expectedArcLengthTransformed = invScale==0. ? expectedArcLengthOfSegment : expectedArcLength/invScale;
+
+                    if (true)
+                    {
+                        double integralTransformed[] = new double[2];
+                        // 0,-slack/invScale rotated by rotation that takes YAxis to downAngle
+
+                        // keep in mind the invScale=0 test is really a different test, don't expect it to be totally analogous
+                        double xy[] = {0, invScale==0. ? 0. : -slack/invScale};
+                        xy = VecMath.mxv(rotateDownAngleToMinusYAxisMatrix, xy); // by inverse of matrix
+                        double x = xy[0];
+                        double y = xy[1];
+                        double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null, null, scratchCatenaryRotated, 0);
+                        if (testVerboseLevel >= 3) System.out.println("                arcLengthTransformed = "+arcLengthTransformed);
+                        if (testVerboseLevel >= 3) System.out.println("                expectedArcLengthTransformed = "+expectedArcLengthTransformed);
+                        assert_almost_eq(arcLengthTransformed, expectedArcLengthTransformed, 1e-6);
+                        if (testVerboseLevel >= 3) System.out.println("                integralTransformed = "+VecMath.toString(integralTransformed));
+                        if (testVerboseLevel >= 3) System.out.println("                expectedIntegralTransformed = "+VecMath.toString(expectedIntegralTransformed));
+                        assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
+                    }
+
+                    if (testVerboseLevel == 2) System.out.print(".");
+                    if (testVerboseLevel >= 3) System.out.println("            ---------------------------------------------------------------");
+                }
+                if (testVerboseLevel == 2) System.out.println(); // newline after dots
+                if (testVerboseLevel >= 1) System.out.println("      ===============================================================");
+            } // for x0,x1
+        }
+
+        if (true)
+        {
+            System.out.println("      testing some fitFromMoment cases that have been problematic");
+            // XXX TODO: the stepScale refers to the thing that's hard coded inside fitFromMoment. not sure what the problem is, either:
+            //           - it's getting foiled by known numerical issues since I'm not doing Catenary intelligently for near-degenerate cases
+            //           - newton solve is really tricky in this case, need to make it adaptive or something
+
+            double testCases[][] = {
+                // x0,y0, x1,y1, xMoment,yMoment
+                {-1.,0., 0.,0., -0.5036269106706781,-0.027290553371898757}, // good with stepScale=1 (currently)
+                {-1.,0., 0.,0., -0.5019665247911539,-0.020949377300023747}, // fails with stepScale=1, succeeds with stepScale=.8 (currently)
+                {-1.0,2.220446049250313E-16, 0.0,0.0, -0.5011288865208755,-0.016410201253350465}, // fails with stepScale=.8, succeeds with stepScale=.5 (currently)
+                {-0.9999999999999999,2.7755575615628914E-17, 0.0,0.0, -0.5006712775428778,-0.013005663996619649}, // fails with stepScale=.5, succeeds with stepScale=.2 (currently)
+                {-1.0,-5.551115123125783E-17, 0.0,0.0, -0.5004068444282271,-0.01036098511128418}, // fails with stepScale=.2 (currently)
+            };
+            for (int iTestCase = 0; iTestCase < testCases.length; ++iTestCase)
+            {
+                System.out.println("      fitFromMoment test case "+iTestCase+"/"+testCases.length+":");
+                double x0 = testCases[iTestCase][0];
+                double y0 = testCases[iTestCase][1];
+                double x1 = testCases[iTestCase][2];
+                double y1 = testCases[iTestCase][3];
+                double xMoment = testCases[iTestCase][4];
+                double yMoment = testCases[iTestCase][5];
+                CatenaryRotated catenaryRotated = new CatenaryRotated();
+                catenaryRotated.fitFromMoment(x0,y0, x1,y1, xMoment,yMoment);
+
+                double momentActual[] = new double[2];
+                double x0y0Actual[] = new double[2];
+                double x1y1Actual[] = new double[2];
+                double a0Actual[] = new double[2];
+                double a1Actual[] = new double[2];
+                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, momentActual);
+                catenaryRotated.evaluate(catenaryRotated.t0, x0y0Actual);
+                catenaryRotated.evaluate(catenaryRotated.t1, x1y1Actual);
+                catenaryRotated.differentiate(catenaryRotated.t0, a0Actual);
+                catenaryRotated.differentiate(catenaryRotated.t1, a1Actual);
+                PRINT(x0);
+                PRINT(y0);
+                PRINT(x1);
+                PRINT(y1);
+                PRINT(xMoment);
+                PRINT(yMoment);
+                PRINTVEC(momentActual);
+                double tol = 1e-12;
+                assert_almost_eq(momentActual[0], xMoment, tol);
+                assert_almost_eq(momentActual[1], yMoment, tol);
+                assert_almost_eq(x0y0Actual[0], x0, tol);
+                assert_almost_eq(x0y0Actual[1], y0, tol);
+                assert_almost_eq(x1y1Actual[0], x1, tol);
+                assert_almost_eq(x1y1Actual[1], y1, tol);
+                assert_almost_eq(VecMath.norm(a0Actual), 1., tol);
+                assert_almost_eq(VecMath.norm(a1Actual), 1., tol);
+                System.out.println("        seems good!");
             }
-            if (testVerboseLevel == 2) System.out.println(); // newline after dots
-            if (testVerboseLevel >= 1) System.out.println("      ===============================================================");
-        } // for x0,x1
+            if (false)
+            {
+                System.out.println("WARNING: Exiting prematurely!");
+                System.exit(1);
+            }
+        }
+
         System.out.println("    out CatenaryRotated.main");
     } // main
 
