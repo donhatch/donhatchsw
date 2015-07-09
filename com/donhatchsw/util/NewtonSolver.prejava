@@ -46,6 +46,8 @@ public class NewtonSolver
         // the default J() uses this for the finite difference.
         // derived classes may implement this
         // to make it use a different finite difference.
+        // Best practice is probably to normalize the problem size so that the maximum
+        // value occurring in the problem is around 1.
         public double eps()
         {
             return 1e-4;
@@ -61,10 +63,11 @@ public class NewtonSolver
                              Fun fun,
                              int minIterations, // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm. actually should make it smart and adaptive I think.
                              int maxIterations,
-                             double stepScale) // set to 1 usually, but less than 1 for debugging whether things are basically sane other than parametrization not being very good.
+                             double dummy)
     {
+        boolean adaptiveFlag = true;
         boolean debug = false;
-        if (debug) System.out.println("    in solve(x="+VecMath.toString(x)+", y="+VecMath.toString(y)+", maxIterations="+maxIterations+", stepScale="+stepScale);
+        if (debug) System.out.println("    in solve(x="+VecMath.toString(x)+", y="+VecMath.toString(y)+", maxIterations="+maxIterations+", adaptiveFlag="+adaptiveFlag);
         if (debug) PRINT(maxIterations);
         int dim = fun.dim;
         double prevPrevErrorLengthSqrd = Double.POSITIVE_INFINITY;
@@ -72,6 +75,7 @@ public class NewtonSolver
         double fx[] = new double[dim]; // scratch
         double error[] = new double[dim]; // scratch
         double Jx[][] = new double[dim][dim]; // scratch
+        double fullCorrection[] = new double[dim]; // scratch
 
         FORI (iIter, maxIterations)
         {
@@ -79,10 +83,13 @@ public class NewtonSolver
             if (debug) PRINTVEC(x);
             if (debug) PRINTVEC(y);
 
-            fun.f(x, fx); // fx = f(x);
+            if (iIter==0 || !adaptiveFlag) // if haven't already calculated it
+                fun.f(x, fx); // fx = f(x);
+
             VecMath.vmv(error, fx, y);
             double errorLengthSqrd = VecMath.normsqrd(error);
             if (debug) PRINT(errorLengthSqrd);
+            if (debug) PRINT(Math.sqrt(errorLengthSqrd));
             if (Double.isNaN(errorLengthSqrd) || Double.isInfinite(errorLengthSqrd))
             {
                 if (debug) System.out.println("    out solve (NaN or infinite)");
@@ -117,13 +124,47 @@ public class NewtonSolver
                 assert(!Double.isNaN(Jx[i][j]));
             }
 
+            // TODO: get rid of memory allocations!!
             // x += Jx^-1 * (y - fx)
-            VecMath.vpv(x,
-                        x,
-                            VecMath.sxv(
-                                stepScale,
-                                VecMath.invmxv(Jx,
-                                               VecMath.vmv(y, fx))));
+            VecMath.invmxv(fullCorrection,
+                           Jx,
+                           VecMath.vmv(y, fx)); // XXX wait a minute, isn't that -error?
+            if (!adaptiveFlag)
+            {
+                // Naive implementation
+                VecMath.vpv(x, x, fullCorrection);
+            }
+            else
+            {
+                // Adaptive. If it's too wild, half the step size, til it's sane.
+                double prevErrorLength = Math.sqrt(prevErrorLengthSqrd);
+                double maxStepScale = 1.; // can set this to something less to force it to be gentle and slow for debugging
+                for (double stepScale = maxStepScale; ; stepScale *= .5)
+                {
+                    assert(stepScale > 0.);
+                    double xNewMaybe[] = VecMath.vpsxv(x,
+                                                       stepScale,
+                                                       fullCorrection);
+                    double fxNewMaybe[] = new double[dim];
+                    fun.f(xNewMaybe, fxNewMaybe); // fxNewMaybe = f(xNewMaybe)
+                    double ySortOf[] = VecMath.lerp(fx, y, stepScale);
+                    if (debug) PRINTVEC(xNewMaybe);
+                    if (debug) PRINTVEC(fxNewMaybe);
+                    VecMath.vmv(error, fxNewMaybe, ySortOf);
+                    double newErrorLengthSqrd = VecMath.normsqrd(error);
+                    double newErrorLength = Math.sqrt(newErrorLengthSqrd);
+                    if (debug) PRINT(newErrorLength);
+                    if (newErrorLength <= .5 * prevErrorLength * stepScale)
+                    {
+                        VecMath.copyvec(x, xNewMaybe);
+                        VecMath.copyvec(fx, fxNewMaybe);
+                        // TODO: the next call to f will be redundant with the one we just did; should fix that
+                        break;
+                    }
+                    // Too wild; pull back to half as far
+                    if (debug) System.out.println("        too wild! stepScale "+stepScale+" -> "+(stepScale*.5)+"");
+                }
+            }
         }
         if (debug) System.out.println("    out solve (maxIterations="+maxIterations+" reached)");
     } // solve

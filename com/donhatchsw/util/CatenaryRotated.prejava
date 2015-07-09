@@ -113,6 +113,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 if (verboseLevelFinal >= 2) PRINTMAT(answerJacobian);
                 if (verboseLevelFinal >= 2) System.out.println("            out J");
             }
+            @Override public double eps()
+            {
+                return 1e-6;
+            }
         };
 
         // Make an initial guess-- this gets it in the correct upper or lower
