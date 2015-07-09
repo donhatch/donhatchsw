@@ -48,6 +48,8 @@ public class NewtonSolver
         // to make it use a different finite difference.
         // Best practice is probably to normalize the problem size so that the maximum
         // value occurring in the problem is around 1.
+        // XXX change to 1e-6?  should list reasons for wanting different values.
+        // XXX CatenaryRotated currently (not numerically stabilized yet) doesn't like 1e-4 but likes 1e-6.
         public double eps()
         {
             return 1e-4;
@@ -63,9 +65,8 @@ public class NewtonSolver
                              Fun fun,
                              int minIterations, // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm. actually should make it smart and adaptive I think.
                              int maxIterations,
-                             double dummy)
+                             boolean adaptiveFlag)
     {
-        boolean adaptiveFlag = true;
         boolean debug = false;
         if (debug) System.out.println("    in solve(x="+VecMath.toString(x)+", y="+VecMath.toString(y)+", maxIterations="+maxIterations+", adaptiveFlag="+adaptiveFlag);
         if (debug) PRINT(maxIterations);
@@ -184,7 +185,7 @@ public class NewtonSolver
             double x[] = {9}; // initial guess
             double y[] = {100};
 
-            solve(x, y, fun, 10, 1000, 1.);
+            solve(x, y, fun, 10, 1000, false);
         }
         {
             // find x0,x1 such that {x0*x0,x0*x1} == {100,200}
@@ -199,8 +200,9 @@ public class NewtonSolver
             double x[] = {5,25}; // initial guess
             double y[] = {100,200};
 
-            solve(x, y, fun, 10, 1000, 1.);
+            solve(x, y, fun, 10, 1000, false);
         }
+        // XXX TODO: exercise adaptiveFlag
         System.out.println("    out NewtonSolver.main");
     } // main
 } // class NewtonSolver

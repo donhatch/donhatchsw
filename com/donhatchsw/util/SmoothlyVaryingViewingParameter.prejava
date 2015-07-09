@@ -1610,10 +1610,9 @@ public class SmoothlyVaryingViewingParameter
         double barys[] = VecMath.fillvec(position.length-1, 1./position.length); // initial guess
         int minIterations = 10;
         int maxIterations = 1000;
-        //double stepScale = 1.;
-        double stepScale = .1; // argh! haven't got anything that really works well
         double zeros[] = VecMath.fillvec(position.length-1, 0.);
-        NewtonSolver.solve(barys, zeros, fun, minIterations, maxIterations, stepScale);
+        boolean adaptiveFlag = true;
+        NewtonSolver.solve(barys, zeros, fun, minIterations, maxIterations, adaptiveFlag);
         for (int i = 0; i < n; ++i)
         {
             double bary = i==n-1 ? 1.-VecMath.sum(barys) : barys[i];
@@ -12071,7 +12070,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                               At1InitialGuess[1]};
                 int minIterations = 10;
                 int maxIterations = 1000;
-                NewtonSolver.solve(x, y, fun, minIterations, maxIterations, 1.);
+                boolean adaptiveFlag = true;
+                NewtonSolver.solve(x, y, fun, minIterations, maxIterations, adaptiveFlag);
                 double A0[] = {x[0],x[1]};
                 double At1[] = {x[2],x[3]};
                 return new double[][] {A0,At1};

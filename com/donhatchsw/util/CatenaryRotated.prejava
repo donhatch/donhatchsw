@@ -115,6 +115,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             }
             @Override public double eps()
             {
+                // Somewhat dog science:
+                // 1e-4 makes it freak out and confidence test fail currently (evaluation functions not stabilized).
+                // 1e-6 fixes it but makes it slow down when past the switch (which is the numerically challenging part)
+                // But I think 1e-6 is probably better in general anyway...
+                // assuming problem has been scaled to unit size.
                 return 1e-6;
             }
         };
@@ -126,19 +131,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double xInitialGuess = xMoment - xMomentIfZeroSlack;
         double yInitialGuess = yMoment - yMomentIfZeroSlack;
         double xyAnswer[] = {xInitialGuess, yInitialGuess};
-
-        // XXX TODO: this is the crux of the problem it seems... stepScale=1 makes it not converge! or makes it think it converged... or something. makes the confidence test fail, anyway.
-        double stepScale = 1.;
-        //double stepScale = .8;
-        //double stepScale = .5; // smaller stepScale makes it slower but more likely to converge
-        //double stepScale = .2; // smaller stepScale makes it slower but more likely to converge
-        //double stepScale = .1; // smaller stepScale makes it slower but more likely to converge
+        boolean adaptiveFlag = true; // needed, currently (evaluation functions not stabilized)
         NewtonSolver.solve(xyAnswer,
                            desiredMoment,
                            fun,
                            10,
                            1000,
-                           stepScale);
+                           adaptiveFlag);
 
         if (newtonPath != null)
             newtonPath.add(new double[][]{null, desiredMoment}); // special entry for the target
