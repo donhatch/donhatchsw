@@ -501,13 +501,16 @@ public class SmoothlyVaryingViewingParameter
                     // containing 0, velocityScaled, and positionDisplacementScaled.
                     // With respect to this basis, we want velocityScaled to go on the negative x axis
                     // and positionDisplacement to be in the 3rd or 4th quadrant.
-                    // XXX TODO: this messes up if n is 1. maybe try to fix it just so we can exercise this path that should work, not sure
                     if (verboseLevel >= 2) PRINTVEC(velocityScaled);
                     if (verboseLevel >= 2) PRINTVEC(positionDisplacementScaled);
-                    double basis[][] = VecMath.extendAndOrthogonalize(2, 2, new double[][]{
-                        velocityScaled,
-                        positionDisplacementScaled,
-                    });
+                    double basis[][];
+                    if (n == 1)
+                        basis = new double[][] {{velocityScaled[0]<0.?-1.:1.},{0}}; // hack, just so we can convert from 1d to 2d and back
+                    else
+                        basis = VecMath.extendAndOrthogonalize(2, 2, new double[][]{
+                            velocityScaled,
+                            positionDisplacementScaled,
+                        });
                     VecMath.sxm(basis, -1., basis);
                     if (verboseLevel >= 3) PRINTMAT(basis);
                     if (verboseLevel >= 3) PRINT(VecMath.dot(velocityScaled, basis[0]));
@@ -841,7 +844,7 @@ public class SmoothlyVaryingViewingParameter
     private static void computeVelocityKnee(double velocityKnee[],
                                             double p[], double v[], double a)
     {
-        //System.out.println("        in computeVelocityKnee(p="+Arrays.toStringCompact(p)+", v="+Arrays.toStringCompact(v)+", a="+a+")");
+        if (verboseLevel >= 1) System.out.println("        in computeVelocityKnee(p="+Arrays.toStringCompact(p)+", v="+Arrays.toStringCompact(v)+", a="+a+")");
         //assert(false); // XXX coverage-- remove when hit
         //
         // Want knee k such that
@@ -1193,7 +1196,7 @@ public class SmoothlyVaryingViewingParameter
                         xKnee, vDir,
                         yKnee, uDir);
 
-        //System.out.println("        out computeVelocityKnee, returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
+        if (verboseLevel >= 1) System.out.println("        out computeVelocityKnee, returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
 
         //
         // Check that it does what it's supposed to,
@@ -1634,13 +1637,23 @@ public class SmoothlyVaryingViewingParameter
         System.out.println("    in confidenceTests");
         if (true)
         {
-            // Verify that TRY_TO_DO_IT_RIGHT gives same answer
-            // as SEPARABLE 1d when given a 1d problem
-            // XXX TODO: actually all three should! verify this!
-            SmoothlyVaryingViewingParameter x1 = new SmoothlyVaryingViewingParameter(0.);
-            x1.strategy = STRATEGY_SEPARABLE;
-            SmoothlyVaryingViewingParameter x2 = new SmoothlyVaryingViewingParameter(new double[2]);
-            x2.strategy = STRATEGY_TRY_TO_DO_IT_RIGHT;
+            System.out.println("        Verifying that all three strategies give the same answer when given a 1d problem");
+            System.out.println("        XXX except TWO_PIECE_QUADRATIC hangs on 1d problem");
+            int strategies[] = {
+                STRATEGY_SEPARABLE,
+                //STRATEGY_TWO_PIECE_QUADRATIC, // TODO: make this work!
+                STRATEGY_TRY_TO_DO_IT_RIGHT,
+            };
+            SmoothlyVaryingViewingParameter particles[][] = new SmoothlyVaryingViewingParameter[2][strategies.length];
+            for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < strategies.length; ++j)
+            {
+                int strategy = strategies[j];
+                particles[i][j] = i==0 ? new SmoothlyVaryingViewingParameter(0.)
+                                                    : new SmoothlyVaryingViewingParameter(new double[2]);
+                particles[i][j].strategy = strategy;
+            }
+
             // acceleration = 4*d/t^2
             //double referenceTripDistance = .01;
             //double referenceTripDistance = .1;
@@ -1655,56 +1668,92 @@ public class SmoothlyVaryingViewingParameter
             double pStart = 100.;
             double targetPosition = 0.;
 
-            x1.setVelocity(vStart);
-            x2.setVelocity(new double[] {vStart, 0.});
-            x1.setTargetPosition(targetPosition);
-            x2.setTargetPosition(new double[] {targetPosition, 0.});
-            x1.setPosition(pStart);
-            x2.setPosition(new double[] {pStart, 0.});
+            for (int i = 0; i < 2; ++i)
+            for (int j = 0; j < strategies.length; ++j)
+            {
+                int strategy = strategies[j];
+                SmoothlyVaryingViewingParameter particle = particles[i][j];
+                if (i == 0)
+                {
+                    particle.setVelocity(vStart);
+                    particle.setTargetPosition(targetPosition);
+                    particle.setPosition(pStart);
+                }
+                else
+                {
+                    particle.setVelocity(new double[] {vStart, 0.});
+                    particle.setTargetPosition(new double[] {targetPosition, 0.});
+                    particle.setPosition(new double[] {pStart, 0.});
+                }
+            }
 
             int maxIters = 100;
 
             int nItersDone = 0;
             while (true)
             {
-                double p1[] = new double[1];
-                double p2[] = new double[2];
-                double v1[] = new double[1];
-                double v2[] = new double[2];
-                x1.get(p1);
-                x1.getVelocity(v1);
-                x2.get(p2);
-                x2.getVelocity(v2);
-                System.out.println("        p1 = "+VecMath.toString(p1));
-                System.out.println("        p2 = "+VecMath.toString(p2));
-                System.out.println("        v1 = "+VecMath.toString(v1));
-                System.out.println("        v2 = "+VecMath.toString(v2));
+                System.out.println("            nItersDone = "+nItersDone);
+                double ps[][][] = new double[2][strategies.length][];
+                double vs[][][] = new double[2][strategies.length][];
 
-                double tol = 1e-12;
-                assert_almost_eq(p1[0], p2[0], tol);
-                assert_almost_eq(v1[0], v2[0], tol);
-                assert_almost_eq(p2[1], 0., tol);
-                assert_almost_eq(v2[1], 0., tol);
-
-                if (false) // XXX not ready for this yet, but eventually... the slop can actually be useful since it tests tolerance for it, but should be systematic about it
+                for (int i = 0; i < 2; ++i)
+                for (int j = 0; j < strategies.length; ++j)
                 {
-                    assert(p2[1] == 0.);
-                    assert(v2[1] == 0.);
+                    ps[i][j] = new double[i==0?1:2];
+                    vs[i][j] = new double[i==0?1:2];
+                    particles[i][j].get(ps[i][j]);
+                    particles[i][j].getVelocity(vs[i][j]);
                 }
 
-                PRINT(x1.isMoving());
-                PRINT(x2.isMoving());
-                if (!x1.isMoving() && !x2.isMoving())
-                    break;
+                for (int i = 0; i < 2; ++i)
+                for (int j = 0; j < strategies.length; ++j)
+                    System.out.println("                ps["+i+"]["+j+"] = "+VecMath.toString(ps[i][j]));
+                for (int i = 0; i < 2; ++i)
+                for (int j = 0; j < strategies.length; ++j)
+                    System.out.println("                vs["+i+"]["+j+"] = "+VecMath.toString(ps[i][j]));
+                for (int i = 0; i < 2; ++i)
+                for (int j = 0; j < strategies.length; ++j)
+                    System.out.println("                particles["+i+"]["+j+"].isMoving() = "+particles[i][j].isMoving());
 
+                for (int i = 0; i < 2; ++i)
+                for (int j = 0; j < strategies.length; ++j)
+                {
+                    double tol = 1e-12;
+                    assert_almost_eq(ps[i][j][0], ps[0][0][0], tol);
+                    assert_almost_eq(vs[i][j][0], vs[0][0][0], tol);
+                    if (i == 1)
+                    {
+                      assert_almost_eq(ps[i][j][1], 0., tol);
+                      assert_almost_eq(vs[i][j][1], 0., tol);
+                      if (false) // XXX not ready for this yet, but eventually... the slop can actually be useful since it tests tolerance for it, but should be systematic about it
+                      {
+                          assert(ps[i][j][1] == 0.);
+                          assert(vs[i][j][1] == 0.);
+                      }
+                    }
+                }
+
+                boolean someoneIsMoving = false;
+                for (int i = 0; i < 2; ++i)
+                for (int j = 0; j < strategies.length; ++j)
+                {
+                    if (particles[i][j].isMoving())
+                    {
+                        someoneIsMoving = true;
+                        break;
+                    }
+                }
+                if (!someoneIsMoving)
+                    break;
                 if (nItersDone >= maxIters)
                     break;
 
-                System.out.println("            evolving x1...");
-                x1.evolve(referenceTripDistance,referenceTripTime, dt, distanceBasedBounce);
-
-                System.out.println("            evolving x2...");
-                x2.evolve(referenceTripDistance,referenceTripTime, dt, distanceBasedBounce);
+                for (int i = 0; i < 2; ++i)
+                for (int j = 0; j < strategies.length; ++j)
+                {
+                    System.out.println("                    evolving particles["+i+"]["+j+"]...");
+                    particles[i][j].evolve(referenceTripDistance,referenceTripTime, dt, distanceBasedBounce);
+                }
 
                 nItersDone++;
             }
