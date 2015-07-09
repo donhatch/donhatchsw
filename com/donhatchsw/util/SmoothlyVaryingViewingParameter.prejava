@@ -1608,11 +1608,12 @@ public class SmoothlyVaryingViewingParameter
             }
         };
         double barys[] = VecMath.fillvec(position.length-1, 1./position.length); // initial guess
+        int minIterations = 10;
         int maxIterations = 1000;
         //double stepScale = 1.;
         double stepScale = .1;
         double zeros[] = VecMath.fillvec(position.length-1, 0.);
-        NewtonSolver.solve(barys, zeros, fun, maxIterations, stepScale);
+        NewtonSolver.solve(barys, zeros, fun, minIterations, maxIterations, stepScale);
         for (int i = 0; i < n; ++i)
         {
             double bary = i==n-1 ? 1.-VecMath.sum(barys) : barys[i];
@@ -1761,6 +1762,48 @@ public class SmoothlyVaryingViewingParameter
             {
                 System.out.println("Exiting prematurely!");
                 System.exit(1);
+            }
+        }
+        if (true)
+        {
+            // XXX wait, isn't this just trySomeEvolves?? yeah I think so...
+            // A typical trip
+            double p0[] = {1.,0.};
+            double v0[] = {0.,1.};
+            double targetPosition[] = {0.,0.};
+            double referenceTripDistance = 5.;
+            double referenceTripTime = 1.;
+            double dt = 1.;
+            double distanceBasedBounce = 0.;
+
+            int strategies[] = {
+                STRATEGY_SEPARABLE,
+                STRATEGY_TWO_PIECE_QUADRATIC,
+                STRATEGY_TRY_TO_DO_IT_RIGHT,
+            };
+            SmoothlyVaryingViewingParameter particles[] = new SmoothlyVaryingViewingParameter[strategies.length];
+            for (int iStrategy = 0; iStrategy < strategies.length; ++iStrategy)
+            {
+                particles[iStrategy] = new SmoothlyVaryingViewingParameter(new double[2]);
+                particles[iStrategy].setPosition(p0);
+                particles[iStrategy].setVelocity(v0);
+                particles[iStrategy].setTargetPosition(targetPosition);
+                particles[iStrategy].strategy = strategies[iStrategy];
+            }
+
+            // [iStrategy][start][end]
+            double ps[][] = new double[strategies.length][];
+            while (true)
+            {
+                for (int iStrategy = 0; iStrategy < strategies.length; ++iStrategy)
+                {
+                    SmoothlyVaryingViewingParameter particleCopy = new SmoothlyVaryingViewingParameter(particles[iStrategy]);
+                    for (int i = 0; particleCopy.isMoving(); ++i)
+                    {
+
+                        particleCopy.evolve(referenceTripDistance,referenceTripTime, i*dt, distanceBasedBounce);
+                    }
+                }
             }
         }
 
@@ -12026,8 +12069,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                               A0InitialGuess[1],
                               At1InitialGuess[0],
                               At1InitialGuess[1]};
+                int minIterations = 10;
                 int maxIterations = 1000;
-                NewtonSolver.solve(x, y, fun, maxIterations, 1.);
+                NewtonSolver.solve(x, y, fun, minIterations, maxIterations, 1.);
                 double A0[] = {x[0],x[1]};
                 double At1[] = {x[2],x[3]};
                 return new double[][] {A0,At1};
@@ -12137,11 +12181,17 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 }
                 foo.get(pActual__);
                 foo.getVelocity(vActual__);
-                System.out.println("      "+i+"->"+j+":");
+                System.out.println("      "+i+"->"+j+" / "+n+" :");
                 PRINTARRAY(pExpected);
                 PRINTARRAY(pActual__);
                 PRINTARRAY(vExpected);
                 PRINTARRAY(vActual__);
+                PRINT(VecMath.dist(pExpected, pActual__));
+                PRINT(VecMath.dist(vExpected, vActual__));
+                double tol = 1e-12;
+                assert(VecMath.dist(pExpected, pActual__) <= tol);
+                assert(VecMath.dist(vExpected, vActual__) <= tol);
+
                 if (i == interestingIndex && j == interestingIndex+1) break;
             }
             if (i == interestingIndex) break;
@@ -12203,7 +12253,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //public double t1 = 3.;
 
                 public double mostRecentNewtonPath[][][] = null;
-                public int interestingIndex = 6;
+                public int interestingIndex = -1;
+                //public int interestingIndex = 6;
                 //public int interestingIndex = 24;
 
                 {VecMath.lerp(A1, A0, A1, 1./VecMath.dist(A0,A1));} // make sure it's unit distance away

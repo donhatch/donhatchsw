@@ -58,8 +58,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                               double x1, double y1,
                               double xMoment, double yMoment)
     {
-        int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
-        int fitVerboseLevel = 0;
+        int verboseLevel = 1; // XXX think about what we want here. make this a parameter?
+        if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
+        int fitVerboseLevel = 0; // XXX and this too?
         com.donhatchsw.compat.ArrayList newtonPath = null; // XXX think about what we want here.  make this a parameter?
 
         double dist = MyMath.hypot(y1-y0, x1-x0);
@@ -88,14 +89,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 CatenaryRotated self = CatenaryRotated.this;
                 self.fitFromRectangularCoords(x0final,y0final, x1final,y1final, xy[0], xy[1], fitVerboseLevelFinal);
 
-                double integral[] = new double[2]; // XXX wtf? change NewtonSolver so it doesn't require allocating a new thing each time
                 self.integrate(self.t0, self.t1, answerIntegral);
 
                 if (!inJ[0] && newtonPathFinal != null)
                 {
-                    newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(integral)});
+                    newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(answerIntegral)});
                 }
-                if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning integral="+Arrays.toStringCompact(integral));
+                if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning answerIntegral="+Arrays.toStringCompact(answerIntegral));
             }
             @Override public void J(double xy[], double fxy[], double answerJacobian[][])
             {
@@ -127,6 +127,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         NewtonSolver.solve(xyAnswer,
                            desiredMoment,
                            fun,
+                           10,
                            1000,
                            stepScale);
 
@@ -134,6 +135,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             newtonPath.add(new double[][]{null, desiredMoment}); // special entry for the target
 
         this.fitFromRectangularCoords(x0,y0, x1,y1, xyAnswer[0], xyAnswer[1], fitVerboseLevelFinal);
+        double shouldBeDesiredMoment[] = new double[2];
+        this.integrate(this.t0, this.t1, shouldBeDesiredMoment);
+        if (verboseLevel >= 1) System.out.println("              "+this);
+        if (verboseLevel >= 1) System.out.println("              desiredMoment"+VecMath.toString(desiredMoment));
+        if (verboseLevel >= 1) System.out.println("              shouldBeDesiredMoment"+VecMath.toString(shouldBeDesiredMoment));
+        if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
     } // fitFromMoment
 
 

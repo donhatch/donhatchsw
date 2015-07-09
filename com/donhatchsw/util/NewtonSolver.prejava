@@ -59,6 +59,7 @@ public class NewtonSolver
     public static void solve(double x[],
                              double y[], // const
                              Fun fun,
+                             int minIterations, // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm. actually should make it smart and adaptive I think.
                              int maxIterations,
                              double stepScale) // set to 1 usually, but less than 1 for debugging whether things are basically sane other than parametrization not being very good.
     {
@@ -68,7 +69,6 @@ public class NewtonSolver
         int dim = fun.dim;
         double prevPrevErrorLengthSqrd = Double.POSITIVE_INFINITY;
         double prevErrorLengthSqrd = Double.POSITIVE_INFINITY;
-        int minIterations = 10; // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm.
         double fx[] = new double[dim]; // scratch
         double error[] = new double[dim]; // scratch
         double Jx[][] = new double[dim][dim]; // scratch
@@ -143,7 +143,7 @@ public class NewtonSolver
             double x[] = {9}; // initial guess
             double y[] = {100};
 
-            solve(x, y, fun, 1000, 1.);
+            solve(x, y, fun, 10, 1000, 1.);
         }
         {
             // find x0,x1 such that {x0*x0,x0*x1} == {100,200}
@@ -158,7 +158,7 @@ public class NewtonSolver
             double x[] = {5,25}; // initial guess
             double y[] = {100,200};
 
-            solve(x, y, fun, 1000, 1.);
+            solve(x, y, fun, 10, 1000, 1.);
         }
         System.out.println("    out NewtonSolver.main");
     } // main
