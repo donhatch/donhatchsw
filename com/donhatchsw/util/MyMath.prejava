@@ -960,7 +960,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                     if (signature.length == 2)
                     {
                         double Ts[] = {0., .1, .4, .5, .7, Math.sqrt(.5), .8, .9, 1., 1.1, Math.sqrt(2.)};
-                        double ts[] = {0, .1, .2}; // XXX should test negative... but only for functions that can handle it.  or maybe everyone can handle it, via NaNs and Infinities?
+                        double ts[] = {-.1, 0., .1, .2};
                         for (int iT = 0; iT < Ts.length; ++iT)
                         for (int it = 0; it < ts.length; ++it)
                         {
@@ -973,7 +973,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                     {
                         double Tns[] = {0., .3, .5, .7, 1., 1.5, 2.};
                         double Tds[] = {0., .3, .5, .7, 1., 1.5, 2.};
-                        double ts[] = {0, .1, .2}; // XXX should test negative... but only for functions that can handle it  or maybe everyone can handle it, via NaNs and Infinities?
+                        double ts[] = {-.1, 0., .1, .2};
 
                         for (int iTn = 0; iTn < Tns.length; ++iTn)
                         for (int iTd = 0; iTd < Tds.length; ++iTd)
