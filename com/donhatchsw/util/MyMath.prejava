@@ -85,6 +85,7 @@ public class MyMath
         double u = 1.+x;
         if (u == Double.POSITIVE_INFINITY) // grr, special case for max double
             return Math.log(x);
+        // yow! see below, lots simpler I think
         return Math.log(u) - ((u-1.)-x)/u; // cancels errors with IEEE arithmetic
     }
 
@@ -125,6 +126,10 @@ this function when it should be very fast.
 
     XXX whoa, and lots of other good stuff at:
 http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
+
+* Also see this stackoverflow question which asks for merits of yet two more methods:
+*   http://stackoverflow.com/questions/24134816/goldbergs-log1p-vs-gsl-log1p
+
     */
 
     /**
