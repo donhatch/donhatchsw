@@ -112,16 +112,17 @@ public class Catenary
     }
 
     // Set members to be the parameters of the catenary
-    // passing through points (x0,y0),(x1,y1) with given slack.
+    // passing through points (x0,y0),(x1,y1) with given nonnegatie slack.
     // Does no memory allocations.
+    // x0 must be <= x1.
     public void fit(double x0, double y0,
                     double x1, double y1,
                     double slack,
                     int verboseLevel) // 0: nothing, 1: in/out, 2: more details
     {
         if (verboseLevel >= 1) System.out.println("                        in Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
-        assert(slack >= 0.);
-        assert(x0 <= x1);
+        assert(slack >= 0.); // precondition
+        assert(x0 <= x1); // precondition
         double dx = x1 - x0;
         double dy = y1 - y0;
         double tol = 1e-9;

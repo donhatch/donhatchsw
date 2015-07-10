@@ -2157,6 +2157,12 @@ public class SmoothlyVaryingViewingParameter
                 }
             }
         }
+
+        if (true)
+        {
+            // Try some things for which "OH NO! SOMETHING AWFUL HAPPENED!" in demo3
+        }
+
         System.out.println("    out confidenceTests");
     } // confidenceTests
 
