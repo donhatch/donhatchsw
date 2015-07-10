@@ -156,6 +156,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // log(X+x)-log(X) = log((X+x)/X)
         //                 = log(1+x/X)
         //                 = log1p(x/X)
+        // XXX decide whether the following is relevant: http://stackoverflow.com/questions/29827309/compute-logx-y-given-logx-and-logy-without-overflows
         return log1p(x/X);
     }
     /** sqrt(X+x)-sqrt(X), accurate even when x is small. */
@@ -449,10 +450,11 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // (Note that gnuplot's is just as bad, and in fact seems to give up fairly early as well... XXX file a bug against gnuplot!)
         // Therefore we special case negative arguments.
         // XXX TODO: might want to switch to more naive log-based when args very large-- might be better behaved? not sure.
-        // see https://code.google.com/p/v8/issues/detail?id=3468 and 3 derived bugs for possibly good ideas.
-        // also it looks like the python math library is well-thought-out
+        // See https://code.google.com/p/v8/issues/detail?id=3468 and 3 derived bugs for possibly good ideas.
+        // Also it looks like the python math library is well-thought-out
         // and probably gets it right:
         //     http://svn.python.org/projects/python/branches/pep-0384/Modules/_math.c
+        // And in fact it explains some stuff!
         if (x >= 0)
             return  log1p( x * (1. + x / (hypot(x,1.)+1.)));
         else
@@ -996,57 +998,71 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 }
                 assert(nFound > 0);
             }
-            
-            return;
         }
 
-        // TODO: arrange these by function, I think
-
-        assert_nan(Math.log(Double.NEGATIVE_INFINITY));
-        assert_eq(MyMath.expm1(Double.NEGATIVE_INFINITY), -1.);
-        assert_eq(MyMath.sinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
-        assert_eq(MyMath.cosh(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_eq(MyMath.tanh(Double.NEGATIVE_INFINITY), -1.);
-        assert_eq(MyMath.coshm1(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_nan(MyMath.log1p(Double.NEGATIVE_INFINITY));
-        assert_eq(MyMath.asinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
-        assert_nan(MyMath.acosh1p(Double.NEGATIVE_INFINITY));
-
-        assert_nan(MyMath.atanh(Double.NEGATIVE_INFINITY));
-        assert_nan(MyMath.atanh(-2.));
-        assert_eq(MyMath.atanh(-1.), Double.NEGATIVE_INFINITY);
         assert_eq(Math.exp(Double.NEGATIVE_INFINITY), 0.);
         assert_eq(Math.exp(-1.), 1./Math.E);
         assert_eq(Math.exp(0.), 1.);
         assert_eq(Math.exp(1.), Math.E);
+        assert_eq(Math.exp(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_nan(Math.log(Double.NEGATIVE_INFINITY));
         assert_eq(Math.log(0.), Double.NEGATIVE_INFINITY);
         assert_eq(Math.log(1./Math.E), -1.);
         assert_eq(Math.log(1.), 0.);
         assert_eq(Math.log(Math.E), 1.);
+        assert_eq(Math.log(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_eq(MyMath.expm1(Double.NEGATIVE_INFINITY), -1.);
         assert_eq(MyMath.expm1(0.), 0.);
-        assert_eq(MyMath.sinh(0.), 0.);
-        assert_eq(MyMath.cosh(0.), 1.);
-        assert_eq(MyMath.tanh(0.), 0.);
-        assert_eq(MyMath.coshm1(0.), 0.);
+        assert_eq(MyMath.expm1(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_nan(MyMath.log1p(Double.NEGATIVE_INFINITY));
         assert_eq(MyMath.log1p(-1.), Double.NEGATIVE_INFINITY);
         assert_eq(MyMath.log1p(0.), 0.);
+        assert_eq(MyMath.log1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_eq(MyMath.sinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
+        assert_eq(MyMath.sinh(0.), 0.);
+        assert_eq(MyMath.sinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_eq(MyMath.cosh(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.cosh(0.), 1.);
+        assert_eq(MyMath.cosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_eq(MyMath.tanh(Double.NEGATIVE_INFINITY), -1.);
+        assert_eq(MyMath.tanh(0.), 0.);
+        assert_eq(MyMath.tanh(Double.POSITIVE_INFINITY), 1.);
+
+
+        assert_eq(MyMath.asinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
         assert_eq(MyMath.asinh(0.), 0.);
-        assert_eq(MyMath.acosh1p(0.), 0.);
+        assert_eq(MyMath.asinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_nan(MyMath.acosh(Double.NEGATIVE_INFINITY));
+        assert_nan(MyMath.acosh(-1.));
+        assert_nan(MyMath.acosh(0.));
+        assert_nan(MyMath.acosh(.9));
+        assert_eq(MyMath.acosh(1.), 0.);
+        assert_eq(MyMath.acosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_nan(MyMath.atanh(Double.NEGATIVE_INFINITY));
+        assert_nan(MyMath.atanh(-1.1));
+        assert_eq(MyMath.atanh(-1.), Double.NEGATIVE_INFINITY);
         assert_eq(MyMath.atanh(0.), 0.);
         assert_eq(MyMath.atanh(1.), Double.POSITIVE_INFINITY);
-        assert_nan(MyMath.atanh(2.));
+        assert_nan(MyMath.atanh(1.1));
         assert_nan(MyMath.atanh(Double.POSITIVE_INFINITY));
 
-        assert_eq(Math.exp(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_eq(Math.log(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_eq(MyMath.expm1(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_eq(MyMath.sinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_eq(MyMath.cosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_eq(MyMath.tanh(Double.POSITIVE_INFINITY), 1.);
+
+        assert_eq(MyMath.coshm1(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert_eq(MyMath.coshm1(0.), 0.);
         assert_eq(MyMath.coshm1(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_eq(MyMath.log1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-        assert_eq(MyMath.asinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
+        assert_nan(MyMath.acosh1p(Double.NEGATIVE_INFINITY));
+        assert_eq(MyMath.acosh1p(0.), 0.);
         assert_eq(MyMath.acosh1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+
 
         assert_eq(MyMath.sin_over_x(Double.NEGATIVE_INFINITY), 0.);
         assert_eq(MyMath.sinh_over_x(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
@@ -1070,7 +1086,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         assert_eq(MyMath.coshm1_over_xx(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         // TODO: all of the following is missing testing of all the *_over_x functions
-        // TODO: all of the following is missing testing of asinh, probably others
+        // TODO: all of the following is missing testing of asinh, probably lots more
 
         // first and last entries are big enough to overflow all the exp and hyperbolic trig functions
         double xs[] = {-1000, -100, -10, -1, -.1, 0, .1, 1, 10, 100, 1000};
