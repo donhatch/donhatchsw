@@ -1611,7 +1611,7 @@ public class SmoothlyVaryingViewingParameter
         int minIterations = 10;
         int maxIterations = 1000;
         double zeros[] = VecMath.fillvec(position.length-1, 0.);
-        boolean adaptiveFlag = true;
+        boolean adaptiveFlag = false; // XXX true behaves a bit, but can make things really slow!  should look into why it's unstable in the first place instead
         NewtonSolver.solve(barys, zeros, fun, minIterations, maxIterations, adaptiveFlag);
         for (int i = 0; i < n; ++i)
         {

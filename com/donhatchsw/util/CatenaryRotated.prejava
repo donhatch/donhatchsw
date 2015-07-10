@@ -131,7 +131,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double xInitialGuess = xMoment - xMomentIfZeroSlack;
         double yInitialGuess = yMoment - yMomentIfZeroSlack;
         double xyAnswer[] = {xInitialGuess, yInitialGuess};
-        boolean adaptiveFlag = true; // needed, currently (evaluation functions not stabilized)
+        boolean adaptiveFlag = false; // this makes the TRY_TO_DO_IT_RIGHT plan paths look much better in demo3 (since evaluation functions not stabilized)... but it makes it horribly slow instead of just freaking out!  so, leaving this false; need to fix the problem instead.
         NewtonSolver.solve(xyAnswer,
                            desiredMoment,
                            fun,
