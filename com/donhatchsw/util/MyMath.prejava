@@ -1023,20 +1023,28 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         assert_eq(MyMath.log1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         assert_eq(MyMath.sinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
+        assert(MyMath.sinh(-.1) < 0.);
         assert_eq(MyMath.sinh(0.), 0.);
+        assert_eq(MyMath.sinh(.1), -MyMath.sinh(-.1));
         assert_eq(MyMath.sinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         assert_eq(MyMath.cosh(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert(MyMath.cosh(-.1) > 1.);
         assert_eq(MyMath.cosh(0.), 1.);
+        assert_eq(MyMath.cosh(.1), MyMath.cosh(-.1));
         assert_eq(MyMath.cosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         assert_eq(MyMath.tanh(Double.NEGATIVE_INFINITY), -1.);
+        assert(MyMath.tanh(-.1) < 0.);
         assert_eq(MyMath.tanh(0.), 0.);
+        assert_eq(MyMath.tanh(.1), -MyMath.tanh(-.1));
         assert_eq(MyMath.tanh(Double.POSITIVE_INFINITY), 1.);
 
 
         assert_eq(MyMath.asinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
+        assert(MyMath.asinh(-.1) < 0.);
         assert_eq(MyMath.asinh(0.), 0.);
+        assert_eq(MyMath.asinh(.1), -MyMath.asinh(-.1));
         assert_eq(MyMath.asinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         assert_nan(MyMath.acosh(Double.NEGATIVE_INFINITY));
@@ -1049,18 +1057,24 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         assert_nan(MyMath.atanh(Double.NEGATIVE_INFINITY));
         assert_nan(MyMath.atanh(-1.1));
         assert_eq(MyMath.atanh(-1.), Double.NEGATIVE_INFINITY);
+        assert(MyMath.atanh(-.1) < 0.);
         assert_eq(MyMath.atanh(0.), 0.);
+        assert_eq(MyMath.atanh(.1), -MyMath.atanh(-.1));
         assert_eq(MyMath.atanh(1.), Double.POSITIVE_INFINITY);
         assert_nan(MyMath.atanh(1.1));
         assert_nan(MyMath.atanh(Double.POSITIVE_INFINITY));
 
 
         assert_eq(MyMath.coshm1(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
+        assert(MyMath.coshm1(-.1) > 0.);
         assert_eq(MyMath.coshm1(0.), 0.);
+        assert_eq(MyMath.coshm1(.1), MyMath.coshm1(-.1));
         assert_eq(MyMath.coshm1(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         assert_nan(MyMath.acosh1p(Double.NEGATIVE_INFINITY));
+        assert_nan(MyMath.acosh1p(-.1));
         assert_eq(MyMath.acosh1p(0.), 0.);
+        assert(MyMath.acosh1p(.1) > 0.);
         assert_eq(MyMath.acosh1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
 
