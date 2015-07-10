@@ -137,7 +137,13 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
 *   http://stackoverflow.com/questions/24134816/goldbergs-log1p-vs-gsl-log1p
 
 * Actually I believe they all boil down to essentially two methods,
-* as mentioned in the stackoverflow question.
+* as mentioned in the stackoverflow question:
+*       goldberg's: x*log(x+1)/(x+1-1)
+*       gsl's:      log(x+1) - (x+1-1-x)/(x+1)
+*
+*       goldberg's: x*log(1+x)/(1+x-1)
+*       gsl's:      log(1+x) - (1+x-1-x)/(1+x)
+* Q: which is preferable in general: (a*b)/c or a*(b/c)? Intuitively the former I think? Or maybe not.
 *
 * TODO: clean up this rambling comment.  compare the two methods using gnuplot or whatever, report back here, and maybe answer the stackoverflow question.
 
