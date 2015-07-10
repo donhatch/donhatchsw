@@ -105,6 +105,9 @@ log1p(x) {
     return x;
   else
     return log(1.0 +x)*x/(1.0 +x);     XXX that doesn't look right to me... should be dividing by something close to x, not close to 1+x. good thing I'm not using this.
+    should be:
+           log(1+x)*x/(x+1-1), equiv to goldberg's referenced on the stackoverflow question
+           and also equiv to kristopherjohnson's.
 }
 
 The ( (1.0 + x ) == 1.0) expression computes the sum of x and 1.0
@@ -127,8 +130,16 @@ this function when it should be very fast.
     XXX whoa, and lots of other good stuff at:
 http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
 
+* Also see reference to python implementation elsewhere in this file!
+* It uses the difference formulation.
+
 * Also see this stackoverflow question which asks for merits of yet two more methods:
 *   http://stackoverflow.com/questions/24134816/goldbergs-log1p-vs-gsl-log1p
+
+* Actually I believe they all boil down to essentially two methods,
+* as mentioned in the stackoverflow question.
+*
+* TODO: clean up this rambling comment.  compare the two methods using gnuplot or whatever, report back here, and maybe answer the stackoverflow question.
 
     */
 
