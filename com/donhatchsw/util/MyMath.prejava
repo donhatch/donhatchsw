@@ -319,14 +319,58 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         double Y = Ynumerator / Ydenominator;
         return MyMath.acosh(Y+y) - MyMath.acosh(Y);
     }
+
     /** asinh(T+t)-asinh(T), accurate even when t is small; T may be infinite. */
+    //private static double sqrt(double x) {return Math.sqrt(x);} // XXX get rid
     public static double
     asinh_difference(double Tnumerator, double Tdenominator, double t)
     {
-        System.err.println("WARNING: asinh_difference implemented naively");
-        double T = Tnumerator / Tdenominator;
-        return MyMath.asinh(T+t) - MyMath.asinh(T);
+        // asinh(t) = log(t + sqrt(t^2 + 1))
+        //          = log1p(t + sqrt(t^2 + 1) - 1)
+        //          = log1p(t + (sqrt(t^2+1)-1)*(sqrt(t^2+1)+1)/(sqrt(t^2+1)+1))
+        //          = log1p(t + (t^2+1 - 1)/(sqrt(t^2+1)+1))
+        //          = log1p(t + t^2 / (sqrt(t^2+1)+1))
+        //          = log1p(t * (1 + t / (sqrt(t^2+1)+1) ))
+
+        // asinh(T+t)-asinh(T) = log((T+t) + sqrt((T+t)^2 + 1)) - log(T + sqrt(T^2 + 1))
+        //                     = log( ((T+t) + sqrt((T+t)^2 + 1)) / (T + sqrt(T^2 + 1)) )
+        //                     = log1p( ((T+t) + sqrt((T+t)^2 + 1)) / (T + sqrt(T^2 + 1)) - 1 )
+        //                     = log1p( ((T+t) + sqrt((T+t)^2 + 1) - (T + sqrt(T^2 + 1))) / (T + sqrt(T^2 + 1)) )
+        //                     = log1p( (t + sqrt((T+t)^2 + 1) - sqrt(T^2 + 1)) / (T + sqrt(T^2 + 1)) )
+        //                     = log1p( (t + (sqrt((T+t)^2 + 1) - sqrt(T^2 + 1))*(sqrt((T+t)^2 + 1) + sqrt(T^2 + 1))/(sqrt((T+t)^2 + 1) + sqrt(T^2 + 1))) / (T + sqrt(T^2 + 1)))
+        //                     = log1p( (t + ( ((T+t)^2+1)  - (T^2+1) )/(sqrt((T+t)^2 + 1) + sqrt(T^2 + 1))) / (T + sqrt(T^2 + 1)))
+        //                     = log1p( (t + ( 2*T*t + t^2 )/(sqrt((T+t)^2 + 1) + sqrt(T^2 + 1))) / (T + sqrt(T^2 + 1)))
+        //                     = log1p( t * (1 + ( 2*T + t )/(sqrt((T+t)^2 + 1) + sqrt(T^2 + 1))) / (T + sqrt(T^2 + 1)))
+
+        double T = Tnumerator / Tdenominator; // fine if it produces +-infinity
+        if (Double.isNaN(T))
+            return Double.NaN;
+        else if (T == Double.NEGATIVE_INFINITY || T == Double.POSITIVE_INFINITY)
+        {
+            if (t == Double.NEGATIVE_INFINITY || t == Double.POSITIVE_INFINITY)
+                return Double.NaN;
+            else
+                return 0.;
+        }
+
+        // XXX hack condition to prevent other blowups when T is tiny and t is big or negative big
+        if (T + t == t)
+            return MyMath.asinh(T+t) - MyMath.asinh(T);
+
+        // Hmm I think the expression below will blow up if T<0 is huge
+        // (T catastrophically cancels with temp in that case),
+        // so mirror image the problem in that case.
+        if (T < 0.)
+        {
+            // XXX TODO: redundant code above in the sub-call
+            return -asinh_difference(-Tnumerator, Tdenominator, -t);
+        }
+
+        double Temp = Math.sqrt(SQR(T+t) + 1.);
+        double temp = Math.sqrt(T*T + 1.);
+        return log1p( t * (1 + ( 2*T + t )/(Temp + temp)) / (T + temp)); // XXX oh no! blows up if T is huge and negative I think
     }
+
     /** atanh(T+t)-atanh(T), accurate even when t is small. */
     public static double
     atanh_difference(double T, double t)
@@ -455,7 +499,8 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             return Double.NEGATIVE_INFINITY;
         if (x == Double.POSITIVE_INFINITY)
             return Double.POSITIVE_INFINITY;
-        // To make it better behaved near 0:
+        // To make it better behaved near 0
+        // than the straightforward implementation:
         // asinh(x) = log(x + sqrt(x^2 + 1))
         //          = log1p(x + sqrt(x^2 + 1) - 1)
         //          = log1p(x + (sqrt(x^2+1)-1)*(sqrt(x^2+1)+1)/(sqrt(x^2+1)+1))
@@ -895,9 +940,14 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             catch (java.lang.reflect.InvocationTargetException e) { PRINT(e.getCause()); assert(false); }
         }
         suspicious = (t!=0. && answer==0.); // suspicious that implemented naively
-        if (Double.isNaN(answer) && Double.isNaN(fTplust-fT))
+        if (Double.isNaN(fTplust-fT))
         {
-            System.out.println("              good! (both NaN)");
+            // all bets off. smart version might give a good answer but we can't check it.
+            // example of this is asinh where T is infinity and t is finite.
+            if (Double.isNaN(answer))
+                System.out.println("              good! (both NaN)");
+            else
+                System.out.println("              ok (naive is NaN, so can't check whether answer="+answer+" looks right");
         }
         else
         {
@@ -926,23 +976,21 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             catch (java.lang.reflect.InvocationTargetException e) { PRINT(e.getCause()); assert(false); }
         }
         suspicious = (t!=0. && answer==0.); // suspicious that implemented naively
-        if (Double.isNaN(answer) && Double.isNaN(fTplust-fT))
+        if (Double.isNaN(fTplust-fT))
         {
-            System.out.println("              good! (both NaN)");
+            // all bets off. smart version might give a good answer but we can't check it.
+            // example of this is asinh where T is infinity and t is finite.
+            if (Double.isNaN(answer))
+                System.out.println("              good! (both NaN)");
+            else
+                System.out.println("              ok (naive is NaN, so can't check whether answer="+answer+" looks right");
         }
         else
         {
-            if (false)
-            {
-                PRINT(fT);
-                PRINT(fTplust);
-                PRINT(fT-fTplust);
-                PRINT(answer);
-            }
-
             assert_almost_eq(answer, fTplust-fT, tol);
             System.out.println("              good!"+(suspicious?" (BUT SUSPICIOUS!)":""));
         }
+
         System.out.println("            out test_difference_function_3args(T="+Tn+"/"+Td+", t="+t+"), returning suspicious="+suspicious);
         return suspicious;
     } // test_difference_function_3args
@@ -950,8 +998,6 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static void main(String args[])
     {
         System.out.println("    in MyMath.main");
-        PRINT(tanh(Double.POSITIVE_INFINITY));
-        PRINT(tanh(Double.NEGATIVE_INFINITY));
 
         if (true)
         {
@@ -989,7 +1035,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                     System.out.println("        found "+mathMethod.getName()+" in "+mathClass.getName());
                     if (signature.length == 2)
                     {
-                        double Ts[] = {0., .1, .4, .5, .7, Math.sqrt(.5), .8, .9, 1., 1.1, Math.sqrt(2.)};
+                        double Ts[] = {-.5, 0., .1, .4, .5, .7, Math.sqrt(.5), .8, .9, 1., 1.1, Math.sqrt(2.)};
                         double ts[] = {-.1, -1e-20, 0., 1e-20, .1, .2};
                         for (int iT = 0; iT < Ts.length; ++iT)
                         for (int it = 0; it < ts.length; ++it)
@@ -1003,7 +1049,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                     }
                     else if (signature.length == 3)
                     {
-                        double Tns[] = {0., .3, .5, .7, 1., 1.5, 2.};
+                        double Tns[] = {-.5, 0., .3, .5, .7, 1., 1.5, 2.};
                         double Tds[] = {0., .3, .5, .7, 1., 1.5, 2.};
                         double ts[] = {-.1, -1e-20, 0., 1e-20, .1, .2};
 
