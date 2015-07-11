@@ -323,7 +323,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     asinh_difference(double Tnumerator, double Tdenominator, double t)
     {
-        //System.err.println("WARNING: asinh_difference implemented naively");
+        System.err.println("WARNING: asinh_difference implemented naively");
         double T = Tnumerator / Tdenominator;
         return MyMath.asinh(T+t) - MyMath.asinh(T);
     }
@@ -876,9 +876,10 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double sqr(double x) { return x*x; }
     public static double cub(double x) { return x*x*x; }
 
-    private static void test_difference_function_2args(java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double T, double t)
+    private static boolean test_difference_function_2args(java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double T, double t)
     {
         System.out.println("            in test_difference_function_2args(T="+T+", t="+t+")");
+        boolean suspicious = false;
         double tol = 1e-12;
         double answer, fT, fTplust;
         {
@@ -893,6 +894,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             catch (IllegalAccessException e) { assert(false); }
             catch (java.lang.reflect.InvocationTargetException e) { PRINT(e.getCause()); assert(false); }
         }
+        suspicious = (t!=0. && answer==0.); // suspicious that implemented naively
         if (Double.isNaN(answer) && Double.isNaN(fTplust-fT))
         {
             System.out.println("              good! (both NaN)");
@@ -900,13 +902,15 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         else
         {
             assert_almost_eq(answer, fTplust-fT, tol);
-            System.out.println("              good!");
+            System.out.println("              good!"+(suspicious?" (BUT SUSPICIOUS!)":""));
         }
-        System.out.println("            out test_difference_function_2args(T="+T+", t="+t+")");
+        System.out.println("            out test_difference_function_2args(T="+T+", t="+t+"), returning suspicious="+suspicious);
+        return suspicious;
     } // test_difference_function_2args
-    private static void test_difference_function_3args(java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double Tn, double Td, double t)
+    private static boolean test_difference_function_3args(java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double Tn, double Td, double t)
     {
         System.out.println("            in test_difference_function_3args(T="+Tn+"/"+Td+", t="+t+")");
+        boolean suspicious = false;
         double tol = 1e-12;
         double answer, fT, fTplust;
         {
@@ -921,13 +925,14 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             catch (IllegalAccessException e) { assert(false); }
             catch (java.lang.reflect.InvocationTargetException e) { PRINT(e.getCause()); assert(false); }
         }
+        suspicious = (t!=0. && answer==0.); // suspicious that implemented naively
         if (Double.isNaN(answer) && Double.isNaN(fTplust-fT))
         {
             System.out.println("              good! (both NaN)");
         }
         else
         {
-            if (true)
+            if (false)
             {
                 PRINT(fT);
                 PRINT(fTplust);
@@ -936,10 +941,10 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             }
 
             assert_almost_eq(answer, fTplust-fT, tol);
-            System.out.println("              good!");
+            System.out.println("              good!"+(suspicious?" (BUT SUSPICIOUS!)":""));
         }
-
-        System.out.println("            out test_difference_function_3args(T="+Tn+"/"+Td+", t="+t+")");
+        System.out.println("            out test_difference_function_3args(T="+Tn+"/"+Td+", t="+t+"), returning suspicious="+suspicious);
+        return suspicious;
     } // test_difference_function_3args
 
     public static void main(String args[])
@@ -962,6 +967,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 System.out.println("    Testing "+name+" ("+signature.length+" args)");
                 String prefix_function_name = name.substring(0, name.length()-"_difference".length());
                 System.out.println("        prefix_function_name = "+prefix_function_name);
+                boolean suspicious = false;
                 // Find prefix method, in MyMath or Math.
                 // Some are in both (e.g. cosh,sinh,tanh, in java 1.5 and later).
                 Class mathClasses[] = {Math.class, MyMath.class};
@@ -984,20 +990,22 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                     if (signature.length == 2)
                     {
                         double Ts[] = {0., .1, .4, .5, .7, Math.sqrt(.5), .8, .9, 1., 1.1, Math.sqrt(2.)};
-                        double ts[] = {-.1, 0., .1, .2};
+                        double ts[] = {-.1, -1e-20, 0., 1e-20, .1, .2};
                         for (int iT = 0; iT < Ts.length; ++iT)
                         for (int it = 0; it < ts.length; ++it)
                         {
                             double T = Ts[iT];
                             double t = ts[it];
-                            test_difference_function_2args(method, mathMethod, T, t);
+                            boolean suspicious1 = test_difference_function_2args(method, mathMethod, T, t);
+                            if (suspicious1)
+                                suspicious = true;
                         }
                     }
                     else if (signature.length == 3)
                     {
                         double Tns[] = {0., .3, .5, .7, 1., 1.5, 2.};
                         double Tds[] = {0., .3, .5, .7, 1., 1.5, 2.};
-                        double ts[] = {-.1, 0., .1, .2};
+                        double ts[] = {-.1, -1e-20, 0., 1e-20, .1, .2};
 
                         for (int iTn = 0; iTn < Tns.length; ++iTn)
                         for (int iTd = 0; iTd < Tds.length; ++iTd)
@@ -1012,13 +1020,21 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                              && ((Tn>=0&&Td>=0&&Tn<Td) // T < 1.
                               || (Tn+t*Td<Td)))        // T+t<1 i.e. Tn/Td+t<1 i.e. Tn+t*Td<Td
                                 continue;
-                            test_difference_function_3args(method, mathMethod, Tn, Td, t);
+                            boolean suspicious1 = test_difference_function_3args(method, mathMethod, Tn, Td, t);
+                            if (suspicious1)
+                                suspicious = true;
                         }
                     }
                     else
                         assert(false);
                 }
                 assert(nFound > 0);
+                PRINT(suspicious);
+            }
+            if (false)
+            {
+                System.out.println("WARNING: exiting early!");
+                System.exit(1);
             }
         }
 
