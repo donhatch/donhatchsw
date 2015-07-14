@@ -57,8 +57,8 @@ package com.donhatchsw.util;
 */
 public class Catenary
 {
-    public boolean XXX_TRY_NONTRIVIAL_FOCUS = false; // doesn't work yet. need to make it work and get rid of this.
-    public boolean XXX_USE_SIMPLE_PROTECTION = true;
+    public static boolean XXX_TRY_NONTRIVIAL_FOCUS = false; // doesn't work yet. need to make it work and get rid of this.
+    public static boolean XXX_USE_SIMPLE_PROTECTION = true;
 
     // Scale s, in range [0,infinity].
     // sNumerator>=0, sDenominator>=0, max(sNumerator,sDenominator)==1.
@@ -801,32 +801,30 @@ EOF
     }
     //======================================================================================
 
-    public static void main(String args[])
+    public static void confidenceTest()
     {
-        System.out.println("    in Catenary.main");
-
+        System.out.println("        in Catenary.confidenceTest");
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
 
         //
         // Do nonzero non-infinite cases first, for simplicity.
         // I grind my gears trying to think about the degen cases too soon.
         //
-
         double deltas[][] = {
             {0.,0.},
-            {-10., 100.},
+            //{-10., 100.},
         };
         for (int iDelta = 0; iDelta < deltas.length; ++iDelta)
         {
             double xDelta = deltas[iDelta][0];
             double yDelta = deltas[iDelta][1];
 
-            //double scales[][] = {{1.,1.}}; // wimpy
+            double scales[][] = {{1.,1.}}; // wimpy
             //double scales[][] = {{9.,10.}, {1.,1.}, {11.,10.}}; // wimpy
-            double scales[][] = {{1.,10.}, {9.,10.}, {1.,1.}, {11.,10.}, {10.,1.}}; // got this far with XXX_TRY_NONTRIVIAL_FOCUS=false
+            //double scales[][] = {{1.,10.}, {9.,10.}, {1.,1.}, {11.,10.}, {10.,1.}}; // got this far with XXX_TRY_NONTRIVIAL_FOCUS=false
 
-            //double intervalSizesOnCanonical[] = {1.}; // wimpy
-            double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1}; // wimpy    got this far with TRY_NONTRIVIAL_FOCUS=false
+            double intervalSizesOnCanonical[] = {1.}; // wimpy
+            //double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1}; // wimpy    got this far with TRY_NONTRIVIAL_FOCUS=false
             //double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1, 2.}; // wimpy
             //double intervalSizesOnCanonical[] = {0., .1, .5, .9, 1., 1.1, 2.}; // wimpy
             //double intervalSizesOnCanonical[] = {0., .1, .5, .9, 1., 1.1, 2., 5.};
@@ -960,6 +958,24 @@ EOF
                 } // for iIntervalSize
             } // for iScale
         } // for iDelta
+        System.out.println("        out Catenary.confidenceTest");
+    } // confidenceTest
+
+    public static void main(String args[])
+    {
+        System.out.println("    in Catenary.main");
+
+        if (args.length == 1 && (args[0].equals("true")||args[0].equals("false")))
+        {
+            boolean tryNontrivialFocus = args[0].equals("true");
+            XXX_TRY_NONTRIVIAL_FOCUS = tryNontrivialFocus;
+            confidenceTest();
+        }
+        else
+        {
+            System.err.println("Usage: SmoothlyVaryingViewingParameter <tryNontrivialFocus>");
+            System.exit(1);
+        }
 
         System.out.println("    out Catenary.main");
     } // main
