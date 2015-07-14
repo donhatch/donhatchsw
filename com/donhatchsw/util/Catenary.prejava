@@ -335,16 +335,32 @@ public class Catenary
         {
             if (verboseLevel >= 1) System.out.println("                          s finite and nonzero case");
             //assert(false); // coverage; remove when hit.
-            double s = sNumerator / sDenominator; // XXX obviously not robust
-            double TFocusNumerator = yFocusDirection;
-            double TFocusDenominator = xFocusDirection;
-            //double T = TFocus + t/s; // correct but not robust
-            //double T = TFocusNumerator/TFocusDenominator + t/s; // correct but not robust
-            double TNumerator = TFocusNumerator*s + TFocusDenominator*t;
-            double TDenominator = TFocusDenominator*s;
-            answer[0] = TDenominator;
-            answer[1] = TNumerator;
-            VecMath.normalize(answer, answer);
+            if (false)
+            {
+                double s = sNumerator / sDenominator; // XXX obviously not robust
+                double TFocusNumerator = yFocusDirection;
+                double TFocusDenominator = xFocusDirection;
+                //double T = TFocus + t/s; // correct but not robust
+                //double T = TFocusNumerator/TFocusDenominator + t/s; // correct but not robust
+                double TNumerator = TFocusNumerator*s + TFocusDenominator*t;
+                double TDenominator = TFocusDenominator*s;
+                answer[0] = TDenominator;
+                answer[1] = TNumerator;
+                VecMath.normalize(answer, answer);
+            }
+            else
+            {
+                // T = TFocus + t/s
+                //   = TFocusN/TFocusD + t*sD/sN
+                //   = (TFocusN*sN + t*sD*TFocusD) / (TFocusD*sN)
+                double TFocusNumerator = yFocusDirection;
+                double TFocusDenominator = xFocusDirection;
+                double TNumerator = TFocusNumerator*sNumerator + t*sDenominator*TFocusDenominator;
+                double TDenominator = TFocusDenominator*sNumerator;
+                answer[0] = TDenominator;
+                answer[1] = TNumerator;
+                VecMath.normalize(answer, answer);
+            }
         }
 
         if (verboseLevel >= 1) PRINT(VecMath.norm(answer));
