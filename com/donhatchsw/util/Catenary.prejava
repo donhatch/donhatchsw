@@ -53,7 +53,7 @@ package com.donhatchsw.util;
 *   When fitting to two sample points, the focus is the lowest point on the catenary piece.
 *     That is, if the catenary "vertex" lies between the two sample points, the focus point is the vertex;
 *     otherwise it's the lower (closer to the vertex) of the two sample points.
-*   XXX when s<=1 can the slope be represented as / replaced by t distance from apex in world space?  and when s>=1 it's the t disance from apex in canon space.  hmm, maybe some elegant formulation hidden in here that I'm not quite getting.
+*   XXX when s<=1 can the slope be represented as / replaced by t distance from vertex in world space?  and when s>=1 it's the t disance from vertex in canon space.  hmm, maybe some elegant formulation hidden in here that I'm not quite getting.
 */
 public class Catenary
 {
@@ -194,12 +194,20 @@ public class Catenary
             // XXX TODO: make the following totally robust even if s is very large or small
             double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
             if (verboseLevel >= 1) System.out.println("                              s = "+s);
-            if (s <= 1.)
+            if (false)
             {
-                if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: focus at apex");
+                if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: focus at catenary vertex");
                 //assert(false); // coverage; remove when hit
-                this.sNumerator = s;
-                this.sDenominator = 1.;
+                if (s <= 1.)
+                {
+                    this.sNumerator = s;
+                    this.sDenominator = 1.;
+                }
+                else
+                {
+                    this.sNumerator = 1.;
+                    this.sDenominator = 1./s;
+                }
 
                 this.xFocusDirection = 1.;
                 this.yFocusDirection = 0.;
@@ -216,10 +224,17 @@ public class Catenary
             }
             else
             {
-                if (verboseLevel >= 1) System.out.println("                              s>1 subcase: focus not at apex");
                 //assert(false); // coverage; remove when hit
-                this.sNumerator = 1.;
-                this.sDenominator = 1./s;
+                if (s <= 1.)
+                {
+                    this.sNumerator = s;
+                    this.sDenominator = 1.;
+                }
+                else
+                {
+                    this.sNumerator = 1.;
+                    this.sDenominator = 1./s;
+                }
 
                 if (true)
                 {
@@ -240,11 +255,12 @@ public class Catenary
                     this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
 
 
-                    if (true)
+                    if (t0 >= 0. || t1 <= 1.)
                     {
+                        if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: t0="+t0+" t1="+t1+", vertex not in middle, adjusting");
                         // Adjust to meet validity criteria: t0<=0, t1>=0.
 
-                        // Switch focus from 0 (apex of catenary) to tMid (measured from apex of catenary)
+                        // Switch focus from 0 (vertex of catenary) to the closest of the two sample points.
 
                         double xFocusInWorldOld = this.xFocusInWorld;
                         double yFocusInWorldOld = this.yFocusInWorld;
@@ -256,14 +272,14 @@ public class Catenary
                         if (verboseLevel >= 2) PRINT(t1Old);
 
                         // Anything with T in it, here,
-                        // is a measurement from the apex of the canonical catenary.
+                        // is a measurement from the vertex of the canonical catenary.
                         double TFocusOld = 0.;
                         double XFocusOld = 0.;
                         double YFocusOld = 0.;
                         double T0Old = t0Old / s;
                         double T1Old = t1Old / s;
 
-                        double TFocusNew = tMid / s;
+                        double TFocusNew = t0>=0.?t0:t1 / s;
                         double XFocusNew = MyMath.asinh(TFocusNew);
                         double YFocusNew = Math.sqrt(SQR(TFocusNew)+1.)-1.;
                         double t0New = (T0Old - TFocusNew) * s;
@@ -868,12 +884,12 @@ EOF
                     double x = s*X + xDelta;
                     double y = s*Y + yDelta;
                     double slack = s * Slack;
-                    int verboseLevel = 0;
+                    int fitVerboseLevel = 0;
                     Catenary catenary = new Catenary();
                     catenary.fit(x0,y0,
                                  x1,y1,
                                  slack,
-                                 verboseLevel);
+                                 fitVerboseLevel);
                     double t = LERP(catenary.t0, catenary.t1, 1./3.);
                     //double tol = 1e-12;
                     double tol = 1e-5; // XXX really big! make this smaller, like 1e-12, when I get things numerically better
