@@ -161,6 +161,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double slack = MyMath.hypot(x, y);
         assert(slack >= 0.); // XXX I've seen this fail, in demo3, but I guess that must mean there's nans coming in? at least I think it's here that is failing
         /*
+            XXX actually I think the following was when adaptiveFlag was turned on for newton
             OH NO! SOMETHING AWFUL HAPPENED!
                     this.position = <736.56792077277,161.47365152524412>
                     this.velocity = <4.709008819183118,-0.07610513206341617>
