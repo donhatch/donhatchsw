@@ -390,6 +390,28 @@ public class Catenary
             // 0 < s < infinity
             //assert(false); // coverage; remove when hit
 
+          if (false) // new way... just get it working, for starters.
+          {
+            double s = sNumerator / sDenominator; // XXX obviously not robust
+            double TFocusNumerator = yFocusDirection;
+            double TFocusDenominator = xFocusDirection;
+            double TFocus = TFocusNumerator / TFocusDenominator; // XXX not robust if predominantly vertical
+            double XFocus = MyMath.asinh(TFocus);
+            double YFocus = Math.sqrt(SQR(TFocus) + 1) - 1.;
+            double xVertexInWorld = xFocusInWorld - XFocus * s;
+            double yVertexInWorld = yFocusInWorld - YFocus * s;
+
+            double T = TFocus + t/s;
+            double X = MyMath.asinh(T);
+            double Y = Math.sqrt(SQR(T) + 1) - 1.;
+
+            double x = xVertexInWorld + X*s;
+            double y = yVertexInWorld + Y*s;
+            answer[0] = x;
+            answer[1] = y;
+          }
+          else // old way
+          {
             //     x(t) = xFocusInWorld + s*(asinh(TFocus + t/s) - asinh(TFocus))
             //     y(t) = yFocusInWorld + s*(sqrt((TFocus + t/s)^2 + 1) - sqrt(TFocus^2 + 1))
             //          = yFocusInWorld + (sqrt((s*TFocus + t)^2 + s^2) - sqrt((s*TFocus)^2 + s^2))
@@ -444,6 +466,7 @@ public class Catenary
                 answer[1] = yFocusInWorld
                           + t*(2+t*invTFocus/s) / (Math.sqrt(SQR(1+t*invTFocus/s)+SQR(invTFocus)) + Math.sqrt(1+SQR(invTFocus)));
             }
+          }
         }
         if (verboseLevel >= 1) System.out.println("                        out Catenary.evaluate(t="+t+"), returning answer="+VecMath.toString(answer));
     } // evaluate
@@ -789,154 +812,154 @@ EOF
         // I grind my gears trying to think about the degen cases too soon.
         //
 
-        //double scales[][] = {{1.,1.}}; // wimpy
-        //double scales[][] = {{9.,10.}, {1.,1.}, {11.,10.}}; // wimpy
-        double scales[][] = {{1.,10.}, {9.,10.}, {1.,1.}, {11.,10.}, {10.,1.}};
-
-        //double intervalSizesOnCanonical[] = {1.}; // wimpy
-        double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1}; // wimpy
-        //double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1, 2.}; // wimpy
-        //double intervalSizesOnCanonical[] = {0., .1, .5, .9, 1., 1.1, 2.}; // wimpy
-        //double intervalSizesOnCanonical[] = {0., .1, .5, .9, 1., 1.1, 2., 5.};
-
-        for (int iScale = 0; iScale < scales.length; ++iScale)
+        double deltas[][] = {
+            {0.,0.},
+            {-10., 100.},
+        };
+        for (int iDelta = 0; iDelta < deltas.length; ++iDelta)
         {
-            double sNumerator = scales[iScale][0];
-            double sDenominator = scales[iScale][1];
-            double s = sNumerator / sDenominator;
-            for (int iIntervalSize = 0; iIntervalSize < intervalSizesOnCanonical.length; ++iIntervalSize)
+            double xDelta = deltas[iDelta][0];
+            double yDelta = deltas[iDelta][1];
+
+            //double scales[][] = {{1.,1.}}; // wimpy
+            //double scales[][] = {{9.,10.}, {1.,1.}, {11.,10.}}; // wimpy
+            double scales[][] = {{1.,10.}, {9.,10.}, {1.,1.}, {11.,10.}, {10.,1.}}; // got this far with XXX_TRY_NONTRIVIAL_FOCUS=false
+
+            //double intervalSizesOnCanonical[] = {1.}; // wimpy
+            double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1}; // wimpy    got this far with TRY_NONTRIVIAL_FOCUS=false
+            //double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1, 2.}; // wimpy
+            //double intervalSizesOnCanonical[] = {0., .1, .5, .9, 1., 1.1, 2.}; // wimpy
+            //double intervalSizesOnCanonical[] = {0., .1, .5, .9, 1., 1.1, 2., 5.};
+
+            for (int iScale = 0; iScale < scales.length; ++iScale)
             {
-                double intervalSizeOnCanonical = intervalSizesOnCanonical[iIntervalSize];
-                double incr = MAX(intervalSizeOnCanonical, .1);
-                PRINT(incr);
-                for (double X0 = -5.*incr;
-                     X0+intervalSizeOnCanonical <= 5.*incr;
-                     X0 += .5*incr)
+                double sNumerator = scales[iScale][0];
+                double sDenominator = scales[iScale][1];
+                double s = sNumerator / sDenominator;
+                for (int iIntervalSize = 0; iIntervalSize < intervalSizesOnCanonical.length; ++iIntervalSize)
                 {
-                    OUT("==================");
-                    double X1 = X0 + intervalSizeOnCanonical;
-                    double Y0 = MyMath.cosh(X0);
-                    double Y1 = MyMath.cosh(X1);
-                    double T0 = MyMath.sinh(X0);
-                    double T1 = MyMath.sinh(X1);
-                    double T = LERP(T0, T1, 1./3.); // arbitrary sample point 1/3 of the way from start to end
-                    double X = MyMath.asinh(T);
-                    double Y = MyMath.hypot(T, 1);
-                    double Slack = (T1-T0) - MyMath.hypot(X1-X0, Y1-Y0);
-                    PRINT(s);
-                    PRINT(intervalSizeOnCanonical);
-                    PRINT(X0);
-                    PRINT(X1);
-                    PRINT(Y0);
-                    PRINT(Y1);
-                    PRINT(T0);
-                    PRINT(T1);
-                    PRINT(Slack);
-                    PRINT(T);
-                    PRINT(X);
-                    PRINT(Y);
+                    double intervalSizeOnCanonical = intervalSizesOnCanonical[iIntervalSize];
+                    double incr = MAX(intervalSizeOnCanonical, .1);
+                    PRINT(incr);
+                    for (double X0 = -5.*incr;
+                         X0+intervalSizeOnCanonical <= 5.*incr;
+                         X0 += .5*incr)
+                    {
+                        OUT("==================");
+                        double X1 = X0 + intervalSizeOnCanonical;
+                        double Y0 = MyMath.cosh(X0);
+                        double Y1 = MyMath.cosh(X1);
+                        double T0 = MyMath.sinh(X0);
+                        double T1 = MyMath.sinh(X1);
+                        double T = LERP(T0, T1, 1./3.); // arbitrary sample point 1/3 of the way from start to end
+                        double X = MyMath.asinh(T);
+                        double Y = MyMath.hypot(T, 1);
+                        double Slack = (T1-T0) - MyMath.hypot(X1-X0, Y1-Y0);
+                        PRINT(s);
+                        PRINT(intervalSizeOnCanonical);
+                        PRINT(X0);
+                        PRINT(X1);
+                        PRINT(Y0);
+                        PRINT(Y1);
+                        PRINT(T0);
+                        PRINT(T1);
+                        PRINT(Slack);
+                        PRINT(T);
+                        PRINT(X);
+                        PRINT(Y);
 
-                    //double xDelta = 0.; // this works
-                    //double xDelta = 1.; // this works
-                    double xDelta = -10.; // this works
+                        double x0 = s*X0 + xDelta;
+                        double x1 = s*X1 + xDelta;
+                        double y0 = s*Y0 + yDelta;
+                        double y1 = s*Y1 + yDelta;
+                        double x = s*X + xDelta;
+                        double y = s*Y + yDelta;
+                        double slack = s * Slack;
+                        int fitVerboseLevel = 0;
+                        Catenary catenary = new Catenary();
+                        catenary.fit(x0,y0,
+                                     x1,y1,
+                                     slack,
+                                     fitVerboseLevel);
+                        double t = LERP(catenary.t0, catenary.t1, 1./3.);
+                        //double tol = 1e-12;
+                        double tol = 1e-5; // XXX really big! make this smaller, like 1e-12, when I get things numerically better
 
-                    double yDelta = 0.; // this works
-                    //double yDelta = .1; // this fails
-                    //double yDelta = 1.; // this fails
-                    //double yDelta = 10.; // this fails
-                    //double yDelta = 100.; // this fails
+                        //
+                        // Test evaluate
+                        //
+                        double evaluated[] = new double[2];
+                        catenary.evaluate(catenary.t0, evaluated);
+                        //PRINTVEC(evaluated);
+                        assert_almost_eq(evaluated[0], x0, tol);
+                        assert_almost_eq(evaluated[1], y0, tol);
+                        catenary.evaluate(catenary.t1, evaluated);
+                        //PRINTVEC(evaluated);
+                        assert_almost_eq(evaluated[0], x1, tol);
+                        assert_almost_eq(evaluated[1], y1, tol);
+                        catenary.evaluate(t, evaluated);
+                        //PRINTVEC(evaluated);
+                        assert_almost_eq(evaluated[0], x, tol);
+                        assert_almost_eq(evaluated[1], y, tol);
 
-                    double x0 = s*X0 + xDelta;
-                    double x1 = s*X1 + xDelta;
-                    double y0 = s*Y0 + yDelta;
-                    double y1 = s*Y1 + yDelta;
-                    double x = s*X + xDelta;
-                    double y = s*Y + yDelta;
-                    double slack = s * Slack;
-                    int fitVerboseLevel = 0;
-                    Catenary catenary = new Catenary();
-                    catenary.fit(x0,y0,
-                                 x1,y1,
-                                 slack,
-                                 fitVerboseLevel);
-                    double t = LERP(catenary.t0, catenary.t1, 1./3.);
-                    //double tol = 1e-12;
-                    double tol = 1e-5; // XXX really big! make this smaller, like 1e-12, when I get things numerically better
+                        //
+                        // Test differentiate.
+                        // Derivative of (X,Y)={asinh(T),sqrt(T^2+1)} is {1/sqrt(T^2+1), T/sqrt(T^2+1)} = {1/Y, t/Y},
+                        // which should be unit length.
+                        // And it should be exactly that when scaled too,
+                        // since we're always parametrizing by arc length.
+                        //
+                        double derivative[] = new double[2];
+                        catenary.differentiate(catenary.t0, derivative);
+                        assert_almost_eq(VecMath.norm(derivative), 1., tol);
+                        assert_almost_eq(derivative[0], 1./Y0, tol);
+                        assert_almost_eq(derivative[1], T0/Y0, tol);
+                        catenary.differentiate(catenary.t1, derivative);
+                        assert_almost_eq(VecMath.norm(derivative), 1., tol);
+                        assert_almost_eq(derivative[0], 1./Y1, tol);
+                        assert_almost_eq(derivative[1], T1/Y1, tol);
+                        catenary.differentiate(t, derivative);
+                        assert_almost_eq(VecMath.norm(derivative), 1., tol);
+                        assert_almost_eq(derivative[0], 1./Y, tol);
+                        assert_almost_eq(derivative[1], T/Y, tol);
 
-                    //
-                    // Test evaluate
-                    //
-                    double evaluated[] = new double[2];
-                    catenary.evaluate(catenary.t0, evaluated);
-                    //PRINTVEC(evaluated);
-                    assert_almost_eq(evaluated[0], x0, tol);
-                    assert_almost_eq(evaluated[1], y0, tol);
-                    catenary.evaluate(catenary.t1, evaluated);
-                    //PRINTVEC(evaluated);
-                    assert_almost_eq(evaluated[0], x1, tol);
-                    assert_almost_eq(evaluated[1], y1, tol);
-                    catenary.evaluate(t, evaluated);
-                    //PRINTVEC(evaluated);
-                    assert_almost_eq(evaluated[0], x, tol);
-                    assert_almost_eq(evaluated[1], y, tol);
-
-                    //
-                    // Test differentiate.
-                    // Derivative of (X,Y)={asinh(T),sqrt(T^2+1)} is {1/sqrt(T^2+1), T/sqrt(T^2+1)} = {1/Y, t/Y},
-                    // which should be unit length.
-                    // And it should be exactly that when scaled too,
-                    // since we're always parametrizing by arc length.
-                    //
-                    double derivative[] = new double[2];
-                    catenary.differentiate(catenary.t0, derivative);
-                    assert_almost_eq(VecMath.norm(derivative), 1., tol);
-                    assert_almost_eq(derivative[0], 1./Y0, tol);
-                    assert_almost_eq(derivative[1], T0/Y0, tol);
-                    catenary.differentiate(catenary.t1, derivative);
-                    assert_almost_eq(VecMath.norm(derivative), 1., tol);
-                    assert_almost_eq(derivative[0], 1./Y1, tol);
-                    assert_almost_eq(derivative[1], T1/Y1, tol);
-                    catenary.differentiate(t, derivative);
-                    assert_almost_eq(VecMath.norm(derivative), 1., tol);
-                    assert_almost_eq(derivative[0], 1./Y, tol);
-                    assert_almost_eq(derivative[1], T/Y, tol);
-
-                    //
-                    // Test integrate.
-                    // Integral of (X,Y)=asinh(T),sqrt(T^2+1)
-                    // is {T*asinh(T) - sqrt(T^2+1), (sqrt(T^2+1)*T + asinh(T))/2}
-                    //  = {T*X - Y, (T*Y + X)/2}
-                    // Integral of (x,y)={s*asinh(t/s), sqrt(t^2+s^2)}
-                    // is {s*(t*asinh(t/s)-sqrt(t^2-s^2)), 1/2(t*sqrt(t^2+s^2) + s^2 log(sqrt(t^2+s^2)+t))} = {s*(t*X-y),1/2(t*y + s^2 log(y+t)}
-                    // And if we add in xDelta,yDelta,
-                    // that adds t*xDelta,t*yDelta to the integral.
-                    double integral[] = new double[2];
-                    catenary.integrate(catenary.t0, catenary.t0, integral);
-                    assert_eq(integral[0], 0.);
-                    assert_eq(integral[1], 0.);
-                    catenary.integrate(catenary.t0, catenary.t1, integral);
-                    assert_almost_eq(integral[0], s*(catenary.t1*X1-y1)
-                                                - s*(catenary.t0*X0-y0)
-                                                + (catenary.t1-catenary.t0)*xDelta, tol);
-                    assert_almost_eq(integral[1], .5*(catenary.t1*(y1-yDelta) + s*s*Math.log(y1-yDelta+catenary.t1))
-                                                - .5*(catenary.t0*(y0-yDelta) + s*s*Math.log(y0-yDelta+catenary.t0))
-                                                + (catenary.t1-catenary.t0)*yDelta,
-                                                  tol);
-                    assert_almost_eq(integral[1], .5*(catenary.t1*(s*Y1) + s*s*Math.log(s*Y1+catenary.t1))
-                                                - .5*(catenary.t0*(s*Y0) + s*s*Math.log(s*Y0+catenary.t0))
-                                                + (catenary.t1-catenary.t0)*yDelta,
-                                                  tol);
-                    catenary.integrate(catenary.t0, t, integral);
-                    assert_almost_eq(integral[0], s*(t*X-y)
-                                                - s*(catenary.t0*X0-y0)
-                                                + (t-catenary.t0)*xDelta, tol);
-                    assert_almost_eq(integral[1], .5*(t*(s*Y) + s*s*Math.log((s*Y)+t))
-                                                - .5*(catenary.t0*(s*Y0) + s*s*Math.log((s*Y0)+catenary.t0))
-                                                + (t-catenary.t0)*yDelta,
-                                                  tol);
-                } // for X0
-            } // for iIntervalSize
-        } // for iScale
+                        //
+                        // Test integrate.
+                        // Integral of (X,Y)=asinh(T),sqrt(T^2+1)
+                        // is {T*asinh(T) - sqrt(T^2+1), (sqrt(T^2+1)*T + asinh(T))/2}
+                        //  = {T*X - Y, (T*Y + X)/2}
+                        // Integral of (x,y)={s*asinh(t/s), sqrt(t^2+s^2)}
+                        // is {s*(t*asinh(t/s)-sqrt(t^2-s^2)), 1/2(t*sqrt(t^2+s^2) + s^2 log(sqrt(t^2+s^2)+t))} = {s*(t*X-y),1/2(t*y + s^2 log(y+t)}
+                        // And if we add in xDelta,yDelta,
+                        // that adds t*xDelta,t*yDelta to the integral.
+                        double integral[] = new double[2];
+                        catenary.integrate(catenary.t0, catenary.t0, integral);
+                        assert_eq(integral[0], 0.);
+                        assert_eq(integral[1], 0.);
+                        catenary.integrate(catenary.t0, catenary.t1, integral);
+                        assert_almost_eq(integral[0], s*(catenary.t1*X1-y1)
+                                                    - s*(catenary.t0*X0-y0)
+                                                    + (catenary.t1-catenary.t0)*xDelta, tol);
+                        assert_almost_eq(integral[1], .5*(catenary.t1*(y1-yDelta) + s*s*Math.log(y1-yDelta+catenary.t1))
+                                                    - .5*(catenary.t0*(y0-yDelta) + s*s*Math.log(y0-yDelta+catenary.t0))
+                                                    + (catenary.t1-catenary.t0)*yDelta,
+                                                      tol);
+                        assert_almost_eq(integral[1], .5*(catenary.t1*(s*Y1) + s*s*Math.log(s*Y1+catenary.t1))
+                                                    - .5*(catenary.t0*(s*Y0) + s*s*Math.log(s*Y0+catenary.t0))
+                                                    + (catenary.t1-catenary.t0)*yDelta,
+                                                      tol);
+                        catenary.integrate(catenary.t0, t, integral);
+                        assert_almost_eq(integral[0], s*(t*X-y)
+                                                    - s*(catenary.t0*X0-y0)
+                                                    + (t-catenary.t0)*xDelta, tol);
+                        assert_almost_eq(integral[1], .5*(t*(s*Y) + s*s*Math.log((s*Y)+t))
+                                                    - .5*(catenary.t0*(s*Y0) + s*s*Math.log((s*Y0)+catenary.t0))
+                                                    + (t-catenary.t0)*yDelta,
+                                                      tol);
+                    } // for X0
+                } // for iIntervalSize
+            } // for iScale
+        } // for iDelta
 
         System.out.println("    out Catenary.main");
     } // main
