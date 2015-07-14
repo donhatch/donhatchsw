@@ -193,21 +193,23 @@ public class Catenary
             double L = MyMath.hypot(dx, dy) + slack;
             // XXX TODO: make the following totally robust even if s is very large or small
             double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
-            if (verboseLevel >= 1) System.out.println("                              s = "+s);
-            if (false)
+
+            //assert(false); // coverage; remove when hit
+            if (s <= 1.)
             {
-                if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: focus at catenary vertex");
-                //assert(false); // coverage; remove when hit
-                if (s <= 1.)
-                {
-                    this.sNumerator = s;
-                    this.sDenominator = 1.;
-                }
-                else
-                {
-                    this.sNumerator = 1.;
-                    this.sDenominator = 1./s;
-                }
+                this.sNumerator = s;
+                this.sDenominator = 1.;
+            }
+            else
+            {
+                this.sNumerator = 1.;
+                this.sDenominator = 1./s;
+            }
+
+            if (true)
+            {
+                // For now, start with the canonical focus case and adjust.
+                // XXX eventually need to move to something more stable
 
                 this.xFocusDirection = 1.;
                 this.yFocusDirection = 0.;
@@ -221,91 +223,58 @@ public class Catenary
                 this.xFocusInWorld = (x0+x1)/2.
                                    - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
                 this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
-            }
-            else
-            {
-                //assert(false); // coverage; remove when hit
-                if (s <= 1.)
+
+
+                if (t0 >= 0. || t1 <= 1.)
                 {
-                    this.sNumerator = s;
-                    this.sDenominator = 1.;
-                }
-                else
-                {
-                    this.sNumerator = 1.;
-                    this.sDenominator = 1./s;
-                }
+                    if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: t0="+t0+" t1="+t1+", vertex not in middle, adjusting");
+                    // Adjust to meet validity criteria: t0<=0, t1>=0.
 
-                if (true)
-                {
-                    // For now, start with the canonical focus case and adjust.
-                    // XXX eventually need to move to something more stable
+                    // Switch focus from 0 (vertex of catenary) to the closest of the two sample points.
 
-                    this.xFocusDirection = 1.;
-                    this.yFocusDirection = 0.;
+                    double xFocusInWorldOld = this.xFocusInWorld;
+                    double yFocusInWorldOld = this.yFocusInWorld;
+                    double t0Old = this.t0;
+                    double t1Old = this.t1;
+                    if (verboseLevel >= 2) PRINT(xFocusInWorldOld);
+                    if (verboseLevel >= 2) PRINT(yFocusInWorldOld);
+                    if (verboseLevel >= 2) PRINT(t0Old);
+                    if (verboseLevel >= 2) PRINT(t1Old);
 
-                    double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L*L - dy*dy));
-                    this.t0 = tMid - L/2.;
-                    this.t1 = t0 + L;
-                    // If we didn't care about stability:
-                    //   this.xFocusInWorld = x0 - s*asinh(t0/s)
-                    // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of x0 I guess?
-                    this.xFocusInWorld = (x0+x1)/2.
-                                       - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
-                    this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
+                    // Anything with T in it, here,
+                    // is a measurement from the vertex of the canonical catenary.
+                    double TFocusOld = 0.;
+                    double XFocusOld = 0.;
+                    double YFocusOld = 0.;
+                    double T0Old = t0Old / s;
+                    double T1Old = t1Old / s;
 
+                    double TFocusNew = t0>=0.?t0:t1 / s;
+                    double XFocusNew = MyMath.asinh(TFocusNew);
+                    double YFocusNew = Math.sqrt(SQR(TFocusNew)+1.)-1.;
+                    double t0New = (T0Old - TFocusNew) * s;
+                    double t1New = (T1Old - TFocusNew) * s;
+                    double xFocusInWorldNew = xFocusInWorldOld + (XFocusNew-XFocusOld) * s;
+                    double yFocusInWorldNew = yFocusInWorldOld + (YFocusNew-YFocusOld) * s;
+                    double focusSlopeNew = TFocusNew;
+                    double xFocusDirectionNew = 1.;
+                    double yFocusDirectionNew = focusSlopeNew;
+                    double temp = Math.hypot(xFocusDirectionNew, yFocusDirectionNew);
+                    xFocusDirectionNew /= temp;
+                    yFocusDirectionNew /= temp;
 
-                    if (t0 >= 0. || t1 <= 1.)
+                    if (XXX_TRY_NONTRIVIAL_FOCUS)
                     {
-                        if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: t0="+t0+" t1="+t1+", vertex not in middle, adjusting");
-                        // Adjust to meet validity criteria: t0<=0, t1>=0.
-
-                        // Switch focus from 0 (vertex of catenary) to the closest of the two sample points.
-
-                        double xFocusInWorldOld = this.xFocusInWorld;
-                        double yFocusInWorldOld = this.yFocusInWorld;
-                        double t0Old = this.t0;
-                        double t1Old = this.t1;
-                        if (verboseLevel >= 2) PRINT(xFocusInWorldOld);
-                        if (verboseLevel >= 2) PRINT(yFocusInWorldOld);
-                        if (verboseLevel >= 2) PRINT(t0Old);
-                        if (verboseLevel >= 2) PRINT(t1Old);
-
-                        // Anything with T in it, here,
-                        // is a measurement from the vertex of the canonical catenary.
-                        double TFocusOld = 0.;
-                        double XFocusOld = 0.;
-                        double YFocusOld = 0.;
-                        double T0Old = t0Old / s;
-                        double T1Old = t1Old / s;
-
-                        double TFocusNew = t0>=0.?t0:t1 / s;
-                        double XFocusNew = MyMath.asinh(TFocusNew);
-                        double YFocusNew = Math.sqrt(SQR(TFocusNew)+1.)-1.;
-                        double t0New = (T0Old - TFocusNew) * s;
-                        double t1New = (T1Old - TFocusNew) * s;
-                        double xFocusInWorldNew = xFocusInWorldOld + (XFocusNew-XFocusOld) * s;
-                        double yFocusInWorldNew = yFocusInWorldOld + (YFocusNew-YFocusOld) * s;
-                        double focusSlopeNew = TFocusNew;
-                        double xFocusDirectionNew = 1.;
-                        double yFocusDirectionNew = focusSlopeNew;
-                        double temp = Math.hypot(xFocusDirectionNew, yFocusDirectionNew);
-                        xFocusDirectionNew /= temp;
-                        yFocusDirectionNew /= temp;
-
-                        if (XXX_TRY_NONTRIVIAL_FOCUS)
-                        {
-                            this.t0 = t0New;
-                            this.t1 = t1New;
-                            this.xFocusInWorld = xFocusInWorldNew;
-                            this.yFocusInWorld = yFocusInWorldNew;
-                            this.xFocusDirection = xFocusDirection;
-                            this.yFocusDirection = yFocusDirection;
-                        }
-                        else
-                        {
-                            //System.out.println("WARNING: not doing nontrivial focus");
-                        }
+                        this.t0 = t0New;
+                        this.t1 = t1New;
+                        this.xFocusInWorld = xFocusInWorldNew;
+                        this.yFocusInWorld = yFocusInWorldNew;
+                        this.xFocusDirection = xFocusDirection;
+                        this.yFocusDirection = yFocusDirection;
+                    }
+                    else
+                    {
+                        //System.out.println("WARNING: not doing nontrivial focus");
                     }
                 }
             }
