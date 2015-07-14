@@ -191,7 +191,9 @@ public class Catenary
             // s is finite and nonzero
             //assert(false); // coverage; remove when hit
             double L = MyMath.hypot(dx, dy) + slack;
-            // XXX TODO: make the following totally robust even if s is very large or small
+            // XXX TODO: make the following totally robust even if s is very large or small.
+            // XXX currently it's not great even if s is 1: e.g. in the first test case,
+            // XXX s comes out as 1.000000000003393; can we do better?
             double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
 
             //assert(false); // coverage; remove when hit
@@ -486,26 +488,30 @@ public class Catenary
             double s = sNumerator / sDenominator; // XXX obviously not robust
             assert(xFocusDirection != 0.);
             double TFocus = yFocusDirection / xFocusDirection; // XXX obviously not robust
-            //     x(t) = xFocusInWorld + s*asinh(t/s + TFocus)
-            //     y(t) = yFocusInWorld + s*(sqrt((t/s + TFocus)^2 + 1) - 1)   (integrate this one, it's easier)
-            //          = yFocusInWorld + sqrt((t + TFocus*s)^2 + s^2) - s
+            //     x(t) = xFocusInWorld + s*asinh(TFocus + t/s)
+            //     y(t) = yFocusInWorld + s*(sqrt((TFocus + t/s)^2 + 1) - 1)   (integrate this one, it's easier)
+            //          = yFocusInWorld + sqrt((TFocus*s + t)^2 + s^2) - s
             // Per wolframalpha:
-            //     x part of integral = xFocusInWorld*t + s*((s*TF+t)*asinh(t/s+TF)-s*sqrt(SQR(s*TF+t)/(s*s)+1))
-            //                        = xFocusInWorld*t + s*((s*TF+t)*asinh(t/s+TF) - sqrt(SQR(s*TF+t) + s*s))
-            //     y part of integral = (yFocusInWorld-s)*t + .5*(s*s)*(sqrt(SQR(t/s+TF)+1)*(t/s+TF) + asinh(t/s+TF))
+            //     x part of integral = xFocusInWorld*t + s*((s*TF+t)*asinh(TF+t/s)-s*sqrt(SQR(s*TF+t)/(s*s)+1))
+            //                        = xFocusInWorld*t + s*((s*TF+t)*asinh(TF+t/s) - sqrt(SQR(s*TF+t) + s*s))
+            //     y part of integral = (yFocusInWorld-s)*t + .5*(s*s)*(sqrt(SQR(TF+t/s)+1)*(TF+t/s) + asinh(TF+t/s))
             double TF = TFocus;
 
             if (verboseLevel >= 2) System.out.println("                                        t = "+t);
             if (verboseLevel >= 2) System.out.println("                                        s = "+s);
             if (verboseLevel >= 2) System.out.println("                                        t/s = "+t/s);
             if (verboseLevel >= 2) System.out.println("                                        TF = "+TF);
-            if (verboseLevel >= 2) System.out.println("                                        t/s+TF = "+t/s+TF);
-            if (verboseLevel >= 2) System.out.println("                                        asinh(t/s+TF) = "+MyMath.asinh(t/s+TF));
+            if (verboseLevel >= 2) System.out.println("                                        TF+t/s = "+(TF+t/s));
+            if (verboseLevel >= 2) System.out.println("                                        asinh(TF+t/s) = "+MyMath.asinh(TF+t/s));
 
-            double asinh = MyMath.asinh(t/s+TF);
+            double asinh = MyMath.asinh(TF+t/s);
 
             answer[0] = xFocusInWorld*t + s*((s*TF+t)*asinh - Math.sqrt(SQR(s*TF+t) + s*s));
-            answer[1] = (yFocusInWorld-s)*t + .5*(s*s)*(Math.sqrt(SQR(t/s+TF)+1)*(t/s+TF) + asinh);
+            answer[1] = (yFocusInWorld-s)*t + .5*(s*s)*(Math.sqrt(SQR(TF+t/s)+1)*(TF+t/s) + asinh);
+
+            // XXX currently:
+            //    - works correctly when t==0, i.e. TF is the second tiepoint and it's all negative.
+            //    - works when TF=0, i.e. trivial focus.
 
             // XXX maybe use this from previous implementation?
             // XXX it wasn't as general, but it's a very interesting formulation!
@@ -800,18 +806,19 @@ EOF
         };
         for (int iDelta = 0; iDelta < deltas.length; ++iDelta)
         {
-            double xDelta = deltas[iDelta][0];
-            double yDelta = deltas[iDelta][1];
+            double delta[] = deltas[iDelta];
+            double xDelta = delta[0];
+            double yDelta = delta[1];
 
             double scales[][] = {{1.,1.}}; // wimpy
-            //double scales[][] = {{9.,10.}, {1.,1.}, {11.,10.}}; // wimpy
-            //double scales[][] = {{1.,10.}, {9.,10.}, {1.,1.}, {11.,10.}, {10.,1.}}; // got this far with XXX_TRY_NONTRIVIAL_FOCUS=false
+            //double scales[][] = {{1.,1.},  {9.,10.}, {11.,10.}}; // wimpy
+            //double scales[][] = {{1.,1.},  {1.,10.}, {9.,10.}, {11.,10.}, {10.,1.}}; // got this far with XXX_TRY_NONTRIVIAL_FOCUS=false
 
             double intervalSizesOnCanonical[] = {1.}; // wimpy
-            //double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1}; // wimpy    got this far with TRY_NONTRIVIAL_FOCUS=false
-            //double intervalSizesOnCanonical[] = {.1, .5, .9, 1., 1.1, 2.}; // wimpy
-            //double intervalSizesOnCanonical[] = {0., .1, .5, .9, 1., 1.1, 2.}; // wimpy
-            //double intervalSizesOnCanonical[] = {0., .1, .5, .9, 1., 1.1, 2., 5.};
+            //double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1}; // wimpy    got this far with TRY_NONTRIVIAL_FOCUS=false
+            //double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1, 2.}; // wimpy
+            //double intervalSizesOnCanonical[] = {1.,  0., .1, .5, .9, 1.1, 2.}; // wimpy
+            //double intervalSizesOnCanonical[] = {1.,  0., .1, .5, .9, 1.1, 2., 5.};
 
             for (int iScale = 0; iScale < scales.length; ++iScale)
             {
@@ -837,6 +844,7 @@ EOF
                         double X = MyMath.asinh(T);
                         double Y = MyMath.hypot(T, 1);
                         double Slack = (T1-T0) - MyMath.hypot(X1-X0, Y1-Y0);
+                        PRINTVEC(delta);
                         PRINT(s);
                         PRINT(intervalSizeOnCanonical);
                         PRINT(X0);
@@ -928,7 +936,7 @@ EOF
                             assert_almost_eq(derivative[1], T/Y, tol);
                         }
 
-                        if (false)
+                        if (true)
                         {
                             //
                             // Test integrate.
@@ -941,9 +949,11 @@ EOF
                             // that adds t*xDelta,t*yDelta to the integral.
                             double integral[] = new double[2];
 
+                            /*
                             catenary.integrate(catenary.t0, catenary.t0, integral);
                             assert_eq(integral[0], 0.);
                             assert_eq(integral[1], 0.);
+                            */
 
                             catenary.integrate(catenary.t0, catenary.t1, integral);
                             assert_almost_eq(integral[0], s*(catenary.t1*X1-y1)
@@ -957,7 +967,9 @@ EOF
                                                         - .5*(catenary.t0*(s*Y0) + s*s*Math.log(s*Y0+catenary.t0))
                                                         + (catenary.t1-catenary.t0)*yDelta,
                                                           tol);
+                            // XXX TODO: can get rid of one of the above I think... maybe
 
+                            /*
                             catenary.integrate(catenary.t0, t, integral);
                             assert_almost_eq(integral[0], s*(t*X-y)
                                                         - s*(catenary.t0*X0-y0)
@@ -966,6 +978,7 @@ EOF
                                                         - .5*(catenary.t0*(s*Y0) + s*s*Math.log((s*Y0)+catenary.t0))
                                                         + (t-catenary.t0)*yDelta,
                                                           tol);
+                                                          */
                         }
                         if (false)
                         {
