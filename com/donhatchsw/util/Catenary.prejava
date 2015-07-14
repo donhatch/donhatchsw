@@ -37,13 +37,11 @@ package com.donhatchsw.util;
 *         focusDirection=(0,-1) represents T0=-infinity,X0=-infinity,Y0=infinity
 *         focusDirection=(1,0)  represents T0=0,X0=0,Y0=0
 *         focusDirection=(0,1)  represents T0=infinity,X0=infinity,Y0=infinity
-*   - When fitting to sample points, the focus point is chosen
-*     to be close to the sample points to avoid unnecessarily large
-*     intermediate values in computations.
-*   - When fitting to sample points, if the sample points
-*     are on opposite sides of the zero-point of the catenary,
-*     the focus direction is constrained to be (1,0).
-*     This avoids instability if s is close to 0.
+*   - When fitting to two sample points far from the catenary vertex,
+*     the focus point is chosen to be close to the sample points.
+*   - If the catenary vertex is between the two sample points,
+*     then that is chosen as the focus; i.e. focusDirection=(1,0).
+*     This avoids instability and ambiguity if s is close to 0.
 * Constraints:
 *   sNumerator >= 0
 *   sDenominator >= 0
@@ -52,8 +50,8 @@ package com.donhatchsw.util;
 *   xFocusDirection^2 + yFocusDirection^2 = 1
 *   When fitting to two sample points, the focus is the lowest point on the catenary piece.
 *     That is, if the catenary "vertex" lies between the two sample points, the focus point is the vertex;
-*     otherwise it's the lower (closer to the vertex) of the two sample points.
-*   XXX when s<=1 can the slope be represented as / replaced by t distance from vertex in world space?  and when s>=1 it's the t disance from vertex in canon space.  hmm, maybe some elegant formulation hidden in here that I'm not quite getting.
+*     i.e. focusDirection=(1,0).
+*     Otherwise the focus is the lower (closer to the vertex) of the two sample points.
 */
 public class Catenary
 {
