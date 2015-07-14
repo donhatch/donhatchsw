@@ -334,32 +334,17 @@ public class Catenary
         else
         {
             if (verboseLevel >= 1) System.out.println("                          s finite and nonzero case");
+            //assert(false); // coverage; remove when hit.
             double s = sNumerator / sDenominator; // XXX obviously not robust
             double TFocusNumerator = yFocusDirection;
             double TFocusDenominator = xFocusDirection;
-            if (SQR(xFocusDirection) >= .5)
-            {
-                if (verboseLevel >= 1) System.out.println("                              mostly horizontal");
-                // mostly horizontal; Tfocus relatively small (or zero),
-                // so we're not subtracting huge numbers.
-                // (XXX assuming s not huge... need to think about case s huge)
-                //assert(false); // coverage; remove when hit
-                double TFocus = TFocusNumerator / TFocusDenominator; // stable
-                assert(TFocus == 0.); // XXX won't be true when I fix everything
-                double T = TFocus + t/s;
-                answer[0] = 1.;
-                answer[1] = T;
-                VecMath.normalize(answer, answer);
-            }
-            else
-            {
-                if (verboseLevel >= 1) System.out.println("                              mostly vertical");
-                // mostly vertical.
-
-                //assert(false); // coverage; remove when hit
-                double invTFocus = TFocusDenominator / TFocusNumerator; // stable
-                assert(false); // XXX implement me!
-            }
+            //double T = TFocus + t/s; // correct but not robust
+            //double T = TFocusNumerator/TFocusDenominator + t/s; // correct but not robust
+            double TNumerator = TFocusNumerator*s + TFocusDenominator*t;
+            double TDenominator = TFocusDenominator*s;
+            answer[0] = TDenominator;
+            answer[1] = TNumerator;
+            VecMath.normalize(answer, answer);
         }
 
         if (verboseLevel >= 1) PRINT(VecMath.norm(answer));
@@ -402,7 +387,7 @@ public class Catenary
             // 0 < s < infinity
             //assert(false); // coverage; remove when hit
 
-          if (true) // new way... just get it working, for starters.
+          if (true) // naive way... just get it working, for starters.
           {
             double s = sNumerator / sDenominator; // XXX obviously not robust
             double TFocusNumerator = yFocusDirection;
@@ -422,7 +407,7 @@ public class Catenary
             answer[0] = x;
             answer[1] = y;
           }
-          else // old way
+          else // smarter way. doesn't work yet.
           {
             //     x(t) = xFocusInWorld + s*(asinh(TFocus + t/s) - asinh(TFocus))
             //     y(t) = yFocusInWorld + s*(sqrt((TFocus + t/s)^2 + 1) - sqrt(TFocus^2 + 1))
@@ -432,7 +417,6 @@ public class Catenary
             //          = yFocusInWorld + (2*s*TFocus*t + t^2)
             //                          / (sqrt((s*TFocus + t)^2 + s^2) + sqrt((s*TFocus)^2 + s^2))
             // Where TFocus = slope = yFocusDirection/xFocusDirection.
-            // XXX you are here
             double s = sNumerator / sDenominator; // XXX obviously not robust
 
             // This should work no matter whether Tfocus is
