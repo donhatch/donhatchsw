@@ -37,20 +37,23 @@ package com.donhatchsw.util;
 *         focusDirection=(0,-1) represents T0=-infinity,X0=-infinity,Y0=infinity
 *         focusDirection=(1,0)  represents T0=0,X0=0,Y0=0
 *         focusDirection=(0,1)  represents T0=infinity,X0=infinity,Y0=infinity
-*   - When fitting to sample points, the focus points are chosen
+*   - When fitting to sample points, the focus point is chosen
 *     to be close to the sample points to avoid unnecessarily large
 *     intermediate values in computations.
-*   - When s <= 1, the focus direction is constrained to be (1,0).
+*   - When fitting to sample points, if the sample points
+*     are on opposite sides of the zero-point of the catenary,
+*     the focus direction is constrained to be (1,0).
+*     This avoids instability if s is close to 0.
 * Constraints:
 *   sNumerator >= 0
 *   sDenominator >= 0
 *   max(sNumerator, sDenominator) = 1
 *   xFocusDirection >= 0 (no sign restriction on y)
 *   xFocusDirection^2 + yFocusDirection^2 = 1
-*   when s<=1, focusDirection=(1,0)
-*   when s>1, and fitting to two sample points, the focus must be between the two
-*              sample points.
-*              XXX maybe focusDirection should be from first toward second sample point? not sure
+*   when fitting two two sample points, the focus lies between the two sample points inclusive.
+*   more specifically:
+*       - if the interval contains the "vertex" (lowest point) of the catenary, then the focus point is the vertex.
+*       - if not, it is the lowest (closest to the vertex) of the two sample points.
 *   XXX when s<=1 can the slope be represented as / replaced by t distance from apex in world space?  and when s>=1 it's the t disance from apex in canon space.  hmm, maybe some elegant formulation hidden in here that I'm not quite getting.
 */
 public class Catenary
@@ -88,31 +91,36 @@ public class Catenary
         //PRINT(MyMath.hypot(xFocusDirection, yFocusDirection));
         double focusDirectionLengthError = MyMath.hypot(xFocusDirection, yFocusDirection) - 1.;
         assert(SQR(focusDirectionLengthError) + 1. - 1. == 0.); // implicit tolerance
-        if (sNumerator <= sDenominator)
+
+        assert(t0 <= t1);
+        if (XXX_TRY_NONTRIVIAL_FOCUS)
         {
-            assert(xFocusDirection == 1.);
-            assert(yFocusDirection == 0.);
+            assert(t0 <= 0.);
+            assert(t1 >= 0.);
+
+            // If focus is not one of the two sample points,
+            // then it must be the catenary vertex
+            // (which is strictly between the two sample points).
+            if (t0 != 0. && t1 != 0.)
+            {
+                assert(xFocusDirection == 1.);
+                assert(yFocusDirection == 0.);
+            }
         }
         else
         {
-            if (XXX_TRY_NONTRIVIAL_FOCUS)
+            // Actually it's fine, we do use nontrivial already if close enough to straight line segment
+            //assert(xFocusDirection == 1.);
+            //assert(yFocusDirection == 0.);
+            if (t0 > 0. || t1 < 0.)
             {
-                assert(t0 <= 0.);
-                assert(t1 >= 0.);
-            }
-            else
-            {
-                if (t0 > 0. || t1 < 0.)
-                {
-                    //OUT("WARNING: not enforcing nontrivial focus");
-                }
+                //OUT("WARNING: not enforcing nontrivial focus");
             }
         }
-        assert(t0 <= t1);
     }
 
     // Set members to be the parameters of the catenary
-    // passing through points (x0,y0),(x1,y1) with given nonnegatie slack.
+    // passing through points (x0,y0),(x1,y1) with given nonnegative slack.
     // Does no memory allocations.
     // x0 must be <= x1.
     public void fit(double x0, double y0,
@@ -134,22 +142,34 @@ public class Catenary
             //assert(false); // coverage; remove when hit
             this.sNumerator = 1.;
             this.sDenominator = 0.;
-            this.xFocusInWorld = (x0+x1)*.5;
-            this.yFocusInWorld = (y0+y1)*.5;
 
-            double L = MyMath.hypot(dx, dy);
-            if (L == 0.)
+            double dist = MyMath.hypot(dx, dy);
+            if (dist == 0.)
             {
                 this.xFocusDirection = 1.;
                 this.yFocusDirection = 0.;
             }
             else
             {
-                this.xFocusDirection = dx / L;
-                this.yFocusDirection = dy / L;
+                this.xFocusDirection = dx / dist;
+                this.yFocusDirection = dy / dist;
             }
-            this.t0 = -L*.5;
-            this.t1 = L*.5;
+
+            // focus is the lower of the two points
+            if (y0 <= y1)
+            {
+                this.xFocusInWorld = x0;
+                this.yFocusInWorld = y0;
+                this.t0 = 0.;
+                this.t1 = dist;
+            }
+            else
+            {
+                this.xFocusInWorld = x1;
+                this.yFocusInWorld = y1;
+                this.t0 = -dist;
+                this.t1 = 0.;
+            }
         }
         else if (dx == 0.
              || XXX_USE_SIMPLE_PROTECTION && Math.abs(dx) < tol)
