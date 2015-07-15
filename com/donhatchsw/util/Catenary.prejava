@@ -55,7 +55,6 @@ package com.donhatchsw.util;
 */
 public class Catenary
 {
-    public static boolean XXX_TRY_NONTRIVIAL_FOCUS = false; // doesn't work yet. need to make it work and get rid of this.
     public static boolean XXX_USE_SIMPLE_PROTECTION = true;
 
     // Scale s, in range [0,infinity].
@@ -90,29 +89,16 @@ public class Catenary
         assert(SQR(focusDirectionLengthError) + 1. - 1. == 0.); // implicit tolerance
 
         assert(t0 <= t1);
-        if (XXX_TRY_NONTRIVIAL_FOCUS)
-        {
-            assert(t0 <= 0.);
-            assert(t1 >= 0.);
+        assert(t0 <= 0.);
+        assert(t1 >= 0.);
 
-            // If focus is not one of the two sample points,
-            // then it must be the catenary vertex
-            // (which is strictly between the two sample points).
-            if (t0 != 0. && t1 != 0.)
-            {
-                assert(xFocusDirection == 1.);
-                assert(yFocusDirection == 0.);
-            }
-        }
-        else
+        // If focus is not one of the two sample points,
+        // then it must be the catenary vertex
+        // (which is strictly between the two sample points).
+        if (t0 != 0. && t1 != 0.)
         {
-            // Actually it's fine, we do use nontrivial already if close enough to straight line segment
-            //assert(xFocusDirection == 1.);
-            //assert(yFocusDirection == 0.);
-            if (t0 > 0. || t1 < 0.)
-            {
-                //OUT("WARNING: not enforcing nontrivial focus");
-            }
+            assert(xFocusDirection == 1.);
+            assert(yFocusDirection == 0.);
         }
     }
 
@@ -274,19 +260,12 @@ public class Catenary
                     xFocusDirectionNew /= temp;
                     yFocusDirectionNew /= temp;
 
-                    if (XXX_TRY_NONTRIVIAL_FOCUS)
-                    {
-                        this.t0 = t0New;
-                        this.t1 = t1New;
-                        this.xFocusInWorld = xFocusInWorldNew;
-                        this.yFocusInWorld = yFocusInWorldNew;
-                        this.xFocusDirection = xFocusDirectionNew;
-                        this.yFocusDirection = yFocusDirectionNew;
-                    }
-                    else
-                    {
-                        //System.out.println("WARNING: not doing nontrivial focus");
-                    }
+                    this.t0 = t0New;
+                    this.t1 = t1New;
+                    this.xFocusInWorld = xFocusInWorldNew;
+                    this.yFocusInWorld = yFocusInWorldNew;
+                    this.xFocusDirection = xFocusDirectionNew;
+                    this.yFocusDirection = yFocusDirectionNew;
                 }
             }
         }
@@ -769,10 +748,10 @@ EOF
 
             //double scales[][] = {{1.,1.}}; // wimpy
             //double scales[][] = {{1.,1.},  {9.,10.}, {11.,10.}}; // wimpy
-            double scales[][] = {{1.,1.},  {1.,10.}, {9.,10.}, {11.,10.}, {10.,1.}}; // got this far with XXX_TRY_NONTRIVIAL_FOCUS=false
+            double scales[][] = {{1.,1.},  {1.,10.}, {9.,10.}, {11.,10.}, {10.,1.}}; // got this far
 
             //double intervalSizesOnCanonical[] = {1.}; // wimpy
-            double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1}; // wimpy    got this far with TRY_NONTRIVIAL_FOCUS=false
+            double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1}; // wimpy    got this far
             //double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1, 2.}; // wimpy (but not robust enough to succeed yet)
             //double intervalSizesOnCanonical[] = {1.,  0., .1, .5, .9, 1.1, 2.}; // wimpy
             //double intervalSizesOnCanonical[] = {1.,  0., .1, .5, .9, 1.1, 2., 5.};
@@ -948,17 +927,7 @@ EOF
     {
         System.out.println("    in Catenary.main");
 
-        if (args.length == 1 && (args[0].equals("true")||args[0].equals("false")))
-        {
-            boolean tryNontrivialFocus = args[0].equals("true");
-            XXX_TRY_NONTRIVIAL_FOCUS = tryNontrivialFocus;
-            confidenceTest();
-        }
-        else
-        {
-            System.err.println("Usage: SmoothlyVaryingViewingParameter <tryNontrivialFocus>");
-            System.exit(1);
-        }
+        confidenceTest();
 
         System.out.println("    out Catenary.main");
     } // main
