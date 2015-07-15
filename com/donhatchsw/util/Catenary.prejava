@@ -175,25 +175,41 @@ public class Catenary
             // s is finite and nonzero
             //assert(false); // coverage; remove when hit
             double L = MyMath.hypot(dx, dy) + slack;
-            // XXX TODO: make the following totally robust even if s is very large or small.
-            // XXX currently it's not great even if s is 1: e.g. in the first test case,
-            // XXX s comes out as 1.000000000003393; can we do better?
-            double s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx));
-
-            //assert(false); // coverage; remove when hit
-            if (s <= 1.)
+            this.sNumerator = dx;
+            this.sDenominator = 2.*asinhc(Math.sqrt(L*L - dy*dy) / dx);
+            if (this.sNumerator <= this.sDenominator)
             {
-                this.sNumerator = s;
+                this.sNumerator /= this.sDenominator;
                 this.sDenominator = 1.;
             }
             else
             {
+                this.sDenominator /= this.sNumerator;
                 this.sNumerator = 1.;
-                this.sDenominator = 1./s;
             }
+            double s = this.sNumerator / this.sDenominator; // XXX not robust
+            if (verboseLevel >= 1) PRINT(s); // XXX comes out 1.000000000003393 in very first test case-- can we do better?
 
             if (true)
             {
+                // TODO: For starters, how do we simply test whether the catenary vertex
+                // is between the endpoints?  Something about dx,dy,slack.
+                // Well, looking at the below, the condition is t0>0
+                // i.e. tMid-L/2>0
+                //   .5 * dy * sqrt(1. + 4.*(s*s)/(L*L - dy*dy)) - L/2 > 0
+                //   dy * sqrt(1. + 4.*(s*s)/(L*L - dy*dy)) > L
+                //   sqrt(1. + 4.*(s*s)/(L*L - dy*dy)) > L/dy
+                //   1. + 4.*(s*s)/(L*L - dy*dy) > L^2/dy^2
+                //   4.*(s*s)/(L*L - dy*dy) > L^2/dy^2 - 1
+                //   4*s*s > (L^2/dy^2 - 1)*(L^2 - dy^2)
+                //         = (L^2 - dy^2)^2 / dy^2
+                //         = (L^2/dy - dy)^2
+                //   2*s > L^2/dy - dy
+                //   s > (L^2/dy - dy)/2
+                //   s > (L^2 - dy^2)/(2*dy)
+                // XXX KEEP GOING (not sure whether this is right)
+                //
+
                 // For now, start with the canonical focus case and adjust.
                 // XXX eventually need to move to something more stable
 
@@ -211,7 +227,7 @@ public class Catenary
                 this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
 
 
-                if (t0 > 0. || t1 < 0.)
+                if (this.t0 > 0. || this.t1 < 0.)
                 {
                     if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: t0="+t0+" t1="+t1+", vertex not in middle, adjusting");
                     // Adjust to meet validity criteria: t0<=0, t1>=0.
@@ -524,7 +540,7 @@ public class Catenary
 
     // Catenary always has non-negative scale,
     // and its fit() requires x0<=x1.
-    // This class has no such restriction.
+    // This class has no such restriction on x0,x1.
     // The catenary still hangs downward but may be left-right flipped.
     public static class FlippedMaybe extends Catenary
     {
