@@ -225,7 +225,7 @@ public class Catenary
                 this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
 
 
-                if (t0 >= 0. || t1 <= 1.)
+                if (t0 > 0. || t1 < 0.)
                 {
                     if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: t0="+t0+" t1="+t1+", vertex not in middle, adjusting");
                     // Adjust to meet validity criteria: t0<=0, t1>=0.
@@ -249,13 +249,13 @@ public class Catenary
                     double T0Old = t0Old / s;
                     double T1Old = t1Old / s;
 
-                    double TFocusNew = t0>=0.?t0:t1 / s;
+                    double TFocusNew = (t0>=0.?t0:t1) / s;
                     double XFocusNew = MyMath.asinh(TFocusNew);
                     double YFocusNew = Math.sqrt(SQR(TFocusNew)+1.)-1.;
 
                     double t0New = (T0Old - TFocusNew) * s;
                     double t1New = (T1Old - TFocusNew) * s;
-                    if (t0>=0.)
+                    if (t0>0.)
                     {
                         assert_almost_eq(t0New, 0., tol);
                         t0New = 0.;
@@ -486,56 +486,15 @@ public class Catenary
             double s = sNumerator / sDenominator; // XXX obviously not robust
             assert(xFocusDirection != 0.);
             double TFocus = yFocusDirection / xFocusDirection; // XXX obviously not robust
-            //     x(t) = xFocusInWorld + s*asinh(TFocus + t/s)
-            //     y(t) = yFocusInWorld + s*(sqrt((TFocus + t/s)^2 + 1) - 1)   (integrate this one, it's easier)
-            //          = yFocusInWorld + sqrt((TFocus*s + t)^2 + s^2) - s
+            // Recall:
+            //     x(t) = xFocusInWorld + s*(asinh(TFocus + t/s) - asinh(TFocus))
+            //     y(t) = yFocusInWorld + s*(sqrt((TFocus + t/s)^2 + 1) - sqrt(TFocus^2 + 1))
             // Per wolframalpha:
-            //     x part of integral = xFocusInWorld*t + s*((s*TF+t)*asinh(TF+t/s)-s*sqrt(SQR(s*TF+t)/(s*s)+1))
-            //                        = xFocusInWorld*t + s*((s*TF+t)*asinh(TF+t/s) - sqrt(SQR(s*TF+t) + s*s))
-            //     y part of integral = (yFocusInWorld-s)*t + .5*(s*s)*(sqrt(SQR(TF+t/s)+1)*(TF+t/s) + asinh(TF+t/s))
+            //    x part of integral = xFocusInWorld*t + s*((s*TF+t)*asinh(t/s+TF) - t*asinh(TF) - sqrt(s*(s*TF*TF+s+2*t*TF)+t*t))
+            //    y part of integral = yFocusInWorld*t + s*( .5 * ((s*TF+t)*sqrt((TF+t/s)^2+1) + s*asinh(TF+t/s) - 2*t*sqrt(TF*TF+1)))
             double TF = TFocus;
-
-            if (verboseLevel >= 2) System.out.println("                                        t = "+t);
-            if (verboseLevel >= 2) System.out.println("                                        s = "+s);
-            if (verboseLevel >= 2) System.out.println("                                        t/s = "+t/s);
-            if (verboseLevel >= 2) System.out.println("                                        TF = "+TF);
-            if (verboseLevel >= 2) System.out.println("                                        TF+t/s = "+(TF+t/s));
-            if (verboseLevel >= 2) System.out.println("                                        asinh(TF+t/s) = "+MyMath.asinh(TF+t/s));
-
-            double asinh = MyMath.asinh(TF+t/s);
-
-            answer[0] = xFocusInWorld*t + s*((s*TF+t)*asinh - Math.sqrt(SQR(s*TF+t) + s*s));
-            answer[1] = (yFocusInWorld-s)*t + .5*(s*s)*(Math.sqrt(SQR(TF+t/s)+1)*(TF+t/s) + asinh);
-
-            // XXX currently:
-            //    - works correctly when t==0, i.e. TF is the second tiepoint and it's all negative.
-            //    - works when TF=0, i.e. trivial focus.
-
-            // XXX maybe use this from previous implementation?
-            // XXX it wasn't as general, but it's a very interesting formulation!
-            // XXX does it require both t0 and t1 though? Actually I don't think so!
-            // Parametrizing cosh by arc length between those endpoints,
-            // this part of the cosh curve is:
-            //      <asinh(t), sqrt(1+t^2)> for x in [x0,x1]
-            //                              i.e. for t in [sinh(x0),sinh(x1)]
-            // The integral of that part is:
-            //      {-sqrt(1+t^2) + t*asinh(t),
-            //       (t*sqrt(1+t^2) + asinh(t))/2}.
-            // Evaluating that at the two endpoints, subtracting, and simplifying,
-            // we get:
-            //      x part = (-sqrt(1+sinh(x1)^2) + sinh(x1)*x1)
-            //             - (-sqrt(1+sinh(x0)^2) + sinh(x0)*x0)
-            //             = (-cosh(x1) + sinh(x1)*x1)
-            //             - (-cosh(x0) + sinh(x0)*x0)
-            //
-            //      y part = (sinh(x1)*sqrt(1+sinh(x1)^2) + x1)/2
-            //             - (sinh(x0)*sqrt(1+sinh(x0)^2) + x0)/2
-            //             = (sinh(x1)*cosh(x1) + x1)/2
-            //             - (sinh(x0)*cosh(x0) + x0)/2
-            // But we also have to add the arc length
-            // times the translation taking the cosh curve to v0,v1.
-            // The arc length is sinh(x1)-sinh(x0)
-            // and the translation is <v0[0]-x0, v0[1]-cosh(x0)>
+            answer[0] = xFocusInWorld*t + s*((s*TF+t)*MyMath.asinh(t/s+TF) - t*MyMath.asinh(TF) - Math.sqrt(s*(s*TF*TF+s+2*t*TF)+t*t));
+            answer[1] = yFocusInWorld*t + s*( .5 * ((s*TF+t)*Math.sqrt(SQR(TF+t/s)+1) + s*MyMath.asinh(TF+t/s) - 2*t*Math.sqrt(TF*TF+1)));
         }
         if (verboseLevel >= 1) System.out.println("                                out Catenary.integrate(t="+t+"), returning "+VecMath.toString(answer));
     } // integrate
@@ -808,13 +767,13 @@ EOF
             double xDelta = delta[0];
             double yDelta = delta[1];
 
-            double scales[][] = {{1.,1.}}; // wimpy
+            //double scales[][] = {{1.,1.}}; // wimpy
             //double scales[][] = {{1.,1.},  {9.,10.}, {11.,10.}}; // wimpy
-            //double scales[][] = {{1.,1.},  {1.,10.}, {9.,10.}, {11.,10.}, {10.,1.}}; // got this far with XXX_TRY_NONTRIVIAL_FOCUS=false
+            double scales[][] = {{1.,1.},  {1.,10.}, {9.,10.}, {11.,10.}, {10.,1.}}; // got this far with XXX_TRY_NONTRIVIAL_FOCUS=false
 
-            double intervalSizesOnCanonical[] = {1.}; // wimpy
-            //double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1}; // wimpy    got this far with TRY_NONTRIVIAL_FOCUS=false
-            //double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1, 2.}; // wimpy
+            //double intervalSizesOnCanonical[] = {1.}; // wimpy
+            double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1}; // wimpy    got this far with TRY_NONTRIVIAL_FOCUS=false
+            //double intervalSizesOnCanonical[] = {1.,  .1, .5, .9, 1.1, 2.}; // wimpy (but not robust enough to succeed yet)
             //double intervalSizesOnCanonical[] = {1.,  0., .1, .5, .9, 1.1, 2.}; // wimpy
             //double intervalSizesOnCanonical[] = {1.,  0., .1, .5, .9, 1.1, 2., 5.};
 
@@ -941,42 +900,37 @@ EOF
                             // Integral of (X,Y)=asinh(T),sqrt(T^2+1)
                             // is {T*asinh(T) - sqrt(T^2+1), (sqrt(T^2+1)*T + asinh(T))/2}
                             //  = {T*X - Y, (T*Y + X)/2}
-                            // Integral of (x,y)={s*asinh(t/s), sqrt(t^2+s^2)}
-                            // is {s*(t*asinh(t/s)-sqrt(t^2-s^2)), 1/2(t*sqrt(t^2+s^2) + s^2 log(sqrt(t^2+s^2)+t))} = {s*(t*X-y),1/2(t*y + s^2 log(y+t)}
+                            // Integral of (x,y)=(s*asinh(t/s), sqrt(t^2+s^2))
+                            // is (s*(t*asinh(t/s)-sqrt(t^2+s^2)), 1/2(t*sqrt(t^2+s^2) + s^2 log(sqrt(t^2+s^2)+t))}
+                            //  = (s*(t*X-y),                      1/2(t*y + s^2 log(y+t))
                             // And if we add in xDelta,yDelta,
                             // that adds t*xDelta,t*yDelta to the integral.
+                            //
+                            // But the above t,x,y are measured from the catenary vertex. I.e. they are just s*T,s*X,s*Y.
                             double integral[] = new double[2];
 
-                            /*
                             catenary.integrate(catenary.t0, catenary.t0, integral);
+                            PRINTVEC(integral);
                             assert_eq(integral[0], 0.);
                             assert_eq(integral[1], 0.);
-                            */
 
                             catenary.integrate(catenary.t0, catenary.t1, integral);
-                            assert_almost_eq(integral[0], s*(catenary.t1*X1-y1)
-                                                        - s*(catenary.t0*X0-y0)
+                            PRINTVEC(integral);
+                            assert_almost_eq(integral[0], s*(s*T1*X1 - s*Y1)
+                                                        - s*(s*T0*X0 - s*Y0)
                                                         + (catenary.t1-catenary.t0)*xDelta, tol);
-                            assert_almost_eq(integral[1], .5*(catenary.t1*(y1-yDelta) + s*s*Math.log(y1-yDelta+catenary.t1))
-                                                        - .5*(catenary.t0*(y0-yDelta) + s*s*Math.log(y0-yDelta+catenary.t0))
-                                                        + (catenary.t1-catenary.t0)*yDelta,
-                                                          tol);
-                            assert_almost_eq(integral[1], .5*(catenary.t1*(s*Y1) + s*s*Math.log(s*Y1+catenary.t1))
-                                                        - .5*(catenary.t0*(s*Y0) + s*s*Math.log(s*Y0+catenary.t0))
-                                                        + (catenary.t1-catenary.t0)*yDelta,
-                                                          tol);
-                            // XXX TODO: can get rid of one of the above I think... maybe
+                            assert_almost_eq(integral[1], .5*(s*T1*s*Y1 + s*s*Math.log(s*Y1+s*T1))
+                                                        - .5*(s*T0*s*Y0 + s*s*Math.log(s*Y0+s*T0))
+                                                        + (catenary.t1-catenary.t0)*yDelta, tol);
 
-                            /*
                             catenary.integrate(catenary.t0, t, integral);
-                            assert_almost_eq(integral[0], s*(t*X-y)
-                                                        - s*(catenary.t0*X0-y0)
+                            PRINTVEC(integral);
+                            assert_almost_eq(integral[0], s*(s*T*X - s*Y)
+                                                        - s*(s*T0*X0 - s*Y0)
                                                         + (t-catenary.t0)*xDelta, tol);
-                            assert_almost_eq(integral[1], .5*(t*(s*Y) + s*s*Math.log((s*Y)+t))
-                                                        - .5*(catenary.t0*(s*Y0) + s*s*Math.log((s*Y0)+catenary.t0))
-                                                        + (t-catenary.t0)*yDelta,
-                                                          tol);
-                                                          */
+                            assert_almost_eq(integral[1], .5*(s*T*s*Y + s*s*Math.log(s*Y+s*T))
+                                                        - .5*(s*T0*s*Y0 + s*s*Math.log(s*Y0+s*T0))
+                                                        + (t-catenary.t0)*yDelta, tol);
                         }
                         if (false)
                         {
