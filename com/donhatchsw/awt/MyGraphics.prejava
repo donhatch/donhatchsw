@@ -256,7 +256,7 @@ public class MyGraphics
     {
         drawLine(x0,y0,x1,y1);
 
-        double headSize = relativeHeadSize * Math.sqrt((x1-x0)*(x1-x0) + (y1-y0)*(y1-y0));
+        double headSize = relativeHeadSize * com.donhatchsw.util.MyMath.hypot(x1-x0, y1-y0);
 
         // More trig than necessary, but whatever
         double ang = Math.atan2(y1-y0, x1-x0);

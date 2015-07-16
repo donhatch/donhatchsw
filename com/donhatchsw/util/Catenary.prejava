@@ -189,7 +189,7 @@ public class Catenary
             //      = (dx^2 + 2*dy*slack - slack^2) / (sqrt(dx^2+dy^2) + (dy-slack))
             // I'm afraid that didn't really help much :-(
             double L = MyMath.hypot(dx, dy) + slack;
-            double L_minus_dy = (SQR(dx) + 2*dy*slack - SQR(slack)) / (Math.sqrt(SQR(dx)+SQR(dy)) + (dy-slack));
+            double L_minus_dy = (SQR(dx) + 2*dy*slack - SQR(slack)) / (Math.hypot(dx, dy) + (dy-slack));
             double L2_minus_dy2 = L_minus_dy * (L + dy);
             double sqrt_L2minusdy2 = Math.sqrt(L2_minus_dy2);
 
@@ -224,14 +224,15 @@ public class Catenary
                 // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of x0 I guess?
                 this.xFocusInWorld = (x0+x1)/2.
                                    - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
-                this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
+                this.yFocusInWorld = y0 - (Math.hypot(this.t0, s) - s);
 
                 if (this.t0 > 0. || this.t1 < 0.)
                 {
                     double tFocusOld;
                     if (this.t0 > 0.)
                     {
-                        // Make x0,y0 the focus
+                        // Entire interval is to right of the catenary vertex.
+                        // Make x0,y0 the focus.
                         //assert(false); // coverage
                         tFocusOld = this.t0;
                         this.t0 = 0.;
@@ -241,7 +242,8 @@ public class Catenary
                     }
                     else
                     {
-                        // Make x1,y1 the focus
+                        // Entire interval is to left of the catenary vertex.
+                        // Make x1,y1 the focus.
                         //assert(false); // coverage
                         tFocusOld = this.t1; // before changing this.t1
                         this.t0 = -L;
@@ -454,7 +456,7 @@ public class Catenary
             //    y part of integral = yFocusInWorld*t + s*( .5 * ((s*TF+t)*sqrt((TF+t/s)^2+1) + s*asinh(TF+t/s) - 2*t*sqrt(TF*TF+1)))
             double TF = TFocus;
             answer[0] = xFocusInWorld*t + s*((s*TF+t)*MyMath.asinh(t/s+TF) - t*MyMath.asinh(TF) - Math.sqrt(s*(s*TF*TF+s+2*t*TF)+t*t));
-            answer[1] = yFocusInWorld*t + s*( .5 * ((s*TF+t)*Math.sqrt(SQR(TF+t/s)+1) + s*MyMath.asinh(TF+t/s) - 2*t*Math.sqrt(TF*TF+1)));
+            answer[1] = yFocusInWorld*t + s*( .5 * ((s*TF+t)*Math.hypot(TF+t/s,1) + s*MyMath.asinh(TF+t/s) - 2*t*Math.hypot(TF,1)));
         }
         if (verboseLevel >= 1) System.out.println("                                out Catenary.integrate(t="+t+"), returning "+VecMath.toString(answer));
     } // integrate
