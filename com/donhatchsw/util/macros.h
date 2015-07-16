@@ -18,6 +18,7 @@
 #define assert_ge(a,b) assert_op(a,>=,b)
 #define assert_lt(a,b) assert_op(a,<,b)
 #define assert_gt(a,b) assert_op(a,>,b)
+#define assert_ne(a,b) assert_op(a,!=,b)
 #define assert_nan(x) do { if (!Double.isNaN(x)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #x + " is "+(x)+", expected NaN"); } while (false)
 // Note: the additional "(a)==(b)||" is to make it work correctly for infinities...
 // and causes the args to be evaluated twice.
