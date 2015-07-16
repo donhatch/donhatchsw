@@ -43,6 +43,42 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         rotate(this.cosRotation, this.sinRotation, answer[0], answer[1], answer);
         if (verboseLevel >= 1) System.out.println("                            out CatenaryRotated.integrate(t="+t+"), returning answer="+VecMath.toString(answer));
     }
+
+        // XXX experimental at the moment... alternative to newton, see how it behaves
+        private static void solveUsingMinimizer(double x[],
+                                 double y[], // const
+                                 NewtonSolver.Fun nfun,
+                                 int minIterations, // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm. actually should make it smart and adaptive I think.
+                                 int maxIterations,
+                                 boolean adaptiveFlag)
+        {
+            final double yFinal[] = y;
+            final NewtonSolver.Fun nfunFinal = nfun;
+            final double fx[] = new double[y.length];
+            Minimizer.VectorFunction mfun = new Minimizer.VectorFunction() {
+                @Override public double apply(double x[])
+                {
+                    nfunFinal.f(x, fx);
+                    // Which?
+                    // Empirically dist gives larger errors-- needed error tolerance of 1e-4 or so,
+                    // whereas 1e-6 works (barely) for distsqrd
+                    //return VecMath.dist(fx, yFinal);
+                    return VecMath.distsqrd(fx, yFinal);
+                }
+            };
+            double initialGuess[] = x;
+            double initialDelta = 1e-3; // somewhat arbitrary
+            String paramNames[] = null;
+            double answer[] = Minimizer.minimize(mfun,
+                               initialGuess,
+                               initialDelta,
+                               maxIterations,
+                               false, // returnNullOnMaxCallsReached
+                               paramNames);
+            assert(answer != null);
+            VecMath.copyvec(x, answer);
+        } // solveUsingMinimizer
+
     /**
     * Set members to be the parameters of the catenary
     * passing through points (x0,y0),(x1,y1)
@@ -140,12 +176,24 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double yInitialGuess = yMoment - yMomentIfZeroSlack;
         double xyAnswer[] = {xInitialGuess, yInitialGuess};
         boolean adaptiveFlag = false; // setting this to true makes the TRY_TO_DO_IT_RIGHT plan paths look much better in demo3 (since evaluation functions not stable yet)... but it makes it horribly slow instead of just freaking out!  so, leaving this false; need to fix the problem instead.
-        NewtonSolver.solve(xyAnswer,
-                           desiredMoment,
-                           fun,
-                           10,
-                           1000,
-                           adaptiveFlag);
+        boolean amoebaFlag = true; // XXX make this configurable?
+        if (amoebaFlag)
+        {
+            int maxIterations = 1000;
+            solveUsingMinimizer(xyAnswer,
+                               desiredMoment,
+                               fun,
+                               10,
+                               maxIterations,
+                               adaptiveFlag);
+        }
+        else
+            NewtonSolver.solve(xyAnswer,
+                               desiredMoment,
+                               fun,
+                               10,
+                               1000,
+                               adaptiveFlag);
 
         if (newtonPathOut != null)
             newtonPathOut.add(new double[][]{null, desiredMoment}); // special entry for the target

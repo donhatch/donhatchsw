@@ -19,7 +19,7 @@ public class Minimizer
     /**
      * Debugging level:  0 = nothing, 1 = entry and exit from major functions, 2 = detailed debugging.
      */
-    public static int verboseLevel = 1;
+    public static int verboseLevel = -1; // XXX really nothing; someone prints at 0
 
     /** A function that takes a vector and returns a scalar. */
     public interface VectorFunction
@@ -28,7 +28,12 @@ public class Minimizer
     } // class VectorFunction
 
     /** Find the vector v such that fun(v) is minimal, starting with an initial guess, an initial delta, and a maximum allowed number of fun calls. */
-    public static double[] minimize(VectorFunction fun, double initialGuess[], double initialDelta, int maxCalls, String paramNames[])
+    public static double[] minimize(VectorFunction fun,
+                                    double initialGuess[],
+                                    double initialDelta,
+                                    int maxCalls,
+                                    boolean returnNullOnMaxCallsReached,
+                                    String paramNames[])
     {
         if (verboseLevel >= 1)
             System.out.println("    In minimize");
@@ -71,7 +76,7 @@ public class Minimizer
             // by interpreting the bits as long, adding 1,
             // and then interpreting the bits as double again.
             double ftol = Double.longBitsToDouble(Double.doubleToLongBits(1.)+1) - 1.;
-            PRINT(ftol);
+            if (verboseLevel >= 1) PRINT(ftol);
 #endif
             int nCalls = amoeba(simplex, vals, ftol, fun, maxCalls, paramNames);
             //PRINT(nCalls);
@@ -79,7 +84,10 @@ public class Minimizer
             {
                 if (verboseLevel >= 1)
                     System.out.println("    out minimize (maxCalls "+maxCalls+" reached)");
-                return null;
+                if (returnNullOnMaxCallsReached)
+                    return null;
+                else
+                    return simplex[0];
             }
             initialGuess = simplex[0]; // restart, to foil false finishes XXX what about multiple false finishes?? need to keep going as long as there is any progress!! or, make the ending condition based on simplex size, not function value difference?
         }
