@@ -186,24 +186,37 @@ public class Catenary
             if (verboseLevel >= 1) System.out.println("                          s finite and nonzero case");
             //assert(false); // coverage; remove when hit
 
-            // s is finite and nonzero
-            // s = dx / (2.*asinhc(Math.sqrt(L*L - dy*dy) / dx))
-            //   = dx / (2.*asinhc(Math.sqrt((L-dy)*(L+dy)) / dx)
-            //   = dx / (2.*asinhc(Math.sqrt((L-dy)*(L+dy)) / dx)
-            //
-            // And we can get a good expression for L-dy as follows:
-            // L-dy = sqrt(dx^2+dy^2)+slack - dy
-            //      = (sqrt(dx^2+dy^2) - (dy-slack)) *  (sqrt(dx^2+dy^2) + (dy-slack)) / (sqrt(dx^2+dy^2) + (dy-slack))
-            //      = (dx^2+dy^2 - (dy-slack)^2) / (sqrt(dx^2+dy^2) + (dy-slack))
-            //      = (dx^2 + 2*dy*slack - slack^2) / (sqrt(dx^2+dy^2) + (dy-slack))
-            // I'm afraid that didn't really help much :-(
             double L = MyMath.hypot(dx, dy) + slack;
-            double L_minus_dy = (SQR(dx) + 2*dy*slack - SQR(slack)) / (Math.hypot(dx, dy) + (dy-slack));
-            double L2_minus_dy2 = L_minus_dy * (L + dy);
+
+            // Mathematically sqrt(L^2-dy^2)/dx >= 1,
+            // and it better be since we're about to take asinhc of it...
+            // But if we compute it naively, it might not be.
+            // For example:
+            //     x0=-3.0390817003387307E-16, y0=-0.5345224838248487, x1=0.0, y1=0.0, slack=1.0690449676496974
+            // produces:
+            //     dx = 0.36774686989671046
+            //     dy = -0.9299259323629877
+            //     L = 1.
+            //     sqrt(L*L-dy*dy) = 0.3677468698967104
+            //     sqrt(L*L-dy*dy)/dx = 0.9999999999999999
+            // Bad!
+            // So, figure out a better expression for sqrt(L^2-dy^2)/dx
+            // that is guaranteed to be >= 1.
+
+            // sqrt(L^2-dy^2)/dx = sqrt((hypot(dx,dy)+slack)^2 - dy^2) / dx
+            //                   = sqrt(dx^2+dy^2 + 2*slack*hypot(dx,ty) + slack^2 - dy^2) / dx
+            //                   = sqrt(dx^2 + 2*slack*hypot(dx,dy) + slack^2) / dx
+            // XXX TODO: I see a hole in this I think... it relies on sqrt(dx^2 + something nonnegative)) >= dx,
+            // XXX       but that's not true if dx is so small that dx^2 is zero, and the "something nonnegative" is also zero.  So I think maybe we need to test for that, somehow or other.
+            // XXX       maybe make the special case above be dx^2==0 rather than dx==0?  or just clamp in that case here? (I hate clamping)
+            double L2_minus_dy2 = SQR(dx) + slack*(2*hypot(dx,dy) + slack);
+            assert_almost_eq(L2_minus_dy2, L*L - dy*dy, 1e-6);
             double sqrt_L2minusdy2 = Math.sqrt(L2_minus_dy2);
+            assert_ge(sqrt_L2minusdy2, dx);
 
             this.sNumerator = dx;
             this.sDenominator = 2.*asinhc(sqrt_L2minusdy2 / dx);
+
             if (this.sNumerator <= this.sDenominator)
             {
                 this.sNumerator /= this.sDenominator;
@@ -225,6 +238,7 @@ public class Catenary
             double tMid = .5 * dy * Math.hypot(1., + 2.*s/sqrt_L2minusdy2);
             this.t0 = tMid - L/2.;
             this.t1 = t0 + L;
+
             // If we didn't care about stability:
             //   this.xFocusInWorld = x0 - s*asinh(t0/s)
             // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of x0 I guess?
@@ -232,9 +246,10 @@ public class Catenary
                                - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
             this.yFocusInWorld = y0 - (Math.hypot(this.t0, s) - s);
 
+
             if (this.t0 > 0. || this.t1 < 0.)
             {
-                if (verboseLevel >= 1) System.out.println("                          t0,t1 were "+t0+","+t1+")");
+                if (verboseLevel >= 1) System.out.println("                          t0,t1 were "+t0+","+t1+"");
                 double tFocusWithRespectToVertex;
                 if (this.t0 > 0.)
                 {
@@ -271,6 +286,7 @@ public class Catenary
                     // XXX although arguably we shouldn't be computing in terms of Tfocus anyway,
                     // XXX we should have TFocusNumerator and TFocusDenominator which would resolve this... maybe? or maybe not.
                     // TODO: make sure we degenerate gracefully!
+                    if (verboseLevel >= 1) System.out.println("                          indeterminate case! figuring out focus direction by different strategy");
                     double xFocusDirectionNew = x1-x0; // we'll normalize below
                     double yFocusDirectionNew = y1-y0; // we'll normalize below
                 }
@@ -760,6 +776,7 @@ EOF
         {
             // Some problematic cases dumped from SmoothlyVaryingViewingParameter demo3.
             // (as of this writing, only loudly problematic if XXX_USE_SIMPLE_PROTECTION is false).
+            if (true)
             {
                 double x0=-1.0, y0=1.7225464241988333E-16, x1=0.0, y1=0.0, slack=8.326672684688674E-17;
                 Catenary catenary = new Catenary();
@@ -768,6 +785,35 @@ EOF
                 catenary.fit(x0, y0, x1, y1, slack, fitVerboseLevel);
                 PRINT(catenary);
             }
+            if (true)
+            {
+                double x0=-3.0390817003387307E-16, y0=-0.5345224838248487, x1=0.0, y1=0.0, slack=1.0690449676496974;
+                Catenary catenary = new Catenary();
+                int fitVerboseLevel = 1;
+                XXX_USE_SIMPLE_PROTECTION = false; // so we really exercise this case
+                catenary.fit(x0, y0, x1, y1, slack, fitVerboseLevel);
+                PRINT(catenary);
+            }
+            if (true)
+            {
+                double x0=-1.0, y0=6.123233995736769E-17, x1=0.0, y1=0.0, slack=4.852917047803606E-17;
+                Catenary catenary = new Catenary();
+                int fitVerboseLevel = 1;
+                XXX_USE_SIMPLE_PROTECTION = false; // so we really exercise this case
+                catenary.fit(x0, y0, x1, y1, slack, fitVerboseLevel);
+                PRINT(catenary);
+            }
+            if (true)
+            {
+                double x0=-0.36774686989671046, y0=0.9299259323629877, x1=0.0, y1=0.0, slack=1.790824923772195E-16;
+                Catenary catenary = new Catenary();
+                int fitVerboseLevel = 1;
+                XXX_USE_SIMPLE_PROTECTION = false; // so we really exercise this case
+                catenary.fit(x0, y0, x1, y1, slack, fitVerboseLevel);
+                PRINT(catenary);
+            }
+
+
             if (false)
             {
                 System.out.println("        out Catenary.confidence test (returning prematurely!)");
@@ -946,7 +992,7 @@ EOF
                             // is {T*asinh(T) - sqrt(T^2+1), (sqrt(T^2+1)*T + asinh(T))/2}
                             //  = {T*X - Y, (T*Y + X)/2}
                             // Integral of (x,y)=(s*asinh(t/s), sqrt(t^2+s^2))
-                            // is (s*(t*asinh(t/s)-sqrt(t^2+s^2)), 1/2(t*sqrt(t^2+s^2) + s^2 log(sqrt(t^2+s^2)+t))}
+                            // is (s*(t*asinh(t/s)-sqrt(t^2+s^2)), 1/2(t*sqrt(t^2+s^2) + s^2 log(sqrt(t^2+s^2)+t)))
                             //  = (s*(t*X-y),                      1/2(t*y + s^2 log(y+t))
                             // And if we add in xDelta,yDelta,
                             // that adds t*xDelta,t*yDelta to the integral.

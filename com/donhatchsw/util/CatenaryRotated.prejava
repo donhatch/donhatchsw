@@ -6,6 +6,8 @@ package com.donhatchsw.util;
 /* WORK IN PROGRESS */
 public class CatenaryRotated extends Catenary.FlippedMaybe
 {
+    static boolean XXX_ALLOW_FITFROMMOMENT_FAILURE = false; // hack hook so SmoothlyVaryingViewingParameter demo3 can proceed with manageable amount of noise
+
     public double cosRotation;
     public double sinRotation;
 
@@ -59,9 +61,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                               double xMoment, double yMoment)
     {
         int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
+        int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
         if (verboseLevel >= 1) System.out.println("              {"+x0+","+y0+", "+x1+","+y1+", "+xMoment+","+yMoment+"},"); // suitable for copying into confidence test
-        int fitVerboseLevel = 0; // XXX and this too?
         com.donhatchsw.compat.ArrayList newtonPath = null; // XXX think about what we want here.  make this a parameter?
 
         double dist = MyMath.hypot(y1-y0, x1-x0);
@@ -143,11 +145,28 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             newtonPath.add(new double[][]{null, desiredMoment}); // special entry for the target
 
         this.fitFromRectangularCoords(x0,y0, x1,y1, xyAnswer[0], xyAnswer[1], fitVerboseLevelFinal);
-        double shouldBeDesiredMoment[] = new double[2];
-        this.integrate(this.t0, this.t1, shouldBeDesiredMoment);
+        double gotMoment[] = new double[2];
+        this.integrate(this.t0, this.t1, gotMoment);
         if (verboseLevel >= 1) System.out.println("              "+this);
         if (verboseLevel >= 1) System.out.println("              desiredMoment"+VecMath.toString(desiredMoment));
-        if (verboseLevel >= 1) System.out.println("              shouldBeDesiredMoment"+VecMath.toString(shouldBeDesiredMoment));
+        if (verboseLevel >= 1) System.out.println("              gotMoment"+VecMath.toString(gotMoment));
+
+        if (XXX_ALLOW_FITFROMMOMENT_FAILURE)
+        {
+            try
+            {
+                assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
+            }
+            catch (Error e)
+            {
+                PRINT(e);
+                // but proceed
+            }
+        }
+        else
+        {
+            assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
+        }
         if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
     } // fitFromMoment
 
