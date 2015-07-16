@@ -2,7 +2,8 @@
 package com.donhatchsw.util;
 #include "macros.h" 
 
-//import static java.lang.Math.*; // uncomment for quick messing around to get sqrt etc.
+import static java.lang.Math.*; // uncomment for quick messing around to get sqrt etc.
+//import static com.donhatchsw.util.MyMath.*; // uncomment for quick messing around to get sqrt etc.
 
 /**
 * WORK IN PROGRESS
@@ -189,11 +190,11 @@ public class Catenary
             // I'm afraid that didn't really help much :-(
             double L = MyMath.hypot(dx, dy) + slack;
             double L_minus_dy = (SQR(dx) + 2*dy*slack - SQR(slack)) / (Math.sqrt(SQR(dx)+SQR(dy)) + (dy-slack));
+            double L2_minus_dy2 = L_minus_dy * (L + dy);
+            double sqrt_L2minusdy2 = Math.sqrt(L2_minus_dy2);
 
             this.sNumerator = dx;
-            //this.sDenominator = 2.*asinhc(Math.sqrt(L*L - dy*dy) / dx);
-            //this.sDenominator = 2.*asinhc(Math.sqrt((L-dy)*(L+dy)) / dx);
-            this.sDenominator = 2.*asinhc(Math.sqrt(L_minus_dy*(L+dy)) / dx);
+            this.sDenominator = 2.*asinhc(sqrt_L2minusdy2 / dx);
             if (this.sNumerator <= this.sDenominator)
             {
                 this.sNumerator /= this.sDenominator;
@@ -204,40 +205,18 @@ public class Catenary
                 this.sDenominator /= this.sNumerator;
                 this.sNumerator = 1.;
             }
-            double s = this.sNumerator / this.sDenominator; // XXX not robust
+            double s = this.sNumerator / this.sDenominator; // XXX not robust, and still used in a couple of places
             if (verboseLevel >= 1) PRINT(s);
 
             if (true)
             {
-                // TODO: For starters, how do we simply test whether the catenary vertex
-                // is between the endpoints?  Something about dx,dy,slack.
-                // Well, looking at the below, the condition is t0>0
-                // i.e. tMid-L/2>0
-                //   .5 * dy * sqrt(1. + 4.*(s*s)/(L*L - dy*dy)) - L/2 > 0
-                //   dy * sqrt(1. + 4.*(s*s)/(L*L - dy*dy)) > L
-                //   sqrt(1. + 4.*(s*s)/(L*L - dy*dy)) > L/dy
-                //   1. + 4.*(s*s)/(L*L - dy*dy) > L^2/dy^2
-                //   4.*(s*s)/(L*L - dy*dy) > L^2/dy^2 - 1
-                //   4*s*s > (L^2/dy^2 - 1)*(L^2 - dy^2)
-                //         = (L^2 - dy^2)^2 / dy^2
-                //         = (L^2/dy - dy)^2
-                //   2*s > L^2/dy - dy
-                //   s > (L^2/dy - dy)/2
-                //   s > (L^2 - dy^2)/(2*dy)
-                // XXX KEEP GOING (not sure whether this is right)
-                //
-                // START AGAIN:
-                // Seems to me the condition is whether:
-                //   L/s <> sinh(dy/s)
-                //
-
-                // For now, start with the canonical focus case and adjust.
-                // XXX eventually need to move to something more stable
+                // Start with the canonical focus case and adjust.
 
                 this.xFocusDirection = 1.;
                 this.yFocusDirection = 0.;
 
-                double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L*L - dy*dy));
+                //double tMid = .5 * dy * Math.sqrt(1. + 4.*(s*s)/(L2_minus_dy2));
+                double tMid = .5 * dy * Math.hypot(1., + 2.*s/sqrt_L2minusdy2);
                 this.t0 = tMid - L/2.;
                 this.t1 = t0 + L;
                 // If we didn't care about stability:
@@ -247,60 +226,36 @@ public class Catenary
                                    - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
                 this.yFocusInWorld = y0 - (Math.sqrt(this.t0*this.t0 + s*s) - s);
 
-
                 if (this.t0 > 0. || this.t1 < 0.)
                 {
-                    if (verboseLevel >= 1) System.out.println("                              s<=1 subcase: t0="+t0+" t1="+t1+", vertex not in middle, adjusting");
-                    // Adjust to meet validity criteria: t0<=0, t1>=0.
-
-                    // Switch focus from 0 (vertex of catenary) to the closest of the two sample points.
-
-                    double xFocusInWorldOld = this.xFocusInWorld;
-                    double yFocusInWorldOld = this.yFocusInWorld;
-                    double t0Old = this.t0;
-                    double t1Old = this.t1;
-                    if (verboseLevel >= 2) PRINT(xFocusInWorldOld);
-                    if (verboseLevel >= 2) PRINT(yFocusInWorldOld);
-                    if (verboseLevel >= 2) PRINT(t0Old);
-                    if (verboseLevel >= 2) PRINT(t1Old);
-
-                    // Anything with T in it, here,
-                    // is a measurement from the vertex of the canonical catenary.
-                    double TFocusOld = 0.;
-                    double XFocusOld = 0.;
-                    double YFocusOld = 0.;
-                    double T0Old = t0Old / s;
-                    double T1Old = t1Old / s;
-
-                    double TFocusNew = (t0>=0.?t0:t1) / s;
-                    double XFocusNew = MyMath.asinh(TFocusNew);
-                    double YFocusNew = Math.sqrt(SQR(TFocusNew)+1.)-1.;
-
-                    double t0New = (T0Old - TFocusNew) * s;
-                    double t1New = (T1Old - TFocusNew) * s;
-                    if (t0>0.)
+                    double tFocusOld;
+                    if (this.t0 > 0.)
                     {
-                        assert_almost_eq(t0New, 0., tol);
-                        t0New = 0.;
+                        // Make x0,y0 the focus
+                        //assert(false); // coverage
+                        tFocusOld = this.t0;
+                        this.t0 = 0.;
+                        this.t1 = L;
+                        this.xFocusInWorld = x0;
+                        this.yFocusInWorld = y0;
                     }
                     else
                     {
-                        assert_almost_eq(t1New, 0., tol);
-                        t1New = 0.;
+                        // Make x1,y1 the focus
+                        //assert(false); // coverage
+                        tFocusOld = this.t1; // before changing this.t1
+                        this.t0 = -L;
+                        this.t1 = 0.;
+                        this.xFocusInWorld = x1;
+                        this.yFocusInWorld = y1;
                     }
-                    double xFocusInWorldNew = xFocusInWorldOld + (XFocusNew-XFocusOld) * s;
-                    double yFocusInWorldNew = yFocusInWorldOld + (YFocusNew-YFocusOld) * s;
-                    double focusSlopeNew = TFocusNew;
-                    double xFocusDirectionNew = 1.;
-                    double yFocusDirectionNew = focusSlopeNew;
+
+                    // slope is tFocusOld/s = tFocusOld*sDenominator / sNumerator.
+                    double xFocusDirectionNew = sNumerator;
+                    double yFocusDirectionNew = sDenominator * tFocusOld;
                     double temp = MyMath.hypot(xFocusDirectionNew, yFocusDirectionNew);
                     xFocusDirectionNew /= temp;
                     yFocusDirectionNew /= temp;
-
-                    this.t0 = t0New;
-                    this.t1 = t1New;
-                    this.xFocusInWorld = xFocusInWorldNew;
-                    this.yFocusInWorld = yFocusInWorldNew;
                     this.xFocusDirection = xFocusDirectionNew;
                     this.yFocusDirection = yFocusDirectionNew;
                 }
