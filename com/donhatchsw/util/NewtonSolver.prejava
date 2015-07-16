@@ -87,6 +87,8 @@ public class NewtonSolver
             if (iIter==0 || !adaptiveFlag) // if haven't already calculated it
                 fun.f(x, fx); // fx = f(x);
 
+            if (debug) PRINTVEC(fx);
+
             VecMath.vmv(error, fx, y);
             double errorLengthSqrd = VecMath.normsqrd(error);
             if (debug) PRINT(errorLengthSqrd);

@@ -112,12 +112,18 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 {
                     inJ[0] = false; // executed even on the way out of a throw
                 }
-                if (verboseLevelFinal >= 2) PRINTMAT(answerJacobian);
+                if (verboseLevelFinal >= 2)
+                {
+                    PRINTMAT(answerJacobian);
+                    PRINT(VecMath.conditionNumber(answerJacobian));
+                    PRINTVEC(VecMath.singularValues(answerJacobian));
+                }
                 if (verboseLevelFinal >= 2) System.out.println("            out J");
             }
             @Override public double eps()
             {
                 // Somewhat dog science:
+                // When using adaptive flag,
                 // 1e-4 makes it freak out and confidence test fail currently (evaluation functions not stabilized).
                 // 1e-6 fixes it but makes it slow down when past the switch (which is the numerically challenging part)
                 // But I think 1e-6 is probably better in general anyway...
@@ -576,7 +582,24 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 com.donhatchsw.compat.ArrayList newtonPath = new com.donhatchsw.compat.ArrayList();
                 catenaryRotated.fitFromMoment(x0,y0, x1,y1, xMoment,yMoment, newtonPath);
                 PRINT(catenaryRotated);
+
                 PRINTARRAY(newtonPath.toArray());
+                if (true)
+                {
+                    newtonPath.add(new double[][] {{Double.NaN,Double.NaN},{Double.NaN,Double.NaN}}); // expedience
+                    FORI (i, newtonPath.size())
+                    {
+                        double entry[][] = (double[][])newtonPath.get(i);
+                        if (entry[0] == null)
+                            entry[0] = new double[] {Double.NaN,Double.NaN}; // expedience
+                        // apparently gnuplot likes inf but not nan :-(
+                        System.out.println("    NEWTON PATH: "
+                                +(Double.isNaN(entry[0][0])?"inf":entry[0][0])+" "
+                                +(Double.isNaN(entry[0][1])?"inf":entry[0][1])+"  "
+                                +(Double.isNaN(entry[1][0])?"inf":entry[1][0])+" "
+                                +(Double.isNaN(entry[1][1])?"inf":entry[1][1]));
+                    }
+                }
 
                 double momentActual[] = new double[2];
                 double x0y0Actual[] = new double[2];

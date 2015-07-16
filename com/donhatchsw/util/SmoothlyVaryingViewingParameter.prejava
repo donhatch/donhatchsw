@@ -534,6 +534,12 @@ public class SmoothlyVaryingViewingParameter
                     // Also see: http://www.maths.manchester.ac.uk/~higham/talks/claode13.pdf
                     //  || a b c d || || d -b -c a || / (ad-bc)^2
                     // So that's: (max row sum) * (max col sum) / det^2
+                    //
+                    // Look like good refs:
+                    //     "Some remarks on matrix norms, condition numbers, and error estimates for linear equations"
+                    //     http://ac.els-cdn.com/0024379583901301/1-s2.0-0024379583901301-main.pdf?_tid=52fc7168-2bf6-11e5-8d32-00000aacb35f&acdnat=1437077446_c65e944cfa64748fcd6662cefaa66868
+                    //     "Estimating matrix condition numbers" (suggestions based on LU)
+                    //     http://www.cs.umd.edu/~oleary/reprints/j07.pdf
                     assert(VecMath.dot(positionDisplacementScaled, basis[1])
                         <= tol);
 
