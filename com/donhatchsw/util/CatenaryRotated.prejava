@@ -158,7 +158,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         catch (Error e)
         {
             // more descriptive error
-            e = new Error("    INTERNAL ERROR: fitMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") failed: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
+            e = new Error("    INTERNAL ERROR: CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") failed: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
             if (XXX_ALLOW_FITFROMMOMENT_FAILURE)
             {
                 System.err.println(e.getMessage());

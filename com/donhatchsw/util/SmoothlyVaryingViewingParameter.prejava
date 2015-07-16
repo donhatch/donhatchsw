@@ -12,7 +12,6 @@ package com.donhatchsw.util;
 * and the actual value will smoothly move towards it,
 * without any instantaneous changes in velocity.
 *
-* TODO: make the separable bail-out configurable; do NOT do it during confidence tests.  actually should we do it at all any more? try-to-do-it-right is supposed to be working better now, right?
 * TODO: make copy ctor instead of saving/restoring state... I think?
 * TODO: get rid of the thousands of lines of mathematica crap that never worked I don't think
 *
@@ -27,7 +26,7 @@ package com.donhatchsw.util;
 * TODO: ooh and they should look like the little spaceship from asteroids, pointing in dir of acceleration?
 * TODO: demo2: lines connecting velocity dots with acceleration dots? not sure
 * TODO: provide api for knowing how long it will take, and maybe even the catenary params if I can come up with a decent parametrization.  A full mathematical function would be nice!
-* TODO: provide api for computing lots of times on planned trip at once, I think? and/or store catenary params so don't need to recompute if nothing changed... ? not sure
+* TODO: provide api for computing lots of times on planned trip at once, I think? and/or store catenary params so don't need to recompute if nothing changed... ? not sure. in any case there should be a way to make demo3 much faster than it is now, but with a mode in which it does all the computations it does now for exercise
 * TODO: work on parametrization and robustness, especially on and near the x axis and especially on and near slack=0
 * TODO: picking should only see things that are visible
 * TODO: the following is resolved... can remove most of the discussion, but could leave in a description of how to convert from/to time-based bounce if desired
