@@ -40,7 +40,7 @@ package com.donhatchsw.util;
 *         focusDirection=(1,0)  represents T0=0,X0=0,Y0=0
 *         focusDirection=(0,1)  represents T0=infinity,X0=infinity,Y0=infinity
 *   - When fitting to two sample points far from the catenary "vertex",
-*     the focus point is chosen to be close to the sample points.
+*     the focus point is chosen to be one of the sample points.
 *   - If the catenary vertex is between the two sample points,
 *     then that is chosen as the focus; i.e. focusDirection=(1,0).
 *     This avoids instability and ambiguity if s is close to 0
