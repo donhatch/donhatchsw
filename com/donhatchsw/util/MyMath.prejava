@@ -171,6 +171,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //                 = exp(X)*(exp(x)-1)
         //                 = exp(X)*expm1(x)
         return expm1(x) * Math.exp(X);
+        // XXX TODO: think about whether we need three args.  seems to me we don't? in which case we don't for sinh and cosh either?
     }
     /** log(X+x)-log(X), accurate even when x is small. */
     public static double
@@ -243,15 +244,15 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //                   = expm1(x)*exp(X) + expm1(-x)*exp(-X)
         if (Math.abs(Xnumerator) <= Math.abs(Xdenominator))
         {
-            // mostly vertical case
+            // mostly horizontal case
             double X = Xnumerator/Xdenominator; // stable in this case
             return exp_difference(X, x)*.5 + exp_difference(-X, -x)*.5; // ordered to prevent overflow
         }
         else
         {
-            // mostly horizontal case
-            System.err.println("WARNING: cosh_difference implemented naively in mostly horizontal case");
-            return Math.cosh(Xnumerator/Xdenominator+x) - Math.cosh(Xnumerator/Xdenominator);
+            // mostly vertical case. actually maybe not important?? hmm, maybe don't need the three args.
+            double X = Xnumerator/Xdenominator; // unstable in this case but not sure it matters XXX think about it
+            return exp_difference(X, x)*.5 + exp_difference(-X, -x)*.5; // ordered to prevent overflow
         }
     }
     /** sinh(X+x)-sinh(X), accurate even when x is small; X may be infinite. */
@@ -264,14 +265,15 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //                   = expm1(x)*exp(X) - expm1(-x)*exp(-X)
         if (Math.abs(Xnumerator) <= Math.abs(Xdenominator))
         {
+            // mostly horizontal case
             double X = Xnumerator/Xdenominator; // stable in this case
             return exp_difference(X, x)*.5 - exp_difference(-X, -x)*.5; // ordered to prevent overflow
         }
         else
         {
-            // mostly horizontal case
-            System.err.println("WARNING: sinh_difference implemented naively in mostly horizontal case");
-            return Math.sinh(Xnumerator/Xdenominator+x) - Math.sinh(Xnumerator/Xdenominator);
+            // mostly vertical case. actually maybe not important?? hmm, maybe don't need the three args.
+            double X = Xnumerator/Xdenominator; // unstable in this case but not sure it matters XXX think about it
+            return exp_difference(X, x)*.5 - exp_difference(-X, -x)*.5; // ordered to prevent overflow
         }
     }
     /** tanh(X+x)-tanh(X), accurate even when x is small; X may be infinite. */
@@ -367,9 +369,9 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             return -asinh_difference(-Tnumerator, Tdenominator, -t);
         }
 
-        double Temp = Math.sqrt(SQR(T+t) + 1.);
-        double temp = Math.sqrt(T*T + 1.);
-        return log1p( t * (1 + ( 2*T + t )/(Temp + temp)) / (T + temp)); // XXX oh no! blows up if T is huge and negative I think
+        double Temp = Math.hypot(T+t, 1.);
+        double temp = Math.hypot(T, 1.);
+        return log1p( t * (1 + ( 2*T + t )/(Temp + temp)) / (T + temp)); // XXX oh no! blows up if T is huge and negative I think.  I may be overthinking all this though.
     }
 
     /** atanh(T+t)-atanh(T), accurate even when t is small. */

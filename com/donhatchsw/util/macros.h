@@ -45,6 +45,7 @@
 #define PRINTARRAY_NONCOMPACT(x) System.out.println("        " + #x + " =\n" + Arrays.toStringNonCompact(x, "        ", "        "))
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
+#define SIGN(x) ((x) < 0 ? -1 : 1)
 #define HYPOTSQRD(a,b) (((a)*(a))+((b)*(b)))
 #define LERP(a,b,t) ((a) + (t)*((b)-(a)))
 #define SMOOTH(timeFrac) ((Math.sin(((timeFrac) - .5) * Math.PI) + 1) / 2)

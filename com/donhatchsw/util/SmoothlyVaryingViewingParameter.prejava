@@ -13816,6 +13816,15 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         //referenceTripTimesInRepaints[i] = .1;
                         //referenceTripTimesInRepaints[i] = .05;
 
+                        if (false) // not sure whether I like this
+                        {
+                            if (i == n-1)
+                            {
+                                // Make the last one a lot faster.
+                                referenceTripTimesInRepaints[i] /= 5.;
+                            }
+                        }
+
                         FORI (j, 3)
                         {
                             points[i*3+j] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
