@@ -151,21 +151,21 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         if (verboseLevel >= 1) System.out.println("              desiredMoment"+VecMath.toString(desiredMoment));
         if (verboseLevel >= 1) System.out.println("              gotMoment"+VecMath.toString(gotMoment));
 
-        if (XXX_ALLOW_FITFROMMOMENT_FAILURE)
-        {
-            try
-            {
-                assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
-            }
-            catch (Error e)
-            {
-                PRINT(e);
-                // but proceed
-            }
-        }
-        else
+        try
         {
             assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
+        }
+        catch (Error e)
+        {
+            // more descriptive error
+            e = new Error("    INTERNAL ERROR: fitMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") failed: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
+            if (XXX_ALLOW_FITFROMMOMENT_FAILURE)
+            {
+                System.err.println(e.getMessage());
+                // but proceed
+            }
+            else
+                throw e;
         }
         if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
     } // fitFromMoment
@@ -564,9 +564,16 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double y1 = testCases[iTestCase][3];
                 double xMoment = testCases[iTestCase][4];
                 double yMoment = testCases[iTestCase][5];
+                PRINT(x0);
+                PRINT(y0);
+                PRINT(x1);
+                PRINT(y1);
+                PRINT(xMoment);
+                PRINT(yMoment);
+
                 CatenaryRotated catenaryRotated = new CatenaryRotated();
                 catenaryRotated.fitFromMoment(x0,y0, x1,y1, xMoment,yMoment);
-
+                PRINT(catenaryRotated);
                 double momentActual[] = new double[2];
                 double x0y0Actual[] = new double[2];
                 double x1y1Actual[] = new double[2];
@@ -577,12 +584,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 catenaryRotated.evaluate(catenaryRotated.t1, x1y1Actual);
                 catenaryRotated.differentiate(catenaryRotated.t0, a0Actual);
                 catenaryRotated.differentiate(catenaryRotated.t1, a1Actual);
-                PRINT(x0);
-                PRINT(y0);
-                PRINT(x1);
-                PRINT(y1);
-                PRINT(xMoment);
-                PRINT(yMoment);
                 PRINTVEC(momentActual);
                 double tol = 1e-12;
                 assert_almost_eq(momentActual[0], xMoment, tol);

@@ -13847,7 +13847,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 //public double distanceBasedBounce = 1.;
                 public double distanceBasedBounce = 0.;
                 public boolean paused = false;
-                public int strategy = STRATEGY_TRY_TO_DO_IT_RIGHT_WITH_SEPARABLE_BAILOUT;
                 public double time = 0.;
                 public Model()
                 {
@@ -13895,7 +13894,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             points[i*3+j] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
                             points[i*3+j].strategy = j==0 ? STRATEGY_SEPARABLE
                                                    : j==1 ? STRATEGY_TWO_PIECE_QUADRATIC
-                                                          : STRATEGY_TRY_TO_DO_IT_RIGHT;
+                                                          : STRATEGY_TRY_TO_DO_IT_RIGHT_WITH_SEPARABLE_BAILOUT;
 
 
                             points[3*i+j].setPosition(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
