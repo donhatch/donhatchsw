@@ -32,18 +32,19 @@ package com.donhatchsw.util;
 *     direction vector of the function at the focus point (both in canonical catenary space
 *     and in world space).
 *     Then nominally,
-*         TFocus = slope = yFocusDirection/xFocusDirection
+*         TFocus = slope = yFocusDirection/xFocusDirection with xFocusDirection >= 0
 *         XFocus = asinh(TFocus)
 *         YFocus = sqrt(TFocus^2+1)-1
 *     In particular:
 *         focusDirection=(0,-1) represents T0=-infinity,X0=-infinity,Y0=infinity
 *         focusDirection=(1,0)  represents T0=0,X0=0,Y0=0
 *         focusDirection=(0,1)  represents T0=infinity,X0=infinity,Y0=infinity
-*   - When fitting to two sample points far from the catenary vertex,
+*   - When fitting to two sample points far from the catenary "vertex",
 *     the focus point is chosen to be close to the sample points.
 *   - If the catenary vertex is between the two sample points,
 *     then that is chosen as the focus; i.e. focusDirection=(1,0).
-*     This avoids instability and ambiguity if s is close to 0.
+*     This avoids instability and ambiguity if s is close to 0
+*     and the catenary piece contains the vertex.
 * Constraints:
 *   sNumerator >= 0
 *   sDenominator >= 0
@@ -51,7 +52,7 @@ package com.donhatchsw.util;
 *   xFocusDirection >= 0 (no sign restriction on y)
 *   xFocusDirection^2 + yFocusDirection^2 = 1
 *   When fitting to two sample points, the focus is the lowest point on the catenary piece.
-*     That is, if the catenary "vertex" lies between the two sample points, the focus point is the vertex;
+*     That is, if the catenary vertex lies between the two sample points, the focus point is the vertex;
 *     i.e. focusDirection=(1,0).
 *     Otherwise the focus is the lower (closer to the vertex) of the two sample points.
 */
