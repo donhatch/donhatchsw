@@ -58,13 +58,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     */
     public void fitFromMoment(double x0, double y0,
                               double x1, double y1,
-                              double xMoment, double yMoment)
+                              double xMoment, double yMoment,
+                              com.donhatchsw.compat.ArrayList newtonPathOut)
     {
         int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
         if (verboseLevel >= 1) System.out.println("              {"+x0+","+y0+", "+x1+","+y1+", "+xMoment+","+yMoment+"},"); // suitable for copying into confidence test
-        com.donhatchsw.compat.ArrayList newtonPath = null; // XXX think about what we want here.  make this a parameter?
 
         double dist = MyMath.hypot(y1-y0, x1-x0);
         double desiredMoment[] = {xMoment, yMoment};
@@ -76,7 +76,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         // We will do a numeric solve for x,y.
         final int verboseLevelFinal = verboseLevel;
         final int fitVerboseLevelFinal = fitVerboseLevel;
-        final com.donhatchsw.compat.ArrayList newtonPathFinal = newtonPath;
+        final com.donhatchsw.compat.ArrayList newtonPathOutFinal = newtonPathOut;
         final boolean inJ[] = {false};
         final double x0final = x0;
         final double y0final = y0;
@@ -94,9 +94,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
                 self.integrate(self.t0, self.t1, answerIntegral);
 
-                if (!inJ[0] && newtonPathFinal != null)
+                if (!inJ[0] && newtonPathOutFinal != null)
                 {
-                    newtonPathFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(answerIntegral)});
+                    newtonPathOutFinal.add(new double[][] {VecMath.copyvec(xy), VecMath.copyvec(answerIntegral)});
                 }
                 if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning answerIntegral="+Arrays.toStringCompact(answerIntegral));
             }
@@ -133,7 +133,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double xInitialGuess = xMoment - xMomentIfZeroSlack;
         double yInitialGuess = yMoment - yMomentIfZeroSlack;
         double xyAnswer[] = {xInitialGuess, yInitialGuess};
-        boolean adaptiveFlag = false; // this makes the TRY_TO_DO_IT_RIGHT plan paths look much better in demo3 (since evaluation functions not stabilized)... but it makes it horribly slow instead of just freaking out!  so, leaving this false; need to fix the problem instead.
+        boolean adaptiveFlag = false; // setting this to true makes the TRY_TO_DO_IT_RIGHT plan paths look much better in demo3 (since evaluation functions not stable yet)... but it makes it horribly slow instead of just freaking out!  so, leaving this false; need to fix the problem instead.
         NewtonSolver.solve(xyAnswer,
                            desiredMoment,
                            fun,
@@ -141,8 +141,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                            1000,
                            adaptiveFlag);
 
-        if (newtonPath != null)
-            newtonPath.add(new double[][]{null, desiredMoment}); // special entry for the target
+        if (newtonPathOut != null)
+            newtonPathOut.add(new double[][]{null, desiredMoment}); // special entry for the target
 
         this.fitFromRectangularCoords(x0,y0, x1,y1, xyAnswer[0], xyAnswer[1], fitVerboseLevelFinal);
         double gotMoment[] = new double[2];
@@ -571,9 +571,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 PRINT(xMoment);
                 PRINT(yMoment);
 
+                XXX_ALLOW_FITFROMMOMENT_FAILURE = true;
                 CatenaryRotated catenaryRotated = new CatenaryRotated();
-                catenaryRotated.fitFromMoment(x0,y0, x1,y1, xMoment,yMoment);
+                com.donhatchsw.compat.ArrayList newtonPath = new com.donhatchsw.compat.ArrayList();
+                catenaryRotated.fitFromMoment(x0,y0, x1,y1, xMoment,yMoment, newtonPath);
                 PRINT(catenaryRotated);
+                PRINTARRAY(newtonPath.toArray());
+
                 double momentActual[] = new double[2];
                 double x0y0Actual[] = new double[2];
                 double x1y1Actual[] = new double[2];

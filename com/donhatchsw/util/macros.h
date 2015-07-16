@@ -22,7 +22,15 @@
 #define assert_nan(x) do { if (!Double.isNaN(x)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #x + " is "+(x)+", expected NaN"); } while (false)
 // Note: the additional "(a)==(b)||" is to make it work correctly for infinities...
 // and causes the args to be evaluated twice.
-#define assert_almost_eq(a,b,tol) do { if (!((a)==(b)||Math.abs((a)-(b))<=tol)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")==(" + #b + ")+-" + #tol + " ("+(a)+" vs. "+(b)+" +- "+(tol)+")"); } while (false)
+#define assert_almost_eq(a,b,tol) \
+    do { \
+        if (!((a)==(b)||Math.abs((a)-(b))<=tol)) \
+            throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " \
+                           +"(" + #a + ")==(" + #b + ")+-" + #tol + "" \
+                           +" ("+(a)+" vs. "+(b)+" +- "+(tol)+")" \
+                           +" (error = "+((a)-(b))+")" \
+                           ); \
+    } while (false)
 
 #define INRANGE(foo,bar,baz) ((foo(bar))&&((bar)baz))
 

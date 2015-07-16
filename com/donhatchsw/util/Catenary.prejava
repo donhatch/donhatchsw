@@ -26,7 +26,7 @@ package com.donhatchsw.util;
 *   y(t) = yFocusInWorld + s*(sqrt((t/s + TFocus)^2 + 1) - 1)
 *        = yFocusInWorld + (sqrt((t + TFocus*s)^2 + s^2) - s)
 * Robustness is achieved, in part, by the following techniques:
-*   - s is represented as a non-negative numerator and a denominator,
+*   - the scale s is represented as a non-negative numerator and a denominator,
 *     either (but not both) of which may be zero, and the max of which is 1.
 *   - TFocus,XFocus,YFocus are represented implicitly by "focusDirection" which is the tangent unit
 *     direction vector of the function at the focus point (both in canonical catenary space
