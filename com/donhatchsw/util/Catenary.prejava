@@ -832,8 +832,20 @@ EOF
                 catenary.fit(x0, y0, x1, y1, slack, fitVerboseLevel);
                 PRINT(catenary);
             }
+
             if (true)
             {
+                // not debugged yet
+                double x0=-7.216449660063518E-16, y0=0.9999999999999999, x1=0.0, y1=0.0, slack=2.220446049250313E-16;
+                Catenary catenary = new Catenary();
+                int fitVerboseLevel = 1;
+                XXX_USE_SIMPLE_PROTECTION = false; // so we really exercise this case
+                catenary.fit(x0, y0, x1, y1, slack, fitVerboseLevel);
+                PRINT(catenary);
+            }
+            if (true)
+            {
+                // not debugged yet
                 double x0=-2.220446049250313E-16, y0=1.0, x1=0.0, y1=-0.0, slack=1.6653345369377348E-16;
                 Catenary catenary = new Catenary();
                 int fitVerboseLevel = 1;
