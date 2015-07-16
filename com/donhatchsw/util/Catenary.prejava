@@ -2,8 +2,7 @@
 package com.donhatchsw.util;
 #include "macros.h" 
 
-import static java.lang.Math.*; // uncomment for quick messing around to get sqrt etc.
-//import static com.donhatchsw.util.MyMath.*; // uncomment for quick messing around to get sqrt etc.
+//import static java.lang.Math.*; // uncomment for quick messing around to get sqrt etc.
 
 /**
 * WORK IN PROGRESS
@@ -206,16 +205,32 @@ public class Catenary
             // sqrt(L^2-dy^2)/dx = sqrt((hypot(dx,dy)+slack)^2 - dy^2) / dx
             //                   = sqrt(dx^2+dy^2 + 2*slack*hypot(dx,ty) + slack^2 - dy^2) / dx
             //                   = sqrt(dx^2 + 2*slack*hypot(dx,dy) + slack^2) / dx
-            // XXX TODO: I see a hole in this I think... it relies on sqrt(dx^2 + something nonnegative)) >= dx,
-            // XXX       but that's not true if dx is so small that dx^2 is zero, and the "something nonnegative" is also zero.  So I think maybe we need to test for that, somehow or other.
-            // XXX       maybe make the special case above be dx^2==0 rather than dx==0?  or just clamp in that case here? (I hate clamping)
-            double L2_minus_dy2 = SQR(dx) + slack*(2*hypot(dx,dy) + slack);
+            //                   = sqrt(1 + 2*slack*hypot(dx,dy)/dx/dx + (slack/dx)^2)
+            //                   = sqrt(1 + 2*slack*hypot(1,dy/dx)/dx + (slack/dx)^2)
+            // XXX TODO: make completely bulletproof; I think dy/dx can still overflow if dy>1 and dx very small
+            double L2_minus_dy2 = SQR(dx) + slack*(2*MyMath.hypot(dx,dy) + slack);
             assert_almost_eq(L2_minus_dy2, L*L - dy*dy, 1e-6);
-            double sqrt_L2minusdy2 = Math.sqrt(L2_minus_dy2);
+            double sqrt_L2minusdy2 = Math.sqrt(L2_minus_dy2); // not used immediately, used farther down
             assert_ge(sqrt_L2minusdy2, dx);
 
+            double sqrt_L2minusdy2__over_dx = Math.sqrt(1. + 2.*slack*MyMath.hypot(1.,dy/dx)/dx + SQR(slack/dx));
+            double sqrt_L2minusdy2__over_dx___naive = Math.sqrt(L*L-dy*dy)/dx;
+            // naive is known to not be very accurate, so use very coarse tolerance to check for blatant errors
+            if (sqrt_L2minusdy2__over_dx___naive < 1.)
+            {
+                // absolute tolerance
+                assert_almost_eq(sqrt_L2minusdy2__over_dx, sqrt_L2minusdy2__over_dx___naive, 1e-3);
+            }
+            else
+            {
+                // relative tolerance
+                // (XXX SVVP demo3 gets values on order of 3e13 here-- maybe that's a problem?)
+                assert_almost_eq(sqrt_L2minusdy2__over_dx/sqrt_L2minusdy2__over_dx___naive, 1., 1e-3);
+            }
+
+
             this.sNumerator = dx;
-            this.sDenominator = 2.*asinhc(sqrt_L2minusdy2 / dx);
+            this.sDenominator = 2.*asinhc(sqrt_L2minusdy2__over_dx);
 
             if (this.sNumerator <= this.sDenominator)
             {
@@ -229,7 +244,7 @@ public class Catenary
             }
             double s = this.sNumerator / this.sDenominator; // XXX not robust, and still used in a couple of places
 
-            // Start with the canonical focus case and adjust.
+            // Start with the canonical focus case (at catenary vertex) and adjust.
 
             this.xFocusDirection = 1.;
             this.yFocusDirection = 0.;
@@ -241,9 +256,11 @@ public class Catenary
 
             // If we didn't care about stability:
             //   this.xFocusInWorld = x0 - s*asinh(t0/s)
-            // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of x0 I guess?
+            // XXX wait a minute, why can't we do that?? I'm confused. why is what I have here any better? it's just computing it at the xMid point instead of at x0 I guess? so maybe that's preferable because it's more symmetric?
+            // XXX if so, why not do it for y too?
             this.xFocusInWorld = (x0+x1)/2.
                                - s*MyMath.asinh(dy/(2.*s*MyMath.sinh(dx/(2.*s))));
+            //this.xFocusInWorld = x0 - s*MyMath.asinh(t0/s);
             this.yFocusInWorld = y0 - (Math.hypot(this.t0, s) - s);
 
 
