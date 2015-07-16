@@ -225,4 +225,6 @@ senddoc: doc
 # wrong, but a dependency on Makefile would cause a lot of pain.
 com/donhatchsw/util/SmoothlyVaryingViewingParameter.class: com/donhatchsw/util/macros.h
 com/donhatchsw/util/MyMath.class: com/donhatchsw/util/macros.h
+com/donhatchsw/util/Catenary.class: com/donhatchsw/util/macros.h
+com/donhatchsw/util/CatenaryRotated.class: com/donhatchsw/util/macros.h
 

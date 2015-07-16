@@ -58,7 +58,7 @@ import static java.lang.Math.*; // uncomment for quick messing around to get sqr
 */
 public class Catenary
 {
-    public static boolean XXX_USE_SIMPLE_PROTECTION = true;
+    public static boolean XXX_USE_SIMPLE_PROTECTION = false;
 
     // Scale s, in range [0,infinity].
     // sNumerator>=0, sDenominator>=0, max(sNumerator,sDenominator)==1.
@@ -81,27 +81,36 @@ public class Catenary
 
     public void assertValid()
     {
-        assert(sNumerator >= 0.);
-        assert(sDenominator >= 0.);
-        assert(Math.max(sNumerator, sDenominator) == 1.);
-        assert(xFocusDirection >= 0); // no restriction on sign of y
-        //PRINT(xFocusDirection);
-        //PRINT(yFocusDirection);
-        //PRINT(MyMath.hypot(xFocusDirection, yFocusDirection));
-        double focusDirectionLengthError = MyMath.hypot(xFocusDirection, yFocusDirection) - 1.;
-        assert(SQR(focusDirectionLengthError) + 1. - 1. == 0.); // implicit tolerance
-
-        assert(t0 <= t1);
-        assert(t0 <= 0.);
-        assert(t1 >= 0.);
-
-        // If focus is not one of the two sample points,
-        // then it must be the catenary vertex
-        // (which is strictly between the two sample points).
-        if (t0 != 0. && t1 != 0.)
+        try
         {
-            assert(xFocusDirection == 1.);
-            assert(yFocusDirection == 0.);
+            assert_ge(sNumerator, 0.);
+            assert_ge(sDenominator, 0.);
+            assert_eq(Math.max(sNumerator, sDenominator), 1.);
+
+            assert_ge(xFocusDirection, 0); // no restriction on sign of y
+            //PRINT(xFocusDirection);
+            //PRINT(yFocusDirection);
+            //PRINT(MyMath.hypot(xFocusDirection, yFocusDirection));
+            double focusDirectionLengthError = MyMath.hypot(xFocusDirection, yFocusDirection) - 1.;
+            assert_eq(SQR(focusDirectionLengthError) + 1. - 1., 0.); // implicit tolerance
+
+            assert_le(t0, t1);
+            assert_le(t0, 0.);
+            assert_ge(t1, 0.);
+
+            // If focus is not one of the two sample points,
+            // then it must be the catenary vertex
+            // (which is strictly between the two sample points).
+            if (t0 != 0. && t1 != 0.)
+            {
+                assert_eq(xFocusDirection, 1.);
+                assert_eq(yFocusDirection, 0.);
+            }
+        }
+        catch (Error e)
+        {
+            // enhance the message with a dump of this catenary
+            throw new Error(e.getMessage() + "; this catenary = "+this);
         }
     }
 
@@ -273,7 +282,17 @@ public class Catenary
 
         }
 
-        assertValid();
+        // NOTE: this calls the subclass's assertValid() (because I don't know how to just make it call ours,
+        // short of having a differently-named private method-- which might actually be a good idea).
+        // So if the subclass is fitting us but has old params that are incompatible with us, it will be bad!
+        try
+        {
+            assertValid();
+        }
+        catch (Error e)
+        {
+            throw new Error(e.getMessage() + "; fit params: (x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
+        }
         if (verboseLevel >= 1) System.out.println("                          this = "+this);
         if (verboseLevel >= 1) System.out.println("                        out Catenary.fit(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack+")");
     } // fit
@@ -519,13 +538,17 @@ public class Catenary
         {
             if (x1 < x0)
             {
-                super.fit(-x0,y0, -x1,y1, slack, verboseLevel);
+                // initialize our members *before* calling fit,
+                // in case fit() calls isValid() which actually calls subclass's
                 this.leftRightFlipped = true;
+                super.fit(-x0,y0, -x1,y1, slack, verboseLevel);
             }
             else
             {
-                super.fit(x0,y0, x1,y1, slack, verboseLevel);
+                // initialize our members *before* calling fit,
+                // in case fit() calls isValid() which actually calls subclass's
                 this.leftRightFlipped = false;
+                super.fit(x0,y0, x1,y1, slack, verboseLevel);
             }
             //PRINT(this.leftRightFlipped);
         }
@@ -714,6 +737,25 @@ EOF
     {
         System.out.println("        in Catenary.confidenceTest");
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
+
+        if (true)
+        {
+            // Some problematic cases dumped from SmoothlyVaryingViewingParameter demo3.
+            // (as of this writing, only loudly problematic if XXX_USE_SIMPLE_PROTECTION is false).
+            {
+                double x0=-1.0, y0=1.7225464241988333E-16, x1=0.0, y1=0.0, slack=8.326672684688674E-17;
+                Catenary catenary = new Catenary();
+                int fitVerboseLevel = 1;
+                XXX_USE_SIMPLE_PROTECTION = false; // so we really exercise this case
+                catenary.fit(x0, y0, x1, y1, slack, fitVerboseLevel);
+                PRINT(catenary);
+            }
+            if (true)
+            {
+                System.out.println("        out Catenary.confidence test (returning prematurely!)");
+                return;
+            }
+        }
 
         //
         // Do nonzero non-infinite cases first, for simplicity.

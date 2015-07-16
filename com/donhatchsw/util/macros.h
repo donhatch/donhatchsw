@@ -12,7 +12,12 @@
 #define unimplemented() do {if (true) throw new Error("Unimplemented at "+__FILE__+"("+__LINE__+")"); } while (false)
 
 // NOTE: this causes a,b to be evaluated twice on failure, so is not ideal. might be better to do a block... ?
-#define assert_eq(a,b) do { if (!((a)==(b))) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")==(" + #b + ") ("+(a)+" vs. "+(b)+")"); } while (false)
+#define assert_op(a,op,b) do { if (!((a)op(b))) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")" + #op + "(" + #b + ") ("+(a)+" vs. "+(b)+")"); } while (false)
+#define assert_eq(a,b) assert_op(a,==,b)
+#define assert_le(a,b) assert_op(a,<=,b)
+#define assert_ge(a,b) assert_op(a,>=,b)
+#define assert_lt(a,b) assert_op(a,<,b)
+#define assert_gt(a,b) assert_op(a,>,b)
 #define assert_nan(x) do { if (!Double.isNaN(x)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #x + " is "+(x)+", expected NaN"); } while (false)
 // Note: the additional "(a)==(b)||" is to make it work correctly for infinities...
 // and causes the args to be evaluated twice.

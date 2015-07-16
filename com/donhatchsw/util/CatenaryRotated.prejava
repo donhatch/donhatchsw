@@ -219,6 +219,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double y0Unrotated = yPartOfUnrotated(this.cosRotation, this.sinRotation, x0, y0);
         double x1Unrotated = xPartOfUnrotated(this.cosRotation, this.sinRotation, x1, y1);
         double y1Unrotated = yPartOfUnrotated(this.cosRotation, this.sinRotation, x1, y1);
+        // Note that when fit is done it will call our isValid() (which is admittedly odd)
+        // so our cosRotation and sinRotation, as well as the FlippedMaybe members,
+        // had better be valid.
         super.fit(x0Unrotated, y0Unrotated, 
                   x1Unrotated, y1Unrotated,
                   slack,
