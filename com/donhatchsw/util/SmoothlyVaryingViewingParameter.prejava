@@ -13864,10 +13864,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     colors = new java.awt.Color[n*3];
                     FORI (i, n)
                     {
-                        // Uniformly spaced speeds in log space, between 1 and 100
+                        // Uniformly spaced speeds in log space, between 1 and 200
                         // (in pixels per frame).
                         double minDistance = 1.;
-                        double maxDistance = 100.;
+                        double maxDistance = 200.;
                         double frac = i/(n-1.); // uniform from 0 to 1 inclusive
                         referenceTripDistancesInPixels[i] = minDistance
                                                           * Math.pow(maxDistance/minDistance,

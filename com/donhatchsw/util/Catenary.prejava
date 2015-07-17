@@ -832,7 +832,7 @@ EOF
                 PRINT(catenary);
             }
 
-            if (true)
+            if (false)
             {
                 System.out.println("        out Catenary.confidence test (returning prematurely!)");
                 return;
