@@ -211,7 +211,7 @@ public class Catenary
                 //                   = sqrt(dx^2 + 2*slack*hypot(dx,dy) + slack^2) / dx
                 //                   = sqrt(1 + 2*slack*hypot(dx,dy)/dx/dx + (slack/dx)^2)
                 //                   = sqrt(1 + 2*slack*hypot(1,dy/dx)/dx + (slack/dx)^2)
-                // XXX TODO: make completely bulletproof; I think dy/dx can still overflow if dy>1 and dx very small
+                // XXX TODO: make completely bulletproof; I think dy/dx can still overflow if dy>1 and dx very small?
                 double L2_minus_dy2 = SQR(dx) + slack*(2*MyMath.hypot(dx,dy) + slack);
                 assert_almost_eq(L2_minus_dy2, L*L - dy*dy, 1e-6);
                 double sqrt_L2minusdy2 = Math.sqrt(L2_minus_dy2); // not used immediately, used farther down
@@ -219,17 +219,29 @@ public class Catenary
 
                 double sqrt_L2minusdy2__over_dx = Math.sqrt(1. + 2.*slack*MyMath.hypot(1.,dy/dx)/dx + SQR(slack/dx));
                 double sqrt_L2minusdy2__over_dx___naive = Math.sqrt(L*L-dy*dy)/dx;
-                // naive is known to not be very accurate, so use very coarse tolerance to check for blatant errors
-                if (sqrt_L2minusdy2__over_dx___naive < 1.)
+                if (verboseLevel >= 1) System.out.println("                            sqrt_L2minusdy2__over_dx___naive = "+sqrt_L2minusdy2__over_dx___naive);
+                if (verboseLevel >= 1) System.out.println("                            sqrt_L2minusdy2__over_dx = "+sqrt_L2minusdy2__over_dx);
+                if (verboseLevel >= 1) System.out.println("                            python or wolframalpha this (naive): sqrt(1 + 2*"+slack+"*hypot(1,"+dy+"/"+dx+")/"+dx+"+("+slack+"/"+dx+")**2)");
+                if (verboseLevel >= 1) System.out.println("                            python or wolframalpha this (smart): sqrt((sqrt(("+dx+")**2+("+dy+")**2)+"+slack+")**2 - ("+dy+")**2)/"+dx+"");
+                // wolframalpha is being weird-- it refuses to offer more digits if I use hypot instead of sqrt,
+                // and it *still* doesn't offer more digits unless I pad the .99999999 with at least one zero.
+
+                // The naive answer is just hopelessly wrong in high-tension cases,
+                // so only assert something if it's got some non-negligible slack.
+                if (slack >= 1e-3)
                 {
-                    // absolute tolerance
-                    assert_almost_eq(sqrt_L2minusdy2__over_dx, sqrt_L2minusdy2__over_dx___naive, 1e-3);
-                }
-                else
-                {
-                    // relative tolerance
-                    // (XXX SVVP demo3 gets values on order of 3e13 here-- maybe that's a problem?)
-                    assert_almost_eq(sqrt_L2minusdy2__over_dx/sqrt_L2minusdy2__over_dx___naive, 1., 1e-3);
+                    // naive is known to not be very accurate, so use very coarse tolerance to check for blatant errors
+                    if (sqrt_L2minusdy2__over_dx___naive < 1.)
+                    {
+                        // absolute tolerance
+                        assert_almost_eq(sqrt_L2minusdy2__over_dx, sqrt_L2minusdy2__over_dx___naive, 1e-3);
+                    }
+                    else
+                    {
+                        // relative tolerance
+                        // (XXX SVVP demo3 gets values on order of 3e13 here-- maybe that's a problem?)
+                        assert_almost_eq(sqrt_L2minusdy2__over_dx/sqrt_L2minusdy2__over_dx___naive, 1., 1e-3);
+                    }
                 }
 
 
@@ -929,7 +941,7 @@ EOF
                                       + MyMath.hypot(intervalSizeOnCanonical,
                                                      MyMath.cosh_difference(X0,1., intervalSizeOnCanonical)));
                         // TODO: can still do better when intervalSizeOnCanonical is small, I think: the 2*coshm1(x) cancels with x^2 when x is small.
-                        // for first test case: in python or mathematica: (sinh(5)-sinh(4)) - sqrt((5-4)**2 + (cosh(5)-cosh(4))**2))
+                        // for first test case: in python or wolframalpha: (sinh(5)-sinh(4)) - sqrt((5-4)**2 + (cosh(5)-cosh(4))**2))
                         PRINT(SlackNaive);
                         PRINT(Slack+0000); // pad to line up
 

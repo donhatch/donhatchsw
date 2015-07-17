@@ -176,7 +176,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double yInitialGuess = yMoment - yMomentIfZeroSlack;
         double xyAnswer[] = {xInitialGuess, yInitialGuess};
         boolean adaptiveFlag = false; // setting this to true makes the TRY_TO_DO_IT_RIGHT plan paths look much better in demo3 (since evaluation functions not stable yet)... but it makes it horribly slow instead of just freaking out!  so, leaving this false; need to fix the problem instead.
-        boolean amoebaFlag = true; // XXX make this configurable?
+        boolean amoebaFlag = false; // XXX make this configurable?
         if (amoebaFlag)
         {
             int maxIterations = 1000;
