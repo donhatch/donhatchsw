@@ -232,9 +232,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     {
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
         double slack = MyMath.hypot(x, y);
+
         assert(slack >= 0.); // XXX I've seen this fail, in demo3, but I guess that must mean there's nans coming in? at least I think it's here that is failing
         /*
-            XXX actually I think the following was when adaptiveFlag was turned on for newton
+            XXX actually I think the following was when adaptiveFlag was turned on for newton.  transfer it to a confidence test
             OH NO! SOMETHING AWFUL HAPPENED!
                     this.position = <736.56792077277,161.47365152524412>
                     this.velocity = <4.709008819183118,-0.07610513206341617>
@@ -273,6 +274,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double sinDownAngle = Math.sin(downAngle);
         // note cosDownAngle,sinDownAngle are just x,y normalized, robustly.
         // if I had a robust normalization function that I trusted, I'd use that instead.
+
+        // TODO: can we do some downAngle-dependent scaling of slack, so that jacobian is well-behaved everywhere?
+
         this.fitFromPolarCoords(x0,y0, x1,y1, slack, cosDownAngle, sinDownAngle, verboseLevel);
         if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
     } // fitFromRectangularCoords
@@ -398,6 +402,50 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         // Test utilities for integrals
 
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
+
+        if (false) // XXX make this legit maybe. would sure like to know what the shape of these curves are, at least locally
+        {
+            // Dump some curves.
+            //
+            //double downAngle = 0.;      // (x+2.)**2/4-2.**2/4
+            //double downAngle = Math.PI/18;
+            //double downAngle = Math.PI/8;
+            //double downAngle = Math.PI/4;
+            //double downAngle = Math.PI/2.; // pretty close to: sqrt(x)*.29 + (x+1.)**2/4 - 1.**2/4.    says gnuplot.  .29 changes to .25 when big,  to .31 when small
+            //                  plot [-q:q] [-q:q]  "RMME090" with lines, x**2/4, (x+2)**2/4-1,  sqrt(x)*.33 + (x+2.)**2/4 - 2.**2/4, "RMME090" using ($1):($2 - $1**2/4 - $1/2) with lines, 0, x**.39*.24
+            //                  bleah, fumbling around in the dark.
+            //double downAngle = Math.PI*3/4.;
+            double downAngle = Math.PI*7/8.;
+            //double downAngle = Math.PI; // (x+0)**2/4 - 0.**2/4
+            //double downAngle = Math.PI*3/2.;
+            int n = 10000;
+            double maxSlack = 10.;
+
+            double cosDownAngle = Math.cos(downAngle);
+            double sinDownAngle = Math.sin(downAngle);
+            int verboseLevel = 0;
+            double x0 = 0.;
+            double y0 = 0.;
+            double x1 = 1.;
+            double y1 = 0.;
+            double p0[] = {x0,y0};
+            double p1[] = {x1,y1};
+            double pCenter[] = VecMath.lerp(p0,p1,.5);
+            CatenaryRotated catenaryRotated = new CatenaryRotated(); // scratch
+            double integral[] = new double[2]; // scratch
+            for (int i = 0; i < n; ++i)
+            {
+                double slack = maxSlack*i/n;
+                catenaryRotated.fitFromPolarCoords(x0,y0, x1,y1, slack, cosDownAngle, sinDownAngle, verboseLevel);
+                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, integral);
+                System.out.println(slack+" "+VecMath.dist(integral, pCenter));
+            }
+            if (true)
+            {
+                System.out.println("WARNING: Exiting prematurely!");
+                System.exit(1);
+            }
+        }
 
 
         if (true)
