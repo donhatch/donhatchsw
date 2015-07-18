@@ -65,7 +65,8 @@ public class NewtonSolver
                              Fun fun,
                              int minIterations, // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm. actually should make it smart and adaptive I think.
                              int maxIterations,
-                             boolean adaptiveFlag)
+                             boolean adaptiveFlag,
+                             com.donhatchsw.compat.ArrayList theStory) // experimental.  actually pretty silly, should just dump a text file instead of going through all these contortions.
     {
         boolean debug = false;
         if (debug) System.out.println("    in solve(x="+VecMath.toString(x)+", y="+VecMath.toString(y)+", maxIterations="+maxIterations+", adaptiveFlag="+adaptiveFlag);
@@ -93,6 +94,7 @@ public class NewtonSolver
             double errorLengthSqrd = VecMath.normsqrd(error);
             if (debug) PRINT(errorLengthSqrd);
             if (debug) PRINT(Math.sqrt(errorLengthSqrd));
+
             if (Double.isNaN(errorLengthSqrd) || Double.isInfinite(errorLengthSqrd))
             {
                 if (debug) System.out.println("    out solve (NaN or infinite)");
@@ -132,6 +134,76 @@ public class NewtonSolver
             VecMath.invmxv(fullCorrection,
                            Jx,
                            VecMath.vmv(y, fx)); // XXX wait a minute, isn't that -error?
+
+            if (theStory != null)
+            {
+                assumpt(dim == 2); // XXX make it more general
+
+                double scale = .01;
+                double subdiv = 4;
+
+                double invJ[][] = VecMath.invertmat(Jx);
+
+                // Add a picture of the local coord system at x, and at y
+                for (int i = 0; i < subdiv+0; ++i)
+                {
+                    for (int j = 0; j < subdiv+1; ++j)
+                    {
+                        double p[] = {x[0] + scale*i/subdiv, x[1] + scale*j/subdiv};
+                        double q[] = {fx[0] + scale*i/subdiv, fx[1] + scale*j/subdiv};
+                        theStory.add(Arrays.concat(p, q));
+                    }
+                    theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+                }
+                for (int j = 0; j < subdiv+0; ++j)
+                {
+                    for (int i = 0; i < subdiv+1; ++i)
+                    {
+                        double p[] = {x[0] + scale*i/subdiv, x[1] + scale*j/subdiv};
+                        double q[] = {fx[0] + scale*i/subdiv, fx[1] + scale*j/subdiv};
+                        theStory.add(Arrays.concat(p, q));
+                    }
+                    theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+                }
+
+                // Add a picture of the image and inverse image
+                for (int i = 0; i < subdiv+0; ++i)
+                {
+                    for (int j = 0; j < subdiv+1; ++j)
+                    {
+                        double p[] = VecMath.vpsxvpsxv(x, scale*i/subdiv, invJ[0], scale*j/subdiv, invJ[1]);
+                        double q[] = VecMath.vpsxvpsxv(fx, scale*i/subdiv, Jx[0], scale*j/subdiv, Jx[1]);
+                        theStory.add(Arrays.concat(q, p));
+                    }
+                    theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+                }
+
+                for (int j = 0; j < subdiv+0; ++j)
+                {
+                    for (int i = 0; i < subdiv+1; ++i)
+                    {
+                        double p[] = VecMath.vpsxvpsxv(x, scale*i/subdiv, invJ[0], scale*j/subdiv, invJ[1]);
+                        double q[] = VecMath.vpsxvpsxv(fx, scale*i/subdiv, Jx[0], scale*j/subdiv, Jx[1]);
+                        theStory.add(Arrays.concat(q, p));
+                    }
+                    theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+                }
+
+                // Add a zinger from current point to target
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, fx[0], fx[1]});
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, y[0], y[1]});
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, x[0], x[1]});
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, x[0]+fullCorrection[0], x[1]+fullCorrection[1]});
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+
+                // visual markers
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+                theStory.add(new double[] {Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY});
+            }
+
             if (!adaptiveFlag)
             {
                 // Naive implementation
@@ -187,7 +259,7 @@ public class NewtonSolver
             double x[] = {9}; // initial guess
             double y[] = {100};
 
-            solve(x, y, fun, 10, 1000, false);
+            solve(x, y, fun, 10, 1000, false, null);
         }
         {
             // find x0,x1 such that {x0*x0,x0*x1} == {100,200}
@@ -202,7 +274,7 @@ public class NewtonSolver
             double x[] = {5,25}; // initial guess
             double y[] = {100,200};
 
-            solve(x, y, fun, 10, 1000, false);
+            solve(x, y, fun, 10, 1000, false, null);
         }
         // XXX TODO: exercise adaptiveFlag
         System.out.println("    out NewtonSolver.main");

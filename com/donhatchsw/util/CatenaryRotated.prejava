@@ -177,6 +177,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double xyAnswer[] = {xInitialGuess, yInitialGuess};
         boolean adaptiveFlag = false; // setting this to true makes the TRY_TO_DO_IT_RIGHT plan paths look much better in demo3 (since evaluation functions not stable yet)... but it makes it horribly slow instead of just freaking out!  so, leaving this false; need to fix the problem instead.
         boolean amoebaFlag = false; // XXX make this configurable?
+        final com.donhatchsw.compat.ArrayList theStory = new com.donhatchsw.compat.ArrayList();
         if (amoebaFlag)
         {
             int maxIterations = 1000;
@@ -193,7 +194,22 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                fun,
                                10,
                                1000,
-                               adaptiveFlag);
+                               adaptiveFlag,
+                               theStory);
+
+        if (theStory != null)
+        {
+            double theStoryArray[][] = (double[][])theStory.toArray(new double[theStory.size()][]);
+            for (int i = 0; i < theStoryArray.length; ++i)
+            {
+                System.out.print("    THE STORY: ");
+                for (int j = 0; j < theStoryArray[i].length; ++j)
+                {
+                    System.out.print(" "+theStoryArray[i][j]);
+                }
+                System.out.println();
+            }
+        }
 
         if (newtonPathOut != null)
             newtonPathOut.add(new double[][]{null, desiredMoment}); // special entry for the target
