@@ -392,9 +392,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
        return sb.toString();
     }
 
-    public static void main(String args[])
+    public static void confidenceTests()
     {
-        System.out.println("    in CatenaryRotated.main");
+        System.out.println("    in confidenceTests");
+
+
+
+
         // Test utilities for integrals
 
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
@@ -678,7 +682,499 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             }
         }
 
-        System.out.println("    out CatenaryRotated.main");
-    } // main
+        System.out.println("    out confidenceTests");
+    } // confidenceTests
+
+    public static void interactiveDemo1()
+    {
+        final int eventVerbose = 0; // set to something else to debug
+        java.awt.Canvas canvas = new java.awt.Canvas() {
+
+            // Make it so we get keyboard focus on startup,
+            // without having to click first.  Thanks, Melinda!
+            public boolean isFocusTraversable()
+            {
+                return true;
+            }
+
+            class Model
+            {
+#if 0
+                public SmoothlyVaryingViewingParameter points[];
+                public double referenceTripDistancesInPixels[];
+                public double referenceTripTimesInRepaints[];
+                public java.awt.Color colors[];
+                //public double distanceBasedBounce = .53; // zeroing in on threshold of whether it does or doesn't settle, for QUADRATIC
+                //public double distanceBasedBounce = 1.;
+                public double distanceBasedBounce = 0.;
+                public boolean paused = false;
+                public double time = 0.;
+                public Model()
+                {
+                    int n = 10;
+                    //int n = 2;
+                    points = new SmoothlyVaryingViewingParameter[n*3];
+                    referenceTripDistancesInPixels = new double[n];
+                    referenceTripTimesInRepaints = new double[n];
+                    colors = new java.awt.Color[n*3];
+                    FORI (i, n)
+                    {
+                        // Uniformly spaced speeds in log space, between 1 and 200
+                        // (in pixels per frame).
+                        double minDistance = 1.;
+                        double maxDistance = 200.;
+                        double frac = i/(n-1.); // uniform from 0 to 1 inclusive
+                        referenceTripDistancesInPixels[i] = minDistance
+                                                          * Math.pow(maxDistance/minDistance,
+                                                                     frac);
+                        //referenceTripTimesInRepaints[i] = 2.;
+                        referenceTripTimesInRepaints[i] = 1.;
+                        //referenceTripTimesInRepaints[i] = .5;
+                        //referenceTripTimesInRepaints[i] = .25;
+                        //referenceTripTimesInRepaints[i] = .2;
+                        //referenceTripTimesInRepaints[i] = .19;
+                        //referenceTripTimesInRepaints[i] = .18;
+                        //referenceTripTimesInRepaints[i] = .15;
+                        //referenceTripTimesInRepaints[i] = .14;
+                        //referenceTripTimesInRepaints[i] = .13;
+                        //referenceTripTimesInRepaints[i] = .12;
+                        //referenceTripTimesInRepaints[i] = .1;
+                        //referenceTripTimesInRepaints[i] = .05;
+
+                        if (false) // not sure whether I like this
+                        {
+                            if (i == n-1)
+                            {
+                                // Make the last one a lot faster.
+                                referenceTripTimesInRepaints[i] /= 5.;
+                            }
+                        }
+
+                        FORI (j, 3)
+                        {
+                            points[i*3+j] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
+                            points[i*3+j].strategy = j==0 ? STRATEGY_SEPARABLE
+                                                   : j==1 ? STRATEGY_TWO_PIECE_QUADRATIC
+                                                          : STRATEGY_TRY_TO_DO_IT_RIGHT_WITH_SEPARABLE_BAILOUT;
+
+
+                            points[3*i+j].setPosition(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
+                            points[3*i+j].setVelocity(new double[]{0,.25}); // northward a bit
+
+                            if (true)
+                            {
+                                // debug pure diagonal motion.  WTF, this makes the bounce not happen for separable??
+                                points[3*i+j].setPosition(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bogus bounce doesn't happen!
+                                points[3*i+j].setPosition(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].setPosition(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].setPosition(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
+                                points[3*i+j].setVelocity(new double[]{0.,0.});
+                                // after window resize, target will be set to window center.
+                            }
+                            float hue = i/(n-1.f);
+                            float sat = j==0 ? .2f : j==1 ? .45f : j==2 ? 1.f : 0.f;
+                            float val = 1.f;
+                            float rgb[] = new float[3];
+                            HSVtoRGB(hue,sat,val,rgb);
+                            colors[i*3+j] = new java.awt.Color(rgb[0],rgb[1],rgb[2]);
+                        }
+                    }
+                } // Model ctor
+                public void evolve(double dt)
+                {
+                    int N = points.length;
+                    int n = N/3;
+                    FORI (I, N)
+                    {
+                        int i = I/3;
+                        int j = i%3;
+                        //PRINTSUB(referenceTripDistancesInPixels,i);
+                        //PRINTSUB(referenceTripTimesInRepaints,i);
+                        // XXX huh? what is that 10000, fudge? so the numbers aren't what they claim tobe?
+                        points[I].evolve(referenceTripDistancesInPixels[i]/10000.,
+                                         referenceTripTimesInRepaints[i],
+                                         dt,
+                                         distanceBasedBounce);
+                    }
+                    time += dt;
+                }
+#endif // 0
+            } // class Model
+            class View
+            {
+                // Really viewing params (could separate into ViewParams and ViewState)...
+                boolean antialiasFlag = true;
+
+                int nPaintsDone = 0;
+            }
+            class Controller
+            {
+            }
+            private Model model = new Model();
+            private View view = new View();
+            private Controller controller = new Controller();
+            private com.donhatchsw.awt.MyGraphics mostRecentGraphics = null;
+
+
+            // SIZE (demo1)
+            public java.awt.Dimension getPreferredSize()
+            {
+                //return new java.awt.Dimension(850,850);
+                return new java.awt.Dimension(400,400);
+                //return new java.awt.Dimension(200,200);
+            }
+
+
+
+
+            private java.awt.Image backBuffer = null;
+            private java.awt.Dimension backBufferSize = null;
+
+            public void update(java.awt.Graphics g) { paint(g); } // don't flash
+            // PAINT (demo1)
+            public void paint(java.awt.Graphics frontBufferGraphics)
+            {
+                if (eventVerbose >= 2) System.out.println("    in paint");
+
+                java.awt.Dimension size = size();
+                int w = size.width, h = size.height;
+                if (backBuffer == null
+                 || !size.equals(backBufferSize))
+                {
+                    System.out.println("    creating back buffer of size "+w+"x"+h+"");
+                    backBuffer = this.createImage(w, h);
+                    backBufferSize = size;
+                }
+                java.awt.Graphics g = backBuffer.getGraphics();
+                if (false)
+                    g = frontBufferGraphics; // make it single buffered
+
+                if (view.antialiasFlag)
+                    ((java.awt.Graphics2D)g).setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                                                              java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+                else
+                    ((java.awt.Graphics2D)g).setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,
+                                                              java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
+
+                int minSize = Math.min(w,h);
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
+                                               .5,w-.5,
+                                               .5,h-.5);
+
+                // Clear to black
+                if (g != frontBufferGraphics) // if not single buffered
+                {
+                    mg.setColor(java.awt.Color.black);
+                    mg.fillWindow();
+                }
+
+
+                //
+                // Evolve.
+                //
+#if 0
+                if (!model.paused)
+                    model.evolve(1.); // dt, in repaints
+#endif
+
+
+                //
+                // Draw.
+                //
+#if 0
+                double position[] = new double[2];
+                double velocity[] = new double[2];
+                double acceleration[] = new double[2];
+                double observedAcceleration[] = new double[2];
+                int N = model.points.length;
+                int n = N/3;
+
+                //FORI (i, n) // slower first, so faster on top
+                FORIDOWN (i, n) // faster first, so slower on top
+                {
+                    FORI (j, 3) // separable first, so try_to_do_it_right on top
+                    //FORIDOWN (j, 3) // try_to_do_it_right first, so separable on top
+                    {
+                        int I = 3*i+j;
+                        // Even point sizes, target lands nicely on a pixel corner
+                        // when it's an integer, which it generally is.
+
+                        //int pointSize = 2*i + 1; // 1, 3, 5, ...
+                        //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
+                        //int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
+                        //int pointSize = 2*i + 2; // 2, 4, 6, ...
+                        int pointSize = 2*i + 2; // 2, 4, 6, ...
+
+                        model.points[I].get(position);
+                        model.points[I].getVelocity(velocity);
+                        model.points[I].getAcceleration(acceleration);
+                        model.points[I].getObservedAcceleration(observedAcceleration);
+                        //PRINTVEC(acceleration);
+                        //PRINTVEC(observedAcceleration);
+                        mg.setColor(model.colors[I]);
+                        // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
+                        mg.drawHollowPoint(position[0]+.5,
+                                           position[1]+.5,
+                                           pointSize);
+
+                        double accelerationVisualScale = 20.;
+                        double a = 4*model.referenceTripDistancesInPixels[i]/10000.
+                                   / SQR(model.referenceTripTimesInRepaints[i]);
+                        accelerationVisualScale /= a;
+                        // So should all come out same length on screen.
+                        // Note that we could accomplish that by just normalizing to that
+                        // length... but the existing method is kind of a sanity check.
+
+                        assert(Double.isNaN(acceleration[0])
+                            == Double.isNaN(acceleration[1]));
+                        if (!Double.isNaN(acceleration[0])
+                         && VecMath.normsqrd(acceleration) != 0.)
+                        {
+                            mg.drawLine(position[0]+.5,
+                                        position[1]+.5,
+                                        position[0]+.5-acceleration[0]*accelerationVisualScale,
+                                        position[1]+.5-acceleration[1]*accelerationVisualScale);
+                            // And the observed acceleration, half as big.
+                            // If things are working correctly, this should be in
+                            // almost exactly the same direction as the actual acceleration,
+                            // so should not not be noticeable.
+                            mg.drawLine(position[0]+.5,
+                                        position[1]+.5,
+                                        position[0]+.5-observedAcceleration[0]*accelerationVisualScale*.5,
+                                        position[1]+.5-observedAcceleration[1]*accelerationVisualScale*.5);
+                        }
+                        if (I >= N-view.nPlansToShow)
+                        {
+                            com.donhatchsw.compat.ArrayList plannedPositions = new com.donhatchsw.compat.ArrayList();
+                            com.donhatchsw.compat.ArrayList plannedAccelerations = new com.donhatchsw.compat.ArrayList();
+
+                            SmoothlyVaryingViewingParameter scratchPoint = new SmoothlyVaryingViewingParameter(model.points[I]);
+
+                            double savedPosition[] = new double[2];
+                            double savedVelocity[] = new double[2];
+                            // save position and velocity
+                            scratchPoint.get(savedPosition);
+                            scratchPoint.getVelocity(savedVelocity);
+
+                            int skip = 5;
+                            for (; scratchPoint.isMoving(); nTimestepsInFuture += skip)
+                            {
+                                // restore position and velocity for before evolve
+                                // (evolve doesn't use prior accelerations so don't bother with those)
+                                scratchPoint.setVelocity(savedVelocity);
+                                scratchPoint.setPosition(savedPosition);
+                                scratchPoint.evolve(model.referenceTripDistancesInPixels[i]/10000.,
+                                                       model.referenceTripTimesInRepaints[i],
+                                                       nTimestepsInFuture*1., // dt, in repaints
+                                                       model.distanceBasedBounce);
+                                double plannedPosition[] = new double[2];
+                                double plannedAcceleration[] = new double[2];
+                                scratchPoint.get(plannedPosition);
+                                plannedPositions.add(plannedPosition);
+                                scratchPoint.getAcceleration(plannedAcceleration);
+                                plannedAccelerations.add(plannedAcceleration);
+                            }
+
+                            for (int iPlan = 0; iPlan < plannedPositions.size(); ++iPlan)
+                            {
+                                double plannedPosition[] = (double[])plannedPositions.get(iPlan);
+                                double plannedAcceleration[] = (double[])plannedAccelerations.get(iPlan);
+                                mg.drawHollowPoint(plannedPosition[0]+.5,
+                                                   plannedPosition[1]+.5,
+                                                   2);
+                                if (view.showPlanAccelerationsFlag)
+                                {
+                                    mg.drawLine(plannedPosition[0]+.5,
+                                                plannedPosition[1]+.5,
+                                                plannedPosition[0]+.5-plannedAcceleration[0]*accelerationVisualScale,
+                                                plannedPosition[1]+.5-plannedAcceleration[1]*accelerationVisualScale);
+                                }
+                            }
+                        } // if I >= nPlansToShow
+                     } // for j
+                } // for i
+#endif
+
+                //
+                // If anything's still moving, make paint get called again
+                //
+#if 0
+                if (!model.paused)
+                {
+                    boolean someoneIsStillMoving = false;
+                    FORI (I, N)
+                    {
+                        if (model.points[I].isMoving())
+                        {
+                            someoneIsStillMoving = true;
+                            break;
+                        }
+                    }
+                    if (someoneIsStillMoving)
+                        repaint();
+                    else
+                    {
+                        // XXX should do this iff verboseLevel >= 0 ... but currently verboseLevel isn't accessible from here. need to straighten out my thinking
+                        //System.out.println("================================================================================================================");
+                    }
+                }
+#endif
+
+
+
+
+                view.nPaintsDone++;
+                //if (viewParams.showNumPaintsDone.get())
+                {
+                    g.setColor(java.awt.Color.white);
+                    java.awt.Dimension viewSize = getSize(); // getWidth,getHeight don't exist in 1.1
+                    int W = viewSize.width;
+                    int H = viewSize.height;
+                    com.donhatchsw.awt.MyGraphics mgTemp = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
+                    mgTemp.drawString("("+view.nPaintsDone+" paint"+(view.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.);
+                }
+
+                if (g != frontBufferGraphics)
+                    frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
+                mostRecentGraphics = mg;
+
+
+                if (eventVerbose >= 2) System.out.println("    out paint");
+            } // paint
+            {
+                addKeyListener(new java.awt.event.KeyAdapter() {
+                    public void keyPressed(java.awt.event.KeyEvent e)
+                    {
+                        boolean controlIsDown = ((e.getModifiers() & java.awt.event.InputEvent.CTRL_MASK) != 0);
+                        int keyCode = e.getKeyCode();
+                        char c = e.getKeyChar();
+                        if (eventVerbose >= 1) System.out.println("    in keyPressed, keyEvent = "+e+" keyChar = (char)"+(int)c+"");
+
+                        if (false) {}
+                        else if (keyCode == java.awt.event.KeyEvent.VK_LEFT)
+                        {
+                        }
+                        else if (keyCode == java.awt.event.KeyEvent.VK_RIGHT)
+                        {
+                        }
+                        else if (keyCode == java.awt.event.KeyEvent.VK_UP)
+                        {
+                        }
+                        else if (keyCode == java.awt.event.KeyEvent.VK_DOWN)
+                        {
+                        }
+                        else if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
+                        {
+                            // This is the case for things like arrow keys
+                            //System.out.println("CHAR_UNDEFINED");
+                        }
+                        #define CTRL(lowerCaseLetter) ((lowerCaseLetter)-'a'+1)
+                        else if (c == java.awt.event.KeyEvent.VK_ESCAPE
+                              || c == CTRL('c')) // XXX do I want this? should be control panel I think, if I ever make one for this demo1
+                        {
+                            System.out.println("ciao!");
+                            System.exit(0); // asinine way of doing things
+                        }
+                        else if (c == 'h')
+                        {
+                            System.out.println("The following keys do things:");
+                            System.out.println("              h - show this help message");
+                        }
+                        else
+                        {
+                            System.out.println("Huh?");
+                        }
+                    }
+                });
+                addMouseListener(new java.awt.event.MouseListener() {
+                    public void mouseClicked(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseClicked at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseClicked");
+                    }
+                    public void mousePressed(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mousePressed at "+e.getX()+","+e.getY()+"");
+                        // XXX dup code
+                        if (mostRecentGraphics != null)
+                        {
+                            double thisPoint[] = new double[2];
+                            mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+                            if (eventVerbose >= 1) System.out.println("        thisPoint = "+Arrays.toStringCompact(thisPoint));
+                            // do something with it
+                            repaint();
+                        }
+                        if (eventVerbose >= 1) System.out.println("    out mousePressed");
+                    }
+                    public void mouseReleased(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseReleased at "+e.getX()+","+e.getY()+"");
+
+                        if (eventVerbose >= 1) System.out.println("    out mouseReleased");
+                    }
+                    public void mouseEntered(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseEntered at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseEntered");
+                    }
+                    public void mouseExited(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseExited at "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 1) System.out.println("    out mouseExited");
+                    }
+                });
+                addMouseMotionListener(new java.awt.event.MouseMotionListener() {
+                    public void mouseMoved(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 3) System.out.println("    in mouseMoved to "+e.getX()+","+e.getY()+"");
+                        if (eventVerbose >= 3) System.out.println("    out mouseMoved");
+                    }
+                    public void mouseDragged(java.awt.event.MouseEvent e)
+                    {
+                        if (eventVerbose >= 1) System.out.println("    in mouseDragged to "+e.getX()+","+e.getY()+"");
+                        if (mostRecentGraphics != null)
+                        {
+                            double thisPoint[] = new double[2];
+                            mostRecentGraphics.pick(e.getX(), e.getY(), thisPoint);
+                            // do something with it
+                        }
+                        if (eventVerbose >= 1) System.out.println("    out mouseDragged");
+                    }
+                });
+            }
+        }; // canvas
+        canvas.requestFocus(); // seems to be needed initially XXX see whether this is true
+
+        final java.awt.Frame frame = new java.awt.Frame("Optimal Trajectories");
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            public void windowClosing(java.awt.event.WindowEvent we)
+            {
+                frame.dispose();
+                System.out.println("ciao!");
+                System.exit(0); // asinine way of doing things
+            }
+        });
+        frame.setForeground(java.awt.Color.white);
+        frame.setBackground(java.awt.Color.black);
+        frame.add(canvas);
+        frame.pack();
+        frame.show();
+    } // interactiveDemo1
+
+    public static void main(String args[])
+    {
+        System.out.println("in main");
+        if (args.length == 1 && args[0].equals("demo1"))
+            interactiveDemo1();
+        else if (args.length == 1 && args[0].equals("confidenceTests"))
+            confidenceTests();
+        else
+        {
+            System.err.println("Usage: CatenaryRotated [demo|confidenceTests]\n");
+            System.exit(1);
+        }
+
+        System.out.println("out main");
+    }
 
 }  // CatenaryRotated

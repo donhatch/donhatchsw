@@ -14344,7 +14344,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             System.out.println("  up/down arrow - advance/retreat one timestep if paused");
                             System.out.println("        shift-A - toggle antialiasing");
                         }
-                        #define CTRL(lowerCaseLetter) ((lowerCaseLetter)-'a'+1)
                         else
                         {
                             System.out.println("Huh?");
