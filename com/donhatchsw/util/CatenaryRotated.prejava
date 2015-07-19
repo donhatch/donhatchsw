@@ -699,111 +699,18 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
             class Model
             {
-#if 0
-                public SmoothlyVaryingViewingParameter points[];
-                public double referenceTripDistancesInPixels[];
-                public double referenceTripTimesInRepaints[];
-                public java.awt.Color colors[];
-                //public double distanceBasedBounce = .53; // zeroing in on threshold of whether it does or doesn't settle, for QUADRATIC
-                //public double distanceBasedBounce = 1.;
-                public double distanceBasedBounce = 0.;
-                public boolean paused = false;
-                public double time = 0.;
-                public Model()
-                {
-                    int n = 10;
-                    //int n = 2;
-                    points = new SmoothlyVaryingViewingParameter[n*3];
-                    referenceTripDistancesInPixels = new double[n];
-                    referenceTripTimesInRepaints = new double[n];
-                    colors = new java.awt.Color[n*3];
-                    FORI (i, n)
-                    {
-                        // Uniformly spaced speeds in log space, between 1 and 200
-                        // (in pixels per frame).
-                        double minDistance = 1.;
-                        double maxDistance = 200.;
-                        double frac = i/(n-1.); // uniform from 0 to 1 inclusive
-                        referenceTripDistancesInPixels[i] = minDistance
-                                                          * Math.pow(maxDistance/minDistance,
-                                                                     frac);
-                        //referenceTripTimesInRepaints[i] = 2.;
-                        referenceTripTimesInRepaints[i] = 1.;
-                        //referenceTripTimesInRepaints[i] = .5;
-                        //referenceTripTimesInRepaints[i] = .25;
-                        //referenceTripTimesInRepaints[i] = .2;
-                        //referenceTripTimesInRepaints[i] = .19;
-                        //referenceTripTimesInRepaints[i] = .18;
-                        //referenceTripTimesInRepaints[i] = .15;
-                        //referenceTripTimesInRepaints[i] = .14;
-                        //referenceTripTimesInRepaints[i] = .13;
-                        //referenceTripTimesInRepaints[i] = .12;
-                        //referenceTripTimesInRepaints[i] = .1;
-                        //referenceTripTimesInRepaints[i] = .05;
-
-                        if (false) // not sure whether I like this
-                        {
-                            if (i == n-1)
-                            {
-                                // Make the last one a lot faster.
-                                referenceTripTimesInRepaints[i] /= 5.;
-                            }
-                        }
-
-                        FORI (j, 3)
-                        {
-                            points[i*3+j] = new SmoothlyVaryingViewingParameter(new double[]{0,0});
-                            points[i*3+j].strategy = j==0 ? STRATEGY_SEPARABLE
-                                                   : j==1 ? STRATEGY_TWO_PIECE_QUADRATIC
-                                                          : STRATEGY_TRY_TO_DO_IT_RIGHT_WITH_SEPARABLE_BAILOUT;
-
-
-                            points[3*i+j].setPosition(new double[]{0.,200.}); // left side of window, assuming initial window is 400x400
-                            points[3*i+j].setVelocity(new double[]{0,.25}); // northward a bit
-
-                            if (true)
-                            {
-                                // debug pure diagonal motion.  WTF, this makes the bounce not happen for separable??
-                                points[3*i+j].setPosition(new double[]{0.,0.}); // lower-left corner of window-- pure diagonal.  bogus bounce doesn't happen!
-                                points[3*i+j].setPosition(new double[]{10.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                                points[3*i+j].setPosition(new double[]{20.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                                points[3*i+j].setPosition(new double[]{40.,0.}); // lower-left corner of window plus a bit to the right-- OH this makes it happen!
-                                points[3*i+j].setVelocity(new double[]{0.,0.});
-                                // after window resize, target will be set to window center.
-                            }
-                            float hue = i/(n-1.f);
-                            float sat = j==0 ? .2f : j==1 ? .45f : j==2 ? 1.f : 0.f;
-                            float val = 1.f;
-                            float rgb[] = new float[3];
-                            HSVtoRGB(hue,sat,val,rgb);
-                            colors[i*3+j] = new java.awt.Color(rgb[0],rgb[1],rgb[2]);
-                        }
-                    }
-                } // Model ctor
-                public void evolve(double dt)
-                {
-                    int N = points.length;
-                    int n = N/3;
-                    FORI (I, N)
-                    {
-                        int i = I/3;
-                        int j = i%3;
-                        //PRINTSUB(referenceTripDistancesInPixels,i);
-                        //PRINTSUB(referenceTripTimesInRepaints,i);
-                        // XXX huh? what is that 10000, fudge? so the numbers aren't what they claim tobe?
-                        points[I].evolve(referenceTripDistancesInPixels[i]/10000.,
-                                         referenceTripTimesInRepaints[i],
-                                         dt,
-                                         distanceBasedBounce);
-                    }
-                    time += dt;
-                }
-#endif // 0
+                double v0[] = {0.,0.};
+                double v1[] = {1.,0.};
             } // class Model
             class View
             {
                 // Really viewing params (could separate into ViewParams and ViewState)...
                 boolean antialiasFlag = true;
+                boolean showPointsFlag = false;
+
+                double focus[] = {.5, 0.};
+                double logRadius = 1.;
+                double radius = Math.pow(2., logRadius);
 
                 int nPaintsDone = 0;
             }
@@ -857,9 +764,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                               java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
 
                 int minSize = Math.min(w,h);
+                int maxSize = Math.max(w,h);
                 com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
-                                               .5,w-.5,
-                                               .5,h-.5);
+                                               view.focus[0] + -view.radius*w/minSize, view.focus[0] + view.radius*w/minSize,  // x0 x1
+                                               view.focus[1] + -view.radius*h/minSize, view.focus[1] + view.radius*h/minSize); // y0 y1
 
                 // Clear to black
                 if (g != frontBufferGraphics) // if not single buffered
@@ -872,156 +780,137 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 //
                 // Evolve.
                 //
-#if 0
-                if (!model.paused)
-                    model.evolve(1.); // dt, in repaints
-#endif
 
+                // ...
 
                 //
                 // Draw.
                 //
-#if 0
-                double position[] = new double[2];
-                double velocity[] = new double[2];
-                double acceleration[] = new double[2];
-                double observedAcceleration[] = new double[2];
-                int N = model.points.length;
-                int n = N/3;
 
-                //FORI (i, n) // slower first, so faster on top
-                FORIDOWN (i, n) // faster first, so slower on top
+
+                // axes
+                mg.setColor(new java.awt.Color(64,64,64));
+                mg.drawLine(-1.,0., 1., 0.);
+                mg.drawLine(0.,-1., 0., 1.);
+
+                // show catenary endpoints
+                mg.setColor(new java.awt.Color(128,128,128));
+                mg.drawPoint(model.v0[0],model.v0[1], 5);
+                mg.drawPoint(model.v1[0],model.v1[1], 5);
+
+                CatenaryRotated catenaryRotated = new CatenaryRotated(); // scratch
+                double moment[] = new double[2]; // scratch
+
+                // Figure out largest and smallest mag level of interest
+                int magLevel1 = -10; // XXX be more scientific
+                while (true)
                 {
-                    FORI (j, 3) // separable first, so try_to_do_it_right on top
-                    //FORIDOWN (j, 3) // try_to_do_it_right first, so separable on top
+                    double r = Math.pow(2., magLevel1);
+                    double cosAngle = -1.;
+                    double sinAngle = 0.;
+                    catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                    catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                    //PRINT(view.focus[0]-moment[0]);
+                    assert(view.focus[0]-moment[0] >= 0.);
+                    double viewDiagonalRadius = Math.hypot(view.radius, view.radius*maxSize/(double)minSize);
+
+                    if (view.focus[0]-moment[0] > viewDiagonalRadius)
                     {
-                        int I = 3*i+j;
-                        // Even point sizes, target lands nicely on a pixel corner
-                        // when it's an integer, which it generally is.
+                        // magLevel1 is too big to be seen at all, but is used for things
+                        // that connect to it.
+                        break;
+                    }
+                    magLevel1++;
+                }
 
-                        //int pointSize = 2*i + 1; // 1, 3, 5, ...
-                        //int pointSize = 2*(n-1-i) + 1; // ..., 5, 3, 1
-                        //int pointSize = 2*(n-1-i) + 2; // ..., 6, 4, 2
-                        //int pointSize = 2*i + 2; // 2, 4, 6, ...
-                        int pointSize = 2*i + 2; // 2, 4, 6, ...
+                int magLevel0 = 20; // XXX be more scientific
+                while (true)
+                {
+                    double r = Math.pow(2., magLevel0);
+                    double cosAngle = 0.;
+                    double sinAngle = 1.;
+                    catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                    catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                    if (moment[1] < view.radius / 100.) // XXX be more scientific
+                    {
+                        // magLevel0 is too small to be seen at all, but is used for things
+                        // that connect to it.
+                        break;
+                    }
+                    magLevel0--;
+                }
 
-                        model.points[I].get(position);
-                        model.points[I].getVelocity(velocity);
-                        model.points[I].getAcceleration(acceleration);
-                        model.points[I].getObservedAcceleration(observedAcceleration);
-                        //PRINTVEC(acceleration);
-                        //PRINTVEC(observedAcceleration);
-                        mg.setColor(model.colors[I]);
-                        // XXX FUDGE- I think there may be a bug in MyGraphics, should not need to do the .5
-                        mg.drawHollowPoint(position[0]+.5,
-                                           position[1]+.5,
-                                           pointSize);
+                int nMagsMajorPerMagLevel = 1;
+                int nAnglesMajor = 16; // divide 360 into this many parts
+                int nMagsMinorPerMajor = 10;
+                int nAnglesMinorPerMajor = 10;
 
-                        double accelerationVisualScale = 20.;
-                        double a = 4*model.referenceTripDistancesInPixels[i]/10000.
-                                   / SQR(model.referenceTripTimesInRepaints[i]);
-                        accelerationVisualScale /= a;
-                        // So should all come out same length on screen.
-                        // Note that we could accomplish that by just normalizing to that
-                        // length... but the existing method is kind of a sanity check.
+                int nAnglesMinor = nAnglesMajor * nAnglesMinorPerMajor;
+                int nMagStepsMajor = (magLevel1-magLevel0) * nMagsMajorPerMagLevel;
+                int nMagStepsMinor = nMagStepsMajor * nMagsMinorPerMajor;
 
-                        assert(Double.isNaN(acceleration[0])
-                            == Double.isNaN(acceleration[1]));
-                        if (!Double.isNaN(acceleration[0])
-                         && VecMath.normsqrd(acceleration) != 0.)
-                        {
-                            mg.drawLine(position[0]+.5,
-                                        position[1]+.5,
-                                        position[0]+.5-acceleration[0]*accelerationVisualScale,
-                                        position[1]+.5-acceleration[1]*accelerationVisualScale);
-                            // And the observed acceleration, half as big.
-                            // If things are working correctly, this should be in
-                            // almost exactly the same direction as the actual acceleration,
-                            // so should not not be noticeable.
-                            mg.drawLine(position[0]+.5,
-                                        position[1]+.5,
-                                        position[0]+.5-observedAcceleration[0]*accelerationVisualScale*.5,
-                                        position[1]+.5-observedAcceleration[1]*accelerationVisualScale*.5);
-                        }
-                        if (I >= N-view.nPlansToShow)
-                        {
-                            com.donhatchsw.compat.ArrayList plannedPositions = new com.donhatchsw.compat.ArrayList();
-                            com.donhatchsw.compat.ArrayList plannedAccelerations = new com.donhatchsw.compat.ArrayList();
 
-                            SmoothlyVaryingViewingParameter scratchPoint = new SmoothlyVaryingViewingParameter(model.points[I]);
 
-                            double savedPosition[] = new double[2];
-                            double savedVelocity[] = new double[2];
-                            // save position and velocity
-                            scratchPoint.get(savedPosition);
-                            scratchPoint.getVelocity(savedVelocity);
 
-                            int skip = 5;
-                            for (; scratchPoint.isMoving(); nTimestepsInFuture += skip)
-                            {
-                                // restore position and velocity for before evolve
-                                // (evolve doesn't use prior accelerations so don't bother with those)
-                                scratchPoint.setVelocity(savedVelocity);
-                                scratchPoint.setPosition(savedPosition);
-                                scratchPoint.evolve(model.referenceTripDistancesInPixels[i]/10000.,
-                                                       model.referenceTripTimesInRepaints[i],
-                                                       nTimestepsInFuture*1., // dt, in repaints
-                                                       model.distanceBasedBounce);
-                                double plannedPosition[] = new double[2];
-                                double plannedAcceleration[] = new double[2];
-                                scratchPoint.get(plannedPosition);
-                                plannedPositions.add(plannedPosition);
-                                scratchPoint.getAcceleration(plannedAcceleration);
-                                plannedAccelerations.add(plannedAcceleration);
-                            }
-
-                            for (int iPlan = 0; iPlan < plannedPositions.size(); ++iPlan)
-                            {
-                                double plannedPosition[] = (double[])plannedPositions.get(iPlan);
-                                double plannedAcceleration[] = (double[])plannedAccelerations.get(iPlan);
-                                mg.drawHollowPoint(plannedPosition[0]+.5,
-                                                   plannedPosition[1]+.5,
-                                                   2);
-                                if (view.showPlanAccelerationsFlag)
-                                {
-                                    mg.drawLine(plannedPosition[0]+.5,
-                                                plannedPosition[1]+.5,
-                                                plannedPosition[0]+.5-plannedAcceleration[0]*accelerationVisualScale,
-                                                plannedPosition[1]+.5-plannedAcceleration[1]*accelerationVisualScale);
-                                }
-                            }
-                        } // if I >= nPlansToShow
-                     } // for j
-                } // for i
-#endif
+                // draw almost-ellipse contours of constant magnitude
+                for (int iMagMajor = 0; iMagMajor < nMagStepsMajor+1; ++iMagMajor)
+                {
+                    if (iMagMajor == (0-magLevel0)*nMagsMajorPerMagLevel)
+                        mg.setColor(new java.awt.Color(128, 128, 255));
+                    else
+                        mg.setColor(java.awt.Color.white);
+                    double r = Math.pow(2., LERP(magLevel0, magLevel1, (double)iMagMajor/(double)nMagStepsMajor));
+                    double xMomentPrev = Double.NaN;
+                    double yMomentPrev = Double.NaN;
+                    for (int iAngle = 0; iAngle < nAnglesMinor+1; ++iAngle)
+                    {
+                        double angle = 2*Math.PI/nAnglesMinor * iAngle;
+                        double cosAngle = Math.cos(angle);
+                        double sinAngle = Math.sin(angle);
+                        double x = r * cosAngle;
+                        double y = r * sinAngle;
+                        catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        if (iAngle > 0)
+                            mg.drawLine(xMomentPrev,yMomentPrev,
+                                        moment[0], moment[1]);
+                        if (view.showPointsFlag)
+                            mg.drawPoint(moment[0], moment[1], 3);
+                        xMomentPrev = moment[0];
+                        yMomentPrev = moment[1];
+                    }
+                }
+                // draw almost-radial contours of constant angle
+                mg.setColor(java.awt.Color.white);
+                for (int iAngle = 0; iAngle < nAnglesMajor; ++iAngle)
+                {
+                    double angle = 2*Math.PI/nAnglesMajor * iAngle;
+                    double cosAngle = Math.cos(angle);
+                    double sinAngle = Math.sin(angle);
+                    double xMomentPrev = Double.NaN;
+                    double yMomentPrev = Double.NaN;
+                    for (int iMag = 0; iMag < nMagStepsMinor+1; ++iMag)
+                    {
+                        double r = Math.pow(2., LERP(magLevel0, magLevel1, (double)iMag/(double)nMagStepsMinor));
+                        double x = r * cosAngle;
+                        double y = r * sinAngle;
+                        catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        if (iMag > 0)
+                            mg.drawLine(xMomentPrev,yMomentPrev,
+                                        moment[0], moment[1]);
+                        if (view.showPointsFlag)
+                            mg.drawPoint(moment[0], moment[1], 3);
+                        xMomentPrev = moment[0];
+                        yMomentPrev = moment[1];
+                    }
+                }
 
                 //
                 // If anything's still moving, make paint get called again
                 //
-#if 0
-                if (!model.paused)
-                {
-                    boolean someoneIsStillMoving = false;
-                    FORI (I, N)
-                    {
-                        if (model.points[I].isMoving())
-                        {
-                            someoneIsStillMoving = true;
-                            break;
-                        }
-                    }
-                    if (someoneIsStillMoving)
-                        repaint();
-                    else
-                    {
-                        // XXX should do this iff verboseLevel >= 0 ... but currently verboseLevel isn't accessible from here. need to straighten out my thinking
-                        //System.out.println("================================================================================================================");
-                    }
-                }
-#endif
 
-
-
+                // ...
 
                 view.nPaintsDone++;
                 //if (viewParams.showNumPaintsDone.get())
@@ -1030,8 +919,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     java.awt.Dimension viewSize = getSize(); // getWidth,getHeight don't exist in 1.1
                     int W = viewSize.width;
                     int H = viewSize.height;
+                    int Y = 2;
                     com.donhatchsw.awt.MyGraphics mgTemp = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
-                    mgTemp.drawString("("+view.nPaintsDone+" paint"+(view.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.);
+                    mgTemp.drawString("("+view.nPaintsDone+" paint"+(view.nPaintsDone==1?"":"s")+")", W-2, Y, 1, -1.);
+                    Y += 18;
+                    mgTemp.drawString("mag levels ["+magLevel0+" .. "+magLevel1+"]", W-2, Y, 1, -1.);
+                    Y += 18;
                 }
 
                 if (g != frontBufferGraphics)
@@ -1063,6 +956,23 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         else if (keyCode == java.awt.event.KeyEvent.VK_DOWN)
                         {
                         }
+                        else if (c == '-' || c == '+' || c == '=')
+                        {
+                            double stepSize = .25;
+                            double increment = c=='-' ? -stepSize : stepSize;
+                            view.logRadius -= increment; // view.radius is inverse of scale
+                            view.radius = Math.pow(2., view.logRadius);
+
+                            PRINT(view.logRadius);
+                            PRINT(view.radius);
+                            repaint();
+                        }
+                        else if (c == 'p')
+                        {
+                            view.showPointsFlag ^= true;
+                            PRINT(view.showPointsFlag);
+                            repaint();
+                        }
                         else if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
                         {
                             // This is the case for things like arrow keys
@@ -1075,10 +985,21 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             System.out.println("ciao!");
                             System.exit(0); // asinine way of doing things
                         }
+                        else if (c == ' ')
+                        {
+                            repaint();
+                        }
+                        else if (c == 'A')
+                        {
+                            view.antialiasFlag ^= true;
+                            PRINT(view.antialiasFlag);
+                            repaint();
+                        }
                         else if (c == 'h')
                         {
                             System.out.println("The following keys do things:");
                             System.out.println("              h - show this help message");
+                            System.out.println("        shift-A - toggle antialiasing");
                         }
                         else
                         {
@@ -1170,7 +1091,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             confidenceTests();
         else
         {
-            System.err.println("Usage: CatenaryRotated [demo|confidenceTests]\n");
+            System.err.println("Usage: CatenaryRotated [demo1|confidenceTests]\n");
             System.exit(1);
         }
 
