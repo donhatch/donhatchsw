@@ -77,13 +77,16 @@
     plotf0_flag = 0 # XXX currently doesn't work well
     plotf1_flag = 0 # XXX currently doesn't work well
 
+    plot3_flag = 1 # very experimental. exploring the function in 1d in directions from the origin.
+
     # either of the following should work.
     #strategy = "weil" # sets f = wf
     strategy = "good" # sets f = gf
      
 
 if (png_flag) {
-    set terminal png size 600,600
+    # pngcairo antialiases lines, nice when I want it. enhanced gives more chars for labels
+    set terminal pngcairo enhanced size 600,600
     set output "RMME0.png"
 } else {
     set term wxt size 1000,1000
@@ -134,7 +137,6 @@ asinhc_by_binary_search_hi(y) = y==1. ? 0. : asinhc_binary_search_hi(y, 0., 1e3,
       xMid<=x0 || xMid>=x1 ? xMid : \
       sinhc(xMid) <= y ? asinhc_binary_search_hi(y, xMid, x1, (xMid+x1)/2.) \
                       : asinhc_binary_search_hi(y, x0, xMid, (x0+xMid)/2.)
-
 
 #
 # The good news is, Newton seems to work well in all cases:
@@ -473,8 +475,9 @@ if (0) { # turn this on to exercise and debug asinhc_by_halley. exercises what I
     good_moment_from_x(slack,v0,v1) = (slack==0 ? .5 : slack<0 ? .5 - slack*(slack/4.) : .5 + slack*(1+slack/4.)) + (1.+abs(slack))*v0
     #good_moment_from_xy(x,y,v0,v1) = y==0. ? good_moment_from_x(x,v0,v1) : y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
 
-    # XXX hmm, actually don't need the 1-d case any more? that would be great!
-    good_moment_from_xy(x,y,v0,v1) = y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
+    # XXX hmm, actually don't need the 1-d case any more? great!
+    # XXX hmm, still need to check x==0&&y==0 for some reason, oh well
+    good_moment_from_xy(x,y,v0,v1) = x==0.&&y==0. ? (v0+v1)/2.*abs(v1-v0) : y>0 ? conj(_good_moment_from_xy(x,-y,conj(v0),conj(v1))) : _good_moment_from_xy(x,y,v0,v1)
 
     _good_moment_from_xy(x,y,v0,v1) = good_moment_from_slack_and_angle(good_slack_from_xy(x,y), good_angle_from_xy(x,y), v0,v1)
       good_slack_from_xy(x,y) = sqrt(x**2+y**2)
@@ -720,7 +723,10 @@ if (plot1_flag) {
     #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with linespoints linewidth lw
     #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with linespoints linewidth lw, real(f(exp(0*u+i*v))),imag(f(exp(0*u+i*v))),exp(u) with linespoints linewidth lw # hacky way to get green on center contour
     #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with lines linewidth lw
-    #####splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw
+
+    # Nice, blue on the 1 contour
+    splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw
+
     #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with dots linewidth lw
     #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with pm3d
     #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(f(exp(u+i*v))),imag(f(exp(u+i*v))),zscale*exp(u) with lines linewidth lw, real(exp(u+i*v)),imag(exp(u+i*v)),exp(u) # best-fit circles when symmetric picture
@@ -728,8 +734,9 @@ if (plot1_flag) {
     # weil's in red (with blue slack=1 contour) offset by a little, good in green
     #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(.01+wf(exp(u+i*v))),imag(wf(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw, \
     #                                          real(gf(exp(u+i*v))),imag(gf(exp(u+i*v))),zscale*exp(u) with lines linewidth lw
-    splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(wf(exp(u+i*v))),imag(wf(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw+4, \
-                                              real(gf(exp(u+i*v))),imag(gf(exp(u+i*v))),zscale*exp(u) with lines linewidth lw
+    # weil's in red thick, good in green thin
+    #splot [u0:u1][v0:v1][x0:x1][y0:y1][z0:z1] real(wf(exp(u+i*v))),imag(wf(exp(u+i*v))),zscale*exp(u) with line palette linewidth lw+4, \
+    #                                          real(gf(exp(u+i*v))),imag(gf(exp(u+i*v))),zscale*exp(u) with lines linewidth lw
 
     time1 = time(0.)
     print sprintf("first splot took %.6f seconds.", (time1-time0))
@@ -792,6 +799,159 @@ if (plot2_flag) {
     #print "traceString = ",traceString
     print "crashedTraceString = ",crashedTraceString
 } # if plot2_flag
+
+if (plot3_flag) {
+  # very experimental
+  set parametric
+  set samples 1001
+  set terminal png size 1000,1000
+  set output "RMME3.png"
+
+  # bleah! newton crashes, halley crashes, binary search endless loops, wtf?
+  #asinhc(y) = asinhc_by_newton(y)
+  asinhc(y) = asinhc_by_binary_search_lo(y)
+  #asinhc(y) = asinhc_by_halley(y)
+
+  degrees = 90
+  degrees = 45
+  g(x,degrees) = abs(f(x*exp(i*degrees*pi/180.)) - .5)
+  #q = 1e-5
+  #q = 1e-4
+  q = 1e-1
+  #q = 1
+  #q = 1e1
+  time0 = time(0.)
+
+  #
+  # Experimenting with scaling/translating in 2nd quadrant
+  #
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,90), t,g(t**exponent,90), t,g(t,90)**exponent
+  ## conclusion: for 90 degrees, square it first or afterwards
+
+  #window = 1
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,170), t,g((t/window)**exponent*window,170), t,(g(t,170)/window)**exponent*window
+
+  #exponent = 2.
+  exponent = 1.5
+  angle = 179
+  plot [0:q] [-q:q] [-q:q] t,g(t,angle), t,g(t**exponent,angle), t,g(t,angle)**exponent
+
+  # want: square when small, square root when large
+  # that's because the function seems to be the sum of a square root and a square... or something?
+  # wow, wolframalpha gives a functional inverse of x^2+sqrt(x), but it's very hairy.
+
+  # somehow need to leverage the fact that raising to any power > 1 gives zero deriv
+  # (but with small window if close to 1)
+  # and raising to any power < 1 gives infinite deriv
+  # (but with small window if close to 1.
+  # And, for angles close to 180,
+  # what I am seeing is: infinite deriv, with small window.
+  # In other words, it looks like it's been raised to .99 power or something...
+  # so solution is to raise to 1.01 power or something, right???
+  # If we raise to too big a power, we'll get zero deriv...
+  # if we don't raise high enough, it will still be infinite deriv.
+  # But finding the right one is tricky, since window is small.
+
+  # Bleah! for angle 179...
+  # Empirically, exponent > 2 gives too flat....
+
+  # Let's see, can I be more principled about it?
+  # Approximate the inverse function (i.e. from moment to slack xy) with a polynomial with zero linear term,
+  # and invert it?
+  # Can do that with a quadratic... and maybe even with a cubic (simpler than general since zero linear term?)
+
+
+
+
+
+  #
+  # Experimenting in 1st quadrant
+  #
+  #plot [0:q] [-q:q] [-q:q] t,g(t,0)
+  # conclusion: for 0 degrees, just take the function
+
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,90), t,g(t**exponent,90), t,g(t,90)**exponent
+  # conclusion: for 90 degrees, square it first or afterwards
+
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,45), t,g(t**exponent,45), t,g(t,45)**exponent
+  # conclusion: for 90 degrees, square it first or afterwards
+
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,10), t,g(t**exponent,10), t,g(t,10)**exponent
+  # conclusion: for 10 degrees, square it first or afterwards.
+  # wtf? this can't be right all the way down to 0!
+  # oh argh, maybe it actually is, it's just the region of influence gets smaller?
+
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,5), t,g(t**exponent,5), t,g(t,5)**exponent
+
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,2), t,g(t**exponent,2), t,g(t,2)**exponent
+
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,1), t,g(t**exponent,1), t,g(t,1)**exponent
+
+  #exponent = 1.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,0), t,g(t**exponent,0), t,g(t,0)**exponent
+
+  #
+  # Experimenting in 2nd quadrant
+  #
+
+  #exponent = .5
+  #plot [0:q] [-q:q] [-q:q] t,g(t,180), t,g(t**exponent,180), t,g(t,180)**exponent
+  # conclusion: for 180 degrees, square root first or afterwards
+
+  #exponent = 2.
+  #plot [0:q] [-q:q] [-q:q] t,g(t,135), t,g(t**exponent,135), t,g(t,135)**exponent
+  # conclusion: for 135 degrees, square it first or afterwards
+
+
+
+  # OVERALL CONCLUSION:
+  # It *always* works to square it first or afterwards (since slope is infinite)
+  # except when exactly 0 degrees (in which case slope is finite-- leave alone)
+  # or exactly 180 degrees (in which case slope is 0-- take square root)
+  # ARGH can I do better?  Something with scaling and/or translating?
+  # For example, the 0 degrees case isn't *really* unit, it actually needs to be square rooted,
+  # but with offset.
+  # I think the real answer is... the function is some mix of square root (on small scale)
+  # and square (on large scale)...
+  # so the correction has to be some mix of square root (on large scale) and square (on increasingly
+  # small scale).
+  #
+  # Observation: if we just blindly square it,
+  # then it's good in the limit under a microscope,
+  # but it's not very useful macroscopically.
+  # But, can we just add a linear term, making it good everywhere???
+  # That might work for second quadrant...
+  # But what about first quadrant, especially near and at 0, where we do *not* want to square, we want
+  # to take square root (in some sense)?
+  # No wait... maybe it's still all good!?
+  # If the thing starts out flat, adding t doesn't hurt... ?
+  # Weird.
+  # No, doesn't help unless linear term of x is added in moment space... but then impossible to invert.
+
+
+  #plot [0:q] [-q:q] [-q:q] \
+  #    t,g(t,0), \
+  #    t,g(t,45), \
+  #    t,g(t,90), \
+  #    t,g(t,135), \
+  #    t,g(t,180.*7/8), \
+  #    t,g(t,180.*15/16), \
+  #    t,g(t,180.*31/32), \
+  #    t,g(t,180), \
+  #    0,0 title ''
+
+
+  time1 = time(0.)
+  print sprintf("third plot took %.6f seconds.", (time1-time0))
+}
 
 if (!png_flag) {
   pause -1 "Hit Enter or Ctrl-c to exit: " # wait til user hits Enter or ctrl-c
