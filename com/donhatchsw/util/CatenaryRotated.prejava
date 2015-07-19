@@ -765,9 +765,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
                 int minSize = Math.min(w,h);
                 int maxSize = Math.max(w,h);
+                double xMinView = view.focus[0] -view.radius*w/minSize;
+                double xMaxView = view.focus[0] + view.radius*w/minSize;
+                double yMinView = view.focus[1] -view.radius*h/minSize;
+                double yMaxView = view.focus[1] + view.radius*h/minSize;
                 com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
-                                               view.focus[0] + -view.radius*w/minSize, view.focus[0] + view.radius*w/minSize,  // x0 x1
-                                               view.focus[1] + -view.radius*h/minSize, view.focus[1] + view.radius*h/minSize); // y0 y1
+                                               xMinView, xMaxView,
+                                               yMinView, yMaxView);
 
                 // Clear to black
                 if (g != frontBufferGraphics) // if not single buffered
@@ -802,19 +806,68 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double moment[] = new double[2]; // scratch
 
                 // Figure out largest and smallest mag level of interest
+                int magLevel0 = 20; // XXX be more scientific
+                while (true)
+                {
+                    double r = Math.pow(2., magLevel0);
+                    double cosAndSin[][] = {{1,0},{0,1},{-1,0},{0,-1}};
+                    double xMin = Double.POSITIVE_INFINITY;
+                    double yMin = Double.POSITIVE_INFINITY;
+                    double xMax = Double.NEGATIVE_INFINITY;
+                    double yMax = Double.NEGATIVE_INFINITY;
+                    for (int i = 0; i < cosAndSin.length; ++i)
+                    {
+                        double cosAngle = cosAndSin[i][0];
+                        double sinAngle = cosAndSin[i][1];
+                        catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        xMin = MIN(xMin, moment[0]);
+                        xMax = MAX(xMax, moment[0]);
+                        yMin = MIN(yMin, moment[1]);
+                        yMax = MAX(yMax, moment[1]);
+                    }
+                    if (MAX(xMax-xMin,yMax-yMin) < view.radius / 100.) // XXX be more scientific
+                    {
+                        // magLevel0 is too small to be seen at all, but is used for things
+                        // that connect to it.
+                        break;
+                    }
+                    magLevel0--;
+                }
+
                 int magLevel1 = -10; // XXX be more scientific
                 while (true)
                 {
                     double r = Math.pow(2., magLevel1);
-                    double cosAngle = -1.;
-                    double sinAngle = 0.;
-                    catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
-                    catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                    //PRINT(view.focus[0]-moment[0]);
-                    assert(view.focus[0]-moment[0] >= 0.);
-                    double viewDiagonalRadius = Math.hypot(view.radius, view.radius*maxSize/(double)minSize);
+                    double cosAndSin[][] = {{1,0},{0,1},{-1,0},{0,-1}};
+                    double xMin = Double.POSITIVE_INFINITY;
+                    double yMin = Double.POSITIVE_INFINITY;
+                    double xMax = Double.NEGATIVE_INFINITY;
+                    double yMax = Double.NEGATIVE_INFINITY;
+                    for (int i = 0; i < cosAndSin.length; ++i)
+                    {
+                        double cosAngle = cosAndSin[i][0];
+                        double sinAngle = cosAndSin[i][1];
+                        catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        xMin = MIN(xMin, moment[0]);
+                        xMax = MAX(xMax, moment[0]);
+                        yMin = MIN(yMin, moment[1]);
+                        yMax = MAX(yMax, moment[1]);
+                    }
 
-                    if (view.focus[0]-moment[0] > viewDiagonalRadius)
+                    // what's a criterion for figuring out
+                    // if the window is safely inside the ellipse?
+                    // It's if the view's bounding circle
+                    // is contained in the ellipse's inscribed circle.
+                    double xCenterEllipse = (xMin+xMax)/2.;
+                    double yCenterEllipse = (yMin+yMax)/2.;
+                    double ellipseInRadius = (xMax-xMin)/2.;
+                    double viewCircumRadius = .5 * Math.hypot(view.radius, view.radius*maxSize/(double)minSize);
+                    // test whether dist between centers plus view circumradius < ellipseInRadius
+                    if (Math.hypot(view.focus[0]-xCenterEllipse,
+                                   view.focus[1]-yCenterEllipse) + viewCircumRadius < ellipseInRadius)
+
                     {
                         // magLevel1 is too big to be seen at all, but is used for things
                         // that connect to it.
@@ -823,22 +876,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     magLevel1++;
                 }
 
-                int magLevel0 = 20; // XXX be more scientific
-                while (true)
-                {
-                    double r = Math.pow(2., magLevel0);
-                    double cosAngle = 0.;
-                    double sinAngle = 1.;
-                    catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
-                    catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                    if (moment[1] < view.radius / 100.) // XXX be more scientific
-                    {
-                        // magLevel0 is too small to be seen at all, but is used for things
-                        // that connect to it.
-                        break;
-                    }
-                    magLevel0--;
-                }
 
                 int nMagsMajorPerMagLevel = 1;
                 int nAnglesMajor = 16; // divide 360 into this many parts
@@ -946,15 +983,35 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (false) {}
                         else if (keyCode == java.awt.event.KeyEvent.VK_LEFT)
                         {
+                            double dx = -1./8;
+                            model.v0[0] += dx;
+                            model.v1[0] += dx;
+                            VecMath.lerp(view.focus, model.v0, model.v1, .5);
+                            repaint();
                         }
                         else if (keyCode == java.awt.event.KeyEvent.VK_RIGHT)
                         {
+                            double dx = 1./8;
+                            model.v0[0] += dx;
+                            model.v1[0] += dx;
+                            VecMath.lerp(view.focus, model.v0, model.v1, .5);
+                            repaint();
                         }
                         else if (keyCode == java.awt.event.KeyEvent.VK_UP)
                         {
+                            double dy = 1./8;
+                            model.v0[1] += dy;
+                            model.v1[1] += dy;
+                            VecMath.lerp(view.focus, model.v0, model.v1, .5);
+                            repaint();
                         }
                         else if (keyCode == java.awt.event.KeyEvent.VK_DOWN)
                         {
+                            double dy = -1./8;
+                            model.v0[1] += dy;
+                            model.v1[1] += dy;
+                            VecMath.lerp(view.focus, model.v0, model.v1, .5);
+                            repaint();
                         }
                         else if (c == '-' || c == '+' || c == '=')
                         {
@@ -998,8 +1055,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         else if (c == 'h')
                         {
                             System.out.println("The following keys do things:");
-                            System.out.println("              h - show this help message");
-                            System.out.println("        shift-A - toggle antialiasing");
+                            System.out.println("         -/+/= - zoom out/in");
+                            System.out.println("    arrow keys - move catenary endpoints");
+                            System.out.println("       shift-A - toggle antialiasing");
+                            System.out.println("             p - toggle points used to draw curves");
+                            System.out.println("             h - show this help message");
+                            System.out.println("           Esc - quit");
                         }
                         else
                         {
