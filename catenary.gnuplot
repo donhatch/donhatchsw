@@ -85,6 +85,7 @@
      
 
 if (png_flag) {
+    #set terminal png size 600,600
     # pngcairo antialiases lines, nice when I want it. enhanced gives more chars for labels
     set terminal pngcairo enhanced size 600,600
     set output "RMME0.png"
