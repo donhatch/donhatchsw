@@ -64,6 +64,8 @@ public class MyGraphics
     {
         // "the pen hangs down and to the right of the coordinate",
         // so adjust the coordinate by half a pixel up and to the left...
+        // Actually it completely sucks that the endpoints are constrained to be ints,
+        // when drawing curves.
         g.drawLine((int)(x0 * scaleX + translateX - .5),
                    (int)(y0 * scaleY + translateY - .5),
                    (int)(x1 * scaleX + translateX - .5),
