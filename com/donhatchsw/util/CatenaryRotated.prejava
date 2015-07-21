@@ -266,7 +266,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 if (rHi == r) break;
                                 rHi = r;
                             }
-                            else
+                            else // simple part of second quadrant
                             {
                                 if (angleLo == angle) break;
                                 angleLo = angle;
@@ -283,7 +283,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 if (angleLo == angle) break;
                                 angleLo = angle;
                             }
-                            else
+                            else // simple part of second quadrant
                             {
                                 assert(outsideTangent); // i.e. already did this case with bigger hammer
                             }
@@ -302,7 +302,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 if (angleHi == angle) break;
                                 angleHi = angle;
                             }
-                            else
+                            else // simple part of second quadrant
                             {
                                 if (rHi == r) break;
                                 rHi = r;
@@ -318,7 +318,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             {
                                 assert(outsideTangent); // i.e. already did this case with bigger hammer
                             }
-                            else
+                            else // simple part of second quadrant
                             {
                                 if (angleHi == angle) break;
                                 angleHi = angle;
@@ -339,6 +339,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // So this is expected to be rather slow.
                 while (true)
                 {
+                    // last time through the loop, angle will be the answer
                     double angle = (angleLo + angleHi) * .5;
                     double r = (rLo + rHi) * .5;
                     double c = Math.cos(angle);
@@ -428,48 +429,17 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         }
                     }
                 }
+
+                // Note that the last time through the loop (with the correct r),
+                // angleLo,angleHi was actually the correct bounds, so it can be used below.
+
                 if (verboseLevel >= 2) System.out.println();
 
-                // Okay, we've found r.
+                // Okay, we've found r and angle.
                 double r = (rLo+rHi) * .5;
+                double angle = (angleLo+angleHi) * .5;
 
-                if (verboseLevel >= 1) System.out.println("                    found r="+r);
-                if (verboseLevel >= 1) System.out.println("                    doing final binary search to find angle");
-                if (verboseLevel >= 2) System.out.print("                      ");
-
-                // Now should be able to find angle by another binary search on this ellipse.
-                angleLo = Math.PI/2.;
-                angleHi = Math.PI;
-                while (true)
-                {
-                    double angle = (angleLo + angleHi) * .5;
-                    double c = Math.cos(angle);
-                    double s = Math.sin(angle);
-                    this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
-                    this.integrate(this.t0, this.t1, gotMoment);
-                    if (verboseLevel >= 3) PRINTVEC(desiredMoment);
-                    if (verboseLevel >= 3) PRINTVEC(gotMoment);
-                    // testing in either x or y will work; sum works too
-                    if ((desiredMoment[0]-gotMoment[0]) + (desiredMoment[1]-gotMoment[1]) > 0.)
-                    {
-                        // need to go NE
-                        //assert(false); // coverage
-                        if (verboseLevel >= 2) System.out.print(" NE");
-                        if (angleHi == angle) break;
-                        angleHi = angle;
-                    }
-                    else
-                    {
-                        // need to go SW
-                        //assert(false); // coverage
-                        if (verboseLevel >= 2) System.out.print(" SW");
-                        if (angleLo == angle) break;
-                        angleLo = angle;
-                    }
-                }
-                if (verboseLevel >= 2) System.out.println();
-                double angle = (angleLo+angleHi)*.5;
-                if (verboseLevel >= 1) System.out.println("                    found angle="+RTOD(angle)+"deg");
+                if (verboseLevel >= 1) System.out.println("                    found r="+r+" angle="+RTOD(angle)+"deg");
             }
             if (verboseLevel >= 2)
             {
