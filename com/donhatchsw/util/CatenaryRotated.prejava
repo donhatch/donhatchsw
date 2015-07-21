@@ -87,7 +87,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                double xMoment, double yMoment,
                                                com.donhatchsw.compat.ArrayList newtonPathOut)
     {
-        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: binary search progress, 3: excessive
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: excessive and sloppy
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+")");
 
@@ -118,8 +118,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
             // Lower and upper bounds
             double rLo = 0.;
-            double rHi = Math.max(1.,
-                                  10.*Math.sqrt(MyMath.hypot(xMoment, yMoment)));
+            double rHiStart = Math.max(1.,
+                                       10.*Math.sqrt(MyMath.hypot(xMoment-xMomentIfTaut, yMoment-yMomentIfTaut)));
+            double rHi = rHiStart;
+
             double angleLo = 0.;
             double angleHi = Math.PI;
 
@@ -183,9 +185,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             // so set rLo to it,
                             // but we need to reset rHi.
                             rLo = r;
-                            rHi = Math.max(1.,
-                                           10.*Math.sqrt(MyMath.hypot(xMoment, yMoment)));
-
+                            rHi = rHiStart;
                             break;
                         }
                     }
@@ -449,10 +449,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         }
                     }
                 }
-
-                // Note that the last time through the loop (with the correct r),
-                // angleLo,angleHi was actually the correct bounds, so it can be used below.
-
                 if (verboseLevel >= 2) System.out.println();
 
                 // Okay, we've found r and angle.
@@ -461,6 +457,181 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
                 if (verboseLevel >= 1) System.out.println("                    found r="+r+" angle="+RTOD(angle)+"deg");
             }
+            assert(rHi < rHiStart);
+
+            if (angleLo >= Math.PI/2.)
+            for (int iPassOfDesperation = 0; iPassOfDesperation < 3; ++iPassOfDesperation) // XXX jeez get rid of this.  must have a bug.  just do this once if at all, I think.
+            {
+                // Note that in the hard case, the last time through the loop (with the correct r),
+                // angleLo,angleHi was actually the correct bounds, so it can be used below.
+
+                // However, it might not be as tight as it could have been
+                // if we had systematically preferred refinement of angle
+                // over refinement of r in case of ambiguity, so do some more
+                // iterations to make sure we've tightened angle
+                // as much as we can.
+                //
+                // This appears to be valuable even in the non-hard case as well.
+                // TODO: do this for r as well?  and see whether it actually ever helps
+                if (verboseLevel >= 1) System.out.println("                    banging on angle a little more");
+                if (verboseLevel >= 2) System.out.print("                      ");
+                while (true)
+                {
+                    double angle = (angleLo + angleHi) * .5;
+                    double r = (rLo + rHi) * .5;
+                    double c = Math.cos(angle);
+                    double s = Math.sin(angle);
+                    this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                    this.integrate(this.t0, this.t1, gotMoment);
+
+                    //PRINT(desiredMoment[0]-gotMoment[0]);
+                    //PRINT(desiredMoment[1]-gotMoment[1]);
+                    double dirDotNE = (desiredMoment[0]-gotMoment[0])
+                                    + (desiredMoment[1]-gotMoment[1]);
+                    //assert((desiredMoment[0]-gotMoment[0])*(desiredMoment[1]-gotMoment[1]) >= 0.); // nope too fragile... typically one is 1e-17 and the other is -1e-9; let the big one win
+                    if (dirDotNE > 0.)
+                    {
+                        // need to go NE
+                        if (verboseLevel >= 2) System.out.print(" NE");
+                        if (angleHi == angle)
+                        {
+                            if (verboseLevel >= 1) System.out.println("                        broke because angleHi==angle");
+                            break;
+                        }
+                        if (verboseLevel >= 1) System.out.println("HEY! refining angleHi a little more from "+angleHi+" to "+angle);
+                        angleHi = angle;
+                    }
+                    else if (dirDotNE < 0.)
+                    {
+                        // need to go SW
+                        if (verboseLevel >= 2) System.out.print(" SW");
+                        if (angleLo == angle)
+                        {
+                            if (verboseLevel >= 1) System.out.println("                        broke because angleLo==angle");
+                            break;
+                        }
+                        if (verboseLevel >= 1) System.out.println("HEY! refining angleLo a little more"+angleLo+" to "+angle);
+                        angleLo = angle;
+                    }
+                    else
+                    {
+                        if (verboseLevel >= 1) System.out.print("I think we got it exactly");
+                        break;
+                    }
+                }
+                if (verboseLevel >= 2) System.out.println();
+
+
+                if (verboseLevel >= 1) System.out.println("                    banging on r a little more");
+                if (verboseLevel >= 2) System.out.print("                      ");
+                while (true)
+                {
+                    double angle = (angleLo + angleHi) * .5;
+                    double r = (rLo + rHi) * .5;
+                    double c = Math.cos(angle);
+                    double s = Math.sin(angle);
+                    this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                    this.integrate(this.t0, this.t1, gotMoment);
+
+                    //double NWfudgedAngle = angle - Math.PI/4.;
+                    double NWfudgedAngle = angle;
+                    double NWfudged[] = {Math.cos(NWfudgedAngle), Math.sin(NWfudgedAngle)};
+                    //PRINT(desiredMoment[1]-gotMoment[1]);
+                    double dirDotNWfudged = (desiredMoment[0]-gotMoment[0])*NWfudged[0]
+                                          + (desiredMoment[1]-gotMoment[1])*NWfudged[1];
+                    if (dirDotNWfudged > 0.)
+                    {
+                        // need to go NW
+                        if (verboseLevel >= 2) System.out.print(" NW");
+                        if (rLo == r)
+                        {
+                            if (verboseLevel >= 1) System.out.println("                        broke because rLo==r");
+                            break;
+                        }
+                        if (verboseLevel >= 1) System.out.println("HEY! refining r a little more from "+rLo+" to "+r);
+                        rLo = r;
+                    }
+                    else if (dirDotNWfudged < 0.)
+                    {
+                        // need to go SE
+                        if (verboseLevel >= 2) System.out.print(" SE");
+                        if (rHi == r)
+                        {
+                            if (verboseLevel >= 1) System.out.println("                        broke because rHi==r");
+                            break;
+                        }
+                        if (verboseLevel >= 1) System.out.println("HEY! refining r a little more from "+rHi+" to "+r);
+                        rHi = r;
+                    }
+                    else
+                    {
+                        if (verboseLevel >= 1) System.out.print("I think we got it exactly");
+                        break;
+                    }
+                }
+                if (verboseLevel >= 2) System.out.println();
+
+
+                if (verboseLevel >= 2)
+                {
+                    PRINT(rLo);
+                    PRINT(rHi);
+                    PRINT(angleLo);
+                    PRINT(angleHi);
+                }
+                if (verboseLevel >= 1) System.out.println("                    getting desperate here... resetting angle bounds");
+                angleLo = Math.PI/2.;
+                angleHi = Math.PI;
+                if (verboseLevel >= 1) System.out.println("                    banging on angle a lot more");
+                if (verboseLevel >= 2) System.out.print("                      ");
+                while (true)
+                {
+                    double angle = (angleLo + angleHi) * .5;
+                    double r = (rLo + rHi) * .5;
+                    double c = Math.cos(angle);
+                    double s = Math.sin(angle);
+                    this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                    this.integrate(this.t0, this.t1, gotMoment);
+
+                    //PRINT(desiredMoment[0]-gotMoment[0]);
+                    //PRINT(desiredMoment[1]-gotMoment[1]);
+                    double dirDotNE = (desiredMoment[0]-gotMoment[0])
+                                    + (desiredMoment[1]-gotMoment[1]);
+                    //assert((desiredMoment[0]-gotMoment[0])*(desiredMoment[1]-gotMoment[1]) >= 0.); // nope too fragile... typically one is 1e-17 and the other is -1e-9; let the big one win
+                    if (dirDotNE > 0.)
+                    {
+                        // need to go NE
+                        if (verboseLevel >= 2) System.out.print(" NE");
+                        if (angleHi == angle)
+                        {
+                            if (verboseLevel >= 1) System.out.println("                        broke because angleHi==angle");
+                            break;
+                        }
+                        if (verboseLevel >= 1) System.out.println("HEY! refining angleHi a little more from "+angleHi+" to "+angle);
+                        angleHi = angle;
+                    }
+                    else if (dirDotNE < 0.)
+                    {
+                        // need to go SW
+                        if (verboseLevel >= 2) System.out.print(" SW");
+                        if (angleLo == angle)
+                        {
+                            if (verboseLevel >= 1) System.out.println("                        broke because angleLo==angle");
+                            break;
+                        }
+                        if (verboseLevel >= 1) System.out.println("HEY! refining angleLo a little more"+angleLo+" to "+angle);
+                        angleLo = angle;
+                    }
+                    else
+                    {
+                        if (verboseLevel >= 1) System.out.print("I think we got it exactly");
+                        break;
+                    }
+                }
+                if (verboseLevel >= 2) System.out.println();
+
+            }
+
             if (verboseLevel >= 2)
             {
                 PRINT(rLo);
@@ -507,10 +678,19 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         try
         {
             assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
-            if (goodAndBadOut != null)
+            //assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-5); // TODO: make this relative to problem scale? not sure
+            //assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-4); // TODO: make this relative to problem scale? not sure
+            //assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-1); // TODO: ok this is ridiculous
+            if (goodAndBadOut != null || verboseLevel >= 1)
             {
-                goodAndBadOut.println("    INTERNAL GOOD: CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") succeeded: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
-                goodAndBadOut.flush();
+                String message = "    INTERNAL GOOD: CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") succeeded: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment);
+                if (goodAndBadOut != null)
+                {
+                    goodAndBadOut.println(message);
+                    goodAndBadOut.flush();
+                }
+                if (verboseLevel >= 1)
+                    System.out.println(message);
             }
         }
         catch (Error e)
@@ -699,10 +879,16 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         try
         {
             assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
-            if (goodAndBadOut != null)
+            if (goodAndBadOut != null || verboseLevel >= 1)
             {
-                goodAndBadOut.println("    INTERNAL GOOD: CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") succeeded: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
-                goodAndBadOut.flush();
+                String message = "    INTERNAL GOOD: CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") succeeded: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment);
+                if (goodAndBadOut != null)
+                {
+                    goodAndBadOut.println(message);
+                    goodAndBadOut.flush();
+                }
+                if (verboseLevel >= 1)
+                    System.out.println(message);
             }
         }
         catch (Error e)
@@ -1103,6 +1289,33 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
+                // binary search fail 1e-6, requires 1e-5 at the moment (but fixed)
+                "x0=-0.9999999999999998, y0=1.0755285551056204E-16, x1=0.0, y1=0.0, xMoment=-0.49999999999999983, yMoment=-2.498712573656414E-10",
+                // binary search bigger fails even with 1e-5
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.006350760623254819, yMoment=-0.0026522100650424284",
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.008020400401857962, yMoment=-0.002739893281585962",
+                "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.680019195378992, yMoment=-0.511426670862883",
+                "x0=-0.9999999999999998, y0=-8.153200337090993E-17, x1=0.0, y1=0.0, xMoment=-0.6091718977961643, yMoment=-0.3417508555717841",
+                "x0=-1.0000000000000002, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.610018286447814, yMoment=-0.34229908659263464",
+                "x0=-0.9999999999999999, y0=1.249000902703301E-16, x1=0.0, y1=0.0, xMoment=-0.6214686214641667, yMoment=-0.34730213006279237",
+                "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.645753911494539, yMoment=-0.3290585535800697",
+                "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.6458994422138906, yMoment=-0.3276891721641374",
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.6460373269290829, yMoment=-0.3262968427253347",
+                "x0=-0.9999999999999999, y0=-2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.6461672397380385, yMoment=-0.32488113795395424",
+                "x0=-0.9999999999999999, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.6463178131763557, yMoment=-0.3218921006233052",
+                "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.6464029351055457, yMoment=-0.3203858421390253",
+
+                // even with 1e-4
+                "x0=-1.0000000000000002, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5000000000000002, yMoment=-2.1163126806555965E-11",
+                "x0=-1.0000000000000002, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5000000000000002, yMoment=-2.120698061602866E-11",
+                "x0=-0.9999999999999998, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.4999999999999999, yMoment=-2.355921013830198E-12",
+                "x0=-1.0000000000000002, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=-9.2148511043888E-15",
+                "x0=-1.0000000000000002, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=-1.4994230856935076E-10",
+                "x0=-1.0000000000000002, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=-3.635147738378919E-13",
+                "x0=-0.9999999999999997, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.4999999999999999, yMoment=-3.914840673857611E-12",
+
+
+
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5036269106706781, yMoment=-0.027290553371898757",
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5019665247911539, yMoment=-0.020949377300023747",
                 "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.5011288865208755, yMoment=-0.016410201253350465",
@@ -1112,8 +1325,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.4835907692577395, yMoment=-0.010211074002742182",
                 "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.4880273204300428, yMoment=-0.008470672745238716",
 
-                // binary search fail
-                "x0=-0.9999999999999998, y0=1.0755285551056204E-16, x1=0.0, y1=0.0, xMoment=-0.49999999999999983, yMoment=-2.498712573656414E-10",
             };
 
             for (int iTestCase = 0; iTestCase < testCases.length; ++iTestCase)
@@ -1173,7 +1384,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 catenaryRotated.differentiate(catenaryRotated.t0, a0Actual);
                 catenaryRotated.differentiate(catenaryRotated.t1, a1Actual);
                 PRINTVEC(momentActual);
-                double tol = 1e-12;
+                // TODO: what's the right tolerance?
+                //double tol = 1e-12;
+                double tol = 1e-6;
+                //double tol = 1e-5;
+                //double tol = 1e-4; // lets ByBinarySearch succeed most of the time currently, but maybe should make it better instead
+                //double tol = 1e-3; // lets ByBinarySearch succeed currently, but maybe should make it better instead
+                //double tol = 1e-1; // ok this is ridiculous
                 assert_almost_eq(momentActual[0], xMoment, tol);
                 assert_almost_eq(momentActual[1], yMoment, tol);
                 assert_almost_eq(x0y0Actual[0], x0, tol);

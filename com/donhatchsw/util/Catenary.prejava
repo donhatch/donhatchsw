@@ -859,6 +859,7 @@ EOF
             };
             for (int iInput = 0; iInput < inputs.length; ++iInput)
             {
+                System.out.println("      fit test case "+iInput+"/"+inputs.length+":");
                 String tokens[] = inputs[iInput].split(", "); // since java 1.4; okay whatever
                 double x0 = Double.parseDouble(tokens[0].substring(3));
                 double y0 = Double.parseDouble(tokens[1].substring(3));
