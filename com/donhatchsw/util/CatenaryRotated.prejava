@@ -332,7 +332,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             {
                 // Answer is in hard part of second quadrant.
                 // This case is harder, since the images of the radial lines aren't monotonic in x in target space.
-                if (verboseLevel >= 1) System.out.println("                    doing expensive binary-search-within-binary-search to find r");
+                if (verboseLevel >= 1) System.out.println("                    hard part of second quadrant: doing expensive binary-search-within-binary-search");
                 if (verboseLevel >= 2) System.out.print("                      ");
                 // Do a binary search on r.
                 // Each time we refine r, reset angle bounds.
@@ -348,7 +348,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     this.integrate(this.t0, this.t1, gotMoment);
 
                     boolean outsideTangent = false;
-                    if (true)
+                    boolean useBiggerHammer = true; // XXX not sure I have complete confidence that it's doing the right thing with respect to angle bounds
+                    if (useBiggerHammer)
                     {
                         double xDir = desiredMoment[0] - gotMoment[0];
                         double yDir = desiredMoment[1] - gotMoment[1];
@@ -392,7 +393,26 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             // need to go NW
                             if (verboseLevel >= 2) System.out.print(" NW");
                             //assert(false); // coverage
-                            assert(outsideTangent); // i.e. already did this case with bigger hammer
+
+
+                            if (useBiggerHammer)
+                                assert(outsideTangent); // i.e. already did this case with bigger hammer
+                            if (!useBiggerHammer)
+                            {
+                                if (rLo == r)
+                                {
+                                    if (verboseLevel >= 1) System.out.println("                        broke because rLo==r with big hammer");
+                                    break;
+                                }
+                                rLo = r;
+                                outsideTangent = true;
+
+                                // reset angle bounds
+                                angleLo = Math.PI/2.;
+                                angleHi = Math.PI;
+                                if (verboseLevel >= 2) System.out.println();
+                                if (verboseLevel >= 2) System.out.print("                      ");
+                            }
                         }
                     }
                     else
@@ -1091,6 +1111,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.8320025520166806, yMoment=-0.06050328101277758",
                 "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.4835907692577395, yMoment=-0.010211074002742182",
                 "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.4880273204300428, yMoment=-0.008470672745238716",
+
+                // binary search fail
+                "x0=-0.9999999999999998, y0=1.0755285551056204E-16, x1=0.0, y1=0.0, xMoment=-0.49999999999999983, yMoment=-2.498712573656414E-10",
             };
 
             for (int iTestCase = 0; iTestCase < testCases.length; ++iTestCase)
