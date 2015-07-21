@@ -131,6 +131,7 @@ public class Catenary
             assert(x0 <= x1); // precondition
             double dx = x1 - x0;
             double dy = y1 - y0;
+            double dist = MyMath.hypot(dx, dy);
             double tol = 1e-9;
             if (slack == 0.
              || XXX_USE_SIMPLE_PROTECTION && slack <= tol)
@@ -141,7 +142,6 @@ public class Catenary
                 this.sNumerator = 1.;
                 this.sDenominator = 0.;
 
-                double dist = MyMath.hypot(dx, dy);
                 if (dist == 0.)
                 {
                     this.xFocusDirection = 1.;
@@ -190,7 +190,7 @@ public class Catenary
                 if (verboseLevel >= 1) System.out.println("                          s finite and nonzero case");
                 //assert(false); // coverage; remove when hit
 
-                double L = MyMath.hypot(dx, dy) + slack;
+                double L = dist + slack;
 
                 // Mathematically sqrt(L^2-dy^2)/dx >= 1,
                 // and it better be since we're about to take asinhc of it...
@@ -213,7 +213,7 @@ public class Catenary
                 //                   = sqrt(1 + 2*slack*hypot(dx,dy)/dx/dx + (slack/dx)^2)
                 //                   = sqrt(1 + 2*slack*hypot(1,dy/dx)/dx + (slack/dx)^2)
                 // XXX TODO: make completely bulletproof; I think dy/dx can still overflow if dy>1 and dx very small?
-                double L2_minus_dy2 = SQR(dx) + slack*(2*MyMath.hypot(dx,dy) + slack);
+                double L2_minus_dy2 = SQR(dx) + slack*(2*dist + slack);
                 assert_almost_eq(L2_minus_dy2, L*L - dy*dy, 1e-6);
                 double sqrt_L2minusdy2 = Math.sqrt(L2_minus_dy2); // not used immediately, used farther down
                 assert_ge(sqrt_L2minusdy2, dx);
@@ -278,26 +278,28 @@ public class Catenary
                 if (sDenominator == 0.)
                 {
                     // s is infinite. it's a straight line.
-                    // don't descend into further complication.
-                    this.xFocusDirection = x1-x0; // we'll normalize below
-                    this.yFocusDirection = y1-y0; // we'll normalize below
-                    double temp = MyMath.hypot(this.xFocusDirection, this.yFocusDirection);
-                    assert_ne(temp, 0.);
-                    this.xFocusDirection /= temp;
-                    this.yFocusDirection /= temp;
+                    // (so slack was pretty small but wasn't zero).
+                    // don't descend into further complication;
+                    // do the same thing we did with slack=0.
+                    // TODO: this is really a cop-out; should be using math that doesn't degenerate and doesn't make this a special case.
+                    assert_ne(dist, 0.); // dist=0 should have been covered by dx=0 case
+                    this.xFocusDirection = dx / dist;
+                    this.yFocusDirection = dy / dist;
+
+                    // focus is the lower of the two points
                     if (y0 <= y1)
                     {
-                        this.t0 = 0.;
-                        this.t1 = L;
                         this.xFocusInWorld = x0;
                         this.yFocusInWorld = y0;
+                        this.t0 = 0.;
+                        this.t1 = dist; // = L but maybe not exactly
                     }
                     else
                     {
-                        this.t0 = -L;
-                        this.t1 = 0.;
                         this.xFocusInWorld = x1;
                         this.yFocusInWorld = y1;
+                        this.t0 = -dist; // = -L but maybe not exactly
+                        this.t1 = 0.;
                     }
                 }
                 else
