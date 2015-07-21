@@ -1289,7 +1289,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
-                // binary search fail 1e-6, requires 1e-5 at the moment (but fixed)
+                // binary search fail... and moment isn't even near momentIfTaut, shouldn't be problematic!
+                "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.6843006919963104, yMoment=-0.5234607164665921",
+                "x0=-1.0000000000000002, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.676447513441035, yMoment=-0.6023753364873917",
+
+                // binary search was failing with 1e-6, required 1e-5 (but fixed)
                 "x0=-0.9999999999999998, y0=1.0755285551056204E-16, x1=0.0, y1=0.0, xMoment=-0.49999999999999983, yMoment=-2.498712573656414E-10",
                 // binary search bigger fails even with 1e-5
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.006350760623254819, yMoment=-0.0026522100650424284",
@@ -1843,6 +1847,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 //assert(false); // coverage
                                 //pointSize += 4;
                                 mg.setColor(sample.bad ? java.awt.Color.yellow : java.awt.Color.cyan);
+                                if (sample.bad)
+                                    pointSize += 4;
                             }
                             mg.drawPoint(xMoment, yMoment, pointSize);
                         }
