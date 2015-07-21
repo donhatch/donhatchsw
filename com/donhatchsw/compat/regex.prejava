@@ -1462,7 +1462,7 @@ public class regex
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.group: "+e.getTargetException());
-                    assert(false);
+                    //assert(false);
                     return null;
                 }
             }
@@ -1672,7 +1672,7 @@ public class regex
             String input = sb.toString();
             sb = null;
             System.out.println("Trying to match input of length "+input.length());
-            matches(input, ".*");
+            PRINT(matches(input, ".*"));
         }
 
         if (true)
