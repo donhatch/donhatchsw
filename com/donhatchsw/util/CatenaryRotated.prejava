@@ -50,7 +50,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                  NewtonSolver.Fun nfun,
                                  int minIterations, // seem to need this, or it thinks it stopped improving after 1 iteration in some sticky situations.  I think actually the termination condition should be that it didn't improve in some number of iterations? hmm. actually should make it smart and adaptive I think.
                                  int maxIterations,
-                                 boolean adaptiveFlag)
+                                 boolean adaptiveFlagUnused)
         {
             final double yFinal[] = y;
             final NewtonSolver.Fun nfunFinal = nfun;
@@ -79,6 +79,198 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             VecMath.copyvec(x, answer);
         } // solveUsingMinimizer
 
+    public static java.io.PrintWriter goodAndBadOut = null; // apps can set this to debug
+
+    // experimental at the moment
+    public boolean fitFromMomentByBinarySearch(double x0, double y0,
+                                               double x1, double y1,
+                                               double xMoment, double yMoment,
+                                               com.donhatchsw.compat.ArrayList newtonPathOut)
+    {
+        int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
+        int fitVerboseLevel = 0; // XXX and this too?
+        if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
+
+        double dist = MyMath.hypot(y1-y0, x1-x0);
+        double desiredMoment[] = {xMoment, yMoment};
+        double xMomentIfZeroSlack = (x0+x1)*.5 * dist;
+        double yMomentIfZeroSlack = (y0+y1)*.5 * dist;
+
+        if (EQ(x0, -1., 1e-12)
+         && EQ(y0, 0., 1e-12)
+         && x1 == 0.
+         && y1 == 0.
+         && yMoment <= 0.)
+        {
+            x0 *= -1.;
+            x1 *= -1.;
+            y0 *= -1.;
+            y1 *= -1.;
+            xMoment *= -1.; // flip to upper right quadrant
+            yMoment *= -1.;
+            desiredMoment[0] *= -1.;
+            desiredMoment[1] *= -1.;
+
+            // Lower and upper bounds
+            double rLo = 0.;
+            double rHi = Math.max(1.,
+                                  10.*Math.sqrt(MyMath.hypot(xMoment, yMoment)));
+            double angleLo = 0.;
+            double angleHi = Math.PI/2.;
+
+            double gotMoment[] = new double[2];
+            double prevGotMoment[] = {Double.NaN, Double.NaN};
+            while (true)
+            {
+                VecMath.copyvec(prevGotMoment, gotMoment);
+                double angle = (angleLo + angleHi) * .5;
+                double r = (rLo + rHi) * .5;
+                double c = Math.cos(angle);
+                double s = Math.sin(angle);
+                this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                this.integrate(this.t0, this.t1, gotMoment);
+                if (verboseLevel >= 3) PRINTVEC(desiredMoment);
+                if (verboseLevel >= 3) PRINTVEC(gotMoment);
+
+                if (verboseLevel >= 2)
+                {
+                    if (!Double.isNaN(prevGotMoment[0]))
+                    {
+                        if (gotMoment[0] <= prevGotMoment[0])
+                            if (gotMoment[1] <= prevGotMoment[1])
+                                System.out.print("(sw)");
+                            else
+                                System.out.print("(nw)");
+                        else
+                            if (gotMoment[1] <= prevGotMoment[1])
+                                System.out.print("(se)");
+                            else
+                                System.out.print("(ne)");
+                    }
+                    // Seeing but shouldn't:
+                    //    NW(sw)  NW(ne) NW(se)
+                }
+
+                if (desiredMoment[0] <= gotMoment[0])
+                {
+                    if (desiredMoment[1] <= gotMoment[1])
+                    {
+                        // need to go SW
+                        if (verboseLevel >= 2) System.out.print(" SW");
+                        //assert(false); // coverage
+                        if (rHi == r) break;
+                        rHi = r;
+                    }
+                    else
+                    {
+                        // need to to NW
+                        if (verboseLevel >= 2) System.out.print(" NW");
+                        //assert(false); // coverage
+                        if (angleLo == angle) break;
+                        angleLo = angle;
+                    }
+                }
+                else
+                {
+                    if (desiredMoment[1] <= gotMoment[1])
+                    {
+                        // need to go SE
+                        if (verboseLevel >= 2) System.out.print(" SE");
+                        //assert(false); // coverage
+                        if (angleHi == angle) break;
+                        angleHi = angle;
+                    }
+                    else
+                    {
+                        // need to to NE
+                        if (verboseLevel >= 2) System.out.print(" NE");
+                        //assert(false); // coverage
+                        if (rLo == r) break;
+                        rLo = r;
+                    }
+                }
+            }
+            if (verboseLevel >= 2) System.out.println("!");
+            if (angleHi == Math.PI/2.)
+            {
+                // moment in first quadrant but answer not in first quadrant
+                if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") (not really in expected quadrant)");
+                return false;
+
+            }
+            if (verboseLevel >= 2)
+            {
+                PRINT(rLo);
+                PRINT(rHi);
+                PRINT(angleLo);
+                PRINT(angleHi);
+                PRINTVEC(desiredMoment);
+                PRINTVEC(gotMoment);
+            }
+
+            double r = (rLo+rHi)*.5;
+            double angle = (angleLo+angleHi)*.5;
+
+            // convert back to original quadrant-- both x and y flipped
+            angle = Math.PI + angle;
+            x0 *= -1.;
+            x1 *= -1.;
+            y0 *= -1.;
+            y1 *= -1.;
+            xMoment *= -1.;
+            yMoment *= -1.;
+            desiredMoment[0] *= -1.;
+            desiredMoment[1] *= -1.;
+            double c = Math.cos(angle);
+            double s = Math.sin(angle);
+            this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+        }
+        else
+        {
+            // TODO: implement more cases!
+            if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") (unimplemented)");
+            return false;
+        }
+
+        double gotMoment[] = new double[2];
+        this.integrate(this.t0, this.t1, gotMoment);
+        if (verboseLevel >= 1) System.out.println("              answer this="+this);
+        if (verboseLevel >= 1) System.out.println("              desiredMoment="+VecMath.toString(desiredMoment));
+        if (verboseLevel >= 1) System.out.println("              gotMoment="+VecMath.toString(gotMoment));
+
+        try
+        {
+            assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
+            if (goodAndBadOut != null)
+            {
+                goodAndBadOut.println("    INTERNAL GOOD: CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") succeeded: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
+                goodAndBadOut.flush();
+            }
+        }
+        catch (Error e)
+        {
+            // more descriptive error
+            e = new Error("    INTERNAL ERROR: CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") failed: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
+            if (goodAndBadOut != null)
+            {
+                goodAndBadOut.println(e.getMessage());
+                goodAndBadOut.flush();
+            }
+            if (XXX_ALLOW_FITFROMMOMENT_FAILURE)
+            {
+                System.err.println(e.getMessage());
+                // but proceed
+            }
+            else
+                throw e;
+        }
+
+        if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+"), returning this="+this);
+        return true;
+    } // fitFromMomentByBinarySearch
+
+    static int binarySearchSuccesses = 0;
+    static int binarySearchFails = 0;
     /**
     * Set members to be the parameters of the catenary
     * passing through points (x0,y0),(x1,y1)
@@ -97,10 +289,41 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                               double xMoment, double yMoment,
                               com.donhatchsw.compat.ArrayList newtonPathOut)
     {
+
         int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
-        if (verboseLevel >= 1) System.out.println("              {"+x0+","+y0+", "+x1+","+y1+", "+xMoment+","+yMoment+"},"); // suitable for copying into confidence test
+
+        //boolean tryBinarySearch = !EQ(yMoment,0., 1e-3);
+        boolean tryBinarySearch = true;
+        if (tryBinarySearch)
+        {
+            boolean binarySearchSucceeded = fitFromMomentByBinarySearch(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut);
+            if (binarySearchSucceeded)
+            {
+                binarySearchSuccesses++;
+            }
+            else
+            {
+                binarySearchFails++;
+            }
+            if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") (binary search succeeded)");
+            if (verboseLevel >= 2) PRINT(binarySearchSuccesses);
+            if (verboseLevel >= 2) PRINT(binarySearchFails);
+            if (binarySearchSucceeded)
+            {
+                if (false) // can get rid of this
+                {
+                    // sanity check-- this should not fail!!!
+                    double desiredMoment[] = {xMoment, yMoment};
+                    double gotMoment[] = new double[2];
+                    this.integrate(this.t0, this.t1, gotMoment);
+                    PRINT(VecMath.dist(gotMoment, desiredMoment));
+                    assert(VecMath.dist(gotMoment, desiredMoment) <= 1e-6);
+                }
+                return;
+            }
+        }
 
         double dist = MyMath.hypot(y1-y0, x1-x0);
         double desiredMoment[] = {xMoment, yMoment};
@@ -201,18 +424,28 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         this.fitFromRectangularCoords(x0,y0, x1,y1, xyAnswer[0], xyAnswer[1], fitVerboseLevelFinal);
         double gotMoment[] = new double[2];
         this.integrate(this.t0, this.t1, gotMoment);
-        if (verboseLevel >= 1) System.out.println("              "+this);
-        if (verboseLevel >= 1) System.out.println("              desiredMoment"+VecMath.toString(desiredMoment));
-        if (verboseLevel >= 1) System.out.println("              gotMoment"+VecMath.toString(gotMoment));
+        if (verboseLevel >= 1) System.out.println("              answer this="+this);
+        if (verboseLevel >= 1) System.out.println("              desiredMoment="+VecMath.toString(desiredMoment));
+        if (verboseLevel >= 1) System.out.println("              gotMoment="+VecMath.toString(gotMoment));
 
         try
         {
             assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
+            if (goodAndBadOut != null)
+            {
+                goodAndBadOut.println("    INTERNAL GOOD: CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") succeeded: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
+                goodAndBadOut.flush();
+            }
         }
         catch (Error e)
         {
             // more descriptive error
-            e = new Error("    INTERNAL ERROR: CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") failed: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
+            e = new Error("    INTERNAL ERROR: CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") failed: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment));
+            if (goodAndBadOut != null)
+            {
+                goodAndBadOut.println(e.getMessage());
+                goodAndBadOut.flush();
+            }
             if (XXX_ALLOW_FITFROMMOMENT_FAILURE)
             {
                 System.err.println(e.getMessage());
@@ -221,7 +454,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             else
                 throw e;
         }
-        if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
+        if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+"), returning this="+this);
     } // fitFromMoment
 
 
@@ -604,24 +837,31 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             // XXX TODO: the stepScale refers to the thing that's hard coded inside fitFromMoment. not sure what the problem is, either:
             //           - it's getting foiled by known numerical issues since I'm not doing Catenary intelligently for near-degenerate cases
             //           - newton solve is really tricky in this case, need to make it adaptive or something
+            //             (actually tried that and it got slow)
 
-            double testCases[][] = {
-                // x0,y0, x1,y1, xMoment,yMoment
-                {-1.,0., 0.,0., -0.5036269106706781,-0.027290553371898757}, // good with stepScale=1 (currently)
-                {-1.,0., 0.,0., -0.5019665247911539,-0.020949377300023747}, // fails with stepScale=1, succeeds with stepScale=.8 (currently)
-                {-1.0,2.220446049250313E-16, 0.0,0.0, -0.5011288865208755,-0.016410201253350465}, // fails with stepScale=.8, succeeds with stepScale=.5 (currently)
-                {-0.9999999999999999,2.7755575615628914E-17, 0.0,0.0, -0.5006712775428778,-0.013005663996619649}, // fails with stepScale=.5, succeeds with stepScale=.2 (currently)
-                {-1.0,-5.551115123125783E-17, 0.0,0.0, -0.5004068444282271,-0.01036098511128418}, // fails with stepScale=.2 (currently)
+            String testCases[] = {
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5036269106706781, yMoment=-0.027290553371898757", // good with stepScale=1 (currently)
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5019665247911539, yMoment=-0.020949377300023747", // fails with stepScale=1, succeeds with stepScale=.8 (currently)
+                "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.5011288865208755, yMoment=-0.016410201253350465", // fails with stepScale=.8, succeeds with stepScale=.5 (currently)
+                "x0=-0.9999999999999999, y0=2.7755575615628914E-17, x1=0.0, y1=0.0, xMoment=-0.5006712775428778, yMoment=-0.013005663996619649", // fails with stepScale=.5, succeeds with stepScale=.2 (currently)
+                "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5004068444282271, yMoment=-0.01036098511128418", // fails with stepScale=.2 (currently)
             };
+
             for (int iTestCase = 0; iTestCase < testCases.length; ++iTestCase)
             {
                 System.out.println("      fitFromMoment test case "+iTestCase+"/"+testCases.length+":");
-                double x0 = testCases[iTestCase][0];
-                double y0 = testCases[iTestCase][1];
-                double x1 = testCases[iTestCase][2];
-                double y1 = testCases[iTestCase][3];
-                double xMoment = testCases[iTestCase][4];
-                double yMoment = testCases[iTestCase][5];
+
+                String tokens[] = testCases[iTestCase].split(", "); // since java 1.4; okay whatever
+                double x0 = Double.parseDouble(tokens[0].substring(3));
+                double y0 = Double.parseDouble(tokens[1].substring(3));
+                double x1 = Double.parseDouble(tokens[2].substring(3));
+                double y1 = Double.parseDouble(tokens[3].substring(3));
+                double xMoment = Double.parseDouble(tokens[4].substring(8));
+                double yMoment = Double.parseDouble(tokens[5].substring(8));
+                //System.out.println(testCases[iTestCase]);
+                //System.out.println("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment);
+                assert(("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment).equals(testCases[iTestCase]));
+
                 PRINT(x0);
                 PRINT(y0);
                 PRINT(x1);
@@ -701,6 +941,127 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             {
                 double v0[] = {0.,0.};
                 double v1[] = {1.,0.};
+
+
+                class Sample {
+                    boolean bad;
+                    boolean byBinarySearch;
+                    double x0;
+                    double x1;
+                    double y0;
+                    double y1;
+                    double xMoment;
+                    double yMoment;
+
+                    double xMomentNormalized;
+                    double yMomentNormalized;
+                    Sample(boolean bad, boolean byBinarySearch, double x0, double y0, double x1, double y1, double xMoment, double yMoment, double xMomentNormalized, double yMomentNormalized)
+                    {
+                        this.bad = bad;
+                        this.byBinarySearch = byBinarySearch;
+                        this.x0 = x0;
+                        this.x1 = x1;
+                        this.y0 = y0;
+                        this.y1 = y1;
+                        this.yMoment = yMoment;
+                        this.yMoment = yMoment;
+                        this.xMomentNormalized = xMomentNormalized;
+                        this.yMomentNormalized = yMomentNormalized;
+                    }
+                };
+                Sample samples[] = null;
+
+                Model()
+                {
+                    String goodAndBadInFileName = "GOOD_AND_BAD_IN";
+                    java.io.BufferedReader in = null;
+                    try
+                    {
+                        in = new java.io.BufferedReader(new java.io.InputStreamReader(new java.io.FileInputStream(goodAndBadInFileName)));
+                    }
+                    catch (java.io.FileNotFoundException e)
+                    {
+                        System.err.println("Error trying to open file "+goodAndBadInFileName+" for reading: "+e);
+                    }
+                    if (in != null)
+                    {
+                       String line = null;
+                       com.donhatchsw.compat.regex.Pattern pattern = com.donhatchsw.compat.regex.Pattern.compile(" *INTERNAL (GOOD|ERROR): CatenaryRotated.fitFromMoment((ByBinarySearch)?)\\(x0=([^,]*), y0=([^,]*), x1=([^,]*), y1=([^,]*), xMoment=([^,]*), yMoment=([^),]*)\\).*");
+                       System.out.print("Reading samples from "+goodAndBadInFileName+" ... ");
+                       System.out.flush();
+                       try {
+                           com.donhatchsw.compat.ArrayList samplesArrayList = new com.donhatchsw.compat.ArrayList();
+                           while ((line = in.readLine()) != null)
+                           {
+                               //System.out.println("got line: "+line);
+                               com.donhatchsw.compat.regex.Matcher matcher = pattern.matcher(line);
+                               //PRINT(matcher.matches());
+                               assert(matcher.matches());
+                               /*
+                               PRINT(matcher.group(1));
+                               PRINT(matcher.group(2));
+                               PRINT(matcher.group(3));
+                               PRINT(matcher.group(4));
+                               PRINT(matcher.group(5));
+                               PRINT(matcher.group(6));
+                               PRINT(matcher.group(7));
+                               */
+                               String goodOrError = matcher.group(1);
+                               String byBinarySearchOrNothing = matcher.group(2);
+                               double x0 = Double.parseDouble(matcher.group(4));
+                               double y0 = Double.parseDouble(matcher.group(5));
+                               double x1 = Double.parseDouble(matcher.group(6));
+                               double y1 = Double.parseDouble(matcher.group(7));
+                               double xMoment = Double.parseDouble(matcher.group(8));
+                               double yMoment = Double.parseDouble(matcher.group(9));
+                               //PRINT(goodOrError);
+                               //PRINT(x0);
+                               //PRINT(y0);
+                               //PRINT(x1);
+                               //PRINT(y1);
+                               //PRINT(xMoment);
+                               //PRINT(yMoment);
+                               assert(EQ(x1,0.,1e-12));
+                               assert(EQ(y1,0.,1e-12));
+                               assert(EQ(y0,0.,1e-12));
+                               assert(INRANGE(-1.0001 <=, x0, <= 0.));
+                               if (x0 == 0.)
+                               {
+                                   // can't normalize-- but we don't get errors on this case anyway
+                                   assert(goodOrError.equals("GOOD"));
+                                   continue;
+                               }
+                               assert(x0 < 0.);
+                               // normize to space in which x0,y0 = 0,0  x1,y1=1,0
+                               double size = -x0;
+                               assert(size > 0.);
+                               double xMomentNormalized = -xMoment / SQR(size);
+                               double yMomentNormalized = yMoment / SQR(size);
+                               /*
+                               PRINT(xMomentNormalized);
+                               PRINT(yMomentNormalized);
+                               */
+                               samplesArrayList.add(new Sample(goodOrError.equals("ERROR"), byBinarySearchOrNothing.equals("ByBinarySearch"), x0,y0, x1,y1, xMoment,yMoment, xMomentNormalized,yMomentNormalized));
+                           }
+                           System.out.println("done.");
+                           samples = (Sample[])samplesArrayList.toArray(new Sample[samplesArrayList.size()]);
+                       }
+                       catch (java.io.IOException e)
+                       {
+                            System.err.println("Error reading from file "+goodAndBadInFileName+": "+e);
+                       }
+                       finally {
+                           try {
+                               in.close();
+                           }
+                           catch (java.io.IOException e)
+                           {
+                                System.err.println("Error trying to close input file "+goodAndBadInFileName+": "+e);
+                           }
+                       }
+                    }
+                }
+
             } // class Model
             class View
             {
@@ -799,7 +1160,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
 
                 // culling frustum
-                mg.setColor(java.awt.Color.yellow);
+                mg.setColor(java.awt.Color.blue);
                 mg.drawLine(xMinCull,yMinCull, xMaxCull,yMinCull);
                 mg.drawLine(xMaxCull,yMinCull, xMaxCull,yMaxCull);
                 mg.drawLine(xMaxCull,yMaxCull, xMinCull,yMaxCull);
@@ -907,7 +1268,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     if (iPass == 0)
                         mg.setColor(java.awt.Color.white);
                     else
-                        mg.setColor(java.awt.Color.red);
+                    {
+                        //mg.setColor(java.awt.Color.red);
+                        mg.setColor(new java.awt.Color(128, 128, 255));
+                    }
                     for (int iAngle = 0; iAngle < nAnglesMajor; ++iAngle)
                     {
                         int passOfThisAngle = (4*iAngle % nAnglesMajor == 0) ? 1 : 0;
@@ -969,6 +1333,34 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         }
                     }
 
+                }
+
+                // Draw good and bad samples
+                if (model.samples != null)
+                {
+                    for (int i = 0; i < model.samples.length; ++i)
+                    {
+                        Model.Sample sample = model.samples[i];
+                        double xMoment = sample.xMomentNormalized;
+                        double yMoment = sample.yMomentNormalized;
+                        if (INRANGE(xMinCull <=, xMoment, <= xMaxCull)
+                         && INRANGE(yMinCull <=, yMoment, <= yMaxCull))
+                        {
+                            mg.setColor(sample.bad ? java.awt.Color.red : java.awt.Color.green);
+                            int pointSize;
+                            if (EQ(sample.x0, -1., 1e-12)) // i.e. if endpoints were originally bigger than moment
+                                pointSize = 1;
+                            else // i.e. if moment was originally bigger than endpoints
+                                pointSize = 2;
+                            if (sample.byBinarySearch)
+                            {
+                                //assert(false); // coverage
+                                //pointSize += 4;
+                                mg.setColor(sample.bad ? java.awt.Color.yellow : java.awt.Color.cyan);
+                            }
+                            mg.drawPoint(xMoment, yMoment, pointSize);
+                        }
+                    }
                 }
 
                 //

@@ -565,7 +565,7 @@ public class SmoothlyVaryingViewingParameter
                         v[0], v[1],  // v0; happens to be on -x axis now, but doesn't need to be
                         0., 0.,      // v1
                         p[0], p[1], // desired integral
-                        null);      // newtonPathOut
+                        newtonPathOut);
 
                     if (false)
                     {
@@ -13854,6 +13854,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public double distanceBasedBounce = 0.;
                 public boolean paused = false;
                 public double time = 0.;
+                public boolean dumpGoodAndBadFlag = true;
+                public String goodAndBadOutFileName = "GOOD_AND_BAD_OUT";
+                public java.io.PrintWriter goodAndBadOut = null;
+
                 public Model()
                 {
                     int n = 10;
@@ -13927,6 +13931,19 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 } // Model ctor
                 public void evolve(double dt)
                 {
+                    if (this.dumpGoodAndBadFlag && this.goodAndBadOut == null)
+                    {
+                        try {
+                            this.goodAndBadOut = new java.io.PrintWriter(new java.io.FileWriter(this.goodAndBadOutFileName));
+                        }
+                        catch (java.io.IOException e)
+                        {
+                            System.err.println("Error trying to open file "+this.goodAndBadOutFileName+" for writing: "+e);
+                            this.dumpGoodAndBadFlag = false; // so we don't keep trying
+                        }
+                    }
+                    CatenaryRotated.goodAndBadOut = (this.dumpGoodAndBadFlag ? this.goodAndBadOut : null);
+
                     int N = points.length;
                     int n = N/3;
                     FORI (I, N)
@@ -14196,12 +14213,17 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     java.awt.Dimension viewSize = getSize(); // getWidth,getHeight don't exist in 1.1
                     int W = viewSize.width;
                     int H = viewSize.height;
+                    int Y = 2;
                     com.donhatchsw.awt.MyGraphics mgTemp = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
                     //mgTemp.drawString("("+view.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.);
                     String timeString = ((double)(int)model.time==model.time
                                       ? ""+(int)model.time
                                       : ""+model.time);
-                    mgTemp.drawString("t="+timeString, W-2, 2, 1, -1.);
+                    mgTemp.drawString("t="+timeString, W-2, Y, 1, -1.);
+                    Y += 18;
+                    if (model.dumpGoodAndBadFlag)
+                        mgTemp.drawString("dumping trace to file "+model.goodAndBadOutFileName, W-2, Y, 1, -1.);
+                    Y += 18;
                 }
 
                 if (g != frontBufferGraphics)
@@ -14281,6 +14303,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             System.out.println("ciao!");
                             System.exit(0); // asinine way of doing things
                         }
+                        else if (c == 'd')
+                        {
+                            model.dumpGoodAndBadFlag ^= true;
+                            PRINT(model.dumpGoodAndBadFlag);
+                            repaint();
+                        }
                         else if (c == ' ')
                         {
                             model.paused = !model.paused;
@@ -14339,6 +14367,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             System.out.println("              h - show this help message");
                             System.out.println("            p/P - increase/decrease number of plan curves to show");
                             System.out.println("              a - toggle accelerations on plan curves");
+                            System.out.println("              d - toggle tracing to "+model.goodAndBadOutFileName);
                             System.out.println("          space - pause/resume");
                             System.out.println("         arrows - move target by 1/9 pixel if not paused");
                             System.out.println("  up/down arrow - advance/retreat one timestep if paused");
