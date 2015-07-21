@@ -565,7 +565,7 @@ public class SmoothlyVaryingViewingParameter
                         v[0], v[1],  // v0; happens to be on -x axis now, but doesn't need to be
                         0., 0.,      // v1
                         p[0], p[1], // desired integral
-                        newtonPathOut);
+                        null);      // newtonPathOut
 
                     if (false)
                     {
