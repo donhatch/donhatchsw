@@ -503,8 +503,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         else
         {
             // TODO: implement more cases!
+            unimplemented();
             if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") (unimplemented)");
-            assert(false); // coverage
             return false;
         }
 
@@ -574,11 +574,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         //boolean tryBinarySearch = true;
         boolean tryBinarySearch = EQ(x0, -1., 1e-12);
         //boolean tryBinarySearch = false;
-        if (true)
-        {
-            if (tryBinarySearch && EQ(yMoment,0., 1e-3))
-                tryBinarySearch = false; // so we just concentrate on more interesting cases for now, to reduce noise
-        }
         if (tryBinarySearch)
         {
             boolean binarySearchSucceeded = fitFromMomentByBinarySearch(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut);
