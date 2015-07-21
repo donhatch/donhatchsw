@@ -87,14 +87,14 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                double xMoment, double yMoment,
                                                com.donhatchsw.compat.ArrayList newtonPathOut)
     {
-        int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: binary search progress, 3: excessive
         int fitVerboseLevel = 0; // XXX and this too?
-        if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
+        if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+")");
 
         double dist = MyMath.hypot(y1-y0, x1-x0);
         double desiredMoment[] = {xMoment, yMoment};
-        double xMomentIfZeroSlack = (x0+x1)*.5 * dist;
-        double yMomentIfZeroSlack = (y0+y1)*.5 * dist;
+        double xMomentIfTaut = (x0+x1)*.5 * dist;
+        double yMomentIfTaut = (y0+y1)*.5 * dist;
 
         if (EQ(x0, -1., 1e-12)
          && EQ(y0, 0., 1e-12)
@@ -102,101 +102,374 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
          && y1 == 0.
          && yMoment <= 0.)
         {
+            // Flip from lower to upper half plane,
+            // and the sample point from negative x axis to positive x axis.
+            // I.e. flip the problem in both x and y.
             x0 *= -1.;
             x1 *= -1.;
             y0 *= -1.;
             y1 *= -1.;
-            xMoment *= -1.; // flip to upper right quadrant
+            xMoment *= -1.;
             yMoment *= -1.;
             desiredMoment[0] *= -1.;
             desiredMoment[1] *= -1.;
+            xMomentIfTaut *= -1.;
+            yMomentIfTaut *= -1.;
 
             // Lower and upper bounds
             double rLo = 0.;
             double rHi = Math.max(1.,
                                   10.*Math.sqrt(MyMath.hypot(xMoment, yMoment)));
             double angleLo = 0.;
-            double angleHi = Math.PI/2.;
+            double angleHi = Math.PI;
 
             double gotMoment[] = new double[2];
-            double prevGotMoment[] = {Double.NaN, Double.NaN};
-            while (true)
+
+            // First figure out which quadrant the answer is in,
+            // by figuring out which side of the image of the +y axis it's on.
+            boolean isObviouslyInSecondQuadrant = desiredMoment[0] <= xMomentIfTaut;
+            if (isObviouslyInSecondQuadrant)
             {
-                VecMath.copyvec(prevGotMoment, gotMoment);
-                double angle = (angleLo + angleHi) * .5;
-                double r = (rLo + rHi) * .5;
-                double c = Math.cos(angle);
-                double s = Math.sin(angle);
-                this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
-                this.integrate(this.t0, this.t1, gotMoment);
-                if (verboseLevel >= 3) PRINTVEC(desiredMoment);
-                if (verboseLevel >= 3) PRINTVEC(gotMoment);
-
-                if (verboseLevel >= 2)
+                if (verboseLevel >= 2) System.out.println("                  easy to see it's in second quadrant.");
+                angleLo = Math.PI/2.;
+            }
+            // TODO: actually there's some magic constant angle we can use... figure it out
+            boolean isObviouslyInFirstQuadrant = desiredMoment[0]-xMomentIfTaut >= desiredMoment[1];
+            if (isObviouslyInFirstQuadrant)
+            {
+                if (verboseLevel >= 2) System.out.println("                  easy to see it's in first quadrant.");
+                angleHi = Math.PI/2.;
+            }
+            if (!isObviouslyInFirstQuadrant && !isObviouslyInSecondQuadrant)
+            {
+                // TODO: this should be a simple, perhaps analytic, function, I think?
+                if (verboseLevel >= 2) System.out.println("                  figuring out which quadrant...");
+                if (verboseLevel >= 2) System.out.print("                    ");
+                while (true)
                 {
-                    if (!Double.isNaN(prevGotMoment[0]))
+                    double r = (rLo + rHi) * .5;
+                    this.fitFromPolarCoords(x0,y0, x1,y1, r, 0., 1., fitVerboseLevel);
+                    this.integrate(this.t0, this.t1, gotMoment);
+                    if (desiredMoment[0] < gotMoment[0]) // < so we prefer SE if equal
                     {
-                        if (gotMoment[0] <= prevGotMoment[0])
-                            if (gotMoment[1] <= prevGotMoment[1])
-                                System.out.print("(sw)");
-                            else
-                                System.out.print("(nw)");
+                        if (desiredMoment[1] <= gotMoment[1])
+                        {
+                            // need to go SW
+                            if (verboseLevel >= 2) System.out.print(" SW");
+                            //assert(false); // coverage
+                            if (rHi == r)
+                            {
+                                // we actually have found the answer,
+                                // but let it go through the first-quadrant code path
+                                if (verboseLevel >= 2) System.out.print(" (found answer but let it go through first-quadrant code path)");
+                                angleLo = Math.PI/2.;
+                                angleHi = Math.PI/2.;
+                                break;
+                            }
+                            // r is an upper bound on our search here,
+                            // but not on the actual answer
+                            // (so we'll reset rHi later, before doing the actual search within the second quadrant).
+                            rHi = r;
+                        }
                         else
-                            if (gotMoment[1] <= prevGotMoment[1])
-                                System.out.print("(se)");
-                            else
-                                System.out.print("(ne)");
-                    }
-                    // Seeing but shouldn't:
-                    //    NW(sw)  NW(ne) NW(se)
-                }
+                        {
+                            // need to go NW
+                            if (verboseLevel >= 2) System.out.print(" NW");
+                            //assert(false); // coverage
+                            // it's in second quadrant!
+                            angleLo = Math.PI/2.;
 
-                if (desiredMoment[0] <= gotMoment[0])
-                {
-                    if (desiredMoment[1] <= gotMoment[1])
-                    {
-                        // need to go SW
-                        if (verboseLevel >= 2) System.out.print(" SW");
-                        //assert(false); // coverage
-                        if (rHi == r) break;
-                        rHi = r;
+                            // At this point r is actually a lower bound on the answer,
+                            // so set rLo to it,
+                            // but we need to reset rHi.
+                            rLo = r;
+                            rHi = Math.max(1.,
+                                           10.*Math.sqrt(MyMath.hypot(xMoment, yMoment)));
+
+                            break;
+                        }
                     }
                     else
                     {
-                        // need to to NW
-                        if (verboseLevel >= 2) System.out.print(" NW");
-                        //assert(false); // coverage
-                        if (angleLo == angle) break;
-                        angleLo = angle;
+                        if (desiredMoment[1] <= gotMoment[1]) // <= so we prefer SE if equal
+                        {
+                            // need to go SE
+                            if (verboseLevel >= 2) System.out.print(" SE");
+                            //assert(false); // coverage
+                            // it's in first quadrant!
+                            angleHi = Math.PI/2.;
+                            break;
+                        }
+                        else
+                        {
+                            // need to go NE
+                            if (verboseLevel >= 2) System.out.print(" NE");
+                            //assert(false); // coverage
+                            if (rLo == r)
+                            {
+                                // we actually have found the answer,
+                                // but let it go through the first-quadrant code path
+                                if (verboseLevel >= 2) System.out.print(" (found answer but let it go through first-quadrant code path)");
+                                angleLo = Math.PI/2.;
+                                angleHi = Math.PI/2.;
+                                break;
+                            }
+                            // r is a lower bound both on our search here, and on the actual answer
+                            rLo = r;
+                        }
                     }
                 }
-                else
+                if (verboseLevel >= 2) System.out.println("!");
+            }
+
+            boolean isInFirstQuadrant = angleHi <= Math.PI/2.;
+
+            if (isInFirstQuadrant || isObviouslyInSecondQuadrant)
+            {
+                if (verboseLevel >= 2) System.out.print("                    ");
+                while (true)
                 {
-                    if (desiredMoment[1] <= gotMoment[1])
+                    double angle = (angleLo + angleHi) * .5;
+                    double r = (rLo + rHi) * .5;
+                    double c = Math.cos(angle);
+                    double s = Math.sin(angle);
+                    this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                    this.integrate(this.t0, this.t1, gotMoment);
+                    if (verboseLevel >= 3) PRINTVEC(desiredMoment);
+                    if (verboseLevel >= 3) PRINTVEC(gotMoment);
+
+                    boolean outsideTangent = false;
+                    if (true)
                     {
-                        // need to go SE
-                        if (verboseLevel >= 2) System.out.print(" SE");
+                        double xDir = desiredMoment[0] - gotMoment[0];
+                        double yDir = desiredMoment[1] - gotMoment[1];
+                        if (xDir*c + yDir*s > 0)
+                        {
+                            // desired moment is outside tangent line of ellipse.
+                            // r is too small.
+                            if (rLo == r) break;
+                            rLo = r;
+                            outsideTangent = true;
+                        }
+                    }
+
+                    if (desiredMoment[0] < gotMoment[0])
+                    {
+                        if (desiredMoment[1] <= gotMoment[1])
+                        {
+                            // need to go SW
+                            if (verboseLevel >= 2) System.out.print(" SW");
+                            if (verboseLevel >= 3) System.out.println();
+                            //assert(false); // coverage
+                            if (isInFirstQuadrant)
+                            {
+                                if (rHi == r) break;
+                                rHi = r;
+                            }
+                            else
+                            {
+                                if (angleLo == angle) break;
+                                angleLo = angle;
+                            }
+                        }
+                        else
+                        {
+                            // need to go NW
+                            if (verboseLevel >= 2) System.out.print(" NW");
+                            if (verboseLevel >= 3) System.out.println();
+                            //assert(false); // coverage
+                            if (isInFirstQuadrant)
+                            {
+                                if (angleLo == angle) break;
+                                angleLo = angle;
+                            }
+                            else
+                            {
+                                assert(outsideTangent); // i.e. already did this case with bigger hammer
+                            }
+                        }
+                    }
+                    else
+                    {
+                        if (desiredMoment[1] <= gotMoment[1])
+                        {
+                            // need to go SE
+                            if (verboseLevel >= 2) System.out.print(" SE");
+                            if (verboseLevel >= 3) System.out.println();
+                            //assert(false); // coverage
+                            if (isInFirstQuadrant)
+                            {
+                                if (angleHi == angle) break;
+                                angleHi = angle;
+                            }
+                            else
+                            {
+                                if (rHi == r) break;
+                                rHi = r;
+                            }
+                        }
+                        else
+                        {
+                            // need to go NE
+                            if (verboseLevel >= 2) System.out.print(" NE");
+                            if (verboseLevel >= 3) System.out.println();
+                            //assert(false); // coverage
+                            if (isInFirstQuadrant)
+                            {
+                                assert(outsideTangent); // i.e. already did this case with bigger hammer
+                            }
+                            else
+                            {
+                                if (angleHi == angle) break;
+                                angleHi = angle;
+                            }
+                        }
+                    }
+                }
+                if (verboseLevel >= 2) System.out.println("!");
+            }
+            else
+            {
+                // Answer is in hard part of second quadrant.
+                // This case is harder, since the images of the radial lines aren't monotonic in x in target space.
+                if (verboseLevel >= 1) System.out.println("                    doing expensive binary-search-within-binary-search to find r");
+                if (verboseLevel >= 2) System.out.print("                      ");
+                // Do a binary search on r.
+                // Each time we refine r, reset angle bounds.
+                // So this is expected to be rather slow.
+                while (true)
+                {
+                    double angle = (angleLo + angleHi) * .5;
+                    double r = (rLo + rHi) * .5;
+                    double c = Math.cos(angle);
+                    double s = Math.sin(angle);
+                    this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                    this.integrate(this.t0, this.t1, gotMoment);
+
+                    boolean outsideTangent = false;
+                    if (true)
+                    {
+                        double xDir = desiredMoment[0] - gotMoment[0];
+                        double yDir = desiredMoment[1] - gotMoment[1];
+                        if (xDir*c + yDir*s > 0)
+                        {
+                            // desired moment is outside tangent line of ellipse.
+                            // r is too small.
+                            if (verboseLevel >= 2) System.out.print(" very NW");
+                            if (rLo == r)
+                            {
+                                if (verboseLevel >= 1) System.out.println("                        broke because rLo==r with big hammer");
+                                break;
+                            }
+                            rLo = r;
+                            outsideTangent = true;
+
+                            // reset angle bounds
+                            angleLo = Math.PI/2.;
+                            angleHi = Math.PI;
+                            if (verboseLevel >= 2) System.out.println();
+                            if (verboseLevel >= 2) System.out.print("                      ");
+                        }
+                    }
+
+                    if (desiredMoment[0] < gotMoment[0])
+                    {
+                        // need to go W
+                        if (desiredMoment[1] <= gotMoment[1])
+                        {
+                            // need to go SW
+                            if (verboseLevel >= 2) System.out.print(" SW");
+                            if (angleLo == angle)
+                            {
+                                if (verboseLevel >= 1) System.out.println("                        broke because angleLo==angle");
+                                break;
+                            }
+                            angleLo = angle; // not actual bound, but bound for search on this ellipse
+                        }
+                        else
+                        {
+                            // need to go NW
+                            if (verboseLevel >= 2) System.out.print(" NW");
+                            //assert(false); // coverage
+                            assert(outsideTangent); // i.e. already did this case with bigger hammer
+                        }
+                    }
+                    else
+                    {
+                        // need to go E
+                        if (desiredMoment[1] <= gotMoment[1])
+                        {
+                            // need to go SE
+                            if (verboseLevel >= 2) System.out.print(" SE");
+                            //assert(false); // coverage
+                            if (rHi == r)
+                            {
+                                if (verboseLevel >= 1) System.out.println("                        broke because rHi==r");
+                                break;
+                            }
+                            rHi = r;
+
+                            // reset angle bounds
+                            angleLo = Math.PI/2.;
+                            angleHi = Math.PI;
+                            if (verboseLevel >= 2) System.out.println();
+                            if (verboseLevel >= 2) System.out.print("                      ");
+                        }
+                        else
+                        {
+                            // need to go NE
+                            if (verboseLevel >= 2) System.out.print(" NE");
+                            if (angleHi == angle)
+                            {
+                                if (verboseLevel >= 1) System.out.println("                        broke because angleHi==angle");
+                                break;
+                            }
+                            angleHi = angle; // not actual bound, but bound for search on this ellipse
+                        }
+                    }
+                }
+                if (verboseLevel >= 2) System.out.println();
+
+                // Okay, we've found r.
+                double r = (rLo+rHi) * .5;
+
+                if (verboseLevel >= 1) System.out.println("                    found r="+r);
+                if (verboseLevel >= 1) System.out.println("                    doing final binary search to find angle");
+                if (verboseLevel >= 2) System.out.print("                      ");
+
+                // Now should be able to find angle by another binary search on this ellipse.
+                angleLo = Math.PI/2.;
+                angleHi = Math.PI;
+                while (true)
+                {
+                    double angle = (angleLo + angleHi) * .5;
+                    double c = Math.cos(angle);
+                    double s = Math.sin(angle);
+                    this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                    this.integrate(this.t0, this.t1, gotMoment);
+                    if (verboseLevel >= 3) PRINTVEC(desiredMoment);
+                    if (verboseLevel >= 3) PRINTVEC(gotMoment);
+                    // testing in either x or y will work; sum works too
+                    if ((desiredMoment[0]-gotMoment[0]) + (desiredMoment[1]-gotMoment[1]) > 0.)
+                    {
+                        // need to go NE
                         //assert(false); // coverage
+                        if (verboseLevel >= 2) System.out.print(" NE");
                         if (angleHi == angle) break;
                         angleHi = angle;
                     }
                     else
                     {
-                        // need to to NE
-                        if (verboseLevel >= 2) System.out.print(" NE");
+                        // need to go SW
                         //assert(false); // coverage
-                        if (rLo == r) break;
-                        rLo = r;
+                        if (verboseLevel >= 2) System.out.print(" SW");
+                        if (angleLo == angle) break;
+                        angleLo = angle;
                     }
                 }
-            }
-            if (verboseLevel >= 2) System.out.println("!");
-            if (angleHi == Math.PI/2.)
-            {
-                // moment in first quadrant but answer not in first quadrant
-                if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") (not really in expected quadrant)");
-                return false;
-
+                if (verboseLevel >= 2) System.out.println();
+                double angle = (angleLo+angleHi)*.5;
+                if (verboseLevel >= 1) System.out.println("                    found angle="+RTOD(angle)+"deg");
             }
             if (verboseLevel >= 2)
             {
@@ -211,7 +484,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             double r = (rLo+rHi)*.5;
             double angle = (angleLo+angleHi)*.5;
 
-            // convert back to original quadrant-- both x and y flipped
+            // convert back to original space-- both x and y flipped
             angle = Math.PI + angle;
             x0 *= -1.;
             x1 *= -1.;
@@ -221,6 +494,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             yMoment *= -1.;
             desiredMoment[0] *= -1.;
             desiredMoment[1] *= -1.;
+            xMomentIfTaut *= -1.;
+            yMomentIfTaut *= -1.;
             double c = Math.cos(angle);
             double s = Math.sin(angle);
             this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
@@ -228,15 +503,16 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         else
         {
             // TODO: implement more cases!
-            if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") (unimplemented)");
+            if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") (unimplemented)");
+            assert(false); // coverage
             return false;
         }
 
         double gotMoment[] = new double[2];
         this.integrate(this.t0, this.t1, gotMoment);
-        if (verboseLevel >= 1) System.out.println("              answer this="+this);
-        if (verboseLevel >= 1) System.out.println("              desiredMoment="+VecMath.toString(desiredMoment));
-        if (verboseLevel >= 1) System.out.println("              gotMoment="+VecMath.toString(gotMoment));
+        if (verboseLevel >= 1) System.out.println("                  answer this="+this);
+        if (verboseLevel >= 1) System.out.println("                  desiredMoment="+VecMath.toString(desiredMoment));
+        if (verboseLevel >= 1) System.out.println("                  gotMoment="+VecMath.toString(gotMoment));
 
         try
         {
@@ -265,7 +541,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 throw e;
         }
 
-        if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+"), returning this="+this);
+        if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+"), returning this="+this);
         return true;
     } // fitFromMomentByBinarySearch
 
@@ -292,10 +568,17 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
         int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
         int fitVerboseLevel = 0; // XXX and this too?
-        if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+")");
+        if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+")");
 
-        //boolean tryBinarySearch = !EQ(yMoment,0., 1e-3);
-        boolean tryBinarySearch = true;
+        // XXX eventually it should handle all cases, but for now, don't try it in cases where we know it's unnecessary and unimplemented, to reduce noise
+        //boolean tryBinarySearch = true;
+        boolean tryBinarySearch = EQ(x0, -1., 1e-12);
+        //boolean tryBinarySearch = false;
+        if (true)
+        {
+            if (tryBinarySearch && EQ(yMoment,0., 1e-3))
+                tryBinarySearch = false; // so we just concentrate on more interesting cases for now, to reduce noise
+        }
         if (tryBinarySearch)
         {
             boolean binarySearchSucceeded = fitFromMomentByBinarySearch(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut);
@@ -307,7 +590,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             {
                 binarySearchFails++;
             }
-            if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+") (binary search succeeded)");
+            if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") (binary search succeeded)");
             if (verboseLevel >= 2) PRINT(binarySearchSuccesses);
             if (verboseLevel >= 2) PRINT(binarySearchFails);
             if (binarySearchSucceeded)
@@ -393,10 +676,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
         // Make an initial guess-- this gets it in the correct upper or lower
         // half-plane, but is otherwise very rough.
-        double xMomentIfZeroSlack = (x0+x1)*.5 * dist;
-        double yMomentIfZeroSlack = (y0+y1)*.5 * dist;
-        double xInitialGuess = xMoment - xMomentIfZeroSlack;
-        double yInitialGuess = yMoment - yMomentIfZeroSlack;
+        double xMomentIfTaut = (x0+x1)*.5 * dist;
+        double yMomentIfTaut = (y0+y1)*.5 * dist;
+        double xInitialGuess = xMoment - xMomentIfTaut;
+        double yInitialGuess = yMoment - yMomentIfTaut;
         double xyAnswer[] = {xInitialGuess, yInitialGuess};
         boolean adaptiveFlag = false; // setting this to true makes the TRY_TO_DO_IT_RIGHT plan paths look much better in demo3 (since evaluation functions not stable yet)... but it makes it horribly slow instead of just freaking out!  so, leaving this false; need to fix the problem instead.
         boolean amoebaFlag = false; // XXX make this configurable?
@@ -454,7 +737,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             else
                 throw e;
         }
-        if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+" yMoment="+yMoment+"), returning this="+this);
+        if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+"), returning this="+this);
     } // fitFromMoment
 
 
@@ -834,17 +1117,15 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         if (true)
         {
             System.out.println("      testing some fitFromMoment cases that have been problematic");
-            // XXX TODO: the stepScale refers to the thing that's hard coded inside fitFromMoment. not sure what the problem is, either:
-            //           - it's getting foiled by known numerical issues since I'm not doing Catenary intelligently for near-degenerate cases
-            //           - newton solve is really tricky in this case, need to make it adaptive or something
-            //             (actually tried that and it got slow)
-
             String testCases[] = {
-                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5036269106706781, yMoment=-0.027290553371898757", // good with stepScale=1 (currently)
-                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5019665247911539, yMoment=-0.020949377300023747", // fails with stepScale=1, succeeds with stepScale=.8 (currently)
-                "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.5011288865208755, yMoment=-0.016410201253350465", // fails with stepScale=.8, succeeds with stepScale=.5 (currently)
-                "x0=-0.9999999999999999, y0=2.7755575615628914E-17, x1=0.0, y1=0.0, xMoment=-0.5006712775428778, yMoment=-0.013005663996619649", // fails with stepScale=.5, succeeds with stepScale=.2 (currently)
-                "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5004068444282271, yMoment=-0.01036098511128418", // fails with stepScale=.2 (currently)
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5036269106706781, yMoment=-0.027290553371898757",
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5019665247911539, yMoment=-0.020949377300023747",
+                "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.5011288865208755, yMoment=-0.016410201253350465",
+                "x0=-0.9999999999999999, y0=2.7755575615628914E-17, x1=0.0, y1=0.0, xMoment=-0.5006712775428778, yMoment=-0.013005663996619649",
+                "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5004068444282271, yMoment=-0.01036098511128418",
+                "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.8320025520166806, yMoment=-0.06050328101277758",
+                "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.4835907692577395, yMoment=-0.010211074002742182",
+                "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.4880273204300428, yMoment=-0.008470672745238716",
             };
 
             for (int iTestCase = 0; iTestCase < testCases.length; ++iTestCase)
@@ -1361,6 +1642,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             mg.drawPoint(xMoment, yMoment, pointSize);
                         }
                     }
+                }
+
+                if (true)
+                {
+                    // XXX just visualize one point I was having trouble with
+                    mg.setColor(java.awt.Color.yellow);
+                    mg.drawPoint(0.4880273204300428, 0.008470672745238716, 1);
                 }
 
                 //
