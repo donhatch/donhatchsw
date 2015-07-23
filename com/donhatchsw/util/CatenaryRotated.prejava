@@ -1958,16 +1958,46 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         //           = .5*(T*(sqrt(T*T+1)-2) + asinh(T)) / T / (Y-1)
                         //           = .5*(T*(Y-2) + X) / T / (Y-1)
                         //           = .5*(Y - 2 + X/T) / (Y-1)
-                        // So,  yMoment = (1-.5*(T*(Y-2)+X))*s*(Y-1)
+                        // So, yMoment = (1-(.5*(Y - 2 + X/T) / (Y-1)))*s*(Y-1)*(1+slack)
+                        //             = ((Y-1)-(.5*(Y - 2 + X/T)))*s*(1+slack)
+                        // XXX TODO: transfer the simplifications below to here
+                        //
+                        // Okay, that's correct; now let's try to simplify it.
                         double X = Catenary.asinhc(1.+slack);
                         double Y = MyMath.cosh(X);
                         double T = MyMath.sinh(X);
                         double s = 1./(2.*X);
                         double frac = .5*(Y - 2. + X/T) / (Y-1.);
-                        double yMoment = (1.-frac) * s * (Y-1.) * (1.+slack);
-                        double xMoment = (model.v0[0]+model.v1[0])*.5 * (1.+slack);
+                        //double yMoment = (1-(.5*(Y - 2 + X/T) / (Y-1)))*s*(Y-1)*(1+slack);
+                        //double yMoment = ((Y-1)-(.5*(Y - 2 + X/T)))*s*(1+slack);
+                        //double yMoment = (.5*Y-1-(.5*(- 2 + X/T)))*s*(1+slack);
+                        //double yMoment = (.5*Y-1-((-1 + .5*X/T)))*s*(1+slack);
+                        //double yMoment = (.5*Y - .5*X/T)*s*(1+slack);
+                        //double yMoment = .5*(Y - X/T)*s*(1+slack);
+                        // use X = 1/(2s)
+                        //double yMoment = .5*(s*Y - (1/2.)/T)*(1+slack);
+                        //double yMoment = .5*(s*Y - .5/T)*(1+slack);
+                        // Oh WAIT a minute: T/X is 1+slack.
+                        // back to this:
+                        //double yMoment = .5*(Y - X/T)*s*(1+slack);
+                        //double yMoment = .5*(Y - 1./(1.+slack))*s*(1+slack);
+                        double yMoment = .5*(Y*(1.+slack) - 1.)*s;
+
+                        double xMomentIfTaut = (model.v0[0]+model.v1[0])*.5;
+                        double xMoment = xMomentIfTaut * (1.+slack);
                         mg.setColor(java.awt.Color.red);
                         mg.drawPoint(xMoment, yMoment, 3);
+
+                        // and the -y one
+                        mg.drawPoint(xMoment, -yMoment, 3);
+
+                        // and the +x one
+                        xMoment = xMomentIfTaut + SQR(slack+2.)*.25-1.;
+                        mg.drawPoint(xMoment, 0., 3);
+
+                        // and the -x one
+                        xMoment = xMomentIfTaut - slack*slack*.25;
+                        mg.drawPoint(xMoment, 0., 3);
                     }
                 }
 
