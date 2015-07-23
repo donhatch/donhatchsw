@@ -1558,10 +1558,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // Really viewing params (could separate into ViewParams and ViewState)...
                 boolean antialiasFlag = true;
                 boolean showPointsFlag = false;
+                boolean showGridFlag = false;
 
                 double focus[] = {.5, 0.};
                 double logRadius = 1.;
                 double radius = Math.pow(2., logRadius);
+                double gridRotDegrees = 0.;
 
                 double debugCullFrustumShrink = 1.;
 
@@ -1742,87 +1744,231 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
 
 
-                int nMagsMajorPerMagLevel = 1;
-                int nAnglesMajor = 16; // divide 360 into this many parts
-                int nMagsMinorPerMajor = 10;
-                int nAnglesMinorPerMajor = 10;
-
-                int nAnglesMinor = nAnglesMajor * nAnglesMinorPerMajor;
-                int nMagStepsMajor = (magLevel1-magLevel0) * nMagsMajorPerMagLevel;
-                int nMagStepsMinor = nMagStepsMajor * nMagsMinorPerMajor;
-
-                for (int iPass = 0; iPass < 2; ++iPass)
+                if (true)
                 {
+                    // Draw polar grid
 
-                    // draw radial contours of constant angle
-                    if (iPass == 0)
-                        mg.setColor(java.awt.Color.white);
-                    else
-                    {
-                        //mg.setColor(java.awt.Color.red);
-                        mg.setColor(new java.awt.Color(128, 128, 255));
-                    }
-                    for (int iAngle = 0; iAngle < nAnglesMajor; ++iAngle)
-                    {
-                        int passOfThisAngle = (4*iAngle % nAnglesMajor == 0) ? 1 : 0;
-                        if (iPass != passOfThisAngle)
-                            continue;
+                    int nMagsMajorPerMagLevel = 1;
+                    int nAnglesMajor = 16; // divide 360 into this many parts
+                    int nMagsMinorPerMajor = 10;
+                    int nAnglesMinorPerMajor = 10;
 
-                        double angle = 2*Math.PI/nAnglesMajor * iAngle;
-                        double cosAngle = Math.cos(angle);
-                        double sinAngle = Math.sin(angle);
-                        double xMomentPrev = Double.NaN;
-                        double yMomentPrev = Double.NaN;
-                        for (int iMag = 0; iMag < nMagStepsMinor+1; ++iMag)
+                    int nAnglesMinor = nAnglesMajor * nAnglesMinorPerMajor;
+                    int nMagStepsMajor = (magLevel1-magLevel0) * nMagsMajorPerMagLevel;
+                    int nMagStepsMinor = nMagStepsMajor * nMagsMinorPerMajor;
+
+                    for (int iPass = 0; iPass < 2; ++iPass)
+                    {
+
+                        // draw radial contours of constant angle
+                        if (iPass == 0)
                         {
-                            double r = Math.pow(2., LERP(magLevel0, magLevel1, (double)iMag/(double)nMagStepsMinor));
-                            double x = r * cosAngle;
-                            double y = r * sinAngle;
-                            catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
-                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                            if (iMag > 0)
-                                mg.drawLine(xMomentPrev,yMomentPrev,
-                                            moment[0], moment[1]);
-                            if (view.showPointsFlag)
-                                mg.drawPoint(moment[0], moment[1], 3);
-                            xMomentPrev = moment[0];
-                            yMomentPrev = moment[1];
+                            //mg.setColor(java.awt.Color.white);
+                            mg.setColor(new java.awt.Color(128, 128, 128)); // good for low contrast against rectangular
                         }
-                    }
-
-                    // draw circular contours of constant magnitude.
-                    // skip largest, since it's outside view.
-                    if (iPass == 0)
-                        mg.setColor(java.awt.Color.white);
-                    else
-                        mg.setColor(new java.awt.Color(128, 128, 255));
-                    for (int iMagMajor = 0; iMagMajor < nMagStepsMajor; ++iMagMajor)
-                    {
-                        int passOfThisMag = iMagMajor == (0-magLevel0)*nMagsMajorPerMagLevel ? 1 : 0;
-                        if (iPass != passOfThisMag)
-                            continue;
-                        double r = Math.pow(2., LERP(magLevel0, magLevel1, (double)iMagMajor/(double)nMagStepsMajor));
-                        double xMomentPrev = Double.NaN;
-                        double yMomentPrev = Double.NaN;
-                        for (int iAngle = 0; iAngle < nAnglesMinor+1; ++iAngle)
+                        else
                         {
-                            double angle = 2*Math.PI/nAnglesMinor * iAngle;
+                            //mg.setColor(java.awt.Color.red);
+                            mg.setColor(new java.awt.Color(128, 128, 255));
+                        }
+                        for (int iAngle = 0; iAngle < nAnglesMajor; ++iAngle)
+                        {
+                            int passOfThisAngle = (4*iAngle % nAnglesMajor == 0) ? 1 : 0;
+                            if (iPass != passOfThisAngle)
+                                continue;
+
+                            double angle = 2*Math.PI/nAnglesMajor * iAngle;
                             double cosAngle = Math.cos(angle);
                             double sinAngle = Math.sin(angle);
-                            double x = r * cosAngle;
-                            double y = r * sinAngle;
-                            catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                            double xMomentPrev = Double.NaN;
+                            double yMomentPrev = Double.NaN;
+                            for (int iMag = 0; iMag < nMagStepsMinor+1; ++iMag)
+                            {
+                                double r = Math.pow(2., LERP(magLevel0, magLevel1, (double)iMag/(double)nMagStepsMinor));
+                                //double x = r * cosAngle;
+                                //double y = r * sinAngle;
+                                catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                                if (iMag > 0)
+                                    mg.drawLine(xMomentPrev,yMomentPrev,
+                                                moment[0], moment[1]);
+                                if (view.showPointsFlag)
+                                    mg.drawPoint(moment[0], moment[1], 3);
+                                xMomentPrev = moment[0];
+                                yMomentPrev = moment[1];
+                            }
+                        }
+
+                        // draw circular contours of constant magnitude.
+                        // skip largest, since it's outside view.
+                        if (iPass == 0)
+                        {
+                            //mg.setColor(java.awt.Color.white);
+                            mg.setColor(new java.awt.Color(128, 128, 128)); // good for low contrast against rectangular
+                        }
+                        else
+                            mg.setColor(new java.awt.Color(128, 128, 255));
+                        for (int iMagMajor = 0; iMagMajor < nMagStepsMajor; ++iMagMajor)
+                        {
+                            int passOfThisMag = iMagMajor == (0-magLevel0)*nMagsMajorPerMagLevel ? 1 : 0;
+                            if (iPass != passOfThisMag)
+                                continue;
+                            double r = Math.pow(2., LERP(magLevel0, magLevel1, (double)iMagMajor/(double)nMagStepsMajor));
+                            double xMomentPrev = Double.NaN;
+                            double yMomentPrev = Double.NaN;
+                            for (int iAngle = 0; iAngle < nAnglesMinor+1; ++iAngle)
+                            {
+                                double angle = 2*Math.PI/nAnglesMinor * iAngle;
+                                double cosAngle = Math.cos(angle);
+                                double sinAngle = Math.sin(angle);
+                                //double x = r * cosAngle;
+                                //double y = r * sinAngle;
+                                catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                                if (iAngle > 0)
+                                    mg.drawLine(xMomentPrev,yMomentPrev,
+                                                moment[0], moment[1]);
+                                if (view.showPointsFlag)
+                                    mg.drawPoint(moment[0], moment[1], 3);
+                                xMomentPrev = moment[0];
+                                yMomentPrev = moment[1];
+                            }
+                        }
+
+                    }
+                } // polar grid
+
+
+                if (view.showGridFlag)
+                {
+                    // Draw rectangular grid
+                    //double r = 1.;
+                    //double r = .5;
+                    double r = .25;
+                    double x0 = -r;
+                    double x1 = r;
+                    double y0 = -r;
+                    double y1 = r;
+                    int nXStepsMajor = 64;
+                    int nXStepsMinorPerMajor = 6;
+                    int nYStepsMajor = 64;
+                    int nYStepsMinorPerMajor = 6;
+                    int nXStepsMinor = nXStepsMajor * nXStepsMinorPerMajor;
+                    int nYStepsMinor = nYStepsMajor * nYStepsMinorPerMajor;
+                    double sqrtHalf = Math.sqrt(.5);
+                    double c = Math.cos(DTOR(view.gridRotDegrees));
+                    double s = Math.sin(DTOR(view.gridRotDegrees));
+
+                    // vertical lines
+                    mg.setColor(java.awt.Color.green);
+                    for (int iX = 0; iX < nXStepsMajor+1; ++iX)
+                    {
+                        double x = LERP(x0, x1, iX/(double)nXStepsMajor);
+                        double xMomentPrev = Double.NaN;
+                        double yMomentPrev = Double.NaN;
+                        for (int iY = 0; iY < nYStepsMinor+1; ++iY)
+                        {
+                            double y = LERP(y0, y1, iY/(double)nYStepsMinor);
+                            double X = c*x - s*y;
+                            double Y = s*x + c*y;
+                            catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], X,Y, 0);
                             catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                            if (iAngle > 0)
+                            if (iY > 0)
+                            {
                                 mg.drawLine(xMomentPrev,yMomentPrev,
                                             moment[0], moment[1]);
+                            }
                             if (view.showPointsFlag)
                                 mg.drawPoint(moment[0], moment[1], 3);
                             xMomentPrev = moment[0];
                             yMomentPrev = moment[1];
                         }
                     }
+                    // horizontal lines
+                    mg.setColor(java.awt.Color.red);
+                    for (int iY = 0; iY < nYStepsMajor+1; ++iY)
+                    {
+                        double y = LERP(y0, y1, iY/(double)nYStepsMajor);
+                        double xMomentPrev = Double.NaN;
+                        double yMomentPrev = Double.NaN;
+                        for (int iX = 0; iX < nXStepsMinor+1; ++iX)
+                        {
+                            double x = LERP(x0, x1, iX/(double)nXStepsMinor);
+                            double X = c*x - s*y;
+                            double Y = s*x + c*y;
+                            catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], X,Y, 0);
+                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                            if (iX > 0)
+                            {
+                                mg.drawLine(xMomentPrev,yMomentPrev,
+                                            moment[0], moment[1]);
+                            }
+                            if (view.showPointsFlag)
+                                mg.drawPoint(moment[0], moment[1], 3);
+                            xMomentPrev = moment[0];
+                            yMomentPrev = moment[1];
+                        }
+                    }
+                } // rectangular grid
 
+                if (true)
+                {
+                    // Draw analytic form of the function where we know it,
+                    // namely on the axes
+                    double slack0 = 0.;
+                    double slack1 = 1.;
+                    double nSlackSteps = 10.;
+                    for (int iSlack = 0; iSlack < nSlackSteps+1; ++iSlack)
+                    {
+                        double slack = LERP(slack0, slack1, iSlack/(double)nSlackSteps);
+                        double x = 0.;
+                        double y = slack;
+                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        mg.setColor(java.awt.Color.green);
+                        mg.drawPoint(moment[0], moment[1], 5);
+
+                        // What's the formula, given x=0, y=slack?
+                        // Well the x component is easy:
+                        //      xMoment = .5 * (1+slack)  (actually xMomentIfTaut * (1+slack))
+                        // The y component is harder.
+                        // Let X,Y,T be the max relevant coordinates
+                        // on the canonical (unscaled) catenary.
+                        // First solve for s = catenary scale:
+                        //      2*s*T = 1+slack
+                        //      2*s*X = 1
+                        // Divide first equation by second:
+                        //      T/X = 1+slack
+                        //      T/asinh(T) = 1+slack
+                        //      sinh(X)/X = 1+slack
+                        //      sinhc(X) = 1+slack
+                        // So,
+                        //      X = asinhc(1+slack)
+                        //      s = 1/(2*X)
+                        //        = 1/(2*asinhc(1+slack))
+                        //      T = sinh(X)
+                        //        = sinh(asinhc(1+slack))
+                        //      Y = cosh(X)
+                        //        = cosh(asinhc(1+slack))
+                        // Then:
+                        //      yMoment = (1-frac)*s*(Y-1) * (1+slack)
+                        // where frac is the fraction of a canonical catenary
+                        // where its center-of-mass lies in y:
+                        //      frac = (integral[0..T] (sqrt(t^2+1)-1) dt)/T / (Y-1)
+                        //           = .5*(T*(sqrt(T*T+1)-2) + asinh(T)) / T / (Y-1)
+                        //           = .5*(T*(Y-2) + X) / T / (Y-1)
+                        //           = .5*(Y - 2 + X/T) / (Y-1)
+                        // So,  yMoment = (1-.5*(T*(Y-2)+X))*s*(Y-1)
+                        double X = Catenary.asinhc(1.+slack);
+                        double Y = MyMath.cosh(X);
+                        double T = MyMath.sinh(X);
+                        double s = 1./(2.*X);
+                        double frac = .5*(Y - 2. + X/T) / (Y-1.);
+                        double yMoment = (1.-frac) * s * (Y-1.) * (1.+slack);
+                        double xMoment = (model.v0[0]+model.v1[0])*.5 * (1.+slack);
+                        mg.setColor(java.awt.Color.red);
+                        mg.drawPoint(xMoment, yMoment, 3);
+                    }
                 }
 
                 // Draw good and bad samples
@@ -1855,9 +2001,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     }
                 }
 
-                if (true)
+                if (false)
                 {
-                    // XXX just visualize one point I was having trouble with
+                    // Just visualize one point I was having trouble with
                     mg.setColor(java.awt.Color.yellow);
                     mg.drawPoint(0.4880273204300428, 0.008470672745238716, 1);
                 }
@@ -1943,6 +2089,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             PRINT(view.radius);
                             repaint();
                         }
+                        else if (c == 'g')
+                        {
+                            view.showGridFlag ^= true;
+                            PRINT(view.showGridFlag);
+                            repaint();
+                        }
                         else if (c == 'p')
                         {
                             view.showPointsFlag ^= true;
@@ -1977,6 +2129,18 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             PRINT(view.antialiasFlag);
                             repaint();
                         }
+                        else if (c == 'r')
+                        {
+                            view.gridRotDegrees += 5;
+                            PRINT(view.gridRotDegrees);
+                            repaint();
+                        }
+                        else if (c == 'R')
+                        {
+                            view.gridRotDegrees -= 5;
+                            PRINT(view.gridRotDegrees);
+                            repaint();
+                        }
                         else if (c == 'h')
                         {
                             System.out.println("The following keys do things:");
@@ -1984,6 +2148,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             System.out.println("    arrow keys - move catenary endpoints");
                             System.out.println("       shift-A - toggle antialiasing");
                             System.out.println("             p - toggle points used to draw curves");
+                            System.out.println("             g - toggle rectangular grid");
+                            System.out.println("             r - toggle 45 degree rotation of grid");
                             System.out.println("        ctrl-f - shrink/unshrink view cull frustum");
                             System.out.println("             h - show this help message");
                             System.out.println("           Esc - quit");
