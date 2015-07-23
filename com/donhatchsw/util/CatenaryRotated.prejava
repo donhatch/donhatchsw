@@ -136,6 +136,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 angleLo = Math.PI/2.;
             }
             // TODO: actually there's some magic constant angle we can use... figure it out
+            // If lower than 45 degree line, then it's obviously in first quadrant
             boolean isObviouslyInFirstQuadrant = desiredMoment[0]-xMomentIfTaut >= desiredMoment[1];
             if (isObviouslyInFirstQuadrant)
             {
@@ -1917,16 +1918,19 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     // namely on the axes
                     double slack0 = 0.;
                     double slack1 = 1.;
-                    double nSlackSteps = 10.;
+                    double nSlackSteps = 20.;
                     for (int iSlack = 0; iSlack < nSlackSteps+1; ++iSlack)
                     {
                         double slack = LERP(slack0, slack1, iSlack/(double)nSlackSteps);
                         double x = 0.;
                         double y = slack;
-                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
-                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                        mg.setColor(java.awt.Color.green);
-                        mg.drawPoint(moment[0], moment[1], 5);
+                        if (false)
+                        {
+                            catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                            mg.setColor(java.awt.Color.green);
+                            mg.drawPoint(moment[0], moment[1], 5);
+                        }
 
                         // What's the formula, given x=0, y=slack?
                         // Well the x component is easy:
@@ -1999,6 +2003,46 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         xMoment = xMomentIfTaut - slack*slack*.25;
                         mg.drawPoint(xMoment, 0., 3);
                     }
+                }
+                if (true)
+                {
+                    // figure out the magic angle at which we can say we are "obviously in first quadrant", i.e. the angle of the min slope of the image of the y axis
+                    double xMomentIfTaut = (model.v0[0]+model.v1[0])*.5;
+                    int nSteps = 10*1000;
+                    double prevMoment[] = {Double.NaN, Double.NaN};
+                    double minAngle = (xMomentIfTaut<0. ? 0. : Math.PI);
+                    double slackAtMinAngle = Double.NaN;
+                    double xMomentAtMinAngle = Double.NaN;
+                    double yMomentAtMinAngle = Double.NaN;
+                    for (int i = 0; i < nSteps+1; ++i)
+                    {
+                        double slack = i/(double)nSteps;
+                        double x = 0.;
+                        double y = slack;
+                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        if (i > 0)
+                        {
+                            double angle = Math.atan2(moment[1]-prevMoment[1], moment[0]-prevMoment[0]);
+                            if (xMomentIfTaut<0. ? (angle>minAngle) : (angle < minAngle))
+                            {
+                                minAngle = angle;
+                                slackAtMinAngle = slack;
+                                xMomentAtMinAngle = moment[0];
+                                yMomentAtMinAngle = moment[1];
+                            }
+                        }
+                        VecMath.copyvec(prevMoment, moment);
+                    }
+                    PRINT(minAngle);
+                    PRINT(RTOD(minAngle));
+                    PRINT(slackAtMinAngle);
+                    PRINT(xMomentAtMinAngle);
+                    PRINT(yMomentAtMinAngle);
+                    mg.setColor(java.awt.Color.green);
+                    mg.drawPoint(xMomentAtMinAngle, yMomentAtMinAngle, 5);
+                    mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngle), Math.sin(minAngle));
+                    mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.sqrt(.5), Math.sqrt(.5));
                 }
 
                 // Draw good and bad samples
