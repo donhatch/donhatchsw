@@ -1963,10 +1963,20 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         //           = .5*(T*(Y-2) + X) / T / (Y-1)
                         //           = .5*(Y - 2 + X/T) / (Y-1)
                         // So, yMoment = (1-(.5*(Y - 2 + X/T) / (Y-1)))*s*(Y-1)*(1+slack)
+                        // Okay, that's correct; now let's try to simplify it.
                         //             = ((Y-1)-(.5*(Y - 2 + X/T)))*s*(1+slack)
                         // XXX TODO: transfer the simplifications below to here
                         //
-                        // Okay, that's correct; now let's try to simplify it.
+                        // Next step: don't start with slack, start with s instead.
+                        // Then:
+                        //    X = 1/(2*s)
+                        //    1+slack = sinhc(X) = sinh(X)/X
+                        //      slack = sinh(X)/X - 1
+                        // Ultimately we want to know whether xMoment,yMoment
+                        // is to the right or left of the image of the +y axis...
+                        // I.e. given yMoment, can we find the xMoment0 such that xMoment,yMoment
+                        // is on the image of the +y axis? Then ask whether xMoment>xMoment0.
+                        //
                         double X = Catenary.asinhc(1.+slack);
                         double Y = MyMath.cosh(X);
                         double T = MyMath.sinh(X);
