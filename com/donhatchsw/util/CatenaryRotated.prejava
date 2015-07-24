@@ -1671,6 +1671,19 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             }
 
 
+            // http://stackoverflow.com/questions/1953530/why-does-java-prohibit-static-fields-in-inner-classes
+            // interesting!  so we can get around it usually by making the inner class static...
+            // but in this case it's anonymous, so it can't be static??  why not?
+            // Can I make a case that anonymous subclasses should *always* be static?
+            // Think about this.
+            private int getQuadrant(double x, double y)
+            {
+                if (x > 0 && y >= 0) return 1;
+                if (y > 0 && x <= 0) return 2;
+                if (x < 0 && y <= 0) return 3;
+                if (y < 0 && x <= 0) return 4;
+                return 0;
+            }
 
 
             private java.awt.Image backBuffer = null;
@@ -1835,10 +1848,18 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     // Draw polar grid
 
                     int nMagsMajorPerMagLevel = 1;
+
+                    boolean colorByGoodnessFlag = false; // XXX TODO: provide flag for this
                     int nAnglesMajor = 16; // divide 360 into this many parts
                     int nMagsMinorPerMajor = 10;
                     int nAnglesMinorPerMajor = 10;
+                    if (colorByGoodnessFlag)
+                    {
+                        nAnglesMajor *= 8;
+                        nMagsMinorPerMajor *= 2;
+                    }
 
+                    // derived quantities
                     int nAnglesMinor = nAnglesMajor * nAnglesMinorPerMajor;
                     int nMagStepsMajor = (magLevel1-magLevel0) * nMagsMajorPerMagLevel;
                     int nMagStepsMinor = nMagStepsMajor * nMagsMinorPerMajor;
@@ -1876,8 +1897,22 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
                                 catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
                                 if (iMag > 0)
+                                {
+                                    // is the slope in the expected quadrant?
+                                    int expectedQuadrant = getQuadrant(cosAngle, sinAngle);
+                                    int gotQuadrant = getQuadrant(moment[0]-xMomentPrev, moment[1]-yMomentPrev);
+
+                                    if (colorByGoodnessFlag)
+                                    {
+                                        if (gotQuadrant == expectedQuadrant)
+                                            mg.setColor(java.awt.Color.green);
+                                        else
+                                            mg.setColor(java.awt.Color.red);
+                                    }
+
                                     mg.drawLine(xMomentPrev,yMomentPrev,
                                                 moment[0], moment[1]);
+                                }
                                 if (view.showPointsFlag)
                                     mg.drawPoint(moment[0], moment[1], 3);
                                 xMomentPrev = moment[0];
@@ -2168,11 +2203,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         }
                         VecMath.copyvec(prevMoment, moment);
                     }
+                    /*
                     PRINT(minAngle);
                     PRINT(RTOD(minAngle));
                     PRINT(slackAtMinAngle);
                     PRINT(xMomentAtMinAngle);
                     PRINT(yMomentAtMinAngle);
+                    */
                     mg.setColor(java.awt.Color.green);
                     mg.drawPoint(xMomentAtMinAngle, yMomentAtMinAngle, 5);
                     mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngle), Math.sin(minAngle));
