@@ -4,6 +4,7 @@ package com.donhatchsw.util;
 
 
 /* WORK IN PROGRESS */
+// TODO: any assertion failure in binary search (or general fit) should dump the params! (like Catenary does I think)
 public class CatenaryRotated extends Catenary.FlippedMaybe
 {
     static boolean XXX_ALLOW_FITFROMMOMENT_FAILURE = false; // hack hook so SmoothlyVaryingViewingParameter demo3 can proceed with manageable amount of noise
@@ -88,11 +89,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                 com.donhatchsw.compat.ArrayList newtonPathOut,
                                                 double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
-        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
         int fitVerboseLevel = 0; // XXX and this too?
-        if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+")");
-        PRINT(xKnownSolution);
-        PRINT(yKnownSolution);
+        if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+")");
         double tol = 1e-6; // XXX ?
         //double tol = 1e-5; // XXX ? I'd really like to be able to use something really small
 
@@ -586,9 +585,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     //assert(false); // coverage
                                     assert_almost_eq(rLo, r, tol);
                                     assert_almost_eq(r, rHi, tol);
-                                    PRINT(rLo);
-                                    PRINT(r);
-                                    PRINT(rHi);
+                                    if (verboseLevel >= 2) PRINT(rLo);
+                                    if (verboseLevel >= 2) PRINT(r);
+                                    if (verboseLevel >= 2) PRINT(rHi);
                                     rLo = r;
                                     rHi = r;
                                     angleLo = angleLoLocal;
@@ -653,7 +652,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             // TODO: implement more cases!
             unimplemented();
-            if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") (unimplemented)");
+            if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+") (unimplemented)");
             return false;
         }
 
@@ -699,7 +698,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 throw e;
         }
 
-        if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+"), returning this="+this);
+        if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+"), returning this="+this);
         return true;
     } // fitFromMomentByBinarySearch
 
@@ -733,7 +732,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                        com.donhatchsw.compat.ArrayList newtonPathOut,
                                        double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
-        int verboseLevel = 2; // XXX think about what we want here. make this a parameter?
+        int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+")");
 
