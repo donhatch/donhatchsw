@@ -31,6 +31,15 @@
                            +" (error = "+((a)-(b))+")" \
                            ); \
     } while (false)
+#define assert_almost_inorder(a,b,c,tol) \
+    do { \
+        if (!((a)-(b)<=(tol)) || !((b)-(c)<=(tol))) \
+            throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " \
+                           +"(" + #a + ")<=(" + #b + ")<=(" + #c + ")+-" + #tol + "" \
+                           +" ("+(a)+" vs. "+(b)+" vs. "+(c)+" +- "+(tol)+")" \
+                           +" (error = "+((a)-(b))+", "+((b)-(c))+")" \
+                           ); \
+    } while (false)
 
 #define INRANGE(foo,bar,baz) ((foo(bar))&&((bar)baz))
 
