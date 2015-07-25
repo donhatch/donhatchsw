@@ -189,6 +189,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         double Y = MyMath.cosh(X);
                         // XXX the following is proved elsewhere
                         double yMomentOfXMoment = (slackPlus1 * Y - 1.) / (4. * X);
+                        if (verboseLevel >= 2) System.out.println("                      slackPlus1 = "+slackPlus1);
+                        if (verboseLevel >= 2) System.out.println("                      X = "+X);
+                        if (verboseLevel >= 2) System.out.println("                      Y = "+Y);
+                        if (verboseLevel >= 2) System.out.println("                      yMomentOfXMoment = "+yMomentOfXMoment);
+                        if (verboseLevel >= 2) System.out.println("                      yMoment = "+yMoment);
                         if (yMoment <= yMomentOfXMoment)
                         {
                             if (verboseLevel >= 2) System.out.println("                    first quadrant.");
@@ -1339,11 +1344,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
+
+                // binary search fail in first quadrant!
+                "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-1.8932633238932794E-12",
                 // binary search fail in first quadrant!
                 "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000002805953, yMoment=-4.618879364315376E-6",
-
-                // binary search fail using just new quadrant determination
-                "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-1.8932633238932794E-12",
 
                 // current binary search fail as of this writing
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.946, yMoment=-0.8031013757681627, xKnownSolution=0.0, yKnownSolution=-0.892",
