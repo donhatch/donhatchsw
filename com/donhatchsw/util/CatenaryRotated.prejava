@@ -106,7 +106,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
              && EQ(y0, 0., 1e-12)
              && x1 == 0.
              && y1 == 0.
-             && yMoment <= 0.)
+             && yMoment <= 1e-12)
             {
                 // Flip from lower to upper half plane,
                 // and the sample point from negative x axis to positive x axis.
@@ -124,6 +124,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 x1 = 0.;
                 y1 = 0.;
                 xMoment *= -1.;
+                yMoment = MIN(yMoment, 0.);
                 yMoment *= -1.;
 
                 double rAnswer = Double.NaN;
@@ -1346,7 +1347,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
 
-
                 // rare current demo3 failure of binary search,
                 // found by going backwards in time
                 "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5000000000000049, yMoment=-4.491159324992999E-8",
@@ -1355,7 +1355,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // yet another now-rare failure from demo3 (problem went away)
                 "x0=-1.0000000000000002, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5000000024486341, yMoment=-3.2242666413592747E-5",
 
-
+                // case where binary search special case criteria screwed up (fixed)
+                "x0=-0.9999999999999999, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=2.7755575615628914E-17",
 
                 // binary search fail in first quadrant! (fixed)
                 "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-1.8932633238932794E-12",

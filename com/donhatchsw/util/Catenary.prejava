@@ -62,19 +62,20 @@ public class Catenary
 
     // Scale s, in range [0,infinity].
     // sNumerator>=0, sDenominator>=0, max(sNumerator,sDenominator)==1.
-    public double sNumerator;
-    public double sDenominator;
+    public double sNumerator = Double.NaN;
+    public double sDenominator = Double.NaN;
 
     // Value at t=0.  Must be finite.
-    public double xFocusInWorld;
-    public double yFocusInWorld;
+    public double xFocusInWorld = Double.NaN;
+    public double yFocusInWorld = Double.NaN;
 
     // Unit direction vector of the tangent of the function at the focus point.
-    public double xFocusDirection;
-    public double yFocusDirection;
+    public double xFocusDirection = Double.NaN;
+    public double yFocusDirection = Double.NaN;
 
-    public double t0; // t for which value is x0,y0 if fitting to sample points
-    public double t1;  // t for which value is x1,y1 if fitting to sample points
+    // t's for which value is x0,y0 and x1,y1 if fitting to sample points
+    public double t0 = Double.NaN;
+    public double t1 = Double.NaN;
 
     public Catenary()
     {}
