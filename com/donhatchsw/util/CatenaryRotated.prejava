@@ -92,7 +92,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                 com.donhatchsw.compat.ArrayList newtonPathOut,
                                                 double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
-        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+")");
 
