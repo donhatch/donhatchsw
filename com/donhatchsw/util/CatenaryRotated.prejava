@@ -89,17 +89,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                 com.donhatchsw.compat.ArrayList newtonPathOut,
                                                 double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
-        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
+        int verboseLevel = 3; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+")");
 
 
         try
         {
-
-
-
-
             double tol = 1e-6; // XXX ?
             //double tol = 1e-5; // XXX ? I'd really like to be able to use something really small
 
@@ -363,6 +359,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             if (verboseLevel >= 3) System.out.println("                          desiredMoment="+VecMath.toString(desiredMoment));
                             if (verboseLevel >= 3) System.out.println("                          gotMoment="+VecMath.toString(gotMoment));
                             if (verboseLevel >= 3) System.out.println("                          dir="+VecMath.toString(new double[]{xDir,yDir}));
+                            if (verboseLevel >= 3) System.out.println("                          angle="+VecMath.toString(new double[]{c,s}));
 
                             boolean categorized = false;
                             boolean madeProgress = false;
@@ -449,7 +446,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 // otherwise it would have already been categorized...
                                 if (verboseLevel == 2) System.out.print(" ouch");
                                 assert(!isObviouslyInSecondQuadrant);
-                                assert(xDir < 0. && yDir < 0.);
+
+                                // Logically it's *strictly* in SW quadrant,
+                                // but that can fail, e.g. if angle is 89.9999999999999999 degrees or so,
+                                // so make the test inexact
+                                //assert(xDir < 0. && yDir < 0.);
+                                assert(LT(xDir, 0., 1e-12));
+                                assert(LT(yDir, 0., 1e-12));
 
                                 boolean tryLastDitchAttemptFlag = false; // XXX TODO: should be able to do this I think!  but there's some logic error
                                 if (tryLastDitchAttemptFlag)
@@ -1077,7 +1080,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
 
-        if (true)
+        if (false)
         {
             System.out.println("        testing fitFromMomentByBinarySearch...");
             // Test fitFromMomentByBinarySearch.
@@ -1086,8 +1089,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             // It should find xy, while checking that all its refinements
             // on the way to finding xy are correct.
             CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
-            //double nXsteps = 1000;
-            double nXsteps = 2;
+            double nXsteps = 1000;
+            //double nXsteps = 2;
             double nYsteps = 1000;
             //double nXsteps = 50;
             //double nYsteps = 50;
@@ -1336,7 +1339,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
-                "x0=1.0, y0=-0.0, x1=-0.0, y1=-0.0, xMoment=0.946, yMoment=0.8031013757681627, xKnownSolution=-0.0, yKnownSolution=0.892",
+                // current binary search fail as of this writing
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.946, yMoment=-0.8031013757681627, xKnownSolution=0.0, yKnownSolution=-0.892",
 
                 // current binary search fail as of this writing
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.8436336645308535, yMoment=-0.881820491280086, xKnownSolution=0.24, yKnownSolution=-0.96",
