@@ -89,7 +89,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                 com.donhatchsw.compat.ArrayList newtonPathOut,
                                                 double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
-        int verboseLevel = 3; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
+        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+")");
 
@@ -1073,11 +1073,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     {
         System.out.println("    in confidenceTests");
 
-
-
-
-        // Test utilities for integrals
-
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
 
         if (false)
@@ -1089,9 +1084,14 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             // It should find xy, while checking that all its refinements
             // on the way to finding xy are correct.
             CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
-            double nXsteps = 1000;
-            //double nXsteps = 2;
-            double nYsteps = 1000;
+            //double nXsteps = 1000;
+            //double nYsteps = 1000;
+            double nXsteps = 500;
+            double nYsteps = 500;
+            //double nXsteps = 200;
+            //double nYsteps = 200;
+            //double nXsteps = 100;
+            //double nYsteps = 100;
             //double nXsteps = 50;
             //double nYsteps = 50;
             //double nXsteps = 10;
@@ -1339,6 +1339,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
+                // binary search fail in first quadrant!
+                "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000002805953, yMoment=-4.618879364315376E-6",
+
+                // binary search fail using just new quadrant determination
+                "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-1.8932633238932794E-12",
+
                 // current binary search fail as of this writing
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.946, yMoment=-0.8031013757681627, xKnownSolution=0.0, yKnownSolution=-0.892",
 
@@ -1350,19 +1356,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.603074224821478, yMoment=-0.3471447106867807",
                 "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000009124973, yMoment=-2.0541303119347987E-5",
                 "x0=-1.0, y0=1.6653345369377348E-16, x1=0.0, y1=0.0, xMoment=-0.5000000007967902, yMoment=-1.953474507895847E-5",
-                "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000002805953, yMoment=-4.618879364315376E-6", // fail in first quadrant!!
                 "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.5000000017031035, yMoment=-2.8018482983005466E-5",
                 "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000016481783, yMoment=-2.736321024068844E-5",
-                null,
 
-
-                // binary search fail using just new quadrant determination
-                "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-1.8932633238932794E-12",
                 // binary search fail using old quadrant determination
                 "x0=-0.9999999999999998, y0=1.6653345369377348E-16, x1=0.0, y1=0.0, xMoment=-0.49999999999999983, yMoment=-5.281938775247852E-11",
                 "x0=-0.9999999999999998, y0=1.6653345369377348E-16, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-4.567457523307894E-13",
                 "x0=-0.9999999999999998, y0=-6.106226635438361E-16, x1=0.0, y1=0.0, xMoment=-0.4999999999999999, yMoment=-3.716194019176555E-13",
-
 
                 // binary search fail... and moment isn't even near momentIfTaut, shouldn't be problematic!
                 "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.6843006919963104, yMoment=-0.5234607164665921",
@@ -1409,8 +1409,15 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             for (int iTestCase = 0; iTestCase < testCases.length; ++iTestCase)
             {
                 System.out.println("      fitFromMoment test case "+iTestCase+"/"+testCases.length+":");
+                String testCase = testCases[iTestCase];
+                if (testCase == null)
+                {
+                    System.out.println("BREAKING EARLY because of null");
+                    System.out.println("WARNING: Exiting prematurely!");
+                    System.exit(1);
+                }
 
-                String tokens[] = testCases[iTestCase].split(", "); // since java 1.4; okay whatever
+                String tokens[] = testCase.split(", "); // since java 1.4; okay whatever
                 assert(tokens.length == 6 || tokens.length == 8);
                 double x0 = Double.parseDouble(tokens[0].substring(3));
                 double y0 = Double.parseDouble(tokens[1].substring(3));
