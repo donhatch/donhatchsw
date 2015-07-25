@@ -180,13 +180,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double yMomentOfXMoment = (slackPlus1 * Y - 1.) / (4. * X);
                 if (yMoment <= yMomentOfXMoment)
                 {
-                    if (verboseLevel >= 2) System.out.println("                      first quadrant.");
+                    if (verboseLevel >= 2) System.out.println("                    first quadrant.");
                     //assert(false); // coverage
                     angleHi = Math.PI/2.;
                 }
                 if (yMoment >= yMomentOfXMoment)
                 {
-                    if (verboseLevel >= 2) System.out.println("                      second quadrant.");
+                    if (verboseLevel >= 2) System.out.println("                    second quadrant.");
                     //assert(false); // coverage
                     angleLo = Math.PI/2.;
                 }
@@ -198,19 +198,19 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
             }
 
+            //PRINT(RTOD(angleLo)); // XXX TODO: ARGH! this is printing things like "((angleLo)*(180./Math.PI)) = 123.7499999999999" instead of "RTOD(angleLo) = 123.7499999999999"
             if (verboseLevel >= 2)
             {
                 System.out.println("                  initial bounds:");
-                PRINT(rLo);
-                PRINT(rHi);
-                PRINT(RTOD(angleLo)); // XXX TODO: ARGH! this is printing things like "((angleLo)*(180./Math.PI)) = 123.7499999999999" instead of "RTOD(angleLo) = 123.7499999999999"
-                PRINT(RTOD(angleHi));
-                PRINTVEC(desiredMoment);
-                PRINTVEC(gotMoment);
+                System.out.println("                      rLo="+rLo);
+                System.out.println("                      rHi="+rHi);
+                System.out.println("                      angleLo="+RTOD(angleLo)+"deg");
+                System.out.println("                      angleHi="+RTOD(angleHi)+"deg");
+                System.out.println("                      desiredMoment="+VecMath.toString(desiredMoment));
                 if (solutionIsKnown)
                 {
-                    PRINT(rKnownSolution);
-                    PRINT(RTOD(angleKnownSolution));
+                    System.out.println("                      rKnownSolution="+rKnownSolution);
+                    System.out.println("                      angleKnownSolution="+angleKnownSolution);
                 }
             }
 
@@ -221,9 +221,17 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             {
                 // First quadrant-- easy
                 //assert(false); // coverage
-                if (verboseLevel >= 2) System.out.print("                    ");
+                if (verboseLevel >= 3) System.out.println("                    first quadrant loop:");
+                if (verboseLevel == 2) System.out.print("                    ");
                 while (true)
                 {
+                    if (verboseLevel >= 3) System.out.println("                      top of loop");
+                    if (verboseLevel >= 3) System.out.println("                          rLo="+rLo);
+                    if (verboseLevel >= 3) System.out.println("                          rKnownSolution="+rKnownSolution);
+                    if (verboseLevel >= 3) System.out.println("                          rHi="+rHi);
+                    if (verboseLevel >= 3) System.out.println("                          angleLo="+RTOD(angleLo)+"deg");
+                    if (verboseLevel >= 3) System.out.println("                          angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+                    if (verboseLevel >= 3) System.out.println("                          angleHi="+RTOD(angleHi)+"deg");
                     if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
                     if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
                     double r = (rLo + rHi) * .5;
@@ -232,22 +240,23 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     double s = Math.sin(angle);
                     this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
                     this.integrate(this.t0, this.t1, gotMoment);
-                    if (verboseLevel >= 3) PRINTVEC(desiredMoment);
-                    if (verboseLevel >= 3) PRINTVEC(gotMoment);
-
                     double xDir = desiredMoment[0] - gotMoment[0];
                     double yDir = desiredMoment[1] - gotMoment[1];
+
+                    if (verboseLevel >= 3) System.out.println("                          desiredMoment="+VecMath.toString(desiredMoment));
+                    if (verboseLevel >= 3) System.out.println("                          gotMoment="+VecMath.toString(gotMoment));
+                    if (verboseLevel >= 3) System.out.println("                          dir="+VecMath.toString(new double[]{xDir,yDir}));
 
                     boolean categorized = false;
                     boolean madeProgress = false;
 
-                    double angleDotDir = xDir*c + yDir*s;
+                    double angleDotDir = c*xDir + s*yDir;
                     if (angleDotDir >= 0)
                     {
                         // desired moment is outside tangent line of ellipse.
                         // r is too small (or just right).
-                        if (verboseLevel >= 2) System.out.print(" NEish");
-                        if (verboseLevel >= 3) System.out.println();
+                        if (verboseLevel >= 3) System.out.println("                        NEish");
+                        if (verboseLevel == 2) System.out.print(" NEish");
                         categorized = true;
                         if (rLo != r)
                         {
@@ -261,8 +270,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (yDir <= 0.)
                         {
                             // need to go SW
-                            if (verboseLevel >= 2) System.out.print(" SW");
-                            if (verboseLevel >= 3) System.out.println();
+                            if (verboseLevel >= 3) System.out.println("                        SW");
+                            if (verboseLevel == 2) System.out.print(" SW");
                             categorized = true;
                             if (rHi != r)
                             {
@@ -273,8 +282,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (yDir >= 0.)
                         {
                             // need to go NW
-                            if (verboseLevel >= 2) System.out.print(" NW");
-                            if (verboseLevel >= 3) System.out.println();
+                            if (verboseLevel >= 3) System.out.println("                        NW");
+                            if (verboseLevel == 2) System.out.print(" NW");
                             categorized = true;
                             if (angleLo != angle)
                             {
@@ -289,8 +298,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (yDir <= 0.)
                         {
                             //need to go SE
-                            if (verboseLevel >= 2) System.out.print(" SE");
-                            if (verboseLevel >= 3) System.out.println();
+                            if (verboseLevel >= 3) System.out.println("                        SE");
+                            if (verboseLevel == 2) System.out.print(" SE");
                             categorized = true;
                             if (angleHi != angle)
                             {
@@ -314,17 +323,17 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             {
                 // Second quadrant-- harder (unless in the "obviously in second quadrant" part of it)
                 //assert(false); // coverage
-                if (verboseLevel >= 2) System.out.print("                    ");
+                if (verboseLevel >= 3) System.out.println("                    second quadrant loop:");
+                if (verboseLevel == 2) System.out.print("                    ");
                 while (true)
                 {
-                    if (verboseLevel >= 3) System.out.println("=============================================");
-                    if (verboseLevel >= 3) System.out.println("top of loop");
-                    if (verboseLevel >= 3) PRINT(rLo);
-                    if (verboseLevel >= 3) PRINT(rKnownSolution);
-                    if (verboseLevel >= 3) PRINT(rHi);
-                    if (verboseLevel >= 3) PRINT(RTOD(angleLo));
-                    if (verboseLevel >= 3) PRINT(RTOD(angleKnownSolution));
-                    if (verboseLevel >= 3) PRINT(RTOD(angleHi));
+                    if (verboseLevel >= 3) System.out.println("                      top of loop");
+                    if (verboseLevel >= 3) System.out.println("                          rLo="+rLo);
+                    if (verboseLevel >= 3) System.out.println("                          rKnownSolution="+rKnownSolution);
+                    if (verboseLevel >= 3) System.out.println("                          rHi="+rHi);
+                    if (verboseLevel >= 3) System.out.println("                          angleLo="+RTOD(angleLo)+"deg");
+                    if (verboseLevel >= 3) System.out.println("                          angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+                    if (verboseLevel >= 3) System.out.println("                          angleHi="+RTOD(angleHi)+"deg");
                     if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
                     if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
                     double r = (rLo + rHi) * .5;
@@ -333,11 +342,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     double s = Math.sin(angle);
                     this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
                     this.integrate(this.t0, this.t1, gotMoment);
-                    if (verboseLevel >= 3) PRINTVEC(desiredMoment);
-                    if (verboseLevel >= 3) PRINTVEC(gotMoment);
-
                     double xDir = desiredMoment[0] - gotMoment[0];
                     double yDir = desiredMoment[1] - gotMoment[1];
+
+                    if (verboseLevel >= 3) System.out.println("                          desiredMoment="+VecMath.toString(desiredMoment));
+                    if (verboseLevel >= 3) System.out.println("                          gotMoment="+VecMath.toString(gotMoment));
+                    if (verboseLevel >= 3) System.out.println("                          dir="+VecMath.toString(new double[]{xDir,yDir}));
 
                     boolean categorized = false;
                     boolean madeProgress = false;
@@ -349,7 +359,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     {
                         // desired moment is outside tangent line of ellipse.
                         // r is too small (or just right).
-                        if (verboseLevel >= 2) System.out.print(" NWish");
+                        if (verboseLevel >= 3) System.out.println("                        NWish");
+                        if (verboseLevel == 2) System.out.print(" NWish");
                         categorized = true;
                         if (rLo != r)
                         {
@@ -363,7 +374,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         // r's lower bound, which is that dir is in the half-space [angle-pi/2, angle+pi/2].
                         if (angleCrossDir >= 0.)
                         {
-                            if (verboseLevel >= 2) System.out.print(" (WSWish and increasing angleLo)");
+                            if (verboseLevel >= 3) System.out.println("                        (WSWish and increasing angleLo)");
+                            if (verboseLevel == 2) System.out.print(" (WSWish and increasing angleLo)");
                             if (angleLo != angle)
                             {
                                 madeProgress = true;
@@ -376,7 +388,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         // Condition for decreasing angle's upper bound
                         // is a test for dir being in the quadrant opposite
                         // the one used for increasing angle's lower bound.
-                        if (verboseLevel >= 2) System.out.print(" (ENEish and decreasing angleHi)");
+                        if (verboseLevel >= 3) System.out.println("                        (ENEish and decreasing angleHi)");
+                        if (verboseLevel == 2) System.out.print(" (ENEish and decreasing angleHi)");
                         categorized = true;
                         if (angleHi != angle)
                         {
@@ -387,8 +400,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     if (xDir >= 0. && yDir <= 0.)
                     {
                         // need to go SE
-                        if (verboseLevel >= 2) System.out.print(" SE");
-                        if (verboseLevel >= 3) System.out.println();
+                        if (verboseLevel >= 3) System.out.println("                        SE");
+                        if (verboseLevel == 2) System.out.print(" SE");
                         categorized = true;
                         if (rHi != r)
                         {
@@ -404,27 +417,22 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (xDir <= 0. && yDir <= 0.)
                         {
                             // need to go SW
-                          if (verboseLevel >= 2) System.out.print(" SW");
-                          if (verboseLevel >= 3) System.out.println();
-                          categorized = true;
-                          if (angleLo != angle)
-                          {
-                              madeProgress = true;
-                              angleLo = angle;
-                          }
+                            if (verboseLevel >= 3) System.out.println("                        SW");
+                            if (verboseLevel == 2) System.out.print(" SW");
+                            categorized = true;
+                            if (angleLo != angle)
+                            {
+                                madeProgress = true;
+                                angleLo = angle;
+                            }
                         }
                     }
-                    /*
-                    problem: breaking because made no progress even though categorized.
-                    the categorization was SE'ish ...
-                    which decreases rHi, but rHi is already refined to a point.
-                    */
                     if (!categorized)
                     {
+                        if (verboseLevel >= 3) System.out.println("                        ouch! !categorized");
                         // This is the tricky case.  It's definitely strictly SW;
                         // otherwise it would have already been categorized...
-                        if (verboseLevel >= 2) System.out.print(" ouch");
-                        if (verboseLevel >= 3) System.out.println();
+                        if (verboseLevel == 2) System.out.print(" ouch");
                         assert(!isObviouslyInSecondQuadrant);
                         assert(xDir < 0. && yDir < 0.);
 
@@ -440,8 +448,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                                     - (gotMomentOther[1]-gotMoment[1]) * xDir;
                             if (otherMomentMinusMoment_cross_dir >= 0.)
                             {
-                                if (verboseLevel >= 2) System.out.print(" but SE'ish!");
-                                if (verboseLevel >= 3) System.out.println();
+                                if (verboseLevel >= 3) System.out.println("                        but SE'ish!");
+                                if (verboseLevel == 2) System.out.print(" but SE'ish!");
                                 categorized = true;
                                 if (rHi != r)
                                 {
@@ -455,70 +463,61 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             // Force a single refinement of r,
                             // by doing a 1d binary search with r constant,
                             // looking for a point on the ellipse
-                            // such that the target is clearly NW or SE of it.
-                            // We can use and refine the real angleHi for this,
-                            // but we use a local angleLoLocal
-                            // since we don't want to affect the global angleLo.
-                            double angleLoLocal = angleLo;
+                            // such that the target is clearly NW or SE of it;
+                            // call this a "vantage point".
+                            // The angle bounds are not the same ones used globally.
+                            double vantageAngleLo = Math.PI/2.;
+                            double vantageAngleHi = Math.PI;
+
                             while (true)
                             {
+                                if (verboseLevel >= 3) System.out.println("                          top of inner loop");
+                                if (verboseLevel >= 3) System.out.println("                              rLo="+rLo);
+                                if (verboseLevel >= 3) System.out.println("                              rKnownSolution="+rKnownSolution);
+                                if (verboseLevel >= 3) System.out.println("                              rHi="+rHi);
+                                if (verboseLevel >= 3) System.out.println("                              vantageAngleLo="+RTOD(vantageAngleLo)+"deg");
+                                if (verboseLevel >= 3) System.out.println("                              angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+                                if (verboseLevel >= 3) System.out.println("                              vantageAngleHi="+RTOD(vantageAngleHi)+"deg");
                                 if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
                                 if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-                                angle = (angleLoLocal + angleHi) * .5;
-                                c = Math.cos(angle);
-                                s = Math.sin(angle);
-                                this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
-                                this.integrate(this.t0, this.t1, gotMoment);
-                                if (verboseLevel >= 3) PRINTVEC(desiredMoment);
-                                if (verboseLevel >= 3) PRINTVEC(gotMoment);
 
+                                double vantageAngle = (vantageAngleLo+vantageAngleHi) * .5;
+                                double cVantageAngle = Math.cos(vantageAngle);
+                                double sVantageAngle = Math.sin(vantageAngle);
+                                this.fitFromPolarCoords(x0,y0, x1,y1, r, cVantageAngle, sVantageAngle, fitVerboseLevel);
+                                this.integrate(this.t0, this.t1, gotMoment);
                                 xDir = desiredMoment[0] - gotMoment[0];
                                 yDir = desiredMoment[1] - gotMoment[1];
 
-                                boolean categorizedLocal = false;
-                                boolean madeProgressLocal = false;
+                                if (verboseLevel >= 3) System.out.println("                              desiredMoment="+VecMath.toString(desiredMoment));
+                                if (verboseLevel >= 3) System.out.println("                              gotMoment="+VecMath.toString(gotMoment));
+                                if (verboseLevel >= 3) System.out.println("                              dir="+VecMath.toString(new double[]{xDir,yDir}));
+
+                                boolean categorizedVantage = false;
+                                boolean madeProgressVantage = false;
                                 if (xDir <= 0.)
                                 {
-                                    // need to go W
+                                    // need to go w
                                     if (yDir <= 0.)
                                     {
-                                        // need to go SW
-                                        if (verboseLevel >= 2) System.out.print(" sw");
-                                        if (verboseLevel >= 3) System.out.println();
-                                        categorizedLocal = true;
-                                        if (verboseLevel >= 3) PRINT("HEY! categorized local");
-                                        if (angleLoLocal != angle)
+                                        // need to go sw
+                                        if (verboseLevel >= 3) System.out.println("                            sw");
+                                        if (verboseLevel == 2) System.out.print(" sw");
+                                        categorizedVantage = true;
+                                        if (vantageAngleLo != vantageAngle)
                                         {
-                                            if (verboseLevel >= 3) PRINT("HO! and made progress local");
-                                            //assert(false); // coverage
-                                            madeProgressLocal = true;
-                                            angleLoLocal = angle;
-                                        }
-                                        else
-                                        {
-                                            if (verboseLevel >= 3)
-                                            {
-                                                PRINT("HO! but made no progress local!");
-                                                PRINT(rLo);
-                                                PRINT(r);
-                                                PRINT(rHi);
-                                                PRINT(RTOD(angleLoLocal));
-                                                PRINT(RTOD(angle));
-                                                PRINT(RTOD(angleHi));
-                                                PRINT(rKnownSolution);
-                                                PRINT(RTOD(angleKnownSolution));
-                                                PRINT(xDir);
-                                                PRINT(yDir);
-                                            }
+                                            madeProgressVantage = true;
+                                            vantageAngleLo = vantageAngle;
                                         }
                                     }
-                                    if (yDir >= 0.)
+                                    //if (yDir >= 0.)
+                                    double vantageAngleDotDir = cVantageAngle*xDir + sVantageAngle*yDir;
+                                    if (vantageAngleDotDir >= 0.)
                                     {
-                                        // need to go NW
-                                        // XXX use ellipse tangent criterion, it's more likely to succeed!
-                                        if (verboseLevel >= 2) System.out.print(" nw!");
-                                        if (verboseLevel >= 3) System.out.println();
-                                        categorizedLocal = true;
+                                        // need to go nw
+                                        if (verboseLevel >= 3) System.out.println("                            nwish!");
+                                        if (verboseLevel == 2) System.out.print(" nwish!");
+                                        categorizedVantage = true;
                                         if (rLo != r)
                                         {
                                             //assert(false); // coverage
@@ -530,13 +529,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 }
                                 if (xDir >= 0.)
                                 {
-                                    // need to go E
+                                    // need to go e
                                     if (yDir <= 0.)
                                     {
-                                        // need to go SE
-                                        if (verboseLevel >= 2) System.out.print(" se!");
-                                        if (verboseLevel >= 3) System.out.println();
-                                        categorizedLocal = true;
+                                        // need to go se
+                                        if (verboseLevel >= 3) System.out.println("                            se!");
+                                        if (verboseLevel == 2) System.out.print(" se!");
+                                        categorizedVantage = true;
                                         if (rHi != r)
                                         {
                                             //assert(false); // coverage
@@ -547,52 +546,25 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     }
                                     if (yDir >= 0.)
                                     {
-                                        // need to go NE
-                                        if (verboseLevel >= 2) System.out.print(" ne!");
-                                        if (verboseLevel >= 3) System.out.println();
-                                        categorizedLocal = true;
-                                        if (angleHi != angle)
+                                        // need to go ne
+                                        if (verboseLevel >= 3) System.out.println("                            ne");
+                                        if (verboseLevel == 2) System.out.print(" ne");
+                                        categorizedVantage = true;
+                                        if (vantageAngleHi != vantageAngle)
                                         {
-                                            //assert(false); // coverage
-                                            madeProgress = true; // not just local!
-                                            angleHi = angle;
-                                            break; // out of the local try-extra-hard loop
+                                            madeProgressVantage = true;
+                                            vantageAngleHi = vantageAngle;
                                         }
                                     }
                                 }
-                                assert(categorizedLocal);
-                                if (!madeProgressLocal)
+                                assert(categorizedVantage);
+                                if (!madeProgressVantage)
                                 {
-                                    if (true) // XXX grasping at straws again
-                                    {
-                                        if (verboseLevel >= 2) System.out.print("(CLOSING MY EYES AND REFINING rHi to r)");
-                                        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, r, tol);
-                                        categorizedLocal = true;
-                                        if (rHi != r)
-                                        {
-                                            //assert(false); // coverage
-                                            madeProgress = true; // not just local!
-                                            rHi = r;
-                                            break; // out of the local try-extra-hard loop
-                                        }
-                                    }
-
-                                    // All right this is a surprise.
-                                    // It means we've refined down to a single point on this ellipse.
-                                    // So it means we have the real r,
-                                    // and angleLoLocal is the real angle too.
-                                    // XXX or at least a lower bound?
-                                    //assert(false); // coverage
-                                    assert_almost_eq(rLo, r, tol);
-                                    assert_almost_eq(r, rHi, tol);
-                                    if (verboseLevel >= 2) PRINT(rLo);
-                                    if (verboseLevel >= 2) PRINT(r);
-                                    if (verboseLevel >= 2) PRINT(rHi);
-                                    rLo = r;
-                                    rHi = r;
-                                    angleLo = angleLoLocal;
-                                    if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                                    if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+                                    // prevent endless loop?
+                                    // XXX think about this
+                                    //OUT("hey, not sure");
+                                    angleLo = vantageAngleLo;
+                                    angleHi = vantageAngleHi;
                                     break;
                                 }
                             }
@@ -612,16 +584,18 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             if (verboseLevel >= 2)
             {
                 System.out.println("                  final bounds:");
-                PRINT(rLo);
-                PRINT(rHi);
-                PRINT(RTOD(angleLo)); // XXX TODO: ARGH! this is printing things like "((angleLo)*(180./Math.PI)) = 123.7499999999999" instead of "RTOD(angleLo) = 123.7499999999999"
-                PRINT(RTOD(angleHi));
-                PRINTVEC(desiredMoment);
-                PRINTVEC(gotMoment);
+                System.out.println("                      rLo="+rLo);
+                System.out.println("                      rKnownSolution="+rKnownSolution);
+                System.out.println("                      rHi="+rHi);
+                System.out.println("                      angleLo="+RTOD(angleLo)+"deg");
+                System.out.println("                      angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+                System.out.println("                      angleHi="+RTOD(angleHi)+"deg");
+                System.out.println("                      desiredMoment="+VecMath.toString(desiredMoment));
+                System.out.println("                      gotMoment="+VecMath.toString(gotMoment));
                 if (solutionIsKnown)
                 {
-                    PRINT(rKnownSolution);
-                    PRINT(RTOD(angleKnownSolution));
+                    System.out.println("                      rKnownSolution="+rKnownSolution);
+                    System.out.println("                      angleKnownSolution="+angleKnownSolution);
                 }
             }
             if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
@@ -1086,7 +1060,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
 
-        if (false)
+        if (true)
         {
             System.out.println("        testing fitFromMomentByBinarySearch...");
             // Test fitFromMomentByBinarySearch.
@@ -1105,11 +1079,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     System.out.println("            not doing positive y!");
                     continue;
                 }
+                System.out.println("            y = "+y);
                 for (double iX = 0; iX < nXsteps+1; ++iX)
                 {
                     double x = LERP(-1., 1., iX/(double)nXsteps);
 
-                    System.out.println("            xy = "+x+","+y);
+                    System.out.println("              xy = "+x+","+y);
                     double moment[] = new double[2];
                     scratchCatenaryRotated.fitFromRectangularCoords(-1.,0., 0.,0., x,y, 0);
                     scratchCatenaryRotated.integrate(scratchCatenaryRotated.t0, scratchCatenaryRotated.t1, moment);
@@ -1335,6 +1310,16 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
 
+                // binary search fail, first quadrant
+                "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000002805953, yMoment=-4.618879364315376E-6",
+                null,
+
+
+
+
+
+
+
                 // current binary search fail as of this writing
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.8436336645308535, yMoment=-0.881820491280086, xKnownSolution=0.24, yKnownSolution=-0.96",
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.7689396962750554, yMoment=-0.8971405863140336",
@@ -1343,7 +1328,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.603074224821478, yMoment=-0.3471447106867807",
                 "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000009124973, yMoment=-2.0541303119347987E-5",
                 "x0=-1.0, y0=1.6653345369377348E-16, x1=0.0, y1=0.0, xMoment=-0.5000000007967902, yMoment=-1.953474507895847E-5",
-                "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000002805953, yMoment=-4.618879364315376E-6",
+                "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000002805953, yMoment=-4.618879364315376E-6", // XXX
                 "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.5000000017031035, yMoment=-2.8018482983005466E-5",
                 "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000016481783, yMoment=-2.736321024068844E-5",
                 null,
