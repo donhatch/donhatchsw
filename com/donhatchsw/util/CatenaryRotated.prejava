@@ -363,7 +363,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         // r's lower bound, which is that dir is in the half-space [angle-pi/2, angle+pi/2].
                         if (angleCrossDir >= 0.)
                         {
-                            if (verboseLevel >= 2) System.out.print(" (and increasing angleLo)");
+                            if (verboseLevel >= 2) System.out.print(" (WSWish and increasing angleLo)");
                             if (angleLo != angle)
                             {
                                 madeProgress = true;
@@ -376,7 +376,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         // Condition for decreasing angle's upper bound
                         // is a test for dir being in the quadrant opposite
                         // the one used for increasing angle's lower bound.
-                        if (verboseLevel >= 2) System.out.print(" (and decreasing angleHi)");
+                        if (verboseLevel >= 2) System.out.print(" (ENEish and decreasing angleHi)");
                         categorized = true;
                         if (angleHi != angle)
                         {
