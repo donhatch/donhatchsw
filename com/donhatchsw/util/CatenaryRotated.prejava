@@ -4,7 +4,10 @@ package com.donhatchsw.util;
 
 
 /* WORK IN PROGRESS */
-// TODO: any assertion failure in binary search (or general fit) should dump the params! (like Catenary does I think)
+// TODO: make histograms of timings using newton and binary search, see if there's really a bottleneck
+// TODO: implement all cases properly in binary search
+// TODO: need to scale problem, I think, in order to make tolerances sensible
+// TODO: make fitFromMoment take momentOffset=moment-momentIfTaut instead of moment, would allow better stability I think
 public class CatenaryRotated extends Catenary.FlippedMaybe
 {
     static boolean XXX_ALLOW_FITFROMMOMENT_FAILURE = false; // hack hook so SmoothlyVaryingViewingParameter demo3 can proceed with manageable amount of noise
@@ -89,7 +92,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                 com.donhatchsw.compat.ArrayList newtonPathOut,
                                                 double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
-        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
+        int verboseLevel = 2; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+")");
 
@@ -98,11 +101,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         {
             double tol = 1e-6; // XXX ?
             //double tol = 1e-5; // XXX ? I'd really like to be able to use something really small
-
-            double dist = MyMath.hypot(y1-y0, x1-x0);
-            double desiredMoment[] = {xMoment, yMoment};
-            double xMomentIfTaut = (x0+x1)*.5 * dist;
-            double yMomentIfTaut = (y0+y1)*.5 * dist;
 
             if (EQ(x0, -1., 1e-12)
              && EQ(y0, 0., 1e-12)
@@ -113,18 +111,20 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // Flip from lower to upper half plane,
                 // and the sample point from negative x axis to positive x axis.
                 // I.e. flip the problem in both x and y.
-                x0 *= -1.;
-                x1 *= -1.;
-                y0 *= -1.;
-                y1 *= -1.;
+
+                double x0orig = x0;
+                double y0orig = y0;
+                double x1orig = x1;
+                double y1orig = y1;
+                double xMomentOrig = xMoment;
+                double yMomentOrig = yMoment;
+
+                x0 = 1.;
+                y0 = 0.;
+                x1 = 0.;
+                y1 = 0.;
                 xMoment *= -1.;
                 yMoment *= -1.;
-                desiredMoment[0] *= -1.;
-                desiredMoment[1] *= -1.;
-                xMomentIfTaut *= -1.;
-                yMomentIfTaut *= -1.;
-                xKnownSolution *= -1.;
-                yKnownSolution *= -1.;
 
                 double rAnswer = Double.NaN;
                 double angleAnswer = Double.NaN;
@@ -132,6 +132,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // We have to restore all of those values, so do a try/finally
                 try
                 {
+                    double dist = MyMath.hypot(y1-y0, x1-x0);
+                    double desiredMoment[] = {xMoment, yMoment};
+                    double xMomentIfTaut = (x0+x1)*.5 * dist;
+                    double yMomentIfTaut = (y0+y1)*.5 * dist;
+
                     double rKnownSolution = Double.NaN;
                     double angleKnownSolution = Double.NaN;
                     boolean solutionIsKnown = !Double.isNaN(xKnownSolution);
@@ -630,19 +635,14 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 finally
                 {
                     // convert back to original space-- both x and y flipped
+                    x0 = x0orig;
+                    y0 = y0orig;
+                    x1 = x1orig;
+                    y1 = y1orig;
+                    xMoment = xMomentOrig;
+                    yMoment = yMomentOrig;
+
                     angleAnswer = Math.PI + angleAnswer;
-                    x0 *= -1.;
-                    x1 *= -1.;
-                    y0 *= -1.;
-                    y1 *= -1.;
-                    xMoment *= -1.;
-                    yMoment *= -1.;
-                    desiredMoment[0] *= -1.;
-                    desiredMoment[1] *= -1.;
-                    xMomentIfTaut *= -1.;
-                    yMomentIfTaut *= -1.;
-                    xKnownSolution *= -1.;
-                    yKnownSolution *= -1.;
                 }
                 double c = Math.cos(angleAnswer);
                 double s = Math.sin(angleAnswer);
@@ -656,6 +656,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 return false;
             }
 
+            double desiredMoment[] = {xMoment, yMoment};
             double gotMoment[] = new double[2];
             this.integrate(this.t0, this.t1, gotMoment);
             if (verboseLevel >= 1) System.out.println("                  answer this="+this);
@@ -1345,9 +1346,20 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
 
-                // binary search fail in first quadrant!
+
+                // rare current demo3 failure of binary search,
+                // found by going backwards in time
+                "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5000000000000049, yMoment=-4.491159324992999E-8",
+                // another now-rare failure from demo3
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.500000001368664, yMoment=-2.465423788210186E-5",
+                // yet another now-rare failure from demo3 (problem went away)
+                "x0=-1.0000000000000002, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5000000024486341, yMoment=-3.2242666413592747E-5",
+
+
+
+                // binary search fail in first quadrant! (fixed)
                 "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-1.8932633238932794E-12",
-                // binary search fail in first quadrant!
+                // binary search fail in first quadrant! (fixed)
                 "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000002805953, yMoment=-4.618879364315376E-6",
 
                 // current binary search fail as of this writing
