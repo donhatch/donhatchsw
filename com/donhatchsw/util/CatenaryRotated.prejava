@@ -589,9 +589,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                         assert(categorizedVantage);
                                         if (!madeProgressVantage)
                                         {
-                                            // prevent endless loop?
+                                            // prevent endless loop.
+                                            // But if we get here, we actually found the answer.
                                             // XXX think about this
-                                            //OUT("hey, not sure");
                                             angleLo = vantageAngleLo;
                                             angleHi = vantageAngleHi;
                                             break;
@@ -738,6 +738,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+")");
 
         // XXX eventually it should handle all cases, but for now, don't try it in cases where we know it's unnecessary and unimplemented, to reduce noise
+        // XXX or, actually... well it's slower, so should try newton where it succeeds... ?
         //boolean tryBinarySearch = true;
         boolean tryBinarySearch = EQ(x0, -1., 1e-12);
         //boolean tryBinarySearch = false;
@@ -1354,6 +1355,16 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.500000001368664, yMoment=-2.465423788210186E-5",
                 // yet another now-rare failure from demo3 (problem went away)
                 "x0=-1.0000000000000002, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5000000024486341, yMoment=-3.2242666413592747E-5",
+                // more rare failures from demo3
+                "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000026027122, yMoment=-2.3513905908628674E-5",
+                "x0=-1.0, y0=1.0842021724855044E-19, x1=0.0, y1=0.0, xMoment=-0.5000000004383723, yMoment=-1.537956412758383E-5",
+                "x0=-1.0, y0=6.938893903907228E-18, x1=0.0, y1=0.0, xMoment=-0.5000000004667464, yMoment=-1.6308912242527646E-5",
+                "x0=-0.9999999999999999, y0=-3.469446951953614E-18, x1=0.0, y1=0.0, xMoment=-0.5000000026937884, yMoment=-2.354314053128366E-5",
+                "x0=-1.0, y0=-5.204170427930421E-18, x1=0.0, y1=0.0, xMoment=-0.5000000024450638, yMoment=-2.3640368814984748E-5",
+                "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5000000012589669, yMoment=-2.3984103306118332E-5",
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.500000000815029, yMoment=-2.045622020535598E-5",
+                "x0=-0.9999999999999999, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000010278508, yMoment=-2.1717435486762193E-5",
+                "x0=-1.0, y0=-2.7755575615628914E-17, x1=0.0, y1=0.0, xMoment=-0.50000000067818, yMoment=-1.8103085655765683E-5",
 
                 // case where binary search special case criteria screwed up (fixed)
                 "x0=-0.9999999999999999, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=2.7755575615628914E-17",

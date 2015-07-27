@@ -12985,7 +12985,6 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     }
                 }
 
-
                 frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
                            
                 mostRecentGraphics = mg;
@@ -13857,6 +13856,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 public boolean dumpGoodAndBadFlag = true;
                 public String goodAndBadOutFileName = "GOOD_AND_BAD_OUT";
                 public java.io.PrintWriter goodAndBadOut = null;
+                public int evolveTimesNanos[] = new int[10*1000];
+                public int planTimesNanos[] = new int[10*1000];
 
                 public Model()
                 {
@@ -14058,8 +14059,26 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 // Evolve.
                 //
                 if (!model.paused)
+                {
+                    long t0nanos = System.nanoTime();
+                    // paint timing graph
                     model.evolve(1.); // dt, in repaints
+                    long t1nanos = System.nanoTime();
+                    int evolveTimeNanos = (int)(t1nanos-t0nanos);
+                    model.evolveTimesNanos[view.nPaintsDone%model.evolveTimesNanos.length] = evolveTimeNanos;
+                    //System.out.println(com.donhatchsw.compat.Format.sprintf("    evolve took %d.%03d secs.", (int)(evolveTimeNanos/1000000000), (int)(evolveTimeNanos % 1000000000)));
+                }
 
+                boolean showTimingsFlag = true;
+                double timingsPixelsPerMs = 2.;
+                if (showTimingsFlag)
+                {
+                    // Show slightly different colored background at 60hz mark
+                    // TODO: actually get draw timings, not just particular pieces of it, to make sure nothing falls through cracks
+                    mg.setColor(new java.awt.Color(32,32,32));
+                    g.fillRect(0, h-(int)(16.66666667*timingsPixelsPerMs),
+                               w, h);
+                }
 
                 //
                 // Draw.
@@ -14143,6 +14162,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             //int nTimestepsInFuture = -11*skip; // step backwards too. cute but I think would be better to show actual history
                             while (((int)model.time + nTimestepsInFuture) % skip != 0)
                                 nTimestepsInFuture++;
+                            long t0nanos = System.nanoTime();
                             for (; scratchPoint.isMoving(); nTimestepsInFuture += skip)
                             {
                                 // restore position and velocity for before evolve
@@ -14160,6 +14180,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                 scratchPoint.getAcceleration(plannedAcceleration);
                                 plannedAccelerations.add(plannedAcceleration);
                             }
+                            long t1nanos = System.nanoTime();
+                            model.planTimesNanos[view.nPaintsDone%model.planTimesNanos.length] += (int)(t1nanos-t0nanos);
+
 
                             for (int iPlan = 0; iPlan < plannedPositions.size(); ++iPlan)
                             {
@@ -14179,6 +14202,37 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         } // if I >= nPlansToShow
                      } // for j
                 } // for i
+
+                if (showTimingsFlag)
+                {
+                    int col = w-1;
+                    for (int iPaint = view.nPaintsDone; iPaint >= 0 && col >= 0; --iPaint, --col)
+                    {
+                        int evolveTimeNanos = model.evolveTimesNanos[iPaint%model.evolveTimesNanos.length];
+                        int planTimeNanos = model.planTimesNanos[iPaint%model.planTimesNanos.length];
+                        if (evolveTimeNanos >= 1)
+                        {
+                            mg.setColor(java.awt.Color.red);
+                            g.drawLine(col, h-(int)(evolveTimeNanos/(1000000/timingsPixelsPerMs)),
+                                       col, h-1);
+                        }
+                        if (planTimeNanos >= 1)
+                        {
+                            mg.setColor(java.awt.Color.blue);
+                            g.drawLine(col, h-(int)(evolveTimeNanos/(1000000/timingsPixelsPerMs))-(int)(planTimeNanos/(1000000/timingsPixelsPerMs)),
+                                       col, h-(int)(evolveTimeNanos/(1000000/timingsPixelsPerMs))-1);
+                        }
+                        if (false)
+                        {
+                            if (iPaint == view.nPaintsDone)
+                            {
+                                System.out.println(com.donhatchsw.compat.Format.sprintf("%d.%09d", (int)(evolveTimeNanos/1000000000), (int)(evolveTimeNanos%1000000000))
+                                + " + "
+                                + com.donhatchsw.compat.Format.sprintf("%d.%09d", (int)(planTimeNanos/1000000000), (int)(planTimeNanos%1000000000)));
+                            }
+                        }
+                    }
+                }
 
                 //
                 // If anything's still moving, make paint get called again
@@ -14276,7 +14330,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         {
                             if (model.paused)
                             {
+                                long t0nanos = System.nanoTime();
                                 model.evolve(1.);
+                                long t1nanos = System.nanoTime();
+                                int evolveTimeNanos = (int)(t1nanos-t0nanos);
+                                model.evolveTimesNanos[view.nPaintsDone%model.evolveTimesNanos.length] = evolveTimeNanos;
+                                System.out.println(com.donhatchsw.compat.Format.sprintf("    evolve took %d.%03d secs.", (int)(evolveTimeNanos/1000000000), (int)(evolveTimeNanos % 1000000000)));
                                 repaint();
                             }
                             else
@@ -14286,7 +14345,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         {
                             if (model.paused)
                             {
+                                long t0nanos = System.nanoTime();
                                 model.evolve(-1.);
+                                long t1nanos = System.nanoTime();
+                                int evolveTimeNanos = (int)(t1nanos-t0nanos);
+                                model.evolveTimesNanos[view.nPaintsDone%model.evolveTimesNanos.length] = evolveTimeNanos;
+                                System.out.println(com.donhatchsw.compat.Format.sprintf("    devolve took %d.%03d secs.", (int)(evolveTimeNanos/1000000000), (int)(evolveTimeNanos % 1000000000)));
                                 repaint();
                             }
                             else
