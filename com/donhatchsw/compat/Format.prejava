@@ -75,6 +75,7 @@ public class Format
             else
             {
                 boolean leftJustify = false;
+                boolean zeroPad = false;
                 int width = -1;
                 int precision = -1;
 
@@ -82,6 +83,11 @@ public class Format
                     leftJustify = true;
                 if (widthString != null)
                 {
+                    if (widthString.length() > 0 && widthString.charAt(0) == '0')
+                    {
+                        zeroPad = true;
+                        widthString = widthString.substring(1);
+                    }
                     if (widthString.equals("*"))
                     {
                         if (iArg >= args.length)
@@ -182,10 +188,14 @@ public class Format
                 }
                 while (thisConversionResult.length() < width) // XXX inefficient
                 {
+                    // not sure this makes sense when leftJustify, but whatever
+                    char padChar = (zeroPad ? '0' : ' ');
                     if (leftJustify)
-                        thisConversionResult = thisConversionResult + " ";
+                        thisConversionResult = thisConversionResult + padChar;
                     else
-                        thisConversionResult = " " + thisConversionResult;
+                    {
+                        thisConversionResult = padChar + thisConversionResult;
+                    }
                 }
                 sb.append(thisConversionResult);
             }
