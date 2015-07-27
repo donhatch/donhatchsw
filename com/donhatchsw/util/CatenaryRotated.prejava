@@ -1348,6 +1348,20 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
 
+                // current binary search fail as of this writing-- way out in the open
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.946, yMoment=-0.8031013757681627, xKnownSolution=0.0, yKnownSolution=-0.892",
+
+                // current binary search fail as of this writing-- way out in the open
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.8436336645308535, yMoment=-0.881820491280086, xKnownSolution=0.24, yKnownSolution=-0.96",
+
+                // binary search fail using overhauled algorithm (early try)
+                "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.603074224821478, yMoment=-0.3471447106867807",
+                "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000009124973, yMoment=-2.0541303119347987E-5",
+                "x0=-1.0, y0=1.6653345369377348E-16, x1=0.0, y1=0.0, xMoment=-0.5000000007967902, yMoment=-1.953474507895847E-5",
+                "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.5000000017031035, yMoment=-2.8018482983005466E-5",
+                "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000016481783, yMoment=-2.736321024068844E-5",
+
+
                 // rare current demo3 failure of binary search,
                 // found by going backwards in time
                 "x0=-1.0, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5000000000000049, yMoment=-4.491159324992999E-8",
@@ -1355,6 +1369,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.500000001368664, yMoment=-2.465423788210186E-5",
                 // yet another now-rare failure from demo3 (problem went away)
                 "x0=-1.0000000000000002, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5000000024486341, yMoment=-3.2242666413592747E-5",
+                // (this one seems to work now)
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.7689396962750554, yMoment=-0.8971405863140336",
                 // more rare failures from demo3
                 "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000026027122, yMoment=-2.3513905908628674E-5",
                 "x0=-1.0, y0=1.0842021724855044E-19, x1=0.0, y1=0.0, xMoment=-0.5000000004383723, yMoment=-1.537956412758383E-5",
@@ -1365,6 +1381,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.500000000815029, yMoment=-2.045622020535598E-5",
                 "x0=-0.9999999999999999, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000010278508, yMoment=-2.1717435486762193E-5",
                 "x0=-1.0, y0=-2.7755575615628914E-17, x1=0.0, y1=0.0, xMoment=-0.50000000067818, yMoment=-1.8103085655765683E-5",
+                "x0=-1.0, y0=-3.885780586188048E-16, x1=0.0, y1=0.0, xMoment=-0.5000000010799698, yMoment=-2.1836648062212305E-5",
 
                 // case where binary search special case criteria screwed up (fixed)
                 "x0=-0.9999999999999999, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=2.7755575615628914E-17",
@@ -1373,20 +1390,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-1.8932633238932794E-12",
                 // binary search fail in first quadrant! (fixed)
                 "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000002805953, yMoment=-4.618879364315376E-6",
-
-                // current binary search fail as of this writing
-                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.946, yMoment=-0.8031013757681627, xKnownSolution=0.0, yKnownSolution=-0.892",
-
-                // current binary search fail as of this writing
-                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.8436336645308535, yMoment=-0.881820491280086, xKnownSolution=0.24, yKnownSolution=-0.96",
-                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.7689396962750554, yMoment=-0.8971405863140336",
-
-                // binary search fail using overhauled algorithm (early try)
-                "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.603074224821478, yMoment=-0.3471447106867807",
-                "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000009124973, yMoment=-2.0541303119347987E-5",
-                "x0=-1.0, y0=1.6653345369377348E-16, x1=0.0, y1=0.0, xMoment=-0.5000000007967902, yMoment=-1.953474507895847E-5",
-                "x0=-1.0, y0=2.220446049250313E-16, x1=0.0, y1=0.0, xMoment=-0.5000000017031035, yMoment=-2.8018482983005466E-5",
-                "x0=-1.0, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000016481783, yMoment=-2.736321024068844E-5",
 
                 // binary search fail using old quadrant determination
                 "x0=-0.9999999999999998, y0=1.6653345369377348E-16, x1=0.0, y1=0.0, xMoment=-0.49999999999999983, yMoment=-5.281938775247852E-11",
