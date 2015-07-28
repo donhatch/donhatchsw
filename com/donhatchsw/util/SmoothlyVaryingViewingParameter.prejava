@@ -13971,6 +13971,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 int nPlansToShow = 0;
                 boolean showPlanAccelerationsFlag = false;
                 boolean antialiasFlag = true;
+                boolean showTimingsFlag = true;
+                double timingsPixelsPerMs = 2.;
 
                 int nPaintsDone = 0;
             }
@@ -14071,14 +14073,12 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     //System.out.println(com.donhatchsw.compat.Format.sprintf("    evolve took %d.%03d secs.", (int)(evolveTimeNanos/1000000000), (int)(evolveTimeNanos % 1000000000)));
                 }
 
-                boolean showTimingsFlag = true;
-                double timingsPixelsPerMs = 2.;
-                if (showTimingsFlag)
+                if (view.showTimingsFlag)
                 {
                     // Show slightly different colored background at 60hz mark
                     // TODO: actually get draw timings, not just particular pieces of it, to make sure nothing falls through cracks
                     mg.setColor(new java.awt.Color(32,32,32));
-                    g.fillRect(0, h-(int)(16.66666667*timingsPixelsPerMs),
+                    g.fillRect(0, h-(int)(16.66666667*view.timingsPixelsPerMs),
                                w, h);
                 }
 
@@ -14205,7 +14205,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                      } // for j
                 } // for i
 
-                if (showTimingsFlag)
+                if (view.showTimingsFlag)
                 {
                     int col = w-1;
                     for (int iPaint = view.nPaintsDone; iPaint >= 0 && col >= 0; --iPaint, --col)
@@ -14215,14 +14215,14 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         if (evolveTimeNanos >= 1)
                         {
                             mg.setColor(java.awt.Color.red);
-                            g.drawLine(col, h-(int)(evolveTimeNanos/(1000000/timingsPixelsPerMs)),
+                            g.drawLine(col, h-(int)(evolveTimeNanos/(1000000/view.timingsPixelsPerMs)),
                                        col, h-1);
                         }
                         if (planTimeNanos >= 1)
                         {
                             mg.setColor(java.awt.Color.blue);
-                            g.drawLine(col, h-(int)(evolveTimeNanos/(1000000/timingsPixelsPerMs))-(int)(planTimeNanos/(1000000/timingsPixelsPerMs)),
-                                       col, h-(int)(evolveTimeNanos/(1000000/timingsPixelsPerMs))-1);
+                            g.drawLine(col, h-(int)(evolveTimeNanos/(1000000/view.timingsPixelsPerMs))-(int)(planTimeNanos/(1000000/view.timingsPixelsPerMs)),
+                                       col, h-(int)(evolveTimeNanos/(1000000/view.timingsPixelsPerMs))-1);
                         }
                         if (false)
                         {
@@ -14388,6 +14388,30 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             PRINT(view.nPlansToShow);
                             repaint();
                         }
+                        else if (c == CTRL('s'))
+                        {
+                            view.showTimingsFlag ^= true;
+                            PRINT(view.showTimingsFlag);
+                            repaint();
+                        }
+                        else if (c == 's')
+                        {
+                            if (view.showTimingsFlag) // too easy to accidentally mess with otherwise
+                            {
+                                view.timingsPixelsPerMs /= 2.;
+                                PRINT(view.timingsPixelsPerMs);
+                                repaint();
+                            }
+                        }
+                        else if (c == 'S')
+                        {
+                            if (view.showTimingsFlag) // too easy to accidentally mess with otherwise
+                            {
+                                view.timingsPixelsPerMs *= 2.;
+                                PRINT(view.timingsPixelsPerMs);
+                                repaint();
+                            }
+                        }
                         else if (c == 'P')
                         {
                             if (view.nPlansToShow > 0)
@@ -14434,6 +14458,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             System.out.println("              h - show this help message");
                             System.out.println("            p/P - increase/decrease number of plan curves to show");
                             System.out.println("              a - toggle accelerations on plan curves");
+                            System.out.println("         ctrl-s - toggle timing graph");
+                            System.out.println("            s/S - decrease/increase timing graph size");
                             System.out.println("              d - toggle tracing to "+model.goodAndBadOutFileName);
                             System.out.println("          space - pause/resume");
                             System.out.println("         arrows - move target by 1/9 pixel if not paused");
