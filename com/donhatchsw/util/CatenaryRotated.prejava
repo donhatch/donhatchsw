@@ -504,8 +504,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     // such that the target is clearly NW or SE of it;
                                     // call this a "vantage point".
                                     // The angle bounds are not the same ones used globally.
-                                    double vantageAngleLo = Math.PI/2.;
-                                    double vantageAngleHi = Math.PI;
+                                    double vantageAngleLo = angleLo; // empirically, this works. haven't proved it.
+                                    double vantageAngleHi = Math.PI; // does NOT work to use angleHi ... sometimes a vantage point higher than angleHi is needed, to look at something lower than angleHi!
 
                                     while (true)
                                     {
@@ -2106,7 +2106,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     }
                 } // rectangular grid
 
-                if (true)
+                if (false)
                 {
                     // Draw analytic form of the function where we know it,
                     // namely on the axes
