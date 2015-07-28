@@ -90,10 +90,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                                 double x1, double y1,
                                                 double xMoment, double yMoment,
                                                 com.donhatchsw.compat.ArrayList newtonPathOut,
+                                                int verboseLevel, // 0: nothing, 1: in/out, 2: nice binary search progress all on one line, 3: very explicit
                                                 double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
-        int verboseLevel = 0; // 0: nothing, 1: in/out, 2: nice binary search progress, 3: very explicit
-        int fitVerboseLevel = 0; // XXX and this too?
+        int fitVerboseLevel = 0; // XXX should be a param? not sure, often it is separate
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+")");
 
         try
@@ -726,9 +726,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     public void fitFromMoment(double x0, double y0,
                               double x1, double y1,
                               double xMoment, double yMoment,
-                              com.donhatchsw.compat.ArrayList newtonPathOut)
+                              com.donhatchsw.compat.ArrayList newtonPathOut,
+                              int verboseLevel)
     {
-        fitFromMomentInternal(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut,
+        fitFromMomentInternal(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut, verboseLevel,
                               Double.NaN, Double.NaN);
 
     }
@@ -736,9 +737,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                        double x1, double y1,
                                        double xMoment, double yMoment,
                                        com.donhatchsw.compat.ArrayList newtonPathOut,
+                                       int verboseLevel,
                                        double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
-        int verboseLevel = 0; // XXX think about what we want here. make this a parameter?
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("            in CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+")");
 
@@ -749,7 +750,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         //boolean tryBinarySearch = false;
         if (tryBinarySearch)
         {
-            boolean binarySearchSucceeded = fitFromMomentByBinarySearch(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut, xKnownSolution, yKnownSolution);
+            boolean binarySearchSucceeded = fitFromMomentByBinarySearch(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut, verboseLevel, xKnownSolution, yKnownSolution);
             if (binarySearchSucceeded)
             {
                 binarySearchSuccesses++;
@@ -1134,7 +1135,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
                     if (INRANGE(0. <, moment[1], < 1e-15)) moment[1] = 0.; // XXX HACK to make it use the currently implemented code path, for now
 
-                    scratchCatenaryRotated.fitFromMomentInternal(-1.,0., 0.,0., moment[0],moment[1], null, x,y);
+                    int implementationVerboseLevel = 0;
+                    scratchCatenaryRotated.fitFromMomentInternal(-1.,0., 0.,0., moment[0],moment[1], null, implementationVerboseLevel, x,y);
                 }
             }
             System.out.println("        done testing fitFromMomentByBinarySearch");
@@ -1353,6 +1355,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
 
+                // doesn't fail, but seems to be one of the ones contributing to taking a long time
+                "x0=-1.0, y0=5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.523593452221171, yMoment=-0.1740891838517301",
+                null,
+
                 // binary search fail using overhauled algorithm (early try)
                 "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.603074224821478, yMoment=-0.3471447106867807",
                 "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000009124973, yMoment=-2.0541303119347987E-5",
@@ -1487,7 +1493,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 XXX_ALLOW_FITFROMMOMENT_FAILURE = true;
                 CatenaryRotated catenaryRotated = new CatenaryRotated();
                 com.donhatchsw.compat.ArrayList newtonPath = new com.donhatchsw.compat.ArrayList();
-                catenaryRotated.fitFromMomentInternal(x0,y0, x1,y1, xMoment,yMoment, newtonPath, xKnownSolution, yKnownSolution);
+                int implementationVerboseLevel = 2;
+                catenaryRotated.fitFromMomentInternal(x0,y0, x1,y1, xMoment,yMoment, newtonPath, implementationVerboseLevel, xKnownSolution, yKnownSolution);
                 PRINT(catenaryRotated);
 
                 PRINTARRAY(newtonPath.toArray());

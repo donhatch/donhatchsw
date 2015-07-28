@@ -237,6 +237,7 @@ public class SmoothlyVaryingViewingParameter
     * 2: more detailed haphazard stuff
     */
     public static int verboseLevel = 0;
+    public static int catenaryVerboseLevel = 0;
 
 
     /**
@@ -565,7 +566,8 @@ public class SmoothlyVaryingViewingParameter
                         v[0], v[1],  // v0; happens to be on -x axis now, but doesn't need to be
                         0., 0.,      // v1
                         p[0], p[1], // desired integral
-                        null);      // newtonPathOut
+                        null,      // newtonPathOut
+                        catenaryVerboseLevel);
 
                     if (false)
                     {
@@ -14404,6 +14406,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             //view.showVelocities ^= true;
                             //repaint();
                             verboseLevel = (verboseLevel+1)%3;
+                            catenaryVerboseLevel = verboseLevel;
                             PRINT(verboseLevel);
                         }
                         else if (c == 'A')
