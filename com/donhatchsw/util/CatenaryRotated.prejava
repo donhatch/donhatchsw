@@ -8,6 +8,12 @@ package com.donhatchsw.util;
 // TODO: implement all cases properly in binary search
 // TODO: need to scale problem, I think, in order to make tolerances sensible
 // TODO: make fitFromMoment take momentOffset=moment-momentIfTaut instead of moment, would allow better stability I think
+// TODO: investigate possibility of decreasing bounds implying decreasing angle variance which decreases the trouble area
+// TODO: investigate possibility of hybrid:
+//    - one binary step, one newton step?
+//    - newton as long as it lands strictly within known bounds (how much within?), otherwise binary?
+//    - newton clamped to strictly within known bounds?
+//    - newton but pull back to land strictly within known bounds?
 public class CatenaryRotated extends Catenary.FlippedMaybe
 {
     static boolean XXX_ALLOW_FITFROMMOMENT_FAILURE = false; // hack hook so SmoothlyVaryingViewingParameter demo3 can proceed with manageable amount of noise
@@ -1387,6 +1393,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-0.9999999999999999, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000010278508, yMoment=-2.1717435486762193E-5",
                 "x0=-1.0, y0=-2.7755575615628914E-17, x1=0.0, y1=0.0, xMoment=-0.50000000067818, yMoment=-1.8103085655765683E-5",
                 "x0=-1.0, y0=-3.885780586188048E-16, x1=0.0, y1=0.0, xMoment=-0.5000000010799698, yMoment=-2.1836648062212305E-5",
+                "x0=-0.9999999999999999, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000917821, yMoment=-8.031659965962445E-6",
+                "x0=-1.0, y0=5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5000000002294929, yMoment=-4.664810677346143E-6",
 
                 // case where binary search special case criteria screwed up (fixed)
                 "x0=-0.9999999999999999, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=2.7755575615628914E-17",
