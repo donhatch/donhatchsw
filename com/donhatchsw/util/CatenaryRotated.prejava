@@ -96,7 +96,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         int fitVerboseLevel = 0; // XXX and this too?
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+")");
 
-
         try
         {
             double tol = 1e-6; // XXX ?
@@ -118,6 +117,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double y1orig = y1;
                 double xMomentOrig = xMoment;
                 double yMomentOrig = yMoment;
+                double xKnownSolutionOrig = xKnownSolution;
+                double yKnownSolutionOrig = yKnownSolution;
 
                 x0 = 1.;
                 y0 = 0.;
@@ -126,6 +127,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 xMoment *= -1.;
                 yMoment = MIN(yMoment, 0.);
                 yMoment *= -1.;
+                xKnownSolution *= -1.;
+                yKnownSolution *= -1.;
 
                 double rAnswer = Double.NaN;
                 double angleAnswer = Double.NaN;
@@ -642,6 +645,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     y1 = y1orig;
                     xMoment = xMomentOrig;
                     yMoment = yMomentOrig;
+                    xKnownSolution = xKnownSolutionOrig;
+                    yKnownSolution = yKnownSolutionOrig;
 
                     angleAnswer = Math.PI + angleAnswer;
                 }
@@ -1348,12 +1353,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
 
-                // current binary search fail as of this writing-- way out in the open
-                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.946, yMoment=-0.8031013757681627, xKnownSolution=0.0, yKnownSolution=-0.892",
-
-                // current binary search fail as of this writing-- way out in the open
-                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.8436336645308535, yMoment=-0.881820491280086, xKnownSolution=0.24, yKnownSolution=-0.96",
-
                 // binary search fail using overhauled algorithm (early try)
                 "x0=-1.0, y0=-1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.603074224821478, yMoment=-0.3471447106867807",
                 "x0=-1.0, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000009124973, yMoment=-2.0541303119347987E-5",
@@ -1385,6 +1384,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
                 // case where binary search special case criteria screwed up (fixed)
                 "x0=-0.9999999999999999, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=2.7755575615628914E-17",
+
+                // current binary search fail as of this writing (not any more)
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.946, yMoment=-0.8031013757681627, xKnownSolution=0.0, yKnownSolution=-0.892",
+
+                // current binary search fail as of this writing (not any more)
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.8436336645308535, yMoment=-0.881820491280086, xKnownSolution=0.24, yKnownSolution=-0.96",
 
                 // binary search fail in first quadrant! (fixed)
                 "x0=-0.9999999999999999, y0=-5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.49999999999999994, yMoment=-1.8932633238932794E-12",
