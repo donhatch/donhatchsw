@@ -1395,6 +1395,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 "x0=-1.0, y0=-3.885780586188048E-16, x1=0.0, y1=0.0, xMoment=-0.5000000010799698, yMoment=-2.1836648062212305E-5",
                 "x0=-0.9999999999999999, y0=1.1102230246251565E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000917821, yMoment=-8.031659965962445E-6",
                 "x0=-1.0, y0=5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.5000000002294929, yMoment=-4.664810677346143E-6",
+                "x0=-1.0, y0=0.0, x1=0.0, y1=0.0, xMoment=-0.5000000011091066, yMoment=-2.2134440393506427E-5",
 
                 // case where binary search special case criteria screwed up (fixed)
                 "x0=-0.9999999999999999, y0=2.7755575615628914E-16, x1=0.0, y1=0.0, xMoment=-0.5000000000000001, yMoment=2.7755575615628914E-17",
