@@ -13971,7 +13971,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 int nPlansToShow = 0;
                 boolean showPlanAccelerationsFlag = false;
                 boolean antialiasFlag = true;
-                boolean showTimingsFlag = true;
+                boolean showTimingsFlag = false;
                 double timingsPixelsPerMs = 2.;
 
                 int nPaintsDone = 0;
