@@ -501,10 +501,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     // Force a single refinement of r,
                                     // by doing a 1d binary search with r constant,
                                     // looking for a point on the ellipse
-                                    // such that the target is clearly NW or SE of it;
+                                    // such that the target is NW or SE of it;
                                     // call this a "vantage point".
                                     // The angle bounds are not the same ones used globally.
-                                    double vantageAngleLo = angleLo; // empirically, this works. haven't proved it.
+                                    double vantageAngleLo = angleLo; // empirically, this is ok (i.e. don't need to start over at Math.PI/2 each time). haven't proved it.
                                     double vantageAngleHi = Math.PI; // does NOT work to use angleHi ... sometimes a vantage point higher than angleHi is needed, to look at something lower than angleHi!
 
                                     while (true)
@@ -606,6 +606,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                             break;
                                         }
                                     }
+
+                                    //angleLo = vantageAngleLo; // this is NOT ok (TODO: come up with clear argument/example)
+                                    //angleHi = vantageAngleHi; // this is NOT ok (TODO: come up with clear argument/example)
                                 }
                             }
 
@@ -623,10 +626,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     {
                         System.out.println("                  final bounds:");
                         System.out.println("                      rLo="+rLo);
-                        System.out.println("                      rKnownSolution="+rKnownSolution);
+                        if (solutionIsKnown) System.out.println("                      rKnownSolution="+rKnownSolution);
                         System.out.println("                      rHi="+rHi);
                         System.out.println("                      angleLo="+RTOD(angleLo)+"deg");
-                        System.out.println("                      angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+                        if (solutionIsKnown) System.out.println("                      angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
                         System.out.println("                      angleHi="+RTOD(angleHi)+"deg");
                         System.out.println("                      desiredMoment="+VecMath.toString(desiredMoment));
                         System.out.println("                      gotMoment="+VecMath.toString(gotMoment));
