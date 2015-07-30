@@ -1824,7 +1824,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // Draw.
                 //
 
-                double xMomentIfTaut = (model.v0[0]+model.v1[0])*.5;
+                final double xMomentIfTaut = (model.v0[0]+model.v1[0])*.5;
 
 
                 // culling frustum
@@ -1845,8 +1845,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 mg.drawPoint(model.v0[0],model.v0[1], 5);
                 mg.drawPoint(model.v1[0],model.v1[1], 5);
 
-                CatenaryRotated catenaryRotated = new CatenaryRotated(); // scratch
-                double moment[] = new double[2]; // scratch
+                final CatenaryRotated catenaryRotated = new CatenaryRotated(); // scratch
+                final double moment[] = new double[2]; // scratch
 
                 // Figure out largest and smallest mag level of interest
                 int magLevel0 = 20; // XXX be more scientific
@@ -2276,6 +2276,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         double y = slack;
                         catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
                         catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+
                         if (i > 0)
                         {
                             double angle = Math.atan2(moment[1]-prevMoment[1], moment[0]-prevMoment[0]);
@@ -2316,6 +2317,33 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     mg.setColor(java.awt.Color.blue);
                     mg.drawPoint(xMomentAtMinAngleOfPosition, yMomentAtMinAngleOfPosition, 5);
                     mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngleOfPosition), Math.sin(minAngleOfPosition));
+
+                    if (true)
+                    {
+                        // Actually do an analytic solve, easier than the above
+                        GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
+                            @Override public double apply(double slack)
+                            {
+                                double x = 0.;
+                                double y = slack;
+                                catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                                double angleOfPosition = Math.atan2(moment[1], moment[0]-xMomentIfTaut);
+                                return xMomentIfTaut < 0. ? -angleOfPosition : angleOfPosition;
+                            }
+                        };
+                        // it's not clear what the upper bound should be, so compute one
+                        double lo = 0.;
+                        double hi = 2.;
+                        while (fun.apply(2.*hi) < fun.apply(hi))
+                            hi *= 2.;
+                        double shouldBeSlackAtMinAngleOfPosition = GoldenSectionSearch.findMin(fun, 0., hi)
+                                                                 * (xMomentIfTaut < 0. ? -1. : 1.);
+                        PRINT(shouldBeSlackAtMinAngleOfPosition);
+                        double shouldBeMinAngleOfPosition = fun.apply(shouldBeSlackAtMinAngleOfPosition);
+                        PRINT(shouldBeMinAngleOfPosition);
+                        PRINT(RTOD(shouldBeMinAngleOfPosition));
+                    }
 
                 }
 
