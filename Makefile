@@ -130,6 +130,7 @@ donhatchsw.jar: \
     com/donhatchsw/awt/LayoutExample.class \
     com/donhatchsw/awt/MainWindowCount.class \
     com/donhatchsw/util/NewtonSolver.class \
+    com/donhatchsw/util/GoldenSectionSearch.class \
     com/donhatchsw/util/Catenary.class \
     com/donhatchsw/util/CatenaryRotated.class \
     com/donhatchsw/util/SmoothlyVaryingViewingParameter.class \

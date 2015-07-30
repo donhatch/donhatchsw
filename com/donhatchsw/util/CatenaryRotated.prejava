@@ -2253,13 +2253,22 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
                 if (true)
                 {
-                    // figure out the magic angle at which we can say we are "obviously in first quadrant", i.e. the angle of the min slope of the image of the y axis
+                    // Figure out the magic angle at which we can say we are "obviously in first quadrant", i.e. the angle of the min slope of the image of the y axis.
                     int nSteps = 10*1000;
                     double prevMoment[] = {Double.NaN, Double.NaN};
                     double minAngle = (xMomentIfTaut<0. ? 0. : Math.PI);
                     double slackAtMinAngle = Double.NaN;
                     double xMomentAtMinAngle = Double.NaN;
                     double yMomentAtMinAngle = Double.NaN;
+                    // Actually, thinking about it more, it's simpler than that...
+                    // just find the point whose *position* is at the minimum angle from the origin.
+                    // Although, in this case, may need to add some fudge?
+                    // However, could compute this offline by binary search, once and for all
+                    double minAngleOfPosition = (xMomentIfTaut<0. ? 0. : Math.PI);
+                    double slackAtMinAngleOfPosition = Double.NaN;
+                    double xMomentAtMinAngleOfPosition = Double.NaN;
+                    double yMomentAtMinAngleOfPosition = Double.NaN;
+
                     for (int i = 0; i < nSteps+1; ++i)
                     {
                         double slack = i/(double)nSteps;
@@ -2277,6 +2286,15 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 xMomentAtMinAngle = moment[0];
                                 yMomentAtMinAngle = moment[1];
                             }
+                            double angleOfPosition = Math.atan2(moment[1], moment[0]-xMomentIfTaut);
+                            if (xMomentIfTaut<0. ? (angleOfPosition>minAngleOfPosition) : (angleOfPosition<minAngleOfPosition))
+                            {
+                                System.out.println("    minAngleOfPosition "+minAngleOfPosition+" -> "+angleOfPosition+"");
+                                minAngleOfPosition = angleOfPosition;
+                                slackAtMinAngleOfPosition = slack;
+                                xMomentAtMinAngleOfPosition = moment[0];
+                                yMomentAtMinAngleOfPosition = moment[1];
+                            }
                         }
                         VecMath.copyvec(prevMoment, moment);
                     }
@@ -2287,10 +2305,18 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     PRINT(xMomentAtMinAngle);
                     PRINT(yMomentAtMinAngle);
                     */
+
+                    mg.setColor(java.awt.Color.red);
+                    mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.sqrt(.5), Math.sqrt(.5));
+
                     mg.setColor(java.awt.Color.green);
                     mg.drawPoint(xMomentAtMinAngle, yMomentAtMinAngle, 5);
                     mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngle), Math.sin(minAngle));
-                    mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.sqrt(.5), Math.sqrt(.5));
+
+                    mg.setColor(java.awt.Color.blue);
+                    mg.drawPoint(xMomentAtMinAngleOfPosition, yMomentAtMinAngleOfPosition, 5);
+                    mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngleOfPosition), Math.sin(minAngleOfPosition));
+
                 }
 
                 // Draw good and bad samples

@@ -1,0 +1,74 @@
+/* vim: set filetype=java: */
+package com.donhatchsw.util;
+#include "macros.h" 
+
+public class GoldenSectionSearch
+{
+    public abstract static class Fun
+    {
+        public abstract double apply(double x);
+    }
+
+    public static double findMin(Fun fun, double a, double b)
+    {
+        double invGolden = (Math.sqrt(5.)-1.)*.5;
+        assert(a <= b);
+        double x0 = a;
+        double x1 = LERP(b, a, invGolden);
+        double x2 = LERP(a, b, invGolden);
+        double x3 = b;
+        assert(x0 <= x1 && x1 <= x2 && x2 <= x3);
+        double y0 = fun.apply(x0);
+        double y1 = fun.apply(x1);
+        double y2 = fun.apply(x2);
+        double y3 = fun.apply(x3);
+        assert(y1 <= y0 || y1 <= y3);
+        assert(y2 <= y0 || y2 <= y3);
+        while (true)
+        {
+            System.out.println("===============");
+            System.out.println("    "+x0+" "+x1+" "+x2+" "+x3+"");
+            System.out.println("    "+y0+" "+y1+" "+y2+" "+y3+"");
+            if (y1 <= y2)
+            {
+                x3 = x2; x2 = x1;
+                y3 = y2; y2 = y1;
+                x1 = LERP(x0, x2, invGolden);
+                if (x1 <= x0 || x1 >= x2)
+                    return x2;
+                y1 = fun.apply(x1);
+            }
+            else
+            {
+                x0 = x1; x1 = x2;
+                y0 = y1; y1 = y2;
+                x2 = LERP(x3, x1, invGolden);
+                if (x2 <= x1 || x2 >= x3)
+                    return x1;
+                y2 = fun.apply(x2);
+            }
+        }
+    } // findMin
+
+
+    // Little test program
+    public static void main(String args[])
+    {
+        System.out.println("    in GoldenSectionSearch.main");
+        {
+            // Find minimum of (x-3)^2+1 on [-10:10]
+            Fun fun = new Fun() {
+                @Override public double apply(double x)
+                {
+                    return (x-3)*(x-3) + 1;
+                }
+            };
+            double x = findMin(fun, -10., 10.);
+            PRINT(x);
+            assert_almost_eq(x, 3., 1e-6);
+        }
+        System.out.println("    out GoldenSectionSearch.main");
+    } // main
+} // class GoldenSectionSearch
+
+
