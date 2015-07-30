@@ -2251,76 +2251,64 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             mg.drawPoint(xxxMoment, yMomentOfXMoment, 3);
                     }
                 }
+
                 if (true)
                 {
-                    // Figure out the magic angle at which we can say we are "obviously in first quadrant", i.e. the angle of the min slope of the image of the y axis.
-                    int nSteps = 10*1000;
-                    double prevMoment[] = {Double.NaN, Double.NaN};
-                    double minAngle = (xMomentIfTaut<0. ? 0. : Math.PI);
-                    double slackAtMinAngle = Double.NaN;
-                    double xMomentAtMinAngle = Double.NaN;
-                    double yMomentAtMinAngle = Double.NaN;
-                    // Actually, thinking about it more, it's simpler than that...
-                    // just find the point whose *position* is at the minimum angle from the origin.
-                    // Although, in this case, may need to add some fudge?
-                    // However, could compute this offline by binary search, once and for all
-                    double minAngleOfPosition = (xMomentIfTaut<0. ? 0. : Math.PI);
-                    double slackAtMinAngleOfPosition = Double.NaN;
-                    double xMomentAtMinAngleOfPosition = Double.NaN;
-                    double yMomentAtMinAngleOfPosition = Double.NaN;
-
-                    for (int i = 0; i < nSteps+1; ++i)
-                    {
-                        double slack = i/(double)nSteps;
-                        double x = 0.;
-                        double y = slack;
-                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
-                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-
-                        if (i > 0)
-                        {
-                            double angle = Math.atan2(moment[1]-prevMoment[1], moment[0]-prevMoment[0]);
-                            if (xMomentIfTaut<0. ? (angle>minAngle) : (angle < minAngle))
-                            {
-                                minAngle = angle;
-                                slackAtMinAngle = slack;
-                                xMomentAtMinAngle = moment[0];
-                                yMomentAtMinAngle = moment[1];
-                            }
-                            double angleOfPosition = Math.atan2(moment[1], moment[0]-xMomentIfTaut);
-                            if (xMomentIfTaut<0. ? (angleOfPosition>minAngleOfPosition) : (angleOfPosition<minAngleOfPosition))
-                            {
-                                System.out.println("    minAngleOfPosition "+minAngleOfPosition+" -> "+angleOfPosition+"");
-                                minAngleOfPosition = angleOfPosition;
-                                slackAtMinAngleOfPosition = slack;
-                                xMomentAtMinAngleOfPosition = moment[0];
-                                yMomentAtMinAngleOfPosition = moment[1];
-                            }
-                        }
-                        VecMath.copyvec(prevMoment, moment);
-                    }
-                    /*
-                    PRINT(minAngle);
-                    PRINT(RTOD(minAngle));
-                    PRINT(slackAtMinAngle);
-                    PRINT(xMomentAtMinAngle);
-                    PRINT(yMomentAtMinAngle);
-                    */
-
                     mg.setColor(java.awt.Color.red);
                     mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.sqrt(.5), Math.sqrt(.5));
 
-                    mg.setColor(java.awt.Color.green);
-                    mg.drawPoint(xMomentAtMinAngle, yMomentAtMinAngle, 5);
-                    mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngle), Math.sin(minAngle));
-
-                    mg.setColor(java.awt.Color.blue);
-                    mg.drawPoint(xMomentAtMinAngleOfPosition, yMomentAtMinAngleOfPosition, 5);
-                    mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngleOfPosition), Math.sin(minAngleOfPosition));
-
+                    // Figure out the magic angle at which we can say we are "obviously in first quadrant", i.e. the angle of the min slope of the image of the y axis.
                     if (true)
                     {
-                        // Actually do an analytic solve, easier than the above
+                        GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
+                            @Override public double apply(double slack)
+                            {
+                                double x = 0.;
+                                double y = slack;
+                                catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                                double xMomentPrev = moment[0];
+                                double yMomentPrev = moment[1];
+                                y = slack + 1e-4;
+                                catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+
+                                double angleOfPosition = Math.atan2(moment[1]-yMomentPrev, moment[0]-xMomentPrev);
+                                return xMomentIfTaut < 0. ? -angleOfPosition : angleOfPosition;
+                            }
+                        };
+                        // it's not clear what the upper bound should be, so compute one
+                        double lo = 0.;
+                        double hi = 2.;
+                        while (fun.apply(2.*hi) < fun.apply(hi))
+                            hi *= 2.;
+                        double slackAtMinAngle = GoldenSectionSearch.findMin(fun, 0., hi)
+                                                                 * (xMomentIfTaut < 0. ? -1. : 1.);
+                        double minAngle = fun.apply(slackAtMinAngle);
+                        if (false)
+                        {
+                            PRINT(slackAtMinAngle);
+                            PRINT(minAngle);
+                            PRINT(RTOD(minAngle));
+                        }
+
+                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], 0.,slackAtMinAngle, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        double xMomentAtMinAngle = moment[0];
+                        double yMomentAtMinAngle = moment[1];
+
+                        mg.setColor(java.awt.Color.green);
+                        mg.drawPoint(xMomentAtMinAngle, yMomentAtMinAngle, 5);
+                        mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngle), Math.sin(minAngle));
+                    }
+                    // Actually, thinking about it more, it's simpler than that...
+                    // just find the point whose *position* is at the minimum angle from the origin.
+                    // Although, in this case, may need to add some fudge?
+                    // However, could compute this offline by binary search, once and for all.
+                    // Oh, convenient! It's about 60.710775733211186 degrees,
+                    // so can use 60!
+                    if (true)
+                    {
                         GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
                             @Override public double apply(double slack)
                             {
@@ -2337,12 +2325,24 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         double hi = 2.;
                         while (fun.apply(2.*hi) < fun.apply(hi))
                             hi *= 2.;
-                        double shouldBeSlackAtMinAngleOfPosition = GoldenSectionSearch.findMin(fun, 0., hi)
+                        double slackAtMinAngleOfPosition = GoldenSectionSearch.findMin(fun, 0., hi)
                                                                  * (xMomentIfTaut < 0. ? -1. : 1.);
-                        PRINT(shouldBeSlackAtMinAngleOfPosition);
-                        double shouldBeMinAngleOfPosition = fun.apply(shouldBeSlackAtMinAngleOfPosition);
-                        PRINT(shouldBeMinAngleOfPosition);
-                        PRINT(RTOD(shouldBeMinAngleOfPosition));
+                        double minAngleOfPosition = fun.apply(slackAtMinAngleOfPosition);
+                        if (false)
+                        {
+                            PRINT(slackAtMinAngleOfPosition);
+                            PRINT(minAngleOfPosition);
+                            PRINT(RTOD(minAngleOfPosition));
+                        }
+
+                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], 0.,slackAtMinAngleOfPosition, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        double xMomentAtMinAngleOfPosition = moment[0];
+                        double yMomentAtMinAngleOfPosition = moment[1];
+
+                        mg.setColor(java.awt.Color.blue);
+                        mg.drawPoint(xMomentAtMinAngleOfPosition, yMomentAtMinAngleOfPosition, 5);
+                        mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngleOfPosition), Math.sin(minAngleOfPosition));
                     }
 
                 }
