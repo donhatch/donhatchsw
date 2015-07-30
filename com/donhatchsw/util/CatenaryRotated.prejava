@@ -1364,6 +1364,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             System.out.println("      testing some fitFromMoment cases that have been problematic");
             String testCases[] = {
 
+                // one of zillion failures when inverseFunctionFlag is true, wtf?
+                "x0=0.0, y0=0.0, x1=1.0, y1=0.0, xMoment=0.5586369584951553, yMoment=-0.021632316067343338",
+                null,
+
                 // doesn't fail, but seems to be one of the ones contributing to taking a long time
                 "x0=-1.0, y0=5.551115123125783E-17, x1=0.0, y1=0.0, xMoment=-0.523593452221171, yMoment=-0.1740891838517301",
                 null,
@@ -1576,10 +1580,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         System.out.println("    out confidenceTests");
     } // confidenceTests
 
-    private abstract static class PolarFunction
-    {
-        public abstract void apply(double r, double cosAngle, double sinAngle, double answer[]);
-    }
     private abstract static class RectangularFunction
     {
         public abstract void apply(double x, double y, double answer[]);
@@ -1726,12 +1726,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             class View
             {
                 // Really viewing params (could separate into ViewParams and ViewState)...
-                boolean antialiasFlag = true;
-                boolean showPointsFlag = false;
+                boolean antialiasFlag = true; // toggle with 'A'
+                boolean showPointsFlag = false; // toggle with 'p'
                 boolean showPolarGridFlag = true;
-                boolean showRectangularGridFlag = false;
+                boolean showRectangularGridFlag = false; // toggle with 'g'
+                boolean inverseFunctionFlag = false; // toggle with 'i'
 
-                double focus[] = {.5, 0.};
+                double focus[] = {.5, 0.}; // move with UP/DOWN/LEFT/RIGHT (along with model.v0,v1)
                 double logRadius = 1.;
                 double radius = Math.pow(2., logRadius);
                 double gridRotDegrees = 0.;
@@ -1835,6 +1836,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 //
 
                 final double xMomentIfTaut = (model.v0[0]+model.v1[0])*.5;
+                final double yMomentIfTaut = (model.v0[1]+model.v1[1])*.5;
 
 
                 // culling frustum
@@ -1845,15 +1847,25 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 mg.drawLine(xMinCull,yMaxCull, xMinCull,yMinCull);
 
 
-                // axes
-                mg.setColor(new java.awt.Color(64,64,64));
-                mg.drawLine(-1.,0., 1., 0.);
-                mg.drawLine(0.,-1., 0., 1.);
+                if (view.inverseFunctionFlag)
+                {
+                    // hack to get axes at the right place
+                    mg.setColor(new java.awt.Color(64,64,64));
+                    mg.drawLine(view.focus[0] + -1., 0., view.focus[0] + 1., 0.);
+                    mg.drawLine(view.focus[0] + 0.,  -1., view.focus[0] + 0., 1.);
+                }
+                if (!view.inverseFunctionFlag)
+                {
+                    // axes
+                    mg.setColor(new java.awt.Color(64,64,64));
+                    mg.drawLine(-1.,0., 1., 0.);
+                    mg.drawLine(0.,-1., 0., 1.);
 
-                // show catenary endpoints
-                mg.setColor(new java.awt.Color(128,128,128));
-                mg.drawPoint(model.v0[0],model.v0[1], 5);
-                mg.drawPoint(model.v1[0],model.v1[1], 5);
+                    // show catenary endpoints
+                    mg.setColor(new java.awt.Color(128,128,128));
+                    mg.drawPoint(model.v0[0],model.v0[1], 5);
+                    mg.drawPoint(model.v1[0],model.v1[1], 5);
+                }
 
                 final CatenaryRotated catenaryRotated = new CatenaryRotated(); // scratch
                 final double moment[] = new double[2]; // scratch
@@ -1929,21 +1941,39 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     magLevel1++;
                 }
 
-
-                PolarFunction fPolar = new PolarFunction() {
-                    @Override public void apply(double r, double cosAngle, double sinAngle, double answer[/*2*/])
-                    {
-                        catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
-                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, answer);
-                    }
-                };
-                RectangularFunction fRectangular = new RectangularFunction() {
+                RectangularFunction f = new RectangularFunction() {
                     @Override public void apply(double x, double y, double answer[/*2*/])
                     {
                         catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x, y, 0);
                         catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, answer);
                     }
                 };
+                if (view.inverseFunctionFlag)
+                    f = new RectangularFunction() {
+                        @Override public void apply(double xMomentOffset, double yMomentOffset, double xy[/*2*/])
+                        {
+                            boolean saved = XXX_ALLOW_FITFROMMOMENT_FAILURE;
+                            try
+                            {
+                                XXX_ALLOW_FITFROMMOMENT_FAILURE = true;
+                                catenaryRotated.fitFromMoment(model.v0[0],model.v0[1],model.v1[0],model.v1[1], xMomentIfTaut+xMomentOffset, yMomentIfTaut+yMomentOffset, null, 0);
+                                double slack = catenaryRotated.t1 - catenaryRotated.t0 - MyMath.hypot(model.v1[0]-model.v0[0], model.v1[1]-model.v0[1]);
+                                // down angle is rotation rotated by -90 degrees
+                                double x = slack *  catenaryRotated.sinRotation;
+                                double y = slack * -catenaryRotated.cosRotation;
+                                xy[0] = x;
+                                xy[1] = y;
+
+                                // fudge, to put it at the window center
+                                xy[0] += view.focus[0];
+                                xy[1] += view.focus[1];
+                            }
+                            finally
+                            {
+                                XXX_ALLOW_FITFROMMOMENT_FAILURE = saved;
+                            }
+                        }
+                    };
 
                 if (view.showPolarGridFlag)
                 {
@@ -1982,10 +2012,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         }
                         for (int iAngle = 0; iAngle < nAnglesMajor; ++iAngle)
                         {
-                            int passOfThisAngle = (4*iAngle % nAnglesMajor == 0) ? 1 : 0;
+                            // yes, show the major contours in blue even if view.inverseFunctionFlag
+                            int passOfThisAngle = ((4*iAngle % nAnglesMajor == 0) ? 1 : 0);
                             if (iPass != passOfThisAngle)
                                 continue;
-
 
                             double angle = 2*Math.PI/nAnglesMajor * iAngle;
                             double cosAngle = Math.cos(angle);
@@ -1995,7 +2025,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             for (int iMag = 0; iMag < nMagStepsMinor+1; ++iMag)
                             {
                                 double r = Math.pow(2., LERP(magLevel0, magLevel1, (double)iMag/(double)nMagStepsMinor));
-                                fPolar.apply(r, cosAngle, sinAngle, moment);
+                                f.apply(r*cosAngle, r*sinAngle, moment);
                                 if (iMag > 0)
                                 {
                                     // is the slope in the expected quadrant?
@@ -2028,9 +2058,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             mg.setColor(new java.awt.Color(128, 128, 128)); // good for low contrast against rectangular
                         }
                         else
-                            mg.setColor(new java.awt.Color(128, 128, 255));
+                            mg.setColor(new java.awt.Color(128, 128, 255)); // slightly washed out blue
                         for (int iMagMajor = 0; iMagMajor < nMagStepsMajor; ++iMagMajor)
                         {
+                            // yes, show the 1 contour in blue even if view.inverseFunctionFlag
                             int passOfThisMag = iMagMajor == (0-magLevel0)*nMagsMajorPerMagLevel ? 1 : 0;
                             if (iPass != passOfThisMag)
                                 continue;
@@ -2042,7 +2073,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 double angle = 2*Math.PI/nAnglesMinor * iAngle;
                                 double cosAngle = Math.cos(angle);
                                 double sinAngle = Math.sin(angle);
-                                fPolar.apply(r, cosAngle, sinAngle, moment);
+                                f.apply(r*cosAngle, r*sinAngle, moment);
                                 if (iAngle > 0)
                                     mg.drawLine(xMomentPrev,yMomentPrev,
                                                 moment[0], moment[1]);
@@ -2089,7 +2120,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             double y = LERP(y0, y1, iY/(double)nYStepsMinor);
                             double X = c*x - s*y;
                             double Y = s*x + c*y;
-                            fRectangular.apply(X, Y, moment);
+                            f.apply(X, Y, moment);
                             if (iY > 0)
                             {
                                 mg.drawLine(xMomentPrev,yMomentPrev,
@@ -2113,7 +2144,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             double x = LERP(x0, x1, iX/(double)nXStepsMinor);
                             double X = c*x - s*y;
                             double Y = s*x + c*y;
-                            fRectangular.apply(X, Y, moment);
+                            f.apply(X, Y, moment);
                             if (iX > 0)
                             {
                                 mg.drawLine(xMomentPrev,yMomentPrev,
@@ -2141,7 +2172,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         double y = slack;
                         if (false)
                         {
-                            fRectangular.apply(x, y, moment);
+                            f.apply(x, y, moment);
                             mg.setColor(java.awt.Color.green);
                             mg.drawPoint(moment[0], moment[1], 5);
                         }
@@ -2269,99 +2300,102 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     }
                 }
 
-                if (true)
+                if (!view.inverseFunctionFlag)
                 {
-                    mg.setColor(java.awt.Color.red);
-                    mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.sqrt(.5), Math.sqrt(.5));
-
-                    // Figure out the magic angle at which we can say we are "obviously in first quadrant", i.e. the angle of the min slope of the image of the y axis.
-                    if (true)
+                    if (false) // researchy, maybe not for general interest
                     {
-                        GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
-                            @Override public double apply(double slack)
-                            {
-                                double x = 0.;
-                                double y = slack;
-                                catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
-                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                                double xMomentPrev = moment[0];
-                                double yMomentPrev = moment[1];
-                                y = slack + 1e-4;
-                                catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
-                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                        mg.setColor(java.awt.Color.red);
+                        mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.sqrt(.5), Math.sqrt(.5));
 
-                                double angleOfPosition = Math.atan2(moment[1]-yMomentPrev, moment[0]-xMomentPrev);
-                                return xMomentIfTaut < 0. ? -angleOfPosition : angleOfPosition;
-                            }
-                        };
-                        // it's not clear what the upper bound should be, so compute one
-                        double lo = 0.;
-                        double hi = 2.;
-                        while (fun.apply(2.*hi) < fun.apply(hi))
-                            hi *= 2.;
-                        double slackAtMinAngle = GoldenSectionSearch.findMin(fun, 0., hi)
-                                                                 * (xMomentIfTaut < 0. ? -1. : 1.);
-                        double minAngle = fun.apply(slackAtMinAngle);
-                        if (false)
+                        // Figure out the magic angle at which we can say we are "obviously in first quadrant", i.e. the angle of the min slope of the image of the y axis.
+                        if (true)
                         {
-                            PRINT(slackAtMinAngle);
-                            PRINT(minAngle);
-                            PRINT(RTOD(minAngle));
+                            GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
+                                @Override public double apply(double slack)
+                                {
+                                    double x = 0.;
+                                    double y = slack;
+                                    catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                                    catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                                    double xMomentPrev = moment[0];
+                                    double yMomentPrev = moment[1];
+                                    y = slack + 1e-4;
+                                    catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                                    catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+
+                                    double angleOfPosition = Math.atan2(moment[1]-yMomentPrev, moment[0]-xMomentPrev);
+                                    return xMomentIfTaut < 0. ? -angleOfPosition : angleOfPosition;
+                                }
+                            };
+                            // it's not clear what the upper bound should be, so compute one
+                            double lo = 0.;
+                            double hi = 2.;
+                            while (fun.apply(2.*hi) < fun.apply(hi))
+                                hi *= 2.;
+                            double slackAtMinAngle = GoldenSectionSearch.findMin(fun, 0., hi)
+                                                                     * (xMomentIfTaut < 0. ? -1. : 1.);
+                            double minAngle = fun.apply(slackAtMinAngle);
+                            if (false)
+                            {
+                                PRINT(slackAtMinAngle);
+                                PRINT(minAngle);
+                                PRINT(RTOD(minAngle));
+                            }
+
+                            catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], 0.,slackAtMinAngle, 0);
+                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                            double xMomentAtMinAngle = moment[0];
+                            double yMomentAtMinAngle = moment[1];
+
+                            mg.setColor(java.awt.Color.green);
+                            mg.drawPoint(xMomentAtMinAngle, yMomentAtMinAngle, 5);
+                            mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngle), Math.sin(minAngle));
+                        }
+                        // Actually, thinking about it more, it's simpler than that...
+                        // just find the point whose *position* is at the minimum angle from the origin.
+                        // Although, in this case, may need to add some fudge?
+                        // However, could compute this offline by binary search, once and for all.
+                        // Oh, convenient! It's about 60.710775733211186 degrees,
+                        // so can use 60!
+                        if (true)
+                        {
+                            GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
+                                @Override public double apply(double slack)
+                                {
+                                    double x = 0.;
+                                    double y = slack;
+                                    catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
+                                    catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                                    double angleOfPosition = Math.atan2(moment[1], moment[0]-xMomentIfTaut);
+                                    return xMomentIfTaut < 0. ? -angleOfPosition : angleOfPosition;
+                                }
+                            };
+                            // it's not clear what the upper bound should be, so compute one
+                            double lo = 0.;
+                            double hi = 2.;
+                            while (fun.apply(2.*hi) < fun.apply(hi))
+                                hi *= 2.;
+                            double slackAtMinAngleOfPosition = GoldenSectionSearch.findMin(fun, 0., hi)
+                                                                     * (xMomentIfTaut < 0. ? -1. : 1.);
+                            double minAngleOfPosition = fun.apply(slackAtMinAngleOfPosition);
+                            if (false)
+                            {
+                                PRINT(slackAtMinAngleOfPosition);
+                                PRINT(minAngleOfPosition);
+                                PRINT(RTOD(minAngleOfPosition));
+                            }
+
+                            catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], 0.,slackAtMinAngleOfPosition, 0);
+                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                            double xMomentAtMinAngleOfPosition = moment[0];
+                            double yMomentAtMinAngleOfPosition = moment[1];
+
+                            mg.setColor(java.awt.Color.blue);
+                            mg.drawPoint(xMomentAtMinAngleOfPosition, yMomentAtMinAngleOfPosition, 5);
+                            mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngleOfPosition), Math.sin(minAngleOfPosition));
                         }
 
-                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], 0.,slackAtMinAngle, 0);
-                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                        double xMomentAtMinAngle = moment[0];
-                        double yMomentAtMinAngle = moment[1];
-
-                        mg.setColor(java.awt.Color.green);
-                        mg.drawPoint(xMomentAtMinAngle, yMomentAtMinAngle, 5);
-                        mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngle), Math.sin(minAngle));
                     }
-                    // Actually, thinking about it more, it's simpler than that...
-                    // just find the point whose *position* is at the minimum angle from the origin.
-                    // Although, in this case, may need to add some fudge?
-                    // However, could compute this offline by binary search, once and for all.
-                    // Oh, convenient! It's about 60.710775733211186 degrees,
-                    // so can use 60!
-                    if (true)
-                    {
-                        GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
-                            @Override public double apply(double slack)
-                            {
-                                double x = 0.;
-                                double y = slack;
-                                catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
-                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                                double angleOfPosition = Math.atan2(moment[1], moment[0]-xMomentIfTaut);
-                                return xMomentIfTaut < 0. ? -angleOfPosition : angleOfPosition;
-                            }
-                        };
-                        // it's not clear what the upper bound should be, so compute one
-                        double lo = 0.;
-                        double hi = 2.;
-                        while (fun.apply(2.*hi) < fun.apply(hi))
-                            hi *= 2.;
-                        double slackAtMinAngleOfPosition = GoldenSectionSearch.findMin(fun, 0., hi)
-                                                                 * (xMomentIfTaut < 0. ? -1. : 1.);
-                        double minAngleOfPosition = fun.apply(slackAtMinAngleOfPosition);
-                        if (false)
-                        {
-                            PRINT(slackAtMinAngleOfPosition);
-                            PRINT(minAngleOfPosition);
-                            PRINT(RTOD(minAngleOfPosition));
-                        }
-
-                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], 0.,slackAtMinAngleOfPosition, 0);
-                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
-                        double xMomentAtMinAngleOfPosition = moment[0];
-                        double yMomentAtMinAngleOfPosition = moment[1];
-
-                        mg.setColor(java.awt.Color.blue);
-                        mg.drawPoint(xMomentAtMinAngleOfPosition, yMomentAtMinAngleOfPosition, 5);
-                        mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngleOfPosition), Math.sin(minAngleOfPosition));
-                    }
-
                 }
 
                 // Draw good and bad samples
@@ -2394,7 +2428,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     }
                 }
 
-                if (true)
+                if (false)
                 {
                     // Just visualize a single point I was having trouble with
                     mg.setColor(java.awt.Color.yellow);
@@ -2496,6 +2530,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             PRINT(view.showPointsFlag);
                             repaint();
                         }
+                        else if (c == 'i')
+                        {
+                            view.inverseFunctionFlag ^= true;
+                            PRINT(view.inverseFunctionFlag);
+                            repaint();
+                        }
                         else if (c == java.awt.event.KeyEvent.CHAR_UNDEFINED)
                         {
                             // This is the case for things like arrow keys
@@ -2540,12 +2580,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         {
                             System.out.println("The following keys do things:");
                             System.out.println("         -/+/= - zoom out/in");
+                            System.out.println("             i - toggle function / inverse function");
                             System.out.println("    arrow keys - move catenary endpoints");
-                            System.out.println("       shift-A - toggle antialiasing");
-                            System.out.println("             p - toggle points used to draw curves");
                             System.out.println("             g - toggle rectangular grid");
-                            System.out.println("             r - toggle 45 degree rotation of grid");
+                            System.out.println("           r/R - rotate rectangular grid CCW/CW");
+                            System.out.println("             p - toggle points used to draw curves");
                             System.out.println("        ctrl-f - shrink/unshrink view cull frustum");
+                            System.out.println("       shift-A - toggle antialiasing");
                             System.out.println("             h - show this help message");
                             System.out.println("           Esc - quit");
                         }
