@@ -1576,6 +1576,15 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         System.out.println("    out confidenceTests");
     } // confidenceTests
 
+    private abstract static class PolarFunction
+    {
+        public abstract void apply(double r, double cosAngle, double sinAngle, double answer[]);
+    }
+    private abstract static class RectangularFunction
+    {
+        public abstract void apply(double x, double y, double answer[]);
+    }
+
     public static void interactiveDemo1()
     {
         final int eventVerbose = 0; // set to something else to debug
@@ -1719,7 +1728,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // Really viewing params (could separate into ViewParams and ViewState)...
                 boolean antialiasFlag = true;
                 boolean showPointsFlag = false;
-                boolean showPolarGridflag = true;
+                boolean showPolarGridFlag = true;
                 boolean showRectangularGridFlag = false;
 
                 double focus[] = {.5, 0.};
@@ -1921,6 +1930,21 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
 
 
+                PolarFunction fPolar = new PolarFunction() {
+                    @Override public void apply(double r, double cosAngle, double sinAngle, double answer[/*2*/])
+                    {
+                        catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, answer);
+                    }
+                };
+                RectangularFunction fRectangular = new RectangularFunction() {
+                    @Override public void apply(double x, double y, double answer[/*2*/])
+                    {
+                        catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x, y, 0);
+                        catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, answer);
+                    }
+                };
+
                 if (view.showPolarGridFlag)
                 {
                     // Draw polar grid
@@ -1962,6 +1986,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             if (iPass != passOfThisAngle)
                                 continue;
 
+
                             double angle = 2*Math.PI/nAnglesMajor * iAngle;
                             double cosAngle = Math.cos(angle);
                             double sinAngle = Math.sin(angle);
@@ -1970,10 +1995,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             for (int iMag = 0; iMag < nMagStepsMinor+1; ++iMag)
                             {
                                 double r = Math.pow(2., LERP(magLevel0, magLevel1, (double)iMag/(double)nMagStepsMinor));
-                                //double x = r * cosAngle;
-                                //double y = r * sinAngle;
-                                catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
-                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                                fPolar.apply(r, cosAngle, sinAngle, moment);
                                 if (iMag > 0)
                                 {
                                     // is the slope in the expected quadrant?
@@ -2020,10 +2042,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 double angle = 2*Math.PI/nAnglesMinor * iAngle;
                                 double cosAngle = Math.cos(angle);
                                 double sinAngle = Math.sin(angle);
-                                //double x = r * cosAngle;
-                                //double y = r * sinAngle;
-                                catenaryRotated.fitFromPolarCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], r, cosAngle, sinAngle, 0);
-                                catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                                fPolar.apply(r, cosAngle, sinAngle, moment);
                                 if (iAngle > 0)
                                     mg.drawLine(xMomentPrev,yMomentPrev,
                                                 moment[0], moment[1]);
@@ -2070,8 +2089,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             double y = LERP(y0, y1, iY/(double)nYStepsMinor);
                             double X = c*x - s*y;
                             double Y = s*x + c*y;
-                            catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], X,Y, 0);
-                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                            fRectangular.apply(X, Y, moment);
                             if (iY > 0)
                             {
                                 mg.drawLine(xMomentPrev,yMomentPrev,
@@ -2095,8 +2113,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             double x = LERP(x0, x1, iX/(double)nXStepsMinor);
                             double X = c*x - s*y;
                             double Y = s*x + c*y;
-                            catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], X,Y, 0);
-                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                            fRectangular.apply(X, Y, moment);
                             if (iX > 0)
                             {
                                 mg.drawLine(xMomentPrev,yMomentPrev,
@@ -2124,8 +2141,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         double y = slack;
                         if (false)
                         {
-                            catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x,y, 0);
-                            catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, moment);
+                            fRectangular.apply(x, y, moment);
                             mg.setColor(java.awt.Color.green);
                             mg.drawPoint(moment[0], moment[1], 5);
                         }
