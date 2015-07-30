@@ -1719,7 +1719,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // Really viewing params (could separate into ViewParams and ViewState)...
                 boolean antialiasFlag = true;
                 boolean showPointsFlag = false;
-                boolean showGridFlag = false;
+                boolean showPolarGridflag = true;
+                boolean showRectangularGridFlag = false;
 
                 double focus[] = {.5, 0.};
                 double logRadius = 1.;
@@ -1920,7 +1921,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
 
 
-                if (true)
+                if (view.showPolarGridFlag)
                 {
                     // Draw polar grid
 
@@ -2037,7 +2038,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 } // polar grid
 
 
-                if (view.showGridFlag)
+                if (view.showRectangularGridFlag)
                 {
                     // Draw rectangular grid
                     //double r = 1.;
@@ -2469,8 +2470,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         }
                         else if (c == 'g')
                         {
-                            view.showGridFlag ^= true;
-                            PRINT(view.showGridFlag);
+                            view.showRectangularGridFlag ^= true;
+                            PRINT(view.showRectangularGridFlag);
                             repaint();
                         }
                         else if (c == 'p')
