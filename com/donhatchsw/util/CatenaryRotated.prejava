@@ -91,49 +91,542 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
     public static java.io.PrintWriter goodAndBadOut = null; // apps can set this to debug
 
-    // x0=0 y0=0 x1=1 y1=0 yMoment>=0
-    private boolean fitFromMomentByBinarySearchCanonicalCase(xMoment, yMoment,
-                                                             int verboseLevel, // 0: nothing, 1: in/out, 2: nice binary search progress all on one line, 3: very explicit
-                                                             double xKnownSolution, double yKnownSolution)
+    // x0=0 y0=0 x1=x1 y1=0 yMoment>=0
+    private void fitFromMomentByBinarySearchCanonicalCase(double x1,
+                                                          double xMoment, double yMoment,
+                                                          int verboseLevel, // 0: nothing, 1: in/out, 2: nice binary search progress all on one line, 3: very explicit
+                                                          double xKnownSolution, double yKnownSolution)
     {
         int fitVerboseLevel = 0; // XXX should be a param? not sure, often it is separate
+
+        assert(x1 >= 0.);
+        assert(x1 <= 1.);
+        assumpt(x1 == 1.); // XXX IMPLEMENT OTHER!
+
         assert(yMoment >= 0.);
-        unimplemented(); // XXX implement me!
-        return false;
+
+        double tol = 1e-6; // XXX ?
+        //double tol = 1e-5; // XXX ? I'd really like to be able to use something really small
+
+        double x0 = 0.;
+        double y0 = 0.;
+        double y1 = 0.;
+
+        // some of this is more general than it needs to be
+        double dist = MyMath.hypot(y1-y0, x1-x0);
+        double desiredMoment[] = {xMoment, yMoment};
+        double xMomentIfTaut = (x0+x1)*.5 * dist;
+        double yMomentIfTaut = (y0+y1)*.5 * dist;
+
+        double rKnownSolution = Double.NaN;
+        double angleKnownSolution = Double.NaN;
+        boolean solutionIsKnown = !Double.isNaN(xKnownSolution);
+        if (solutionIsKnown)
+        {
+            rKnownSolution = Math.hypot(xKnownSolution, yKnownSolution);
+            angleKnownSolution = Math.atan2(yKnownSolution, xKnownSolution);
+            while (angleKnownSolution >= 2*Math.PI) angleKnownSolution -= 2*Math.PI;
+            while (angleKnownSolution < 0.) angleKnownSolution += 2*Math.PI;
+        }
+
+        // Lower and upper bounds
+        double rLo = 0.;
+        double rHiStart = Math.max(1.,
+                                   10.*Math.sqrt(MyMath.hypot(xMoment-xMomentIfTaut, yMoment-yMomentIfTaut)));
+        double rHi = rHiStart;
+
+        double angleLo = 0.;
+        double angleHi = Math.PI;
+
+        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+
+        double gotMoment[] = new double[2];
+        double gotMomentOther[] = new double[2];
+
+        // First figure out which quadrant the answer is in,
+        // by figuring out which side of the image of the +y axis it's on.
+        boolean isObviouslyInSecondQuadrant = desiredMoment[0] <= xMomentIfTaut;
+        if (isObviouslyInSecondQuadrant)
+        {
+            if (verboseLevel >= 2) System.out.println("                  easy to see it's in second quadrant.");
+            //assert(false); // coverage
+            angleLo = Math.PI/2.;
+        }
+        // TODO: actually there's some magic constant angle we can use... figure it out
+        // If lower than 45 degree line, then it's obviously in first quadrant
+        boolean isObviouslyInFirstQuadrant = desiredMoment[0]-xMomentIfTaut >= desiredMoment[1];
+        if (isObviouslyInFirstQuadrant)
+        {
+            if (verboseLevel >= 2) System.out.println("                  easy to see it's in first quadrant.");
+            //assert(false); // coverage
+            angleHi = Math.PI/2.;
+        }
+
+        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+
+        if (!isObviouslyInFirstQuadrant && !isObviouslyInSecondQuadrant)
+        {
+            if (verboseLevel >= 2) System.out.println("                  figuring out which quadrant since it wasn't obvious...");
+            //assert(false); // coverage
+            double slackPlus1 = xMoment / xMomentIfTaut; // XXX I think this assumes dist is 1?
+            double X = Catenary.asinhc(slackPlus1);
+            double Y = MyMath.cosh(X);
+            // XXX the following is proved elsewhere
+            double yMomentOfXMoment = (slackPlus1 * Y - 1.) / (4. * X);
+            if (verboseLevel >= 2) System.out.println("                      slackPlus1 = "+slackPlus1);
+            if (verboseLevel >= 2) System.out.println("                      X = "+X);
+            if (verboseLevel >= 2) System.out.println("                      Y = "+Y);
+            if (verboseLevel >= 2) System.out.println("                      yMomentOfXMoment = "+yMomentOfXMoment);
+            if (verboseLevel >= 2) System.out.println("                      yMoment = "+yMoment);
+            if (yMoment <= yMomentOfXMoment)
+            {
+                if (verboseLevel >= 2) System.out.println("                    first quadrant.");
+                //assert(false); // coverage
+                angleHi = Math.PI/2.;
+            }
+            if (yMoment >= yMomentOfXMoment)
+            {
+                if (verboseLevel >= 2) System.out.println("                    second quadrant.");
+                //assert(false); // coverage
+                angleLo = Math.PI/2.;
+            }
+            if (angleLo == Math.PI/2. && angleHi == Math.PI/2.)
+            {
+                // actually we have the answer in this case
+                //assert(false); // coverage
+                rLo = rHi = slackPlus1 - 1.;
+            }
+        }
+
+        //PRINT(RTOD(angleLo)); // XXX TODO: ARGH! this is printing things like "((angleLo)*(180./Math.PI)) = 123.7499999999999" instead of "RTOD(angleLo) = 123.7499999999999"
+        if (verboseLevel >= 2)
+        {
+            System.out.println("                  initial bounds:");
+            System.out.println("                      rLo="+rLo);
+            System.out.println("                      rHi="+rHi);
+            System.out.println("                      angleLo="+RTOD(angleLo)+"deg");
+            System.out.println("                      angleHi="+RTOD(angleHi)+"deg");
+            System.out.println("                      desiredMoment="+VecMath.toString(desiredMoment));
+            if (solutionIsKnown)
+            {
+                System.out.println("                      rKnownSolution="+rKnownSolution);
+                System.out.println("                      angleKnownSolution="+angleKnownSolution);
+            }
+        }
+
+        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+
+        if (angleHi <= Math.PI/2.)
+        {
+            // First quadrant-- easy
+            //assert(false); // coverage
+            if (verboseLevel >= 3) System.out.println("                    first quadrant loop:");
+            if (verboseLevel == 2) System.out.print("                    ");
+            while (true)
+            {
+                if (verboseLevel >= 3) System.out.println("                      top of loop");
+                if (verboseLevel >= 3) System.out.println("                          rLo="+rLo);
+                if (verboseLevel >= 3) System.out.println("                          rKnownSolution="+rKnownSolution);
+                if (verboseLevel >= 3) System.out.println("                          rHi="+rHi);
+                if (verboseLevel >= 3) System.out.println("                          angleLo="+RTOD(angleLo)+"deg");
+                if (verboseLevel >= 3) System.out.println("                          angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+                if (verboseLevel >= 3) System.out.println("                          angleHi="+RTOD(angleHi)+"deg");
+                if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
+                if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+                double r = (rLo + rHi) * .5;
+                double angle = (angleLo + angleHi) * .5;
+                double c = Math.cos(angle);
+                double s = Math.sin(angle);
+                this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                this.integrate(this.t0, this.t1, gotMoment);
+                double xDir = desiredMoment[0] - gotMoment[0];
+                double yDir = desiredMoment[1] - gotMoment[1];
+
+                if (verboseLevel >= 3) System.out.println("                          desiredMoment="+VecMath.toString(desiredMoment));
+                if (verboseLevel >= 3) System.out.println("                          gotMoment="+VecMath.toString(gotMoment));
+                if (verboseLevel >= 3) System.out.println("                          dir="+VecMath.toString(new double[]{xDir,yDir}));
+
+                boolean categorized = false;
+                boolean madeProgress = false;
+
+                double angleDotDir = c*xDir + s*yDir;
+                if (angleDotDir >= 0)
+                {
+                    // desired moment is outside tangent line of ellipse.
+                    // r is too small (or just right).
+                    if (verboseLevel >= 3) System.out.println("                        NEish");
+                    if (verboseLevel == 2) System.out.print(" NEish");
+                    categorized = true;
+                    if (rLo != r)
+                    {
+                        madeProgress = true;
+                        rLo = r;
+                    }
+                }
+                if (xDir <= 0.)
+                {
+                    // need to go W
+                    if (yDir <= 0.)
+                    {
+                        // need to go SW
+                        if (verboseLevel >= 3) System.out.println("                        SW");
+                        if (verboseLevel == 2) System.out.print(" SW");
+                        categorized = true;
+                        if (rHi != r)
+                        {
+                            madeProgress = true;
+                            rHi = r;
+                        }
+                    }
+                    if (yDir >= 0.)
+                    {
+                        // need to go NW
+                        if (verboseLevel >= 3) System.out.println("                        NW");
+                        if (verboseLevel == 2) System.out.print(" NW");
+                        categorized = true;
+                        if (angleLo != angle)
+                        {
+                            madeProgress = true;
+                            angleLo = angle;
+                        }
+                    }
+                }
+                if (xDir >= 0.)
+                {
+                    // need to go E
+                    if (yDir <= 0.)
+                    {
+                        //need to go SE
+                        if (verboseLevel >= 3) System.out.println("                        SE");
+                        if (verboseLevel == 2) System.out.print(" SE");
+                        categorized = true;
+                        if (angleHi != angle)
+                        {
+                            madeProgress = true;
+                            angleHi = angle;
+                        }
+                    }
+                    // don't need to test the NE case; we already did that and more above
+                }
+                assert(categorized);
+                if (!madeProgress)
+                    break;
+            }
+            if (verboseLevel >= 2) System.out.println("!");
+        } // first quadrant
+
+        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+
+        if (angleLo >= Math.PI/2.)
+        {
+            // Second quadrant-- harder (unless in the "obviously in second quadrant" part of it)
+            //assert(false); // coverage
+            if (verboseLevel >= 3) System.out.println("                    second quadrant loop:");
+            if (verboseLevel == 2) System.out.print("                    ");
+            while (true)
+            {
+                if (verboseLevel >= 3) System.out.println("                      top of loop");
+                if (verboseLevel >= 3) System.out.println("                          rLo="+rLo);
+                if (verboseLevel >= 3) System.out.println("                          rKnownSolution="+rKnownSolution);
+                if (verboseLevel >= 3) System.out.println("                          rHi="+rHi);
+                if (verboseLevel >= 3) System.out.println("                          angleLo="+RTOD(angleLo)+"deg");
+                if (verboseLevel >= 3) System.out.println("                          angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+                if (verboseLevel >= 3) System.out.println("                          angleHi="+RTOD(angleHi)+"deg");
+                if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
+                if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+                double r = (rLo + rHi) * .5;
+                double angle = (angleLo + angleHi) * .5;
+                double c = Math.cos(angle);
+                double s = Math.sin(angle);
+                this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
+                this.integrate(this.t0, this.t1, gotMoment);
+                double xDir = desiredMoment[0] - gotMoment[0];
+                double yDir = desiredMoment[1] - gotMoment[1];
+
+                if (verboseLevel >= 3) System.out.println("                          desiredMoment="+VecMath.toString(desiredMoment));
+                if (verboseLevel >= 3) System.out.println("                          gotMoment="+VecMath.toString(gotMoment));
+                if (verboseLevel >= 3) System.out.println("                          dir="+VecMath.toString(new double[]{xDir,yDir}));
+                if (verboseLevel >= 3) System.out.println("                          angle="+VecMath.toString(new double[]{c,s}));
+
+                boolean categorized = false;
+                boolean madeProgress = false;
+
+                double angleDotDir = c*xDir + s*yDir;
+                double angleCrossDir = c*yDir - s*xDir;
+
+                if (angleDotDir >= 0.)
+                {
+                    // desired moment is outside tangent line of ellipse.
+                    // r is too small (or just right).
+                    if (verboseLevel >= 3) System.out.println("                        NWish");
+                    if (verboseLevel == 2) System.out.print(" NWish");
+                    categorized = true;
+                    if (rLo != r)
+                    {
+                        madeProgress = true;
+                        rLo = r;
+                    }
+
+                    // The condition for increasing angle's lower bound
+                    // is a test for dir being inside the quadrant [angle, angle+pi/2].
+                    // This happens to be strictly stronger than the condition for increasing
+                    // r's lower bound, which is that dir is in the half-space [angle-pi/2, angle+pi/2].
+                    if (angleCrossDir >= 0.)
+                    {
+                        if (verboseLevel >= 3) System.out.println("                        (WSWish and increasing angleLo)");
+                        if (verboseLevel == 2) System.out.print(" (WSWish and increasing angleLo)");
+                        if (angleLo != angle)
+                        {
+                            madeProgress = true;
+                            angleLo = angle;
+                        }
+                    }
+                }
+                if (angleDotDir <= 0. && angleCrossDir <= 0.)
+                {
+                    // Condition for decreasing angle's upper bound
+                    // is a test for dir being in the quadrant opposite
+                    // the one used for increasing angle's lower bound.
+                    if (verboseLevel >= 3) System.out.println("                        (ENEish and decreasing angleHi)");
+                    if (verboseLevel == 2) System.out.print(" (ENEish and decreasing angleHi)");
+                    categorized = true;
+                    if (angleHi != angle)
+                    {
+                        madeProgress = true;
+                        angleHi = angle;
+                    }
+                }
+                if (xDir >= 0. && yDir <= 0.)
+                {
+                    // need to go SE
+                    if (verboseLevel >= 3) System.out.println("                        SE");
+                    if (verboseLevel == 2) System.out.print(" SE");
+                    categorized = true;
+                    if (rHi != r)
+                    {
+                        madeProgress = true;
+                        rHi = r;
+                    }
+                }
+                if (isObviouslyInSecondQuadrant)
+                {
+                    // In this case we have monotonicity that we don't
+                    // normally have in the second quadrant;
+                    // therefore if we need to go SW we can increase angleLo.
+                    if (xDir <= 0. && yDir <= 0.)
+                    {
+                        // need to go SW
+                        if (verboseLevel >= 3) System.out.println("                        SW");
+                        if (verboseLevel == 2) System.out.print(" SW");
+                        categorized = true;
+                        if (angleLo != angle)
+                        {
+                            madeProgress = true;
+                            angleLo = angle;
+                        }
+                    }
+                }
+                if (!categorized)
+                {
+                    if (verboseLevel >= 3) System.out.println("                        ouch! !categorized");
+                    // This is the tricky case.  It's definitely strictly SW;
+                    // otherwise it would have already been categorized...
+                    if (verboseLevel == 2) System.out.print(" ouch");
+                    assert(!isObviouslyInSecondQuadrant);
+
+                    // Logically it's *strictly* in SW quadrant,
+                    // but that can fail, e.g. if angle is 89.9999999999999999 degrees or so,
+                    // so make the test inexact
+                    //assert(xDir < 0. && yDir < 0.);
+                    assert(LT(xDir, 0., 1e-12));
+                    assert(LT(yDir, 0., 1e-12));
+
+                    boolean tryLastDitchAttemptFlag = false; // XXX TODO: should be able to do this I think!  but there's some logic error
+                    if (tryLastDitchAttemptFlag)
+                    {
+                        // Make a last-ditch attempt to decrease rHi
+                        // using more exact and inclusive criteria than just the SE quadrant
+                        // XXX think about whether I also want a similar last-ditch inside each iteration of the forcing loop below
+                        this.fitFromPolarCoords(x0,y0, x1,y1, r, Math.cos(angleHi), Math.sin(angleHi), fitVerboseLevel);
+                        this.integrate(this.t0, this.t1, gotMomentOther);
+                        double otherMomentMinusMoment_cross_dir = (gotMomentOther[0]-gotMoment[0]) * yDir
+                                                                - (gotMomentOther[1]-gotMoment[1]) * xDir;
+                        if (otherMomentMinusMoment_cross_dir >= 0.)
+                        {
+                            if (verboseLevel >= 3) System.out.println("                        but SE'ish!");
+                            if (verboseLevel == 2) System.out.print(" but SE'ish!");
+                            categorized = true;
+                            if (rHi != r)
+                            {
+                                madeProgress = true;
+                                rHi = r;
+                            }
+                        }
+                    }
+                    if (!categorized)
+                    {
+                        // Force a single refinement of r,
+                        // by doing a 1d binary search with r constant,
+                        // looking for a point on the ellipse
+                        // such that the target is NW or SE of it;
+                        // call this a "vantage point".
+                        // The angle bounds are not the same ones used globally.
+                        double vantageAngleLo = angleLo; // empirically, this is ok (i.e. don't need to start over at Math.PI/2 each time). haven't proved it.
+                        double vantageAngleHi = Math.PI; // does NOT work to use angleHi ... sometimes a vantage point higher than angleHi is needed, to look at something lower than angleHi!
+
+                        while (true)
+                        {
+                            if (verboseLevel >= 3) System.out.println("                          top of inner loop");
+                            if (verboseLevel >= 3) System.out.println("                              rLo="+rLo);
+                            if (verboseLevel >= 3) System.out.println("                              rKnownSolution="+rKnownSolution);
+                            if (verboseLevel >= 3) System.out.println("                              rHi="+rHi);
+                            if (verboseLevel >= 3) System.out.println("                              vantageAngleLo="+RTOD(vantageAngleLo)+"deg");
+                            if (verboseLevel >= 3) System.out.println("                              angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+                            if (verboseLevel >= 3) System.out.println("                              vantageAngleHi="+RTOD(vantageAngleHi)+"deg");
+                            if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
+                            if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+
+                            double vantageAngle = (vantageAngleLo+vantageAngleHi) * .5;
+                            double cVantageAngle = Math.cos(vantageAngle);
+                            double sVantageAngle = Math.sin(vantageAngle);
+                            this.fitFromPolarCoords(x0,y0, x1,y1, r, cVantageAngle, sVantageAngle, fitVerboseLevel);
+                            this.integrate(this.t0, this.t1, gotMoment);
+                            xDir = desiredMoment[0] - gotMoment[0];
+                            yDir = desiredMoment[1] - gotMoment[1];
+
+                            if (verboseLevel >= 3) System.out.println("                              desiredMoment="+VecMath.toString(desiredMoment));
+                            if (verboseLevel >= 3) System.out.println("                              gotMoment="+VecMath.toString(gotMoment));
+                            if (verboseLevel >= 3) System.out.println("                              dir="+VecMath.toString(new double[]{xDir,yDir}));
+
+                            boolean categorizedVantage = false;
+                            boolean madeProgressVantage = false;
+                            if (xDir <= 0.)
+                            {
+                                // need to go w
+                                if (yDir <= 0.)
+                                {
+                                    // need to go sw
+                                    if (verboseLevel >= 3) System.out.println("                            sw");
+                                    if (verboseLevel == 2) System.out.print(" sw");
+                                    categorizedVantage = true;
+                                    if (vantageAngleLo != vantageAngle)
+                                    {
+                                        madeProgressVantage = true;
+                                        vantageAngleLo = vantageAngle;
+                                    }
+                                }
+                                //if (yDir >= 0.)
+                                double vantageAngleDotDir = cVantageAngle*xDir + sVantageAngle*yDir;
+                                if (vantageAngleDotDir >= 0.)
+                                {
+                                    // need to go nw
+                                    if (verboseLevel >= 3) System.out.println("                            nwish!");
+                                    if (verboseLevel == 2) System.out.print(" nwish!");
+                                    categorizedVantage = true;
+                                    if (rLo != r)
+                                    {
+                                        //assert(false); // coverage
+                                        madeProgress = true; // not just local!
+                                        rLo = r;
+                                        break; // out of the local try-extra-hard loop
+                                    }
+                                }
+                            }
+                            if (xDir >= 0.)
+                            {
+                                // need to go e
+                                if (yDir <= 0.)
+                                {
+                                    // need to go se
+                                    if (verboseLevel >= 3) System.out.println("                            se!");
+                                    if (verboseLevel == 2) System.out.print(" se!");
+                                    categorizedVantage = true;
+                                    if (rHi != r)
+                                    {
+                                        //assert(false); // coverage
+                                        madeProgress = true; // not just local!
+                                        rHi = r;
+                                        break; // out of the local try-extra-hard loop
+                                    }
+                                }
+                                if (yDir >= 0.)
+                                {
+                                    // need to go ne
+                                    if (verboseLevel >= 3) System.out.println("                            ne");
+                                    if (verboseLevel == 2) System.out.print(" ne");
+                                    categorizedVantage = true;
+                                    if (vantageAngleHi != vantageAngle)
+                                    {
+                                        madeProgressVantage = true;
+                                        vantageAngleHi = vantageAngle;
+                                    }
+                                }
+                            }
+                            assert(categorizedVantage);
+                            if (!madeProgressVantage)
+                            {
+                                // prevent endless loop.
+                                // But if we get here, we actually found the answer.
+                                // XXX think about this
+                                angleLo = vantageAngleLo;
+                                angleHi = vantageAngleHi;
+                                break;
+                            }
+                        }
+
+                        //angleLo = vantageAngleLo; // this is NOT ok (TODO: come up with clear argument/example)
+                        //angleHi = vantageAngleHi; // this is NOT ok (TODO: come up with clear argument/example)
+                    }
+                }
+
+                if (!madeProgress)
+                {
+                    if (verboseLevel >= 3) System.out.println("no progress happened! done I guess");
+                    break;
+                }
+            }
+            if (verboseLevel >= 2) System.out.println("!");
+        } // second quadrant
+
+
+        if (verboseLevel >= 2)
+        {
+            System.out.println("                  final bounds:");
+            System.out.println("                      rLo="+rLo);
+            if (solutionIsKnown) System.out.println("                      rKnownSolution="+rKnownSolution);
+            System.out.println("                      rHi="+rHi);
+            System.out.println("                      angleLo="+RTOD(angleLo)+"deg");
+            if (solutionIsKnown) System.out.println("                      angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
+            System.out.println("                      angleHi="+RTOD(angleHi)+"deg");
+            System.out.println("                      desiredMoment="+VecMath.toString(desiredMoment));
+            System.out.println("                      gotMoment="+VecMath.toString(gotMoment));
+            if (solutionIsKnown)
+            {
+                System.out.println("                      rKnownSolution="+rKnownSolution);
+                System.out.println("                      angleKnownSolution="+angleKnownSolution);
+            }
+        }
+        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
     } // fitFromMomentByBinarySearchCanonicalCase
-    private boolean fitFromMomentByBinarySearch(double x0, double y0,
-                                                double x1, double y1,
-                                                double xMoment, double yMoment,
-                                                com.donhatchsw.compat.ArrayList newtonPathOut,
-                                                int verboseLevel, // 0: nothing, 1: in/out, 2: nice binary search progress all on one line, 3: very explicit
-                                                double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
-    {
-        // convert to canonical case
-
-        // fit the canonical case
-        //fitFromBinarySearchCanonicalCase(...);
-
-        // convert back
-        unimplemented();
-        return false;
-    } // fitFromMomentByBinarySearch
 
     // experimental at the moment
-    private boolean fitFromMomentByBinarySearch(double x0, double y0,
-                                                double x1, double y1,
-                                                double xMoment, double yMoment,
-                                                com.donhatchsw.compat.ArrayList newtonPathOut,
-                                                int verboseLevel, // 0: nothing, 1: in/out, 2: nice binary search progress all on one line, 3: very explicit
-                                                double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
+    private void fitFromMomentByBinarySearch(double x0, double y0,
+                                             double x1, double y1,
+                                             double xMoment, double yMoment,
+                                             com.donhatchsw.compat.ArrayList newtonPathOut,
+                                             int verboseLevel, // 0: nothing, 1: in/out, 2: nice binary search progress all on one line, 3: very explicit
+                                             double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
     {
         int fitVerboseLevel = 0; // XXX should be a param? not sure, often it is separate
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+")");
 
         try
         {
-            double tol = 1e-6; // XXX ?
-            //double tol = 1e-5; // XXX ? I'd really like to be able to use something really small
-
             if (EQ(x0, -1., 1e-12)
              && EQ(y0, 0., 1e-12)
              && x1 == 0.
@@ -144,563 +637,34 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // and the sample point from negative x axis to positive x axis.
                 // I.e. flip the problem in both x and y.
 
-                double x0orig = x0;
-                double y0orig = y0;
-                double x1orig = x1;
-                double y1orig = y1;
-                double xMomentOrig = xMoment;
-                double yMomentOrig = yMoment;
-                double xKnownSolutionOrig = xKnownSolution;
-                double yKnownSolutionOrig = yKnownSolution;
+                double xMomentInCanonicalSpace = -xMoment;
+                double yMomentInCanonicalSpace = -yMoment;
+                double xKnownSolutionInCanonicalSpace = -xKnownSolution;
+                double yKnownSolutionInCanonicalSpace = -yKnownSolution;
 
-                x0 = 1.;
-                y0 = 0.;
-                x1 = 0.;
-                y1 = 0.;
-                xMoment *= -1.;
-                yMoment = MIN(yMoment, 0.);
-                yMoment *= -1.;
-                xKnownSolution *= -1.;
-                yKnownSolution *= -1.;
+                yMomentInCanonicalSpace = MAX(yMomentInCanonicalSpace, 0.);
+                fitFromMomentByBinarySearchCanonicalCase(1., xMomentInCanonicalSpace, yMomentInCanonicalSpace,
+                                                         verboseLevel,
+                                                         xKnownSolutionInCanonicalSpace, yKnownSolutionInCanonicalSpace);
 
-                double rAnswer = Double.NaN;
-                double angleAnswer = Double.NaN;
-
-                // We have to restore all of those values, so do a try/finally
-                try
-                {
-                    double dist = MyMath.hypot(y1-y0, x1-x0);
-                    double desiredMoment[] = {xMoment, yMoment};
-                    double xMomentIfTaut = (x0+x1)*.5 * dist;
-                    double yMomentIfTaut = (y0+y1)*.5 * dist;
-
-                    double rKnownSolution = Double.NaN;
-                    double angleKnownSolution = Double.NaN;
-                    boolean solutionIsKnown = !Double.isNaN(xKnownSolution);
-                    if (solutionIsKnown)
-                    {
-                        rKnownSolution = Math.hypot(xKnownSolution, yKnownSolution);
-                        angleKnownSolution = Math.atan2(yKnownSolution, xKnownSolution);
-                        while (angleKnownSolution >= 2*Math.PI) angleKnownSolution -= 2*Math.PI;
-                        while (angleKnownSolution < 0.) angleKnownSolution += 2*Math.PI;
-                    }
-
-                    // Lower and upper bounds
-                    double rLo = 0.;
-                    double rHiStart = Math.max(1.,
-                                               10.*Math.sqrt(MyMath.hypot(xMoment-xMomentIfTaut, yMoment-yMomentIfTaut)));
-                    double rHi = rHiStart;
-
-                    double angleLo = 0.;
-                    double angleHi = Math.PI;
-
-                    if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                    if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-
-                    double gotMoment[] = new double[2];
-                    double gotMomentOther[] = new double[2];
-
-                    // First figure out which quadrant the answer is in,
-                    // by figuring out which side of the image of the +y axis it's on.
-                    boolean isObviouslyInSecondQuadrant = desiredMoment[0] <= xMomentIfTaut;
-                    if (isObviouslyInSecondQuadrant)
-                    {
-                        if (verboseLevel >= 2) System.out.println("                  easy to see it's in second quadrant.");
-                        //assert(false); // coverage
-                        angleLo = Math.PI/2.;
-                    }
-                    // TODO: actually there's some magic constant angle we can use... figure it out
-                    // If lower than 45 degree line, then it's obviously in first quadrant
-                    boolean isObviouslyInFirstQuadrant = desiredMoment[0]-xMomentIfTaut >= desiredMoment[1];
-                    if (isObviouslyInFirstQuadrant)
-                    {
-                        if (verboseLevel >= 2) System.out.println("                  easy to see it's in first quadrant.");
-                        //assert(false); // coverage
-                        angleHi = Math.PI/2.;
-                    }
-
-                    if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                    if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-
-                    if (!isObviouslyInFirstQuadrant && !isObviouslyInSecondQuadrant)
-                    {
-                        if (verboseLevel >= 2) System.out.println("                  figuring out which quadrant since it wasn't obvious...");
-                        //assert(false); // coverage
-                        double slackPlus1 = xMoment / xMomentIfTaut; // XXX I think this assumes dist is 1?
-                        double X = Catenary.asinhc(slackPlus1);
-                        double Y = MyMath.cosh(X);
-                        // XXX the following is proved elsewhere
-                        double yMomentOfXMoment = (slackPlus1 * Y - 1.) / (4. * X);
-                        if (verboseLevel >= 2) System.out.println("                      slackPlus1 = "+slackPlus1);
-                        if (verboseLevel >= 2) System.out.println("                      X = "+X);
-                        if (verboseLevel >= 2) System.out.println("                      Y = "+Y);
-                        if (verboseLevel >= 2) System.out.println("                      yMomentOfXMoment = "+yMomentOfXMoment);
-                        if (verboseLevel >= 2) System.out.println("                      yMoment = "+yMoment);
-                        if (yMoment <= yMomentOfXMoment)
-                        {
-                            if (verboseLevel >= 2) System.out.println("                    first quadrant.");
-                            //assert(false); // coverage
-                            angleHi = Math.PI/2.;
-                        }
-                        if (yMoment >= yMomentOfXMoment)
-                        {
-                            if (verboseLevel >= 2) System.out.println("                    second quadrant.");
-                            //assert(false); // coverage
-                            angleLo = Math.PI/2.;
-                        }
-                        if (angleLo == Math.PI/2. && angleHi == Math.PI/2.)
-                        {
-                            // actually we have the answer in this case
-                            //assert(false); // coverage
-                            rLo = rHi = slackPlus1 - 1.;
-                        }
-                    }
-
-                    //PRINT(RTOD(angleLo)); // XXX TODO: ARGH! this is printing things like "((angleLo)*(180./Math.PI)) = 123.7499999999999" instead of "RTOD(angleLo) = 123.7499999999999"
-                    if (verboseLevel >= 2)
-                    {
-                        System.out.println("                  initial bounds:");
-                        System.out.println("                      rLo="+rLo);
-                        System.out.println("                      rHi="+rHi);
-                        System.out.println("                      angleLo="+RTOD(angleLo)+"deg");
-                        System.out.println("                      angleHi="+RTOD(angleHi)+"deg");
-                        System.out.println("                      desiredMoment="+VecMath.toString(desiredMoment));
-                        if (solutionIsKnown)
-                        {
-                            System.out.println("                      rKnownSolution="+rKnownSolution);
-                            System.out.println("                      angleKnownSolution="+angleKnownSolution);
-                        }
-                    }
-
-                    if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                    if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-
-                    if (angleHi <= Math.PI/2.)
-                    {
-                        // First quadrant-- easy
-                        //assert(false); // coverage
-                        if (verboseLevel >= 3) System.out.println("                    first quadrant loop:");
-                        if (verboseLevel == 2) System.out.print("                    ");
-                        while (true)
-                        {
-                            if (verboseLevel >= 3) System.out.println("                      top of loop");
-                            if (verboseLevel >= 3) System.out.println("                          rLo="+rLo);
-                            if (verboseLevel >= 3) System.out.println("                          rKnownSolution="+rKnownSolution);
-                            if (verboseLevel >= 3) System.out.println("                          rHi="+rHi);
-                            if (verboseLevel >= 3) System.out.println("                          angleLo="+RTOD(angleLo)+"deg");
-                            if (verboseLevel >= 3) System.out.println("                          angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
-                            if (verboseLevel >= 3) System.out.println("                          angleHi="+RTOD(angleHi)+"deg");
-                            if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                            if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-                            double r = (rLo + rHi) * .5;
-                            double angle = (angleLo + angleHi) * .5;
-                            double c = Math.cos(angle);
-                            double s = Math.sin(angle);
-                            this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
-                            this.integrate(this.t0, this.t1, gotMoment);
-                            double xDir = desiredMoment[0] - gotMoment[0];
-                            double yDir = desiredMoment[1] - gotMoment[1];
-
-                            if (verboseLevel >= 3) System.out.println("                          desiredMoment="+VecMath.toString(desiredMoment));
-                            if (verboseLevel >= 3) System.out.println("                          gotMoment="+VecMath.toString(gotMoment));
-                            if (verboseLevel >= 3) System.out.println("                          dir="+VecMath.toString(new double[]{xDir,yDir}));
-
-                            boolean categorized = false;
-                            boolean madeProgress = false;
-
-                            double angleDotDir = c*xDir + s*yDir;
-                            if (angleDotDir >= 0)
-                            {
-                                // desired moment is outside tangent line of ellipse.
-                                // r is too small (or just right).
-                                if (verboseLevel >= 3) System.out.println("                        NEish");
-                                if (verboseLevel == 2) System.out.print(" NEish");
-                                categorized = true;
-                                if (rLo != r)
-                                {
-                                    madeProgress = true;
-                                    rLo = r;
-                                }
-                            }
-                            if (xDir <= 0.)
-                            {
-                                // need to go W
-                                if (yDir <= 0.)
-                                {
-                                    // need to go SW
-                                    if (verboseLevel >= 3) System.out.println("                        SW");
-                                    if (verboseLevel == 2) System.out.print(" SW");
-                                    categorized = true;
-                                    if (rHi != r)
-                                    {
-                                        madeProgress = true;
-                                        rHi = r;
-                                    }
-                                }
-                                if (yDir >= 0.)
-                                {
-                                    // need to go NW
-                                    if (verboseLevel >= 3) System.out.println("                        NW");
-                                    if (verboseLevel == 2) System.out.print(" NW");
-                                    categorized = true;
-                                    if (angleLo != angle)
-                                    {
-                                        madeProgress = true;
-                                        angleLo = angle;
-                                    }
-                                }
-                            }
-                            if (xDir >= 0.)
-                            {
-                                // need to go E
-                                if (yDir <= 0.)
-                                {
-                                    //need to go SE
-                                    if (verboseLevel >= 3) System.out.println("                        SE");
-                                    if (verboseLevel == 2) System.out.print(" SE");
-                                    categorized = true;
-                                    if (angleHi != angle)
-                                    {
-                                        madeProgress = true;
-                                        angleHi = angle;
-                                    }
-                                }
-                                // don't need to test the NE case; we already did that and more above
-                            }
-                            assert(categorized);
-                            if (!madeProgress)
-                                break;
-                        }
-                        if (verboseLevel >= 2) System.out.println("!");
-                    } // first quadrant
-
-                    if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                    if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-
-                    if (angleLo >= Math.PI/2.)
-                    {
-                        // Second quadrant-- harder (unless in the "obviously in second quadrant" part of it)
-                        //assert(false); // coverage
-                        if (verboseLevel >= 3) System.out.println("                    second quadrant loop:");
-                        if (verboseLevel == 2) System.out.print("                    ");
-                        while (true)
-                        {
-                            if (verboseLevel >= 3) System.out.println("                      top of loop");
-                            if (verboseLevel >= 3) System.out.println("                          rLo="+rLo);
-                            if (verboseLevel >= 3) System.out.println("                          rKnownSolution="+rKnownSolution);
-                            if (verboseLevel >= 3) System.out.println("                          rHi="+rHi);
-                            if (verboseLevel >= 3) System.out.println("                          angleLo="+RTOD(angleLo)+"deg");
-                            if (verboseLevel >= 3) System.out.println("                          angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
-                            if (verboseLevel >= 3) System.out.println("                          angleHi="+RTOD(angleHi)+"deg");
-                            if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                            if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-                            double r = (rLo + rHi) * .5;
-                            double angle = (angleLo + angleHi) * .5;
-                            double c = Math.cos(angle);
-                            double s = Math.sin(angle);
-                            this.fitFromPolarCoords(x0,y0, x1,y1, r, c, s, fitVerboseLevel);
-                            this.integrate(this.t0, this.t1, gotMoment);
-                            double xDir = desiredMoment[0] - gotMoment[0];
-                            double yDir = desiredMoment[1] - gotMoment[1];
-
-                            if (verboseLevel >= 3) System.out.println("                          desiredMoment="+VecMath.toString(desiredMoment));
-                            if (verboseLevel >= 3) System.out.println("                          gotMoment="+VecMath.toString(gotMoment));
-                            if (verboseLevel >= 3) System.out.println("                          dir="+VecMath.toString(new double[]{xDir,yDir}));
-                            if (verboseLevel >= 3) System.out.println("                          angle="+VecMath.toString(new double[]{c,s}));
-
-                            boolean categorized = false;
-                            boolean madeProgress = false;
-
-                            double angleDotDir = c*xDir + s*yDir;
-                            double angleCrossDir = c*yDir - s*xDir;
-
-                            if (angleDotDir >= 0.)
-                            {
-                                // desired moment is outside tangent line of ellipse.
-                                // r is too small (or just right).
-                                if (verboseLevel >= 3) System.out.println("                        NWish");
-                                if (verboseLevel == 2) System.out.print(" NWish");
-                                categorized = true;
-                                if (rLo != r)
-                                {
-                                    madeProgress = true;
-                                    rLo = r;
-                                }
-
-                                // The condition for increasing angle's lower bound
-                                // is a test for dir being inside the quadrant [angle, angle+pi/2].
-                                // This happens to be strictly stronger than the condition for increasing
-                                // r's lower bound, which is that dir is in the half-space [angle-pi/2, angle+pi/2].
-                                if (angleCrossDir >= 0.)
-                                {
-                                    if (verboseLevel >= 3) System.out.println("                        (WSWish and increasing angleLo)");
-                                    if (verboseLevel == 2) System.out.print(" (WSWish and increasing angleLo)");
-                                    if (angleLo != angle)
-                                    {
-                                        madeProgress = true;
-                                        angleLo = angle;
-                                    }
-                                }
-                            }
-                            if (angleDotDir <= 0. && angleCrossDir <= 0.)
-                            {
-                                // Condition for decreasing angle's upper bound
-                                // is a test for dir being in the quadrant opposite
-                                // the one used for increasing angle's lower bound.
-                                if (verboseLevel >= 3) System.out.println("                        (ENEish and decreasing angleHi)");
-                                if (verboseLevel == 2) System.out.print(" (ENEish and decreasing angleHi)");
-                                categorized = true;
-                                if (angleHi != angle)
-                                {
-                                    madeProgress = true;
-                                    angleHi = angle;
-                                }
-                            }
-                            if (xDir >= 0. && yDir <= 0.)
-                            {
-                                // need to go SE
-                                if (verboseLevel >= 3) System.out.println("                        SE");
-                                if (verboseLevel == 2) System.out.print(" SE");
-                                categorized = true;
-                                if (rHi != r)
-                                {
-                                    madeProgress = true;
-                                    rHi = r;
-                                }
-                            }
-                            if (isObviouslyInSecondQuadrant)
-                            {
-                                // In this case we have monotonicity that we don't
-                                // normally have in the second quadrant;
-                                // therefore if we need to go SW we can increase angleLo.
-                                if (xDir <= 0. && yDir <= 0.)
-                                {
-                                    // need to go SW
-                                    if (verboseLevel >= 3) System.out.println("                        SW");
-                                    if (verboseLevel == 2) System.out.print(" SW");
-                                    categorized = true;
-                                    if (angleLo != angle)
-                                    {
-                                        madeProgress = true;
-                                        angleLo = angle;
-                                    }
-                                }
-                            }
-                            if (!categorized)
-                            {
-                                if (verboseLevel >= 3) System.out.println("                        ouch! !categorized");
-                                // This is the tricky case.  It's definitely strictly SW;
-                                // otherwise it would have already been categorized...
-                                if (verboseLevel == 2) System.out.print(" ouch");
-                                assert(!isObviouslyInSecondQuadrant);
-
-                                // Logically it's *strictly* in SW quadrant,
-                                // but that can fail, e.g. if angle is 89.9999999999999999 degrees or so,
-                                // so make the test inexact
-                                //assert(xDir < 0. && yDir < 0.);
-                                assert(LT(xDir, 0., 1e-12));
-                                assert(LT(yDir, 0., 1e-12));
-
-                                boolean tryLastDitchAttemptFlag = false; // XXX TODO: should be able to do this I think!  but there's some logic error
-                                if (tryLastDitchAttemptFlag)
-                                {
-                                    // Make a last-ditch attempt to decrease rHi
-                                    // using more exact and inclusive criteria than just the SE quadrant
-                                    // XXX think about whether I also want a similar last-ditch inside each iteration of the forcing loop below
-                                    this.fitFromPolarCoords(x0,y0, x1,y1, r, Math.cos(angleHi), Math.sin(angleHi), fitVerboseLevel);
-                                    this.integrate(this.t0, this.t1, gotMomentOther);
-                                    double otherMomentMinusMoment_cross_dir = (gotMomentOther[0]-gotMoment[0]) * yDir
-                                                                            - (gotMomentOther[1]-gotMoment[1]) * xDir;
-                                    if (otherMomentMinusMoment_cross_dir >= 0.)
-                                    {
-                                        if (verboseLevel >= 3) System.out.println("                        but SE'ish!");
-                                        if (verboseLevel == 2) System.out.print(" but SE'ish!");
-                                        categorized = true;
-                                        if (rHi != r)
-                                        {
-                                            madeProgress = true;
-                                            rHi = r;
-                                        }
-                                    }
-                                }
-                                if (!categorized)
-                                {
-                                    // Force a single refinement of r,
-                                    // by doing a 1d binary search with r constant,
-                                    // looking for a point on the ellipse
-                                    // such that the target is NW or SE of it;
-                                    // call this a "vantage point".
-                                    // The angle bounds are not the same ones used globally.
-                                    double vantageAngleLo = angleLo; // empirically, this is ok (i.e. don't need to start over at Math.PI/2 each time). haven't proved it.
-                                    double vantageAngleHi = Math.PI; // does NOT work to use angleHi ... sometimes a vantage point higher than angleHi is needed, to look at something lower than angleHi!
-
-                                    while (true)
-                                    {
-                                        if (verboseLevel >= 3) System.out.println("                          top of inner loop");
-                                        if (verboseLevel >= 3) System.out.println("                              rLo="+rLo);
-                                        if (verboseLevel >= 3) System.out.println("                              rKnownSolution="+rKnownSolution);
-                                        if (verboseLevel >= 3) System.out.println("                              rHi="+rHi);
-                                        if (verboseLevel >= 3) System.out.println("                              vantageAngleLo="+RTOD(vantageAngleLo)+"deg");
-                                        if (verboseLevel >= 3) System.out.println("                              angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
-                                        if (verboseLevel >= 3) System.out.println("                              vantageAngleHi="+RTOD(vantageAngleHi)+"deg");
-                                        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                                        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-
-                                        double vantageAngle = (vantageAngleLo+vantageAngleHi) * .5;
-                                        double cVantageAngle = Math.cos(vantageAngle);
-                                        double sVantageAngle = Math.sin(vantageAngle);
-                                        this.fitFromPolarCoords(x0,y0, x1,y1, r, cVantageAngle, sVantageAngle, fitVerboseLevel);
-                                        this.integrate(this.t0, this.t1, gotMoment);
-                                        xDir = desiredMoment[0] - gotMoment[0];
-                                        yDir = desiredMoment[1] - gotMoment[1];
-
-                                        if (verboseLevel >= 3) System.out.println("                              desiredMoment="+VecMath.toString(desiredMoment));
-                                        if (verboseLevel >= 3) System.out.println("                              gotMoment="+VecMath.toString(gotMoment));
-                                        if (verboseLevel >= 3) System.out.println("                              dir="+VecMath.toString(new double[]{xDir,yDir}));
-
-                                        boolean categorizedVantage = false;
-                                        boolean madeProgressVantage = false;
-                                        if (xDir <= 0.)
-                                        {
-                                            // need to go w
-                                            if (yDir <= 0.)
-                                            {
-                                                // need to go sw
-                                                if (verboseLevel >= 3) System.out.println("                            sw");
-                                                if (verboseLevel == 2) System.out.print(" sw");
-                                                categorizedVantage = true;
-                                                if (vantageAngleLo != vantageAngle)
-                                                {
-                                                    madeProgressVantage = true;
-                                                    vantageAngleLo = vantageAngle;
-                                                }
-                                            }
-                                            //if (yDir >= 0.)
-                                            double vantageAngleDotDir = cVantageAngle*xDir + sVantageAngle*yDir;
-                                            if (vantageAngleDotDir >= 0.)
-                                            {
-                                                // need to go nw
-                                                if (verboseLevel >= 3) System.out.println("                            nwish!");
-                                                if (verboseLevel == 2) System.out.print(" nwish!");
-                                                categorizedVantage = true;
-                                                if (rLo != r)
-                                                {
-                                                    //assert(false); // coverage
-                                                    madeProgress = true; // not just local!
-                                                    rLo = r;
-                                                    break; // out of the local try-extra-hard loop
-                                                }
-                                            }
-                                        }
-                                        if (xDir >= 0.)
-                                        {
-                                            // need to go e
-                                            if (yDir <= 0.)
-                                            {
-                                                // need to go se
-                                                if (verboseLevel >= 3) System.out.println("                            se!");
-                                                if (verboseLevel == 2) System.out.print(" se!");
-                                                categorizedVantage = true;
-                                                if (rHi != r)
-                                                {
-                                                    //assert(false); // coverage
-                                                    madeProgress = true; // not just local!
-                                                    rHi = r;
-                                                    break; // out of the local try-extra-hard loop
-                                                }
-                                            }
-                                            if (yDir >= 0.)
-                                            {
-                                                // need to go ne
-                                                if (verboseLevel >= 3) System.out.println("                            ne");
-                                                if (verboseLevel == 2) System.out.print(" ne");
-                                                categorizedVantage = true;
-                                                if (vantageAngleHi != vantageAngle)
-                                                {
-                                                    madeProgressVantage = true;
-                                                    vantageAngleHi = vantageAngle;
-                                                }
-                                            }
-                                        }
-                                        assert(categorizedVantage);
-                                        if (!madeProgressVantage)
-                                        {
-                                            // prevent endless loop.
-                                            // But if we get here, we actually found the answer.
-                                            // XXX think about this
-                                            angleLo = vantageAngleLo;
-                                            angleHi = vantageAngleHi;
-                                            break;
-                                        }
-                                    }
-
-                                    //angleLo = vantageAngleLo; // this is NOT ok (TODO: come up with clear argument/example)
-                                    //angleHi = vantageAngleHi; // this is NOT ok (TODO: come up with clear argument/example)
-                                }
-                            }
-
-                            if (!madeProgress)
-                            {
-                                if (verboseLevel >= 3) System.out.println("no progress happened! done I guess");
-                                break;
-                            }
-                        }
-                        if (verboseLevel >= 2) System.out.println("!");
-                    } // second quadrant
-
-
-                    if (verboseLevel >= 2)
-                    {
-                        System.out.println("                  final bounds:");
-                        System.out.println("                      rLo="+rLo);
-                        if (solutionIsKnown) System.out.println("                      rKnownSolution="+rKnownSolution);
-                        System.out.println("                      rHi="+rHi);
-                        System.out.println("                      angleLo="+RTOD(angleLo)+"deg");
-                        if (solutionIsKnown) System.out.println("                      angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
-                        System.out.println("                      angleHi="+RTOD(angleHi)+"deg");
-                        System.out.println("                      desiredMoment="+VecMath.toString(desiredMoment));
-                        System.out.println("                      gotMoment="+VecMath.toString(gotMoment));
-                        if (solutionIsKnown)
-                        {
-                            System.out.println("                      rKnownSolution="+rKnownSolution);
-                            System.out.println("                      angleKnownSolution="+angleKnownSolution);
-                        }
-                    }
-                    if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                    if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
-
-                    rAnswer = (rLo+rHi)*.5;
-                    angleAnswer = (angleLo+angleHi)*.5;
-                }
-                finally
-                {
-                    // convert back to original space-- both x and y flipped
-                    x0 = x0orig;
-                    y0 = y0orig;
-                    x1 = x1orig;
-                    y1 = y1orig;
-                    xMoment = xMomentOrig;
-                    yMoment = yMomentOrig;
-                    xKnownSolution = xKnownSolutionOrig;
-                    yKnownSolution = yKnownSolutionOrig;
-
-                    angleAnswer = Math.PI + angleAnswer;
-                }
-                double c = Math.cos(angleAnswer);
-                double s = Math.sin(angleAnswer);
-                this.fitFromPolarCoords(x0,y0, x1,y1, rAnswer, c, s, fitVerboseLevel);
+                // Convert back to original space: both x and y flipped.
+                // This is just rotating the rotation of the CatenaryRotated.
+                this.cosRotation *= -1.;
+                this.sinRotation *= -1.;
             }
             else
             {
                 // TODO: implement more cases!
                 unimplemented();
                 if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+") (unimplemented)");
-                return false;
+                return;
             }
 
             double desiredMoment[] = {xMoment, yMoment};
             double gotMoment[] = new double[2];
+
             this.integrate(this.t0, this.t1, gotMoment);
+
             if (verboseLevel >= 1) System.out.println("                  answer this="+this);
             if (verboseLevel >= 1) System.out.println("                  desiredMoment="+VecMath.toString(desiredMoment));
             if (verboseLevel >= 1) System.out.println("                  gotMoment="+VecMath.toString(gotMoment));
@@ -741,11 +705,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
 
         if (verboseLevel >= 1) System.out.println("                out CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+"), returning this="+this);
-        return true;
     } // fitFromMomentByBinarySearch
 
-    static int binarySearchSuccesses = 0;
-    static int binarySearchFails = 0;
     /**
     * Set members to be the parameters of the catenary
     * passing through points (x0,y0),(x1,y1)
@@ -786,31 +747,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         //boolean tryBinarySearch = false;
         if (tryBinarySearch)
         {
-            boolean binarySearchSucceeded = fitFromMomentByBinarySearch(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut, verboseLevel, xKnownSolution, yKnownSolution);
-            if (binarySearchSucceeded)
-            {
-                binarySearchSuccesses++;
-            }
-            else
-            {
-                binarySearchFails++;
-            }
-            if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") (binary search succeeded)");
-            if (verboseLevel >= 2) PRINT(binarySearchSuccesses);
-            if (verboseLevel >= 2) PRINT(binarySearchFails);
-            if (binarySearchSucceeded)
-            {
-                if (false) // can get rid of this
-                {
-                    // sanity check-- this should not fail!!!
-                    double desiredMoment[] = {xMoment, yMoment};
-                    double gotMoment[] = new double[2];
-                    this.integrate(this.t0, this.t1, gotMoment);
-                    PRINT(VecMath.dist(gotMoment, desiredMoment));
-                    assert(VecMath.dist(gotMoment, desiredMoment) <= 1e-6);
-                }
-                return;
-            }
+            fitFromMomentByBinarySearch(x0,y0, x1,y1, xMoment,yMoment, newtonPathOut, verboseLevel, xKnownSolution, yKnownSolution);
+            if (verboseLevel >= 1) System.out.println("            out CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") (via binary search)");
+            return;
         }
 
         double dist = MyMath.hypot(y1-y0, x1-x0);
@@ -1125,7 +1064,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
         int testVerboseLevel = 2; // 0 = nothing, 1 = basic outer flow, 2 = dots at loop iterations, 3 = trace all loop iterations
 
-        if (false)
+        if (true)
         {
             System.out.println("        testing fitFromMomentByBinarySearch...");
             // Test fitFromMomentByBinarySearch.
