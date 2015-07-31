@@ -91,6 +91,33 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
     public static java.io.PrintWriter goodAndBadOut = null; // apps can set this to debug
 
+    // x0=0 y0=0 x1=1 y1=0 yMoment>=0
+    private boolean fitFromMomentByBinarySearchCanonicalCase(xMoment, yMoment,
+                                                             int verboseLevel, // 0: nothing, 1: in/out, 2: nice binary search progress all on one line, 3: very explicit
+                                                             double xKnownSolution, double yKnownSolution)
+    {
+        int fitVerboseLevel = 0; // XXX should be a param? not sure, often it is separate
+        assert(yMoment >= 0.);
+        unimplemented(); // XXX implement me!
+        return false;
+    } // fitFromMomentByBinarySearchCanonicalCase
+    private boolean fitFromMomentByBinarySearch(double x0, double y0,
+                                                double x1, double y1,
+                                                double xMoment, double yMoment,
+                                                com.donhatchsw.compat.ArrayList newtonPathOut,
+                                                int verboseLevel, // 0: nothing, 1: in/out, 2: nice binary search progress all on one line, 3: very explicit
+                                                double xKnownSolution, double yKnownSolution) // XXX debug params-- figure out what I want here
+    {
+        // convert to canonical case
+
+        // fit the canonical case
+        //fitFromBinarySearchCanonicalCase(...);
+
+        // convert back
+        unimplemented();
+        return false;
+    } // fitFromMomentByBinarySearch
+
     // experimental at the moment
     private boolean fitFromMomentByBinarySearch(double x0, double y0,
                                                 double x1, double y1,
