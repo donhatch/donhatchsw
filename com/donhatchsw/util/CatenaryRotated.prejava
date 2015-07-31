@@ -899,41 +899,6 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
         double slack = MyMath.hypot(x, y);
         assert(slack >= 0.); // XXX I've seen this fail, in demo3, but I guess that must mean there's nans coming in? at least I think it's here that is failing
-        /*
-            XXX actually I think the following was when adaptiveFlag was turned on for newton
-            OH NO! SOMETHING AWFUL HAPPENED!
-                    this.position = <736.56792077277,161.47365152524412>
-                    this.velocity = <4.709008819183118,-0.07610513206341617>
-                    this.targetPosition = <1199.0,154.0>
-                    referenceTripDistance = 0.005994842503189409
-                    referenceTripTime = 1.0
-                    dt = 1.0
-                    distanceBasedBounce = 0.0
-            OH NO! SOMETHING AWFUL HAPPENED!
-                    this.position = <1179.7054122310478,154.31178552684133>
-                    this.velocity = <0.5766350670102477,-0.009319407913955911>
-                    this.targetPosition = <1199.0,154.0>
-                    referenceTripDistance = 0.0021544346900318834
-                    referenceTripTime = 1.0
-                    dt = 1.0
-                    distanceBasedBounce = 0.0
-            OH NO! SOMETHING AWFUL HAPPENED!
-                    this.position = <1180.2777389914652,154.30253575825404>
-                    this.velocity = <0.5680184538243997,-0.0091801292606132>
-                    this.targetPosition = <1199.0,154.0>
-                    referenceTripDistance = 0.0021544346900318834
-                    referenceTripTime = 1.0
-                    dt = 1.0
-                    distanceBasedBounce = 0.0
-            OH NO! SOMETHING AWFUL HAPPENED!
-                    this.position = <1158.2760838977304,154.65825220590696>
-                    this.velocity = <0.6486299113668444,-0.010482784426232152>
-                    this.targetPosition = <1199.0,154.0>
-                    referenceTripDistance = 0.001291549665014884
-                    referenceTripTime = 1.0
-                    dt = 1.0
-                    distanceBasedBounce = 0.0
-        */
         double downAngle = Math.atan2(y, x);
         double cosDownAngle = Math.cos(downAngle);
         double sinDownAngle = Math.sin(downAngle);
