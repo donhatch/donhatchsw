@@ -77,7 +77,7 @@
     plotf0_flag = 0 # XXX currently doesn't work well
     plotf1_flag = 0 # XXX currently doesn't work well
 
-    plot3_flag = 1 # very experimental. exploring the function in 1d in directions from the origin.
+    plot3_flag = 0 # very experimental. exploring the function in 1d in directions from the origin.
 
     # either of the following should work.
     #strategy = "weil" # sets f = wf
@@ -167,8 +167,8 @@ asinhc_by_halley(y) = y<1. ? crash_in_asinhc_by_halley(1) : y==1. ? 0. : asinhc_
   asinhc_by_halley_recurse(y, x, xPrev, xPrevPrev, maxRecursions) = maxRecursions==0 ? crash_in_asinhc_by_halley_recurse(1) : (x==xPrev||abs(x-xPrev)>=abs(xPrev-xPrevPrev)) ? (x+xPrev)/2. : asinhc_by_halley_recurse_helper(y, x, xPrev, sinh(x)/x-y, (x*cosh(x)-sinh(x))/x**2, ((x**2+2)*sinh(x)-2*x*cosh(x))/x**3, maxRecursions)
   asinhc_by_halley_recurse_helper(y, x, xPrev, fx, dfx, ddfx, maxRecursions) = asinhc_by_halley_recurse(y, x - 2*fx*dfx/(2*dfx**2 - fx*ddfx), x, xPrev, maxRecursions-1)
 
-#asinhc(y) = asinhc_by_binary_search_lo(y)
-asinhc(y) = asinhc_by_newton(y)
+#asinhc(y) = asinhc_by_binary_search_lo(y) # beware of recursion depth limit in plot2
+asinhc(y) = asinhc_by_newton(y) # beware of recursion depth limit in plot2
 #asinhc(y) = asinhc_by_halley(y)
 
 
@@ -751,6 +751,11 @@ if (plot2_flag) {
         set output "RMME2.png"
     }
 
+    # bleah! newton crashes, binary search crashes, wtf?
+    #asinhc(y) = asinhc_by_newton(y)
+    #asinhc(y) = asinhc_by_binary_search_lo(y)
+    asinhc(y) = asinhc_by_halley(y)
+
     magBase = 2**(1./magFurtherSubdivisions) # each mag level is an integer power of magBase
     minMag = -8 * magFurtherSubdivisions
     maxMag = 4 * magFurtherSubdivisions
@@ -786,7 +791,7 @@ if (plot2_flag) {
 
 
 
-    g(z) = invf(z, 1e-4)
+    g(z) = invf((velocity0+velocity1)/2. + z, 1e-4)
     print "doing second plot (inverse)..."
     time0 = time(0.)
     crashed = 0
