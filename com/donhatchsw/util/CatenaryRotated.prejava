@@ -1663,6 +1663,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 boolean showRectangularGridFlag = false; // toggle with 'g'
                 boolean inverseFunctionFlag = false; // toggle with 'i'
 
+                boolean colorByGoodnessFlag = false; // XXX TODO: provide way to control this. note, turning it on greatly increases amount of stuff drawn so it's slow
+
                 double focus[] = {.5, 0.}; // move with UP/DOWN/LEFT/RIGHT (along with model.v0,v1)
                 double logRadius = 1.;
                 double radius = Math.pow(2., logRadius);
@@ -1912,11 +1914,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
                     int nMagsMajorPerMagLevel = 1;
 
-                    boolean colorByGoodnessFlag = false; // XXX TODO: provide flag for this
                     int nAnglesMajor = 16; // divide 360 into this many parts
                     int nMagsMinorPerMajor = 10;
                     int nAnglesMinorPerMajor = 10;
-                    if (colorByGoodnessFlag)
+                    if (view.colorByGoodnessFlag)
                     {
                         nAnglesMajor *= 8;
                         nMagsMinorPerMajor *= 2;
@@ -1963,7 +1964,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     int expectedQuadrant = getQuadrant(cosAngle, sinAngle);
                                     int gotQuadrant = getQuadrant(moment[0]-xMomentPrev, moment[1]-yMomentPrev);
 
-                                    if (colorByGoodnessFlag)
+                                    if (view.colorByGoodnessFlag)
                                     {
                                         if (gotQuadrant == expectedQuadrant)
                                             mg.setColor(java.awt.Color.GREEN);
