@@ -120,6 +120,7 @@ public class MainWindowCount
     /**
     * Convenience method.
     * Use MainWindowCount.setExitOnLastClose(frame) instead of frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE).
+    * Don't forget, this won't work unless you call decrementAndExitIfImTheLastOne at the end of main!
     */
     public static void setExitOnLastClose(java.awt.Window window)
     {
