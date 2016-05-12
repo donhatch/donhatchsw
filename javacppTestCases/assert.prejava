@@ -1,0 +1,2 @@
+#define assert(expr) do { if (!(expr)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #expr + ""); } while (false)
+assert(true);
