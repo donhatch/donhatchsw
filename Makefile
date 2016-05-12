@@ -73,8 +73,8 @@ JAVADOC=javadoc
 # so this seems pretty safe).
 %.class : %.prejava
 	rm -f $*[.$$]*class
-	javacpp ${JAVAC} $<
-	javarenumber -v 0 $*[.$$]*class
+	./javacpp ${JAVAC} $<
+	./javarenumber -v 0 $*[.$$]*class
 
 # Pattern rule for making a .class file out of a .java file
 %.class : %.java

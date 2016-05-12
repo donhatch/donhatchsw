@@ -1,0 +1,374 @@
+#!/usr/bin/perl -w
+use strict;
+
+#
+# javacpp
+#
+# Runs the C preprocessor (cpp) on .prejava files to create .java files,
+# and then runs javac (or whatever) on the .java files,
+# filtering javac's error messages
+# so that line numbers in the .java files
+# are replaced with the corresponding line numbers
+# in the .prejava (and #included) files.
+# This adds negligible time to the compile process 
+# (at least compared to Sun's dog-slow javac).
+#
+# In addition to creating a .java file for each input .prejava file,
+# this script also creates a corresponding .java.lines file
+# containing just the line number remapping information,
+# for use by other programs (e.g. javarenumber).
+#
+# Usage:
+#    javacpp [-v <verboseLevel> <cpp flags> javac <javac flags> class1.prejava [class2.prejava ...]
+# Or to just preprocess the files without running javac:
+#    javacpp [-v <verboseLevel> <cpp flags> class1.prejava [class2.prejava ...]
+#
+# To remap the line number table in the resulting class files,
+# use the companion javarenumber script:
+#    javarenumber class1.class class1\$whateverLocalClass.class ...
+#
+# Notes: For each source file name ending in .prejava,
+# the intermediate java code will go in the corresponding .java file,
+# which gets clobbered with each run
+# (sorry, I couldn't name it something else,
+# since javac has strict requirements about file names).
+# Additional file names (and other arguments) that don't end in .prejava
+# are passed directly to javac without preprocessing.
+# Only initial flags beginning with '-' are passed to cpp
+# (so, for example, you must say "-Dfoo=bar" instead of "-D foo=bar").
+# Additionally, "-D__java" and -C are prepended to the arguments passed to cpp.
+# (-C means don't strip comments, which is useful for javadoc).
+#
+# BUGS:
+#  - "import" directives cause javac to do strange magic
+#    for which the imported .java file apparently needs to exist.
+#    E.g. the following will not work (the first javac will fail):
+#          javacpp javac A.prejava       # where A imports stuff from B
+#          javacpp javac B.prejava
+#    If the entire program is created with one execution of javacpp javac, or
+#    if the imported classes always get compiled before the importing classes,
+#    then it doesn't matter, but that is often not the case
+#    (and in fact is impossible in the case of mutual dependencies).
+#    I need to research this more
+#    to figure out if I can detect and handle it...
+#    I've worked around this problem in a large source heirarchy
+#    by doing the following first in the top-level directory
+#    (the idea is to make sure all the .java files exist beforehand):
+#         javacpp `find . -name \*.prejava -print`
+#  - This script should should really include the javarenumber functionality,
+#    but unfortunately it's hard to tell exactly which
+#    class files are being created
+#    (since there is a separate named file for each local class,
+#    and we don't know which class files are from this compile
+#    or left over from previous compiles).
+#
+# This script has been tested on RedHat Linux 6.1 and 7.1,
+# with perl 5.6.0,
+# with Sun's JDK 1.3.0_02 and Jikes 1.13.
+# Also Win98/cygwin with JDK 1.3.0_02.
+#
+# Author: Don Hatch (hatch@plunk.org)
+# Revision history:
+#     Wed Dec  3 16:45:57 PST 2014
+#         Allow more than one number at the end of a #line line in cpp output
+#         (I don't know what it means and it doesn't matter).
+#     Sun Jul 25 08:16:00 PDT 2004
+#         Print signal and core dump info if javac terminates abnormally.
+#     Mon Apr  7 15:55:06 PDT 2003
+#         Pass -C to cpp
+#     Thu Feb 13 20:47:00 PST 2003
+#         Fix argument passing in the common case of an argument that contains
+#         a semicolon (e.g. a classpath argument on Windows).
+#     Wed Nov 13 02:25:25 PST 2002
+#         Tweak for jikes lexical warnings
+#     Sun Nov 10 21:00:31 PST 2002
+#         Make it work with jikes on cygwin.
+#         Add command line option "-v <verboseLevel>".
+#     Wed Oct  9 10:53:32 PDT 2002
+#         Make it work on Windows (cygwin)
+#     Thu Sep 26 20:19:46 PDT 2002
+#         Recognize Jikes warnings as well as errors
+#     Fri Jun 15 12:54:42 PDT 2001
+#         Make .java and .lines output files read-only,
+#         to try to prevent common user error of editing the .java file
+#     Sat Jun  2 18:57:11 PDT 2001
+#         Pass -D__java to cpp,
+#         along with initial args beginning with '-' from the command line.
+#         Made to work with IBM's Jikes compiler as well as Sun's javac.
+#     Fri May  4 05:28:30 PDT 2001
+#         Initial revision
+#
+# This software may be used for any purpose
+# as long as it is good and not evil.
+#
+# $Id: javacpp,v 1.24 2005/05/09 10:24:29 hatch Exp hatch $
+#
+
+# XXX TODO: allow command-line parameter to select alternate "cpp"?
+# XXX TODO: don't process javac's stdout?
+# XXX TODO: opening a newly-created 0444 file for writing might not be portable (e.g. NFS?), should find an alternate way
+
+use Fcntl; # for O_WRONLY,O_CREAT
+use File::Basename;
+use POSIX; # for WEXITSTATUS and stuff
+
+#
+# Program to run as preprocessor...
+#
+my $cpp = "cpp"; # XXX allow setting on command line?
+
+my $debug = 0; # can be set on the command line using -v
+
+#
+# Use the greatest table entry with line number <= outLine,
+# and return "$inFile:$inLine" from that entry.
+# If the table is empty, return "$outFile:$outLine".
+# If $outLine is before the first entry or after the last,
+# use the first or last entry respectively.
+# 
+sub lookup($$$)
+{
+    my ($tableRef, $outLine, $outFile) = @_;
+    my $lo = 0;            # first table entry
+    my $hi = @$tableRef-1; # last table entry
+    if ($lo > $hi)
+    {
+        $debug >= 1 && print STDERR "HOO: $outFile:$outLine -> table empty?";
+        return "$outFile:$outLine";
+    }
+    while ($lo < $hi)
+    {
+        my $mid = int(($lo+$hi+1)/2); # round up, so we never look at lo
+        if ($tableRef->[$mid][0] > $outLine)
+        {
+            $hi = $mid-1;
+        }
+        else # table entry <= $outLine
+        {
+            $lo = $mid;
+        }
+    }
+    $lo == $hi or die; # assertion
+    my ($entryOutLine,$entryInLine,$inFile) = @{$tableRef->[$lo]};
+    my $inLine = $entryInLine + ($outLine-$entryOutLine);
+    $debug >= 1 && print STDERR "HEY: $outFile:$outLine -> $inFile:$inLine\n";
+    return "$inFile:$inLine";
+}
+
+MAIN:
+{
+    my @cppargs = ();
+    my @newargv = ();
+    my @prejavafiles = ();
+    my @javafiles = ();
+    my @linesfiles = ();
+
+    my $usageMessage = "Usage: $0 [-v <verboseLevel] <cpp flags> [javac <javac flags>] class1.prejava [class2.prejava ...]\n";
+
+    if (@ARGV >= 1 && $ARGV[0] eq "-v")
+    {
+        shift;
+        @ARGV >= 1 && $ARGV[0] =~ m/^-?[0-9]+$/ or die $usageMessage;
+        $debug = $ARGV[0];
+        shift;
+    }
+
+    #
+    # Initial args beginning with '-' are cpp args...
+    #
+    while (@cppargs < @ARGV
+        && $ARGV[@cppargs] =~ /^-/)
+    {
+        push(@cppargs, $ARGV[@cppargs]);
+    }
+
+    #
+    # Must be something after the (optional) cpp args...
+    #
+    @cppargs < @ARGV or die $usageMessage;
+
+    #
+    # Every arg ending in ".prejava" is a file we must deal with...
+    #
+    foreach my $arg (@ARGV[@cppargs..@ARGV-1])
+    {
+        my $newarg = $arg;
+        if ($newarg =~ s/\.prejava$/.java/)
+        {
+            push(@prejavafiles, $arg);
+            push(@javafiles, $newarg);
+            push @linesfiles, "$newarg.lines";
+        }
+        push(@newargv, $newarg);
+    }
+
+    if ($debug >= 1)
+    {
+        print "\n";
+        print ("ARGV = @ARGV\n");
+        print ("cppargs = @cppargs\n");
+        print ("prejavafiles = @prejavafiles\n");
+        print ("javafiles = @javafiles\n");
+        print ("linesfiles = @linesfiles\n");
+        print ("newargv = @newargv\n");
+        print "\n";
+    }
+
+    #
+    # Preprocess prejavafiles to create java files,
+    # and costruct tables mapping java line numbers to prejava line numbers.
+    #
+    my @tables = ();
+    for my $i (0..@prejavafiles-1)
+    {
+        my @table = ();
+
+        #
+        # Open and close input file to verify prejava file exists before
+        # we go and create any output files
+        # (cpp will tell us, but by then it will be too late).
+        # (A more efficient and robust strategy would be
+        # to create the output files lazily when we get
+        # the first line of output from cpp or when cpp
+        # exits successfully with no output, but that would be messy
+        # to code.)
+        #
+        open(DUMMY, "$prejavafiles[$i]") or die "Couldn't open $prejavafiles[$i]: $!\n";
+        close(DUMMY) or die;
+
+        print   "    Executing: $cpp -D__java -C @cppargs $prejavafiles[$i]\n";
+        my $cppPid = open(CPP, "$cpp -D__java -C @cppargs $prejavafiles[$i] |") or die "Couldn't fork cpp: $!\n";
+        unlink $javafiles[$i], $linesfiles[$i]; # ignore error, this is to help the sysopen succeed, if it fails we'll find out soon enough
+        #open(JAVAOUT, ">$javafiles[$i]")
+        sysopen(JAVAOUT, "$javafiles[$i]", O_WRONLY|O_CREAT, 0444)
+            or die "Couldn't open $javafiles[$i] for writing: $!\n";
+        #open(LINESOUT, ">$linesfiles[$i]")
+        sysopen(LINESOUT, "$linesfiles[$i]", O_WRONLY|O_CREAT, 0444)
+            or die "Couldn't open $linesfiles[$i] for writing: $!\n";
+        while (<CPP>)
+        {
+            # comment out line directives,
+            # print them to the .java.lines file,
+            # and enter them in a table.
+            # XXX not sure what the optional final number means...
+            # XXX nothing = just orient, 1 = begin include, 2 = return from include?
+            my $followingLineNum = $.+1;
+            if (s/^(# ([0-9]+) "(.*)"( [0-9]+)*)$/\/\/ $followingLineNum $1/)
+            {
+                push(@table, [$followingLineNum, $2, $3]);
+                print LINESOUT;
+            }
+            print JAVAOUT;
+        }
+        close(JAVAOUT) or die "close $javafiles[$i]: $!\n";
+        close(LINESOUT) or die "close $linesfiles[$i]: $!\n";
+        close(CPP) or exit ($?>>8);
+
+        push(@tables, \@table);
+    }
+
+    if ($newargv[0] ne $ARGV[@cppargs])
+    {
+        # First argument is a .prejava file,
+        # so no program is being executed.
+        exit 0;
+    }
+
+    #
+    # In the common case that an argument contains a semicolon
+    # (e.g. a classpath argument on Windows), quote it.
+    # XXX is there a robust way to simply pass all arguments
+    # XXX without the quotes getting mangled?
+    @newargv = map {$_ =~ m/;/ ? "\"$_\"" : $_} @newargv;
+
+    #
+    # Run the java compiler (or whatever),
+    # filtering error messages to map java file:line to prejava file:line.
+    # XXX would be nice to only process javac's stderr and not its stdout, but this will do
+    #
+    print "    Executing: @newargv\n";
+    my $javacPid = open(JAVAC, "@newargv 2>&1 |") or die "Couldn't fork $newargv[0]: $!\n";
+    my $currentFileNameFromJikes = undef;
+    my $adjustForJikes = undef; # how much indenting to add to next line
+    while (<JAVAC>)
+    {
+        if (defined $adjustForJikes)
+        {
+            $_ = (' ' x $adjustForJikes) . $_;
+            undef $adjustForJikes;
+        }
+
+        for my $i (0..@prejavafiles-1)
+        {
+            # XXX can mess up if $javafile has special re chars.
+            # XXX in fact '.' is a wildcard, but rarely matches anything
+            # XXX else so it usually works anyway.
+            s/\b($javafiles[$i]):([0-9]+)/lookup($tables[$i],$2,$1)/ge;
+
+            #
+            # Jikes is different; it says stuff like:
+            #
+            #     Found 2 syntax errors in "HyperbolicApplet.java":
+            # 
+            #         57.         blah blah blah;
+            #                           <-->
+            # 
+            #     *** Syntax: Unexpected symbol ignored
+            # 
+            # 
+            #         58.         bloo bloo bloo;
+            #                           <-->
+            # 
+            #     *** Syntax: Unexpected symbol ignored
+            # 
+            if ((defined $currentFileNameFromJikes)
+             && basename($currentFileNameFromJikes) eq $javafiles[$i])
+            {
+                my $oldLength = length($_);
+                if (s/^(\s*)([0-9]+)\.\s/lookup($tables[$i],$2,$1).'. '/e)
+                {
+                    my $newLength = length($_);
+                    $debug >= 1 && print STDERR "oldLength=$oldLength -> newLength=$newLength\n";
+                    $adjustForJikes = $newLength - $oldLength;
+                }
+            }
+        }
+
+        # the \r is for jikes 1.17 on cygwin, which appears to put carriage returns at ends of lines
+        if (/^(Found|Issued) [0-9]+ (syntax|semantic|lexical) (error|warning)s? .*(in|compiling) "(.*)":\r?$/)
+        {
+            $currentFileNameFromJikes = $5;
+            $debug >= 1 && print STDERR "currentFileNameFromJikes = '$currentFileNameFromJikes'\n";
+        }
+
+        $debug >= 1 && print STDERR "|";
+        print STDERR "$_";
+    }
+
+    close(JAVAC);
+
+    if ($debug >= 1)
+    {
+        print "    WIFEXITED = ".POSIX::WIFEXITED($?)."\n";
+        print "        WEXITSTATUS = ".POSIX::WEXITSTATUS($?)."\n";
+        print "    WIFSIGNALED = ".POSIX::WIFSIGNALED($?)."\n";
+        print "        WTERMSIG = ".POSIX::WTERMSIG($?)."\n";
+    }
+
+    if (POSIX::WIFSIGNALED($?))
+    {
+        my $sig = WTERMSIG($?);
+        my $coredumped = ($? >> 7) & 1; # XXX not portable
+        print("Woops! Signal $sig");
+        if ($coredumped)
+        {
+            print(" (core dumped)");
+        }
+        print("\n");
+    }
+    else
+    {
+        # exit ($? >> 8); # whatever javac exited with (ignores any signal info)
+        exit WEXITSTATUS($?); # whatever javac exited with
+    }
+} # main

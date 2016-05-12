@@ -1,0 +1,727 @@
+#!/usr/bin/perl -w
+use strict;
+
+#
+# javarenumber
+#
+# Renumbers line numbers in java class files.
+#
+# Usage:
+#     javarenumber <.class files>
+#
+# For each class file, if the SourceFile attribute
+# is a .java file for which there is a .java.lines file
+# (created during the compiling stage by the companion script javacpp),
+# the source file and line numbers are mapped back to their origins
+# (usually a .prejava file) as specified in the .java.lines file.
+#
+# Notes: The java class file format makes this hard,
+# since it only allows one SourceFile attribute per class file.
+# So we can only refer to within the single .prejava file;
+# when we find a line number that refers to an included file,
+# all we can do is replace it with the line number
+# where the outermost #include took place.
+# This really isn't that bad; usually included stuff isn't code,
+# and errors in included files get caught in the compile stage,
+# which we handle differently (using the javacpp script,
+# which isn't subject to this limitation).
+#
+# BUGS:
+#    - requires the .java.lines file to be in the current working directory.
+#    - currently aborts rather than proceeding to the next input file
+#      if the .java.lines file is not found, or if the class file
+#      has already been renumbered, and on various other errors.
+#      This kinda sucks, since it prevents you from being able to
+#      say, blindly: "javarenumber *.class" when some class
+#      files need to get renumbered and some don't.
+#    - this script should really be built into javacpp
+#      (see the note in javacpp about this).
+#
+# This script has been tested on RedHat Linux 6.1, 7.1, 7.3 and 9,
+# with perl 5.6.0, 5.6.1, and 5.8.0,
+# with Sun's JDK 1.3.0_02 and Jikes 1.13, 1.17 and 1.18.
+#
+# Author: Don Hatch (hatch@plunk.org)
+# Revision history:
+#     Wed Dec  3 16:45:57 PST 2014
+#         Don't depend on pseudo-hash syntax since it appears to be gone
+#         from recent versions of perl.
+#         Allow more than one number at the end of a #line line in cpp output
+#         (I don't know what it means and it doesn't matter).
+#     Fri Apr 22 15:03:15 PDT 2005
+#         Make it work properly even if the file is in
+#         a different directory
+#     Sat Jul  5 03:16:01 PDT 2003
+#         Fix for perl 5.8.0 (or something > 5.6.1):
+#         binmode is now required even when using read(),
+#         to avoid byte swapping
+#     Wed Oct  9 12:25:40 PDT 2002
+#         Make verbosity level a command line argument.
+#         If verbosity < 0, then it's not an error if line numbers file
+#         can't be found.
+#     Wed Jun 27 22:26:28 PDT 2001
+#         Continues on to next file rather than dying
+#         if line numbers file can't be found.
+#     Fri Jun  1 19:29:19 PDT 2001
+#         No longer bombs on Double and Long constants.
+#     Thu May 10 01:04:26 PDT 2001
+#         Initial version
+#
+# This software may be used for any purpose
+# as long as it is good and not evil.
+#
+# $Id: javarenumber,v 1.3 2014/12/04 00:54:09 donhatch Exp donhatch $
+#
+
+use FileHandle;
+
+sub Stringify(@)
+{
+    use Data::Dumper;
+    my $d = Data::Dumper->new([@_]);
+    $d->Indent(3); # 3 means very verbose-- print array element indices
+    $d->Indent(0); # 0 means very compact-- all on one line
+    $d->Terse(1); # avoid printing var names where possible (whatever "possible" means)
+    $d->Useqq(1); # otherwise it spews single-quoted non-printable stuff!
+    return $d->Dump;
+}
+
+sub readLineNumbersFile($$)
+{
+    my ($fileName,$verbose) = @_;
+    my @table = ();
+
+    my $fp = new FileHandle;
+    if (!open($fp, $fileName))
+    {
+        $verbose >= 0 && warn "ERROR: Couldn't open $fileName (perhaps already renumbered?): $!\n";
+        return undef;
+    }
+    my $line;
+    while ($line = <$fp>)
+    {
+        chomp($line);
+        #print "Got lines line: '$line'\n";
+        if ($line =~ m/^\/\/ ([0-9]+) # ([0-9]+) "(.*)"( [0-9]+)*$/)
+        {
+            push(@table, [$1, $2, $3]);
+        }
+        else
+        {
+            die "ERROR: $fileName:$.: lines table entry not in expected form: '$line'\n";
+        }
+    }
+    close($fp) or die;
+    return \@table;
+} # readLineNumbersFile
+
+#
+# Use the greatest table entry with line number <= outLine,
+# and return "$inFile:$inLine" from that entry.
+# If the table is empty, return "$outFile:$outLine".
+# If $outLine is before the first entry or after the last,
+# use the first or last entry respectively.
+# 
+sub lookup($$$$;$)
+{
+    my ($tableRef, $outLine, $outFile, $debug, $requiredInFile) = @_;
+    my $lo = 0;            # first table entry
+    my $hi = @$tableRef-1; # last table entry
+    if ($lo > $hi)
+    {
+        $debug >= 1 && print STDERR "HOO: $outFile:$outLine -> table empty?";
+        return "$outFile:$outLine"; # XXX shouldn't really do this if $requiredInputFile was given
+    }
+    while ($lo < $hi)
+    {
+        my $mid = int(($lo+$hi+1)/2); # round up, so we never look at lo
+        if ($tableRef->[$mid][0] > $outLine)
+        {
+            $hi = $mid-1;
+        }
+        else # table entry <= $outLine
+        {
+            $lo = $mid;
+        }
+    }
+    $lo == $hi or die; # assertion
+    my ($entryOutLine,$entryInLine,$inFile) = @{$tableRef->[$lo]};
+    my $inLine = $entryInLine + ($outLine-$entryOutLine);
+    $debug >= 2 && print STDERR "lookup: $outFile:$outLine -> $inFile:$inLine\n";
+
+    if (defined $requiredInFile
+     && $inFile ne $requiredInFile)
+    {
+        #
+        # This line number entry may refer to a line
+        # within an included file.
+        # We can't express such things in a java class file
+        # (which can have only one SourceFile attribute),
+        # so search forward in the table until
+        # we get an entry representing return from the include,
+        # and return that instead.
+        #
+        while ($inFile ne $requiredInFile)
+        {
+            if (++$lo == @$tableRef)
+            {
+                die "Couldn't find line number entry representing return from $inFile";
+            }
+            ($entryOutLine,$entryInLine,$inFile) = @{$tableRef->[$lo]};
+        }
+        $inLine = $entryInLine; # the line number given in the directive upon return seems to be the exact line number of the #include (rather than the following line)
+        $debug >= 2 && print STDERR "lookup:                  -> $inFile:$inLine\n";
+    }
+
+    return defined($requiredInFile) ? $inLine : "$inFile:$inLine";
+} # lookup
+
+
+# Okay, a pseudo-hash is something that used to exist in perl
+# but doesn't any more: it's an array whose zero'th element is a hash
+# mapping names to indices in the array.
+# I liked them because they let me access members of a structure by name,
+# but also they maintain order, which we need when writing the structure back out.
+# So I'm going to keep using them,
+# but need to use a helper function for looking up stuff in them.
+# Where you used to say $phash->{someField}, now say LOOKUP($phash, "someField")
+sub LOOKUP($$)
+{
+    my ($phash,$fieldName) = @_;
+    #print "phash = ".Stringify($phash)."\n";
+    #print "fieldName = ".Stringify($fieldName)."\n";
+    exists($phash->[0]{$fieldName}) or die;
+    return $phash->[$phash->[0]{$fieldName}];
+}
+
+sub arrayToPHash($); # prototype, apparently needed for recursive function
+sub arrayToPHash($)
+{
+    my ($structure) = @_;
+
+    if (!defined($structure))
+    {
+        #print "Case undef\n";
+        return undef;
+    }
+    elsif (!defined($structure->[0])
+        || ref $structure->[0][0])
+    {
+        #print "Case array\n";
+        #
+        # It's just an array; recurse on each element
+        #
+        return [map {arrayToPHash($_)} @$structure];
+    }
+    else
+    {
+        #print "Case struct\n";
+        #
+        # It's an array of [$name,@value] pairs
+        # representing a structure;
+        # build a pseudo-hash representing the same structure.
+        # The first element of the resulting array
+        # is a hash mapping field names to positions >= 1 in the array.
+        #
+        my %hash = ();
+        my @result = (\%hash); # first array element is the hash
+
+        for my $item (@$structure)
+        {
+            my ($name,@value) = @$item;
+            $hash{$name} = 0+@result;
+            if (@value == 1 && ref $value[0])
+            {
+                push(@result, arrayToPHash($value[0]));
+            }
+            else
+            {
+                push(@result, \@value);
+            }
+        }
+
+        return \@result;
+    }
+} # arrayToPHash
+
+sub writePHash($$$); # prototype, apparently needed for recursive function
+sub writePHash($$$)
+{
+    my ($fileName,$fp,$ref) = @_; # fileName is just for error messages
+    #
+    # Don't think too much; just blindly recurse,
+    # ignoring undefs and hash refs.
+    # Print leaves, which are either:
+    #   [string]
+    #   [number, width] where width is 4, 2, or 1.
+    #
+    if (defined($ref)
+     && ref($ref) ne 'HASH')
+    {
+        if (@$ref == 1
+         && !ref($ref->[0]))
+        {
+            #
+            # [0] is a string to be dumped
+            #
+            #print "Case 1\n";
+            (print $fp $ref->[0]) or die "Couldn't write ".length($ref->[0])." bytes of field to $fileName";
+        }
+        elsif (@$ref == 2
+              && !ref($ref->[0])
+              && !ref($ref->[1]))
+        {
+            #
+            # [0] is an unsigned number to be written as big-endian,
+            # [1] is the size in bytes
+            #
+            #print "Case 2\n";
+            my $nBytes = $ref->[1];
+            my $buf = pack($nBytes==4 ? "N" :
+                           $nBytes==2 ? "n" :
+                           $nBytes==1 ? "C" : die,
+                           $ref->[0]);
+            (print $fp $buf) or die "Couldn't write $nBytes of field to $fileName";
+        }
+        else
+        {
+            for my $item (@$ref)
+            {
+                writePHash($fileName,$fp,$item);
+            }
+        }
+    }
+} # writePHash
+
+sub read_u4($)
+{
+    my ($fp) = @_;
+    my $buf;
+    read($fp, $buf, 4) == 4 or die "premature EOF";
+    #print "read_u4: ".unpack("N", $buf)."\n";
+    return unpack("N", $buf); # big-endian unsigned int
+}
+sub read_u2($)
+{
+    my ($fp) = @_;
+    my $buf;
+    read($fp, $buf, 2) == 2 or die "premature EOF";
+    #print "read_u2: ".unpack("n", $buf)."\n";
+    return unpack("n", $buf); # big-endian unsigned short
+}
+sub read_u1($)
+{
+    my ($fp) = @_;
+    my $buf;
+    read($fp, $buf, 1) == 1 or die "premature EOF";
+    #print "read_u1: ".unpack("C", $buf)."\n";
+    return unpack("C", $buf); # unsigned byte
+}
+sub read_bytes($$)
+{
+    my ($fp,$nWanted) = @_;
+    my $buf;
+    read($fp, $buf, $nWanted) == $nWanted or die "premature EOF trying to read $nWanted bytes";
+    #print "read_bytes $nWanted: ".Stringify($buf)."\n";
+    return $buf;
+}
+
+# XXX I am a bad person, but this lets me write a very compact file reader.
+# XXX Too bad perl doesn't quite let you do local functions
+# XXX referencing local variables nicely.
+    my $CLASSFILE; # really local to readClassFile
+    sub u4()
+    {
+        return read_u4($CLASSFILE);
+    }
+    sub u2()
+    {
+        return read_u2($CLASSFILE);
+    }
+    sub u1()
+    {
+        return read_u1($CLASSFILE);
+    }
+    sub bytes($)
+    {
+        my ($nWanted) = @_;
+        return read_bytes($CLASSFILE,$nWanted);
+    }
+
+#
+# Read contents of the named class file.
+# Aborts on error or premature EOF or postmature EOF.
+#
+sub readClassFile($)
+{
+    my ($classFileName) = @_;
+    $CLASSFILE = new FileHandle;
+    open($CLASSFILE, "$classFileName") or die "Couldn't open $classFileName for reading";
+    binmode($CLASSFILE); # became necessary somewhere between perl 5.6.1 and 5.8.0, to keep shorts from getting byte-swapped
+
+    my ($count, $tag) = (undef,0); # temporary variables
+    my @fileContents = (
+        ["magic", u4,4],
+        ["minor_version", u2,2],
+        ["major_version", u2,2],
+        ["constant_pool_count", $count=u2,2],
+        ["constant_pool", [undef, map {
+            $tag==5||$tag==6 ? [($tag=0)[1..0]] : # bizarre case for Long and Double-- stick an extra [] in the next slot
+          [
+            ["tag", $tag=u1,1
+            #,print(STDERR "$_: tag=$tag, tell=".tell($CLASSFILE)."\n")
+            ],
+            $tag==7 ? ["Class", [["name_index", u2,2]]] :
+            $tag==9 ? ["Fieldref", [["class_index", u2,2],
+                                    ["name_and_type_index", u2,2]]] :
+            $tag==10 ? ["MethodRef", [["class_index", u2,2],
+                                      ["name_and_type_index", u2,2]]] :
+            $tag==11 ? ["InterfaceMethodRef", [["class_index", u2,2],
+                                               ["name_and_type_index", u2,2]]] :
+            $tag==8 ? ["String", [["string_index", u2,2]]] :
+            $tag==3 ? ["Integer", [["bytes", u4,4]]] :
+            $tag==4 ? ["Float", [["bytes", u4,4]]] :
+            $tag==5 ? ["Long", [["high_bytes", u4,4],
+                                ["low_bytes", u4,4]]] :
+            $tag==6 ? ["Double", [["high_bytes", u4,4],
+                                  ["low_bytes", u4,4]]] :
+            $tag==12 ? ["NameAndType", [["name_index", u2,2],
+                                        ["descriptor_index", u2,2]]] :
+            $tag==1 ? ["Utf8", [["length", $count=u2,2],
+                                ["bytes", bytes($count)]]] :
+            die "Unknown cp_info tag $tag\n"
+          ]
+        } (1..$count-1)]], # sic
+        ["access_flags", u2,2],
+        ["this_class", u2,2],
+        ["super_class", u2,2],
+        ["interfaces_count", $count=u2,2],
+        ["interfaces", [map {[
+            ["interface", u2,2] 
+        ]} (0..$count-1)]],
+        ["fields_count", $count=u2,2],
+        ["fields", [map {[
+            ["access_flags", u2,2],
+            ["name_index", u2,2],
+            ["descriptor_index", u2,2],
+            ["attributes_count", $count=u2,2],
+            ["field_attributes", [map {[
+                ["attribute_name_index", u2,2],
+                ["attribute_length", $count=u4,4],
+                ["info", bytes($count)],
+            ]} (0..$count-1)]],
+        ]} (0..$count-1)]],
+        ["methods_count", $count=u2,2],
+        ["methods", [map {[
+            ["access_flags", u2,2],
+            ["name_index", u2,2],
+            ["descriptor_index", u2,2],
+            ["attributes_count", $count=u2,2],
+            ["method_attributes", [map {[
+                ["attribute_name_index", u2,2],
+                ["attribute_length", $count=u4,4],
+                ["info", bytes($count)],
+            ]} (0..$count-1)]],
+        ]} (0..$count-1)]],
+        ["attributes_count", $count=u2,2],
+        ["attributes", [map {[
+            ["attribute_name_index", u2,2],
+            ["attribute_length", $count=u4,4],
+            ["info", bytes($count)],
+        ]} (0..$count-1)]],
+    );
+
+    {
+        my $dummy;
+        my $nRead = read($CLASSFILE, $dummy, 1);
+        $nRead == 0 or die "extra chars in $classFileName after expected EOF";
+    }
+
+    close $CLASSFILE or die;
+    undef $CLASSFILE;
+
+    return \@fileContents;
+
+} # readClassFile
+
+sub tryToRemapLineNumbers($$$$$)
+{
+    my ($phash,$myLineNumbersTable,$outFile,$requiredInFile,$verbose) = @_;
+
+    # argh, can't call them u2 and u4 since function names
+    # aren't locally scoped-- lame!!
+    sub _u2($$)
+    {
+        my ($s,$iRef) = @_;
+        $$iRef+2 <= length($s) or die;
+        my $result = unpack('n', substr($s,$$iRef,2));
+        $$iRef += 2;
+        return $result;
+    }
+    sub _u4($$)
+    {
+        my ($s,$iRef) = @_;
+        $$iRef+4 <= length($s) or die;
+        my $result = unpack('N', substr($s,$$iRef,4));
+        $$iRef += 4;
+        return $result;
+    }
+
+    my $nLineNumbersFound = 0;
+    my $nTablesFound = 0;
+
+    my $constant_pool = LOOKUP($phash,"constant_pool");
+    my $methods = LOOKUP($phash,"methods");
+    for my $method (@$methods)
+    {
+        my $method_attributes = LOOKUP($method,"method_attributes");
+        for my $attribute (@$method_attributes)
+        {
+            my $attribute_name_index = LOOKUP($attribute,"attribute_name_index")->[0];
+            # XXXbounds check!
+            my $attribute_name_constant = $constant_pool->[$attribute_name_index];
+            # XXXtype check!
+            my $attribute_name = LOOKUP(LOOKUP($attribute_name_constant,"Utf8"),"bytes")->[0];
+            $verbose >= 3 && print "Got a $attribute_name attribute\n";
+            if ($attribute_name eq "Code")
+            {
+                my $infoRef = \LOOKUP($attribute,"info")->[0];
+                my $info = $$infoRef; # for convenience; altering it will have no effect, alter $$infoRef if required
+
+                $verbose >= 3 && print "    info = ".Stringify($info)."\n";
+                my $infolength = length($info);
+                #
+                # Walk through info string...
+                #
+                my $i = 0;
+                $i += 2; # max_stack
+                $i += 2; # max_locals
+                my $code_length = _u4($info,\$i);
+                $i += $code_length; # code
+                my $exception_table_length = _u2($info,\$i);
+                $i += $exception_table_length * 8; # exception_table
+                my $attributes_count = _u2($info,\$i);
+                $verbose >= 3 && print "    $attributes_count attributes\n";
+                for my $j (0..$attributes_count-1)
+                {
+                    $verbose >= 3 && print ("      $j:\n");
+                    my $attribute_name_index = _u2($info,\$i);
+                    $verbose >= 3 && print ("        attribute_name_index = $attribute_name_index\n");
+
+                    my $attribute_length = _u4($info,\$i);
+
+                    $verbose >= 3 && print ("        attribute_length = $attribute_length\n");
+
+                    my $attribute_name_constant = $constant_pool->[$attribute_name_index];
+                    $verbose >= 3 && print "        attribute_name_constant = ".Stringify($attribute_name_constant)."\n";
+                    my $attribute_name = LOOKUP(LOOKUP($attribute_name_constant,"Utf8"),"bytes")->[0];
+                    $verbose >= 3 && print "        Got a $attribute_name attribute of the code attribute\n";
+
+                    if ($attribute_name eq "LineNumberTable")
+                    {
+                        my $line_number_table_length = _u2($info,\$i);
+
+
+                        $verbose >= 2 && print "            line_number_table_length = $line_number_table_length\n";
+                        for my $j (0..$line_number_table_length-1)
+                        {
+                            my $start_pc = _u2($info,\$i);
+                            my $line_number = _u2($info,\$i);
+
+                            my $new_line_number = $line_number + 10000;
+                            $new_line_number = lookup($myLineNumbersTable,
+                                            $line_number, $outFile, $verbose,
+                                            $requiredInFile);
+
+                            $verbose >= 2 && print "                $line_number -> $new_line_number\n";
+                            substr($$infoRef,$i-2,2) = pack('n',$new_line_number);
+                            $nLineNumbersFound++;
+                        }
+
+                        $nTablesFound++;
+                    }
+                    else
+                    {
+                        $i += $attribute_length;
+                    }
+                } # for each attribute of the Code attribute
+            } # if 'Code'
+        } # for each attribute
+    } # for each method
+
+    $verbose >= 1 && print "    Remapped $nLineNumbersFound line numbers in $nTablesFound line number tables\n";
+} # tryToRemapLineNumbers
+
+my $CONSTANT_Utf8 = 1;
+
+sub javarenumber($$)
+{
+    my ($classFileName, $verbose) = @_;
+    $verbose >= 1 && print "$classFileName:\n";
+    my $classFileContents = readClassFile($classFileName);
+    $verbose >= 4 && print "Class file contents = ".Stringify($classFileContents)."\n\n";
+    
+    my $phash = {};
+    if (1)
+    {
+        $verbose >= 2 && print "    Making phash...";
+        $verbose >= 2 && flush STDOUT;
+        $phash = arrayToPHash($classFileContents);
+        $verbose >= 2 && print " done.\n";
+        $verbose >= 4 && print "    Class file contents phash = ".Stringify($phash)."\n\n";
+    }
+
+    #
+    # Find and change SourceFile attribute
+    #
+    my $sourcefile_name = undef;
+    my $new_sourcefile_name = undef;
+    my $lineNumbersTable = undef; # make this while we're at it
+    if (1)
+    {
+        # Silly test, no way we would get this far if it's not
+        # really a class file...
+        if (LOOKUP($phash,"magic")->[0] != 0xCAFEBABE)
+        #if ($phash->{magic}[0] != 0xCAFEBABE)
+        {
+            die "Bad magic number $phash->{magic}[0] in $classFileName!?";
+        }
+
+        my $constant_pool = LOOKUP($phash,"constant_pool");
+        my $attributes = LOOKUP($phash,"attributes");
+        my $sourcefile_constant = undef;
+
+        #
+        # Search for the SourceFile atrribute...
+        # there can be only one in a class file :-(
+        #
+        for my $i (0..@$attributes-1)
+        {
+            my $attribute = $attributes->[$i];
+            defined($attribute) or die;
+            my $attribute_name_index = LOOKUP($attribute,"attribute_name_index")->[0];
+            $attribute_name_index > 0 or next;
+            $attribute_name_index < @$constant_pool or die "attribute name index $attribute_name_index out of range, attributes_count = ".(0+@$attributes)."";
+            my $attribute_name_constant = $constant_pool->[$attribute_name_index];
+            LOOKUP($attribute_name_constant, "tag")->[0] == $CONSTANT_Utf8 or next;
+            my $attribute_name = LOOKUP(LOOKUP($attribute_name_constant,"Utf8"),"bytes")->[0];
+            $attribute_name eq "SourceFile" or next;
+
+            my $attribute_length = LOOKUP($attribute,"attribute_length")->[0];
+            $attribute_length == 2 or die "SourceFile attribute length is $attribute_length, expected 2";
+            my $info = LOOKUP($attribute,"info")->[0];
+            my $sourcefile_index = unpack("n", $info);
+            $sourcefile_constant = $constant_pool->[$sourcefile_index];
+            LOOKUP($sourcefile_constant,"tag")->[0] == $CONSTANT_Utf8 or die "SourceFile name not Utf8?!";
+            last;
+        }
+
+        defined($sourcefile_constant) or die "No SourceFile attribute in $classFileName!?";
+        $sourcefile_name = LOOKUP(LOOKUP($sourcefile_constant,"Utf8"),"bytes")->[0];
+
+        if ($verbose >= 2)
+        {
+            print("    sourcefile_constant = ".Stringify($sourcefile_constant)."\n");
+            print("    classFileName = ".Stringify($classFileName)."\n");
+        }
+
+        #
+        # Heuristically adjust the name
+        # to try to get the directory right:
+        # if the .java file was in a different directory,
+        # the .java.lines file will be there too
+        # but at this point $sourcefile_constant doesn't
+        # contain the directory prefix.
+        #
+        my $sourcefile_path = $sourcefile_name;
+        if ($sourcefile_name !~ /\//    # $sourcefile_name has no dir prefix
+         && $classFileName =~ /(.*)\//) # and $classFileName has a dir prefix
+        {
+            my ($dirprefix) = ($1);
+            $sourcefile_path = "$dirprefix/$sourcefile_name";
+        }
+
+        #
+        # At this point, we open $sourcefile_name.lines
+        # and see what it points to.
+        #
+
+        $lineNumbersTable = readLineNumbersFile("$sourcefile_path.lines",$verbose);
+        (defined $lineNumbersTable) or return ($verbose < 0 ? 1 : 0); # 0 is failure, message printed already, unless verbose<0 in which case we don't care
+        @$lineNumbersTable >= 1 or die "ERROR: Line numbers table in $sourcefile_name.lines is empty!?\n";
+        $new_sourcefile_name = $lineNumbersTable->[0][2]; # first file name referenced in the table
+
+        $verbose >= 1 && print "    Changing SourceFile from \"$sourcefile_name\" to \"$new_sourcefile_name\"\n";
+        if (1)
+        {
+            LOOKUP(LOOKUP($sourcefile_constant,"Utf8"),"length")->[0] == length($sourcefile_name) or die;
+            LOOKUP(LOOKUP($sourcefile_constant,"Utf8"),"length")->[0] = length($new_sourcefile_name);
+            LOOKUP(LOOKUP($sourcefile_constant,"Utf8"),"bytes")->[0] = $new_sourcefile_name;
+        }
+        else
+        {
+            print "    (NOT!)\n";
+        }
+    }
+    defined($sourcefile_name) or die;
+    defined($new_sourcefile_name) or die;
+
+    #
+    # Try to change line numbers...
+    #
+    tryToRemapLineNumbers($phash,$lineNumbersTable,
+                          $sourcefile_name,
+                          $new_sourcefile_name,
+                          $verbose);
+
+    my $tempFileName = "$classFileName.renumber.temp";
+    $verbose >= 2 && print "Writing $tempFileName...";
+    $verbose >= 2 && flush STDOUT;
+    {
+        my $TEMPFILE = new FileHandle;
+        open($TEMPFILE, ">$tempFileName");
+        binmode($TEMPFILE);
+        writePHash($tempFileName,$TEMPFILE,$phash);
+        close($TEMPFILE) or die "error closing $tempFileName; $!\n";
+    }
+    $verbose >= 2 && print " done.\n";
+
+    $verbose >= 2 && print "    Renaming $tempFileName $classFileName, clobbering original\n";
+    if (1)
+    {
+        rename($tempFileName,$classFileName) or die "Couldn't rename $tempFileName $classFileName: $!\n";
+    }
+    else
+    {
+        print "    (NOT!)\n";
+    }
+    return 1; # success
+} # javarenumber
+
+
+MAIN:
+{
+    my $defaultVerboseLevel = 1;
+    my $verbose = $defaultVerboseLevel;
+
+    if (@ARGV >= 1 && $ARGV[0] eq "-v")
+    {
+        shift;
+        @ARGV >= 1 && $ARGV[0] =~ m/^-?[0-9]+$/ or die "Usage: $0 [-v <verboseLevel (default=$defaultVerboseLevel)>] <classfiles>\n";
+        $verbose = $ARGV[0];
+        shift;
+    }
+
+    @ARGV >= 1 or die "Usage: $0 [-v <verboseLevel (default=$defaultVerboseLevel)>] <classfiles>\n";
+
+    my $nErrors = 0;
+
+    foreach my $classFileName (@ARGV)
+    {
+        $nErrors += !javarenumber($classFileName, $verbose);
+    }
+    exit $nErrors;
+} # main
+
+
+
