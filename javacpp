@@ -69,6 +69,8 @@ use strict;
 #
 # Author: Don Hatch (hatch@plunk.org)
 # Revision history:
+#     Wed May 11 19:33:18 PDT 2016
+#         Hack to make it work on darwin (Mac Os X) on which cpp installation is all f'ed up.
 #     Wed Dec  3 16:45:57 PST 2014
 #         Allow more than one number at the end of a #line line in cpp output
 #         (I don't know what it means and it doesn't matter).
@@ -116,6 +118,17 @@ use POSIX; # for WEXITSTATUS and stuff
 # Program to run as preprocessor...
 #
 my $cpp = "cpp"; # XXX allow setting on command line?
+
+#
+# Omfg, on Darwin, cpp is /usr/bin/cpp which apparently implicitly adds something like --traditional-cpp,
+# which breaks everything.
+# I have no idea how to turn that off, so the cpp command is useless on darwin.
+# But "cc -E -xc" works instead.
+#
+if ($^O eq "darwin")
+{
+    $cpp = "cc -E -xc";
+}
 
 my $debug = 0; # can be set on the command line using -v
 
@@ -216,7 +229,7 @@ MAIN:
 
     #
     # Preprocess prejavafiles to create java files,
-    # and costruct tables mapping java line numbers to prejava line numbers.
+    # and construct tables mapping java line numbers to prejava line numbers.
     #
     my @tables = ();
     for my $i (0..@prejavafiles-1)
