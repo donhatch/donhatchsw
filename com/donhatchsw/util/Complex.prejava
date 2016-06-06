@@ -23,35 +23,35 @@ public class Complex
     /** imaginary part */
     public double y;
 
-    /** Assign to a complex number from real and imaginary parts. */
+    /** Assigns to a complex number from real and imaginary parts. */
     public Complex set(double x, double y)
     {
         this.x = x;
         this.y = y;
         return this;
     }
-    /** Assign to a complex number from a real. */
+    /** Assigns to a complex number from a real. */
     public Complex set(double x)
     {
         return set(x, 0.);
     }
-    /** Assign to a complex number from another. */
+    /** Assigns to a complex number from another. */
     public Complex set(Complex that)
     {
         return set(that.x, that.y);
     }
 
-    /** Create a complex number given the real and imaginary parts. */
+    /** Creates a complex number given the real and imaginary parts. */
     public Complex(double x, double y)
     {
         set(x, y);
     }
-    /** Create a complex number given only the real part. */
+    /** Creates a complex number given only the real part. */
     public Complex(double x)
     {
         set(x);
     }
-    /** Create a complex number from another. */
+    /** Creates a complex number from another. */
     public Complex(Complex that)
     {
         set(that);
