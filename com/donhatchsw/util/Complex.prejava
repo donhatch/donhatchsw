@@ -6,13 +6,15 @@ import com.donhatchsw.util.MyMath; // for hypot. rumor has it Math.hypot is slow
 * Complex number class.
 * I looked at org.apache.commons.math3.complex.Complex
 * but didn't like it enough, so wrote my own instead.
+* Differences from org.apache.commons.math3.complex.Complex:
 * <ul>
 *   <li> calls things plus,times,etc. rather than add,multiply,etc.
 *   <li> exposes x,y as public fields
 *   <li> has abs2(),dot,cross,perpDot
-*   <li> does do arbitrary ComplexFields (whatever that is)
+*   <li> doesn't do arbitrary ComplexFields (whatever that is)
 *   <li> has in-place operations timesEquals etc.
 * </ul>
+* TODO: put this doc in categories
 */
 public class Complex
 {
@@ -201,7 +203,7 @@ public class Complex
     // Member binary functions returning double, with RHS in x,y form.
     public double dot  (double x, double y) { return dot  (this.x, this.y, x, y); }
     public double cross(double x, double y) { return cross(this.x, this.y, x, y); }
-    // Convenience binary functions returning double, with RHS in x (real only) form.
+    // Convenience member binary functions returning double, with RHS in x (real only) form.
     public double dot  (double x) { return dot  (x, 0.); }
     public double cross(double x) { return cross(x, 0.); }
 
@@ -213,7 +215,7 @@ public class Complex
     }
     public static double abs(double x, double y)
     {
-        return MyMath.hypot(x, y); // not Math.hypot since I've heard bad things about it
+        return MyMath.hypot(x, y); // not Math.hypot since I've heard bad things about it (and good things though. hmm.)
     }
     public static double arg(double x, double y)
     {
