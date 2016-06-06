@@ -76,6 +76,7 @@ public class ArrayList
         if (to.length < size)
             return toArray();
         System.arraycopy(array, 0, to, 0, size);
+        // XXX TODO: doc says if to.length > size, add a null element afterwards
         return to;
     }
     public java.lang.Object get(int index)
