@@ -1,7 +1,5 @@
 package com.donhatchsw.util;
 
-import com.donhatchsw.util.MyMath; // for hypot. rumor has it Math.hypot is slow (but good?)
-
 /**
 * Complex number class.
 * I looked at org.apache.commons.math3.complex.Complex
@@ -11,10 +9,12 @@ import com.donhatchsw.util.MyMath; // for hypot. rumor has it Math.hypot is slow
 *   <li> calls things plus,times,etc. rather than add,multiply,etc.
 *   <li> exposes x,y as public fields
 *   <li> has abs2(),dot,cross,perpDot
+*   <li> has in-place operations plusEquals etc.
 *   <li> doesn't do arbitrary ComplexFields (whatever that is)
-*   <li> has in-place operations timesEquals etc.
 * </ul>
-* TODO: put this doc in categories
+* <br> TODO: trig and hyperbolic trig?
+* <br> TODO: log1p? expm1? other?
+* <br> TODO: put this doc into categories if possible
 */
 public class Complex
 {
@@ -41,23 +41,24 @@ public class Complex
         return set(that.x, that.y);
     }
 
-    /** Creates a complex number given the real and imaginary parts. */
+    /** Create a complex number given the real and imaginary parts. */
     public Complex(double x, double y)
     {
         set(x, y);
     }
-    /** Creates a complex number given only the real part. */
+    /** Create a complex number given only the real part. */
     public Complex(double x)
     {
         set(x);
     }
-    /** Creates a complex number from another. */
+    /** Create a complex number from another. */
     public Complex(Complex that)
     {
         set(that);
     }
 
 
+    //---------------------------------------------------------------------------
     // Basic utilities, that take all args in x,y form
     // and put the result in an existing Complex,
     // and return that Complex (for chaining).
@@ -117,8 +118,10 @@ public class Complex
         return set(Math.log(abs2(x, y))*.5, // = Math.log(abs(x,y)) but without the hypot
                    arg(x, y));
     }
+    //---------------------------------------------------------------------------
 
 
+    //---------------------------------------------------------------------------
     // Accumulation functions with no RHS.
     // (might be better called negate, invert, conjugate, perpDotize, exponentiate, logize/logarithmate/logarithmicize? argh)
     // (and the others might better be called add,subtract,multiply,divide? hmm.)
@@ -128,7 +131,9 @@ public class Complex
     public Complex perpDotEquals() { return this.equalsPerpDot(this.x, this.y); }
     public Complex expEquals()     { return this.equalsExp    (this.x, this.y); }
     public Complex logEquals()     { return this.equalsLog    (this.x, this.y); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Accumulation functions with RHS in x,y form.
     // Answer goes back into this, with no memory allocations.
     public Complex plusEquals (double x, double y) { return this.equalsPlus (this.x, this.y, x, y); }
@@ -136,7 +141,9 @@ public class Complex
     public Complex timesEquals(double x, double y) { return this.equalsTimes(this.x, this.y, x, y); }
     public Complex divEquals  (double x, double y) { return this.equalsDiv  (this.x, this.y, x, y); }
     public Complex powEquals  (double x, double y) { return this.equalsPow  (this.x, this.y, x, y); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Convenience accumulation functions with RHS in x (real only) form.
     // Answer goes back into this, with no memory allocations.
     public Complex plusEquals (double x) { return this.plusEquals (x, 0.); }
@@ -144,7 +151,9 @@ public class Complex
     public Complex timesEquals(double x) { return this.timesEquals(x, 0.); }
     public Complex divEquals  (double x) { return this.divEquals  (x, 0.); }
     public Complex powEquals  (double x) { return this.powEquals  (x, 0.); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Accumulation functions with RHS in Complex form.
     // Answer goes back into this, with no memory allocations.
     public Complex plusEquals (Complex that) { return this.plusEquals (that.x, that.y); }
@@ -152,7 +161,9 @@ public class Complex
     public Complex timesEquals(Complex that) { return this.timesEquals(that.x, that.y); }
     public Complex divEquals  (Complex that) { return this.divEquals  (that.x, that.y); }
     public Complex powEquals  (Complex that) { return this.powEquals  (that.x, that.y); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Static functions allocating answer, with LHS in x,y form and no RHS.
     public static Complex neg    (double x, double y) { return new Complex(x, y).negEquals(); }
     public static Complex inverse(double x, double y) { return new Complex(x, y).inverseEquals(); }
@@ -160,14 +171,18 @@ public class Complex
     public static Complex perpDot(double x, double y) { return new Complex(y, x).perpDotEquals(); }
     public static Complex exp    (double x, double y) { return new Complex(y, x).expEquals(); }
     public static Complex log    (double x, double y) { return new Complex(y, x).logEquals(); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Static functions allocating answer, with LHS and RHS in x,y form.
     public static Complex plus (double x0, double y0, double x1, double y1) { return new Complex(x0, y0).plusEquals (x1, y1); }
     public static Complex minus(double x0, double y0, double x1, double y1) { return new Complex(x0, y0).minusEquals(x1, y1); }
     public static Complex times(double x0, double y0, double x1, double y1) { return new Complex(x0, y0).timesEquals(x1, y1); }
     public static Complex div  (double x0, double y0, double x1, double y1) { return new Complex(x0, y0).divEquals  (x1, y1); }
     public static Complex pow  (double x0, double y0, double x1, double y1) { return new Complex(x0, y0).powEquals  (x1, y1); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Member functions allocating answer, with no RHS.
     public Complex neg()     { return neg    (this.x, this.y); }
     public Complex inverse() { return inverse(this.x, this.y); }
@@ -175,48 +190,64 @@ public class Complex
     public Complex perpDot() { return perpDot(this.x, this.y); }
     public Complex exp()     { return exp    (this.x, this.y); }
     public Complex log()     { return log    (this.x, this.y); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Member functions allocating answer, with RHS in x,y form.
     public Complex plus (double x, double y) { return plus (this.x, this.y, x, y); }
     public Complex minus(double x, double y) { return minus(this.x, this.y, x, y); }
     public Complex times(double x, double y) { return times(this.x, this.y, x, y); }
     public Complex div  (double x, double y) { return div  (this.x, this.y, x, y); }
     public Complex pow  (double x, double y) { return pow  (this.x, this.y, x, y); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Convenience member functions allocating answer, with RHS in x (real only) form.
     public Complex plus (double x) { return this.plus (x, 0.); }
     public Complex minus(double x) { return this.minus(x, 0.); }
     public Complex times(double x) { return this.times(x, 0.); }
     public Complex div  (double x) { return this.div  (x, 0.); }
     public Complex pow  (double x) { return this.pow  (x, 0.); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Member functions allocating answer, with RHS in Complex form.
     public Complex plus (Complex that) { return this.plus (that.x, that.y); }
     public Complex minus(Complex that) { return this.minus(that.x, that.y); }
     public Complex times(Complex that) { return this.times(that.x, that.y); }
     public Complex div  (Complex that) { return this.div  (that.x, that.y); }
     public Complex pow  (Complex that) { return this.pow  (that.x, that.y); }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Static binary functions returning double, with LHS and RHS in x,y form.
     public static double dot  (double x0, double y0, double x1, double y1) { return x0*x1 + y0*y1; }
     public static double cross(double x0, double y0, double x1, double y1) { return x0*y1 - y0*x1; }
+    //---------------------------------------------------------------------------
     // Member binary functions returning double, with RHS in x,y form.
     public double dot  (double x, double y) { return dot  (this.x, this.y, x, y); }
     public double cross(double x, double y) { return cross(this.x, this.y, x, y); }
+    //---------------------------------------------------------------------------
     // Convenience member binary functions returning double, with RHS in x (real only) form.
     public double dot  (double x) { return dot  (x, 0.); }
     public double cross(double x) { return cross(x, 0.); }
+    //---------------------------------------------------------------------------
 
 
+    //---------------------------------------------------------------------------
     // Static unary functions returning double or String, taking arg in x,y form.
+    /** Magnitude squared. */
     public static double abs2(double x, double y)
     {
         return x*x + y*y;
     }
+    /** Magnitude. */
     public static double abs(double x, double y)
     {
-        return MyMath.hypot(x, y); // not Math.hypot since I've heard bad things about it (and good things though. hmm.)
+        // Note, I've heard Math.hypot is slow but accurate... could use MyMath.hypot instead
+        return Math.hypot(x, y);
     }
+    /** Angle. */
     public static double arg(double x, double y)
     {
         return Math.atan2(y, x);
@@ -225,10 +256,16 @@ public class Complex
     {
         return ""+x+"+"+y+"i";
     }
+    //---------------------------------------------------------------------------
 
+    //---------------------------------------------------------------------------
     // Member unary functions returning double or String.
+    /** Magnitude squared. */
     public double abs2    () { return abs2    (this.x, this.y); }
+    /** Magnitude. */
     public double abs     () { return abs     (this.x, this.y); }
+    /** Angle. */
     public double arg     () { return arg     (this.x, this.y); }
     public String toString() { return toString(this.x, this.y); }
+    //---------------------------------------------------------------------------
 }
