@@ -13,8 +13,8 @@ package com.donhatchsw.util;
 *   <li> doesn't do arbitrary ComplexFields (whatever that is)
 * </ul>
 * <br> TODO: trig and hyperbolic trig?
-* <br> TODO: log1p? expm1? other?
-* <br> TODO: put this doc into categories if possible
+* <br> TODO: cosf1 (versine)? log1p? expm1? other?
+* <br> TODO: put methods into groups if possible.  I guess write a doclet? :-(
 */
 public class Complex
 {
