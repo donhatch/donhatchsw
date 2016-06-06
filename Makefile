@@ -96,6 +96,7 @@ donhatchsw.jar: \
     com/donhatchsw/compat/IntArrayList.class \
     com/donhatchsw/compat/DoubleArrayList.class \
     com/donhatchsw/util/MyMath.class \
+    com/donhatchsw/util/Complex.class \
     com/donhatchsw/util/Arrays.class \
     com/donhatchsw/util/VecMath.class \
     com/donhatchsw/util/LinearProgramming.class \
