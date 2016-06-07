@@ -6,13 +6,14 @@ package com.donhatchsw.util;
 * but didn't like it enough, so wrote my own instead.
 * Differences from org.apache.commons.math3.complex.Complex:
 * <ul>
-*   <li> calls things plus,times,etc. rather than add,multiply,etc.
+*   <li> calls things plus,minus,times,over,etc. rather than add,subtract,multiply,divide,etc.
 *   <li> exposes x,y as public fields
 *   <li> has abs2(),dot,cross,perpDot
 *   <li> has in-place operations plusEquals etc.
 *   <li> doesn't do arbitrary ComplexFields (whatever that is)
 * </ul>
 * <br> TODO: trig and hyperbolic trig?
+* <br> TODO: lerp?
 * <br> TODO: cosf1 (versine)? log1p? expm1? other?
 * <br> TODO: put methods into groups if possible in javadoc output.  I guess write a doclet? :-( see http://www.ee.ucl.ac.uk/~mflanaga/java/Complex.html, they seem to have something nice but it's not javadoc.   maybe start with http://blog.outerthoughts.com/2014/05/javadoc-fun-frustration/
 * <br> TODO: unit/confidence test
@@ -73,16 +74,26 @@ public class Complex
         return set(x0 - x1,
                    y0 - y1);
     }
+    /** Backwards minus. */
+    public Complex equalsFrom(double x0, double y0, double x1, double y1)
+    {
+        return equalsMinus(x1, y1, x0, y0);
+    }
     public Complex equalsTimes(double x0, double y0, double x1, double y1)
     {
         return set(x0*x1 - y0*y1,
                    x0*y1 + y0*x1);
     }
-    public Complex equalsDiv(double x0, double y0, double x1, double y1)
+    public Complex equalsOver(double x0, double y0, double x1, double y1)
     {
         double denominator = x1*x1 + y1*y1;
         return set((x0*x1 + y0*y1) / denominator,
                    (y0*x1 - x0*y1) / denominator);
+    }
+    /** Backwards over. */
+    public Complex equalsUnder(double x0, double y0, double x1, double y1)
+    {
+        return equalsOver(x1, y1, x0, y0);
     }
     public Complex equalsPow(double x0, double y0, double x1, double y1)
     {
@@ -144,8 +155,12 @@ public class Complex
     // Answer goes back into this, with no memory allocations.
     public Complex plusEquals (double x, double y) { return this.equalsPlus (this.x, this.y, x, y); }
     public Complex minusEquals(double x, double y) { return this.equalsMinus(this.x, this.y, x, y); }
+    /** Backwards minus. */
+    public Complex fromEquals (double x, double y) { return this.equalsFrom (this.x, this.y, x, y); }
     public Complex timesEquals(double x, double y) { return this.equalsTimes(this.x, this.y, x, y); }
-    public Complex divEquals  (double x, double y) { return this.equalsDiv  (this.x, this.y, x, y); }
+    public Complex overEquals (double x, double y) { return this.equalsOver (this.x, this.y, x, y); }
+    /** Backwards over. */
+    public Complex underEquals(double x, double y) { return this.equalsUnder(this.x, this.y, x, y); }
     public Complex powEquals  (double x, double y) { return this.equalsPow  (this.x, this.y, x, y); }
     //---------------------------------------------------------------------------
 
@@ -154,8 +169,12 @@ public class Complex
     // Answer goes back into this, with no memory allocations.
     public Complex plusEquals (double x) { return this.plusEquals (x, 0.); }
     public Complex minusEquals(double x) { return this.minusEquals(x, 0.); }
+    /** Backwards minus. */
+    public Complex fromEquals (double x) { return this.fromEquals (x, 0.); }
     public Complex timesEquals(double x) { return this.timesEquals(x, 0.); }
-    public Complex divEquals  (double x) { return this.divEquals  (x, 0.); }
+    public Complex overEquals (double x) { return this.overEquals (x, 0.); }
+    /** Backwards over. */
+    public Complex underEquals(double x) { return this.underEquals(x, 0.); }
     public Complex powEquals  (double x) { return this.powEquals  (x, 0.); }
     //---------------------------------------------------------------------------
 
@@ -164,8 +183,12 @@ public class Complex
     // Answer goes back into this, with no memory allocations.
     public Complex plusEquals (Complex that) { return this.plusEquals (that.x, that.y); }
     public Complex minusEquals(Complex that) { return this.minusEquals(that.x, that.y); }
+    /** Backwards minus. */
+    public Complex fromEquals (Complex that) { return this.fromEquals (that.x, that.y); }
     public Complex timesEquals(Complex that) { return this.timesEquals(that.x, that.y); }
-    public Complex divEquals  (Complex that) { return this.divEquals  (that.x, that.y); }
+    public Complex overEquals (Complex that) { return this.overEquals (that.x, that.y); }
+    /** Backwards over. */
+    public Complex underEquals(Complex that) { return this.underEquals(that.x, that.y); }
     public Complex powEquals  (Complex that) { return this.powEquals  (that.x, that.y); }
     //---------------------------------------------------------------------------
 
@@ -184,8 +207,12 @@ public class Complex
     // Static functions allocating answer, with LHS and RHS in x,y form.
     public static Complex plus (double x0, double y0, double x1, double y1) { return new Complex(x0, y0).plusEquals (x1, y1); }
     public static Complex minus(double x0, double y0, double x1, double y1) { return new Complex(x0, y0).minusEquals(x1, y1); }
+    /** Backwards minus. */
+    public static Complex from (double x0, double y0, double x1, double y1) { return new Complex(x0, y0).fromEquals (x1, y1); }
     public static Complex times(double x0, double y0, double x1, double y1) { return new Complex(x0, y0).timesEquals(x1, y1); }
-    public static Complex div  (double x0, double y0, double x1, double y1) { return new Complex(x0, y0).divEquals  (x1, y1); }
+    public static Complex over (double x0, double y0, double x1, double y1) { return new Complex(x0, y0).overEquals (x1, y1); }
+    /** Backwards over. */
+    public static Complex under(double x0, double y0, double x1, double y1) { return new Complex(x0, y0).underEquals(x1, y1); }
     public static Complex pow  (double x0, double y0, double x1, double y1) { return new Complex(x0, y0).powEquals  (x1, y1); }
     //---------------------------------------------------------------------------
 
@@ -204,8 +231,12 @@ public class Complex
     // Member functions allocating answer, with RHS in x,y form.
     public Complex plus (double x, double y) { return plus (this.x, this.y, x, y); }
     public Complex minus(double x, double y) { return minus(this.x, this.y, x, y); }
+    /** Backwards minus. */
+    public Complex from (double x, double y) { return from (this.x, this.y, x, y); }
     public Complex times(double x, double y) { return times(this.x, this.y, x, y); }
-    public Complex div  (double x, double y) { return div  (this.x, this.y, x, y); }
+    public Complex over (double x, double y) { return over (this.x, this.y, x, y); }
+    /** Backwards over. */
+    public Complex under(double x, double y) { return under(this.x, this.y, x, y); }
     public Complex pow  (double x, double y) { return pow  (this.x, this.y, x, y); }
     //---------------------------------------------------------------------------
 
@@ -213,8 +244,12 @@ public class Complex
     // Convenience member functions allocating answer, with RHS in x (real only) form.
     public Complex plus (double x) { return this.plus (x, 0.); }
     public Complex minus(double x) { return this.minus(x, 0.); }
+    /** Backwards minus. */
+    public Complex from (double x) { return this.from (x, 0.); }
     public Complex times(double x) { return this.times(x, 0.); }
-    public Complex div  (double x) { return this.div  (x, 0.); }
+    public Complex over (double x) { return this.over (x, 0.); }
+    /** Backwards over. */
+    public Complex under(double x) { return this.under(x, 0.); }
     public Complex pow  (double x) { return this.pow  (x, 0.); }
     //---------------------------------------------------------------------------
 
@@ -222,8 +257,12 @@ public class Complex
     // Member functions allocating answer, with RHS in Complex form.
     public Complex plus (Complex that) { return this.plus (that.x, that.y); }
     public Complex minus(Complex that) { return this.minus(that.x, that.y); }
+    /** Backwards minus. */
+    public Complex from (Complex that) { return this.from (that.x, that.y); }
     public Complex times(Complex that) { return this.times(that.x, that.y); }
-    public Complex div  (Complex that) { return this.div  (that.x, that.y); }
+    public Complex over (Complex that) { return this.over (that.x, that.y); }
+    /** Backwards over. */
+    public Complex under(Complex that) { return this.under (that.x,that.y); }
     public Complex pow  (Complex that) { return this.pow  (that.x, that.y); }
     //---------------------------------------------------------------------------
 
