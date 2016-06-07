@@ -14,7 +14,8 @@ package com.donhatchsw.util;
 * </ul>
 * <br> TODO: trig and hyperbolic trig?
 * <br> TODO: cosf1 (versine)? log1p? expm1? other?
-* <br> TODO: put methods into groups if possible.  I guess write a doclet? :-(
+* <br> TODO: put methods into groups if possible in javadoc output.  I guess write a doclet? :-( see http://www.ee.ucl.ac.uk/~mflanaga/java/Complex.html, they seem to have something nice but it's not javadoc.   maybe start with http://blog.outerthoughts.com/2014/05/javadoc-fun-frustration/
+* <br> TODO: unit/confidence test
 */
 public class Complex
 {
@@ -103,6 +104,10 @@ public class Complex
     {
         return set(x, -y);
     }
+    public Complex equalsTransposed(double x, double y)
+    {
+        return set(y, x);
+    }
     public Complex equalsPerpDot(double x, double y)
     {
         return set(-y, x);
@@ -123,14 +128,15 @@ public class Complex
 
     //---------------------------------------------------------------------------
     // Accumulation functions with no RHS.
-    // (might be better called negate, invert, conjugate, perpDotize, exponentiate, logize/logarithmate/logarithmicize? argh)
+    // (might be better called negate, invert, conjugate, transpose, perpDotize, exponentiate, logize/logarithmate/logarithmicize? argh)
     // (and the others might better be called add,subtract,multiply,divide? hmm.)
-    public Complex negEquals()     { return this.equalsNeg    (this.x, this.y); }
-    public Complex inverseEquals() { return this.equalsInverse(this.x, this.y); }
-    public Complex conjEquals()    { return this.equalsConj   (this.x, this.y); }
-    public Complex perpDotEquals() { return this.equalsPerpDot(this.x, this.y); }
-    public Complex expEquals()     { return this.equalsExp    (this.x, this.y); }
-    public Complex logEquals()     { return this.equalsLog    (this.x, this.y); }
+    public Complex negEquals()        { return this.equalsNeg    (this.x, this.y); }
+    public Complex inverseEquals()    { return this.equalsInverse(this.x, this.y); }
+    public Complex conjEquals()       { return this.equalsConj   (this.x, this.y); }
+    public Complex transposedEquals() { return this.equalsTransposed   (this.x, this.y); }
+    public Complex perpDotEquals()    { return this.equalsPerpDot(this.x, this.y); }
+    public Complex expEquals()        { return this.equalsExp    (this.x, this.y); }
+    public Complex logEquals()        { return this.equalsLog    (this.x, this.y); }
     //---------------------------------------------------------------------------
 
     //---------------------------------------------------------------------------
@@ -165,12 +171,13 @@ public class Complex
 
     //---------------------------------------------------------------------------
     // Static functions allocating answer, with LHS in x,y form and no RHS.
-    public static Complex neg    (double x, double y) { return new Complex(x, y).negEquals(); }
-    public static Complex inverse(double x, double y) { return new Complex(x, y).inverseEquals(); }
-    public static Complex conj   (double x, double y) { return new Complex(x, y).conjEquals(); }
-    public static Complex perpDot(double x, double y) { return new Complex(y, x).perpDotEquals(); }
-    public static Complex exp    (double x, double y) { return new Complex(y, x).expEquals(); }
-    public static Complex log    (double x, double y) { return new Complex(y, x).logEquals(); }
+    public static Complex neg       (double x, double y) { return new Complex(x, y).negEquals(); }
+    public static Complex inverse   (double x, double y) { return new Complex(x, y).inverseEquals(); }
+    public static Complex conj      (double x, double y) { return new Complex(x, y).conjEquals(); }
+    public static Complex transposed(double x, double y) { return new Complex(x, y).transposedEquals(); }
+    public static Complex perpDot   (double x, double y) { return new Complex(y, x).perpDotEquals(); }
+    public static Complex exp       (double x, double y) { return new Complex(y, x).expEquals(); }
+    public static Complex log       (double x, double y) { return new Complex(y, x).logEquals(); }
     //---------------------------------------------------------------------------
 
     //---------------------------------------------------------------------------
@@ -184,12 +191,13 @@ public class Complex
 
     //---------------------------------------------------------------------------
     // Member functions allocating answer, with no RHS.
-    public Complex neg()     { return neg    (this.x, this.y); }
-    public Complex inverse() { return inverse(this.x, this.y); }
-    public Complex conj()    { return conj   (this.x, this.y); }
-    public Complex perpDot() { return perpDot(this.x, this.y); }
-    public Complex exp()     { return exp    (this.x, this.y); }
-    public Complex log()     { return log    (this.x, this.y); }
+    public Complex neg()        { return neg    (this.x, this.y); }
+    public Complex inverse()    { return inverse(this.x, this.y); }
+    public Complex conj()       { return conj   (this.x, this.y); }
+    public Complex transposed() { return transposed   (this.x, this.y); }
+    public Complex perpDot()    { return perpDot(this.x, this.y); }
+    public Complex exp()        { return exp    (this.x, this.y); }
+    public Complex log()        { return log    (this.x, this.y); }
     //---------------------------------------------------------------------------
 
     //---------------------------------------------------------------------------
