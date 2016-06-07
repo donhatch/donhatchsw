@@ -237,8 +237,12 @@ public class Complex
     public double cross(double x, double y) { return cross(this.x, this.y, x, y); }
     //---------------------------------------------------------------------------
     // Convenience member binary functions returning double, with RHS in x (real only) form.
-    public double dot  (double x) { return dot  (x, 0.); }
-    public double cross(double x) { return cross(x, 0.); }
+    public double dot  (double x) { return this.dot  (x, 0.); }
+    public double cross(double x) { return this.cross(x, 0.); }
+    //---------------------------------------------------------------------------
+    // Member binary functions returning double, with RHS in Complex form.
+    public double dot  (Complex that) { return this.dot  (that.x, that.y); }
+    public double cross(Complex that) { return this.cross(that.x, that.y); }
     //---------------------------------------------------------------------------
 
 
