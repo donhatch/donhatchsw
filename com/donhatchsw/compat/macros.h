@@ -70,7 +70,7 @@
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 #define SIGN(x) ((x) < 0 ? -1 : 1)
 #define HYPOTSQRD(a,b) (((a)*(a))+((b)*(b)))
-#define LERP(a,b,t) ((a) + (t)*((b)-(a)))
+#define LERP(a,b,t) ((1-(t))*(a) + (t)*(b)) // hits endpoints exactly
 #define SMOOTH(timeFrac) ((Math.sin(((timeFrac) - .5) * Math.PI) + 1) / 2)
 #define SWAP(a,b,temp) {temp=(a);a=(b);b=(temp);}
 #define MIN(a,b) ((a)<=(b)?(a):(b))
