@@ -21,7 +21,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     public double cosRotation;
     public double sinRotation;
 
-    @Override public void assertValid()
+    OVERRIDE public void assertValid()
     {
         super.assertValid();
         double error = MyMath.hypot(cosRotation, sinRotation) - 1.;
@@ -29,23 +29,23 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     }
 
     // Unit-length derivative at time t.
-    @Override public void differentiate(double t,
-                                        double answer[/*2*/])
+    OVERRIDE public void differentiate(double t,
+                                       double answer[/*2*/])
     {
         super.differentiate(t, answer);
         rotate(this.cosRotation, this.sinRotation, answer[0], answer[1], answer);
     }
 
     // Position at time t.
-    @Override public void evaluate(double t,
-                                   double answer[/*2*/])
+    OVERRIDE public void evaluate(double t,
+                                  double answer[/*2*/])
     {
         super.evaluate(t, answer);
         rotate(this.cosRotation, this.sinRotation, answer[0], answer[1], answer);
     }
     // Arc length integral from focus to t.
-    @Override public void integrate(double t,
-                                    double answer[/*2*/])
+    OVERRIDE public void integrate(double t,
+                                   double answer[/*2*/])
     {
         int verboseLevel = 0;
         if (verboseLevel >= 1) System.out.println("                            in CatenaryRotated.integrate(t="+t+")");
@@ -66,7 +66,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             final NewtonSolver.Fun nfunFinal = nfun;
             final double fx[] = new double[y.length];
             Minimizer.VectorFunction mfun = new Minimizer.VectorFunction() {
-                @Override public double apply(double x[])
+                OVERRIDE public double apply(double x[])
                 {
                     nfunFinal.f(x, fx);
                     // Which?
@@ -770,7 +770,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         final double y1final = y1;
 
         NewtonSolver.Fun fun = new NewtonSolver.Fun(2) {
-            @Override public void f(double xy[], double answerIntegral[])
+            OVERRIDE public void f(double xy[], double answerIntegral[])
             {
                 if (verboseLevelFinal >= 2) System.out.println("                in f(xy = "+Arrays.toStringCompact(xy)+")");
 
@@ -786,7 +786,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
                 if (verboseLevelFinal >= 2) System.out.println("                out f(xy = "+Arrays.toStringCompact(xy)+"), returning answerIntegral="+Arrays.toStringCompact(answerIntegral));
             }
-            @Override public void J(double xy[], double fxy[], double answerJacobian[][])
+            OVERRIDE public void J(double xy[], double fxy[], double answerJacobian[][])
             {
                 if (verboseLevelFinal >= 2) System.out.println("            in J");
                 inJ[0] = true;
@@ -806,7 +806,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
                 if (verboseLevelFinal >= 2) System.out.println("            out J");
             }
-            @Override public double eps()
+            OVERRIDE public double eps()
             {
                 // Somewhat dog science:
                 // When using adaptive flag,
@@ -1462,10 +1462,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             entry[0] = new double[] {Double.NaN,Double.NaN}; // expedience
                         // apparently gnuplot likes inf but not nan :-(
                         System.out.println("    NEWTON PATH: "
-                                +(Double.isNaN(entry[0][0])?"inf":entry[0][0])+" "
-                                +(Double.isNaN(entry[0][1])?"inf":entry[0][1])+"  "
-                                +(Double.isNaN(entry[1][0])?"inf":entry[1][0])+" "
-                                +(Double.isNaN(entry[1][1])?"inf":entry[1][1]));
+                                +(Double.isNaN(entry[0][0])?"inf":""+entry[0][0])+" "
+                                +(Double.isNaN(entry[0][1])?"inf":""+entry[0][1])+"  "
+                                +(Double.isNaN(entry[1][0])?"inf":""+entry[1][0])+" "
+                                +(Double.isNaN(entry[1][1])?"inf":""+entry[1][1]));
                     }
                 }
 
@@ -1873,7 +1873,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
 
                 RectangularFunction f = new RectangularFunction() {
-                    @Override public void apply(double x, double y, double answer[/*2*/])
+                    OVERRIDE public void apply(double x, double y, double answer[/*2*/])
                     {
                         catenaryRotated.fitFromRectangularCoords(model.v0[0],model.v0[1],model.v1[0],model.v1[1], x, y, 0);
                         catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, answer);
@@ -1881,7 +1881,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 };
                 if (view.inverseFunctionFlag)
                     f = new RectangularFunction() {
-                        @Override public void apply(double xMomentOffset, double yMomentOffset, double xy[/*2*/])
+                        OVERRIDE public void apply(double xMomentOffset, double yMomentOffset, double xy[/*2*/])
                         {
                             boolean saved = XXX_ALLOW_FITFROMMOMENT_FAILURE;
                             try
@@ -2242,7 +2242,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (true)
                         {
                             GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
-                                @Override public double apply(double slack)
+                                OVERRIDE public double apply(double slack)
                                 {
                                     double x = 0.;
                                     double y = slack;
@@ -2291,7 +2291,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (true)
                         {
                             GoldenSectionSearch.Fun fun = new GoldenSectionSearch.Fun() {
-                                @Override public double apply(double slack)
+                                OVERRIDE public double apply(double slack)
                                 {
                                     double x = 0.;
                                     double y = slack;

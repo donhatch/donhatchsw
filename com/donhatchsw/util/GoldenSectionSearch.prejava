@@ -58,7 +58,7 @@ public class GoldenSectionSearch
         {
             // Find minimum of (x-3)^2+1 on [-10:10]
             Fun fun = new Fun() {
-                @Override public double apply(double x)
+                OVERRIDE public double apply(double x)
                 {
                     return (x-3)*(x-3) + 1;
                 }

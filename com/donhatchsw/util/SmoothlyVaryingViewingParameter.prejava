@@ -1606,7 +1606,7 @@ public class SmoothlyVaryingViewingParameter
         final double bounceFinal = bounce;
         final boolean bounceAwareFinal = bounceAware;
         NewtonSolver.Fun fun = new NewtonSolver.Fun(n-1) {
-            @Override public void f(double barys[], double answerDiffs[])
+            OVERRIDE public void f(double barys[], double answerDiffs[])
             {
                 if (verboseLevel >= 3) System.out.println("                in f(barys = "+Arrays.toStringCompact(barys)+")");
                 double lastBary = 1. - VecMath.sum(barys);
@@ -12093,7 +12093,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     this.sign_t1 = sign_t1;
                     this.twoQuadraticsMode = twoQuadraticsMode;
                 }
-                @Override public void f(double x[], double answer[])
+                OVERRIDE public void f(double x[], double answer[])
                 {
                     double A0[] = {x[0],x[1]};
                     double At1[] = {x[2],x[3]};
@@ -12116,9 +12116,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     super(p0, v0, sign_t1, twoQuadraticsMode);
                 }
 
-                @Override public void J(double x[],
-                                        double fx[], // unused
-                                        double answer[][])
+                OVERRIDE public void J(double x[],
+                                       double fx[], // unused
+                                       double answer[][])
                 {
                     double A0[] = {x[0],x[1]};
                     double At1[] = {x[2],x[3]};

@@ -179,7 +179,7 @@ public class NewtonSolver
         {
             // Find x such that x^2 == 100, with starting guess of 9
             Fun fun = new Fun(1) {
-                @Override public void f(double x[], double fx[])
+                OVERRIDE public void f(double x[], double fx[])
                 {
                     fx[0] = x[0]*x[0];
                 }
@@ -193,7 +193,7 @@ public class NewtonSolver
             // find x0,x1 such that {x0*x0,x0*x1} == {100,200}
             // (answer is 10,20)
             Fun fun = new Fun(2) {
-                @Override public void f(double x[], double fx[])
+                OVERRIDE public void f(double x[], double fx[])
                 {
                   fx[0] = x[0]*x[0];
                   fx[1] = x[0]*x[1];

@@ -594,7 +594,7 @@ public class Catenary
         if (verboseLevel >= 1) System.out.println("                        out Catenary.integrate(t0="+t0+", t1="+t1+"), returning answer="+VecMath.toString(answer));
     } // integrate
 
-    @Override public String toString()
+    OVERRIDE public String toString()
     {
        StringBuffer sb = new StringBuffer();
        sb.append("{");
@@ -627,10 +627,10 @@ public class Catenary
     public static class FlippedMaybe extends Catenary
     {
         public boolean leftRightFlipped;
-        @Override public void fit(double x0, double y0,
-                                  double x1, double y1,
-                                  double slack,
-                                  int verboseLevel)
+        OVERRIDE public void fit(double x0, double y0,
+                                 double x1, double y1,
+                                 double slack,
+                                 int verboseLevel)
         {
             if (x1 < x0)
             {
@@ -648,28 +648,28 @@ public class Catenary
             }
             //PRINT(this.leftRightFlipped);
         }
-        @Override public void differentiate(double t,
-                                            double answer[/*2*/])
+        OVERRIDE public void differentiate(double t,
+                                           double answer[/*2*/])
         {
             super.differentiate(t, answer);
             if (this.leftRightFlipped)
                 answer[0] *= -1.;
         }
-        @Override public void evaluate(double t,
-                                       double answer[/*2*/])
+        OVERRIDE public void evaluate(double t,
+                                      double answer[/*2*/])
         {
             super.evaluate(t, answer);
             if (this.leftRightFlipped)
                 answer[0] *= -1.;
         }
-        @Override public void integrate(double t,
-                                        double answer[/*2*/])
+        OVERRIDE public void integrate(double t,
+                                       double answer[/*2*/])
         {
             super.integrate(t, answer);
             if (this.leftRightFlipped)
                 answer[0] *= -1.;
         }
-        @Override public String toString()
+        OVERRIDE public String toString()
         {
            StringBuffer sb = new StringBuffer();
            sb.append("{");
