@@ -125,6 +125,7 @@ public class MainWindowCount
     public static void setExitOnLastClose(java.awt.Window window)
     {
         increment();
+        final java.awt.Window finalWindow = window;
         window.addWindowListener(new java.awt.event.WindowAdapter() {
             // "invoked when the user attempts to close the window
             // from the window's system menu. if the program does not
@@ -133,7 +134,7 @@ public class MainWindowCount
             // the window close operation will be cancelled."
             public void windowClosing(java.awt.event.WindowEvent e)
             {
-                window.dispose(); // causes a windowClosed event
+                finalWindow.dispose(); // causes a windowClosed event
             }
             public void windowClosed(java.awt.event.WindowEvent e)
             {
