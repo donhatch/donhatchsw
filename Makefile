@@ -85,13 +85,13 @@ JAVADOC=javadoc
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.4 which is last version in which @Override doesn't exist, and requires -target >=1.4
-#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVACPPFLAGS=-DOVERRIDE=
 #JAVAC=javac -source 1.4 -target 1.4
 #JAR=jar
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.3, which allows any -target >= 1.1
-#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVACPPFLAGS=-DOVERRIDE=
 #JAVAC=javac -source 1.3 -target 1.1
 #JAR=jar
 #JAVADOC=javadoc
