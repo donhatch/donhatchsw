@@ -688,8 +688,12 @@ public class SmoothlyVaryingViewingParameter
                 {
                     if (strategy != STRATEGY_TRY_TO_DO_IT_RIGHT_WITH_SEPARABLE_BAILOUT)
                     {
-                        // no bail-out: proceed with throw
-                        throw throwable;
+                        // no bail-out: proceed with throw.
+                        // Note, in >=1.7 we could re-throw the throwable, but in <=1.6 that gives
+                        // "error: unreported exception Throwable; must be caught or declared to be thrown"
+                        // so we do this instead, as suggested in:
+                        // http://stackoverflow.com/questions/11707656/methodhandle-must-be-caught-or-declared-to-be-thrown-why-this-error#answer-11707695
+                        throw new AssertionError(throwable);
                     }
 
                     if (true)
