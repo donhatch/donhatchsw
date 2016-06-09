@@ -123,6 +123,12 @@ public class Complex
     {
         return set(y, x);
     }
+    public Complex equalsNormalized(double x, double y)
+    {
+        double magnitude = Math.hypot(x, y);
+        return magnitude==0. ? set(1., 0.)
+                             : set(x/magnitude, y/magnitude);
+    }
     public Complex equalsPerpDot(double x, double y)
     {
         return set(-y, x);
@@ -143,15 +149,16 @@ public class Complex
 
     //---------------------------------------------------------------------------
     // Accumulation functions with no RHS.
-    // (might be better called negate, invert, conjugate, transpose, perpDotize, exponentiate, logize/logarithmate/logarithmicize? argh)
+    // (might be better called negate, invert, conjugate, transpose, normalize, perpDotize, exponentiate, logize/logarithmate/logarithmicize? argh)
     // (and the others might better be called add,subtract,multiply,divide? hmm.)
-    public Complex negEquals()        { return this.equalsNeg    (this.x, this.y); }
-    public Complex inverseEquals()    { return this.equalsInverse(this.x, this.y); }
-    public Complex conjEquals()       { return this.equalsConj   (this.x, this.y); }
-    public Complex transposedEquals() { return this.equalsTransposed   (this.x, this.y); }
-    public Complex perpDotEquals()    { return this.equalsPerpDot(this.x, this.y); }
-    public Complex expEquals()        { return this.equalsExp    (this.x, this.y); }
-    public Complex logEquals()        { return this.equalsLog    (this.x, this.y); }
+    public Complex negEquals()        { return this.equalsNeg       (this.x, this.y); }
+    public Complex inverseEquals()    { return this.equalsInverse   (this.x, this.y); }
+    public Complex conjEquals()       { return this.equalsConj      (this.x, this.y); }
+    public Complex transposedEquals() { return this.equalsTransposed(this.x, this.y); }
+    public Complex normalizedEquals() { return this.equalsNormalized(this.x, this.y); }
+    public Complex perpDotEquals()    { return this.equalsPerpDot   (this.x, this.y); }
+    public Complex expEquals()        { return this.equalsExp       (this.x, this.y); }
+    public Complex logEquals()        { return this.equalsLog       (this.x, this.y); }
     //---------------------------------------------------------------------------
 
     //---------------------------------------------------------------------------
@@ -202,6 +209,7 @@ public class Complex
     public static Complex inverse   (double x, double y) { return new Complex(x, y).inverseEquals(); }
     public static Complex conj      (double x, double y) { return new Complex(x, y).conjEquals(); }
     public static Complex transposed(double x, double y) { return new Complex(x, y).transposedEquals(); }
+    public static Complex normalized(double x, double y) { return new Complex(x, y).normalizedEquals(); }
     public static Complex perpDot   (double x, double y) { return new Complex(y, x).perpDotEquals(); }
     public static Complex exp       (double x, double y) { return new Complex(y, x).expEquals(); }
     public static Complex log       (double x, double y) { return new Complex(y, x).logEquals(); }
@@ -222,13 +230,14 @@ public class Complex
 
     //---------------------------------------------------------------------------
     // Member functions allocating answer, with no RHS.
-    public Complex neg()        { return neg    (this.x, this.y); }
-    public Complex inverse()    { return inverse(this.x, this.y); }
-    public Complex conj()       { return conj   (this.x, this.y); }
-    public Complex transposed() { return transposed   (this.x, this.y); }
-    public Complex perpDot()    { return perpDot(this.x, this.y); }
-    public Complex exp()        { return exp    (this.x, this.y); }
-    public Complex log()        { return log    (this.x, this.y); }
+    public Complex neg()        { return neg       (this.x, this.y); }
+    public Complex inverse()    { return inverse   (this.x, this.y); }
+    public Complex conj()       { return conj      (this.x, this.y); }
+    public Complex transposed() { return transposed(this.x, this.y); }
+    public Complex normalized() { return normalized(this.x, this.y); }
+    public Complex perpDot()    { return perpDot   (this.x, this.y); }
+    public Complex exp()        { return exp       (this.x, this.y); }
+    public Complex log()        { return log       (this.x, this.y); }
     //---------------------------------------------------------------------------
 
     //---------------------------------------------------------------------------
