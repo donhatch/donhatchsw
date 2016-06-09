@@ -933,11 +933,15 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         {
             try
             {
-                // stuff using varargs invoke probably needs backporting (doesn't work in <= 1.4)
-                // The cast through Double is necessary in <= 1.6
-                answer = ((Double)method.invoke(null, T, t)).doubleValue();
-                fT = ((Double)mathMethod.invoke(null, T)).doubleValue();
-                fTplust = ((Double)mathMethod.invoke(null, T+t)).doubleValue();
+                // In >=1.7 we have varargs and more implicit conversions so can say these:
+                //answer = method.invoke(null, T, t);
+                //fT = mathMethod.invoke(null, T);
+                //fTplust = mathMethod.invoke(null, T+t);
+
+                // In <=1.4 there's no varargs and limited conversions so have to say:
+                answer = ((Double)method.invoke(null, new Object[]{Double.valueOf(T), Double.valueOf(t)})).doubleValue();
+                fT = ((Double)mathMethod.invoke(null, new Object[]{Double.valueOf(T)})).doubleValue();
+                fTplust = ((Double)mathMethod.invoke(null, new Object[]{Double.valueOf(T+t)})).doubleValue();
             }
             catch (IllegalArgumentException e) { assert(false); }
             catch (IllegalAccessException e) { assert(false); }
@@ -970,11 +974,15 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         {
             try
             {
-                // stuff using varargs invoke probably needs backporting (doesn't work in <= 1.4)
-                // The cast through Double is necessary in <= 1.6
-                answer = ((Double)method.invoke(null, Tn, Td, t)).doubleValue();
-                fT = ((Double)mathMethod.invoke(null, Tn/Td)).doubleValue();
-                fTplust = ((Double)mathMethod.invoke(null, Tn/Td+t)).doubleValue();
+                // In >=1.7 we have varargs and more implicit conversions so can say these:
+                //answer = method.invoke(null, Tn, Td, t);
+                //fT = mathMethod.invoke(null, Tn/Td);
+                //fTplust = mathMethod.invoke(null, Tn/Td+t);
+
+                // In <=1.4 there's no varargs and limited conversions so have to say:
+                answer = ((Double)method.invoke(null, new Object[]{Double.valueOf(Tn), Double.valueOf(Td), Double.valueOf(t)})).doubleValue();
+                fT = ((Double)mathMethod.invoke(null, new Object[]{Double.valueOf(Tn/Td)})).doubleValue();
+                fTplust = ((Double)mathMethod.invoke(null, new Object[]{Double.valueOf(Tn/Td+t)})).doubleValue();
             }
             catch (IllegalArgumentException e) { assert(false); }
             catch (IllegalAccessException e) { assert(false); }
