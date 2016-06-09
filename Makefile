@@ -60,33 +60,9 @@
 
 # XXX TODO: deal with warning "warning: [options] bootstrap class path not set in conjunction with -source 1.2" (or whatever). what does it mean?
 
-# ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
-#JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=javac
-#JAR=jar
-#JAVADOC=javadoc
-
-# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.7 which requires -target >= 1.7
-#JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=javac -source 1.7 -target 1.7
-#JAR=jar
-#JAVADOC=javadoc
-
-# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.6 which requires -target >= 1.6
-#JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=javac -source 1.6 -target 1.6
-#JAR=jar
-#JAVADOC=javadoc
-
-# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.5 which is first version in which @Override exists, and requires -target >= 1.5
-#JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=javac -source 1.5 -target 1.5
-#JAR=jar
-#JAVADOC=javadoc
-
-# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.4 which is last version in which @Override doesn't exist, and requires -target >=1.4
+# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.2, which allows any -target >= 1.1. As backwards-compatible as possible; use this for releases.
 #JAVACPPFLAGS=-DOVERRIDE=
-#JAVAC=javac -source 1.4 -target 1.4
+#JAVAC=javac -source 1.2 -target 1.1
 #JAR=jar
 #JAVADOC=javadoc
 
@@ -96,9 +72,33 @@
 #JAR=jar
 #JAVADOC=javadoc
 
-# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.2, which allows any -target >= 1.1. As backwards-compatible as possible; use this for releases.
-JAVACPPFLAGS=-DOVERRIDE=
-JAVAC=javac -source 1.2 -target 1.1
+# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.4 which is last version in which @Override doesn't exist, and requires -target >=1.4
+#JAVACPPFLAGS=-DOVERRIDE=
+#JAVAC=javac -source 1.4 -target 1.4
+#JAR=jar
+#JAVADOC=javadoc
+
+# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.5 which is first version in which @Override exists, and requires -target >= 1.5
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=javac -source 1.5 -target 1.5
+#JAR=jar
+#JAVADOC=javadoc
+
+# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.6 which requires -target >= 1.6
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=javac -source 1.6 -target 1.6
+#JAR=jar
+#JAVADOC=javadoc
+
+# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.7 which requires -target >= 1.7
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=javac -source 1.7 -target 1.7
+#JAR=jar
+#JAVADOC=javadoc
+
+# ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
+JAVACPPFLAGS=-DOVERRIDE=@Override
+JAVAC=javac
 JAR=jar
 JAVADOC=javadoc
 
