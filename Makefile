@@ -73,10 +73,10 @@
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.6 which requires -target >= 1.6
-JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=javac -source 1.6 -target 1.6
-JAR=jar
-JAVADOC=javadoc
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=javac -source 1.6 -target 1.6
+#JAR=jar
+#JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.5 which is first version in which @Override exists, and requires -target >= 1.5
 #JAVACPPFLAGS=-DOVERRIDE=@Override
@@ -97,10 +97,10 @@ JAVADOC=javadoc
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.2, which allows any -target >= 1.1. As backwards-compatible as possible; use this for releases.
-#JAVACPPFLAGS=-DOVERRIDE=
-#JAVAC=javac -source 1.2 -target 1.1
-#JAR=jar
-#JAVADOC=javadoc
+JAVACPPFLAGS=-DOVERRIDE=
+JAVAC=javac -source 1.2 -target 1.1
+JAR=jar
+JAVADOC=javadoc
 
 
 # Pattern rule for making a .class file out of a .prejava file.
