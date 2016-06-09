@@ -933,10 +933,11 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         {
             try
             {
-                // stuff using varargs invoke probably needs backporting
-                answer = (double)method.invoke(null, T, t);
-                fT = (double)mathMethod.invoke(null, T);
-                fTplust = (double)mathMethod.invoke(null, T+t);
+                // stuff using varargs invoke probably needs backporting (doesn't work in <= 1.4)
+                // The cast through Double is necessary in <= 1.6
+                answer = (double)(Double)method.invoke(null, T, t);
+                fT = (double)(Double)mathMethod.invoke(null, T);
+                fTplust = (double)(Double)mathMethod.invoke(null, T+t);
             }
             catch (IllegalArgumentException e) { assert(false); }
             catch (IllegalAccessException e) { assert(false); }
@@ -969,10 +970,11 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         {
             try
             {
-                // stuff using varargs invoke probably needs backporting
-                answer = (double)method.invoke(null, Tn, Td, t);
-                fT = (double)mathMethod.invoke(null, Tn/Td);
-                fTplust = (double)mathMethod.invoke(null, Tn/Td+t);
+                // stuff using varargs invoke probably needs backporting (doesn't work in <= 1.4)
+                // The cast through Double is necessary in <= 1.6
+                answer = (double)(Double)method.invoke(null, Tn, Td, t);
+                fT = (double)(Double)mathMethod.invoke(null, Tn/Td);
+                fTplust = (double)(Double)mathMethod.invoke(null, Tn/Td+t);
             }
             catch (IllegalArgumentException e) { assert(false); }
             catch (IllegalAccessException e) { assert(false); }
