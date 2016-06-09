@@ -934,9 +934,9 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             try
             {
                 // In >=1.7 we have varargs and more implicit conversions so can say these:
-                //answer = method.invoke(null, T, t);
-                //fT = mathMethod.invoke(null, T);
-                //fTplust = mathMethod.invoke(null, T+t);
+                //answer = (double)method.invoke(null, T, t);
+                //fT = (double)mathMethod.invoke(null, T);
+                //fTplust = (double)mathMethod.invoke(null, T+t);
 
                 // In <=1.4 there's no varargs and limited conversions so have to say:
                 answer = ((Double)method.invoke(null, new Object[]{Double.valueOf(T), Double.valueOf(t)})).doubleValue();
@@ -975,9 +975,9 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             try
             {
                 // In >=1.7 we have varargs and more implicit conversions so can say these:
-                //answer = method.invoke(null, Tn, Td, t);
-                //fT = mathMethod.invoke(null, Tn/Td);
-                //fTplust = mathMethod.invoke(null, Tn/Td+t);
+                //answer = (double)method.invoke(null, Tn, Td, t);
+                //fT = (double)mathMethod.invoke(null, Tn/Td);
+                //fTplust = (double)mathMethod.invoke(null, Tn/Td+t);
 
                 // In <=1.4 there's no varargs and limited conversions so have to say:
                 answer = ((Double)method.invoke(null, new Object[]{Double.valueOf(Tn), Double.valueOf(Td), Double.valueOf(t)})).doubleValue();
