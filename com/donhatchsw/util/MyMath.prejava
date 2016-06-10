@@ -213,7 +213,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     cos_difference(double T, double t)
     {
-        // cos(T+t)-cos(t) = cos(t)*cos(T) - sin(t)*sin(T) - cos(T) according to wolframalpha
+        // cos(T+t)-cos(T) = cos(t)*cos(T) - sin(t)*sin(T) - cos(T) according to wolframalpha
         //                 = cos(T)*(cos(t)-1) - sin(t)*sin(T)
         //                 = -cosf1(t)*cos(T) - sin(t)*sin(T)
         return -cosf1(t)*Math.cos(T) - Math.sin(t)*Math.sin(T);
@@ -222,7 +222,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     sin_difference(double T, double t)
     {
-        // sin(T+t)-cos(t) = sin(t)*cos(T) + cos(t)*sin(T) - sin(T) according to wolframalpha
+        // sin(T+t)-sin(T) = sin(t)*cos(T) + cos(t)*sin(T) - sin(T) according to wolframalpha
         //                 = sin(t)*cos(T) + (cos(t)-1)*sin(T)
         //                 = sin(t)*cos(T) - cosf1(t)*sin(T)
         return Math.sin(t)*Math.cos(T) - cosf1(t)*Math.sin(T);
@@ -307,6 +307,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     acos_difference(double X, double x)
     {
         System.err.println("WARNING: acos_difference implemented naively");
+        // Note this is also asin(X)-asin(X+x)
         return Math.acos(X+x) - Math.acos(X);
     }
     /** asin(Y+y)-asin(y), accurate even when y is small. */
@@ -314,6 +315,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     asin_difference(double Y, double y)
     {
         System.err.println("WARNING: asin_difference implemented naively");
+        // Probably equiv to something in terms of acos_difference
         return Math.asin(Y+y) - Math.asin(Y);
     }
     /** acosh(Y+y)-acosh(Y), accurate even when y is small; Y may be infinite. */
