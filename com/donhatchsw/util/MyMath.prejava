@@ -231,8 +231,10 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     tan_difference(double T, double t)
     {
-        System.err.println("WARNING: tan_difference implemented naively");
-        return Math.tan(T+t) - Math.tan(T);
+        // tan(T+t)-tan(T) = sin(T+t)/cos(T+t) - sin(T)/cos(T)
+        //                 = (sin(T+t)cos(T) - sin(T)cos(T+t)) / (cos(T+t)cos(T))
+        //                 = sin(t) / (cos(T) * cos(T+t))  according to wolframalpha
+        return Math.sin(t) / (Math.cos(T) * Math.cos(T+t));
     }
     /** cosh(X+x)-cosh(X), accurate even when x is small; X may be infinite. */
     public static double
@@ -378,8 +380,21 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     atanh_difference(double T, double t)
     {
-        System.err.println("WARNING: atanh_difference implemented naively");
-        return MyMath.atanh(T+t) - MyMath.atanh(T);
+        // The only infinite cases are: atanh(1)==inf, atanh(-1)==-inf
+        // So I think the following gets all the cases involving infinity right
+        // (it makes the confidence test succeed anyway).
+        // TODO: investigate why this is necessary; is log1p screwing up? (both Math and MyMath)
+        if (T==1 || T==-1 || T+t==1 || T+t==-1)
+        {
+            return MyMath.atanh(T+t) - MyMath.atanh(T);
+        }
+
+        // Recall atanh(x) = (log(1+x)-log(1-x))/2 = log((1+x)/(1-x))/2
+        // atanh(T+t) - atanh(T) = log((1+T+t)/(1-T-t))/2 - Math.log((1+T)/(1-T))/2
+        //                       = log( (1+T+t)*(1-T) / ((1-T-t)*(1+T)) ) / 2
+        //                       = log( 1 - 2*t/((1+T)*(t+T-1)) ) / 2
+        //                       = log1p( -2*t/((1+T)*(t+T-1)) ) / 2
+        return Math.log1p( 2*t/((1+T)*(1-(T+t))) ) / 2;
     }
 
 
