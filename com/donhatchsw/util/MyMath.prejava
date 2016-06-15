@@ -285,6 +285,11 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         System.err.println("WARNING: tanh_difference implemented naively");
         double X = Xnumerator / Xdenominator;
         return Math.tanh(X+x) - Math.tanh(X);
+
+        // tanh(X+x)-tanh(X) = sinh(x)*sech(X)*sech(X+x)  according to wolframalpha
+        //                   = sinh(x)/(cosh(X)*cosh(X+x))
+        // XXX not working yet.
+        //return MyMath.sinh(x) / (MyMath.cosh(X) * MyMath.cosh(X+X));
     }
     /** sinc(T+t)-sinc(T), accurate even when t is small. */
     public static double
