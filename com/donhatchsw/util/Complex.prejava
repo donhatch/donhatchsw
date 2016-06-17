@@ -20,9 +20,11 @@ package com.donhatchsw.util;
 */
 public class Complex
 {
-    final public static Complex ZERO    = new Complex(0.,0.);
-    final public static Complex ONE     = new Complex(1.,0.);
-    final public static Complex I       = new Complex(0.,1.);
+    final public static Complex ZERO      = new Complex(0.,0.);
+    final public static Complex ONE       = new Complex(1.,0.);
+    final public static Complex I         = new Complex(0.,1.);
+    final public static Complex MINUS_ONE = new Complex(-1.,0.);
+    final public static Complex MINUS_I   = new Complex(0.,-1.);
 
     /** real part */
     public double x;
