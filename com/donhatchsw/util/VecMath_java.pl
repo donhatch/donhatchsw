@@ -102,8 +102,8 @@ public final class VecMath
     ["uniform (i.e. square, cube, etc.) bounding box of an array of points", "bboxUniform"],
     ["intersect two boxes", "bboxIntersect"],
     ["bounding box of union of two boxes", "bboxUnion"],
-    ["whether bbox (including boundary) contains point, within tolerance eps", "closedBBoxContains"],
-    ["whether bbox (excluding boundary) contains point, within tolerance eps", "bboxInteriorContains"],
+    ["whether bbox (including boundary) contains point, within tolerance", "closedBBoxContains"],
+    ["whether bbox (excluding boundary) contains point, within tolerance", "bboxInteriorContains"],
 
     ["row vector times matrix", "vxm"],
     ["matrix times column vector", "vxm"],

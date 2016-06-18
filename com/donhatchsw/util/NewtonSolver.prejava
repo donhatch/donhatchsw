@@ -30,7 +30,7 @@ public class NewtonSolver
         */
         public void J(double x[], double fx[], double answer[/*dim*/][/*dim*/])
         {
-            double dx = eps();
+            double dx = tol();
             double invdx = 1./dx;
             VecMath.copyvec(dim, xplusdx, x); // into scratch
             FORI (iCol, dim)
@@ -50,7 +50,7 @@ public class NewtonSolver
         // value occurring in the problem is around 1.
         // XXX change to 1e-6?  should list reasons for wanting different values.
         // XXX CatenaryRotated currently (not numerically stabilized yet) doesn't like 1e-4 but likes 1e-6.
-        public double eps()
+        public double tol()
         {
             return 1e-4;
         }

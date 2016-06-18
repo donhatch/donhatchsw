@@ -1806,23 +1806,23 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
     }
 
-    /** whether bbox (including boundary) contains point, within tolerance eps */
+    /** whether bbox (including boundary) contains point, within tolerance */
     public static boolean closedBBoxContains(double bbox[/*2*/][],
                                              double point[],
-                                             double eps)
+                                             double tol)
     {
         FORIDOWN (i, point.length)
-            if (!INRANGE(bbox[0][i] - eps <=, point[i], <= bbox[1][i] + eps))
+            if (!INRANGE(bbox[0][i] - tol <=, point[i], <= bbox[1][i] + tol))
                 return false;
         return true;
     }
-    /** whether bbox (exluding boundary) contains point, within tolerance eps */
+    /** whether bbox (exluding boundary) contains point, within tolerance */
     public static boolean bboxInteriorContains(double bbox[/*2*/][],
                                                double point[],
-                                               double eps)
+                                               double tol)
     {
         FORIDOWN (i, point.length)
-            if (!INRANGE(bbox[0][i] + eps <, point[i], < bbox[1][i] - eps))
+            if (!INRANGE(bbox[0][i] + tol <, point[i], < bbox[1][i] - tol))
                 return false;
         return true;
     }
@@ -2753,8 +2753,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return true;
     } // equalsUsingEqualsSymbol(Object[],Object[])
 
-    /** Fuzzy matrix equality test; works even if eps==0. */
-    public static boolean equals(double M0[][], double M1[][], double eps)
+    /** Fuzzy matrix equality test; works even if tol==0. */
+    public static boolean equals(double M0[][], double M1[][], double tol)
     {
         if (M0 == null && M1 == null)
             return true;
@@ -2762,23 +2762,23 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return false;
         int i, n = M0.length;
         FOR (i, n)
-            if (!equals(M0[i], M1[i], eps))
+            if (!equals(M0[i], M1[i], tol))
                 return false;
         return true;
     } // equals
-    /** Fuzzy vector equality test; works even if eps==0. */
-    public static boolean equals(int n, double v0[], double v1[], double eps)
+    /** Fuzzy vector equality test; works even if tol==0. */
+    public static boolean equals(int n, double v0[], double v1[], double tol)
     {
         FORI (i, n)
         {
             if (v0[i] != v1[i] // avoid function call in common case
-             && Math.abs(v0[i]-v1[i]) > eps)
+             && Math.abs(v0[i]-v1[i]) > tol)
                     return false;
         }
         return true;
     } // equals
-    /** Fuzzy vector equality test; works even if eps==0. */
-    public static boolean equals(double v0[], double v1[], double eps)
+    /** Fuzzy vector equality test; works even if tol==0. */
+    public static boolean equals(double v0[], double v1[], double tol)
     {
         if (v0 == null && v1 == null)
             return true;
@@ -2788,7 +2788,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         FOR (i, n)
         {
             if (v0[i] != v1[i] // avoid function call in common case
-             && Math.abs(v0[i]-v1[i]) > eps)
+             && Math.abs(v0[i]-v1[i]) > tol)
                     return false;
         }
         return true;
@@ -3095,11 +3095,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             vxs(result, v, (double)1/len);
         return len;
     }
-    /** Normalize a vector, returning the previous length. In case previous length was <= eps, zero the vector and return zero. */
-    public static double normalizeOrZero(double result[], double v[], double eps)
+    /** Normalize a vector, returning the previous length. In case previous length was <= tol, zero the vector and return zero. */
+    public static double normalizeOrZero(double result[], double v[], double tol)
     {
         double len = norm(v);
-        if (len <= eps)
+        if (len <= tol)
         {
             zerovec(result);
             len = 0;
@@ -3122,11 +3122,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             vxs(result, v, (float)1/len);
         return len;
     }
-    /** Normalize a vector, returning the previous length. In case previous length was <= eps, zero the vector and return zero. */
-    public static float normalizeOrZero(float result[], float v[], float eps)
+    /** Normalize a vector, returning the previous length. In case previous length was <= tol, zero the vector and return zero. */
+    public static float normalizeOrZero(float result[], float v[], float tol)
     {
         float len = norm(v);
-        if (len <= eps)
+        if (len <= tol)
         {
             zerovec(result);
             len = 0;
@@ -3706,10 +3706,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             normalize(result, v);
             return result; // XXX should return NULL on failure?  Not sure
         }
-        public static double[] normalizeOrZero(double v[], double eps)
+        public static double[] normalizeOrZero(double v[], double tol)
         {
             double result[] = new double[v.length];
-            normalizeOrZero(result, v, eps);
+            normalizeOrZero(result, v, tol);
             return result;
         }
         public static float[] normalize(float v[])
@@ -3718,10 +3718,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             normalize(result, v);
             return result; // XXX should return NULL on failure?  Not sure
         }
-        public static float[] normalizeOrZero(float v[], float eps)
+        public static float[] normalizeOrZero(float v[], float tol)
         {
             float result[] = new float[v.length];
-            normalizeOrZero(result, v, eps);
+            normalizeOrZero(result, v, tol);
             return result;
         }
 

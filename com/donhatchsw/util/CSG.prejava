@@ -4235,12 +4235,12 @@ public final class CSG
                               VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, 2*Math.PI/maxPossibleOrder),
                               usefulMat);
 
-            //double littleEps = 1e-9, bigEps = 1e-8; // gives this: FuzzyException: FuzzyPoint.hashCode: coord -16.34765624446268 is neither equal nor unequal to grid line -16.34765625, using littleEps=1.0E-9, bigEps=1.0E-8, bucketSize=0.001953125
-            //double littleEps = 1e-8, bigEps = 1e-7; // another similar error
-            double littleEps = 1e-10, bigEps = 1e-9;
+            //double littleTol = 1e-9, bigTol = 1e-8; // gives this: FuzzyException: FuzzyPoint.hashCode: coord -16.34765624446268 is neither equal nor unequal to grid line -16.34765625, using littleTol=1.0E-9, bigTol=1.0E-8, bucketSize=0.001953125
+            //double littleTol = 1e-8, bigTol = 1e-7; // another similar error
+            double littleTol = 1e-10, bigTol = 1e-9;
 
-            FuzzyPointHashTable hashTable = new FuzzyPointHashTable(littleEps,
-                                                                    bigEps,
+            FuzzyPointHashTable hashTable = new FuzzyPointHashTable(littleTol,
+                                                                    bigTol,
                                                                     1./512);
             Polytope verts[] = p.getAllElements()[0];
             int nVerts = verts.length;
@@ -4302,7 +4302,7 @@ public final class CSG
         // XXX comment me!!
         public static void calcDensity(SPolytope sp,
                                        double point[],
-                                       double eps,
+                                       double tol,
                                        int result[/*2*/]) // interval arithmetic
         {
             //System.out.println("    in calcDensity (dim="+sp.p.dim+")");
@@ -4352,9 +4352,9 @@ public final class CSG
                     double vDotDir = VecMath.dot(v.p.getCoords(),
                                                  dir);
 
-                    if (GEQ(vDotDir, pointDotDir, eps))
+                    if (GEQ(vDotDir, pointDotDir, tol))
                         a = v.sign;
-                    if (GT(vDotDir, pointDotDir, eps))
+                    if (GT(vDotDir, pointDotDir, tol))
                         b = v.sign;
                     if (a > b)
                     {
@@ -4391,9 +4391,9 @@ public final class CSG
                     double qointDotDir = VecMath.dot(qoint, dir);
 
                     int a = 0, b = 0;
-                    if (GEQ(qointDotDir, pointDotDir, eps))
+                    if (GEQ(qointDotDir, pointDotDir, tol))
                         a = facet.sign;
-                    if (GT(qointDotDir, pointDotDir, eps))
+                    if (GT(qointDotDir, pointDotDir, tol))
                         b = facet.sign;
                     if (a > b)
                     {
@@ -4412,7 +4412,7 @@ public final class CSG
                     }
                     if (a != 0 || b != 0)
                     {
-                        calcDensity(facet, qoint, eps, result); // using result as temporary
+                        calcDensity(facet, qoint, tol, result); // using result as temporary
                         densityMin += a * result[0];
                         densityMax += b * result[1];
                     }
@@ -4938,10 +4938,10 @@ public final class CSG
                 {
                     double coords[] = slicee.p.getCoords();
                     double height = VecMath.dot(coords, hyperplane.normal) - hyperplane.offset;
-                    double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
-                    if (GT(height, 0., eps))
+                    double tol = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                    if (GT(height, 0., tol))
                         above = slicee.p;
-                    else if (LT(height, 0., eps))
+                    else if (LT(height, 0., tol))
                         below = slicee.p;
                     else
                     {
@@ -5139,10 +5139,10 @@ public final class CSG
                                     maxHeight += a;
                                 }
                             }
-                            double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
-                            if (LT(maxHeight, 0., eps))
+                            double tol = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                            if (LT(maxHeight, 0., tol))
                                 allVertsAreKnownToBeBelow = true;
-                            else if (GT(minHeight, 0., eps))
+                            else if (GT(minHeight, 0., tol))
                                 allVertsAreKnownToBeAbove = true;
                         }
 
@@ -5159,14 +5159,14 @@ public final class CSG
                             {
                                 double coords[] = allVerts[iVert].getCoords();
                                 double height = VecMath.dot(coords, hyperplane.normal) - hyperplane.offset;
-                                double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
-                                if (GT(height, 0., eps))
+                                double tol = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                                if (GT(height, 0., tol))
                                 {
                                     allVertsAreBelowSoFar = false;
                                     if (!allVertsAreAboveSoFar)
                                         break;
                                 }
-                                else if (LT(height, 0., eps))
+                                else if (LT(height, 0., tol))
                                 {
                                     allVertsAreAboveSoFar = false;
                                     if (!allVertsAreBelowSoFar)
@@ -5627,9 +5627,9 @@ public final class CSG
                     // XXX in various cases of initialDensity? think about it
                     double unionBBox[][] = VecMath.bboxUnion(A.p.getBBox(),
                                                              B.p.getBBox());
-                    double bigEps = 1e-3; // need not be very exact; the bigger the safer 
+                    double bigTol = 1e-3; // need not be very exact; the bigger the safer 
                     if (coords != null
-                     && !VecMath.closedBBoxContains(unionBBox, coords, bigEps))
+                     && !VecMath.closedBBoxContains(unionBBox, coords, bigTol))
                     {
                         if (verboseLevel >= 2)
                         {
@@ -5646,11 +5646,11 @@ public final class CSG
                 {
                     boolean inA;
                     {
-                        double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                        double tol = 1e-12; // XXX ad-hoc, need to make a coherent scheme
                         int densityMinMax[] = new int[2];
                         calcDensity(A,
                                     coords,
-                                    eps,
+                                    tol,
                                     densityMinMax);
                         int density = densityMinMax[0];
                         if (density != densityMinMax[1])
@@ -5670,11 +5670,11 @@ public final class CSG
                     boolean inB = false; // shut up compiler
                     if (inA) // otherwise inB doesn't matter
                     {
-                        double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                        double tol = 1e-12; // XXX ad-hoc, need to make a coherent scheme
                         int densityMinMax[] = new int[2];
                         calcDensity(B,
                                     coords,
-                                    eps,
+                                    tol,
                                     densityMinMax);
                         int density = densityMinMax[0];
                         if (density != densityMinMax[1])
@@ -6464,7 +6464,7 @@ public final class CSG
             int firstChild[] = VecMath.fillvec(nContours, -1);
             int nextSibling[] = VecMath.fillvec(nContours, -1);
             {
-                double eps = 1e-12; // XXX ad-hoc, need to make a coherent scheme
+                double tol = 1e-12; // XXX ad-hoc, need to make a coherent scheme
                 // scratch for loop...
                     int densityMinMax[] = new int[2];
 
@@ -6486,7 +6486,7 @@ public final class CSG
                         SPolytope nodeSPolytope = contourSPolytopes[iNode];
                         calcDensity(nodeSPolytope,
                                     anyCoordsOnContour,
-                                    eps,
+                                    tol,
                                     densityMinMax);
                         int density = densityMinMax[0];
                         assumpt(density == densityMinMax[1]); // must be unambiguous

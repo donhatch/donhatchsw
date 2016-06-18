@@ -324,7 +324,7 @@ public class Poly
 
     /** vertex type must be double[] */
     public static Poly simplify(Poly p,
-                                double eps)
+                                double tol)
     {
         Triangulator triangulator = new Triangulator();
 
@@ -348,7 +348,7 @@ public class Poly
                         simpleContours = triangulator.simplify(verts,
                                                                contours,
                                                                contours.length,
-                                                               eps);
+                                                               tol);
                     }
                     catch (Throwable e)
                     {
@@ -989,7 +989,7 @@ public class Poly
 
     /** vertex type must be double[] */
     public static Poly triangulate(Poly p,
-                                   double eps,
+                                   double tol,
                                    boolean optimize)
     {
         Triangulator triangulator = new Triangulator();
@@ -1014,7 +1014,7 @@ public class Poly
                         tris = triangulator.triangulate(verts,
                                                         contours,
                                                         contours.length,
-                                                        eps,
+                                                        tol,
                                                         optimize);
                     }
                     catch (Throwable e)

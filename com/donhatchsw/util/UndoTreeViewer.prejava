@@ -676,14 +676,14 @@ public class UndoTreeViewer
                 double originalFraction = undoTreeSquirrel.getCurrentNodeFraction();
                 double targetFraction = originalFraction+amount;
 
-                double eps = 1e-3;
-                if (LT(originalFraction, 1., eps)
-                 && GT(targetFraction, 1., eps))
+                double tol = 1e-3;
+                if (LT(originalFraction, 1., tol)
+                 && GT(targetFraction, 1., tol))
                 {
                     targetFraction = 1.;
                 }
-                else if (EQ(originalFraction, 1., eps)
-                      && GT(targetFraction, 1., eps))
+                else if (EQ(originalFraction, 1., tol)
+                      && GT(targetFraction, 1., tol))
                 {
                     Object redoneItem = undoTreeSquirrel.redo();
                     if (eventVerboseLevel >= 1) System.out.println("redid "+(String)redoneItem);

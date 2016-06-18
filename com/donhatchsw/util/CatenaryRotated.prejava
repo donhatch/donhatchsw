@@ -806,7 +806,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
                 if (verboseLevelFinal >= 2) System.out.println("            out J");
             }
-            OVERRIDE public double eps()
+            OVERRIDE public double tol()
             {
                 // Somewhat dog science:
                 // When using adaptive flag,

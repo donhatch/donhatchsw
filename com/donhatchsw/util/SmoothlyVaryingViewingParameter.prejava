@@ -1895,7 +1895,7 @@ public class SmoothlyVaryingViewingParameter
             SmoothlyVaryingViewingParameter x3 = new SmoothlyVaryingViewingParameter(new double[2]);
             x3.strategy = STRATEGY_TWO_PIECE_QUADRATIC;
             double distanceBasedBounce = 0.; // XXX should write some tests with this varying
-            double eps = 1e-5;
+            double tol = 1e-5;
             double referenceTripDistances[] = {1, .5, 2.};
             double referenceTripTimes[] = {2., 0., .5, 1.};
             double vStartXs[] = {1., -1., -.1, 0., .1,};
@@ -2006,9 +2006,9 @@ public class SmoothlyVaryingViewingParameter
                         PRINTARRAY(p1);
                         PRINTARRAY(v1);
 
-                        if (LT(t, expectedTotalTime, eps))
+                        if (LT(t, expectedTotalTime, tol))
                             assert(x2.isMoving());
-                        else if (GT(t, expectedTotalTime, eps))
+                        else if (GT(t, expectedTotalTime, tol))
                             assert(!x2.isMoving());
                         else
                         {
@@ -2078,7 +2078,7 @@ public class SmoothlyVaryingViewingParameter
             //System.exit(0);
         }
 
-        double eps = 1e-5;
+        double tol = 1e-5;
         if (true)
         {
             double distanceBasedBounce = 0.; // XXX should write some tests with this
@@ -2104,8 +2104,8 @@ public class SmoothlyVaryingViewingParameter
                     System.out.println("     After evolve: "+
                         com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
                                             t, p1, v1));
-                    if (LT(t,1.,eps))
-                        assert(LT(x.get(), 1., eps));
+                    if (LT(t,1.,tol))
+                        assert(LT(x.get(), 1., tol));
                     else
                         assert_eq(x.get(), 1.);
                     System.out.println();
@@ -2145,9 +2145,9 @@ public class SmoothlyVaryingViewingParameter
                 System.out.println("     After evolve: "+
                     com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
                                         t, p1, v1));
-                if (LEQ(t,2.5,eps))
+                if (LEQ(t,2.5,tol))
                     assert(p1 > p0);
-                else if (LEQ(t, 5.,eps))
+                else if (LEQ(t, 5.,tol))
                     assert(p1 < p0);
                 else
                 {
@@ -2205,7 +2205,7 @@ public class SmoothlyVaryingViewingParameter
 
                 x.setTargetPosition(target);
 
-                int overallDir = LT(start,target,eps) ? 1 : GT(start,target,eps) ? -1 : 0;
+                int overallDir = LT(start,target,tol) ? 1 : GT(start,target,tol) ? -1 : 0;
                 double t = 0.;
                 for (int i = 0; i < nIncrs + 5; ++i)
                 {
@@ -2228,11 +2228,11 @@ public class SmoothlyVaryingViewingParameter
                     PRINT(p0);
                     PRINT(p1);
                     if (overallDir > 0)
-                        assert(GEQ(p1,p0,eps));
+                        assert(GEQ(p1,p0,tol));
                     else if (overallDir < 0)
-                        assert(LEQ(p1,p0,eps));
+                        assert(LEQ(p1,p0,tol));
                     else
-                        assert(EQ(p1,p0,eps));
+                        assert(EQ(p1,p0,tol));
 
                     System.out.println();
                 }

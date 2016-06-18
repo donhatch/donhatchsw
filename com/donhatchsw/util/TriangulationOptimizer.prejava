@@ -54,7 +54,7 @@ public class TriangulationOptimizer
                                                     int tris[][],
                                                     int nTris,
                                                     int xAxis, int yAxis,
-                                                    double eps)
+                                                    double tol)
     {
         String indentString = null;
         if (verboseLevel >= 2)
@@ -112,7 +112,7 @@ public class TriangulationOptimizer
         // Repeatedly take the smallest (most uncomfortable) quad
         // and reverse its diagonal, until no more want to be reversed.
         //
-        double eps4 = eps*eps*eps*eps;
+        double tol4 = tol*tol*tol*tol;
         int maxIters = nInternalEdges*nInternalEdges; // XXX what is the right bound?
         maxIters++; // XXX definitely too low for a quad, but that may be due to screwy control flow in this loop... should see if I can improve it
 
@@ -177,7 +177,7 @@ public class TriangulationOptimizer
 
 
             DirectedEdge edge = (DirectedEdge)heap.min();
-            if (GEQ(edge.getVal(), 0., eps))
+            if (GEQ(edge.getVal(), 0., tol))
                 break;
             DirectedEdge oppositeEdge = edge.opposite;
 
