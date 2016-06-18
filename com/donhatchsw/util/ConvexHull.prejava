@@ -121,13 +121,19 @@ public class ConvexHull
                 biggestContentSquared = -1.;
                 FORI (iVert, nVerts)
                 {
+                    if (debugLevel >= 2) System.out.println("            considering vert "+iVert);
+
                     if (Arrays.indexOf(i, firstHullFacet, iVert) != -1)
+                    {
+                        if (debugLevel >= 2) System.out.println("                (already on facet)");
                         continue; // this vertex is already on the facet
+                    }
                     firstHullFacet[i] = iVert; // speculatively
                     double thisContentSquared = calcParallelotopeContentSquared(verts,
                                                                                 firstHullFacet,
                                                                                 i+1);
                     //PRINT(thisContentSquared);
+                    assert(thisContentSquared >= 0.);
                     if (thisContentSquared > biggestContentSquared)
                     {
                         biggestContentSquared = thisContentSquared;
@@ -818,17 +824,16 @@ public class ConvexHull
                                     int points[/*1<= <=d+1*/],
                                     int nPoints)
         {
-            // Could make caller do these memory allocations,
-            // but this isn't really called enough for it to matter
-            double M[][] = new double[nPoints-1][];
-            FORI (iRow, M.length)
-                M[iRow] = VecMath.vmv(verts[points[iRow+1]],
-                                      verts[points[0]]);
-            return VecMath.det(VecMath.mxm(M,
-                                           VecMath.transpose(M)));
-
+            // This was formerly done by taking a matrix times its transpose,
+            // but that wasn't robust (was returning negative numbers).
+            // The VecMath.relativeOrthotopeContent functions are robust.
+            double simpleVerts[][] = new double[nPoints][];
+            FORI (i, nPoints)
+                simpleVerts[i] = verts[points[i]];
+            int dim = simpleVerts[0].length;
+            double sqrtAnswer = VecMath.relativeOrthotopeContent(nPoints, dim, simpleVerts, false);
+            return sqrtAnswer*sqrtAnswer;
         } // calcParallelotopeContentSquared
-
 
         private static double[] calcUnitNormal(
                                     double verts[/*d*/][/*d*/],
@@ -1334,20 +1339,9 @@ public class ConvexHull
             // Note that coords are huge, so not sure how much we care.
             testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-0.710306904419669},{1.0,1.0,-0.5235452788122057},{-0.01562500000000001,-1.0,-0.22752077864939793}}); // succeeds
             testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-0.710306904419669},{1.0,1.0,-0.5235452788122057},{-0.01562500000000001,-1.0,-0.22752077864939793}}); // succeeds
+            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-1.023660131220196E16},{1.0,1.0,-7.545082632224744E15},{-0.015625000000000024,-1.0,-3.278919980622317E15}}); // assert-failed "bestVert!=-1" when was using non-robust calcParallelotopeContentSquared
             testTheseVerts(3, new double[][] {{-1.0,1.0,-8.011042245140311E15},{-0.553030303030303,-1.0,-2.335983685036597E15},{1.0,0.811023622047244,-1.3737616349472596E16}}); // returns null (fixed I guess)
         }
-        if (false)
-        {
-            // Some problematic cases that are still problematic...
-            // Note that coords are huge, so not sure how much we care.
-            testTheseVerts(3, new double[][] {
-                {-1.0,0.6049382716049382,-1.023660131220196E16},
-                {1.0,1.0,-7.545082632224744E15},
-                {-0.015625000000000024,-1.0,-3.278919980622317E15}}); // assert fails as of this writing: bestVert != -1
-        }
-
-
-
 
 
         if (true)
