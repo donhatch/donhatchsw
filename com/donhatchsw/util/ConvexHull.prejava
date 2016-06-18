@@ -1075,11 +1075,15 @@ public class ConvexHull
         long t0 = System.currentTimeMillis();
 
         // argh! 1e-12 made it fail in real life with brute force method (test case below), 1e-9 made it fail randomized confidence test, 1e-10 and coarser made it fail in real life using either method (test case below).
-        // update now that I'm using more robust method:
-        //      Everything succeeds down to 1e-30.
-        //      Something fails in 5d coplanar, with 1e-40 and smaller.
-        double hullEPS = 1e-11;
-        //double EPS = 0.;
+        // update now that I'm revisiting:
+        //   there's an explicit 5d test case that succeeds with 1e-39 and fails with 1e-40 (got it from 5d coplanar)
+        // but some other coplanar stress tests are failing even with comparatively low eps.
+        // Also EPS<=1e-9 seems to make sanity check fail in lots of places even with larts sanityCheckEPS.
+        // Blech.
+
+        //double hullEPS = 1e-40;
+        //double hullEPS = 1e-39;
+        double hullEPS = 1e-39;
         double sanityCheckEPS = 1e-9;
 
         int answer[][][] = convexHull(verts, hullEPS);
@@ -1096,7 +1100,18 @@ public class ConvexHull
         PRINTARRAY(adjs);
         PRINTARRAY(back);
         // TODO: pass in adjs and back indices, and sanity check them
-        sanityCheckConvexHull(d, verts, hull, sanityCheckEPS);
+        try
+        {
+            sanityCheckConvexHull(d, verts, hull, sanityCheckEPS);
+        }
+        //catch (AssertionError e)
+        //catch (Exception e)
+        catch (Error e)
+        {
+            System.out.println("Oh no!!!!!!!!!!!!!! Assertion happening in sanity check; here's the verts");
+            PRINTARRAY(verts);
+            throw e;
+        }
         System.out.println("======================");
         return hull; // caller usually ignores
     } // testTheseVerts
@@ -1130,10 +1145,49 @@ public class ConvexHull
         }
         if (false)
         {
+            // Hmm, as of this writing, this one fails with eps=1e-40, passes with eps=1e-39:
+            // assert okSoFar.
+            // Check fail is in sanityCheck but doesn't seem to depend on sanityCheckEPS,
+            // so is actually a topological consistency violation.
+            // This is from the first set of coplanar stress tests in 5d below (sometimes commented out).
             debugLevel = 3;
-            testTheseVerts(5, new double[][] {{1.0,0.0,0.0,0.0,0.0},{1.0,1.0,1.0,1.0,1.0},{0.0625,0.125,0.25,0.5,1.0},{0.012345679012345678,0.03703703703703703,0.1111111111111111,0.3333333333333333,1.0},{0.0039062499999999996,0.015624999999999998,0.06249999999999999,0.24999999999999997,0.9999999999999999},{0.0015999999999999999,0.007999999999999998,0.039999999999999994,0.2,1.0},{7.716049382716049E-4,0.004629629629629629,0.027777777777777776,0.16666666666666666,1.0},{4.1649312786339027E-4,0.0029154518950437317,0.02040816326530612,0.14285714285714285,1.0},{2.4414062499999997E-4,0.0019531249999999998,0.015624999999999998,0.12499999999999999,0.9999999999999999},{1.5241579027587258E-4,0.0013717421124828533,0.01234567901234568,0.11111111111111112,1.0},{1.0E-4,0.0010000000000000002,0.01,0.10000000000000002,1.0},{6.830134553650708E-5,7.513148009015778E-4,0.008264462809917357,0.09090909090909091,1.0}});
-            System.exit(33);
+            testTheseVerts(5, new double[][] {
+              {1.0,0.0,0.0,0.0,0.0},
+              {1.0,1.0,1.0,1.0,1.0},
+              {0.0625,0.125,0.25,0.5,1.0},
+              {0.012345679012345678,0.03703703703703703,0.1111111111111111,0.3333333333333333,1.0},
+              {0.0039062499999999996,0.015624999999999998,0.06249999999999999,0.24999999999999997,0.9999999999999999},
+              {0.0015999999999999999,0.007999999999999998,0.039999999999999994,0.2,1.0},
+              {7.716049382716049E-4,0.004629629629629629,0.027777777777777776,0.16666666666666666,1.0},
+              {4.1649312786339027E-4,0.0029154518950437317,0.02040816326530612,0.14285714285714285,1.0},
+              {2.4414062499999997E-4,0.0019531249999999998,0.015624999999999998,0.12499999999999999,0.9999999999999999},
+              {1.5241579027587258E-4,0.0013717421124828533,0.01234567901234568,0.11111111111111112,1.0},
+              {1.0E-4,0.0010000000000000002,0.01,0.10000000000000002,1.0},
+              {6.830134553650708E-5,7.513148009015778E-4,0.008264462809917357,0.09090909090909091,1.0},
+            });
         }
+        if (false)
+        {
+            // Similar, from 2nd set of coplanar stress tests in 5d.
+            // This one passes with 1e-38, fails with 1e-39.
+            debugLevel = 3;
+            testTheseVerts(5, new double[][] {
+                {1.0,0.0,0.0,0.0,0.0},
+                {0.8944271909999157,0.8944271909999157,0.8944271909999157,0.8944271909999157,0.8944271909999157},
+                {0.10830607221477648,0.21661214442955296,0.4332242888591059,0.8664485777182118,1.0},
+                {0.023279432715071997,0.069838298145216,0.20951489443564797,0.6285446833069439,1.0},
+                {0.007564424205060763,0.03025769682024305,0.1210307872809722,0.4841231491238888,1.0},
+                {0.00313534703129224,0.0156767351564612,0.07838367578230601,0.39191837891153003,1.0},
+                {0.001521625471198608,0.00912975282719165,0.05477851696314989,0.3286711017788994,1.0},
+                {8.244425825595157E-4,0.00577109807791661,0.04039768654541627,0.2827838058179139,1.0},
+                {4.844515342339992E-4,0.0038756122738719937,0.03100489819097595,0.2480391855278076,1.0},
+                {3.029440604000662E-4,0.002726496543600596,0.024538468892405362,0.22084622003164825,1.0},
+                {1.9899748743127386E-4,0.0019899748743127384,0.019899748743127388,0.19899748743127385,1.0},
+            });
+        }
+
+
+
         if (true)
         {
             // Do a regular polygon in 2d.
@@ -1201,6 +1255,7 @@ public class ConvexHull
         {
             // This one is currently failing the test with eps=1e-10:
             // there's a ridge that occurs 4 times.
+            // (fixed apparently)
             //debugLevel = 3;
             testTheseVerts(3, new double[][] {
                 {.2,-1.,.6},
@@ -1219,6 +1274,7 @@ public class ConvexHull
         {
             // This one is currently failing the test with eps=1e-9 and eps=1e-10:
             // there's a ridge that occurs 4 times.
+            // (fixed apparently)
             //debugLevel = 3;
             testTheseVerts(3, new double[][] {
                 {0.19999999999752163,-1.0,-0.0608695652201183},
@@ -1272,15 +1328,22 @@ public class ConvexHull
             testTheseVerts(3, new double[][] {{1,-1,0},{-1,-1,0},{-1,1,0},{.5,.5,0}}); // four coplanar was problematic
             testTheseVerts(3, new double[][] {{1,-1,0},{-1,-1,0},{-1,1,0},{1,1,.1}});
         }
+        if (true)
+        {
+            // Some problematic cases that are no longer...
+            // Note that coords are huge, so not sure how much we care.
+            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-0.710306904419669},{1.0,1.0,-0.5235452788122057},{-0.01562500000000001,-1.0,-0.22752077864939793}}); // succeeds
+            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-0.710306904419669},{1.0,1.0,-0.5235452788122057},{-0.01562500000000001,-1.0,-0.22752077864939793}}); // succeeds
+            testTheseVerts(3, new double[][] {{-1.0,1.0,-8.011042245140311E15},{-0.553030303030303,-1.0,-2.335983685036597E15},{1.0,0.811023622047244,-1.3737616349472596E16}}); // returns null (fixed I guess)
+        }
         if (false)
         {
-            // Some problematic cases...
-            // XXX the coords are huge... do we care about these or not??
-            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-0.710306904419669},{1.0,1.0,-0.5235452788122057},{-0.01562500000000001,-1.0,-0.22752077864939793}}); // succeeds
-            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-0.710306904419669},{1.0,1.0,-0.5235452788122057},{-0.01562500000000001,-1.0,-0.22752077864939793}}); // succeeds
-            testTheseVerts(3, new double[][] {{-1.0,0.6049382716049382,-1.023660131220196E16},{1.0,1.0,-7.545082632224744E15},{-0.015625000000000024,-1.0,-3.278919980622317E15}}); // assert fails
-            testTheseVerts(3, new double[][] {{-1.0,1.0,-8.011042245140311E15},{-0.553030303030303,-1.0,-2.335983685036597E15},{1.0,0.811023622047244,-1.3737616349472596E16}}); // returns null
-
+            // Some problematic cases that are still problematic...
+            // Note that coords are huge, so not sure how much we care.
+            testTheseVerts(3, new double[][] {
+                {-1.0,0.6049382716049382,-1.023660131220196E16},
+                {1.0,1.0,-7.545082632224744E15},
+                {-0.015625000000000024,-1.0,-3.278919980622317E15}}); // assert fails as of this writing: bestVert != -1
         }
 
 
@@ -1335,6 +1398,7 @@ public class ConvexHull
                                     VecMath.vxs(verts[iVert], verts[iVert], 1./Math.abs(verts[iVert][VecMath.maxabsi(verts[iVert])]));
                                 testTheseVerts(d, verts);
 
+                                if (true)
                                 {
                                     // rotate randomly,
                                     // and do it again
@@ -1358,13 +1422,16 @@ public class ConvexHull
 
                         if (false)
                         {
-                            // another stress test with lots of co(hyper)linear verts:
+                            // another stress test with even more co(hyper)linear verts:
                             // scale by 2, clamp back to cube, and do it again
+                            // (using same verts from previous, not that it matters since this
+                            // clamps them down more)
                             FORI (iVert, nVerts)
                                 FORI (i, d)
                                     verts[iVert][i] = CLAMP(2*verts[iVert][i], -1., 1.);
                             testTheseVerts(d, verts);
 
+                            if (true)
                             {
                                 // rotate randomly,
                                 // and do it again
