@@ -42,13 +42,13 @@ public class ConvexHull
     * WARNING: no attempt is made to correct topological faults
     */
     public static int[/*3*/][][/*d*/] convexHull(double verts[][/*d*/],
-                                                 double eps)
+                                                 double tol)
     {
         if (debugLevel >= 1)
         {
             System.out.println("    in convexHull");
             PRINTVEC(verts);
-            PRINT(eps);
+            PRINT(tol);
         }
         int nVerts = verts.length;
         if (nVerts == 0)
@@ -148,9 +148,9 @@ public class ConvexHull
         }
         if (debugLevel >= 2) PRINTARRAY(firstHullFacet);
         double firstFacetUnsignedArea = Math.sqrt(biggestContentSquared);
-        if (firstFacetUnsignedArea <= Math.pow(eps, d-1))
+        if (firstFacetUnsignedArea <= Math.pow(tol, d-1))
         {
-            if (debugLevel >= 1) System.out.println("    out convexHull (firstFacetUnsignedArea = "+firstFacetUnsignedArea+" <= eps ^ d-1, returning empty)");
+            if (debugLevel >= 1) System.out.println("    out convexHull (firstFacetUnsignedArea = "+firstFacetUnsignedArea+" <= tol ^ d-1, returning empty)");
             return new int[3][0][d]; // XXX throw?
         }
         double firstFacetUnitNormal[] = calcUnitNormal(verts, firstHullFacet);
@@ -217,7 +217,7 @@ public class ConvexHull
 
             if (symbolicPerturbation != null)
             {
-                if (!EQ(height, 0., eps))
+                if (!EQ(height, 0., tol))
                 {
                     if (debugLevel >= 3)
                         System.out.println("                                vert is out of initial plane, killing symbolicPerturbation");
@@ -232,7 +232,7 @@ public class ConvexHull
                     }
 
                     perturbedHeight = VecMath.dot(d, firstFacetUnitNormal, symbolicPerturbation);
-                    assert(!EQ(perturbedHeight, 0., eps));
+                    assert(!EQ(perturbedHeight, 0., tol));
                 }
             }
 
@@ -249,7 +249,7 @@ public class ConvexHull
                 hoveringVertToFacet[iVert] = secondHullFacetStruct;
                 if (debugLevel >= 3) System.out.println("                vertex "+iVert+" is hovering at height "+height+" over secondHullFacet "+Arrays.toStringCompact(secondHullFacet));
             }
-            assert(GEQ(height, 0., eps));
+            assert(GEQ(height, 0., tol));
             if (debugLevel >= 3) System.out.println("                adding vert "+iVert+" to heap at priority "+(-height));
             queue.add(iVert, -height); // reverse sense so we can extract max height item as min item
         }
@@ -322,7 +322,7 @@ public class ConvexHull
                             double perturbedHeight = height;
                             if (symbolicPerturbation != null)
                             {
-                                if (!EQ(height, 0., eps))
+                                if (!EQ(height, 0., tol))
                                 {
                                     if (debugLevel >= 3)
                                         System.out.println("                                vert is out of initial plane, killing symbolicPerturbation");
@@ -337,12 +337,12 @@ public class ConvexHull
                                     }
 
                                     perturbedHeight = VecMath.dot(d, neighbor.unitNormal, symbolicPerturbation);
-                                    assert(!EQ(perturbedHeight, 0., eps));
+                                    assert(!EQ(perturbedHeight, 0., tol));
                                 }
                             }
                             if (debugLevel >= 3)
                                 System.out.println("                                (height="+height+")");
-                            neighbor.isVisible = (GEQ(perturbedHeight, 0., eps) ? 1 : 0); // whether neighbor is visible or borderline visible from vertex
+                            neighbor.isVisible = (GEQ(perturbedHeight, 0., tol) ? 1 : 0); // whether neighbor is visible or borderline visible from vertex
                             facetSearchList.add(neighbor);
 
                             if (neighbor.isVisible == 1)
@@ -628,7 +628,7 @@ public class ConvexHull
                         double perturbedHeight = height;
                         if (symbolicPerturbation != null)
                         {
-                            if (!EQ(height, 0., eps))
+                            if (!EQ(height, 0., tol))
                             {
                                 if (debugLevel >= 3)
                                     System.out.println("                        vert is out of initial plane, killing symbolicPerturbation");
@@ -640,12 +640,12 @@ public class ConvexHull
                                     System.out.println("                        symbolically perturbing new vert out of initial plane");
 
                                 perturbedHeight = VecMath.dot(d, symbolicPerturbation, facetUnitNormal);
-                                assert(!EQ(perturbedHeight, 0., eps));
+                                assert(!EQ(perturbedHeight, 0., tol));
                             }
                         }
 
                         if (height > highestHeight
-                         && perturbedHeight >= -eps)
+                         && perturbedHeight >= -tol)
                         {
                             highestHeight = height;
                             theNewFacetIndex = iNewFacet;
@@ -662,7 +662,7 @@ public class ConvexHull
                     }
                     else
                     {
-                        // Nothing was >= -eps.
+                        // Nothing was >= -tol.
                         // So jVert is inside the hull, so it should
                         // be ignored.
                         if (debugLevel >= 3)
@@ -913,7 +913,7 @@ public class ConvexHull
         }
 
 
-    public static void sanityCheckConvexHull(int d, double verts[][], int hull[][], double eps)
+    public static void sanityCheckConvexHull(int d, double verts[][], int hull[][], double tol)
     {
         if (verts.length < d)
         {
@@ -1034,7 +1034,7 @@ public class ConvexHull
                         facetNormal[0] = facetVerts[0][0] - vertsCenter[0];
                     VecMath.normalize(facetNormal, facetNormal);
                     // XXX need to deal with degeneracy here maybe
-                    assert(EQ(VecMath.normsqrd(facetNormal), 1., 2*eps));
+                    assert(EQ(VecMath.normsqrd(facetNormal), 1., 2*tol));
                     VecMath.average(facetCenter, facetVerts);
 
 
@@ -1045,14 +1045,14 @@ public class ConvexHull
                         VecMath.vmv(facetCenterToVert,
                                     vert, facetCenter);
                         double foo = VecMath.dot(facetNormal, facetCenterToVert);
-                        int thisSign = (LT(foo,0,eps) ? -1 : GT(foo,0,eps) ? 1 : 0);
+                        int thisSign = (LT(foo,0,tol) ? -1 : GT(foo,0,tol) ? 1 : 0);
                         if (sign == 0)
                             sign = thisSign; // might still be 0
                         if (! (sign * thisSign >= 0))
                         {
-                            PRINT(LT(foo,0,eps));
-                            PRINT(GT(foo,0,eps));
-                            PRINT(eps);
+                            PRINT(LT(foo,0,tol));
+                            PRINT(GT(foo,0,tol));
+                            PRINT(tol);
                             PRINT(foo);
                             PRINT(thisSign);
                             PRINT(sign);
@@ -1082,16 +1082,16 @@ public class ConvexHull
         // argh! 1e-12 made it fail in real life with brute force method (test case below), 1e-9 made it fail randomized confidence test, 1e-10 and coarser made it fail in real life using either method (test case below).
         // update now that I'm revisiting:
         //   there's an explicit 5d test case that succeeds with 1e-39 and fails with 1e-40 (got it from 5d coplanar)
-        // but some other coplanar stress tests are failing even with comparatively low eps.
-        // Also EPS<=1e-9 seems to make sanity check fail in lots of places even with larts sanityCheckEPS.
+        // but some other coplanar stress tests are failing even with comparatively low tol.
+        // Also tol<=1e-9 seems to make sanity check fail in lots of places even with larts sanityCheckTol.
         // Blech.
 
-        //double hullEPS = 1e-40;
-        //double hullEPS = 1e-39;
-        double hullEPS = 1e-39;
-        double sanityCheckEPS = 1e-9;
+        //double hullTol = 1e-40;
+        //double hullTol = 1e-39;
+        double hullTol = 1e-39;
+        double sanityCheckTol = 1e-9;
 
-        int answer[][][] = convexHull(verts, hullEPS);
+        int answer[][][] = convexHull(verts, hullTol);
         long t1 = System.currentTimeMillis();
         assert(answer != null);
         assert_eq(answer.length, 3);
@@ -1107,7 +1107,7 @@ public class ConvexHull
         // TODO: pass in adjs and back indices, and sanity check them
         try
         {
-            sanityCheckConvexHull(d, verts, hull, sanityCheckEPS);
+            sanityCheckConvexHull(d, verts, hull, sanityCheckTol);
         }
         //catch (AssertionError e)
         //catch (Exception e)
@@ -1150,9 +1150,9 @@ public class ConvexHull
         }
         if (false)
         {
-            // Hmm, as of this writing, this one fails with eps=1e-40, passes with eps=1e-39:
+            // Hmm, as of this writing, this one fails with tol=1e-40, passes with tol=1e-39:
             // assert okSoFar.
-            // Check fail is in sanityCheck but doesn't seem to depend on sanityCheckEPS,
+            // Check fail is in sanityCheck but doesn't seem to depend on sanityCheckTol,
             // so is actually a topological consistency violation.
             // This is from the first set of coplanar stress tests in 5d below (sometimes commented out).
             debugLevel = 3;
@@ -1258,7 +1258,7 @@ public class ConvexHull
         }
         if (true)
         {
-            // This one is currently failing the test with eps=1e-10:
+            // This one is currently failing the test with tol=1e-10:
             // there's a ridge that occurs 4 times.
             // (fixed apparently)
             //debugLevel = 3;
@@ -1277,7 +1277,7 @@ public class ConvexHull
         }
         if (true)
         {
-            // This one is currently failing the test with eps=1e-9 and eps=1e-10:
+            // This one is currently failing the test with tol=1e-9 and tol=1e-10:
             // there's a ridge that occurs 4 times.
             // (fixed apparently)
             //debugLevel = 3;
@@ -1307,9 +1307,9 @@ public class ConvexHull
 
         if (true)
         {
-            // these failed with eps=1e-12.
-            // that's not entirely surprising, since they are flirting with eps.
-            // changed test eps to 1e-9 as a result.
+            // these failed with tol=1e-12.
+            // that's not entirely surprising, since they are flirting with tol.
+            // changed test tol to 1e-9 as a result.
             testTheseVerts(3, new double[][] {
                 {1, .5, 1},
                 {-0.9999999999988493, 1, -1},
