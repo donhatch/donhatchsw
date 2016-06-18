@@ -2148,18 +2148,18 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** compute the k-dimensional content of k vectors in n dimensions. */
-    public static double orthotopeContent(int k, int n, double vecs[][])
+    public static double orthotopeContent(int k, int n, double vecs[][], boolean destructive)
     {
-        return detUsingLQ(k, n, vecs, false);
+        return detUsingLQ(k, n, vecs, destructive);
     } // orthotopeContent
 
     /** compute the k-dimensional content of k vectors in n dimensions. */
-    public static double orthotopeContent(double vecs[][])
+    public static double orthotopeContent(double vecs[][], boolean destructive)
     {
-        return detUsingLQ(vecs.length, ROWLENGTH(vecs), vecs, false);
+        return detUsingLQ(vecs.length, ROWLENGTH(vecs), vecs, destructive);
     } // orthotopeContent
 
-    /** compute the k-dimensional content of k vectors in n dimensions. */
+    /** compute the k-dimensional content of k points in n dimensions. */
     public static double relativeOrthotopeContent(int nPoints, int dim, double points[][], boolean destructive)
     {
         assert(nPoints >= 1);
