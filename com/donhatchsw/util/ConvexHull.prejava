@@ -93,17 +93,13 @@ public class ConvexHull
 
         if (nVerts < d)
         {
-            if (debugLevel >= 1)
-                System.out.println("    out convexHull (nVerts<d, returning new int[2][0][d])");
+            if (debugLevel >= 1) System.out.println("    out convexHull (nVerts<d, returning new int[2][0][d])");
             return new int[3][0][d]; // not enough vertices to make a facet out of
         }
 
         assert(nVerts >= d && d >= 2);
 
-        if (debugLevel >= 2)
-        {
-            System.out.println("        choosing a non-degenerate (d-1)-dimensional simplex");
-        }
+        if (debugLevel >= 2) System.out.println("        choosing a non-degenerate (d-1)-dimensional simplex");
 
         // Start with any non-degenerate (d-1)-dimensional simplex
         // (if there is any).
@@ -144,11 +140,11 @@ public class ConvexHull
             if (debugLevel >= 3)
                 System.out.println("            "+firstHullFacet[i]);
         }
+        if (debugLevel >= 2) PRINTARRAY(firstHullFacet);
         double firstFacetUnsignedArea = Math.sqrt(biggestContentSquared);
         if (firstFacetUnsignedArea <= Math.pow(eps, d-1))
         {
-            if (debugLevel >= 1)
-                System.out.println("    out convexHull (firstFacetUnsignedArea = "+firstFacetUnsignedArea+" <= eps ^ d-1, returning empty)");
+            if (debugLevel >= 1) System.out.println("    out convexHull (firstFacetUnsignedArea = "+firstFacetUnsignedArea+" <= eps ^ d-1, returning empty)");
             return new int[3][0][d]; // XXX throw?
         }
         double firstFacetUnitNormal[] = calcUnitNormal(verts, firstHullFacet);
@@ -166,10 +162,7 @@ public class ConvexHull
         // of what's been seen so far.
         double symbolicPerturbation[] = firstFacetUnitNormal;
 
-        if (debugLevel >= 2)
-        {
-            System.out.println("        initializing queue");
-        }
+        if (debugLevel >= 2) System.out.println("        initializing queue");
 
         IndexBinaryHeap queue = new IndexBinaryHeap(nVerts);
 
@@ -204,8 +197,13 @@ public class ConvexHull
         double scratchVec[] = new double[d];
         FORI (iVert, nVerts)
         {
+            if (debugLevel >= 3) System.out.println("            considering vert "+iVert+"/"+nVerts+" for possible addition to queue");
+            // QUADRATIC ALERT if first facet has a lot of verts. Use alternate data structure?
             if (Arrays.indexOf(firstHullFacet, iVert) != -1)
+            {
+                if (debugLevel >= 3) System.out.println("                (already part of first facet of hull)");
                 continue; // this vertex is already part of the hull
+            }
 
             VecMath.vmv(scratchVec, verts[iVert], verts[firstHullFacet[0]]);
             double height = VecMath.dot(firstFacetUnitNormal, scratchVec);
@@ -223,7 +221,7 @@ public class ConvexHull
                 {
                     if (debugLevel >= 3)
                     {
-                        System.out.println("            symbolically perturbing new vert out of initial plane!");
+                        System.out.println("                symbolically perturbing new vert out of initial plane!");
                         PRINTARRAY(symbolicPerturbation);
                     }
 
@@ -236,18 +234,17 @@ public class ConvexHull
             {
                 firstHullFacetStruct.hoveringVerts.add(iVert);
                 hoveringVertToFacet[iVert] = firstHullFacetStruct;
-                if (debugLevel >= 3)
-                    System.out.println("            vertex "+iVert+" is hovering at height "+height+" over facet "+Arrays.toStringCompact(firstHullFacet));
+                if (debugLevel >= 3) System.out.println("                vertex "+iVert+" is hovering at height "+height+" over firstHullFacet "+Arrays.toStringCompact(firstHullFacet));
             }
             else
             {
                 height = -height;
                 secondHullFacetStruct.hoveringVerts.add(iVert);
                 hoveringVertToFacet[iVert] = secondHullFacetStruct;
-                if (debugLevel >= 3)
-                    System.out.println("            vertex "+iVert+" is hovering at height "+height+" over facet "+Arrays.toStringCompact(secondHullFacet));
+                if (debugLevel >= 3) System.out.println("                vertex "+iVert+" is hovering at height "+height+" over secondHullFacet "+Arrays.toStringCompact(secondHullFacet));
             }
             assert(GEQ(height, 0., eps));
+            if (debugLevel >= 3) System.out.println("                adding vert "+iVert+" to heap at priority "+(-height));
             queue.add(iVert, -height); // reverse sense so we can extract max height item as min item
         }
 
@@ -1021,6 +1018,7 @@ public class ConvexHull
                 {
                     FORI (i, d)
                         facetVerts[i] = verts[hull[iFacet][i]];
+                    //System.out.println("        making sure facet plane of facet "+iFacet+": "+Arrays.toStringCompact(hull[iFacet])+": "+Arrays.toStringCompact(facetVerts)+" bounds");
                     FORI (i, d-1)
                         VecMath.vmv(facetPlaneVecs[i], facetVerts[i+1], facetVerts[0]);
                     VecMath.crossprod(facetNormal, facetPlaneVecs);
@@ -1037,6 +1035,7 @@ public class ConvexHull
 
                     FORI (iVert, verts.length)
                     {
+                        //System.out.println("            comparing against vert "+iVert+": "+Arrays.toStringCompact(verts[iVert]));
                         double vert[] = verts[iVert];
                         VecMath.vmv(facetCenterToVert,
                                     vert, facetCenter);
@@ -1046,6 +1045,9 @@ public class ConvexHull
                             sign = thisSign; // might still be 0
                         if (! (sign * thisSign >= 0))
                         {
+                            PRINT(LT(foo,0,eps));
+                            PRINT(GT(foo,0,eps));
+                            PRINT(eps);
                             PRINT(foo);
                             PRINT(thisSign);
                             PRINT(sign);
@@ -1076,9 +1078,11 @@ public class ConvexHull
         // update now that I'm using more robust method:
         //      Everything succeeds down to 1e-30.
         //      Something fails in 5d coplanar, with 1e-40 and smaller.
-        double EPS = 1e-11;
+        double hullEPS = 1e-11;
+        //double EPS = 0.;
+        double sanityCheckEPS = 1e-9;
 
-        int answer[][][] = convexHull(verts, EPS);
+        int answer[][][] = convexHull(verts, hullEPS);
         long t1 = System.currentTimeMillis();
         assert(answer != null);
         assert_eq(answer.length, 3);
@@ -1092,7 +1096,7 @@ public class ConvexHull
         PRINTARRAY(adjs);
         PRINTARRAY(back);
         // TODO: pass in adjs and back indices, and sanity check them
-        sanityCheckConvexHull(d, verts, hull, 1e-9);
+        sanityCheckConvexHull(d, verts, hull, sanityCheckEPS);
         System.out.println("======================");
         return hull; // caller usually ignores
     } // testTheseVerts
@@ -1106,7 +1110,7 @@ public class ConvexHull
         if (true)
         {
             // this was failing at one time.
-            // it was a problem with perturbed heights persisting and being compared wrongly with actual heights
+            // it was a problem with perturbed heights persisting and being compared wrongly with actual heights.
             //debugLevel = 3;
             testTheseVerts(2, new double[][] {
                 {1.0,-1.0},
