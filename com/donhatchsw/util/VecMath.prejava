@@ -3541,6 +3541,22 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         result += ">";
         return result;
     }
+
+    public static String toString(long v[])
+    {
+        if (v == null)
+            return "(null)";
+        int i, n = v.length;
+        String result = "<";
+        FOR (i, n)
+        {
+            result += v[i];
+            if (i < n-1)
+                result += ",";
+        }
+        result += ">";
+        return result;
+    }
     public static String toString(double v[])
     {
         if (v == null)
@@ -3579,7 +3595,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         String result = "<";
         FOR (i, n)
         {
-            result += v[i];
+            result += v[i].toString();
             if (i < n-1)
                 result += ",";
         }
@@ -3598,6 +3614,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     public static String toString(int m[][])
+    {
+        return Arrays.toStringNonCompact(m, "", "    ");
+    }
+    public static String toString(long m[][])
+    {
+        return Arrays.toStringNonCompact(m, "", "    ");
+    }
+    public static String toString(Object m[][])
     {
         return Arrays.toStringNonCompact(m, "", "    ");
     }
