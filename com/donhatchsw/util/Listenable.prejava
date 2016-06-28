@@ -33,7 +33,8 @@ public abstract class Listenable
         public void valueChanged();
     }
 
-    public void addListener(Listener listener)
+    /** Returns listener, for chaining of a kind, in case listener needs to be added to a list of strong refs or something */
+    public Listener addListener(Listener listener)
     {
         synchronized(listeners)
         {
@@ -45,6 +46,7 @@ public abstract class Listenable
             else
                 listeners.add(listener);
         }
+        return listener;
     }
     public void removeListener(Listener listener)
     {
