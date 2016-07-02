@@ -100,14 +100,14 @@ public class ExampleApplet
             //        though this can lead to various unpredictabilities.
             //        The isFocusTraversable() fix is better in any case.
             //
-            public boolean isFocusTraversable()
+            OVERRIDE public boolean isFocusTraversable()
             {
                 return true;
             }
 
 //int foo = 0; // XXX
             // override to not clear...
-            public void update(java.awt.Graphics g)
+            OVERRIDE public void update(java.awt.Graphics g)
             {
 //ExampleApplet.this.setBounds(5 + (foo++%5),28,100,100); // XXX total hack... and THIS is where the bogus clear is.  how can I do it without the clear?
                 if (eventVerbose >= 4) System.out.println("in update");
@@ -115,19 +115,19 @@ public class ExampleApplet
                 if (eventVerbose >= 4) System.out.println("out update");
             }
             // XXX get rid of the following when through fucking around
-            public void setBounds(int a, int b, int c, int d)
+            OVERRIDE public void setBounds(int a, int b, int c, int d)
             {
                 PRINT4(a, b, c, d);
                 super.setBounds(a, b, c, d);
             }
-            public void reshape(int a, int b, int c, int d)
+            OVERRIDE public void reshape(int a, int b, int c, int d)
             {
                 PRINT4(a, b, c, d);
                 super.reshape(a, b, c, d);
             }
             // PAINT
             java.awt.Dimension requestedSize = null;
-            public void paint(java.awt.Graphics frontBufferGraphics)
+            OVERRIDE public void paint(java.awt.Graphics frontBufferGraphics)
             {
                 if (eventVerbose >= 4) System.out.println("    in paint");
                 java.awt.Dimension size = getSize();
@@ -294,7 +294,7 @@ public class ExampleApplet
     // Propagate repaints down to child.
     // This is silly, should just be the child, get rid of the extra level of heirarchy...
     // maybe.
-    public void repaint()
+    OVERRIDE public void repaint()
     {
         getComponent(0).repaint();
         super.repaint();
@@ -557,7 +557,7 @@ public class ExampleApplet
 
         //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
         final java.awt.Frame frame = new java.awt.Frame("Example Applet") {
-            public boolean handleEvent(java.awt.Event event)
+            OVERRIDE public boolean handleEvent(java.awt.Event event)
             {
                 switch(event.id)
                 {
@@ -588,11 +588,13 @@ public class ExampleApplet
         // XXX not sure how far back this exists, may need to use reflection to get it
         {
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we) {
+                OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
+                {
                     System.out.println("ciao!");
                     frame.dispose(); // hide() doesn't delete the windows
                 }
-                public void windowClosed(java.awt.event.WindowEvent we) {
+                OVERRIDE public void windowClosed(java.awt.event.WindowEvent we)
+                {
                     System.exit(0);
                 }
             });

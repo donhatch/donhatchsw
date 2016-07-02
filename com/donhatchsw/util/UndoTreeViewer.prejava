@@ -1165,7 +1165,7 @@ public class UndoTreeViewer
         nViewersAlive[0]++;
         final javax.swing.JPanel jpanel = new javax.swing.JPanel() {
             // PAINT (the surrounding example)
-            public void paintComponent(java.awt.Graphics g)
+            OVERRIDE public void paintComponent(java.awt.Graphics g)
             {
                 if (undoTreeViewer.eventVerboseLevel >= 3) System.out.println("    in paintComponent");
 
@@ -1277,7 +1277,7 @@ public class UndoTreeViewer
         jframe.setForeground(java.awt.Color.black);
         jframe.setContentPane(jpanel);
         jframe.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent event)
+            OVERRIDE public void windowClosing(java.awt.event.WindowEvent event)
             {
                 if (--nViewersAlive[0] == 0)
                 {

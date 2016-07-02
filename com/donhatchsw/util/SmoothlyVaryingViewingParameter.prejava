@@ -12293,7 +12293,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
             // Make it so we get keyboard focus on startup,
             // without having to click first.  Thanks, Melinda!
-            public boolean isFocusTraversable()
+            OVERRIDE public boolean isFocusTraversable()
             {
                 return true;
             }
@@ -12425,7 +12425,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
 
             // SIZE (demo2)
-            public java.awt.Dimension getPreferredSize()
+            OVERRIDE public java.awt.Dimension getPreferredSize()
             {
                 return new java.awt.Dimension(850,850);
                 //return new java.awt.Dimension(400,400);
@@ -12438,9 +12438,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private java.awt.Image backBuffer = null;
             private java.awt.Dimension backBufferSize = null;
 
-            public void update(java.awt.Graphics g) { paint(g); } // don't flash
+            OVERRIDE public void update(java.awt.Graphics g) { paint(g); } // don't flash
             // PAINT (demo2)
-            public void paint(java.awt.Graphics frontBufferGraphics)
+            OVERRIDE public void paint(java.awt.Graphics frontBufferGraphics)
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
 
@@ -13490,7 +13490,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
         final java.awt.Frame frame = new java.awt.Frame("Optimal Trajectories");
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent we)
+            OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
             {
                 frame.dispose();
                 System.out.println("ciao!");
@@ -13567,7 +13567,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             int indexOfThingBeingDragged = -1;
 
             // SIZE (demo1)
-            public java.awt.Dimension getPreferredSize()
+            OVERRIDE public java.awt.Dimension getPreferredSize()
             {
                 //return new java.awt.Dimension(800,800);
                 return new java.awt.Dimension(200,200);
@@ -13576,9 +13576,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private java.awt.Image backBuffer = null;
             private java.awt.Dimension backBufferSize = null;
 
-            public void update(java.awt.Graphics g) { paint(g); } // don't flash
+            OVERRIDE public void update(java.awt.Graphics g) { paint(g); } // don't flash
             // PAINT (demo1)
-            public void paint(java.awt.Graphics frontBufferGraphics)
+            OVERRIDE public void paint(java.awt.Graphics frontBufferGraphics)
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
 
@@ -13796,7 +13796,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
         final java.awt.Frame frame = new java.awt.Frame("Smoothly Varying Viewing Parameters");
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent we)
+            OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
             {
                 frame.dispose();
                 System.out.println("ciao!");
@@ -13843,7 +13843,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
             // Make it so we get keyboard focus on startup,
             // without having to click first.  Thanks, Melinda!
-            public boolean isFocusTraversable()
+            OVERRIDE public boolean isFocusTraversable()
             {
                 return true;
             }
@@ -13990,7 +13990,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
 
             // SIZE (demo3)
-            public java.awt.Dimension getPreferredSize()
+            OVERRIDE public java.awt.Dimension getPreferredSize()
             {
                 //return new java.awt.Dimension(850,850);
                 return new java.awt.Dimension(400,400);
@@ -14003,9 +14003,9 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             private java.awt.Image backBuffer = null;
             private java.awt.Dimension backBufferSize = null;
 
-            public void update(java.awt.Graphics g) { paint(g); } // don't flash
+            OVERRIDE public void update(java.awt.Graphics g) { paint(g); } // don't flash
             // PAINT (demo3)
-            public void paint(java.awt.Graphics frontBufferGraphics)
+            OVERRIDE public void paint(java.awt.Graphics frontBufferGraphics)
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
 
@@ -14544,7 +14544,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
         final java.awt.Frame frame = new java.awt.Frame("Optimal Trajectories");
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent we)
+            OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
             {
                 frame.dispose();
                 System.out.println("ciao!");

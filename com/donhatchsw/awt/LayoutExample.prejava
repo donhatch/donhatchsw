@@ -48,12 +48,12 @@ public class LayoutExample
                 this.add(theRealCol = new Col(), stretchxy);
             }}, stretchxy);
         }
-        public Component add(Component comp)
+        OVERRIDE public Component add(Component comp)
         {
             theRealCol.add(comp);
             return comp;
         }
-        public void add(Component comp, Object constraints)
+        OVERRIDE public void add(Component comp, Object constraints)
         {
             theRealCol.add(comp, constraints);
         }
@@ -89,7 +89,7 @@ public class LayoutExample
                                 add(new Label("1:"));
                                 add(new Button("aa") {{
                                     addActionListener(new java.awt.event.ActionListener() {
-                                        public void actionPerformed(java.awt.event.ActionEvent e)
+                                        OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                                         {
                                             System.out.println("aa button pressed!");
                                         }
@@ -135,7 +135,8 @@ public class LayoutExample
                 pack();
 
                 addWindowListener(new java.awt.event.WindowAdapter() {
-                    public void windowClosing(java.awt.event.WindowEvent we) {
+                    OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
+                    {
                         dispose();
                         System.exit(0); // makes it exit quicker on my machine
                     }
@@ -173,7 +174,8 @@ public class LayoutExample
                 pack();
 
                 addWindowListener(new java.awt.event.WindowAdapter() {
-                    public void windowClosing(java.awt.event.WindowEvent we) {
+                    OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
+                    {
                         dispose();
                         System.exit(0); // makes it exit quicker on my machine
                     }

@@ -1523,7 +1523,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
             // Make it so we get keyboard focus on startup,
             // without having to click first.  Thanks, Melinda!
-            public boolean isFocusTraversable()
+            OVERRIDE public boolean isFocusTraversable()
             {
                 return true;
             }
@@ -1682,7 +1682,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
 
             // SIZE (demo1)
-            public java.awt.Dimension getPreferredSize()
+            OVERRIDE public java.awt.Dimension getPreferredSize()
             {
                 //return new java.awt.Dimension(850,850);
                 return new java.awt.Dimension(400,400);
@@ -1708,9 +1708,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             private java.awt.Image backBuffer = null;
             private java.awt.Dimension backBufferSize = null;
 
-            public void update(java.awt.Graphics g) { paint(g); } // don't flash
+            OVERRIDE public void update(java.awt.Graphics g) { paint(g); } // don't flash
             // PAINT (demo1)
-            public void paint(java.awt.Graphics frontBufferGraphics)
+            OVERRIDE public void paint(java.awt.Graphics frontBufferGraphics)
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
 
@@ -2588,7 +2588,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
         final java.awt.Frame frame = new java.awt.Frame("Optimal Trajectories");
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent we)
+            OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
             {
                 frame.dispose();
                 System.out.println("ciao!");

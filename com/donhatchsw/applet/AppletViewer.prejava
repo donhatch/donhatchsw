@@ -153,7 +153,7 @@ public class AppletViewer
 
         //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
         final java.awt.Frame frame = new java.awt.Frame("Applet Viewer: "+appletClassName) {
-            public boolean handleEvent(java.awt.Event event)
+            OVERRIDE public boolean handleEvent(java.awt.Event event)
             {
                 switch(event.id)
                 {
@@ -185,11 +185,12 @@ public class AppletViewer
         {
             com.donhatchsw.awt.MainWindowCount.increment();
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we)
+                OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
                 {
                     frame.dispose();
                 } 
-                public void windowClosed(java.awt.event.WindowEvent we) {
+                OVERRIDE public void windowClosed(java.awt.event.WindowEvent we)
+                {
                     System.out.println("ciao!");
                     com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
                 }

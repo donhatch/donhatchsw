@@ -52,8 +52,8 @@ public class TableLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUsefu
      * advance to the beginning of the next row.
      * gridheight is ignored in any case.
      */
-    protected void setNextGridxy(int gridx, int gridy,
-                                 int gridwidth, int gridheight)
+    OVERRIDE protected void setNextGridxy(int gridx, int gridy,
+                                          int gridwidth, int gridheight)
     {
         // At this point gridx and gridy should be >= 0;
         // if not, the caller messed up.
@@ -105,7 +105,8 @@ public class TableLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUsefu
 
         new Frame("TableLayout example") {{
             addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we) {
+                OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
+                {
                     dispose();
                     System.exit(0); // makes it exit quicker on my machine
                 }

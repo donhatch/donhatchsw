@@ -132,11 +132,11 @@ public class MainWindowCount
             // explicitly hide or dispose the window
             // while processing this event,
             // the window close operation will be cancelled."
-            public void windowClosing(java.awt.event.WindowEvent e)
+            OVERRIDE public void windowClosing(java.awt.event.WindowEvent e)
             {
                 finalWindow.dispose(); // causes a windowClosed event
             }
-            public void windowClosed(java.awt.event.WindowEvent e)
+            OVERRIDE public void windowClosed(java.awt.event.WindowEvent e)
             {
                 decrementAndExitIfImTheLastOne();
             }
@@ -164,11 +164,11 @@ public class MainWindowCount
                     // explicitly hide or dispose the window
                     // while processing this event,
                     // the window close operation will be cancelled."
-                    public void windowClosing(java.awt.event.WindowEvent e)
+                    OVERRIDE public void windowClosing(java.awt.event.WindowEvent e)
                     {
                         dispose(); // causes a windowClosed event
                     }
-                    public void windowClosed(java.awt.event.WindowEvent e)
+                    OVERRIDE public void windowClosed(java.awt.event.WindowEvent e)
                     {
                         if (isMain)
                             com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
@@ -177,7 +177,7 @@ public class MainWindowCount
                 setLayout(new java.awt.FlowLayout());
                 add(new java.awt.Button("Close") {{
                     addActionListener(new java.awt.event.ActionListener() {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                         {
                             dispose(); // causes a windowClosed event
                         }
@@ -185,7 +185,7 @@ public class MainWindowCount
                 }});
                 add(new java.awt.Button("Spawn main window") {{
                     addActionListener(new java.awt.event.ActionListener() {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                         {
                             new MyWindow(true).show();
                         }
@@ -193,7 +193,7 @@ public class MainWindowCount
                 }});
                 add(new java.awt.Button("Spawn non-main window") {{
                     addActionListener(new java.awt.event.ActionListener() {
-                        public void actionPerformed(java.awt.event.ActionEvent e)
+                        OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                         {
                             new MyWindow(false).show();
                         }

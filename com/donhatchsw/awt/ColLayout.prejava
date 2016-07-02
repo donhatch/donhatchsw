@@ -39,8 +39,8 @@ public class ColLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
      * Overriding the superclass's method as required;
      * for this class, RELATIVE will mean next y, same x.
      */
-    protected void setNextGridxy(int gridx, int gridy,
-                                 int gridwidth, int gridheight)
+    OVERRIDE protected void setNextGridxy(int gridx, int gridy,
+                                          int gridwidth, int gridheight)
     {
         nextGridx = gridx;
         nextGridy = gridy + 1;

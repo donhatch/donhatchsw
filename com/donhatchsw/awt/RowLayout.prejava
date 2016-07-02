@@ -39,8 +39,8 @@ public class RowLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
      * Overriding the superclass's method as required;
      * for this class, RELATIVE will mean next x, same y.
      */
-    protected void setNextGridxy(int gridx, int gridy,
-                                 int gridwidth, int gridheight)
+    OVERRIDE protected void setNextGridxy(int gridx, int gridy,
+                                          int gridwidth, int gridheight)
     {
         super.nextGridx = gridx + 1;
         super.nextGridy = gridy;

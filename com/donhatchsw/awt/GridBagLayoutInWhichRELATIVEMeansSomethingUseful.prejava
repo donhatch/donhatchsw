@@ -74,7 +74,7 @@ public abstract class GridBagLayoutInWhichRELATIVEMeansSomethingUseful extends G
     /**
      * Overrides GridBagLayout's method.
      */
-    public void addLayoutComponent(Component child, Object constraints)
+    OVERRIDE public void addLayoutComponent(Component child, Object constraints)
     {
         if (constraints == null)
             constraints = super.defaultConstraints;

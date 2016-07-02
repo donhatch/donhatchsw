@@ -883,7 +883,7 @@ public class Arrows
             extends javax.swing.JPanel
         {
             // PAINT
-            public void paintComponent(java.awt.Graphics g)
+            OVERRIDE public void paintComponent(java.awt.Graphics g)
             {
                 if (eventVerbose >= 2) System.out.println("    in paintComponent");
 
@@ -1824,6 +1824,7 @@ public class Arrows
         // super.paintComponent clears offscreen pixmap,
         // since we're using double buffering by default.
         // XXX what the heck did that mean?  I took this from an example off the web and I don't understand what it means.
+        // XXX also this is apparently NOT an override
         protected void clear(java.awt.Graphics g)
         {
             super.paintComponent(g);
@@ -1850,7 +1851,7 @@ public class Arrows
             // In 1.3 we could just say new JButton(new AbstractAction("+"){...}) but in 1.2 we have to call addActionListener instead
             buttonRow1.add(new javax.swing.JButton("+") {{
                 addActionListener(new javax.swing.AbstractAction() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('+');
                         if (allButtonsRelinqushFocusToCanvas)
@@ -1860,7 +1861,7 @@ public class Arrows
             }});
             buttonRow1.add(new javax.swing.JButton("-") {{
                 addActionListener(new javax.swing.AbstractAction() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         zoom('-');
                         if (allButtonsRelinqushFocusToCanvas)
@@ -1875,7 +1876,7 @@ public class Arrows
             {
                 javax.swing.AbstractButton child = cleanCircleButton;
                 child.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         scheduleCleanup(false); // don't re-center
                         if (allButtonsRelinqushFocusToCanvas)
@@ -1887,7 +1888,7 @@ public class Arrows
             {
                 javax.swing.AbstractButton child = cleanAndCenterButton;
                 child.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         scheduleCleanup(true); // do re-center
                         if (allButtonsRelinqushFocusToCanvas)
@@ -1898,7 +1899,7 @@ public class Arrows
             }
             buttonRow1.add(autoCleanCheckBox = new javax.swing.JCheckBox("Auto Clean") {{
                 addActionListener(new javax.swing.AbstractAction() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         //setAutoClean(autoCleanCheckBox.isSelected());
                         setAutoClean(((javax.swing.JCheckBox)e.getSource()).isSelected());
@@ -1910,7 +1911,7 @@ public class Arrows
             {
                 final javax.swing.JCheckBox child = new javax.swing.JCheckBox("Labels");
                 child.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         setShowLabels(child.isSelected());
                         repaint();
@@ -1927,7 +1928,7 @@ public class Arrows
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("+ radius");
                 child.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         srcRadii[0] += 1.;
                         dstRadii[0] += 1.;
@@ -1949,7 +1950,7 @@ public class Arrows
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("- radius");
                 child.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         if ((srcRadii[0] -= 1.) < 0.)
                             srcRadii[0] = 0.;
@@ -1973,7 +1974,7 @@ public class Arrows
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("Save DUMP.txt");
                 child.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         save("DUMP.txt");
                         if (allButtonsRelinqushFocusToCanvas)
@@ -1985,7 +1986,7 @@ public class Arrows
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("Load DUMP.txt");
                 child.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         load("DUMP.txt");
                         if (allButtonsRelinqushFocusToCanvas)
@@ -1997,7 +1998,7 @@ public class Arrows
             {
                 javax.swing.AbstractButton child = new javax.swing.JButton("Help");
                 child.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         help();
                         if (allButtonsRelinqushFocusToCanvas)
@@ -2838,7 +2839,7 @@ public class Arrows
         final MyDemoPanel myDemoPanel = new MyDemoPanel(useSplitPane);
         frame.setContentPane(myDemoPanel);
         frame.addWindowListener(new java.awt.event.WindowAdapter() {
-            public void windowClosing(java.awt.event.WindowEvent event)
+            OVERRIDE public void windowClosing(java.awt.event.WindowEvent event)
             {
                 System.out.println("Chow!");
                 System.exit(0);

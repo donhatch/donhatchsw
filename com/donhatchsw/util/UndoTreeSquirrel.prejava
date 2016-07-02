@@ -282,7 +282,7 @@ public class UndoTreeSquirrel
         // however that would be a mess if the model was ever changed, so
         // I think it's cleaner this way.
         this.model.addListener(new Listener() { // XXX this never gets removed!  should it be a weak reference or something?
-            public void somethingChanged()
+            OVERRIDE public void somethingChanged()
             {
                 if (UndoTreeSquirrel.this.model.nodes.size() == 1) // it's always at least 1
                 {
