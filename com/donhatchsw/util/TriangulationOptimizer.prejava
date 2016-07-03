@@ -371,7 +371,7 @@ public class TriangulationOptimizer
                 assert_eq(iEdge, nEdges);
             }
             SortStuff.Comparator edgeComparator = new SortStuff.Comparator() {
-                public int compare(Object _a, Object _b)
+                OVERRIDE public int compare(Object _a, Object _b)
                 {
                     DirectedEdge a = (DirectedEdge)_a;
                     DirectedEdge b = (DirectedEdge)_b;

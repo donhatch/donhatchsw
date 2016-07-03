@@ -1212,7 +1212,7 @@ public class Poly
             final int newnewToNewVerts[] = VecMath.identityperm(nNew);
             SortStuff.sort(newnewToNewVerts,
                            new SortStuff.IntComparator() {
-                               public int compare(int i, int j)
+                               OVERRIDE public int compare(int i, int j)
                                {
                                    if (newToOldVerts[i] < newToOldVerts[j])
                                        return -1;

@@ -129,7 +129,7 @@ public final class PolyCSG
         } // allEdges, allVerts
 
         SortStuff.Comparator idComparator = new SortStuff.Comparator() {
-            public int compare(Object _a, Object _b)
+            OVERRIDE public int compare(Object _a, Object _b)
             {
                 CSG.Polytope a = (CSG.Polytope)_a;
                 CSG.Polytope b = (CSG.Polytope)_b;
@@ -267,7 +267,7 @@ public final class PolyCSG
                 FORI (iInd, nVertsThisEdge)
                     inds[iInd] = iInd;
                 SortStuff.sort(inds, new SortStuff.IntComparator() {
-                    public int compare(int i, int j)
+                    OVERRIDE public int compare(int i, int j)
                     {
                         double dotProdI = VecMath.dot(
                                                 vertexCoords[vertsThisEdge[i]],
@@ -526,7 +526,7 @@ public final class PolyCSG
         }
 
         SortStuff.Comparator segComparator = new SortStuff.Comparator() {
-            public int compare(Object _a, Object _b)
+            OVERRIDE public int compare(Object _a, Object _b)
             {
                 int a[/*2*/] = (int[])_a;
                 int b[/*2*/] = (int[])_b;

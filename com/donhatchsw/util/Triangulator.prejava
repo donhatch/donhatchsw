@@ -695,7 +695,7 @@ public class Triangulator
         {
             VecMath.identityperm(contoursOrder);
             SortStuff.sort(contoursOrder, new SortStuff.IntComparator() {
-                public int compare(int i, int j)
+                OVERRIDE public int compare(int i, int j)
                 {
                     double iX = leftmostXcoordOnContour[i];
                     double jX = leftmostXcoordOnContour[j];

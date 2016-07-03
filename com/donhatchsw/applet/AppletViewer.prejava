@@ -11,7 +11,7 @@ public class AppletViewer
 {
     // XXX decide whether I want this here...
     // XXX could be a utility if it's useful
-    static void addViaScrollPaneHack(java.awt.Container parent, java.awt.Component child)
+    private static void addViaScrollPaneHack(java.awt.Container parent, java.awt.Component child)
     {
         //
         // THE SECRET to making it not flash on resize--

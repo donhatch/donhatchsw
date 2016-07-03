@@ -405,7 +405,7 @@ public final class CSG
                             // the facets appeared in the facets list :-(
                             SortStuff.sort(_allElements[iDim],
                                            new SortStuff.Comparator() {
-                                               public int compare(Object _a, Object _b)
+                                               OVERRIDE public int compare(Object _a, Object _b)
                                                {
                                                    Polytope a = (Polytope)_a;
                                                    Polytope b = (Polytope)_b;
@@ -4188,7 +4188,7 @@ public final class CSG
             // XXX shouldn't have to keep making comparator...
             int index = SortStuff.bsearch(eltsOfDim, q, 
                                new SortStuff.Comparator() {
-                                   public int compare(Object _a, Object _b)
+                                   OVERRIDE public int compare(Object _a, Object _b)
                                    {
                                        Polytope a = (Polytope)_a;
                                        Polytope b = (Polytope)_b;
@@ -4867,7 +4867,7 @@ public final class CSG
 
             // Little utility SPolytope comparator used within _slice
             private static SortStuff.Comparator SPolytopeCompareIdAndSign = new SortStuff.Comparator() {
-                public int compare(Object _a, Object _b)
+                OVERRIDE public int compare(Object _a, Object _b)
                 {
                     SPolytope A = (SPolytope)_a;
                     SPolytope B = (SPolytope)_b;
@@ -6273,7 +6273,7 @@ public final class CSG
                     //
                     SortStuff.sort(facets,
                                    new SortStuff.Comparator() {
-                                       public int compare(Object _a, Object _b)
+                                       OVERRIDE public int compare(Object _a, Object _b)
                                        {
                                            SPolytope A = (SPolytope)_a;
                                            SPolytope B = (SPolytope)_b;
@@ -6432,7 +6432,7 @@ public final class CSG
             final int ax = VecMath.maxi(bboxSize);
             SortStuff.sort(contourSPolytopes,
                    new SortStuff.Comparator() {
-                       public int compare(Object _a, Object _b)
+                       OVERRIDE public int compare(Object _a, Object _b)
                        {
                            SPolytope a = (SPolytope)_a;
                            SPolytope b = (SPolytope)_b;
@@ -6646,7 +6646,7 @@ public final class CSG
             list = (Hyperplane[])Arrays.append(list, last);
             SortStuff.sort(list,
                            new SortStuff.Comparator() {
-                               public int compare(Object _a, Object _b)
+                               OVERRIDE public int compare(Object _a, Object _b)
                                {
                                    Hyperplane a = (Hyperplane)_a;
                                    Hyperplane b = (Hyperplane)_b;
@@ -6662,7 +6662,7 @@ public final class CSG
             Hyperplane list[] = (Hyperplane[])Arrays.concat(these, those);
             SortStuff.Comparator comparator =
                new SortStuff.Comparator() {
-                   public int compare(Object _a, Object _b)
+                   OVERRIDE public int compare(Object _a, Object _b)
                    {
                        Hyperplane a = (Hyperplane)_a;
                        Hyperplane b = (Hyperplane)_b;
