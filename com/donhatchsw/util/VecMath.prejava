@@ -747,6 +747,118 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         // XXX note, M*pva is same for all t on path; could precompute.
     } // interp5
 
+    /** Helper function.  Orthonormalizes b against a.  CBB: surely there's something more basic to base this on? */
+    public static void orthogonalize1(double answer[],
+                                      double a[],
+                                      double b[])
+    {
+        copyvec(answer, b);
+        double scratch[][] = {copyvec(a), answer};
+        extendAndOrthogonalize(2, 2, scratch, scratch);
+    }
+
+    /** Minimize the weighted sum of squares of geodesic distances to given points on sphere.,
+    * as described in http://math.ucsd.edu/~sbuss/ResearchWeb/spheremean/paper.pdf p.23.
+    * Weights are required to sum to nonzero; they get effectively normalized to sum to 1.
+    * NOTE: not stable unless points are all well within some hemisphere.
+    * NOTE: seems to be unstable if any weights are allowed to be negative.
+    */
+    public static void sphericalAverage(double answer[],
+                                        double points[][],
+                                        double weights[])
+    {
+        int verboseLevel = 0;
+        if (verboseLevel >= 1) System.out.println("                in sphericalAverage");
+        // Algorithm A1 from the paper; the linearly converging one.
+        int d = answer.length;
+        assert(d >= 2); // doesn't make sense otherwise
+        int n = points.length;
+        assert(n == weights.length);
+
+        double weightsSum = sum(weights);
+        assert(weightsSum > 0.);
+
+        double q[] = answer; // work in answer, but call it q
+        vxm(q, weights, points);
+        normalize(q, q); // TODO: this will fail miserably if all points are coplanar!! shouldn't we take some kind of cross products instead? or sum of cross products?  not sure.
+        double projectedPoints[][] = new double[n][d]; // scratch for loop
+        double u[] = new double[d]; // scratch for loop
+        double prevULength = Double.POSITIVE_INFINITY;
+        while (true)
+        {
+            if (verboseLevel >= 2) System.out.println("                  top of loop");
+            if (verboseLevel >= 2) System.out.println("                      q = "+toString(q));
+            FORI (i, n)
+            {
+                double ang = angleBetweenUnitVectors(q, points[i]);
+                orthogonalize1(projectedPoints[i], q, points[i]);
+                vxs(projectedPoints[i], projectedPoints[i], ang);
+            }
+            vxm(u, weights, projectedPoints);
+            double uLength = norm(u);
+            if (verboseLevel >= 2) System.out.println("                      uLength = "+uLength);
+            if (uLength == 0.)
+                break; // can't make any more progress
+
+            if (uLength >= prevULength)
+                break; // didn't improve
+
+            double c = Math.cos(uLength);
+            double s = Math.sin(uLength);
+            // q = c*q + s*u/||u||
+            sxvpsxv(q, c, q, s/uLength, u);
+            // q should be unit length, but renormalize to be sure
+            normalize(q, q);
+            prevULength = uLength;
+        }
+        // q is answer
+        if (verboseLevel >= 1) System.out.println("                out sphericalAverage");
+    } // sphericalAverage
+
+    public static void getSphericalAverageWeights(double answer[],
+                                                  double points[][],
+                                                  double q[])
+    {
+        int verboseLevel = 0;
+        if (verboseLevel >= 1) System.out.println("                in sphericalAverageWeights");
+        // Project the points onto tangent plane at q,
+        // and then find the barycentric coordinates.
+        int d = answer.length;
+        assert(d >= 2); // doesn't make sense otherwise
+        int n = points.length;
+        double projectedPoints[][] = new double[n][d];
+        FORI (i, n)
+        {
+            if (verboseLevel >= 2) System.out.println("                  i = "+i);
+            double ang = angleBetweenUnitVectors(q, points[i]);
+            if (verboseLevel >= 2) System.out.println("                      ang = "+ang);
+            orthogonalize1(projectedPoints[i], q, points[i]);
+            vxs(projectedPoints[i], projectedPoints[i], ang);
+            if (verboseLevel >= 2) System.out.println("                      points[i] = "+toString(points[i]));
+            if (verboseLevel >= 2) System.out.println("                      projectedPoints[i] = "+toString(projectedPoints[i]));
+        }
+        if (verboseLevel >= 2) System.out.println("                      projectedPoints = "+toString(projectedPoints));
+        // It seems we should be able to compute in the plane through the origin,
+        // but it turns out we can't, since if we do it that way, we can't get the sign right.
+        // So make it actually be the tangent plane.
+        FORI (i, n)
+            vpv(projectedPoints[i], projectedPoints[i], q);
+        double fullArea = orthotopeContent(projectedPoints.length, d, projectedPoints, false);
+
+        FORI (i, n)
+        {
+            double temp[] = projectedPoints[i];
+            //projectedPoints[i] = zero;
+            projectedPoints[i] = q;
+            double partialArea = orthotopeContent(projectedPoints.length, d, projectedPoints, false);
+            projectedPoints[i] = temp;
+            answer[i] = partialArea / fullArea;
+        }
+        // weights should sum to 1 at this point, but make sure
+        vxs(answer, answer, 1./sum(answer));
+        if (verboseLevel >= 1) System.out.println("                out sphericalAverageWeights");
+    } // getSphericalAverageWeights
+
 
     /** copy vector */ public static void copyvec( double result[],  double v[]) { copyvec(MIN(result.length,v.length), result, v); }
     /** copy vector */ public static void copyvec(  float result[],   float v[]) { copyvec(MIN(result.length,v.length), result, v); }
@@ -2159,7 +2271,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return detUsingLQ(vecs.length, ROWLENGTH(vecs), vecs, destructive);
     } // orthotopeContent
 
-    /** compute the k-dimensional content of k points in n dimensions. */
+    /** compute the (k-1)-dimensional content of k points in n dimensions. */
     public static double relativeOrthotopeContent(int nPoints, int dim, double points[][], boolean destructive)
     {
         assert(nPoints >= 1);
@@ -5130,12 +5242,154 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         System.out.println("============================================");
     } // householderTest
 
+    public static void sphericalAverageTestOnePointsAndPoint(double points[][], double q[])
+    {
+        System.out.println("        in sphericalAverageTestOnePointsAndPoint");
+        System.out.println("          points = "+Arrays.toStringCompact(points));
+        System.out.println("          q         = "+toString(q));
+        int n = points.length;
+        int d = points[0].length;
+        double weights[] = new double[d];
+        System.out.println("              calling getSphericalAverageWeights");
+        getSphericalAverageWeights(weights, points, q);
+        System.out.println("              returned from getSphericalAverageWeights");
+        System.out.println("          weights = "+toString(weights));
+        if (true)
+        {
+            // scaling weights shouldn't hurt
+            vxs(weights, weights, 1.3);
+        }
+        double shouldBeQ[] = new double[d];
+        System.out.println("              calling sphericalAverage");
+        sphericalAverage(shouldBeQ, points, weights);
+        System.out.println("              returned from sphericalAverage");
+        System.out.println("          shouldBeQ = "+toString(shouldBeQ));
+        PRINT(dist(shouldBeQ, q));
+
+        if (min(weights) >= 0.) // TODO: why is it failing otherwise?
+        {
+            assert(equals(shouldBeQ, q, 1e-12)); // not entirely principled
+        }
+        System.out.println("        out sphericalAverageTestOnePointsAndPoint");
+    }
+    public static void sphericalAverageTestOnePointsAndWeights(double points[][], double weights[])
+    {
+        System.out.println("        in sphericalAverageTestOnePointsAndWeights");
+        System.out.println("          points = "+Arrays.toStringCompact(points));
+        System.out.println("          weights         = "+toString(weights));
+        int n = points.length;
+        int d = points[0].length;
+        double q[] = new double[d];
+        System.out.println("              calling sphericalAverage");
+        sphericalAverage(q, points, weights);
+        System.out.println("              returned from sphericalAverage");
+        System.out.println("          q = "+toString(q));
+        double shouldBeWeights[] = new double[n];
+        System.out.println("              calling getSphericalAverageWeights");
+        getSphericalAverageWeights(shouldBeWeights, points, q);
+        System.out.println("              returned from getSphericalAverageWeights");
+        System.out.println("          shouldBeWeights = "+toString(shouldBeWeights));
+        PRINT(dist(shouldBeWeights, weights));
+        assert(equals(shouldBeWeights, weights, 1e-12)); // not entirely principled
+        System.out.println("        out sphericalAverageTestOnePointsAndWeights");
+    }
+    public static void sphericalAverageTestOnePoints(java.util.Random generator, int nRandomTries, double points[][])
+    {
+        System.out.println("    in sphericalAverageTestOnePoints");
+        int n = points.length;
+        int d = points[0].length;
+
+        sphericalAverageTestOnePointsAndWeights(points, fillvec(n, 1./n));
+        sphericalAverageTestOnePointsAndPoint(points, normalize(vxm(fillvec(n,1.),points)));
+
+        FORI (iTry, nRandomTries)
+        {
+            double weights[] = new double[d];
+            while (true)
+            {
+                FORI (i, n)
+                    weights[i] = generator.nextDouble() * 2. - 1.; // from -1 to 1
+                double sum = sum(weights);
+                if (sum <= 0.) continue; // although negative would be interesting
+                if (min(weights) < 0.) continue; // although negative would be interesting
+                vxs(weights, weights, 1./sum);
+                break;
+            }
+            sphericalAverageTestOnePointsAndWeights(points, weights);
+        }
+        double pointsSum[] = vxm(fillvec(n,1.), points);
+        FORI (iTry, nRandomTries)
+        {
+            double q[] = new double[d];
+            while (true)
+            {
+                // TODO: randomSphereSurface()
+                FORI (i, n)
+                    q[i] = generator.nextDouble() * 2. - 1.; // from -1 to 1
+                double qLength2 = normsqrd(q);
+                if (normsqrd(q) > 1.) continue;
+                if (normsqrd(q) <= 1e-6) continue;
+                if (dot(q, pointsSum) <= 0.) continue; // rough
+                vxs(q, q, 1./Math.sqrt(qLength2));
+                break;
+            }
+            sphericalAverageTestOnePointsAndPoint(points, q);
+        }
+        System.out.println("    out sphericalAverageTestOnePoints");
+    }
+    public static void sphericalAverageTest(int mindim, int maxdim)
+    {
+        System.out.println("============================================");
+        System.out.println("SPHERICAL AVERAGE STUFF TEST");
+
+        mindim = MAX(mindim, 2); // <2 doesn't work for spherical averaging
+        if (true)
+        {
+            // Some test cases that were failing...
+            if (INRANGE(mindim <=, 3, <= maxdim))
+            {
+                sphericalAverageTestOnePointsAndPoint(identitymat(3), new double[]{
+                    0.5936548681899022,-0.7215803218556387,0.3562242784891879
+                });
+            }
+            if (INRANGE(mindim <=, 4, <= maxdim))
+            {
+                sphericalAverageTestOnePointsAndPoint(identitymat(4), new double[]{
+                    0.14894214452007834,-0.16975189085726003,-0.6428793129183206,0.731919887800443
+                });
+
+            }
+        }
+
+        java.util.Random generator = new java.util.Random(0);
+
+        int nRandomTriesPerPoints = 1000;
+        //int nRandomTriesPerPoints = 100;
+        //int nRandomTriesPerPoints = 1;
+        //int nRandomTriesPerPoints = 0;
+
+        for (int d = 4; d <= maxdim; ++d)
+        {
+            double points[][] = identitymat(d);
+            sphericalAverageTestOnePoints(generator, nRandomTriesPerPoints, points);
+            if (d >= 2)
+            {
+                double temp[];
+                SWAP(points[0], points[1], temp);
+                sphericalAverageTestOnePoints(generator, nRandomTriesPerPoints, points);
+            }
+        }
+
+        System.out.println("END SPHERICAL AVERAGE STUFF TEST");
+        System.out.println("============================================");
+    }
+
 
     public static void main(String args[])
     {
-        if (args.length < 1)
+        if (args.length != 1 && args.length != 2)
         {
-            System.err.println("Usage: VecMath <maxdim>");
+            System.err.println("Usage: VecMath [<mindim>(default=0)] <maxdim>");
             System.exit(1);
         }
 
@@ -5166,8 +5420,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             System.out.println("    done testing sqrdTwiceTriangleArea.");
         }
 
-        int mindim = 0;
-        int maxdim = Integer.parseInt(args[0]);
+        int mindim = args.length==1 ? 0 : Integer.parseInt(args[0]);
+        int maxdim = Integer.parseInt(args[args.length-1]);
 
         for (int dim = mindim; dim <= maxdim; ++dim)
         {
@@ -5220,6 +5474,19 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
         // Test householder stuff
         householderTest();
+
+        if (true)
+        {
+            // Test spherical average stuff
+            // TODO: uncomment assertion in case of negative weights
+            sphericalAverageTest(mindim, maxdim);
+            if (false)
+            {
+                OUT("PREMATURELY EXITING!");
+                System.exit(1);
+            }
+        }
+
     } // main
 
 } // class VecMath
