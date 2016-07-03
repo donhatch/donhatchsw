@@ -52,8 +52,8 @@ public class TopSorter
     private boolean visited[];
     private int finishingArray[];
 
-    int perm[];
-    int invPerm[];
+    private int perm[];
+    private int invPerm[];
 
     public TopSorter(int maxN, int maxPartialOrderSize)
     {
@@ -329,37 +329,5 @@ In python:
         }
 
     } // main
-
-        static boolean isBad(int pairs[][])
-        {
-            int expectedNComponents = -1;
-            java.util.Random generator = new java.util.Random();
-            for (int iTry = 0; iTry < 100; ++iTry)
-            {
-                int n = VecMath.max((int[])Arrays.flatten(pairs,0,2))+1;
-                int result[] = new int[n];
-                int nComponents = TopSorter.topsortRandomized(result, pairs, generator);
-                if (iTry == 0)
-                    expectedNComponents = nComponents;
-                else
-                    if (nComponents != expectedNComponents)
-                        return true;
-            }
-            return false;
-        }
-        static int[][] findMinimalBadSubset(int pairs[][])
-        {
-            //PRINT(pairs.length);
-            for (int i = 0; i < pairs.length; ++i)
-            {
-                System.out.print(".");
-                int[][] subset = (int[][])Arrays.concat(
-                            Arrays.subarray(pairs, 0, i),
-                            Arrays.subarray(pairs, i+1, pairs.length-(i+1)));
-                if (isBad(subset))
-                    return findMinimalBadSubset(subset);
-            }
-            return pairs;
-        }
 
 } // class TopSorter

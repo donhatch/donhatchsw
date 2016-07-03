@@ -795,7 +795,7 @@ public class Arrows
          * so that the string is placed margin pixels away
          * from the point, in the direction specified by dirAngle (in radians).
          */
-        static void drawStringNextToPoint(java.awt.Graphics2D g2d, String labelText, double x, double y, double dirAngle, double margin)
+        public static void drawStringNextToPoint(java.awt.Graphics2D g2d, String labelText, double x, double y, double dirAngle, double margin)
         {
             double cos = Math.cos(dirAngle);
             double sin = Math.sin(dirAngle);

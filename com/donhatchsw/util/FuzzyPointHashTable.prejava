@@ -34,12 +34,12 @@ package com.donhatchsw.util;
 // because I only felt like implementing a small number of methods (get and put).
 public class FuzzyPointHashTable
 {
-    double bucketSize;
-    double littleTol;
-    double bigTol;
-    double tol; // (littleTol+bigTol)/2
-    double invBucketSize; // 1./bucketSize
-    java.util.Hashtable hashtable;
+    private double bucketSize;
+    private double littleTol;
+    private double bigTol;
+    private double tol; // (littleTol+bigTol)/2
+    private double invBucketSize; // 1./bucketSize
+    private java.util.Hashtable hashtable;
 
     /**
     * Construct a fuzzy point hash table.

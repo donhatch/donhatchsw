@@ -2926,7 +2926,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         } // jacobi
 
     /** Return the singular values of the matrix M. */
-    static double[] singularValues(double M[][])
+    public static double[] singularValues(double M[][])
     {
         // XXX TODO: should do it the smaller of the two ways, I think
         double MM[][] = mxtransposem(M,M); // gets destroyed
@@ -2936,7 +2936,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return d;
     }
     /** Return the condition number (ratio of max and min singular values) of M, which need not be symmetric. */
-    static double conditionNumber(double M[][])
+    public static double conditionNumber(double M[][])
     {
         double singularValues[] = singularValues(M);
         return Math.sqrt(max(singularValues)/min(singularValues));

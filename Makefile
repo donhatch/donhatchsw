@@ -8,10 +8,11 @@
 #    - weak reference doesn't exist in 1.1... is it of any use to me then??
 #    - something's going funny with jikes and renumbering, it's looking for .prejava.lines which is wrong
 
+# TODO: versions should be command line params I think
 # TODO: find automatic way to find all failures to declare @Override
-# TODO: find automatic way to find all places where methods are declared with package access
-#       Hmm, can do it with javap, but have to filter out a lot of noise...
-#         javap `find . -name '*.prejava' | sed 's/.prejava//'` | grep -v "\bpublic " | grep -v '\bprotected ' | fgrep -v ' access$' | grep -v ' static {};' | grep -v '^}$' | fgrep -v ' class$'
+
+# To find all places where I forgot to mark something public or private or protected:
+#    javap `find . -name '*.prejava' | sed 's/.prejava//' | sed 's/^\.\///'` | grep -v "\bpublic " | grep -v '\bprotected ' | fgrep -v ' access$' | grep -v ' static {};' | grep -v '^}$' | fgrep -v ' class$' | fgrep -v ' array$'
 
 # To use cookies, need netscape.javascript.JSObject
 # which is in /usr/java/jdk1.3.1_18/jre/lib/javaplugin.jar
@@ -78,10 +79,10 @@
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.4 which is last version in which @Override doesn't exist, and requires -target >=1.4
-JAVACPPFLAGS=-DOVERRIDE=
-JAVAC=javac -source 1.4 -target 1.4
-JAR=jar
-JAVADOC=javadoc
+#JAVACPPFLAGS=-DOVERRIDE=
+#JAVAC=javac -source 1.4 -target 1.4
+#JAR=jar
+#JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.5 which is first version in which @Override exists, and requires -target >= 1.5
 #JAVACPPFLAGS=-DOVERRIDE=@Override
@@ -114,10 +115,10 @@ JAVADOC=javadoc
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
-#JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=javac
-#JAR=jar
-#JAVADOC=javadoc
+JAVACPPFLAGS=-DOVERRIDE=@Override
+JAVAC=javac
+JAR=jar
+JAVADOC=javadoc
 
 
 # Pattern rule for making a .class file out of a .prejava file.

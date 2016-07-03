@@ -16,7 +16,7 @@ package com.donhatchsw.util;
 //    - newton but pull back to land strictly within known bounds?
 public class CatenaryRotated extends Catenary.FlippedMaybe
 {
-    static boolean XXX_ALLOW_FITFROMMOMENT_FAILURE = false; // hack hook so SmoothlyVaryingViewingParameter demo3 can proceed with manageable amount of noise
+    public static boolean XXX_ALLOW_FITFROMMOMENT_FAILURE = false; // hack hook so SmoothlyVaryingViewingParameter demo3 can proceed with manageable amount of noise
 
     public double cosRotation;
     public double sinRotation;
