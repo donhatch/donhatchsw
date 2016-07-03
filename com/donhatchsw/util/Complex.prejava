@@ -137,14 +137,46 @@ public class Complex
     }
     public Complex equalsExp(double x, double y)
     {
-        double magnitude = Math.exp(abs(x, y));
-        return set(magnitude * Math.cos(y),
-                   magnitude * Math.sin(y));
+        double answerMagnitude = Math.exp(abs(x, y));
+        return set(answerMagnitude * Math.cos(y),
+                   answerMagnitude * Math.sin(y));
     }
     public Complex equalsLog(double x, double y)
     {
         return set(Math.log(abs2(x, y))*.5, // = Math.log(abs(x,y)) but without the hypot (hmm, is this more overflow prone then?)
                    arg(x, y));
+    }
+    public Complex equalsExpm1(double x, double y)
+    {
+        // answerp1Magnitude = Math.exp(abs(x, y));
+        // xAnswer = answerp1Magnitude * cos(y) - 1
+        // xAnswer = exp(sqrt(x^2+y^2)) * cos(y) - 1
+        //         = (expm1(sqrt(x^2+y^2))+1)*cos(y) - 1
+        //         = (expm1(sqrt(x^2+y^2))+1)*(1-cosf1(y)) - 1
+        //         = (E+1)*(1-C)-1
+        //         = E+1-E*C-C-1
+        //         = E-E*C-C
+        //         = E-C*(E+1)
+        double E = MyMath.expm1(abs(x, y));
+        double C = MyMath.cosf1(y);
+        double answerp1Magnitude = E + 1;
+        double xAnswer = E - answerp1Magnitude * C;
+        double yAnswer = answerp1Magnitude * Math.sin(y);
+        assert(false); // XXX untested!
+        return set(xAnswer, yAnswer);
+    }
+    public Complex equalsLog1p(double x, double y)
+    {
+        // xAnswer = log(abs(x+1,y))
+        //         = log(sqrt((x+1)^2+y^2))
+        //         = log(1+(sqrt((x+1)^2+y^2)-1))
+        //         = log1p(sqrt((x+1)^2+y^2)-1)
+        //         = log1p(sqrt(1+2x+x^2+y^2)-1)
+        //         = log1p((2x+x^2+y^2)/(sqrt((x+1)^2+y^2)+1))
+        double xAnswer = MyMath.log1p((x*(2+x)+y*y)/(MyMath.hypot(x+1,y)+1));
+        double yAnswer = arg(1.+x, y);
+        assert(false); // XXX untested!
+        return set(xAnswer, yAnswer);
     }
     //---------------------------------------------------------------------------
 
