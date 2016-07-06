@@ -3724,12 +3724,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         return Arrays.toStringNonCompact(m, "", "    ");
     }
-
     public static String toString(int m[][])
     {
         return Arrays.toStringNonCompact(m, "", "    ");
     }
     public static String toString(long m[][])
+    {
+        return Arrays.toStringNonCompact(m, "", "    ");
+    }
+    public static String toString(boolean m[][])
     {
         return Arrays.toStringNonCompact(m, "", "    ");
     }
