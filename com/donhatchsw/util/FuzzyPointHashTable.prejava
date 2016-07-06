@@ -48,7 +48,7 @@ public class FuzzyPointHashTable
     * <pre>
     *     0 &le; littleTol &le; bigTol &le; bucketSize/1,000,000</pre>
     * BucketSize should be chosen somewhere around the smallest distance
-    * ever expected between two distince points, so that it would be
+    * ever expected between two distinct points, so that it would be
     * surprising if two or more points ever fell into the same bucket;
     * this is not strictly required but the hash table will not be efficient
     * if too many points end up in a single bucket.
@@ -176,7 +176,7 @@ public class FuzzyPointHashTable
     }
 
     /**
-    * Puts the value into the table with given key,
+    * Puts the value into the table with given key (assumed immutable),
     * returning the previous value (or null if there was none)
     */
     public Object put(double key[],
