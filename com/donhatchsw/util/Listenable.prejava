@@ -203,6 +203,10 @@ public abstract class Listenable
                 this.notifyListenersThatValueChanged(); // "this." necessary or javac 1.2 gets confused
             }
         }
+        public void cycle(int inc)
+        {
+            set(MOD((value-minValue) + inc, maxValue+1-minValue) + minValue);
+        }
 
         // Listenable overrides
         OVERRIDE public void set(Listenable from) { set(((Int)from).get()); }
