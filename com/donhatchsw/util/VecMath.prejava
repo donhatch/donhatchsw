@@ -2788,6 +2788,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return false;
         return true;
     } // equals(int[],int[])
+    /** int matrix equality test */
+    public static boolean equals(int m0[][], int m1[][])
+    {
+        if (m0 == null)
+            return m1 == null ? true : false;
+        else if (m1 == null)
+            return false;
+        int n = m0.length;
+        if (n != m1.length)
+            return false;
+        FORI (i, n)
+            if (!equals(m0[i], m1[i]))
+                return false;
+        return true;
+    } // equals(int[][],int[][])
     /** exact double vector equality test */
     public static boolean equalsExactly(double v0[], double v1[])
     {
