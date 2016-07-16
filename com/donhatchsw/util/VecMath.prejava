@@ -1535,6 +1535,39 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         return maxi;
     }
 
+    /** returns index of least element */
+    public static int mini(int v[])
+    {
+        if (v.length == 0) return -1;
+        int min = v[0];
+        int mini = 0;
+        for (int i = 1; i < v.length; ++i)
+        {
+            if (v[i] < min)
+            {
+                min = v[i];
+                mini = i;
+            }
+        }
+        return mini;
+    }
+    /** returns index of greatest element */
+    public static int maxi(int v[])
+    {
+        if (v.length == 0) return -1;
+        int max = v[0];
+        int maxi = 0;
+        for (int i = 1; i < v.length; ++i)
+        {
+            if (v[i] > max)
+            {
+                max = v[i];
+                maxi = i;
+            }
+        }
+        return maxi;
+    }
+
     /** returns minimum element */
     public static double min(int n, double v[])
     {
