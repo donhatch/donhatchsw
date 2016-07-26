@@ -137,7 +137,7 @@ public class Complex
     }
     public Complex equalsExp(double x, double y)
     {
-        double answerMagnitude = Math.exp(abs(x, y));
+        double answerMagnitude = Math.exp(x);
         return set(answerMagnitude * Math.cos(y),
                    answerMagnitude * Math.sin(y));
     }
