@@ -3242,58 +3242,78 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     }
 
     /** Normalize a vector, returning the previous length. */
-    public static double normalize(double result[], double v[])
+    public static double normalize(int n, double result[], double v[])
     {
-        double len = norm(v);
+        double len = norm(n, v);
         if (len == 0)
         {
-            zerovec(result);
-            if (result.length >= 1)
+            zerovec(n, result);
+            if (n >= 1)
                 result[0] = (double)1;
         }
         else
-            vxs(result, v, (double)1/len);
+            vxs(n, result, v, (double)1/len);
+        return len;
+    }
+    /** Normalize a vector, returning the previous length. */
+    public static double normalize(double result[], double v[])
+    {
+        return normalize(MIN(result.length, v.length), result, v);
+    }
+    /** Normalize a vector, returning the previous length. In case previous length was <= tol, zero the vector and return zero. */
+    public static double normalizeOrZero(int n, double result[], double v[], double tol)
+    {
+        double len = norm(n, v);
+        if (len <= tol)
+        {
+            zerovec(n, result);
+            len = 0;
+        }
+        else
+            vxs(n, result, v, (double)1/len);
         return len;
     }
     /** Normalize a vector, returning the previous length. In case previous length was <= tol, zero the vector and return zero. */
     public static double normalizeOrZero(double result[], double v[], double tol)
     {
-        double len = norm(v);
-        if (len <= tol)
+        return normalizeOrZero(MIN(result.length, v.length), result, v, tol);
+    }
+    /** Normalize a vector, returning the previous length. */
+    public static float normalize(int n, float result[], float v[])
+    {
+        float len = norm(n, v);
+        if (len == 0.f)
         {
-            zerovec(result);
-            len = 0;
+            zerovec(n, result);
+            if (result.length >= 1)
+                result[0] = (float)1;
         }
         else
-            vxs(result, v, (double)1/len);
+            vxs(n, result, v, (float)1/len);
         return len;
     }
     /** Normalize a vector, returning the previous length. */
     public static float normalize(float result[], float v[])
     {
-        float len = norm(v);
-        if (len == 0.f)
+        return normalize(MIN(result.length, v.length), result, v);
+    }
+    /** Normalize a vector, returning the previous length. In case previous length was <= tol, zero the vector and return zero. */
+    public static float normalizeOrZero(int n, float result[], float v[], float tol)
+    {
+        float len = norm(n, v);
+        if (len <= tol)
         {
-            zerovec(result);
-            if (result.length >= 1)
-                result[0] = (float)1;
+            zerovec(n, result);
+            len = 0;
         }
         else
-            vxs(result, v, (float)1/len);
+            vxs(n, result, v, (float)1/len);
         return len;
     }
     /** Normalize a vector, returning the previous length. In case previous length was <= tol, zero the vector and return zero. */
     public static float normalizeOrZero(float result[], float v[], float tol)
     {
-        float len = norm(v);
-        if (len <= tol)
-        {
-            zerovec(result);
-            len = 0;
-        }
-        else
-            vxs(result, v, (float)1/len);
-        return len;
+        return normalizeOrZero(MIN(result.length, v.length), result, v, tol);
     }
 
     /**
