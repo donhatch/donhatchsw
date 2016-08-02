@@ -369,11 +369,18 @@ public final class VecMath
     }
 
     /** (scalar times vector) plus (scalar times vector) */
+    public static void sxvpsxv(int n, double result[], double s0, double v0[],
+                                                       double s1, double v1[])
+    {
+        FORIDOWN (i, n)
+            result[i] = s0*v0[i] + s1*v1[i];
+    }
+
+    /** (scalar times vector) plus (scalar times vector) */
     public static void sxvpsxv(double result[], double s0, double v0[],
                                                 double s1, double v1[])
     {
-        FORIDOWN (i, v0.length)
-            result[i] = s0*v0[i] + s1*v1[i];
+        sxvpsxv(v0.length, result, s0, v0, s1, v1);
     }
 
     /** vector plus (scalar times vector) plus (scalar times vector) */
@@ -591,7 +598,7 @@ public final class VecMath
     public static void lerp(int n, double result[], double p0[], double p1[], double t)
     {
         FORIDOWN (i, n)
-            result[i] = p0[i] + t*(p1[i]-p0[i]);
+            result[i] = (1.-t)*p0[i] + t*p1[i];
     }
     /** linear interpolation between vectors */
     public static void lerp(double result[], double p0[], double p1[], double t)
@@ -602,7 +609,7 @@ public final class VecMath
     public static void lerp(int n, float result[], float p0[], float p1[], float t)
     {
         FORIDOWN (i, n)
-            result[i] = p0[i] + t*(p1[i]-p0[i]);
+            result[i] = (1.f-t)*p0[i] + t*p1[i];
     }
     /** linear interpolation between vectors */
     public static void lerp(float result[], float p0[], float p1[], float t)
