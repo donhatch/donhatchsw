@@ -221,6 +221,48 @@ public abstract class Listenable
         OVERRIDE public double maxDouble() { return (double)maxValue; }
         OVERRIDE public double defaultDouble() { return (double)defaultValue; }
     }
+
+    public static class Long extends Number
+    {
+        private long value, minValue, maxValue, defaultValue;
+        public Long(long minValue, long maxValue, long defaultValue)
+        {
+            this.minValue = minValue;
+            this.maxValue = maxValue;
+            this.defaultValue = defaultValue;
+            this.value = defaultValue;
+        }
+        public long min() { return minValue; }
+        public long max() { return maxValue; }
+        public long getDefaultValue() { return defaultValue; }
+        public long get() { return value; }
+        public void set(long newValue)
+        {
+            if (newValue != value)
+            {
+                value = newValue;
+                this.notifyListenersThatValueChanged(); // "this." necessary or javac 1.2 gets confused
+            }
+        }
+        public void cycle(long inc)
+        {
+            set(MOD((value-minValue) + inc, maxValue+1-minValue) + minValue);
+        }
+
+        // Listenable overrides
+        OVERRIDE public void set(Listenable from) { set(((Long)from).get()); }
+        OVERRIDE public void resetToDefault() { set(getDefaultValue()); }
+        OVERRIDE public boolean isDefault() { return get() == getDefaultValue(); }
+        OVERRIDE public java.lang.String toString() { return ""+get(); }
+
+        // Number overrides
+        OVERRIDE public double getDouble() { return (double)value; }
+        OVERRIDE public void setDouble(double newValue) { set((long)newValue); }
+        OVERRIDE public double minDouble() { return (double)minValue; }
+        OVERRIDE public double maxDouble() { return (double)maxValue; }
+        OVERRIDE public double defaultDouble() { return (double)defaultValue; }
+    }
+
     public static class Float extends Number
     {
         private float value, minValue, maxValue, defaultValue;
