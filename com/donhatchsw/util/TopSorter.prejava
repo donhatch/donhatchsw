@@ -250,11 +250,18 @@ In python:
     } // non-static topsortRandomized
 
     /** The easy-to-use method. */
+    public static int topsort(int n, int result[/*>=n*/],
+                              int partialOrderSize, int partialOrder[/*>=partialOrderSize*/][/*2*/])
+    {
+        TopSorter topsorter = new TopSorter(n, partialOrder.length);
+        return topsorter.topsort(n, result,
+                                 partialOrderSize, partialOrder, null);
+    } // static topsort
+
+    /** The easiest-to-use method. */
     public static int topsort(int result[], int partialOrder[][/*2*/])
     {
-        TopSorter topsorter = new TopSorter(result.length, partialOrder.length);
-        return topsorter.topsort(result.length, result,
-                                 partialOrder.length, partialOrder, null);
+        return topsort(result.length, result, partialOrder.length, partialOrder);
     } // static topsort
 
     public static int topsortRandomized(int result[], int partialOrder[][/*2*/],
