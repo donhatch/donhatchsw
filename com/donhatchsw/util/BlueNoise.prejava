@@ -500,9 +500,9 @@ public class BlueNoise
         double b = VecMath.angleBetweenUnitVectors(v2,v0);
         double c = VecMath.angleBetweenUnitVectors(v0,v1);
         double absArea = 4. * Math.atan(Math.sqrt(Math.tan((a+b-c)/2.)
-                                                + Math.tan((b+c-a)/2.)
-                                                + Math.tan((c+a-b)/2.)
-                                                + Math.tan((a+b+c)/2.)));
+                                                * Math.tan((b+c-a)/2.)
+                                                * Math.tan((c+a-b)/2.)
+                                                * Math.tan((a+b+c)/2.)));
         return absArea;
     }
     private double absSphericalQuadArea(double v0[],
@@ -510,12 +510,13 @@ public class BlueNoise
                                         double v2[],
                                         double v3[])
     {
-        // CBB: I'm sure there's a version that cancels out
+        // CBB: I'm sure there's a version in which the diagonals cancel
         return absSphericalTriangleArea(v0,v1,v2)
              + absSphericalTriangleArea(v0,v2,v3);
     }
 
-    private void normalize(double answer[], double x, double y, double z)
+    // Return (x,y,z) normalized.
+    private void normalize1(double answer[], double x, double y, double z)
     {
         double length = Math.sqrt(x*x + y*y + z*z);
         answer[0] = x / length;
@@ -532,10 +533,10 @@ public class BlueNoise
                                               double Y0, double Y1)
     {
         // TODO: take 4 scratch vectors as params
-        double v00[] = normalize(X0,Y0,1);
-        double v10[] = normalize(X1,Y0,1);
-        double v11[] = normalize(X1,Y1,1);
-        double v01[] = normalize(X0,Y1,1);
+        double v00[] = normalize(X0,Y0,1.);
+        double v10[] = normalize(X1,Y0,1.);
+        double v11[] = normalize(X1,Y1,1.);
+        double v01[] = normalize(X0,Y1,1.);
         return absSphericalQuadArea(v00,v10,v11,v01);
     }
 
