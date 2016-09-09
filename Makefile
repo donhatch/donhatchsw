@@ -175,6 +175,7 @@ donhatchsw.jar: \
     com/donhatchsw/util/CSG.class \
     com/donhatchsw/util/PolyCSG.class \
     com/donhatchsw/util/MiniBall.class \
+    com/donhatchsw/util/BlueNoise.class \
     com/donhatchsw/awt/MyGraphics.class \
     com/donhatchsw/awt/GridBagLayoutInWhichRELATIVEMeansSomethingUseful.class \
     com/donhatchsw/awt/TableLayout.class \

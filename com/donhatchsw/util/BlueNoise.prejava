@@ -1,0 +1,31 @@
+/*
+  To visualize possible cases of cubes intersecting unit sphere:
+  In gnuplot:
+    set term wxt size 1000,1000
+    set size square
+    n = 10
+    set isosamples 2,n+1
+    set parametric
+    c(t) = cos(pi/2/n*t)
+    s(t) = sin(pi/2/n*t)
+    splot [0:n] [0:n] [0:1] [0:1] [0:1] c(u)*c(v),s(u)*c(v),s(v), c(u)*c(v),s(v),s(u)*c(v), s(v),c(u)*c(v),s(u)*c(v)
+*/
+#include "macros.h"
+
+// TODO: blue noise on unit sphere
+// TODO: varying disk radii
+public class BlueNoise
+{
+    // Maximal blue noise in unit box [-.5,.5]^n, toroidally wrapped.
+    public static double[][] blueNoiseInUnitBox(int d, int n, double nonOverlappingDiskRadius)
+    {
+        unimplemented(); // TODO: implement me
+        return null;
+    } // blueNoiseInUnitBox
+    // Maximal blue noise on d-1 dimensional surface of hypersphere in d dimensions.
+    public static double[][] blueNoiseOnUnitSphere(int d, int n, double nonOverlappingDiskRadius)
+    {
+        unimplemented(); // TODO: implement me
+        return null;
+    } // blueNoiseOnUnitSphere
+} // class BlueNoise
