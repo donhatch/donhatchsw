@@ -482,13 +482,63 @@ public class BlueNoise
         if (verboseLevel >= 1) System.err.println("    out blueNoiseInUnitBox");
         return answer;
     } // blueNoiseInUnitBox
-    // Maximal blue noise on d-1 dimensional surface of hypersphere in d dimensions.
-    public static double[][] blueNoiseOnUnitSphere(int d, double nonOverlappingDiskRadius)
+    // Maximal blue noise on 2-dimensional surface of sphere in 3d.
+    public static double[][] blueNoiseOnUnitSphere3d(int n, double nonOverlappingDiskRadius)
     {
         unimplemented(); // TODO: implement me!
         return null;
     } // blueNoiseOnUnitSphere
 #undef out
+
+    // http://math.stackexchange.com/questions/9819/area-of-a-spherical-triangle
+    // Works best when triangle is small and well-shaped, as it is in this.
+    private double absSphericalTriangleArea(double v0[],
+                                            double v1[],
+                                            double v2[])
+    {
+        double a = VecMath.angleBetweenUnitVectors(v1,v2);
+        double b = VecMath.angleBetweenUnitVectors(v2,v0);
+        double c = VecMath.angleBetweenUnitVectors(v0,v1);
+        double absArea = 4. * Math.atan(Math.sqrt(Math.tan((a+b-c)/2.)
+                                                + Math.tan((b+c-a)/2.)
+                                                + Math.tan((c+a-b)/2.)
+                                                + Math.tan((a+b+c)/2.)));
+        return absArea;
+    }
+    private double absSphericalQuadArea(double v0[],
+                                        double v1[],
+                                        double v2[],
+                                        double v3[])
+    {
+        // CBB: I'm sure there's a version that cancels out
+        return absSphericalTriangleArea(v0,v1,v2)
+             + absSphericalTriangleArea(v0,v2,v3);
+    }
+
+    private void normalize(double answer[], double x, double y, double z)
+    {
+        double length = Math.sqrt(x*x + y*y + z*z);
+        answer[0] = x / length;
+        answer[1] = y / length;
+        answer[2] = z / length;
+    }
+    private double[] normalize(double x, double y, double z)
+    {
+        double answer[] = new double[3];
+        normalize(answer, x, y, z);
+        return answer;
+    }
+    private double projectedSphericalQuadArea(double X0, double X1,
+                                              double Y0, double Y1)
+    {
+        // TODO: take 4 scratch vectors as params
+        double v00[] = normalize(X0,Y0,1);
+        double v10[] = normalize(X1,Y0,1);
+        double v11[] = normalize(X1,Y1,1);
+        double v01[] = normalize(X0,Y1,1);
+        return absSphericalQuadArea(v00,v10,v11,v01);
+    }
+
 
     // little test program
     public static void main(String args[])
@@ -556,4 +606,6 @@ public class BlueNoise
         }
 
     } // main
+
+
 } // class BlueNoise
