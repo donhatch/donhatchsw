@@ -340,7 +340,7 @@ public class BlueNoise
             assert_eq(iAnswer, nAnswer);
         }
 
-        if (true)
+        if (false)
         {
             System.err.println("sanity checking...");
             // sanity check answer
@@ -389,6 +389,7 @@ public class BlueNoise
         System.err.println("d = "+d);
         System.err.println("nonOverlappingDiskRadius = "+nonOverlappingDiskRadius);
         double blueNoise[][] = blueNoiseInUnitBox(d, nonOverlappingDiskRadius, rng);
+        System.err.println("blueNoise.length = "+blueNoise.length);
         FORI (iSample, blueNoise.length)
         {
             FORI (i, d)
