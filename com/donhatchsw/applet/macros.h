@@ -100,4 +100,5 @@
 #define LEQ(a,b,tol) (((a)-(b)) <= (tol))
 #define GEQ(a,b,tol) (((b)-(a)) <= (tol))
 #define EQ(a,b,tol) (LEQ(a,b,tol) && GEQ(a,b,tol))
-#define MOD(a,b) (((a)+(b))%(b)) // XXX not general! only use it when a+b is known to be >= 0
+#define MOD(a,b) (((a)%(b)+(b))%(b))
+
