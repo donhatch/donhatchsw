@@ -64,18 +64,44 @@ public class BlueNoise
         assert_eq(IBaseGrid, 0);
     }
 
-    private static double wrappedDistSqrd(double a, double b)
+    private static double wrappedDistSqrd(double a[], double b[])
     {
-        double dist = a - b;
-        if (dist > .5)
-            dist -= 1.;
-        else if (dist < -.5)
-            dist += 1.;
-        assert(INRANGE(-.5 <=, dist, <= .5));
-        return dist*dist;
-    }
+        double answer = 0.;
+        int n = a.length;
+        FORI (i, n)
+        {
+            double dist = b[i] - a[i];
+            if (dist > .5)
+                dist -= 1.;
+            else if (dist < -.5)
+                dist += 1.;
+            assert(INRANGE(-.5 <=, dist, <= .5));
+            answer += dist*dist;
+        }
+        return answer;
+    } // wrappedDistSqrd
+    private static double wrappedMaxDistSqrd(double a[], double b0[], double b1[])
+    {
+        double answer = 0.;
+        int n = a.length;
+        FORI (i, n)
+        {
+            double ai = a[i];
+            double b0i = b0[i];
+            double b1i = b1[i];
+            double biAvg = (b0i+b1i)*.5;
+            double avgDist = biAvg - a[i];
+            if (avgDist < -.5)
+                ai -= 1.;
+            else if (avgDist > .5)
+                ai += 1.;
+            double dist = (ai < biAvg ? b1i : b0i) - ai; // might be negative or positive
+            answer += dist*dist;
+        }
+        return answer;
+    } // wrappedMaxDistSqrd
 
-    static boolean BRUTEFORCE = true;
+    static boolean BRUTEFORCE = false;
 
     private static boolean isCoveredByADisk(double nonOverlappingDiskRadius,
                                             int maxIndexDifferenceOfInterest,
@@ -97,11 +123,7 @@ public class BlueNoise
                 if (sample != null)
                 {
                     //System.err.println("              (in func) sample = "+VecMath.toString(sample));
-                    double thisDist2 = 0.;
-                    FORI (iDim, d)
-                    {
-                        thisDist2 += wrappedDistSqrd(sample[iDim], point[iDim]);
-                    }
+                    double thisDist2 = wrappedDistSqrd(sample, point);
                     if (thisDist2 < thresholdDist2)
                     {
                         //System.err.println("                  yes");
@@ -133,11 +155,7 @@ public class BlueNoise
                 double sample[] = baseGrid[IBaseGrid];
                 if (sample != null)
                 {
-                    double thisDist2 = 0.;
-                    FORI (iDim, d)
-                    {
-                        thisDist2 += wrappedDistSqrd(sample[iDim], point[iDim]);
-                    }
+                    double thisDist2 = wrappedDistSqrd(sample, point);
                     if (thisDist2 < thresholdDist2)
                     {
                         return true;
@@ -169,13 +187,7 @@ public class BlueNoise
                 double sample[] = baseGrid[IBaseGrid];
                 if (sample != null)
                 {
-                    double thisDist2 = 0.;
-                    FORI (iDim, d)
-                    {
-                        double a = wrappedDistSqrd(sample[iDim], min[iDim]);
-                        double b = wrappedDistSqrd(sample[iDim], max[iDim]);
-                        thisDist2 += MAX(a, b);
-                    }
+                    double thisDist2 = wrappedMaxDistSqrd(sample, min, max);
                     if (thisDist2 < thresholdDist2)
                     {
                         //System.err.println("        yup. (brute force)");
@@ -195,6 +207,7 @@ public class BlueNoise
             for (int di = -maxIndexDifferenceOfInterest; di <= maxIndexDifferenceOfInterest; ++di)
             for (int dj = -maxIndexDifferenceOfInterest; dj <= maxIndexDifferenceOfInterest; ++dj)
             {
+                if (di==0 && dj==0) continue;
                 int i = MOD(i0+di, nBaseGrid);
                 int j = MOD(j0+dj, nBaseGrid);
                 int IBaseGrid = i*nBaseGrid + j;
@@ -204,13 +217,7 @@ public class BlueNoise
                 double sample[] = baseGrid[IBaseGrid];
                 if (sample != null)
                 {
-                    double thisDist2 = 0.;
-                    FORI (iDim, d)
-                    {
-                        double a = wrappedDistSqrd(sample[iDim], min[iDim]);
-                        double b = wrappedDistSqrd(sample[iDim], max[iDim]);
-                        thisDist2 += MAX(a, b);
-                    }
+                    double thisDist2 = wrappedMaxDistSqrd(sample, min, max);
                     if (thisDist2 < thresholdDist2)
                     {
                         //System.err.println("        yes!");
@@ -264,15 +271,6 @@ public class BlueNoise
         System.err.println("      minBaseGridCellDiagonal = "+minBaseGridCellDiagonal);
         double minBaseGridCellWidth = minBaseGridCellDiagonal / Math.sqrt(d);
         System.err.println("      minBaseGridCellWidth = "+minBaseGridCellWidth);
-
-        if (false)
-        {
-            System.err.println("      FUDGING=======================!");
-            // FUDGE til get right answer. 4 is still too small. huh?
-            //minBaseGridCellWidth /= 8.;
-            //minBaseGridCellWidth /= 4.;
-            minBaseGridCellWidth /= 2.;
-        }
 
         int nBaseGrid = (int)Math.ceil(1./minBaseGridCellWidth);
         System.err.println("      nBaseGrid = "+nBaseGrid);
@@ -406,7 +404,7 @@ public class BlueNoise
             assert_eq(iAnswer, nAnswer);
         }
 
-        if (true)
+        if (false)
         {
             // sanity check that nothing uncovered remains
             System.err.println("  sanity checking that nothing uncovered remains...");
