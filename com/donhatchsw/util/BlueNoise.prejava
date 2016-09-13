@@ -147,7 +147,6 @@ public class BlueNoise
         }
         return false;
     }
-    static boolean screwyVerbose = false;
     private static boolean isCompletelyCoveredByADisk(double nonOverlappingDiskRadius,
                                                       int maxIndexDifferenceOfInterest,
                                                       int nBaseGrid,
@@ -155,7 +154,7 @@ public class BlueNoise
                                                       double min[/*d*/], double max[/*d*/],
                                                       int startIndex)
     {
-        int verboseLevel = (screwyVerbose ? 1 : 0);
+        int verboseLevel = 0;
         if (verboseLevel >= 1) System.err.println("    in isCompletelyCoveredByADisk");
         int d = min.length;
         double thresholdDist2 = SQR(nonOverlappingDiskRadius*2.);
@@ -355,22 +354,9 @@ public class BlueNoise
                 int nSubCells = 0;
                 double min[] = new double[d];
                 double max[] = new double[d];
-                //double screwyPoint[] = {0.25672363723250224,0.19255509143253713};
-                double screwyPoint[] = {0.3407809705593303,0.2899772882313273};
-                PRINTVEC(screwyPoint);
                 FORI (iCell, nActiveCells)
                 {
                     Cell cell = activeCells[iCell];
-                    boolean isScrewy = false;
-                    if (contains(cell, screwyPoint))
-                    {
-                        System.err.println("Hey! screwy point is in cell "+cell);
-                        isScrewy = true;
-                        screwyVerbose = true;
-                        System.err.println("   is completely covered? "+isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, cell.baseGridIndex));
-                        screwyVerbose = false;
-
-                    }
                     if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, cell.baseGridIndex))
                     {
                         //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, -1));
@@ -389,14 +375,6 @@ public class BlueNoise
                                     min[i] = (cell.min[i]+cell.max[i])/2.;
                                     max[i] = cell.max[i];
                                 }
-                            }
-                            if (contains(new Cell(min, max, cell.baseGridIndex), screwyPoint))
-                            {
-                                System.err.println("Hey! screwy point is in subcell cell "+new Cell(min, max, cell.baseGridIndex));
-                                isScrewy = true;
-                                screwyVerbose = true;
-                                System.err.println("   is completely covered? "+isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, cell.baseGridIndex));
-                                screwyVerbose = false;
                             }
                             // If we can't easily prove that the subcell is covered, then retain it
                             if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, min, max, cell.baseGridIndex))
