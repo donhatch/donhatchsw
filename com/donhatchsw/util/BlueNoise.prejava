@@ -16,10 +16,14 @@ package com.donhatchsw.util;
 
 import com.donhatchsw.util.VecMath;
 
+// Temporarily, so PRINT, OUT, etc. will go to System.err instead of System.out
+#define out err
+
 // TODO: blue noise on unit sphere
 // TODO: varying disk radii
 public class BlueNoise
 {
+
     private static class Cell
     {
         public double min[];
@@ -35,7 +39,19 @@ public class BlueNoise
         {
             init(min, max, baseGridIndex);
         }
+        public String toString()
+        {
+            return "["+VecMath.toString(min)+" .. "+VecMath.toString(max)+"]("+baseGridIndex+")";
+        }
     } // class Cell
+
+    private static boolean contains(Cell cell, double[] point)
+    {
+        FORI (i, point.length)
+            if (!INRANGE(cell.min[i] <=, point[i], <= cell.max[i]))
+                return false;
+        return true;
+    }
 
     private static void expandIndex(int iBaseGrid[], int nBaseGrid, int IBaseGrid)
     {
@@ -52,22 +68,26 @@ public class BlueNoise
     {
         double dist = a - b;
         if (dist > .5)
-            dist -= .5;
+            dist -= 1.;
         else if (dist < -.5)
-            dist += .5;
+            dist += 1.;
+        assert(INRANGE(-.5 <=, dist, <= .5));
         return dist*dist;
     }
 
+    static boolean BRUTEFORCE = true;
+
     private static boolean isCoveredByADisk(double nonOverlappingDiskRadius,
+                                            int maxIndexDifferenceOfInterest,
                                             int nBaseGrid,
                                             double baseGrid[][],
                                             double point[/*d*/],
                                             int startIndex)
     {
         int d = point.length;
-        double dist2 = SQR(nonOverlappingDiskRadius*2.);
+        double thresholdDist2 = SQR(nonOverlappingDiskRadius*2.);
         int NBaseGrid = baseGrid.length;
-        if (startIndex == -1)
+        if (BRUTEFORCE || startIndex == -1)
         {
             // XXX brute force for starters
             FORI (IBaseGrid, NBaseGrid)
@@ -76,14 +96,20 @@ public class BlueNoise
                 double sample[] = baseGrid[IBaseGrid];
                 if (sample != null)
                 {
+                    //System.err.println("              (in func) sample = "+VecMath.toString(sample));
                     double thisDist2 = 0.;
                     FORI (iDim, d)
                     {
                         thisDist2 += wrappedDistSqrd(sample[iDim], point[iDim]);
                     }
-                    if (thisDist2 < dist2)
+                    if (thisDist2 < thresholdDist2)
                     {
+                        //System.err.println("                  yes");
                         return true;
+                    }
+                    else
+                    {
+                        //System.err.println("                  no");
                     }
                 }
             }
@@ -92,12 +118,11 @@ public class BlueNoise
         {
             assert_eq(d, 2);
             // XXX hard code 2d for starters
-            // XXX hard code maxIndexDistanceOfInterest for starters
+            // XXX hard code maxIndexDifferenceOfInterest for starters
             int i0 = startIndex / nBaseGrid;
             int j0 = startIndex % nBaseGrid;
-            int maxIndexDistanceOfInterest = 6; // XXX seriously??
-            for (int di = -maxIndexDistanceOfInterest; di <= maxIndexDistanceOfInterest; ++di)
-            for (int dj = -maxIndexDistanceOfInterest; dj <= maxIndexDistanceOfInterest; ++dj)
+            for (int di = -maxIndexDifferenceOfInterest; di <= maxIndexDifferenceOfInterest; ++di)
+            for (int dj = -maxIndexDifferenceOfInterest; dj <= maxIndexDifferenceOfInterest; ++dj)
             {
                 int i = MOD(i0+di, nBaseGrid);
                 int j = MOD(j0+dj, nBaseGrid);
@@ -113,7 +138,7 @@ public class BlueNoise
                     {
                         thisDist2 += wrappedDistSqrd(sample[iDim], point[iDim]);
                     }
-                    if (thisDist2 < dist2)
+                    if (thisDist2 < thresholdDist2)
                     {
                         return true;
                     }
@@ -122,18 +147,21 @@ public class BlueNoise
         }
         return false;
     }
+    static boolean screwyVerbose = false;
     private static boolean isCompletelyCoveredByADisk(double nonOverlappingDiskRadius,
+                                                      int maxIndexDifferenceOfInterest,
                                                       int nBaseGrid,
                                                       double baseGrid[][],
                                                       double min[/*d*/], double max[/*d*/],
                                                       int startIndex)
     {
-        //System.err.println("    in isCompletelyCoveredByADisk");
+        int verboseLevel = (screwyVerbose ? 1 : 0);
+        if (verboseLevel >= 1) System.err.println("    in isCompletelyCoveredByADisk");
         int d = min.length;
-        double dist2 = SQR(nonOverlappingDiskRadius*2.);
+        double thresholdDist2 = SQR(nonOverlappingDiskRadius*2.);
         int NBaseGrid = baseGrid.length;
 
-        if (startIndex == -1)
+        if (BRUTEFORCE || startIndex == -1)
         {
             // XXX brute force for starters
             FORI (IBaseGrid, NBaseGrid)
@@ -149,9 +177,10 @@ public class BlueNoise
                         double b = wrappedDistSqrd(sample[iDim], max[iDim]);
                         thisDist2 += MAX(a, b);
                     }
-                    if (thisDist2 < dist2)
+                    if (thisDist2 < thresholdDist2)
                     {
                         //System.err.println("        yup. (brute force)");
+                        if (verboseLevel >= 1) System.err.println("    out isCompletelyCoveredByADisk (yes, completely covered by disk centered at "+VecMath.toString(sample)+") because thisDist2="+thisDist2+" < "+thresholdDist2+"=thresholdDist2 i.e. thisDist="+Math.sqrt(thisDist2)+" < "+Math.sqrt(thresholdDist2)+"=thresholdDist");
                         return true;
                     }
                 }
@@ -161,12 +190,11 @@ public class BlueNoise
         {
             assert_eq(d, 2);
             // XXX hard code 2d for starters
-            // XXX hard code maxIndexDistanceOfInterest for starters
+            // XXX hard code maxIndexDifferenceOfInterest for starters
             int i0 = startIndex / nBaseGrid;
             int j0 = startIndex % nBaseGrid;
-            int maxIndexDistanceOfInterest = 6; // XXX seriously??
-            for (int di = -maxIndexDistanceOfInterest; di <= maxIndexDistanceOfInterest; ++di)
-            for (int dj = -maxIndexDistanceOfInterest; dj <= maxIndexDistanceOfInterest; ++dj)
+            for (int di = -maxIndexDifferenceOfInterest; di <= maxIndexDifferenceOfInterest; ++di)
+            for (int dj = -maxIndexDifferenceOfInterest; dj <= maxIndexDifferenceOfInterest; ++dj)
             {
                 int i = MOD(i0+di, nBaseGrid);
                 int j = MOD(j0+dj, nBaseGrid);
@@ -184,15 +212,16 @@ public class BlueNoise
                         double b = wrappedDistSqrd(sample[iDim], max[iDim]);
                         thisDist2 += MAX(a, b);
                     }
-                    if (thisDist2 < dist2)
+                    if (thisDist2 < thresholdDist2)
                     {
                         //System.err.println("        yes!");
+                        if (verboseLevel >= 1) System.err.println("    out isCompletelyCoveredByADisk (yes, completely covered by disk centered at "+VecMath.toString(sample)+")");
                         return true;
                     }
                 }
             }
         }
-        //System.err.println("        nope.");
+        if (verboseLevel >= 1) System.err.println("    out isCompletelyCoveredByADisk (nope)");
         return false;
     }
     private static int intpow(int a, int b)
@@ -203,10 +232,29 @@ public class BlueNoise
         return answer;
     }
 
+    public static int calcMaxIndexDifferenceOfInterest(double nonOverlappingDiskRadius,
+                                                       double cellWidth)
+    {
+        // Say cellWidth is 1.
+        // If overlappingDiskRadius>1 then answer=1.
+        // If overlappingDiskRadius in (1,2) then a disk can completely cover one cell width
+        // so answer is 2.
+        // If overlappingDiskRadius in (2,3) then a disk can completely cover 2 cell widths
+        // so answer is 3.
+        // So answer is ceil(overlappingDiskRadius); however,
+        // when exactly on a boundary, can round down, so say floor(...+1) instead of ceil(...).
+        int answer = (int)Math.floor(2.*nonOverlappingDiskRadius / cellWidth) + 1;
+        return answer;
+    }
+
     // Maximal blue noise in unit box [-.5,.5]^n, toroidally wrapped.
     public static double[][] blueNoiseInUnitBox(int d, double nonOverlappingDiskRadius,
                                                 java.util.Random rng)
     {
+        int verboseLevel = 1;
+        if (verboseLevel >= 1) System.err.println("    in blueNoiseInUnitBox");
+        if (verboseLevel >= 1) System.err.println("      d="+d);
+        if (verboseLevel >= 1) System.err.println("      nonOverlappingDiskRadius="+nonOverlappingDiskRadius);
         // http://www.cs.sandia.gov/~samitch/papers/eurographics_mps-final-with-appendix.pdf
         double A = .5; // see paper
         double B = 2; // see paper... although I don't use it because I don't quite understand
@@ -214,12 +262,26 @@ public class BlueNoise
         // Choose base grid cell size so its diagonal
         // is <= (min distance between two samples) = 2*nonOverlappingDiskRadius.
         double minBaseGridCellDiagonal = 2. * nonOverlappingDiskRadius;
-        double minBaseGridCellEdgeLength = minBaseGridCellDiagonal / Math.sqrt(d);
+        System.err.println("      minBaseGridCellDiagonal = "+minBaseGridCellDiagonal);
+        double minBaseGridCellWidth = minBaseGridCellDiagonal / Math.sqrt(d);
+        System.err.println("      minBaseGridCellWidth = "+minBaseGridCellWidth);
 
-        minBaseGridCellEdgeLength /= 4.;
+        if (false)
+        {
+            System.err.println("      FUDGING=======================!");
+            // FUDGE til get right answer. 4 is still too small. huh?
+            //minBaseGridCellWidth /= 8.;
+            //minBaseGridCellWidth /= 4.;
+            minBaseGridCellWidth /= 2.;
+        }
 
-        int nBaseGrid = (int)Math.ceil(1./minBaseGridCellEdgeLength);
+        int nBaseGrid = (int)Math.ceil(1./minBaseGridCellWidth);
         System.err.println("      nBaseGrid = "+nBaseGrid);
+        double baseGridCellWidth = 1./nBaseGrid;
+        System.err.println("      baseGridCellWidth = "+baseGridCellWidth);
+        int maxIndexDifferenceOfInterest = calcMaxIndexDifferenceOfInterest(nonOverlappingDiskRadius, baseGridCellWidth);
+        System.err.println("      maxIndexDifferenceOfInterest = "+maxIndexDifferenceOfInterest);
+
         int NBaseGrid = intpow(nBaseGrid, d);
         double baseGrid[][] = new double[NBaseGrid][]; // all null initially
         int nAnswer = 0;
@@ -229,6 +291,7 @@ public class BlueNoise
             FORI (IBaseGrid, NBaseGrid)
             {
                 expandIndex(iBaseGrid, nBaseGrid, IBaseGrid);
+                //System.err.println("          iBaseGrid = "+Arrays.toStringCompact(iBaseGrid));
                 double min[] = new double[d];
                 double max[] = new double[d];
                 FORI (i, d)
@@ -237,8 +300,10 @@ public class BlueNoise
                     max[i] = (iBaseGrid[i]+1)/(double)nBaseGrid - .5;
                 }
                 activeCells[IBaseGrid] = new Cell(min, max, IBaseGrid);
+                //System.err.println("          activeCells["+IBaseGrid+"] = "+activeCells[IBaseGrid]);
             }
             int nActiveCells = NBaseGrid;
+
 
             while (nActiveCells > 0)
             {
@@ -265,10 +330,12 @@ public class BlueNoise
                             double t = rng.nextDouble();
                             dart[i] = LERP(cell.min[i], cell.max[i], t);
                         }
-                        if (!isCoveredByADisk(nonOverlappingDiskRadius, nBaseGrid, baseGrid, dart, cell.baseGridIndex))
+                        //System.err.println("              dart: "+VecMath.toString(dart));
+                        if (!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, dart, cell.baseGridIndex))
                         {
-                            //assert (!isCoveredByADisk(nonOverlappingDiskRadius, nBaseGrid, baseGrid, dart, -1));
+                            //assert (!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, dart, -1));
                             // promote dart to sample by adding it to the base grid
+                            //System.err.println("                  promoting to sample!");
                             baseGrid[cell.baseGridIndex] = dart;
                             nAnswer++;
 
@@ -288,18 +355,31 @@ public class BlueNoise
                 int nSubCells = 0;
                 double min[] = new double[d];
                 double max[] = new double[d];
+                //double screwyPoint[] = {0.25672363723250224,0.19255509143253713};
+                double screwyPoint[] = {0.3407809705593303,0.2899772882313273};
+                PRINTVEC(screwyPoint);
                 FORI (iCell, nActiveCells)
                 {
                     Cell cell = activeCells[iCell];
-                    if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, nBaseGrid, baseGrid, cell.min, cell.max, cell.baseGridIndex))
+                    boolean isScrewy = false;
+                    if (contains(cell, screwyPoint))
                     {
-                        //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, nBaseGrid, baseGrid, cell.min, cell.max, -1));
+                        System.err.println("Hey! screwy point is in cell "+cell);
+                        isScrewy = true;
+                        screwyVerbose = true;
+                        System.err.println("   is completely covered? "+isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, cell.baseGridIndex));
+                        screwyVerbose = false;
+
+                    }
+                    if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, cell.baseGridIndex))
+                    {
+                        //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, -1));
                         FORI (iSub, 1<<d)
                         {
                             FORI (i, d)
                             {
                                 int bit = (iSub>>i) & 1;
-                                if (i == 0)
+                                if (bit == 0)
                                 {
                                     min[i] = cell.min[i];
                                     max[i] = (cell.min[i]+cell.max[i])/2.;
@@ -310,10 +390,18 @@ public class BlueNoise
                                     max[i] = cell.max[i];
                                 }
                             }
-                            // If we can't easily prove that the subcell is covered, then retain it
-                            if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, nBaseGrid, baseGrid, min, max, cell.baseGridIndex))
+                            if (contains(new Cell(min, max, cell.baseGridIndex), screwyPoint))
                             {
-                                //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, nBaseGrid, baseGrid, min, max, -1));
+                                System.err.println("Hey! screwy point is in subcell cell "+new Cell(min, max, cell.baseGridIndex));
+                                isScrewy = true;
+                                screwyVerbose = true;
+                                System.err.println("   is completely covered? "+isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, cell.baseGridIndex));
+                                screwyVerbose = false;
+                            }
+                            // If we can't easily prove that the subcell is covered, then retain it
+                            if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, min, max, cell.baseGridIndex))
+                            {
+                                //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, min, max, -1));
                                 subcells[nSubCells++] = new Cell(min, max, cell.baseGridIndex);
                                 // that acquired ownership of min,max, so reallocate
                                 min = new double[d];
@@ -340,10 +428,10 @@ public class BlueNoise
             assert_eq(iAnswer, nAnswer);
         }
 
-        if (false)
+        if (true)
         {
-            System.err.println("sanity checking...");
-            // sanity check answer
+            // sanity check that nothing uncovered remains
+            System.err.println("  sanity checking that nothing uncovered remains...");
             int nChecks = 1000;
             double checkPoint[] = new double[d]; // scratch for loop
             FORI (iCheck, nChecks)
@@ -351,20 +439,40 @@ public class BlueNoise
                 FORI (i, d)
                 {
                     checkPoint[i] = rng.nextDouble() - .5;
-                    boolean isCovered = false;
-                    FORI (iSample, answer.length)
-                    {
-                        if (VecMath.dist(checkPoint, answer[iSample]) < 2*nonOverlappingDiskRadius)
-                            isCovered = true;
-                    }
-                    int baseGridIndex = -1;
-                    assert_eq(isCovered, isCoveredByADisk(nonOverlappingDiskRadius, nBaseGrid, baseGrid, checkPoint, baseGridIndex));
-                    assert(isCovered);
                 }
+                boolean isCovered = false;
+                //System.err.println("          checkPoint = "+VecMath.toString(checkPoint));
+                FORI (iSample, answer.length)
+                {
+                    //System.err.println("              sample = "+VecMath.toString(answer[iSample]));
+                    double scratchPoint[] = VecMath.copyvec(checkPoint);
+                    FORI (i, d)
+                        if (scratchPoint[i] > answer[iSample][i]+.5)
+                            scratchPoint[i] -= 1.;
+                        else if (scratchPoint[i] < answer[iSample][i]-.5)
+                            scratchPoint[i] += 1.;
+                    if (VecMath.dist(scratchPoint, answer[iSample]) < 2*nonOverlappingDiskRadius)
+                    {
+                        //System.err.println("                  yes, covered");
+                        isCovered = true;
+                    }
+                    else
+                    {
+                        //System.err.println("                  no, not covered");
+                    }
+                }
+                int baseGridIndex = -1; // -1 means check all base grid cells
+                assert_eq(isCovered, isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, checkPoint, baseGridIndex));
+                if (!isCovered)
+                {
+                    System.err.println("checkPoint = "+VecMath.toString(checkPoint));
+                }
+                assert(isCovered);
             }
-            System.err.println("done.");
+            System.err.println("  done.");
         }
 
+        if (verboseLevel >= 1) System.err.println("    out blueNoiseInUnitBox");
         return answer;
     } // blueNoiseInUnitBox
     // Maximal blue noise on d-1 dimensional surface of hypersphere in d dimensions.
@@ -379,17 +487,18 @@ public class BlueNoise
     {
         if (args.length < 2)
         {
-            System.err.println("Usage: BlueNoise <d> <nonOverlappingDiskRadius>");
+            System.err.println("Usage: BlueNoise <d> <nonOverlappingDiskRadius> [<seed>]");
             System.exit(1);
         }
         int d = Integer.parseInt(args[0]);
         double nonOverlappingDiskRadius = Double.parseDouble(args[1]);
-        long seed = 0;
+        long seed = args.length>=3 ? Long.parseLong(args[2]) : 0;
         java.util.Random rng = new java.util.Random(seed);
         System.err.println("d = "+d);
         System.err.println("nonOverlappingDiskRadius = "+nonOverlappingDiskRadius);
         double blueNoise[][] = blueNoiseInUnitBox(d, nonOverlappingDiskRadius, rng);
         System.err.println("blueNoise.length = "+blueNoise.length);
+#undef out
         FORI (iSample, blueNoise.length)
         {
             FORI (i, d)
