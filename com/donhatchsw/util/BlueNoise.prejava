@@ -137,7 +137,7 @@ public class BlueNoise
         {
             FORI (iTemplate, template.length)
             {
-                int index = startIndex + iTemplate;
+                int index = startIndex + template[iTemplate];
                 double sample[] = baseGridExpanded[index][0];
                 if (sample != null)
                 {
@@ -188,7 +188,7 @@ public class BlueNoise
         {
             FORI (iTemplate, template.length)
             {
-                int index = startIndex + iTemplate;
+                int index = startIndex + template[iTemplate];
                 double sample[] = baseGridExpanded[index][0];
                 if (sample != null)
                 {
@@ -308,7 +308,7 @@ public class BlueNoise
                 }
             }
 
-            int template[] = new int[intpow(2*maxIndexDifferenceOfInterest+1, d)];
+            int template[] = new int[intpow(2*maxIndexDifferenceOfInterest+1, d)]; // max possible
             {
                 int nTemplate = 0;
                 int index[] = new int[d]; // scratch for loop
@@ -319,19 +319,19 @@ public class BlueNoise
                         index[i] -= maxIndexDifferenceOfInterest;
                     if (true) // XXX TODO: make the right condition here!
                     {
+                        // convert to delta of flat indices into baseGridExpanded
                         int delta = contractIndex(nBaseGridExpanded, index);
                         template[nTemplate++] = delta;
                     }
                 }
                 template = (int[])Arrays.subarray(template, 0, nTemplate);
             }
-            PRINTARRAY(template);
-
+            if (verboseLevel >= 1) System.err.println("      template = "+Arrays.toStringCompact(template));
 
             int nActiveCells = NBaseGrid;
             while (nActiveCells > 0)
             {
-                System.err.println("      nActiveCells = "+nActiveCells);
+                if (verboseLevel >= 1) System.err.println("      nActiveCells = "+nActiveCells);
 
                 // throw darts
                 int nThrows = (int)Math.ceil(A * activeCells.length);
@@ -414,11 +414,25 @@ public class BlueNoise
                     }
                 }
 
-                System.err.println("          nSubCells = "+nSubCells);
+                if (verboseLevel >= 1) System.err.println("          nSubCells = "+nSubCells);
 
                 activeCells = subcells;
                 nActiveCells = nSubCells;
             } // while (nActiveCells > 0)
+            if (false)
+            {
+                // sanity check that no two points are closer than 2*nonOverlappingDiskRadius apart
+                System.err.println("  sanity checking that no two points are too close together...");
+                FORI (iSample, nAnswer)
+                FORI (jSample, nAnswer)
+                {
+                    if (iSample != jSample)
+                    {
+                        double dist = VecMath.dist(answer[iSample], answer[jSample]);
+                        assert_ge(dist, 2*nonOverlappingDiskRadius);
+                    }
+                }
+            }
             if (false)
             {
                 // sanity check that nothing uncovered remains
@@ -433,7 +447,7 @@ public class BlueNoise
                     }
                     boolean isCovered = false;
                     //System.err.println("          checkPoint = "+VecMath.toString(checkPoint));
-                    FORI (iSample, answer.length)
+                    FORI (iSample, nAnswer)
                     {
                         //System.err.println("              sample = "+VecMath.toString(answer[iSample]));
                         double scratchPoint[] = VecMath.copyvec(checkPoint);
@@ -462,7 +476,6 @@ public class BlueNoise
                 }
                 System.err.println("  done.");
             }
-
         }
         answer = (double[][])Arrays.subarray(answer, 0, nAnswer);
 
