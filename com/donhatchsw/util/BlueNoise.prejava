@@ -1,19 +1,7 @@
-/*
-  To visualize possible cases of cubes intersecting unit sphere:
-  In gnuplot:
-    set term wxt size 1000,1000
-    set size square
-    n = 10
-    set isosamples 2,n+1
-    set parametric
-    c(t) = cos(pi/2/n*t)
-    s(t) = sin(pi/2/n*t)
-    splot [0:n] [0:n] [0:1] [0:1] [0:1] c(u)*c(v),s(u)*c(v),s(v), c(u)*c(v),s(v),s(u)*c(v), s(v),c(u)*c(v),s(u)*c(v)
-  But that's not interesting, going to do a quad tree on cubmap faces instead
-*/
 package com.donhatchsw.util;
 #include "macros.h"
 
+import com.donhatchsw.util.Arrays;
 import com.donhatchsw.util.VecMath;
 
 // Temporarily, so PRINT, OUT, etc. will go to System.err instead of System.out
@@ -63,6 +51,14 @@ public class BlueNoise
         }
         assert_eq(IBaseGrid, 0);
     }
+    static int contractIndex(int nBaseGrid, int iBaseGrid[])
+    {
+        int d = iBaseGrid.length;
+        int answer = 0;
+        FORIDOWN(i, d)
+            answer = answer*nBaseGrid + iBaseGrid[i];
+        return answer;
+    }
 
     private static double wrappedDistSqrd(double a[], double b[])
     {
@@ -106,20 +102,21 @@ public class BlueNoise
     private static boolean isCoveredByADisk(double nonOverlappingDiskRadius,
                                             int maxIndexDifferenceOfInterest,
                                             int nBaseGrid,
-                                            double baseGrid[][],
+                                            double baseGridExpanded[][/*1*/][],
                                             double point[/*d*/],
-                                            int startIndex)
+                                            int startIndex,
+                                            int template[])
     {
         int d = point.length;
         double thresholdDist2 = SQR(nonOverlappingDiskRadius*2.);
-        int NBaseGrid = baseGrid.length;
         if (BRUTEFORCE || startIndex == -1)
         {
             // XXX brute force for starters
-            FORI (IBaseGrid, NBaseGrid)
+            int NBaseGridExpanded = baseGridExpanded.length;
+            FORI (IBaseGridExpanded, NBaseGridExpanded)
             {
                 // dup code below
-                double sample[] = baseGrid[IBaseGrid];
+                double sample[] = baseGridExpanded[IBaseGridExpanded][0];
                 if (sample != null)
                 {
                     //System.err.println("              (in func) sample = "+VecMath.toString(sample));
@@ -138,21 +135,10 @@ public class BlueNoise
         }
         else
         {
-            assert_eq(d, 2);
-            // XXX hard code 2d for starters
-            // XXX hard code maxIndexDifferenceOfInterest for starters
-            int i0 = startIndex / nBaseGrid;
-            int j0 = startIndex % nBaseGrid;
-            for (int di = -maxIndexDifferenceOfInterest; di <= maxIndexDifferenceOfInterest; ++di)
-            for (int dj = -maxIndexDifferenceOfInterest; dj <= maxIndexDifferenceOfInterest; ++dj)
+            FORI (iTemplate, template.length)
             {
-                int i = MOD(i0+di, nBaseGrid);
-                int j = MOD(j0+dj, nBaseGrid);
-                int IBaseGrid = i*nBaseGrid + j;
-                //System.err.println("          checking i="+i+" j="+j+" -> IBaseGrid="+IBaseGrid);
-
-                // dup code from above
-                double sample[] = baseGrid[IBaseGrid];
+                int index = startIndex + template[iTemplate];
+                double sample[] = baseGridExpanded[index][0];
                 if (sample != null)
                 {
                     double thisDist2 = wrappedDistSqrd(sample, point);
@@ -168,23 +154,24 @@ public class BlueNoise
     private static boolean isCompletelyCoveredByADisk(double nonOverlappingDiskRadius,
                                                       int maxIndexDifferenceOfInterest,
                                                       int nBaseGrid,
-                                                      double baseGrid[][],
+                                                      double baseGridExpanded[][/*1*/][],
                                                       double min[/*d*/], double max[/*d*/],
-                                                      int startIndex)
+                                                      int startIndex,
+                                                      int template[])
     {
         int verboseLevel = 0;
         if (verboseLevel >= 1) System.err.println("    in isCompletelyCoveredByADisk");
         int d = min.length;
         double thresholdDist2 = SQR(nonOverlappingDiskRadius*2.);
-        int NBaseGrid = baseGrid.length;
 
         if (BRUTEFORCE || startIndex == -1)
         {
             // XXX brute force for starters
-            FORI (IBaseGrid, NBaseGrid)
+            int NBaseGridExpanded = baseGridExpanded.length;
+            FORI (IBaseGridExpanded, NBaseGridExpanded)
             {
                 // dup code from below
-                double sample[] = baseGrid[IBaseGrid];
+                double sample[] = baseGridExpanded[IBaseGridExpanded][0];
                 if (sample != null)
                 {
                     double thisDist2 = wrappedMaxDistSqrd(sample, min, max);
@@ -199,22 +186,10 @@ public class BlueNoise
         }
         else
         {
-            assert_eq(d, 2);
-            // XXX hard code 2d for starters
-            // XXX hard code maxIndexDifferenceOfInterest for starters
-            int i0 = startIndex / nBaseGrid;
-            int j0 = startIndex % nBaseGrid;
-            for (int di = -maxIndexDifferenceOfInterest; di <= maxIndexDifferenceOfInterest; ++di)
-            for (int dj = -maxIndexDifferenceOfInterest; dj <= maxIndexDifferenceOfInterest; ++dj)
+            FORI (iTemplate, template.length)
             {
-                if (di==0 && dj==0) continue;
-                int i = MOD(i0+di, nBaseGrid);
-                int j = MOD(j0+dj, nBaseGrid);
-                int IBaseGrid = i*nBaseGrid + j;
-                //System.err.println("          checking i="+i+" j="+j+" -> IBaseGrid="+IBaseGrid);
-
-                // dup code from above
-                double sample[] = baseGrid[IBaseGrid];
+                int index = startIndex + template[iTemplate];
+                double sample[] = baseGridExpanded[index][0];
                 if (sample != null)
                 {
                     double thisDist2 = wrappedMaxDistSqrd(sample, min, max);
@@ -268,43 +243,95 @@ public class BlueNoise
         // Choose base grid cell size so its diagonal
         // is <= (min distance between two samples) = 2*nonOverlappingDiskRadius.
         double minBaseGridCellDiagonal = 2. * nonOverlappingDiskRadius;
-        System.err.println("      minBaseGridCellDiagonal = "+minBaseGridCellDiagonal);
+        if (verboseLevel >= 1) System.err.println("      minBaseGridCellDiagonal = "+minBaseGridCellDiagonal);
         double minBaseGridCellWidth = minBaseGridCellDiagonal / Math.sqrt(d);
-        System.err.println("      minBaseGridCellWidth = "+minBaseGridCellWidth);
+        if (verboseLevel >= 1) System.err.println("      minBaseGridCellWidth = "+minBaseGridCellWidth);
 
         int nBaseGrid = (int)Math.ceil(1./minBaseGridCellWidth);
-        System.err.println("      nBaseGrid = "+nBaseGrid);
+        if (verboseLevel >= 1) System.err.println("      nBaseGrid = "+nBaseGrid);
         double baseGridCellWidth = 1./nBaseGrid;
-        System.err.println("      baseGridCellWidth = "+baseGridCellWidth);
+        if (verboseLevel >= 1) System.err.println("      baseGridCellWidth = "+baseGridCellWidth);
         int maxIndexDifferenceOfInterest = calcMaxIndexDifferenceOfInterest(nonOverlappingDiskRadius, baseGridCellWidth);
-        System.err.println("      maxIndexDifferenceOfInterest = "+maxIndexDifferenceOfInterest);
+        if (verboseLevel >= 1) System.err.println("      maxIndexDifferenceOfInterest = "+maxIndexDifferenceOfInterest);
 
         int NBaseGrid = intpow(nBaseGrid, d);
-        double baseGrid[][] = new double[NBaseGrid][]; // all null initially
+        int nBaseGridExpanded = nBaseGrid + 2*maxIndexDifferenceOfInterest;
+        if (verboseLevel >= 1) System.err.println("      nBaseGridExpanded = "+nBaseGridExpanded);
+        int NBaseGridExpanded = intpow(nBaseGridExpanded, d);
+
+        double answer[][] = new double[NBaseGrid][]; // max possible
         int nAnswer = 0;
         {
-            Cell activeCells[] = new Cell[NBaseGrid];
-            int iBaseGrid[] = new int[d]; // scratch for loop
-            FORI (IBaseGrid, NBaseGrid)
+            double baseGridExpanded[][][] = new double[NBaseGridExpanded][][];
             {
-                expandIndex(iBaseGrid, nBaseGrid, IBaseGrid);
-                //System.err.println("          iBaseGrid = "+Arrays.toStringCompact(iBaseGrid));
-                double min[] = new double[d];
-                double max[] = new double[d];
-                FORI (i, d)
+                int iBaseGrid[] = new int[d]; // scratch for loop
+                int iBaseGridExpanded[] = new int[d]; // scratch for loop
+                // Fill in initial corner
+                FORI (IBaseGrid, NBaseGrid)
                 {
-                    min[i] = (iBaseGrid[i]+0)/(double)nBaseGrid - .5;
-                    max[i] = (iBaseGrid[i]+1)/(double)nBaseGrid - .5;
+                    expandIndex(iBaseGrid, nBaseGrid, IBaseGrid);
+                    int IBaseGridExpanded = contractIndex(nBaseGridExpanded, iBaseGrid);
+                    baseGridExpanded[IBaseGridExpanded] = new double[1][]; // null initially
                 }
-                activeCells[IBaseGrid] = new Cell(min, max, IBaseGrid);
-                //System.err.println("          activeCells["+IBaseGrid+"] = "+activeCells[IBaseGrid]);
+                // Fill in dup entries, pointing to entries in initial corner
+                FORI (IBaseGridExpanded, NBaseGridExpanded)
+                {
+                    if (baseGridExpanded[IBaseGridExpanded] == null)
+                    {
+                        expandIndex(iBaseGridExpanded, nBaseGridExpanded, IBaseGridExpanded);
+                        FORI (i, d)
+                            iBaseGridExpanded[i] %= nBaseGrid;
+                        baseGridExpanded[IBaseGridExpanded] = baseGridExpanded[contractIndex(nBaseGridExpanded, iBaseGridExpanded)];
+                    }
+                }
             }
+            Cell activeCells[] = new Cell[NBaseGrid];
+            {
+                int iBaseGrid[] = new int[d]; // scratch for loop
+                FORI (IBaseGrid, NBaseGrid)
+                {
+                    expandIndex(iBaseGrid, nBaseGrid, IBaseGrid);
+                    //System.err.println("          iBaseGrid = "+Arrays.toStringCompact(iBaseGrid));
+                    double min[] = new double[d];
+                    double max[] = new double[d];
+                    FORI (i, d)
+                    {
+                        min[i] = (iBaseGrid[i]+0)/(double)nBaseGrid - .5;
+                        max[i] = (iBaseGrid[i]+1)/(double)nBaseGrid - .5;
+                    }
+                    FORI (i, d)
+                        iBaseGrid[i] += maxIndexDifferenceOfInterest;
+                    int IBaseGridExpanded = contractIndex(nBaseGridExpanded, iBaseGrid);
+
+                    activeCells[IBaseGrid] = new Cell(min, max, IBaseGridExpanded);
+                    //System.err.println("          activeCells["+IBaseGrid+"] = "+activeCells[IBaseGrid]);
+                }
+            }
+
+            int template[] = new int[intpow(2*maxIndexDifferenceOfInterest+1, d)]; // max possible
+            {
+                int nTemplate = 0;
+                int index[] = new int[d]; // scratch for loop
+                FORI (Index, template.length)
+                {
+                    expandIndex(index, 2*maxIndexDifferenceOfInterest+1, Index);
+                    FORI (i, d)
+                        index[i] -= maxIndexDifferenceOfInterest;
+                    if (true) // XXX TODO: make the right condition here!
+                    {
+                        // convert to delta of flat indices into baseGridExpanded
+                        int delta = contractIndex(nBaseGridExpanded, index);
+                        template[nTemplate++] = delta;
+                    }
+                }
+                template = (int[])Arrays.subarray(template, 0, nTemplate);
+            }
+            if (verboseLevel >= 1) System.err.println("      template = "+Arrays.toStringCompact(template));
+
             int nActiveCells = NBaseGrid;
-
-
             while (nActiveCells > 0)
             {
-                System.err.println("      nActiveCells = "+nActiveCells);
+                if (verboseLevel >= 1) System.err.println("      nActiveCells = "+nActiveCells);
 
                 // throw darts
                 int nThrows = (int)Math.ceil(A * activeCells.length);
@@ -313,7 +340,7 @@ public class BlueNoise
                     // select an active cell uniformly at random
                     int iCell = rng.nextInt(nActiveCells);
                     Cell cell = activeCells[iCell];
-                    if (baseGrid[cell.baseGridIndex] != null) // if parent base grid cell has a sample
+                    if (baseGridExpanded[cell.baseGridIndex][0] != null) // if parent base grid cell has a sample
                     {
                         // remove activeCells[iCell]
                         activeCells[iCell] = activeCells[--nActiveCells];
@@ -328,13 +355,13 @@ public class BlueNoise
                             dart[i] = LERP(cell.min[i], cell.max[i], t);
                         }
                         //System.err.println("              dart: "+VecMath.toString(dart));
-                        if (!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, dart, cell.baseGridIndex))
+                        if (!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, dart, cell.baseGridIndex, template))
                         {
-                            //assert (!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, dart, -1));
-                            // promote dart to sample by adding it to the base grid
+                            //assert (!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, dart, -1, template));
+                            // promote dart to sample by adding it to the base grid and answer
                             //System.err.println("                  promoting to sample!");
-                            baseGrid[cell.baseGridIndex] = dart;
-                            nAnswer++;
+                            baseGridExpanded[cell.baseGridIndex][0] = dart;
+                            answer[nAnswer++] = dart;
 
                             // remove activeCells[iCell]
                             activeCells[iCell] = activeCells[--nActiveCells];
@@ -355,9 +382,9 @@ public class BlueNoise
                 FORI (iCell, nActiveCells)
                 {
                     Cell cell = activeCells[iCell];
-                    if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, cell.baseGridIndex))
+                    if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, cell.min, cell.max, cell.baseGridIndex, template))
                     {
-                        //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, cell.min, cell.max, -1));
+                        //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, cell.min, cell.max, -1, template));
                         FORI (iSub, 1<<d)
                         {
                             FORI (i, d)
@@ -375,9 +402,9 @@ public class BlueNoise
                                 }
                             }
                             // If we can't easily prove that the subcell is covered, then retain it
-                            if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, min, max, cell.baseGridIndex))
+                            if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, min, max, cell.baseGridIndex, template))
                             {
-                                //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, min, max, -1));
+                                //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, min, max, -1, template));
                                 subcells[nSubCells++] = new Cell(min, max, cell.baseGridIndex);
                                 // that acquired ownership of min,max, so reallocate
                                 min = new double[d];
@@ -387,66 +414,70 @@ public class BlueNoise
                     }
                 }
 
-                System.err.println("          nSubCells = "+nSubCells);
+                if (verboseLevel >= 1) System.err.println("          nSubCells = "+nSubCells);
 
                 activeCells = subcells;
                 nActiveCells = nSubCells;
             } // while (nActiveCells > 0)
-        }
-        double answer[][] = new double[nAnswer][];
-        {
-            int iAnswer = 0;
-            FORI (IBaseGrid, NBaseGrid)
+            if (false)
             {
-                if (baseGrid[IBaseGrid] != null)
-                    answer[iAnswer++] = baseGrid[IBaseGrid];
-            }
-            assert_eq(iAnswer, nAnswer);
-        }
-
-        if (false)
-        {
-            // sanity check that nothing uncovered remains
-            System.err.println("  sanity checking that nothing uncovered remains...");
-            int nChecks = 1000;
-            double checkPoint[] = new double[d]; // scratch for loop
-            FORI (iCheck, nChecks)
-            {
-                FORI (i, d)
+                // sanity check that no two points are closer than 2*nonOverlappingDiskRadius apart
+                System.err.println("  sanity checking that no two points are too close together...");
+                FORI (iSample, nAnswer)
+                FORI (jSample, nAnswer)
                 {
-                    checkPoint[i] = rng.nextDouble() - .5;
+                    if (iSample != jSample)
+                    {
+                        double dist = VecMath.dist(answer[iSample], answer[jSample]);
+                        assert_ge(dist, 2*nonOverlappingDiskRadius);
+                    }
                 }
-                boolean isCovered = false;
-                //System.err.println("          checkPoint = "+VecMath.toString(checkPoint));
-                FORI (iSample, answer.length)
+            }
+            if (false)
+            {
+                // sanity check that nothing uncovered remains
+                System.err.println("  sanity checking that nothing uncovered remains...");
+                int nChecks = 1000;
+                double checkPoint[] = new double[d]; // scratch for loop
+                FORI (iCheck, nChecks)
                 {
-                    //System.err.println("              sample = "+VecMath.toString(answer[iSample]));
-                    double scratchPoint[] = VecMath.copyvec(checkPoint);
                     FORI (i, d)
-                        if (scratchPoint[i] > answer[iSample][i]+.5)
-                            scratchPoint[i] -= 1.;
-                        else if (scratchPoint[i] < answer[iSample][i]-.5)
-                            scratchPoint[i] += 1.;
-                    if (VecMath.dist(scratchPoint, answer[iSample]) < 2*nonOverlappingDiskRadius)
                     {
-                        //System.err.println("                  yes, covered");
-                        isCovered = true;
+                        checkPoint[i] = rng.nextDouble() - .5;
                     }
-                    else
+                    boolean isCovered = false;
+                    //System.err.println("          checkPoint = "+VecMath.toString(checkPoint));
+                    FORI (iSample, nAnswer)
                     {
-                        //System.err.println("                  no, not covered");
+                        //System.err.println("              sample = "+VecMath.toString(answer[iSample]));
+                        double scratchPoint[] = VecMath.copyvec(checkPoint);
+                        FORI (i, d)
+                            if (scratchPoint[i] > answer[iSample][i]+.5)
+                                scratchPoint[i] -= 1.;
+                            else if (scratchPoint[i] < answer[iSample][i]-.5)
+                                scratchPoint[i] += 1.;
+                        if (VecMath.dist(scratchPoint, answer[iSample]) < 2*nonOverlappingDiskRadius)
+                        {
+                            //System.err.println("                  yes, covered");
+                            isCovered = true;
+                        }
+                        else
+                        {
+                            //System.err.println("                  no, not covered");
+                        }
                     }
+                    int baseGridIndex = -1; // -1 means check all base grid cells
+                    assert_eq(isCovered, isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, checkPoint, baseGridIndex, template));
+                    if (!isCovered)
+                    {
+                        System.err.println("checkPoint = "+VecMath.toString(checkPoint));
+                    }
+                    assert(isCovered);
                 }
-                int baseGridIndex = -1; // -1 means check all base grid cells
-                assert_eq(isCovered, isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGrid, checkPoint, baseGridIndex));
-                if (!isCovered)
-                {
-                    System.err.println("checkPoint = "+VecMath.toString(checkPoint));
-                }
-                assert(isCovered);
+                System.err.println("  done.");
             }
-            System.err.println("  done.");
         }
+        answer = (double[][])Arrays.subarray(answer, 0, nAnswer);
 
         if (verboseLevel >= 1) System.err.println("    out blueNoiseInUnitBox");
         return answer;
