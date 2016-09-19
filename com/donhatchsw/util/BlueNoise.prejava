@@ -232,7 +232,7 @@ public class BlueNoise
     public static double[][] blueNoiseInUnitBox(int d, double nonOverlappingDiskRadius,
                                                 java.util.Random rng)
     {
-        int verboseLevel = 1;
+        int verboseLevel = 0;
         if (verboseLevel >= 1) System.err.println("    in blueNoiseInUnitBox");
         if (verboseLevel >= 1) System.err.println("      d="+d);
         if (verboseLevel >= 1) System.err.println("      nonOverlappingDiskRadius="+nonOverlappingDiskRadius);
@@ -488,29 +488,72 @@ public class BlueNoise
         unimplemented(); // TODO: implement me!
         return null;
     } // blueNoiseOnUnitSphere
+#undef out
 
     // little test program
     public static void main(String args[])
     {
+        if (args.length == 1 && args[0].equals("E"))
+        {
+            // Try to print the 1d E function.
+            // I think E(x)/x converges to approx .7476249.
+            //
+            // More analysis:
+            //     for x<0, E(x) = 0
+            //     for x>0, E(x) = 1 + 2*(INTEGRAL[t=-inf..x-1] E(t) dt)/x
+            // So E[-inf..0](x) = 0
+            //    E[0..1](x) = 1                         integral = 1
+            //    E[1..2](x) = 3 - 2/x                   integral = 3-log(4)
+            //    E[2..3](x) = 7 - (10 + 4*log(x-1))/x   integral = oh no!!!! some polylog crap
+            //    E[3..4](x) = 
+            long seed = 0;
+            java.util.Random rng = new java.util.Random(seed);
+            int nTrialsPerX = 10000;
+            double xMin = 0.;
+            double xMax = 10.;
+            int nIncrs = 100;
+            FORI (iIncr, nIncrs)
+            {
+                double x = LERP(xMin, xMax, (iIncr+1.)/nIncrs); // skip xMin, include xMax
+                int sum = 0;
+                FORI (iTrial, nTrialsPerX)
+                {
+                    // E(x) = Ewrapped(x+2)-1, I think.
+                    double X = x+2;
+                    double blueNoise[][] = blueNoiseInUnitBox(1, .5/X, rng);
+                    int N = blueNoise.length;
+                    assert(N >= 1);
+                    int n = N - 1;
+                    sum += n;
+                }
+                double avg = (double)sum / (double)nTrialsPerX;
+                System.out.println(""+x+" "+avg+" "+(avg/x));
+            }
+            return;
+        }
+
         if (args.length < 2)
         {
             System.err.println("Usage: BlueNoise <d> <nonOverlappingDiskRadius> [<seed>]");
             System.exit(1);
         }
-        int d = Integer.parseInt(args[0]);
-        double nonOverlappingDiskRadius = Double.parseDouble(args[1]);
-        long seed = args.length>=3 ? Long.parseLong(args[2]) : 0;
-        java.util.Random rng = new java.util.Random(seed);
-        System.err.println("d = "+d);
-        System.err.println("nonOverlappingDiskRadius = "+nonOverlappingDiskRadius);
-        double blueNoise[][] = blueNoiseInUnitBox(d, nonOverlappingDiskRadius, rng);
-        System.err.println("blueNoise.length = "+blueNoise.length);
-#undef out
-        FORI (iSample, blueNoise.length)
+        if (true)
         {
-            FORI (i, d)
-                System.out.print(" "+blueNoise[iSample][i]);
-            System.out.println();
+            int d = Integer.parseInt(args[0]);
+            double nonOverlappingDiskRadius = Double.parseDouble(args[1]);
+            long seed = args.length>=3 ? Long.parseLong(args[2]) : 0;
+            java.util.Random rng = new java.util.Random(seed);
+            System.err.println("d = "+d);
+            System.err.println("nonOverlappingDiskRadius = "+nonOverlappingDiskRadius);
+            double blueNoise[][] = blueNoiseInUnitBox(d, nonOverlappingDiskRadius, rng);
+            System.err.println("blueNoise.length = "+blueNoise.length);
+            FORI (iSample, blueNoise.length)
+            {
+                FORI (i, d)
+                    System.out.print(" "+blueNoise[iSample][i]);
+                System.out.println();
+            }
         }
+
     } // main
 } // class BlueNoise
