@@ -563,8 +563,33 @@ public class BlueNoise
             // So E[-inf..0](x) = 0
             //    E[0..1](x) = 1                         integral = 1
             //    E[1..2](x) = 3 - 2/x                   integral = 3-log(4)
-            //    E[2..3](x) = 7 - (10 + 4*log(x-1))/x   integral = oh no!!!! some polylog crap
+            //    E[2..3](x) = 7 - (10 + 4*log(x-1))/x   integral = oh no!!!! some dilogarithm crap involving Li_2(2)-Li_2(3) (dilogarithm).  however, maybe it doesn't get too much more complicated than that?
             //    E[3..4](x) = 
+            //
+            // Maybe add this to the mathoverflow question:
+            //   Maybe it would be good to start in 1 dimension.
+            //   Let E(x) be the expected number of samples in a jammed domain of length x;
+            //   then we want the limit as x goes to infinity of E(x)/x.
+            //   E(x) can be computed recursively as:
+            //   E(x) = 0 for x<=0,
+            //   E(x) = 1 + 2*(Integral from -infinity to x-1 of E(t) dt) / x, for x>=0.
+            //   So E(x) = 1 for x in [0,1], E(x) = 3-2/x for x in [1,2], E(x) = 7-(10+4*log(x-1))/x for x in [2,3], ...
+            //   all of which can be confirmed experimentally.
+            //   I'm not sure whether there is a computationally feasible way of finding the desired limit of E(x)/x though.
+            // Hmm, I think I need to read the paper first; it claims to talk about analytic solution to 1d problem.
+            // "Geometry of random sequential adsorption", http://link.springer.com/article/10.1007%2FBF01011908
+            // Or maybe of more relevance:
+            //  http://www.schmidt.physik.uni-bayreuth.de/en/publications/2002/Density_functional_theory_for_random_sequential_adsorption/densityf02.pdf
+
+            // WHOA! It's called Renyi's parking constant!
+            // https://en.wikipedia.org/wiki/Alfr%C3%A9d_R%C3%A9nyi
+            // Which says it's approximately 74.75979% (sequence A050996 in the OEIS): https://oeis.org/A050996
+            // Hmm, http://mathworld.wolfram.com/RenyisParkingConstants.html covers it,
+            // but is it the same as mine? Oh, their M(x) = my E(x-1), M(x+1) = E(x)... so maybe it's right.
+            // And another good-looking paper from 2014:
+            // http://arxiv.org/pdf/1406.1781.pdf "RENYI’S PARKING PROBLEM REVISITED"
+            // which supposedly gives a faster-converging answer to the 1d case.
+
             long seed = 0;
             java.util.Random rng = new java.util.Random(seed);
             int nTrialsPerX = 10000;
