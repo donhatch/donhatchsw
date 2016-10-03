@@ -18,7 +18,14 @@
 #define assert_ge(a,b) assert_op(a,>=,b)
 #define assert_lt(a,b) assert_op(a,<,b)
 #define assert_gt(a,b) assert_op(a,>,b)
-#define assert_ne(a,b) assert_op(a,!=,b)
+#define assert_ne(a,b) assert_op(a,!=,b)  // note, not very useful if either a or b is a literal
+
+#define assert_op_op(a,op_ab,b,op_bc,c) do { if (!(((a)op_ab(b))&&((b)op_bc(c)))) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")" + #op_ab + "(" + #b + ")" + #op_bc + "(" + #c + ") ("+(a)+" vs. "+(b)+" vs. "+(c)+")"); } while (false)
+#define assert_le_le(a,b,c) assert_op_op(a,<=,b,<=,c)
+#define assert_le_lt(a,b,c) assert_op_op(a,<=,b,<,c)
+#define assert_lt_le(a,b,c) assert_op_op(a,<,b,<=,c)
+#define assert_lt_lt(a,b,c) assert_op_op(a,<,b,<,c)
+
 #define assert_nan(x) do { if (!Double.isNaN(x)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #x + " is "+(x)+", expected NaN"); } while (false)
 // Note: the additional "(a)==(b)||" is to make it work correctly for infinities...
 // and causes the args to be evaluated twice.
