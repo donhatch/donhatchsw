@@ -519,6 +519,7 @@ public class TriangulationOptimizer
                 if (i > 0
                     && val < heap[(iParent = HEAP_PARENT(i))].val)
                 {
+                    // trickle up to root
                     do
                     {
                         // swap i with iParent
@@ -531,6 +532,7 @@ public class TriangulationOptimizer
                 }
                 else
                 {
+                    // trickle down to leaf
                     while (true)
                     {
                         int iChild0 = HEAP_CHILD0(i);
