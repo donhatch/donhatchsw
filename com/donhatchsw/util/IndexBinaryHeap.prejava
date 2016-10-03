@@ -2,49 +2,42 @@
 #include "macros.h"
 package com.donhatchsw.util;
 /**
-* A binary heap whose items are (index,value) pairs
-* where the indices are in a known range 0,...,n-1
-* and the values are doubles.
-* <p>
-* The binary heap implementation is described here:
+* Binary heap, as described here:
 * <a href="http://en.wikipedia.org/wiki/Binary_heap">http://en.wikipedia.org/wiki/Binary_heap</a>
 */
 public class IndexBinaryHeap
 {
-    private double values[];        // index to value
+    SortStuff.IntComparator cmp;
     private int heap[];             // heap index to index
     private int indexToHeapIndex[]; // index to heap index
     private int size;               // size of heap
 
     /** Constructs a heap whose indices are in the range 0,...,max-1. */
-    public IndexBinaryHeap(int max)
+    public IndexBinaryHeap(int max, SortStuff.IntComparator cmp)
     {
-        values = VecMath.fillvec(max, Double.NaN);
-        heap = VecMath.fillvec(max, -1);
-        indexToHeapIndex = VecMath.fillvec(max, -1);
-        size = 0;
+        assert_ge(max, 0);
+        assert_ne(cmp, null);
+        this.heap = VecMath.fillvec(max, -1);
+        this.indexToHeapIndex = VecMath.fillvec(max, -1);
+        this.size = 0;
+        this.cmp = cmp;
     }
-    /** Adds the given index to the heap, with the given value.  It is an error to call this on an index that is already in the heap. */
-    public void add(int index, double val)
+    /** Adds the given index to the heap.  It is an error to call this on an index that is already in the heap. */
+    public void add(int index)
     {
-        assert(Double.isNaN(values[index]));
         assert_eq(indexToHeapIndex[index], -1);
-        values[index] = val;
         indexToHeapIndex[index] = size;
         heap[size] = index;
         size++;
-
-        adjust(index, val);
+        adjust(index);
     }
     /** Remove the given index from the heap.  It is an error to call this on an index that is not in the heap. */
     public void remove(int index)
     {
         assert(size >= 1);
-        assert(!Double.isNaN(values[index]));
         int heapIndex = indexToHeapIndex[index];
-        assert(heapIndex != -1);
+        assert_ne(heapIndex, -1);
 
-        values[index] = Double.NaN;
         indexToHeapIndex[index] = -1;
         size--;
 
@@ -55,14 +48,19 @@ public class IndexBinaryHeap
             heap[size] = -1;
             heap[heapIndex] = indexBeingMoved;
             indexToHeapIndex[indexBeingMoved] = heapIndex;
-
-            adjust(indexBeingMoved, values[indexBeingMoved]);
+            adjust(indexBeingMoved);
         }
         else
         {
             heap[size] = -1;
         }
     }
+    public boolean contains(int i)
+    {
+        assert_le_lt(0, i, heap.length);
+        return indexToHeapIndex[i] != -1;
+    }
+
     /** Returns the index with minimum value, without removing it.  It is an error to call this if the heap is empty. */
     public int min()
     {
@@ -82,28 +80,20 @@ public class IndexBinaryHeap
     {
         return size == 0;
     }
-    /** Equivalent to remove(index); add(index,val); but more efficient. */
-    public void adjust(int index, double val)
+    /** Equivalent to remove(index); add(index,val); but more efficient. It's allowed for index to have changed "value", i.e. for cmp to place it in a different position in the linear ordering than before, but the relative positions of other items must stay the same. */
+    public void adjust(int index)
     {
-        //System.out.println("in adjust(index="+index+", val="+val+")");
+        //System.out.println("in adjust(index="+index+")");
         int heapIndex = indexToHeapIndex[index];
-        assert(heapIndex != -1);
+        assert_ne(heapIndex, -1);
 
         #define HEAP_PARENT(i) (((i)-1)>>1)
         #define HEAP_CHILD0(i) (((i)<<1)+1)
         #define HEAP_CHILD1(i) (((i)<<1)+2)
 
-        #define LESS(val0,index0, val1,index1) ((val0) < (val1) || ((val0)==(val1) && (index0) < (index1)))
-        #define GREATER(val0,index0, val1,index1) LESS(val1,index1, val0,index0)
-
         int heapIndexParent;
         if (heapIndex > 0
-         //&& val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]
-         && LESS(val,
-                 index,
-                 values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]],
-                 heap[heapIndexParent])
-        )
+         && cmp.compare(index, heap[heapIndexParent = HEAP_PARENT(heapIndex)]) < 0)
         {
             // trickle up
             //System.out.println("TRICKLING UP");
@@ -118,12 +108,7 @@ public class IndexBinaryHeap
                 heapIndex = heapIndexParent;
                 // index stays the same
             } while (heapIndex > 0
-                  //&& val < values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]]
-                  && LESS(val,
-                          index,
-                          values[heap[heapIndexParent = HEAP_PARENT(heapIndex)]],
-                          heap[heapIndexParent])
-              );
+                  && cmp.compare(index, heap[heapIndexParent = HEAP_PARENT(heapIndex)]) < 0);
         }
         else
         {
@@ -136,13 +121,9 @@ public class IndexBinaryHeap
                     break; // at leaf of tree; done
 
                 int heapIndexChild1 = HEAP_CHILD1(heapIndex);
-                int heapIndexChild = (heapIndexChild1 < size &&
-                    //values[heap[heapIndexChild1]] < values[heap[heapIndexChild0]]
-                    LESS(values[heap[heapIndexChild1]], heap[heapIndexChild1],
-                         values[heap[heapIndexChild0]], heap[heapIndexChild0])
-                    ? heapIndexChild1 : heapIndexChild0);
-                //if (val > values[heap[heapIndexChild]])
-                if (GREATER(val,index, values[heap[heapIndexChild]],heap[heapIndexChild]))
+                int heapIndexChild = heapIndexChild1 < size &&
+                    cmp.compare(heap[heapIndexChild1], heap[heapIndexChild0]) < 0 ? heapIndexChild1 : heapIndexChild0;
+                if (cmp.compare(index, heap[heapIndexChild]) > 0)
                 {
                     // swap with smaller of children,
                     // but don't bother to fill it in at the child,
@@ -159,46 +140,20 @@ public class IndexBinaryHeap
         }
         heap[heapIndex] = index;
         indexToHeapIndex[index] = heapIndex;
-        values[index] = val;
         //System.out.println("out adjust");
     } // adjust
 
-
-    private void _print(int i, String indent)
-    {
-        if (i < size)
-        {
-            System.out.print(indent);
-            System.out.println(heap[i]+": "+values[heap[i]]);
-            _print(HEAP_CHILD0(i), indent+"    ");
-            _print(HEAP_CHILD1(i), indent+"    ");
-        }
-    }
-
-    // totally hacky
-    private void print()
-    {
-        System.out.println("-----");
-        PRINT(size);
-        PRINTARRAY(heap);
-        PRINTARRAY(indexToHeapIndex);
-        PRINTARRAY(values);
-        _print(0, "            ");
-        System.out.println("-----");
-    }
-
-    private void sanityCheck()
+    public void sanityCheck(boolean isTotalOrder)
     {
         if (false)
         {
             System.out.println("in sanityCheck");
-            print();
+            //print();
         }
 
-        int max = values.length;
-        assert_eq(max, heap.length);
+        int max = heap.length;
         assert_eq(max, indexToHeapIndex.length);
-        assert(INRANGE(0 <=, size, <= max));
+        assert_le_le(0, size, max);
 
         int nValid = 0;
         int nInvalid = 0;
@@ -206,14 +161,14 @@ public class IndexBinaryHeap
         {
             if (indexToHeapIndex[i] != -1)
             {
-                assert(!Double.isNaN(values[i]));
-                assert(INRANGE(0 <=, indexToHeapIndex[i], < size));
+                //assert(!Double.isNaN(values[i])); // hmm, can't assert this... should I add API for determining if value in heap?
+                assert_le_lt(0, indexToHeapIndex[i], size);
                 assert_eq(heap[indexToHeapIndex[i]], i);
                 nValid++;
             }
             else
             {
-                assert(Double.isNaN(values[i]));
+                //assert(Double.isNaN(values[i])); // hmm, can't assert this... should I add API for determining if value in heap?
                 nInvalid++;
             }
         }
@@ -222,7 +177,7 @@ public class IndexBinaryHeap
 
         FORI (i, size)
         {
-            assert(INRANGE(0 <=, heap[i], < max));
+            assert_le_lt(0, heap[i], max);
             assert_eq(indexToHeapIndex[heap[i]], i);
         }
         for (int i = size; i < max; ++i)
@@ -232,77 +187,18 @@ public class IndexBinaryHeap
 
         for (int i = 1; i < size; ++i) // all but [0]
         {
-            assert(values[heap[HEAP_PARENT(i)]] <= values[heap[i]]);
-            // can assert strictly less, since nothing's exactly equal
-            // due to tiebreaking by index.
-            assert(LESS(values[heap[HEAP_PARENT(i)]],heap[HEAP_PARENT(i)],
-                        values[heap[i]], heap[i]));
+            if (isTotalOrder)
+            {
+                // can assert strictly less, since nothing's exactly equal
+                // due to tiebreaking by index.
+                assert_lt(cmp.compare(heap[HEAP_PARENT(i)], heap[i]), 0);
+            }
+            else
+            {
+                assert_le(cmp.compare(heap[HEAP_PARENT(i)], heap[i]), 0);
+            }
         }
     } // sanityCheck
 
-    // This isn't intended to ever be used externally,
-    // it's just for the confidence test.
-    private static int[] heapSortWithSanityChecks(double vals[], java.util.Random rng)
-    {
-        int sortedInds[] = new int[vals.length];
-        IndexBinaryHeap heap = new IndexBinaryHeap(vals.length);
-        heap.sanityCheck();
-
-        // insert in random order; that's a better stress-test of the heap
-        int randomPerm[] = VecMath.randomperm(vals.length, rng);
-        FORI (ii, vals.length)
-        {
-            int i = randomPerm[ii];
-            heap.add(i, vals[i]);
-            heap.sanityCheck();
-        }
-        FORI (i, sortedInds.length)
-        {
-            assert(!heap.isEmpty());
-            sortedInds[i] = heap.extractMin();
-            heap.sanityCheck();
-        }
-        assert(heap.isEmpty());
-        return sortedInds;
-    } // heapSortWithSanityChecks
-
-    /**
-    * Little confidence test program.
-    */
-    public static void main(String args[])
-    {
-        System.out.println("in IndexBinaryHeap.main");
-        int nMaxes = 15;
-        int nSortsPerMax = 15;
-        java.util.Random rng = new java.util.Random(0);
-        FORI (max, nMaxes)
-        {
-            FORI (iSort, nSortsPerMax)
-            {
-                double vals[] = VecMath.random(max, rng);
-
-                // make some of them equal to others
-                FORI (iFudge, max*3/4)
-                    vals[Arrays.randomIndex(max,rng)] = vals[Arrays.randomIndex(max,rng)];
-
-                PRINTARRAY(vals);
-                int sortedInds[] = heapSortWithSanityChecks(vals, rng);
-                PRINTARRAY(sortedInds);
-                System.out.println("============");
-                assert_eq(sortedInds.length, max);
-                FORI (i, max-1)
-                {
-                    assert(vals[sortedInds[i]] <= vals[sortedInds[i+1]]);
-                    // can assert strictly less, since nothing's exactly equal
-                    // due to tiebreaking by index.
-                    assert(LESS(vals[sortedInds[i]], sortedInds[i],
-                                vals[sortedInds[i+1]], sortedInds[i+1]));
-                }
-                assert_eq(VecMath.sum(sortedInds), max*(max-1)/2); // if this is right then we probably got all the indices
-            }
-        }
-        System.out.println("ALL GOOD!");
-        System.out.println("out IndexBinaryHeap.main");
-    }
+    // For test program, see IndexBinaryHeapKeyed
 } // class IndexBinaryHeap
-

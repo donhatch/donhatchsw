@@ -170,7 +170,7 @@ public class ConvexHull
 
         if (debugLevel >= 2) System.out.println("        initializing queue");
 
-        IndexBinaryHeap queue = new IndexBinaryHeap(nVerts);
+        IndexBinaryHeapKeyed queue = new IndexBinaryHeapKeyed(nVerts);
 
         IntArrayList vertsAboveOrOnFirstHullFacetPlane = new IntArrayList();
         IntArrayList vertsBelowFirstHullFacetPlane = new IntArrayList();

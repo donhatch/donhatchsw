@@ -165,6 +165,7 @@ donhatchsw.jar: \
     com/donhatchsw/util/FuzzyPointHashTable.class \
     com/donhatchsw/util/MergeFind.class \
     com/donhatchsw/util/IndexBinaryHeap.class \
+    com/donhatchsw/util/IndexBinaryHeapKeyed.class \
     com/donhatchsw/util/TopSorter.class \
     com/donhatchsw/util/ConvexHull.class \
     com/donhatchsw/util/Listenable.class \
