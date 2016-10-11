@@ -1,0 +1,159 @@
+/* vim: set filetype=java: */
+#include "macros.h"
+package com.donhatchsw.util;
+/**
+* A binary heap whose items are (index,value) pairs
+* where the indices are in a known range 0,...,n-1
+* and the values are doubles.
+*/
+public class IndexBinaryHeapKeyed
+{
+    private IndexBinaryHeap heapGeneral;
+    private double values[];        // index to value
+
+    /** Constructs a heap whose indices are in the range 0,...,max-1. */
+    public IndexBinaryHeapKeyed(int max)
+    {
+        this.values = VecMath.fillvec(max, Double.NaN);
+        this.heapGeneral = new IndexBinaryHeap(max, new SortStuff.IntComparator() {
+            @Override public int compare(int i, int j)
+            {
+                if (values[i] < values[j]) return -1;
+                if (values[i] > values[j]) return 1;
+                // Use indices themselves as tiebreakers, for determistic sort order
+                if (i < j) return -1;
+                if (i > j) return 1;
+                return 0;
+            }
+        });
+    }
+
+    /** Adds the given index to the heap, with the given value.  It is an error to call this on an index that is already in the heap. */
+    public void add(int index, double val)
+    {
+        assert(Double.isNaN(values[index]));
+        values[index] = val;
+        heapGeneral.add(index);
+    }
+    /** Remove the given index from the heap.  It is an error to call this on an index that is not in the heap. */
+    public void remove(int index)
+    {
+        assert(!Double.isNaN(values[index]));
+        values[index] = Double.NaN;
+        heapGeneral.remove(index);
+    }
+    /** Returns the index with minimum value, without removing it.  It is an error to call this if the heap is empty. */
+    public int min()
+    {
+        return heapGeneral.min();
+    }
+    
+    /** Removes and returns the index with minimum value.  It is an error to call this if the heap is empty. */
+    public int extractMin()
+    {
+        int ret = min();
+        remove(ret);
+        return ret;
+        // ... or could call heapGeneral.extractMin() and set values[index] = Double.NaN.
+    }
+    /** Tells whether the heap is empty. */
+    public boolean isEmpty()
+    {
+        return heapGeneral.isEmpty();
+    }
+    /** Equivalent to remove(index); add(index,val); but more efficient. */
+    public void adjust(int index, double val)
+    {
+        assert(!Double.isNaN(values[index]));
+        values[index] = val;
+        heapGeneral.adjust(index);
+    } // adjust
+
+    private void sanityCheck()
+    {
+        if (false)
+        {
+            System.out.println("in sanityCheck");
+        }
+
+        int max = values.length;
+        FORI (i, max)
+        {
+            assert_eq(heapGeneral.contains(i), !Double.isNaN(values[i]));
+        }
+
+        heapGeneral.sanityCheck(true);
+
+        if (false)
+        {
+            System.out.println("out sanityCheck");
+        }
+    } // sanityCheck
+
+    // This isn't intended to ever be used externally,
+    // it's just for the confidence test.
+    private static int[] heapSortWithSanityChecks(double vals[], java.util.Random rng)
+    {
+        int sortedInds[] = new int[vals.length];
+        IndexBinaryHeapKeyed heap = new IndexBinaryHeapKeyed(vals.length);
+        heap.sanityCheck();
+
+        // insert in random order; that's a better stress-test of the heap
+        int randomPerm[] = VecMath.randomperm(vals.length, rng);
+        FORI (ii, vals.length)
+        {
+            int i = randomPerm[ii];
+            heap.add(i, vals[i]);
+            heap.sanityCheck();
+        }
+        FORI (i, sortedInds.length)
+        {
+            assert(!heap.isEmpty());
+            sortedInds[i] = heap.extractMin();
+            heap.sanityCheck();
+        }
+        assert(heap.isEmpty());
+        return sortedInds;
+    } // heapSortWithSanityChecks
+
+    /**
+    * Little confidence test program.
+    */
+    public static void main(String args[])
+    {
+        System.out.println("in IndexBinaryHeapKeyed.main");
+        int nMaxes = 15;
+        int nSortsPerMax = 15;
+        java.util.Random rng = new java.util.Random(0);
+        FORI (max, nMaxes)
+        {
+            FORI (iSort, nSortsPerMax)
+            {
+                double vals[] = VecMath.random(max, rng);
+
+                // make some of them equal to others
+                FORI (iFudge, max*3/4)
+                    vals[Arrays.randomIndex(max,rng)] = vals[Arrays.randomIndex(max,rng)];
+
+                PRINTARRAY(vals);
+                int sortedInds[] = heapSortWithSanityChecks(vals, rng);
+                PRINTARRAY(sortedInds);
+                System.out.println("============");
+                assert_eq(sortedInds.length, max);
+                FORI (i, max-1)
+                {
+                    assert(vals[sortedInds[i]] <= vals[sortedInds[i+1]]);
+                    // Nothing's exactly "equal" due to tiebreaking by index.
+                    int I = sortedInds[i];
+                    int J = sortedInds[i+1];
+                    assert(vals[I] < vals[J] || (vals[I]==vals[J] && I<J));
+                }
+                assert_eq(VecMath.sum(sortedInds), max*(max-1)/2); // if this is right then we probably got all the indices
+            }
+        }
+        System.out.println("ALL GOOD!");
+        System.out.println("out IndexBinaryHeapKeyed.main");
+    }
+} // class IndexBinaryHeapKeyed
+
+
