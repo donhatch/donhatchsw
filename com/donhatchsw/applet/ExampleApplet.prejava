@@ -78,9 +78,9 @@ public class ExampleApplet
     {
         if (eventVerbose >= 1) System.out.println("in ctor"); // note this is before eventVerbose is fetched
 
-                { setBackground(java.awt.Color.red); } // applet is red
+                { setBackground(java.awt.Color.RED); } // applet is red
         final java.awt.Component canvas = new DoubleBufferedCanvas() {
-                { setBackground(java.awt.Color.yellow); } // canvas is yellow
+                { setBackground(java.awt.Color.YELLOW); } // canvas is yellow
             //
             // Make it so we get keyboard focus on startup,
             // without having to click first.  Thanks, Melinda!
@@ -184,13 +184,13 @@ public class ExampleApplet
                 //
                 // Clear to white...
                 //
-                g.setColor(java.awt.Color.white);
+                g.setColor(java.awt.Color.WHITE);
                 g.fillRect(0, 0, size.width, size.height);
 
                 // APP-SPECIFIC PAINT STUFF HERE
                 {
                     // draw an X
-                    g.setColor(java.awt.Color.blue);
+                    g.setColor(java.awt.Color.BLUE);
                     g.drawLine(0,0, size.width, size.height);
                     g.drawLine(0,size.height, size.width, 0);
                 }
@@ -215,7 +215,7 @@ public class ExampleApplet
                     if (false) // XXX argh, causes flicker when we do this in the front buffer... we'd need another mag buffer to do this right.
                     if (mag > 1)
                     {
-                        frontBufferGraphics.setColor(java.awt.Color.black);
+                        frontBufferGraphics.setColor(java.awt.Color.BLACK);
                         FORI (y, size.height+1)
                             frontBufferGraphics.drawLine(0,         y0+mag*y,
                                                          size.width,y0+mag*y);

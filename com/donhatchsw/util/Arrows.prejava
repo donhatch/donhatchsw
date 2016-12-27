@@ -970,12 +970,12 @@ public class Arrows
                 {
                     if (false)
                     {
-                        g2d.setColor(java.awt.Color.blue);
+                        g2d.setColor(java.awt.Color.BLUE);
                         drawSquare(g2d, curX, curY, selectRadiusPixels);
                     }
                 }
 
-                g2d.setColor(java.awt.Color.black);
+                g2d.setColor(java.awt.Color.BLACK);
 
                 if (mode == MODE_ONE_CURVE)
                 {
@@ -1017,7 +1017,7 @@ public class Arrows
                         double x = closestPoint.x;
                         double y = closestPoint.y;
                         double r = Math.sqrt(closestPoint.rSqrd);
-                        g2d.setColor(java.awt.Color.red);
+                        g2d.setColor(java.awt.Color.RED);
                         drawSquare(g2d, x, y, 1);
                         drawSquare(g2d, x, y, r); // dot in the middle
                     }
@@ -1077,7 +1077,7 @@ public class Arrows
                             if (multiplicity == 0 && shadowThickness > lineThickness)
                             {
                                 g2d.setStroke(blackStroke);
-                                g2d.setColor(java.awt.Color.black);
+                                g2d.setColor(java.awt.Color.BLACK);
                             }
                         }
                     }
@@ -1106,7 +1106,7 @@ public class Arrows
                             double x = closestPoint.x;
                             double y = closestPoint.y;
                             double r = Math.sqrt(closestPoint.rSqrd);
-                            g2d.setColor(java.awt.Color.black);
+                            g2d.setColor(java.awt.Color.BLACK);
                             drawSquare(g2d, x, y, r); // dot in the middle
                             drawSquare(g2d, x, y, 1); // dot in the middle
                         }
@@ -1114,7 +1114,7 @@ public class Arrows
 
                     if (showLabels)
                     {
-                        g2d.setColor(java.awt.Color.blue);
+                        g2d.setColor(java.awt.Color.BLUE);
                         double center[/*2*/] = average(assets, null);
                         for (int i = 0; i < assets.length; ++i)
                         {
@@ -1146,7 +1146,7 @@ public class Arrows
                             double x = closestPoint.x;
                             double y = closestPoint.y;
                             double r = Math.sqrt(closestPoint.rSqrd);
-                            g2d.setColor(java.awt.Color.red);
+                            g2d.setColor(java.awt.Color.RED);
                             drawSquare(g2d, x, y, 5);
                             if (showLabels)
                             {
@@ -1164,7 +1164,7 @@ public class Arrows
                             double x = closestPoint.x;
                             double y = closestPoint.y;
                             double r = Math.sqrt(closestPoint.rSqrd);
-                            g2d.setColor(java.awt.Color.red);
+                            g2d.setColor(java.awt.Color.RED);
                             drawSquare(g2d, x, y, 1);
 
                             // Re-draw the asset in red (XXX this doesn't look great when antialiasing... should suppress drawing it in black to begin with)
@@ -1207,14 +1207,14 @@ public class Arrows
                     {
                         double x = assets[indexOfThingBeingDragged][0];
                         double y = assets[indexOfThingBeingDragged][1];
-                        g2d.setColor(java.awt.Color.green);
+                        g2d.setColor(java.awt.Color.GREEN);
                         drawSquare(g2d, x, y, 5);
-                        g2d.setColor(java.awt.Color.lightGray); // XXX dotted?
+                        g2d.setColor(java.awt.Color.LIGHT_GRAY); // XXX dotted?
                         g2d.draw(new java.awt.geom.Line2D.Double(x, y, curX, curY));
                     }
                     else if (mouseState == STATE_CTRL_DRAGGING_EVENT)
                     {
-                        g2d.setColor(java.awt.Color.green);
+                        g2d.setColor(java.awt.Color.GREEN);
                         java.awt.geom.CubicCurve2D curve = (java.awt.geom.CubicCurve2D)connectionCurves[indexOfThingBeingDragged][subIndexOfThingBeingDragged];
                         drawCurveSubdivided(g2d,curve,nDebugSubdivisionLevels);
                         // Find some point on the curve. XXX maybe should have saved the closest point when we originally selected it?
@@ -1226,7 +1226,7 @@ public class Arrows
                             x = left.getX2();
                             y = left.getY2();
                         }
-                        g2d.setColor(java.awt.Color.lightGray); // XXX dotted?
+                        g2d.setColor(java.awt.Color.LIGHT_GRAY); // XXX dotted?
                         g2d.draw(new java.awt.geom.Line2D.Double(x, y, curX, curY));
                     }
 
@@ -1844,9 +1844,9 @@ public class Arrows
             //
 
             javax.swing.JPanel buttonRow1 = new javax.swing.JPanel();
-            buttonRow1.setBackground(java.awt.Color.lightGray); // so it stands out
+            buttonRow1.setBackground(java.awt.Color.LIGHT_GRAY); // so it stands out
             javax.swing.JPanel buttonRow2 = new javax.swing.JPanel();
-            buttonRow2.setBackground(java.awt.Color.lightGray); // so it stands out
+            buttonRow2.setBackground(java.awt.Color.LIGHT_GRAY); // so it stands out
 
             // In 1.3 we could just say new JButton(new AbstractAction("+"){...}) but in 1.2 we have to call addActionListener instead
             buttonRow1.add(new javax.swing.JButton("+") {{
@@ -2817,8 +2817,8 @@ public class Arrows
 
         javax.swing.JFrame frame = new javax.swing.JFrame(title);
 
-        frame.setForeground(java.awt.Color.white);
-        frame.setBackground(java.awt.Color.black);
+        frame.setForeground(java.awt.Color.WHITE);
+        frame.setBackground(java.awt.Color.BLACK);
 
         boolean useSplitPane = false;
         if (args.length >= 1

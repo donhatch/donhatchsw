@@ -967,7 +967,7 @@ public class UndoTreeViewer
                 if (snapshot.parents[iNode] != -1)
                     g.setColor(edgeColors[iNode]);
                 else
-                    g.setColor(java.awt.Color.white);
+                    g.setColor(java.awt.Color.WHITE);
                 int radius = 2;
                 g.drawRect((int)x[iNode]-radius,(int)y[iNode]-radius,
                            2*radius,2*radius);
@@ -1034,7 +1034,7 @@ public class UndoTreeViewer
             {
                 double currentNodeX = LERP(x[parentNode], x[snapshot.currentNode], currentNodeSpaceFraction);
                 double currentNodeY = LERP(y[parentNode], y[snapshot.currentNode], currentNodeSpaceFraction);
-                g.setColor(java.awt.Color.white);
+                g.setColor(java.awt.Color.WHITE);
                 int radius = 5;
                 g.drawRect((int)currentNodeX-radius,
                            (int)currentNodeY-radius,
@@ -1049,7 +1049,7 @@ public class UndoTreeViewer
                 int parentNode2 = snapshot.parents[snapshot.otherSquirrelsCurrentNodes[i]]==-1 ? snapshot.otherSquirrelsCurrentNodes[i] : snapshot.parents[snapshot.otherSquirrelsCurrentNodes[i]];
                 double currentNodeX = LERP(x[parentNode2], x[snapshot.otherSquirrelsCurrentNodes[i]], snapshot.otherSquirrelsCurrentNodeFractions[i]); // assumes time = space
                 double currentNodeY = LERP(y[parentNode2], y[snapshot.otherSquirrelsCurrentNodes[i]], snapshot.otherSquirrelsCurrentNodeFractions[i]); // assumes time = space
-                g.setColor(java.awt.Color.white);
+                g.setColor(java.awt.Color.WHITE);
                 int radius = 4;
                 g.drawRect((int)currentNodeX-radius,
                            (int)currentNodeY-radius,
@@ -1187,7 +1187,7 @@ public class UndoTreeViewer
                     }
                 }
 
-                g.setColor(java.awt.Color.black);
+                g.setColor(java.awt.Color.BLACK);
                 g.fillRect(0,0,getWidth(),getHeight());
                 undoTreeViewer.paint(this, g);
 
@@ -1273,8 +1273,8 @@ public class UndoTreeViewer
             title += " (FOLLOWER of "+nameOfOtherViewThatThisViewShouldFollowAround+")";
 
         final javax.swing.JFrame jframe = new javax.swing.JFrame(title);
-        jframe.setForeground(java.awt.Color.white);
-        jframe.setForeground(java.awt.Color.black);
+        jframe.setForeground(java.awt.Color.WHITE);
+        jframe.setForeground(java.awt.Color.BLACK);
         jframe.setContentPane(jpanel);
         jframe.addWindowListener(new java.awt.event.WindowAdapter() {
             OVERRIDE public void windowClosing(java.awt.event.WindowEvent event)

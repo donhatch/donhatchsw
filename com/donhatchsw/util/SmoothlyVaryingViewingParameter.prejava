@@ -12466,7 +12466,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                               view.focus[1] +  1.*h/minSize/(view.scale*model.accelerationMagnitude));
 
                 // Clear to black
-                mg.setColor(java.awt.Color.black);
+                mg.setColor(java.awt.Color.BLACK);
                 mg.fillWindow();
 
                 java.awt.Color lightBlue = new java.awt.Color(128, 128, 255);
@@ -12694,7 +12694,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 } // the grid
 
                 // Draw a white unit circle around the origin
-                mg.setColor(java.awt.Color.white);
+                mg.setColor(java.awt.Color.WHITE);
                 mg.drawArc(-1./model.accelerationMagnitude,
                            -1./model.accelerationMagnitude,
                            2./model.accelerationMagnitude,
@@ -12703,7 +12703,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
                 if (view.showVelocityHandles)
                 {
-                    mg.setColor(java.awt.Color.green);
+                    mg.setColor(java.awt.Color.GREEN);
                     double handle0[] = VecMath.vpv(p0,v0);
                     double handlet1[] = view.finalVelocityHandleIsNegative ? VecMath.vmv(pt1,vt1) : VecMath.vpv(pt1,vt1);
                     mg.drawLine(p0[0],p0[1],handle0[0],handle0[1]);
@@ -12739,7 +12739,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         int thisPointSize = 3;
                         if (view.showAccelerationsFlag)
                         {
-                            mg.setColor(java.awt.Color.red);
+                            mg.setColor(java.awt.Color.RED);
                             mg.drawPoint(A[0],A[1], thisPointSize);
                             mg.drawPoint(a[0],a[1], thisPointSize);
                             if (view.showAccelerationLines)
@@ -12747,7 +12747,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         }
                         if (view.showVelocitiesFlag)
                         {
-                            mg.setColor(java.awt.Color.green);
+                            mg.setColor(java.awt.Color.GREEN);
                             mg.drawPoint(v[0],v[1], thisPointSize);
                         }
                         if (view.showPositionsFlag)
@@ -12762,7 +12762,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     {
                         if (view.showAccelerationLines)
                         {
-                            mg.setColor(java.awt.Color.red);
+                            mg.setColor(java.awt.Color.RED);
                             mg.drawLine(At1[0],At1[1],at1[0],at1[1]);
                         }
                     }
@@ -12774,7 +12774,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 {
                     // Draw a cyan circle point at the origin,
                     // since both v0 (green) and p0 (blue) are there
-                    mg.setColor(java.awt.Color.cyan);
+                    mg.setColor(java.awt.Color.CYAN);
                     mg.drawHollowCirclePoint(model.p0[0],model.p0[1],
                                              littleCircleSize);
                 }
@@ -12782,13 +12782,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 {
                     if (view.showVelocitiesFlag)
                     {
-                        mg.setColor(java.awt.Color.green);
+                        mg.setColor(java.awt.Color.GREEN);
                         mg.drawHollowCirclePoint(model.v0[0],model.v0[1],
                                                  littleCircleSize);
                     }
                     if (view.showPositionsFlag)
                     {
-                        mg.setColor(java.awt.Color.blue);
+                        mg.setColor(java.awt.Color.BLUE);
                         mg.drawHollowCirclePoint(model.p0[0],model.p0[1],
                                                  littleCircleSize);
                     }
@@ -12799,7 +12799,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     //
                     // Accelerations in red
                     //
-                    mg.setColor(java.awt.Color.red);
+                    mg.setColor(java.awt.Color.RED);
                     mg.drawHollowCirclePoint(A0[0],
                                              A0[1],
                                              littleCircleSize);
@@ -12846,7 +12846,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     //
                     // Velocities in green
                     //
-                    mg.setColor(java.awt.Color.green);
+                    mg.setColor(java.awt.Color.GREEN);
                     mg.drawHollowPoint(v1[0],
                                        v1[1],
                                        littleCircleSize);
@@ -12890,7 +12890,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 {
                     // Labels, from bottom to top
                     int y = h;
-                    g.setColor(java.awt.Color.white);
+                    g.setColor(java.awt.Color.WHITE);
                     g.drawString("h for more detailed help to terminal window", 20,y-=20);
                     g.drawString("q to toggle two-quadratics mode (non-optimal but simpler to calculate)", 20,y-=20);
                     g.drawString("v to toggle velocity handles", 20,y-=20);
@@ -12901,10 +12901,10 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     g.setColor(lightBlue);
                     g.drawString("Position", 20, y -= 20);
 
-                    g.setColor(java.awt.Color.green);
+                    g.setColor(java.awt.Color.GREEN);
                     g.drawString("Velocity", 20, y -= 20);
 
-                    g.setColor(java.awt.Color.red);
+                    g.setColor(java.awt.Color.RED);
                     g.drawString("Acceleration (drag the triangle, square, and circle around)", 20, y -= 20);
                 }
 
@@ -12978,7 +12978,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                             double y[] = model.mostRecentNewtonPath[i][1];
                             if (x == null)
                             {
-                                mg.setColor(java.awt.Color.yellow);
+                                mg.setColor(java.awt.Color.YELLOW);
                                 mg.drawHollowCirclePoint(y[0],y[1],
                                                          1); // pointSize
                                 mg.drawHollowCirclePoint(y[0],y[1],
@@ -13497,8 +13497,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 System.exit(0); // asinine way of doing things
             }
         });
-        frame.setForeground(java.awt.Color.white);
-        frame.setBackground(java.awt.Color.black);
+        frame.setForeground(java.awt.Color.WHITE);
+        frame.setBackground(java.awt.Color.BLACK);
         frame.add(canvas);
         frame.pack();
         frame.show();
@@ -13597,11 +13597,11 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                                -1.,1.,-1.,1.);
 
                 // Clear to black
-                mg.setColor(java.awt.Color.black);
+                mg.setColor(java.awt.Color.BLACK);
                 mg.fillWindow();
 
                 // Draw the reference trip endpoints
-                mg.setColor(java.awt.Color.red);
+                mg.setColor(java.awt.Color.RED);
                 mg.drawString("Ref trip", -1+model.referenceTripTime,
                                           -1+model.referenceTripDistance,
                                           -1.1, 1.1); // bleah, give it a tiny bit of space
@@ -13803,8 +13803,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 System.exit(0); // asinine way of doing things
             }
         });
-        frame.setForeground(java.awt.Color.white);
-        frame.setBackground(java.awt.Color.black);
+        frame.setForeground(java.awt.Color.WHITE);
+        frame.setBackground(java.awt.Color.BLACK);
         frame.add(canvas);
         frame.pack();
         frame.show();
@@ -14058,7 +14058,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 // Clear to black
                 if (g != frontBufferGraphics) // if not single buffered
                 {
-                    mg.setColor(java.awt.Color.black);
+                    mg.setColor(java.awt.Color.BLACK);
                     mg.fillWindow();
                 }
 
@@ -14218,13 +14218,13 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         int planTimeNanos = model.planTimesNanos[iPaint%model.planTimesNanos.length];
                         if (evolveTimeNanos >= 1)
                         {
-                            mg.setColor(java.awt.Color.red);
+                            mg.setColor(java.awt.Color.RED);
                             g.drawLine(col, h-(int)(evolveTimeNanos/(1000000/view.timingsPixelsPerMs)),
                                        col, h-1);
                         }
                         if (planTimeNanos >= 1)
                         {
-                            mg.setColor(java.awt.Color.blue);
+                            mg.setColor(java.awt.Color.BLUE);
                             g.drawLine(col, h-(int)(evolveTimeNanos/(1000000/view.timingsPixelsPerMs))-(int)(planTimeNanos/(1000000/view.timingsPixelsPerMs)),
                                        col, h-(int)(evolveTimeNanos/(1000000/view.timingsPixelsPerMs))-1);
                         }
@@ -14269,7 +14269,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 view.nPaintsDone++;
                 //if (viewParams.showNumPaintsDone.get())
                 {
-                    g.setColor(java.awt.Color.white);
+                    g.setColor(java.awt.Color.WHITE);
                     java.awt.Dimension viewSize = getSize(); // getWidth,getHeight don't exist in 1.1
                     int W = viewSize.width;
                     int H = viewSize.height;
@@ -14551,8 +14551,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 System.exit(0); // asinine way of doing things
             }
         });
-        frame.setForeground(java.awt.Color.white);
-        frame.setBackground(java.awt.Color.black);
+        frame.setForeground(java.awt.Color.WHITE);
+        frame.setBackground(java.awt.Color.BLACK);
         frame.add(canvas);
         frame.pack();
         frame.show();

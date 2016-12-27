@@ -1751,7 +1751,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 // Clear to black
                 if (g != frontBufferGraphics) // if not single buffered
                 {
-                    mg.setColor(java.awt.Color.black);
+                    mg.setColor(java.awt.Color.BLACK);
                     mg.fillWindow();
                 }
 
@@ -1771,7 +1771,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
 
                 // culling frustum
-                mg.setColor(java.awt.Color.blue);
+                mg.setColor(java.awt.Color.BLUE);
                 mg.drawLine(xMinCull,yMinCull, xMaxCull,yMinCull);
                 mg.drawLine(xMaxCull,yMinCull, xMaxCull,yMaxCull);
                 mg.drawLine(xMaxCull,yMaxCull, xMinCull,yMaxCull);
@@ -1933,12 +1933,12 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         // draw radial contours of constant angle
                         if (iPass == 0)
                         {
-                            //mg.setColor(java.awt.Color.white);
+                            //mg.setColor(java.awt.Color.WHITE);
                             mg.setColor(new java.awt.Color(128, 128, 128)); // good for low contrast against rectangular
                         }
                         else
                         {
-                            //mg.setColor(java.awt.Color.red);
+                            //mg.setColor(java.awt.Color.RED);
                             mg.setColor(new java.awt.Color(128, 128, 255));
                         }
                         for (int iAngle = 0; iAngle < nAnglesMajor; ++iAngle)
@@ -1966,9 +1966,9 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     if (colorByGoodnessFlag)
                                     {
                                         if (gotQuadrant == expectedQuadrant)
-                                            mg.setColor(java.awt.Color.green);
+                                            mg.setColor(java.awt.Color.GREEN);
                                         else
-                                            mg.setColor(java.awt.Color.red);
+                                            mg.setColor(java.awt.Color.RED);
                                     }
 
                                     mg.drawLine(xMomentPrev,yMomentPrev,
@@ -1985,7 +1985,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         // skip largest, since it's outside view.
                         if (iPass == 0)
                         {
-                            //mg.setColor(java.awt.Color.white);
+                            //mg.setColor(java.awt.Color.WHITE);
                             mg.setColor(new java.awt.Color(128, 128, 128)); // good for low contrast against rectangular
                         }
                         else
@@ -2040,7 +2040,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     double s = Math.sin(DTOR(view.gridRotDegrees));
 
                     // vertical lines
-                    mg.setColor(java.awt.Color.green);
+                    mg.setColor(java.awt.Color.GREEN);
                     for (int iX = 0; iX < nXStepsMajor+1; ++iX)
                     {
                         double x = LERP(x0, x1, iX/(double)nXStepsMajor);
@@ -2064,7 +2064,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         }
                     }
                     // horizontal lines
-                    mg.setColor(java.awt.Color.red);
+                    mg.setColor(java.awt.Color.RED);
                     for (int iY = 0; iY < nYStepsMajor+1; ++iY)
                     {
                         double y = LERP(y0, y1, iY/(double)nYStepsMajor);
@@ -2104,7 +2104,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (false)
                         {
                             f.apply(x, y, moment);
-                            mg.setColor(java.awt.Color.green);
+                            mg.setColor(java.awt.Color.GREEN);
                             mg.drawPoint(moment[0], moment[1], 5);
                         }
 
@@ -2188,7 +2188,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         double yMoment = .5*(Y*(1.+slack) - 1.)*s;
 
                         double xMoment = xMomentIfTaut * (1.+slack);
-                        mg.setColor(java.awt.Color.red);
+                        mg.setColor(java.awt.Color.RED);
                         mg.drawPoint(xMoment, yMoment, 3);
 
                         // and the -y one
@@ -2219,7 +2219,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         //              return [slackPlus1-1., Math.PI/2.]
                         //      }
                     }
-                    mg.setColor(java.awt.Color.yellow);
+                    mg.setColor(java.awt.Color.YELLOW);
                     for (double xxxMoment = xMomentIfTaut; xxxMoment <= xMomentIfTaut+1.; xxxMoment += .01)
                     {
                         double slackPlus1 = xxxMoment / xMomentIfTaut;
@@ -2235,7 +2235,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 {
                     if (false) // researchy, maybe not for general interest
                     {
-                        mg.setColor(java.awt.Color.red);
+                        mg.setColor(java.awt.Color.RED);
                         mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.sqrt(.5), Math.sqrt(.5));
 
                         // Figure out the magic angle at which we can say we are "obviously in first quadrant", i.e. the angle of the min slope of the image of the y axis.
@@ -2278,7 +2278,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             double xMomentAtMinAngle = moment[0];
                             double yMomentAtMinAngle = moment[1];
 
-                            mg.setColor(java.awt.Color.green);
+                            mg.setColor(java.awt.Color.GREEN);
                             mg.drawPoint(xMomentAtMinAngle, yMomentAtMinAngle, 5);
                             mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngle), Math.sin(minAngle));
                         }
@@ -2321,7 +2321,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             double xMomentAtMinAngleOfPosition = moment[0];
                             double yMomentAtMinAngleOfPosition = moment[1];
 
-                            mg.setColor(java.awt.Color.blue);
+                            mg.setColor(java.awt.Color.BLUE);
                             mg.drawPoint(xMomentAtMinAngleOfPosition, yMomentAtMinAngleOfPosition, 5);
                             mg.drawLine(xMomentIfTaut,0., xMomentIfTaut+Math.cos(minAngleOfPosition), Math.sin(minAngleOfPosition));
                         }
@@ -2340,7 +2340,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         if (INRANGE(xMinCull <=, xMoment, <= xMaxCull)
                          && INRANGE(yMinCull <=, yMoment, <= yMaxCull))
                         {
-                            mg.setColor(sample.bad ? java.awt.Color.red : java.awt.Color.green);
+                            mg.setColor(sample.bad ? java.awt.Color.RED : java.awt.Color.GREEN);
                             int pointSize;
                             if (EQ(sample.x0, -1., 1e-12)) // i.e. if endpoints were originally bigger than moment
                                 pointSize = 1;
@@ -2350,7 +2350,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             {
                                 //assert(false); // coverage
                                 //pointSize += 4;
-                                mg.setColor(sample.bad ? java.awt.Color.yellow : java.awt.Color.cyan);
+                                mg.setColor(sample.bad ? java.awt.Color.YELLOW : java.awt.Color.CYAN);
                                 if (sample.bad)
                                     pointSize += 4;
                             }
@@ -2362,7 +2362,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 if (false)
                 {
                     // Just visualize a single point I was having trouble with
-                    mg.setColor(java.awt.Color.yellow);
+                    mg.setColor(java.awt.Color.YELLOW);
                     //mg.drawPoint(0.4880273204300428, 0.008470672745238716, 1);
                     //mg.drawPoint(0.603074224821478, 0.3471447106867807, 3);
                     mg.drawPoint(0.9162910793298915, 0.9150576416554741, 3);
@@ -2377,7 +2377,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 view.nPaintsDone++;
                 //if (viewParams.showNumPaintsDone.get())
                 {
-                    g.setColor(java.awt.Color.white);
+                    g.setColor(java.awt.Color.WHITE);
                     java.awt.Dimension viewSize = getSize(); // getWidth,getHeight don't exist in 1.1
                     int W = viewSize.width;
                     int H = viewSize.height;
@@ -2595,8 +2595,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 System.exit(0); // asinine way of doing things
             }
         });
-        frame.setForeground(java.awt.Color.white);
-        frame.setBackground(java.awt.Color.black);
+        frame.setForeground(java.awt.Color.WHITE);
+        frame.setBackground(java.awt.Color.BLACK);
         frame.add(canvas);
         frame.pack();
         frame.show();
