@@ -2960,6 +2960,29 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
         return true;
     } // equals
+    /** Fuzzy vector comparison: return -1,0,1 according to whether a <,==,> b lexicographically.  Works even if tol==0. */
+
+    public static int cmp(int n, double a[], double b[], double tol)
+    {
+        FORI (i, n)
+        {
+            if (LT(a[i], b[i], tol)) return -1;
+            if (GT(a[i], b[i], tol)) return 1;
+        }
+        return 0;
+    }
+    /** Fuzzy vector comparison: return -1,0,1 according to whether a <,==,> b, lexicographically.  Works even if tol==0. */
+    public static int cmp(double a[], double b[], double tol)
+    {
+        int alength = a.length;
+        if (b.length == alength) return cmp(alength, a, b, tol); // common case
+        int answer = cmp(MIN(a.length, b.length), a, b, tol);
+        if (answer != 0) return answer;
+        if (a.length < b.length) return -1;
+        if (a.length > b.length) return 1;
+        assert(false); // can't happen
+        return 0;
+    }
 
     /** downward circular shift */
     public static void downshift(double to[][], double from[][])
