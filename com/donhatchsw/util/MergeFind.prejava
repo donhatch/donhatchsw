@@ -1,4 +1,5 @@
 /* vim: set filetype=java: */
+#include "macros.h" // necessary for assert
 package com.donhatchsw.util;
 
 /**
@@ -48,6 +49,12 @@ public class MergeFind
         mf.merge(2,5);
         mf.merge(5,1);
         for (int i = 0; i < n; ++i)
+        {
             System.out.println("    "+i+" -> "+mf.find(i));
+            if (i==1 || i==2 || i==4 || i==5)
+                assert_eq(mf.find(i), mf.find(1));
+            else
+                assert_eq(mf.find(i), i);
+        }
     } // main
 } // class MergeFind
