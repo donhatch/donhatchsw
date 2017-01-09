@@ -17,6 +17,11 @@ public class MergeFind
         for (int i = 0; i < n; ++i)
             parent[i] = i;
     }
+    public MergeFind(MergeFind other)
+    {
+        parent = other.parent.clone();
+        rank = other.rank.clone();
+    }
     public int find(int i)
     {
         if (parent[i] != parent[parent[i]])
