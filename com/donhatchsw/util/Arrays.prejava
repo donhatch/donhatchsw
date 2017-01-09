@@ -154,6 +154,15 @@ public final class Arrays
         result[n] = last;
         return result;
     } // append int
+    // CBB: add double and float versions of this
+    public static int[] prepend(int v[], int first)
+    {
+        int i, n = v.length;
+        int result[] = new int[n+1];
+        System.arraycopy(v, 0, result, 1, n);
+        result[0] = first;
+        return result;
+    } // append int
 
     /**
      * Returns a newly allocated array
