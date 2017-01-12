@@ -31,6 +31,7 @@ public class IndexBinaryHeapKeyed
     /** Adds the given index to the heap, with the given value.  It is an error to call this on an index that is already in the heap. */
     public void add(int index, double val)
     {
+        assert(!Double.isNaN(val));
         assert(Double.isNaN(values[index]));
         values[index] = val;
         heapGeneral.add(index);
@@ -68,6 +69,11 @@ public class IndexBinaryHeapKeyed
         values[index] = val;
         heapGeneral.adjust(index);
     } // adjust
+    /** get current value of the given index, or NaN if not in the heap. */
+    public double getValue(int index)
+    {
+        return values[index];
+    }
 
     private void sanityCheck()
     {
