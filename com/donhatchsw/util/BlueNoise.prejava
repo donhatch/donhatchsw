@@ -1,3 +1,5 @@
+// From Eurographics 2012, Ebeida/Mitchell/Patney/Davidson/Owens
+// "A Simple Algorithm for Maximal Poisson-Disk Sampling in High Dimensions"
 package com.donhatchsw.util;
 #include "macros.h"
 
