@@ -1180,7 +1180,6 @@ public final class CSG
             }
             assert(nDims >= 3);
 
-            // XXX this commentary is wrong, it's from when I was indexing this stuff differently
             // We want x[n] such that,
             // if consider the hypersphere centered at {x[0]..x[n]}
             // passing through the origin,
@@ -1218,13 +1217,13 @@ public final class CSG
             // and divide by (sphere radius)^2... and negate.
             // So really it all boils down to the 3d case, if we define:
             //         q = schlafli[n-2]
-            //        x1 = x[n-2]
-            //        x2 = x[n-1]
-            //        x3 = x[n]
-            //     facet = (0,0,x3) / x3^2
-            //     ridge = (0,x2,x3) / (x2^2 + x3^2)
-            //      peak = (x1,x2,x3) / (x1^2 + x2^2 + x3^2)
-            // So we want x3 such that the following holds (all equivalent):
+            //        x0 = x[n-2]
+            //        x1 = x[n-1]
+            //        x2 = x[n]
+            //     facet = (0,0,x2) / x2^2
+            //     ridge = (0,x1,x2) / (x1^2 + x2^2)
+            //      peak = (x0,x1,x2) / (x0^2 + x1^2 + x2^2)
+            // So we want x2 such that the following holds (all equivalent):
             //     ||ridge-peak||/||facet-peak|| = cos(pi/q)
             //     ||facet-ridge||/||facet-peak|| = sin(pi/q)
             //     ||facet-ridge||/||ridge-peak|| = tan(pi/q)
@@ -1241,17 +1240,17 @@ public final class CSG
             // (making my own norm so it doesn't get overly complicated
             // with abses)
             /*
-                    facet = {0,0,x3} / (x3^2)
-                    ridge = {0,x2,x3} / (x2^2 + x3^2)
-                    peak  = {x1,x2,x3} / (x1^2 + x2^2 + x3^2)
+                    facet = {0,0,x2} / (x2^2)
+                    ridge = {0,x1,x2} / (x1^2 + x2^2)
+                    peak  = {x0,x1,x2} / (x0^2 + x1^2 + x2^2)
                     norm[{a_,b_,c_}] = Sqrt[a^2+b^2+c^2]
-                    Solve[norm[facet-ridge]/norm[facet-peak] == S, x3] // Simplify
+                    Solve[norm[facet-ridge]/norm[facet-peak] == S, x2] // Simplify
 
-                    Solve[norm[ridge-peak]/norm[facet-peak] == C, x3]
-                    Solve[norm[facet-ridge]/norm[ridge-peak] == T, x3]
+                    Solve[norm[ridge-peak]/norm[facet-peak] == C, x2]
+                    Solve[norm[facet-ridge]/norm[ridge-peak] == T, x2]
             */
             // Ha, got it!
-            //      +- sqrt( -(-1+S^2)*x2^2*(x1^2+x2^2) / (-x2^2 + S^2*(x1^2+x2^2) ))
+            //      +- sqrt( -(-1+S^2)*x1^2*(x0^2+x1^2) / (-x1^2 + S^2*(x0^2+x1^2) ))
             // But it can probably be simplified...
             // S = sin(pi/q)
             double SS = sinSquaredPiTimes(schlafliDenoms[nDims-2],schlafli[nDims-2]);
