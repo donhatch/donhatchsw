@@ -545,7 +545,7 @@ public class GenericGlue
                                 }
                                 catch (java.lang.NumberFormatException e)
                                 {
-                                    //System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
+                                    //System.err.println("Your invention sucks! \""+lengthString+"\" is not a number! (or comma-separated list of numbers, with optional overrides, one for each dimension)");
                                     //initPuzzleCallback.call(); // XXX really just want a repaint I think
                                     //return;
                                     Assert(false);
@@ -557,11 +557,12 @@ public class GenericGlue
                             {
                                 Assert(doubleLength == (double)intLength);
                                 intLength++;
-                                doubleLength += .01;
+                                doubleLength += .01;  // make a very thin slice in the middle, just to avoid degeneracies during this sanity check.  we're not actually making anything here.
                             }
                             Assert(intLength % 2 == 1);
                             for (int iDim = 2; iDim < allElts.length-1; ++iDim) // triangle, tetrahedron, up to but not including the whole polytope
                             {
+                                // XXX huh? what's the logic here? revisit this, it fails!  On "{3,4} with edge length 2"
                                 // If it has a triangle, doubleLength must be > (3*intLength-1)/2-1.
                                 // If it has a tetrahedron, doubleLength must be > (4*intLength-2)/2-1
                                 // etc.
@@ -659,7 +660,7 @@ public class GenericGlue
                                         String schlafliAndLength[] = regex.split(reply.trim(), "\\s+");
                                         if (schlafliAndLength.length != 2)
                                         {
-                                            prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again!";
+                                            prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again! (during sanity check)";
                                             initialInput = reply;
                                             continue;
                                         }
@@ -699,7 +700,7 @@ public class GenericGlue
                                     }
                                     catch (java.lang.NumberFormatException e)
                                     {
-                                        System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
+                                        System.err.println("Your invention sucks! \""+lengthString+"\" is not a number! (or comma-separated list of numbers, with optional overrides, one for each dimension)");
                                         initPuzzleCallback.call(); // XXX really just want a repaint I think
                                         return;
                                     }
@@ -857,48 +858,11 @@ public class GenericGlue
                                     break; // got it
                                 }
                             }
-                            int intLength = 0;
-                            double doubleLength = 0.;
-                            {
-                                lengthString = lengthString.trim();
-
-                                try {
-                                    //System.out.println("lengthString = "+lengthString);
-
-                                    com.donhatchsw.compat.regex.Matcher matcher =
-                                    com.donhatchsw.compat.regex.Pattern.compile(
-                                        "(\\d+)\\((.*)\\)"
-                                    ).matcher(lengthString);
-                                    if (matcher.matches())
-                                    {
-                                        String intPart = matcher.group(1);
-                                        String doublePart = matcher.group(2);
-                                        //System.out.println("intPart = "+intPart);
-                                        //System.out.println("doublePart = "+doublePart);
-
-                                        intLength = Integer.parseInt(intPart);
-                                        doubleLength = Double.parseDouble(doublePart);
-                                    }
-                                    else
-                                    {
-                                        doubleLength = Double.parseDouble(lengthString);
-                                        intLength = (int)Math.ceil(doubleLength);
-                                    }
-                                }
-                                catch (java.lang.NumberFormatException e)
-                                {
-                                    System.err.println("Your invention sucks! \""+lengthString+"\" is not a number!");
-                                    initPuzzleCallback.call(); // XXX really just want a repaint I think
-                                    return;
-                                }
-                                //System.out.println("intLength = "+intLength);
-                                //System.out.println("doubleLength = "+doubleLength);
-                            }
-
                             GenericPuzzleDescription newPuzzle = null;
                             try
                             {
-                                newPuzzle = new PolytopePuzzleDescription(schlafli+" "+intLength+"("+doubleLength+")", progressWriter);
+                                //newPuzzle = new PolytopePuzzleDescription(schlafli+" "+intLength+"("+doubleLength+")", progressWriter);
+                                newPuzzle = new PolytopePuzzleDescription(schlafli+" "+lengthString, progressWriter);
                             }
                             catch (Throwable t)
                             {

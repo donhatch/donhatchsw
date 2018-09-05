@@ -354,7 +354,7 @@
                 In general this will make the symmetry of a twist
                 be dependent on the symmetry of the face,
                 which can be more than the symmetry of the whole puzzle.
-            - what should be highlighted is not the sticker, but everything
+            - (maybe done?) what should be highlighted is not the sticker, but everything
                 that maps to the same grip as what the mouse is over.
                 So for the 3x it should be the sticker like it is now,
                 for the 2x and lower dim polygons it should be the polygon,
@@ -385,6 +385,7 @@
 */
 
 package com.donhatchsw.mc4d;
+import com.donhatchsw.compat.regex;
 import com.donhatchsw.util.*; // XXX get rid... at least get more specific
 
 public class PolytopePuzzleDescription implements GenericPuzzleDescription {
@@ -448,10 +449,34 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         return answer;
     }
 
-    
+    // throws NumberFormatException on failure
+    private static double parseDoubleFraction(String s)
+    {
+      int slashIndex = s.lastIndexOf('/');
+      if (slashIndex != -1)
+      {
+          String numeratorString = s.substring(0, slashIndex);
+          String denominatorString = s.substring(slashIndex+1);
+          return Double.parseDouble(numeratorString)
+               / Double.parseDouble(denominatorString);
+      }
+      else
+          return Double.parseDouble(s);
+    }  // parseDoubleFraction
+
 
     /**
     * The constructor that is required by the factory.
+    *
+    * Prescription is a schafli product symbol followed by a space and an integer
+    * (specifying the number of cuts parallel to each face = floor(the integer/2)
+    * and an optional parenthesized floating point number (overriding
+    * the integer when determining the cut spacing, which is 1/(the number)
+    * times edge length.
+    * E.g.
+    *     Standard 3x3x3 hypercube: "{4,4,3} 3"
+    *     Standard 3x3x3 hypercube with very shallow cuts: "{4,3,3} 3(6)"
+    *
     * The following schlafli product symbols are supported;
     * note that they are all uniform, and every vertex has exactly
     * nDims incident facets and edges (things would go crazy otherwise).
@@ -491,55 +516,92 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                               "Grand_Antiprism");
 
         //com.donhatchsw.compat.regex.verboseLevel = 2;
+        // TODO: Document this not-yet-documented feature: can be more than one length (each with optional double override), specifying a different cut scheme for each dimension.  The one chosen for a given face is the one whose index is the index of the coord axis most closely aligned with the face normal.  Probably only makes sense for axis-aligned boxes.
         com.donhatchsw.compat.regex.Matcher matcher =
         com.donhatchsw.compat.regex.Pattern.compile(
-            "\\s*([^ ]+)\\s+(\\d+)(\\((.*)\\))?"
+            "\\s*([^ ]+)\\s+((\\d+)(\\((.*)\\))?(,(\\d+)(\\((.*)\\))?)*)"
         ).matcher(prescription);
         if (!matcher.matches())
             throw new IllegalArgumentException("PolytopePuzzleDescription didn't understand prescription string "+com.donhatchsw.util.Arrays.toStringCompact(prescription)+"");
 
         String schlafliProductString = matcher.group(1);
-        String intLengthString = matcher.group(2);
-        String doubleLengthString = matcher.group(4);
+        String commaSeparatedLengthsString = matcher.group(2);
+        String[] lengthStrings = regex.split(commaSeparatedLengthsString, ",");
+        int[] intLengths = new int[lengthStrings.length];
+        double[] doubleLengths = new double[lengthStrings.length];
 
-        int intLength = Integer.parseInt(intLengthString);
-        double doubleLength = (double)intLength; // but overridded by doubleLengthString if there is one
-        if (doubleLengthString != null)
+        for (int i = 0; i < lengthStrings.length; ++i)
         {
-            // Allow fractions
-            // XXX TODO: allow arbitrary arithmetic expressions, with sqrt,sin,cos,etc.
-            int slashIndex = doubleLengthString.lastIndexOf('/');
-            if (slashIndex != -1)
+            String lengthString = lengthStrings[i];
+
+            int intLength = 0;
+            double doubleLength = 0.;
+            // XXX duplicated from elsewhere, twice... need to make a function I think
             {
-                String numeratorString = doubleLengthString.substring(0, slashIndex);
-                String denominatorString = doubleLengthString.substring(slashIndex+1);
-                doubleLength = Double.valueOf(numeratorString).doubleValue()
-                             / Double.valueOf(denominatorString).doubleValue();
+                lengthString = lengthString.trim();
+
+                try {
+                    //System.out.println("lengthString = "+lengthString);
+
+                    com.donhatchsw.compat.regex.Matcher submatcher =
+                    com.donhatchsw.compat.regex.Pattern.compile(
+                        "(\\d+)\\((.*)\\)"
+                    ).matcher(lengthString);
+                    if (submatcher.matches())
+                    {
+                        String intPart = submatcher.group(1);
+                        String doublePart = submatcher.group(2);
+                        //System.out.println("intPart = "+intPart);
+                        //System.out.println("doublePart = "+doublePart);
+
+                        intLength = Integer.parseInt(intPart);
+                        doubleLength = parseDoubleFraction(doublePart);
+                    }
+                    else
+                    {
+                        // Allow fractions
+                        // XXX TODO: allow arbitrary arithmetic expressions, with sqrt,sin,cos,etc.
+                        doubleLength = parseDoubleFraction(lengthString);  // XXX should catch parse error and throw illegal arg exception
+                        intLength = (int)Math.ceil(doubleLength);
+                    }
+                }
+                catch (java.lang.NumberFormatException e)
+                {
+                    //System.err.println("Your invention sucks! \""+lengthString+"\" is not a number! (or comma-separated list of numbers, with optional overrides, one for each dimension)");
+                    //initPuzzleCallback.call(); // XXX really just want a repaint I think
+                    //return;
+                    Assert(false);
+                }
+                //System.out.println("intLength = "+intLength);
+                //System.out.println("doubleLength = "+doubleLength);
             }
-            else
-                doubleLength = Double.valueOf(doubleLengthString).doubleValue(); //  XXX should catch parse error and throw illegal arg exception
+            intLengths[i] = intLength;
+            doubleLengths[i] = doubleLength;
         }
 
-        init(schlafliProductString, intLength, doubleLength, progressWriter);
+        init(schlafliProductString, intLengths, doubleLengths, progressWriter);
         this.prescription = prescription;
     } // ctor that takes just a string
 
     private void init(String schlafliProduct,
-                      int intLength, // number of segments per edge
-                      double doubleLength, // edge length / length of first edge segment
+                      int[] intLengths, // number of segments per edge, possibly per-face
+                      double[] doubleLengths, // edge length / length of first edge segment, possibly per-face
                       java.io.PrintWriter progressWriter)
     {
-        if (intLength < 1)
-            throw new IllegalArgumentException("PolytopePuzzleDescription called with intLength="+intLength+", min legal intLength is 1");
-        if (doubleLength <= 0)
-            throw new IllegalArgumentException("PolytopePuzzleDescription called with doubleLength="+intLength+", doubleLength must be positive");
+        Assert(intLengths.length == doubleLengths.length);
+        for (int i = 0; i < intLengths.length; ++i) {
+          if (intLengths[i] < 1)
+              throw new IllegalArgumentException("PolytopePuzzleDescription called with intLength="+intLengths[i]+", min legal intLength is 1");
+          if (doubleLengths[i] <= 0)
+              throw new IllegalArgumentException("PolytopePuzzleDescription called with doubleLength="+doubleLengths[i]+", doubleLength must be positive");
+        }
 
         if (progressWriter != null)
         {
-            if (doubleLength == (double)intLength)
-                progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+intLength+"...");
+            if (VecMath.equalsExactly(doubleLengths, VecMath.intToDouble(intLengths)))
+                progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+VecMath.toString(intLengths)+"...");
             else
-                progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+intLength+" ("+doubleLength+")...");
+                progressWriter.println("Attempting to make a puzzle \""+schlafliProduct+"\" of length "+VecMath.toString(intLengths)+" ("+VecMath.toString(doubleLengths)+")...");
             progressWriter.print("    Constructing polytope...");
             progressWriter.flush();
         }
@@ -621,13 +683,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFace = 0; iFace < nFaces; ++iFace)
                 table.put(faceInwardNormals[iFace], originalFaces[iFace]);
             double oppositeNormalScratch[] = new double[nDims];
-            //System.err.print("opposites:");
+            System.err.print("opposites:");
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
                 VecMath.vxs(oppositeNormalScratch, faceInwardNormals[iFace], -1.);
                 CSG.Polytope opposite = (CSG.Polytope)table.get(oppositeNormalScratch);
                 face2OppositeFace[iFace] = opposite==null ? -1 : ((Integer)opposite.aux).intValue();
-                //System.err.print("("+iFace+":"+face2OppositeFace[iFace]+")");
+                System.err.print("("+iFace+":"+face2OppositeFace[iFace]+")");
             }
         }
 
@@ -642,9 +704,17 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // for my sanity.
         //
         this.faceCutOffsets = new double[nFaces][];
+        int[] whichLengthToUseForFace = new int[nFaces];
         {
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
+                // Which length do we use?
+                // Use the one on the axis closest to the normal, for now,
+                // and repeat entries if not enough.  This gets it right for the (a)x(b)x(c)x(d), for example.
+                whichLengthToUseForFace[iFace] = VecMath.maxabsi(faceInwardNormals[iFace]) % intLengths.length;
+                int intLength = intLengths[whichLengthToUseForFace[iFace]];
+                double doubleLength = intLengths[whichLengthToUseForFace[iFace]];
+
                 double fullThickness = 0.;
                 {
                     // iVert = index of some vertex on face iFace
@@ -688,11 +758,25 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 Assert(fullThickness != 0.); // XXX actually this fails if puzzle dimension <= 1, maybe should disallow
 
-                boolean isPrismOfThisFace = Math.abs(-1. - faceOffsets[iFace]) < 1e-6;
+                boolean isPrismOfThisFace;
+                {
+                  // We guess it's a prism of this face if all the number of elements
+                  // match.  I suspect that's a sufficient condition, but I haven't proved it.
+                  isPrismOfThisFace = true;  // until proven otherwise;
+                  for (int iDim = 0; iDim < nDims; ++iDim)
+                  {
+                    int nLesserDimensionalEltsThisFace = iDim==0 ? 0 : originalIncidences[nDims-1][iFace][iDim-1].length;
+                    int nThisDimensionalEltsThisFace = originalIncidences[nDims-1][iFace][iDim].length;
+                    int nThisDimensionalEltsTotal = originalIncidences[nDims][0][iDim].length;
+                    if (nThisDimensionalEltsTotal != 2 * nThisDimensionalEltsThisFace + nLesserDimensionalEltsThisFace)
+                    {
+                      isPrismOfThisFace = false;
+                      break;
+                    }
+                  }
+                }
 
                 double sliceThickness = fullThickness / doubleLength;
-
-                //System.out.println("    slice thickness "+iFace+" = "+sliceThickness+"");
 
                 /*
                    Think about what's appropriate for simplex...
@@ -716,7 +800,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 for (int iNearCut = 0; iNearCut < nNearCuts; ++iNearCut)
                     faceCutOffsets[iFace][iNearCut] = faceOffsets[iFace] + (iNearCut+1)*sliceThickness;
                 // we'll fill in the far cuts in another pass
-            }
+            } // for iFace
 
             // Fill in far cuts of each face,
             // from near cuts of the opposite face.
@@ -726,8 +810,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
                 int iOppositeFace = face2OppositeFace[iFace];
-                int nNearCuts = intLength / 2; // same as in previous pass
-                int nFarCuts = faceCutOffsets[iFace].length - nNearCuts;
+                int nNearCuts = intLengths[whichLengthToUseForFace[iFace]] / 2; // same as in previous pass
+                int nFarCuts = faceCutOffsets[iFace].length - nNearCuts;  // this will be 0 if there's no opposite face
                 for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
                     faceCutOffsets[iFace][nNearCuts+nFarCuts-1-iFarCut] = -faceCutOffsets[iOppositeFace][iFarCut];
             }
@@ -736,30 +820,44 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //System.out.println("face inward normals = "+com.donhatchsw.util.Arrays.toStringCompact(faceInwardNormals));
         //System.out.println("cut offsets = "+com.donhatchsw.util.Arrays.toStringCompact(faceCutOffsets));
 
-/* not sure why I wasn't doing it for other 2's... oh I see, the inside-out test seems to be totally screwed, although it's robust for the 2x2x2x2 for some reason.  need to fix that if we really want to allow this for everything
-        // There are many different inputs that produce the 2x2x2x2,
-        // so take a guess based on cut depth and element counts
-        boolean itsProbablyThe2 = nDims==4
-                               && doubleLength == 2. // XXX make fuzzy?
-                               && originalElements[0].length == 16
-                               && originalElements[1].length == 32
-                               && originalElements[2].length == 24
-                               && originalElements[2][0].facets.length == 4
-                               && originalElements[3].length == 8
-                               && originalElements[3][0].facets.length == 6;
-*/
-        // only need further cuts if there's a square, e.g. {5,3,3} 2 doesn't need it
+        // Only need further cuts if there's a square, e.g. {5,3,3} 2 doesn't need it
         // (hmm, do triangles need it?  separate scheme?)
-        boolean theresASquare = false;
-        for (int i = 0; i < originalElements[2].length; ++i)
-            if (originalElements[2][i].facets.length == 4)
+        boolean doFurtherCuts;
+        {
+            boolean theresASquare = false;  // weird condition, not entirely sure whether it's appropriate
+            boolean theresACut = false;
+            boolean theresAFaceWithNoCut = false;
+            boolean theresADoubleLength2 = false;
             {
-                theresASquare = true;
-                break;
+              for (int i = 0; i < originalElements[2].length; ++i)
+                  if (originalElements[2][i].facets.length == 4)
+                  {
+                      theresASquare = true;
+                      break;
+                  }
+              for (int i = 0; i < doubleLengths.length; ++i)
+                  if (doubleLengths[i] == 2.)  // XXX make fuzzy?
+                  {
+                    theresADoubleLength2 = true;
+                    break;
+                  }
+              for (int iFace = 0; iFace < nFaces; ++iFace) {
+                  if (faceCutOffsets[iFace].length == 0)
+                      theresAFaceWithNoCut = true;
+                  else
+                      theresACut = true;
+              }
             }
-        boolean doFurtherCuts = nDims==4
-                             && theresASquare
-                             && doubleLength == 2.; // XXX make fuzzy?
+            System.out.println("doubleLengths = "+com.donhatchsw.util.Arrays.toStringCompact(doubleLengths));
+            // These heuristics are a bit wacky; should revisit them.
+            // Unfortunately it's not feasible to do further cuts in *all* circumstances in which we technically
+            // need them, e.g. on a huge object that's not sliced at all, that we're just viewing;
+            // that's why we check for at least one cut.
+            doFurtherCuts = nDims==4
+                         && theresACut
+                         && theresASquare
+                         && (theresADoubleLength2 || theresAFaceWithNoCut);
+        }
 
         //
         // Slice!
@@ -858,8 +956,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.stickerAltCentersF = computeStickerAltCentersF(
                                               slicedPolytope,
                                               face2OppositeFace,
-                                              intLength,
-                                              doubleLength);
+                                              intLengths,
+                                              doubleLengths,
+                                              whichLengthToUseForFace);
                 if (progressWriter != null)
                 {
                     progressWriter.println(" done.");
@@ -886,16 +985,36 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 for (int iFace = 0; iFace < nFaces; ++iFace)
                 {
-                    com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
-                        faceInwardNormals[iFace],
-                        (faceOffsets[iFace]+faceCutOffsets[iFace][0])/2.);
-                    Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual case) that will get nulls for auxes, and that's fine
-                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut,
-                        new int[]{3,4}); // sizes (only further-cut squares) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* faces were squares
-                    if (progressWriter != null)
+                    if (faceCutOffsets[iFace].length < 2)
                     {
-                        progressWriter.print("."); // one dot per cut
-                        progressWriter.flush();
+                        // Not enough cuts along the edge perpendicular to this face.
+                        // Make another cut.
+                        com.donhatchsw.util.CSG.Hyperplane cutHyperplane;
+                        if (faceCutOffsets[iFace].length == 0)
+                        {
+                            // There are no cuts here yet.  Cut the edge in thirds.
+                            // XXX THIS ISNT RIGHT YET-- NEED TO USE FULLTHICKNESSES[iFace].  (But it's right for boxes)
+                            cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
+                                faceInwardNormals[iFace],
+                                faceOffsets[iFace] / 2.);
+                        }
+                        else
+                        {
+                            // There's 1 cut already.  Bisect the near piece.
+                            cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
+                                faceInwardNormals[iFace],
+                                (faceOffsets[iFace]+faceCutOffsets[iFace][0])/2.);
+                        }
+
+
+                        Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual case) that will get nulls for auxes, and that's fine
+                        slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut,
+                            new int[]{3,4}); // sizes (only further-cut squares) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* faces were squares
+                        if (progressWriter != null)
+                        {
+                            progressWriter.print("."); // one dot per cut
+                            progressWriter.flush();
+                        }
                     }
                 }
                 if (progressWriter != null)
@@ -1294,7 +1413,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // XXX but actually it wouldn't hurt, could just make that
         // XXX rotate the whole puzzle.
         //
-        if (nDims == 4 && intLength == 1)
+        if (nDims == 4 && intLengths.length == 1 && intLengths[0] == 1)
         {
             // Don't bother with grips for now, it's taking too long
             // for the big ones
@@ -1574,8 +1693,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         private static float[][] computeStickerAltCentersF(
                 CSG.SPolytope slicedPolytope,
                 int face2OppositeFace[],
-                int intLength,
-                double doubleLength)
+                int intLengths[],
+                double doubleLengths[],
+                int whichLengthToUseForFace[])
         {
             int nDims = slicedPolytope.p.dim;
             Assert(nDims == slicedPolytope.p.fullDim);
@@ -1637,7 +1757,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         iFace = ((Integer)otherSticker.aux).intValue();
                         iCutThisFace = 0;
                     }
-                    double cutDepth = iCutThisFace / doubleLength;
+                    double cutDepth = iCutThisFace / doubleLengths[whichLengthToUseForFace[iFace]];
                     double depth = cutDepth;
                     if (avgDepthOfThisStickerBelowFace[iFace] != -1.)
                     {
@@ -1692,7 +1812,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         iFace = ((Integer)otherSticker.aux).intValue();
                         iCutThisFace = 0;
                     }
-                    double cutDepth = iCutThisFace / doubleLength;
+                    double cutDepth = iCutThisFace / doubleLengths[whichLengthToUseForFace[iFace]];
                     double cutWeight = 1.;
                     if (nCutsParallelToThisFace[iFace] == 2)
                     {

@@ -1926,7 +1926,7 @@ public final class CSG
                             scratchFlagFlattened = new double[nDims*nDims];
                         }
                     }
-                    assert(flagList.size() < 1000*1000); // XXX not right, but for now
+                    //assert(flagList.size() < 1000*1000); // XXX not right, but for now
                     //assert(flagList.size() < 100); // XXX not right, but for now
                 }
             }
@@ -7133,20 +7133,25 @@ public final class CSG
     {
         System.out.println("in main");
 
+        if (false)
+        {
+            // just test make regular polytope
+            if (args.length < 1)
+            {
+                System.err.println("Usage: CSG [regularStarPolytopeProductString]");
+                System.exit(1);
+            }
+            SPolytope sp = makeRegularStarPolytopeProductFromString(args[0]);
+
+            PRINTVEC(counts(sp.p));
+            PRINT(sp);
+            return;
+        }
+
         if (args.length < 1)
         {
             System.err.println("Usage: CSG <dim> [<expr>]");
             System.exit(1);
-        }
-
-        if (false)
-        {
-            // just test make regular polytope
-            SPolytope sp = makeRegularStarPolytopeProductFromString(args[0]);
-
-            PRINTVEC(counts(sp.p));
-            //PRINT(sp);
-            return;
         }
 
         int fullDim = Integer.parseInt(args[0]);
