@@ -683,7 +683,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFace = 0; iFace < nFaces; ++iFace)
                 table.put(faceInwardNormals[iFace], originalFaces[iFace]);
             double oppositeNormalScratch[] = new double[nDims];
-            System.err.print("opposites:");
             for (int iFace = 0; iFace < nFaces; ++iFace)
             {
                 VecMath.vxs(oppositeNormalScratch, faceInwardNormals[iFace], -1.);
@@ -848,7 +847,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                       theresACut = true;
               }
             }
-            System.out.println("doubleLengths = "+com.donhatchsw.util.Arrays.toStringCompact(doubleLengths));
             // These heuristics are a bit wacky; should revisit them.
             // Unfortunately it's not feasible to do further cuts in *all* circumstances in which we technically
             // need them, e.g. on a huge object that's not sliced at all, that we're just viewing;
@@ -1551,7 +1549,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 if (doFurtherCuts)
                 {
-                    // Precompute sticker-and-polygon-to-face.
+                    // Precompute sticker-and-polygon-to-grip.
                     this.stickerPoly2Grip = new int[nStickers][];
                     for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                     {
@@ -1565,10 +1563,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             // the wrong face, bump it a little bit towards sticker center
                             VecMath.lerp(polyCenter, polyCenter, stickerCenter, .01f);
 
-                            int iGrip = getClosestGripDEPRECATED(polyCenter);
-                            // TODO: want to do the following instead, but how do we get at the face center from here?
-                            //int iGrip = getClosestGrip(faceCenter,
-                            //                           VecMath.vmv(polyCenter-faceCenter));
+
+                            float[] faceCenterF = faceCentersF[sticker2face[iSticker]];
+                            int iGrip = getClosestGrip(faceCenterF,
+                                                       VecMath.vmv(polyCenter, faceCenterF));
+
 
                             // Don't highlight the one that's going to say "Can't twist that"...
                             // XXX actually we should, if rotate-arbitrary-elements-to-center is on... maybe
@@ -2001,31 +2000,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return faceCutOffsets;
         }
 
-        // XXX KILL THIS VERSION, MAKE EVERYONE USE THE OTHER ONE
-        public int getClosestGripDEPRECATED(float pickCoords[/*4*/])
-        {
-            int bestIndex = -1;
-            float bestDistSqrd = Float.MAX_VALUE;
-            float gripDirPlusGripOffF[] = new float[_nDisplayDims];
-            for (int i = 0; i < gripDirsF.length; ++i)
-            {
-                VecMath.vpsxv(gripDirPlusGripOffF,
-                              gripDirsF[i],
-                              //.99f,
-                              .001f, // XXX fudge
-                              gripOffsF[i]);
-                float thisDistSqrd = VecMath.distsqrd(gripDirPlusGripOffF,
-                                                      pickCoords);
-                if (thisDistSqrd < bestDistSqrd)
-                {
-                    bestDistSqrd = thisDistSqrd;
-                    bestIndex = i;
-                }
-            }
-            return bestIndex;
-        }
         // XXX lame, this should be precomputed and looked up by
         // XXX poly and sticker index.
+        // XXX (wait, isn't it, now?  stickerPoly2grip())
         // This is called using
         // faceCenter, polyCenter-stickerCenter.
         public int getClosestGrip(float unNormalizedDir[/*4*/],
