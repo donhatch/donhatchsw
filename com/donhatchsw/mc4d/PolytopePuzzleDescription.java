@@ -265,6 +265,7 @@
                   with triangles in it yet)
                   (and we want the 2.5 thing to work on only the pents,
                    not the squares, of a {5}x{4} and the {5,3}x{})
+                  (and, now, reconcile this with the multiple-comma-separated length specs that are now supported)
             - invention form should come up with current puzzle or previous
                   failed attempt
             - should mention Johnson numbers and short names where applicable... and hyperlinks would be great.
@@ -321,7 +322,7 @@
             - Grand Antiprism (there's a menu item for it)
             - 3 level cascading menus for {3..12}x{3..12}?
             - nframes should ALWAYS be odd!  even means sometimes
-                we get flat faces!  (XXX is this true any more?)
+                we get flat facets!  (XXX is this true any more?)
             - ooh, make more slices proportionally slower, would feel more massive!
             - completely general solve?
             - general uniform polytopes! yeah!
@@ -344,8 +345,8 @@
 
             - hmm... wireframe around the non-shrunk sliced geometry would be nice!
                 In fact, it would be nice to have separate buttons for:
-                - wirefame around unshrunk faces
-                - wireframe around shrunk faces (separate faceShrink for it?)
+                - wirefame around unshrunk facets
+                - wireframe around shrunk facets (separate faceShrink for it?)
                 - wireframe around unshrunk stickers (separate stickerShrink for it?)
                 - wireframe around stickers (that's the current button)
 
@@ -356,7 +357,7 @@
             - fade out to transparent instead of suddenly turning inside out?
                 This would nicely light up the center,
                 And would also help mask the sorting failures
-                on faces that are very close to flat.  I think this would
+                on facets that are very close to flat.  I think this would
                 look beautiful, especially on the big 120-cell-based puzzles
             - ha, for the {5}x{4}, it could be fudged so the cubical facets
                 behave like they have full symmetry-- it would allow stickers
@@ -1967,7 +1968,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             return vertsF.length;
         }
-        public int nFaces()  // GenericPuzzleDescription interface calls it faces, but we think of it as facets
+        public int nFaces()  // GenericPuzzleDescription interface calls it faces, but it's really facets
         {
             return originalPolytope.p.facets.length;
         }
