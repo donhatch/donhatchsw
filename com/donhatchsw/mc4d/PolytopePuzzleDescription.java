@@ -414,7 +414,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int _nCubies;
 
     private float vertsF[/*nVerts*/][/*nDisplayDims*/];
-    private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
+    private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];  // indices into vertsF
 
     private float facetCentersF[/*nFacets*/][/*nDisplayDims*/];
 
@@ -922,7 +922,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         facetInwardNormals[iFacet],
                         facetCutOffsets[iFacet][iCut]);
                     Object auxOfCut = new CutInfo(iFacet,iCut);
-                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut, null);
+                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut, /*sizes=*/null);
                     iTotalCut++;
                     if (progressWriter != null)
                     {
@@ -1099,11 +1099,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             int allSlicedIncidences[][][][] = slicedPolytope.p.getAllIncidences();
             for (int iSlicedRidge = 0; iSlicedRidge < slicedRidges.length; ++iSlicedRidge)
             {
-                CSG.Polytope ridge = slicedRidges[iSlicedRidge];
+                CSG.Polytope ridge = slicedRidges[iSlicedRidge];  // poly, in the usual 4d case
                 // ridge.aux is now either an Integer (the index
                 // of the original ridge it was a part of)
-                // or a CutInfo (if it was created by a cut).
-                // XXX hey waitaminute, if there were further cuts for grips, there should be some nulls
+                // or a CutInfo (if it was created by one of the primary, i.e. non-further, cuts).
+                // The "further" cuts didn't create any ridges (polys), they only subdivided them,
+                // so there are no null ridge.aux's.
                 Assert(ridge.aux != null);
                 boolean ridgeIsFromOriginal = (ridge.aux instanceof Integer);
                 if (ridgeIsFromOriginal) // if it's not from a cut
@@ -1164,7 +1165,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // (Actually now they all have aux.)
         // XXX why does this seem to be a problem for nonregular cross products but not for regulars?  figure this out
         //
-        if (true)
+        if (false)  // XXX tentatively trying setting this to false... I think it's ok.  but should eventually clear them to save memory when done... I think? not sure
         {
             CSG.Polytope allElements[][] = slicedPolytope.p.getAllElements();
             for (int iDim = 0; iDim < allElements.length; ++iDim)
@@ -1205,6 +1206,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 nVerts = 0; // reset, count again
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
+                    System.out.println("          iSticker = "+iSticker);
                     CSG.Polytope sticker = stickers[iSticker];
                     CSG.Polytope sticker4d = sticker;
                     if (nDims < _nDisplayDims)
@@ -1227,6 +1229,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     for (int iPolyThisSticker = 0; iPolyThisSticker < polysThisSticker.length; ++iPolyThisSticker)
                     {
                         CSG.Polytope polygon = polysThisSticker[iPolyThisSticker];
+                        System.out.println("              iPolyThisSticker = "+iPolyThisSticker);
                         stickerInds[iSticker][iPolyThisSticker] = new int[polygon.facets.length];
                         for (int iVertThisPoly = 0; iVertThisPoly < polygon.facets.length; ++iVertThisPoly)
                         {
@@ -1568,6 +1571,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     this.stickerPoly2Grip = new int[nStickers][];
                     for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                     {
+                        //System.out.println("      iSticker = "+iSticker);
                         int nPolysThisSticker = stickerInds[iSticker].length;
                         stickerPoly2Grip[iSticker] = new int[nPolysThisSticker];
                         for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
@@ -1596,10 +1600,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                           }
                             if (true)
                             {
-                                // Need to remember which original element (either of the whole polytope, or of its facets,
-                                // it doesn't matter which) each element of each poly is from.
+                                // We recorded which original element of the whole polytope
+                                // each element of each poly is from.
                                 // Within this facet, those original elements will be in 1-1 correspondence with the grips
-                                // (in 4d, anyway... which is the only case in which we're actually doing grips, I think).
+                                // (in 4d, anyway... which is the only case in which we're actually doing further cuts with grips, I think? not sure XXX)
+                                //System.out.println("          iPolyThisSticker = "+iPolyThisSticker);
+                                //for each facet of the poly
                             }
                         }
                     }
