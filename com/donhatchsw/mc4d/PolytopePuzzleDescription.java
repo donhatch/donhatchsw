@@ -146,6 +146,8 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - argh, broke doubleLength in 4c5f9ec708e3a92860f89420e5ae30e83d232951 apparently:
+                "{4,3} 3(10)"
         - >=5 dimensional puzzles on command line non-gracefully excepts
         - ctrl-alt-space for debugging... doesn't stop things any more?? (does for rotates, not for twists)
         - with multiple windows, animation doesn't go by itself any more
@@ -690,7 +692,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 VecMath.vxs(oppositeNormalScratch, faceInwardNormals[iFace], -1.);
                 CSG.Polytope opposite = (CSG.Polytope)table.get(oppositeNormalScratch);
                 face2OppositeFace[iFace] = opposite==null ? -1 : ((Integer)opposite.aux).intValue();
-                System.err.print("("+iFace+":"+face2OppositeFace[iFace]+")");
+                //System.err.print("("+iFace+":"+face2OppositeFace[iFace]+")");
             }
         }
 

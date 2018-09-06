@@ -880,6 +880,7 @@ public class GenericGlue
                                     "Something went horribly wrong when trying to build your invention \""+schlafli+"  "+lengthString+"\":\n"+explanation,
                                     "Your Invention Sucks",
                                     JOptionPane.ERROR_MESSAGE);
+                                initPuzzleCallback.call(); // XXX really just want a repaint I think
                                 return;
                             }
 
