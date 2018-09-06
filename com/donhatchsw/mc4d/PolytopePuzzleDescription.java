@@ -415,10 +415,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private float vertsF[/*nVerts*/][/*nDisplayDims*/];
     private int stickerInds[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/];
 
-    private float faceCentersF[/*nFaces*/][/*nDisplayDims*/];
+    private float facetCentersF[/*nFacets*/][/*nDisplayDims*/];
 
     private int adjacentStickerPairs[][/*2*/][/*2*/];
-    private int face2OppositeFace[/*nFaces*/];
+    private int facet2OppositeFacet[/*nFacets*/];
     private int sticker2face[/*nStickers*/];
     private int sticker2faceShadow[/*nStickers*/]; // so we can detect nefariousness
     private int sticker2cubie[/*nStickers*/];
@@ -430,14 +430,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private double gripUsefulMats[/*nGrips*/][/*nDims*/][/*nDims*/]; // weird name
     private int stickerPoly2Grip[/*nStickers*/][/*nPolygonsThisSticker*/];
 
-    private double faceInwardNormals[/*nFaces*/][/*nDims*/];
-    private double faceCutOffsets[/*nFaces*/][/*nCutsThisFace*/]; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
+    private double facetInwardNormals[/*nFacets*/][/*nDims*/];
+    private double facetCutOffsets[/*nFacets*/][/*nCutsThisFacet*/]; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
 
     private float nicePointsToRotateToCenter[][];
 
     private double stickerCentersD[][]; // for very accurate which-slice determination
     private float stickerCentersF[][]; // for just shoving through display pipeline
-    private float stickerAltCentersF[][]; // alternate sticker shrink-to points, on face boundary
+    private float stickerAltCentersF[][]; // alternate sticker shrink-to points, on facet boundary
     private FuzzyPointHashTable stickerCentersHashTable;
 
     private static void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
@@ -481,7 +481,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     * The constructor that is required by the factory.
     *
     * Prescription is a schafli product symbol followed by a space and an integer
-    * (specifying the number of cuts parallel to each face = floor(the integer/2)
+    * (specifying the number of cuts parallel to each facet = floor(the integer/2)
     * and an optional parenthesized floating point number (overriding
     * the integer when determining the cut spacing, which is 1/(the number)
     * times edge length.
@@ -528,7 +528,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                               "Grand_Antiprism");
 
         //com.donhatchsw.compat.regex.verboseLevel = 2;
-        // TODO: Document this not-yet-documented feature: can be more than one length (each with optional double override), specifying a different cut scheme for each dimension.  The one chosen for a given face is the one whose index is the index of the coord axis most closely aligned with the face normal.  Probably only makes sense for axis-aligned boxes.
+        // TODO: Document this not-yet-documented feature: can be more than one length (each with optional double override), specifying a different cut scheme for each dimension.  The one chosen for a given facet is the one whose index is the index of the coord axis most closely aligned with the facet normal.  Probably only makes sense for axis-aligned boxes.
         com.donhatchsw.compat.regex.Matcher matcher =
         com.donhatchsw.compat.regex.Pattern.compile(
             "\\s*([^ ]+)\\s+((\\d+)(\\((.*)\\))?(,(\\d+)(\\((.*)\\))?)*)"
@@ -628,13 +628,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         CSG.Polytope originalElements[][] = originalPolytope.p.getAllElements();
         CSG.Polytope originalVerts[] = originalElements[0];
-        CSG.Polytope originalFaces[] = originalElements[nDims-1];
-        int nFaces = originalFaces.length;
+        CSG.Polytope originalFacets[] = originalElements[nDims-1];
+        int nFacets = originalFacets.length;
         int originalIncidences[][][][] = originalPolytope.p.getAllIncidences();
 
-        // Mark each original face with its face index.
+        // Mark each original facet with its facet index.
         // These marks will persist even aver we slice up into stickers,
-        // so that will give us the sticker-to-original-face-index mapping.
+        // so that will give us the sticker-to-original-facet-index mapping.
         // Also mark each vertex with its vertex index... etc.
         {
             for (int iDim = 0; iDim < originalElements.length; ++iDim)
@@ -643,26 +643,26 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
         //
-        // Figure out the face inward normals and offsets;
+        // Figure out the facet inward normals and offsets;
         // these will be used for computing where cuts should go.
         //
-        this.faceInwardNormals = new double[nFaces][nDims];
-        double faceOffsets[] = new double[nFaces];
-        for (int iFace = 0; iFace < nFaces; ++iFace)
+        this.facetInwardNormals = new double[nFacets][nDims];
+        double facetOffsets[] = new double[nFacets];
+        for (int iFacet = 0; iFacet < nFacets; ++iFacet)
         {
-            CSG.Polytope face = originalFaces[iFace];
-            CSG.Hyperplane plane = face.contributingHyperplanes[0];
-            VecMath.vxs(faceInwardNormals[iFace], plane.normal, -1);
-            faceOffsets[iFace] = -plane.offset;
-            Assert(faceOffsets[iFace] < 0.);
-            double invNormalLength = 1./VecMath.norm(faceInwardNormals[iFace]);
-            VecMath.vxs(faceInwardNormals[iFace], faceInwardNormals[iFace], invNormalLength);
-            faceOffsets[iFace] *= invNormalLength;
+            CSG.Polytope facet = originalFacets[iFacet];
+            CSG.Hyperplane plane = facet.contributingHyperplanes[0];
+            VecMath.vxs(facetInwardNormals[iFacet], plane.normal, -1);
+            facetOffsets[iFacet] = -plane.offset;
+            Assert(facetOffsets[iFacet] < 0.);
+            double invNormalLength = 1./VecMath.norm(facetInwardNormals[iFacet]);
+            VecMath.vxs(facetInwardNormals[iFacet], facetInwardNormals[iFacet], invNormalLength);
+            facetOffsets[iFacet] *= invNormalLength;
         }
 
         //
         // Figure out the circumRadius (farthest vertex from orign)
-        // and inRadius (closest face plane to origin)
+        // and inRadius (closest facet plane to origin)
         // of the original polytope...
         //
         {
@@ -676,9 +676,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             _circumRadius = (float)Math.sqrt(farthestVertexDistSqrd);
 
             double nearestFaceDist = 0.;
-            for (int iFace = 0; iFace < originalFaces.length; ++iFace)
+            for (int iFacet = 0; iFacet < originalFacets.length; ++iFacet)
             {
-                double thisFaceDist = -faceOffsets[iFace];
+                double thisFaceDist = -facetOffsets[iFacet];
                 if (thisFaceDist < nearestFaceDist)
                     nearestFaceDist = thisFaceDist;
             }
@@ -687,64 +687,64 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
 
         //
-        // So we can easily find the opposite face of a given face...
+        // So we can easily find the opposite facet of a given facet...
         //
-        this.face2OppositeFace = new int[nFaces];
+        this.facet2OppositeFacet = new int[nFacets];
         {
             FuzzyPointHashTable table = new FuzzyPointHashTable(1e-9, 1e-8, 1./64);  // 1e-9, 1e-8, 1/128 made something hit a wall on the omnitruncated 120cell
-            for (int iFace = 0; iFace < nFaces; ++iFace)
-                table.put(faceInwardNormals[iFace], originalFaces[iFace]);
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
+                table.put(facetInwardNormals[iFacet], originalFacets[iFacet]);
             double oppositeNormalScratch[] = new double[nDims];
-            for (int iFace = 0; iFace < nFaces; ++iFace)
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
-                VecMath.vxs(oppositeNormalScratch, faceInwardNormals[iFace], -1.);
+                VecMath.vxs(oppositeNormalScratch, facetInwardNormals[iFacet], -1.);
                 CSG.Polytope opposite = (CSG.Polytope)table.get(oppositeNormalScratch);
-                face2OppositeFace[iFace] = opposite==null ? -1 : ((Integer)opposite.aux).intValue();
-                //System.err.print("("+iFace+":"+face2OppositeFace[iFace]+")");
+                facet2OppositeFacet[iFacet] = opposite==null ? -1 : ((Integer)opposite.aux).intValue();
+                //System.err.print("("+iFacet+":"+facet2OppositeFacet[iFacet]+")");
             }
         }
 
         //
         // Figure out exactly what cuts are wanted
-        // for each face.  Cuts parallel to two opposite faces
-        // will appear in both faces' cut lists.
+        // for each facet.  Cuts parallel to two opposite facets
+        // will appear in both facets' cut lists.
         //
-        // Note, we store face inward normals rather than outward ones,
+        // Note, we store facet inward normals rather than outward ones,
         // so that, as we iterate through the slicemask bit indices later,
         // the corresponding cut offsets will be in increasing order,
         // for my sanity.
         //
-        this.faceCutOffsets = new double[nFaces][];
-        int[] whichLengthToUseForFace = new int[nFaces];
+        this.facetCutOffsets = new double[nFacets][];
+        int[] whichLengthToUseForFacet = new int[nFacets];
         {
-            for (int iFace = 0; iFace < nFaces; ++iFace)
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
                 // Which length do we use?
                 // Use the one on the axis closest to the normal, for now,
                 // and repeat entries if not enough.  This gets it right for the (a)x(b)x(c)x(d), for example.
-                whichLengthToUseForFace[iFace] = VecMath.maxabsi(faceInwardNormals[iFace]) % intLengths.length;
-                int intLength = intLengths[whichLengthToUseForFace[iFace]];
-                double doubleLength = doubleLengths[whichLengthToUseForFace[iFace]];
+                whichLengthToUseForFacet[iFacet] = VecMath.maxabsi(facetInwardNormals[iFacet]) % intLengths.length;
+                int intLength = intLengths[whichLengthToUseForFacet[iFacet]];
+                double doubleLength = doubleLengths[whichLengthToUseForFacet[iFacet]];
 
                 double fullThickness = 0.;
                 {
-                    // iVert = index of some vertex on face iFace
-                    int iVert = originalIncidences[nDims-1][iFace][0][0];
+                    // iVert = index of some vertex on facet iFacet
+                    int iVert = originalIncidences[nDims-1][iFacet][0][0];
                     // iVertEdges = indices of all edges incident on vert iVert
                     int iVertsEdges[] = originalIncidences[0][iVert][1];
                     // Find an edge incident on vertex iVert
-                    // that is NOT incident on face iFace..
+                    // that is NOT incident on facet iFacet..
                     for (int i = 0; i < iVertsEdges.length; ++i)
                     {
                         int iEdge = iVertsEdges[i];
-                        int iEdgesFaces[] = originalIncidences[1][iEdge][nDims-1];
+                        int iEdgesFacets[] = originalIncidences[1][iEdge][nDims-1];
                         int j;
-                        for (j = 0; j < iEdgesFaces.length; ++j)
-                            if (iEdgesFaces[j] == iFace)
-                                break; // iEdge is incident on iFace-- no good
-                        if (j == iEdgesFaces.length)
+                        for (j = 0; j < iEdgesFacets.length; ++j)
+                            if (iEdgesFacets[j] == iFacet)
+                                break; // iEdge is incident on iFacet-- no good
+                        if (j == iEdgesFacets.length)
                         {
-                            // iEdge is not incident on iFace-- good!
+                            // iEdge is not incident on iFacet-- good!
                             int jVert0 = originalIncidences[1][iEdge][0][0];
                             int jVert1 = originalIncidences[1][iEdge][0][1];
                             Assert((jVert0==iVert) != (jVert1==iVert));
@@ -752,13 +752,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             double edgeVec[] = VecMath.vmv(
                                             originalVerts[jVert1].getCoords(),
                                             originalVerts[jVert0].getCoords());
-                            double thisThickness = VecMath.dot(edgeVec, faceInwardNormals[iFace]);
+                            double thisThickness = VecMath.dot(edgeVec, facetInwardNormals[iFacet]);
                             if (thisThickness < 0.)
                                 thisThickness *= -1.;
 
                             // If there are more than one neighbor vertex
-                            // that's not on this face, pick one that's
-                            // closest to the face plane.  This can only
+                            // that's not on this facet, pick one that's
+                            // closest to the facet plane.  This can only
                             // happen if the vertex figure is NOT a simplex
                             // (e.g. it happens for the icosahedron).
                             if (thisThickness > 1e-6
@@ -769,19 +769,19 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 Assert(fullThickness != 0.); // XXX actually this fails if puzzle dimension <= 1, maybe should disallow
 
-                boolean isPrismOfThisFace;
+                boolean isPrismOfThisFacet;
                 {
-                  // We guess it's a prism of this face if all the number of elements
+                  // We guess it's a prism of this facet if all the number of elements
                   // match.  I suspect that's a sufficient condition, but I haven't proved it.
-                  isPrismOfThisFace = true;  // until proven otherwise;
+                  isPrismOfThisFacet = true;  // until proven otherwise;
                   for (int iDim = 0; iDim < nDims; ++iDim)
                   {
-                    int nLesserDimensionalEltsThisFace = iDim==0 ? 0 : originalIncidences[nDims-1][iFace][iDim-1].length;
-                    int nThisDimensionalEltsThisFace = originalIncidences[nDims-1][iFace][iDim].length;
+                    int nLesserDimensionalEltsThisFacet = iDim==0 ? 0 : originalIncidences[nDims-1][iFacet][iDim-1].length;
+                    int nThisDimensionalEltsThisFacet = originalIncidences[nDims-1][iFacet][iDim].length;
                     int nThisDimensionalEltsTotal = originalIncidences[nDims][0][iDim].length;
-                    if (nThisDimensionalEltsTotal != 2 * nThisDimensionalEltsThisFace + nLesserDimensionalEltsThisFace)
+                    if (nThisDimensionalEltsTotal != 2 * nThisDimensionalEltsThisFacet + nLesserDimensionalEltsThisFacet)
                     {
-                      isPrismOfThisFace = false;
+                      isPrismOfThisFacet = false;
                       break;
                     }
                   }
@@ -792,7 +792,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 /*
                    Think about what's appropriate for simplex...
                         thickness = 1/3 of full to get upside down tet in middle, 
-                                        with its verts poking the faces
+                                        with its verts poking the facets
                         thickness = 1/4 of full to get nothing in middle
                         thickness = 1/5 of full to get nice rightside up cell in middle
                                         YES, this is what 3 should do I think
@@ -803,33 +803,33 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 */
 
                 int nNearCuts = intLength / 2; // (n-1)/2 if odd, n/2 if even
-                int nFarCuts = face2OppositeFace[iFace]==-1 ? 0 :
-                               intLength%2==0 && isPrismOfThisFace ? nNearCuts-1 :
+                int nFarCuts = facet2OppositeFacet[iFacet]==-1 ? 0 :
+                               intLength%2==0 && isPrismOfThisFacet ? nNearCuts-1 :
                                nNearCuts;
-                faceCutOffsets[iFace] = new double[nNearCuts + nFarCuts];
+                facetCutOffsets[iFacet] = new double[nNearCuts + nFarCuts];
 
                 for (int iNearCut = 0; iNearCut < nNearCuts; ++iNearCut)
-                    faceCutOffsets[iFace][iNearCut] = faceOffsets[iFace] + (iNearCut+1)*sliceThickness;
+                    facetCutOffsets[iFacet][iNearCut] = facetOffsets[iFacet] + (iNearCut+1)*sliceThickness;
                 // we'll fill in the far cuts in another pass
-            } // for iFace
+            } // for iFacet
 
-            // Fill in far cuts of each face,
-            // from near cuts of the opposite face.
-            // Note the opposite face may have a different
+            // Fill in far cuts of each facet,
+            // from near cuts of the opposite facet.
+            // Note the opposite facet may have a different
             // offset from the origin, and different slice thickness
             // (e.g. the truncated simplex in 3 or 4 dimensions).
-            for (int iFace = 0; iFace < nFaces; ++iFace)
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
-                int iOppositeFace = face2OppositeFace[iFace];
-                int nNearCuts = intLengths[whichLengthToUseForFace[iFace]] / 2; // same as in previous pass
-                int nFarCuts = faceCutOffsets[iFace].length - nNearCuts;  // this will be 0 if there's no opposite face
+                int iOppositeFacet = facet2OppositeFacet[iFacet];
+                int nNearCuts = intLengths[whichLengthToUseForFacet[iFacet]] / 2; // same as in previous pass
+                int nFarCuts = facetCutOffsets[iFacet].length - nNearCuts;  // this will be 0 if there's no opposite face
                 for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
-                    faceCutOffsets[iFace][nNearCuts+nFarCuts-1-iFarCut] = -faceCutOffsets[iOppositeFace][iFarCut];
+                    facetCutOffsets[iFacet][nNearCuts+nFarCuts-1-iFarCut] = -facetCutOffsets[iOppositeFacet][iFarCut];
             }
         }
 
-        //System.out.println("face inward normals = "+com.donhatchsw.util.Arrays.toStringCompact(faceInwardNormals));
-        //System.out.println("cut offsets = "+com.donhatchsw.util.Arrays.toStringCompact(faceCutOffsets));
+        //System.out.println("facet inward normals = "+com.donhatchsw.util.Arrays.toStringCompact(facetInwardNormals));
+        //System.out.println("cut offsets = "+com.donhatchsw.util.Arrays.toStringCompact(facetCutOffsets));
 
         // Only need further cuts if there's a square, e.g. {5,3,3} 2 doesn't need it
         // (hmm, do triangles need it?  separate scheme?)
@@ -857,8 +857,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     theresADoubleLength2 = true;
                     break;
                   }
-              for (int iFace = 0; iFace < nFaces; ++iFace) {
-                  if (faceCutOffsets[iFace].length == 0)
+              for (int iFacet = 0; iFacet < nFacets; ++iFacet) {
+                  if (facetCutOffsets[iFacet].length == 0)
                       theresAFaceWithNoCut = true;
                   else
                       theresACut = true;
@@ -888,13 +888,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // First find out how many cuts we are going to make...
             //
             int nTotalCuts = 0;
-            for (int iFace = 0; iFace < nFaces; ++iFace)
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
                 if (maxCuts >= 0 && nTotalCuts >= maxCuts) break;
-                if (face2OppositeFace[iFace] != -1
-                 && face2OppositeFace[iFace] < iFace)
-                    continue; // already saw opposite face and made the cuts
-                for (int iCut = 0; iCut < faceCutOffsets[iFace].length; ++iCut)
+                if (facet2OppositeFacet[iFacet] != -1
+                 && facet2OppositeFacet[iFacet] < iFacet)
+                    continue; // already saw opposite facet and made the cuts
+                for (int iCut = 0; iCut < facetCutOffsets[iFacet].length; ++iCut)
                 {
                     if (maxCuts >= 0 && nTotalCuts >= maxCuts) break;
                     nTotalCuts++;
@@ -907,20 +907,20 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
 
             int iTotalCut = 0;
-            for (int iFace = 0; iFace < nFaces; ++iFace)
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
                 if (maxCuts >= 0 && iTotalCut >= maxCuts) break;
-                if (face2OppositeFace[iFace] != -1
-                 && face2OppositeFace[iFace] < iFace)
-                    continue; // already saw opposite face and made the cuts
-                //System.out.println("REALLY doing facet "+iFace);
-                for (int iCut = 0; iCut < faceCutOffsets[iFace].length; ++iCut)
+                if (facet2OppositeFacet[iFacet] != -1
+                 && facet2OppositeFacet[iFacet] < iFacet)
+                    continue; // already saw opposite facet and made the cuts
+                //System.out.println("REALLY doing facet "+iFacet);
+                for (int iCut = 0; iCut < facetCutOffsets[iFacet].length; ++iCut)
                 {
                     if (maxCuts >= 0 && iTotalCut >= maxCuts) break;
                     com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
-                        faceInwardNormals[iFace],
-                        faceCutOffsets[iFace][iCut]);
-                    Object auxOfCut = new CutInfo(iFace,iCut);
+                        facetInwardNormals[iFacet],
+                        facetCutOffsets[iFacet][iCut]);
+                    Object auxOfCut = new CutInfo(iFacet,iCut);
                     slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut, null);
                     iTotalCut++;
                     if (progressWriter != null)
@@ -952,24 +952,24 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // Have to compute the shrink-to points here
             // before doing further cuts,
             // since it assumes there will be at most two ridges
-            // per sticker from a given face...
+            // per sticker from a given facet...
             //
             // Calculate the alternate sticker centers;
             // intuitively, these are the shrink-to points
-            // on the face boundaries.
+            // on the facet boundaries.
             //
             {
                 if (progressWriter != null)
                 {
-                    progressWriter.print("    Computing alternate sticker shrink-to points on face boundaries... ");
+                    progressWriter.print("    Computing alternate sticker shrink-to points on facet boundaries... ");
                     progressWriter.flush();
                 }
                 this.stickerAltCentersF = computeStickerAltCentersF(
                                               slicedPolytope,
-                                              face2OppositeFace,
+                                              facet2OppositeFacet,
                                               intLengths,
                                               doubleLengths,
-                                              whichLengthToUseForFace);
+                                              whichLengthToUseForFacet);
                 if (progressWriter != null)
                 {
                     progressWriter.println(" done.");
@@ -994,34 +994,34 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.print("    Further slicing for grips("+slicedPolytope.p.getAllElements()[2].length+" polygons)");
                     progressWriter.flush();
                 }
-                for (int iFace = 0; iFace < nFaces; ++iFace)
+                for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                 {
-                    if (faceCutOffsets[iFace].length < 2)
+                    if (facetCutOffsets[iFacet].length < 2)
                     {
-                        // Not enough cuts along the edge perpendicular to this face.
+                        // Not enough cuts along the edge perpendicular to this facet.
                         // Make another cut.
                         com.donhatchsw.util.CSG.Hyperplane cutHyperplane;
-                        if (faceCutOffsets[iFace].length == 0)
+                        if (facetCutOffsets[iFacet].length == 0)
                         {
                             // There are no cuts here yet.
-                            // Put a cut 1/4 of the way from this face to the end of the incident edge.
-                            // XXX THIS ISNT RIGHT YET-- NEED TO USE FULLTHICKNESSES[iFace].  (But it's right for boxes)
+                            // Put a cut 1/4 of the way from this facet to the end of the incident edge.
+                            // XXX THIS ISNT RIGHT YET-- NEED TO USE FULLTHICKNESSES[iFacet].  (But it's right for boxes)
                             cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
-                                faceInwardNormals[iFace],
-                                faceOffsets[iFace] / 2.);
+                                facetInwardNormals[iFacet],
+                                facetOffsets[iFacet] / 2.);
                         }
                         else
                         {
                             // There's 1 cut already.  Bisect the near piece.
                             cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
-                                faceInwardNormals[iFace],
-                                (faceOffsets[iFace]+faceCutOffsets[iFace][0])/2.);
+                                facetInwardNormals[iFacet],
+                                (facetOffsets[iFacet]+facetCutOffsets[iFacet][0])/2.);
                         }
 
 
                         Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual 4d case) that will get nulls for auxes, and that's fine
                         slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut,
-                            new int[]{3,4}); // sizes (only further-cut squares and triangles) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* faces were squares. bleah!)
+                            new int[]{3,4}); // sizes (only further-cut squares and triangles) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* facets were squares. bleah!)
                         if (progressWriter != null)
                         {
                             progressWriter.print("."); // one dot per cut
@@ -1071,7 +1071,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int nStickers = stickers.length;
 
         //
-        // Figure out the mapping from sticker to face.
+        // Figure out the mapping from sticker to facet.
         //
         this.sticker2face = new int[nStickers];
         {
@@ -1131,17 +1131,17 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
         //
-        // Find the face centers and sticker centers.
+        // Find the facet centers and sticker centers.
         // The center of mass of the vertices is probably
         // as good as anything, for this
         // (when we get shrinking right, it won't
         // actually use centers, I don't think)
         //
-        double faceCentersD[][] = new double[nFaces][nDims];
+        double facetCentersD[][] = new double[nFacets][nDims];
         {
             {
-                for (int iFace = 0; iFace < nFaces; ++iFace)
-                    com.donhatchsw.util.CSG.cgOfVerts(faceCentersD[iFace], originalFaces[iFace]);
+                for (int iFacet = 0; iFacet < nFacets; ++iFacet)
+                    com.donhatchsw.util.CSG.cgOfVerts(facetCentersD[iFacet], originalFacets[iFacet]);
             }
             this.stickerCentersD = new double[nStickers][nDims];
             this.stickerCentersHashTable = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
@@ -1152,7 +1152,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
                 }
             }
-            this.faceCentersF = VecMath.doubleToFloat(faceCentersD);
+            this.facetCentersF = VecMath.doubleToFloat(facetCentersD);
             this.stickerCentersF = VecMath.doubleToFloat(stickerCentersD);
         }
 
@@ -1289,7 +1289,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             //
             // Fix up the indices on each sticker so that
             // the first vertex on the second face
-            // does not occur on the first face;
+            // does not occur on the first facet;
             // that will guarantee that [0][0], [0][1], [0][2], [1][0]
             // form a non-degenerate simplex, as required.
             // There is a subtlety in the case when the sticker polygons
@@ -1406,10 +1406,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 stickerCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerCentersF[iSticker], 0.f);
                 stickerAltCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerAltCentersF[iSticker], 0.f);
             }
-            for (int iFace = 0; iFace < nFaces; ++iFace)
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
-                faceCentersF[iFace] = (float[])com.donhatchsw.util.Arrays.append(faceCentersF[iFace], 0.f);
-                faceInwardNormals[iFace] = (double[])com.donhatchsw.util.Arrays.append(faceInwardNormals[iFace], 0.f);
+                facetCentersF[iFacet] = (float[])com.donhatchsw.util.Arrays.append(facetCentersF[iFacet], 0.f);
+                facetInwardNormals[iFacet] = (double[])com.donhatchsw.util.Arrays.append(facetInwardNormals[iFacet], 0.f);
             }
         }
 
@@ -1418,7 +1418,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         //
         // Now think about the twist grips.
-        // There will be one grip at each vertex,edge,face center
+        // There will be one grip at each vertex,edge,facet center
         // of either the original polytope (if 3d)
         // or each cell of the original polytope (if 4d).
         // XXX woops, I'm retarded, 3d doesn't have that...
@@ -1448,20 +1448,20 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 boolean doTheOddFaceIn3dThing = true;
                 int nGrips = 0;
-                for (int iFace = 0; iFace < nFaces; ++iFace)
+                for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                 {
-                    com.donhatchsw.util.CSG.Polytope[][] allElementsOfFace = originalFaces[iFace].getAllElements();
+                    com.donhatchsw.util.CSG.Polytope[][] allElementsOfFacet = originalFacets[iFacet].getAllElements();
                     if (nDims == 4)
                         for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
-                            nGrips += allElementsOfFace[iDim].length;
+                            nGrips += allElementsOfFacet[iDim].length;
                     else if (nDims ==3)
                     {
                         nGrips += 2;
-                        nGrips += allElementsOfFace[1].length;
+                        nGrips += allElementsOfFacet[1].length;
                         if (doTheOddFaceIn3dThing)
                         {
-                            if (allElementsOfFace[1].length % 2 == 1)
-                                nGrips += allElementsOfFace[1].length;
+                            if (allElementsOfFacet[1].length % 2 == 1)
+                                nGrips += allElementsOfFacet[1].length;
                         }
                     }
                     else  if (nDims == 2)
@@ -1477,21 +1477,21 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     CSG.SPolytope padHypercube = nDims < 4 ? CSG.makeHypercube(4-nDims) : null;
                     int iGrip = 0;
-                    for (int iFace = 0; iFace < nFaces; ++iFace)
+                    for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                     {
-                        CSG.Polytope face = originalFaces[iFace];
+                        CSG.Polytope facet = originalFacets[iFacet];
                         if (padHypercube != null)
-                            face = CSG.cross(new CSG.SPolytope(0,1,face), padHypercube).p;
-                        com.donhatchsw.util.CSG.Polytope[][] allElementsOfFace = face.getAllElements();
+                            facet = CSG.cross(new CSG.SPolytope(0,1,facet), padHypercube).p;
+                        com.donhatchsw.util.CSG.Polytope[][] allElementsOfFacet = facet.getAllElements();
                         int minDim = nDims==4 ? 0 : 2;
                         int maxDim = nDims==4 ? 3 : 2; // yes, even for cell center, which doesn't do anything
-                        int allIncidencesThisFace[][][][] = face.getAllIncidences();
+                        int allIncidencesThisFacet[][][][] = facet.getAllIncidences();
                         for (int iDim = minDim; iDim <= maxDim; ++iDim)
                         {
-                            for (int iElt = 0; iElt < allElementsOfFace[iDim].length; ++iElt)
+                            for (int iElt = 0; iElt < allElementsOfFacet[iDim].length; ++iElt)
                             {
-                                CSG.Polytope elt = allElementsOfFace[iDim][iElt];
-                                VecMath.copyvec(gripUsefulMats[iGrip][0], faceCentersD[iFace]);
+                                CSG.Polytope elt = allElementsOfFacet[iDim][iElt];
+                                VecMath.copyvec(gripUsefulMats[iGrip][0], facetCentersD[iFacet]);
                                 CSG.cgOfVerts(gripUsefulMats[iGrip][1], elt);
                                 VecMath.vmv(gripUsefulMats[iGrip][1],
                                             gripUsefulMats[iGrip][1],
@@ -1500,7 +1500,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
                                 if (VecMath.normsqrd(this.gripOffsF[iGrip]) <= 1e-4*1e-4)
                                 {
-                                    // This happens for the center sticker of a face.
+                                    // This happens for the center sticker of a facet.
                                     // Make it a "can't twist that" sticker.
                                     VecMath.zeromat(gripUsefulMats[iGrip]);
                                     this.gripSymmetryOrders[iGrip] = 0;
@@ -1511,11 +1511,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                  gripUsefulMats[iGrip],
                                                                  gripUsefulMats[iGrip]);
 
-                                    int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFace[0][iElt][1].length : // arity (i.e. number of incident edges) of this vertex on this hyperface
+                                    int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFacet[0][iElt][1].length : // arity (i.e. number of incident edges) of this vertex on this hyperface
                                                                iDim==1 ? 2 :
                                                                iDim==2 ? elt.facets.length :
                                                                iDim==3 ? 0 : -1 :
-                                                    nDims==3 ? originalFaces[iFace].facets.length%2==0 ? originalFaces[iFace].facets.length : 2*originalFaces[iFace].facets.length : // not the proxy face!  it will be either the face gonality or 2... would be more efficient to use lcm for maxOrder, but this is 3d so whatever, the whole thing is small
+                                                    nDims==3 ? originalFacets[iFacet].facets.length%2==0 ? originalFacets[iFacet].facets.length : 2*originalFacets[iFacet].facets.length : // not the proxy facet!  it will be either the facet gonality or 2... would be more efficient to use lcm for maxOrder, but this is 3d so whatever, the whole thing is small
                                                     nDims==2 ? 4 : -1);
 
                                     //System.out.println("maxOrder = "+maxOrder);
@@ -1528,16 +1528,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 this.gripDirsF[iGrip] = VecMath.normalize(this.gripDirsF[iGrip]);
                                 if (this.gripSymmetryOrders[iGrip] != 0)
                                     this.gripOffsF[iGrip] = VecMath.normalize(this.gripOffsF[iGrip]);
-                                grip2face[iGrip] = iFace;
+                                grip2face[iGrip] = iFacet;
                                 //System.out.println("iGrip = "+iGrip);
                                 //System.out.println("this.gripSymmetryOrders["+iGrip+"] = "+VecMath.toString(gripUsefulMats[iGrip]));
 
                                 iGrip++;
                                 if (doTheOddFaceIn3dThing)
                                 {
-                                    if (nDims==3 && originalFaces[iFace].facets.length%2 == 1 && this.gripSymmetryOrders[iGrip-1] == 2)
+                                    if (nDims==3 && originalFacets[iFacet].facets.length%2 == 1 && this.gripSymmetryOrders[iGrip-1] == 2)
                                     {
-                                        // It's an edge of an odd polygon face in 3d...
+                                        // It's an edge of an odd polygon facet in 3d...
                                         // need the opposite edge too, for adjacent tiles facing it the opposite way
                                         this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
                                         this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
@@ -1576,13 +1576,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             float stickerCenter[] = VecMath.doubleToFloat(stickerCentersD[iSticker]);
                             float polyCenter[] = VecMath.doubleToFloat(VecMath.averageIndexed(stickerInds[iSticker][iPolyThisSticker], restVerts));
                             // So that it doesn't get confused and get
-                            // the wrong face, bump it a little bit towards sticker center
+                            // the wrong facet, bump it a little bit towards sticker center
                             VecMath.lerp(polyCenter, polyCenter, stickerCenter, .01f);
 
 
-                            float[] faceCenterF = faceCentersF[sticker2face[iSticker]];
-                            int iGrip = getClosestGrip(faceCenterF,
-                                                       VecMath.vmv(polyCenter, faceCenterF));
+                            float[] facetCenterF = facetCentersF[sticker2face[iSticker]];
+                            int iGrip = getClosestGrip(facetCenterF,
+                                                       VecMath.vmv(polyCenter, facetCenterF));
 
                             // Don't highlight the one that's going to say "Can't twist that"...
                             // XXX actually we should, if rotate-arbitrary-elements-to-center is on... maybe
@@ -1595,10 +1595,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                           }
                             if (true)
                             {
-                                // Group the polys.
-                                // Two polys are in the same group if:
-                                //   - they are on the same face, and
-                                //   - they were not cut by a cut that separates two grips
+                                // Need to remember which original element (either of the whole polytope, or of its facets,
+                                // it doesn't matter which) each element of each poly is from.
+                                // Within this facet, those original elements will be in 1-1 correspondence with the grips
+                                // (in 4d, anyway... which is the only case in which we're actually doing grips, I think).
                             }
                         }
                     }
@@ -1657,7 +1657,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                       +com.donhatchsw.util.Arrays.toStringCompact(
                        com.donhatchsw.util.CSG.counts(slicedPolytope.p))
                       +", "+nl+"  nDims = "+nDims()
-                      +", "+nl+"  nFaces = "+nFaces()
+                      +", "+nl+"  nFacets = "+nFaces()
                       +", "+nl+"  nStickers = "+nStickers()
                       +", "+nl+"  nGrips = "+nGrips()
                       +", "+nl+"  nVisibleCubies = "+nCubies()
@@ -1687,12 +1687,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     //
 
         private static class CutInfo {
-            public int iFace;
-            public int iCutThisFace;
-            public CutInfo(int iFace, int iCutThisFace)
+            public int iFacet;
+            public int iCutThisFacet;
+            public CutInfo(int iFacet, int iCutThisFacet)
             {
-                this.iFace = iFace;
-                this.iCutThisFace = iCutThisFace;
+                this.iFacet = iFacet;
+                this.iCutThisFacet = iCutThisFacet;
             }
         }
 
@@ -1714,10 +1714,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         private static float[][] computeStickerAltCentersF(
                 CSG.SPolytope slicedPolytope,
-                int face2OppositeFace[],
+                int facet2OppositeFacet[],
                 int intLengths[],
                 double doubleLengths[],
-                int whichLengthToUseForFace[])
+                int whichLengthToUseForFacet[])
         {
             int nDims = slicedPolytope.p.dim;
             Assert(nDims == slicedPolytope.p.fullDim);
@@ -1729,7 +1729,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             CSG.Polytope ridges[] = allSlicedElements[nDims-2];
             CSG.Polytope verts[] = allSlicedElements[0];
 
-            int nFaces = face2OppositeFace.length;
+            int nFacets = facet2OppositeFacet.length;
             int nStickers = stickers.length;
             int nVerts = verts.length;
 
@@ -1740,8 +1740,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // but we only use the parts that are incident on a particular sticker
             // at a time, and we clear those parts
             // when we are through with that sticker.
-            double avgDepthOfThisStickerBelowFace[] = VecMath.fillvec(nFaces, -1.);
-            int nCutsParallelToThisFace[] = VecMath.fillvec(nFaces, 0);
+            double avgDepthOfThisStickerBelowFacet[] = VecMath.fillvec(nFacets, -1.);
+            int nCutsParallelToThisFacet[] = VecMath.fillvec(nFacets, 0);
             double vertexWeights[] = VecMath.fillvec(nVerts, 1.);
 
             double stickerAltCenterD[] = new double[nDims];
@@ -1749,26 +1749,26 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
                 // Figure out avg cut depth of this sticker
-                // with respect to each of the faces whose planes
+                // with respect to each of the facets whose planes
                 // contribute to it
                 int ridgesThisSticker[] = allSlicedIncidences[nDims-1][iSticker][nDims-2];
                 for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)
                 {
                     int iRidge = ridgesThisSticker[iRidgeThisSticker];
                     CSG.Polytope ridge = ridges[iRidge];
-                    int iFace, iCutThisFace;
+                    int iFacet, iCutThisFacet;
                     if (ridge.aux instanceof CutInfo)
                     {
                         CutInfo cutInfo = (CutInfo)ridge.aux;
-                        iFace = cutInfo.iFace;
-                        iCutThisFace = cutInfo.iCutThisFace+1;
+                        iFacet = cutInfo.iFacet;
+                        iCutThisFacet = cutInfo.iCutThisFacet+1;
                     }
                     else // it's not from a cut, it's from an original face
                     {
-                        // Which original face?
+                        // Which original facet?
                         // well, this ridge is on two stickers: iSticker
                         // and some other.  Find that other sticker,
-                        // and find which face that other sticker
+                        // and find which facet that other sticker
                         // was originally from.
                         int theTwoStickersSharingThisRidge[] = allSlicedIncidences[nDims-2][iRidge][nDims-1];
                         Assert(theTwoStickersSharingThisRidge.length == 2);
@@ -1776,27 +1776,27 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             || theTwoStickersSharingThisRidge[1] == iSticker);
                         int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
                         CSG.Polytope otherSticker = stickers[iOtherSticker];
-                        iFace = ((Integer)otherSticker.aux).intValue();
-                        iCutThisFace = 0;
+                        iFacet = ((Integer)otherSticker.aux).intValue();
+                        iCutThisFacet = 0;
                     }
-                    double cutDepth = iCutThisFace / doubleLengths[whichLengthToUseForFace[iFace]];
+                    double cutDepth = iCutThisFacet / doubleLengths[whichLengthToUseForFacet[iFacet]];
                     double depth = cutDepth;
-                    if (avgDepthOfThisStickerBelowFace[iFace] != -1.)
+                    if (avgDepthOfThisStickerBelowFacet[iFacet] != -1.)
                     {
                         // There are at most two cuts per face
                         // contributing to this sticker, and we already saw
                         // one.  Take the average of that one and this one.
-                        depth = .5*(depth + avgDepthOfThisStickerBelowFace[iFace]);
+                        depth = .5*(depth + avgDepthOfThisStickerBelowFacet[iFacet]);
                     }
-                    avgDepthOfThisStickerBelowFace[iFace] = depth;
-                    nCutsParallelToThisFace[iFace]++;
-                    Assert(nCutsParallelToThisFace[iFace] <= 2);
-                    int oppFace = face2OppositeFace[iFace];
-                    if (oppFace != -1)
+                    avgDepthOfThisStickerBelowFacet[iFacet] = depth;
+                    nCutsParallelToThisFacet[iFacet]++;
+                    Assert(nCutsParallelToThisFacet[iFacet] <= 2);
+                    int oppFacet = facet2OppositeFacet[iFacet];
+                    if (oppFacet != -1)
                     {
-                        avgDepthOfThisStickerBelowFace[oppFace] = 1.-depth;
-                        nCutsParallelToThisFace[oppFace]++;
-                        Assert(nCutsParallelToThisFace[oppFace] <= 2);
+                        avgDepthOfThisStickerBelowFacet[oppFacet] = 1.-depth;
+                        nCutsParallelToThisFacet[oppFacet]++;
+                        Assert(nCutsParallelToThisFacet[oppFacet] <= 2);
                     }
                 } // for each ridge this sticker
 
@@ -1811,19 +1811,19 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     int iRidge = ridgesThisSticker[iRidgeThisSticker];
                     CSG.Polytope ridge = ridges[iRidge];
-                    int iFace, iCutThisFace;
+                    int iFacet, iCutThisFacet;
                     if (ridge.aux instanceof CutInfo)
                     {
                         CutInfo cutInfo = (CutInfo)ridge.aux;
-                        iFace = cutInfo.iFace;
-                        iCutThisFace = cutInfo.iCutThisFace+1;
+                        iFacet = cutInfo.iFacet;
+                        iCutThisFacet = cutInfo.iCutThisFacet+1;
                     }
                     else // it's not from a cut, it's from an original face
                     {
-                        // Which original face?
+                        // Which original facet?
                         // well, this ridge is on two stickers: iSticker
                         // and some other.  Find that other sticker,
-                        // and find which face that other sticker
+                        // and find which facet that other sticker
                         // was originally from.
                         int theTwoStickersSharingThisRidge[] = allSlicedIncidences[nDims-2][iRidge][nDims-1];
                         Assert(theTwoStickersSharingThisRidge.length == 2);
@@ -1831,14 +1831,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             || theTwoStickersSharingThisRidge[1] == iSticker);
                         int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
                         CSG.Polytope otherSticker = stickers[iOtherSticker];
-                        iFace = ((Integer)otherSticker.aux).intValue();
-                        iCutThisFace = 0;
+                        iFacet = ((Integer)otherSticker.aux).intValue();
+                        iCutThisFacet = 0;
                     }
-                    double cutDepth = iCutThisFace / doubleLengths[whichLengthToUseForFace[iFace]];
+                    double cutDepth = iCutThisFacet / doubleLengths[whichLengthToUseForFacet[iFacet]];
                     double cutWeight = 1.;
-                    if (nCutsParallelToThisFace[iFace] == 2)
+                    if (nCutsParallelToThisFacet[iFacet] == 2)
                     {
-                        double avgStickerDepth = avgDepthOfThisStickerBelowFace[iFace];
+                        double avgStickerDepth = avgDepthOfThisStickerBelowFacet[iFacet];
 
                         double stickerSize = 2*Math.abs(avgStickerDepth-cutDepth);
                         cutWeight =
@@ -1880,26 +1880,26 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 VecMath.vxs(stickerAltCenterD, stickerAltCenterD, 1./totalWeight);
                 stickerAltCentersF[iSticker] = VecMath.doubleToFloat(stickerAltCenterD);
 
-                // Clear the parts of avgDepthOfThisStickerBelowFace
+                // Clear the parts of avgDepthOfThisStickerBelowFacet
                 // that we touched.
                 for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)
                 {
                     int iRidge = ridgesThisSticker[iRidgeThisSticker];
                     CSG.Polytope ridge = ridges[iRidge];
-                    int iFace, iCutThisFace;
+                    int iFacet, iCutThisFacet;
                     Assert(ridge.aux != null);
                     if (ridge.aux instanceof CutInfo)
                     {
                         CutInfo cutInfo = (CutInfo)ridge.aux;
-                        iFace = cutInfo.iFace;
-                        iCutThisFace = cutInfo.iCutThisFace+1;
+                        iFacet = cutInfo.iFacet;
+                        iCutThisFacet = cutInfo.iCutThisFacet+1;
                     }
                     else // it's not from a cut, it's from an original face
                     {
-                        // Which original face?
+                        // Which original facet?
                         // well, this ridge is on two stickers: iSticker
                         // and some other.  Find that other sticker,
-                        // and find which face that other sticker
+                        // and find which facet that other sticker
                         // was originally from.
                         int theTwoStickersSharingThisRidge[] = allSlicedIncidences[nDims-2][iRidge][nDims-1];
                         Assert(theTwoStickersSharingThisRidge.length == 2);
@@ -1907,27 +1907,27 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             || theTwoStickersSharingThisRidge[1] == iSticker);
                         int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
                         CSG.Polytope otherSticker = stickers[iOtherSticker];
-                        iFace = ((Integer)otherSticker.aux).intValue();
-                        iCutThisFace = 0;
+                        iFacet = ((Integer)otherSticker.aux).intValue();
+                        iCutThisFacet = 0;
                     }
 
-                    avgDepthOfThisStickerBelowFace[iFace] = -1.;
-                    nCutsParallelToThisFace[iFace] = 0;
-                    int oppFace = face2OppositeFace[iFace];
-                    if (oppFace != -1)
+                    avgDepthOfThisStickerBelowFacet[iFacet] = -1.;
+                    nCutsParallelToThisFacet[iFacet] = 0;
+                    int oppFacet = facet2OppositeFacet[iFacet];
+                    if (oppFacet != -1)
                     {
-                        avgDepthOfThisStickerBelowFace[oppFace] = -1.;
-                        nCutsParallelToThisFace[oppFace] = 0;
+                        avgDepthOfThisStickerBelowFacet[oppFacet] = -1.;
+                        nCutsParallelToThisFacet[oppFacet] = 0;
                     }
                 }
             } // for each sticker
 
             // Make sure we've been properly cleaning up both
-            // avgDepthOfThisStickerBelowFace and vertexWeights.
-            for (int iFace = 0; iFace < nFaces; ++iFace)
+            // avgDepthOfThisStickerBelowFacet and vertexWeights.
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
-                Assert(avgDepthOfThisStickerBelowFace[iFace] == -1.);
-                Assert(nCutsParallelToThisFace[iFace] == 0);
+                Assert(avgDepthOfThisStickerBelowFacet[iFacet] == -1.);
+                Assert(nCutsParallelToThisFacet[iFacet] == 0);
             }
             for (int iVert = 0; iVert < nVerts; ++iVert)
                 Assert(vertexWeights[iVert] == 1.);
@@ -1967,7 +1967,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             return vertsF.length;
         }
-        public int nFaces()
+        public int nFaces()  // GenericPuzzleDescription interface calls it faces, but we think of it as facets
         {
             return originalPolytope.p.facets.length;
         }
@@ -1998,7 +1998,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return stickerInds;
         }
         public void computeGripVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
-                                           float faceShrink,
+                                           float facetShrink,
                                            float stickerShrink)
         {
             throw new RuntimeException("unimplemented");
@@ -2016,18 +2016,18 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         public double[][] getFaceInwardNormals()
         {
-            return faceInwardNormals;
+            return facetInwardNormals;
         }
         public double[][] getFaceCutOffsets()
         {
-            return faceCutOffsets;
+            return facetCutOffsets;
         }
 
         // XXX lame, this should be precomputed and looked up by
         // XXX poly and sticker index.
         // XXX (wait, isn't it, now?  stickerPoly2grip())
         // This is called using
-        // faceCenter, polyCenter-stickerCenter.
+        // facetCenter, polyCenter-stickerCenter.
         // XXX NEED TO TOTALLY REPLACE THE MATH TOO, WITH SOMETHING PRINCIPLED
         public int getClosestGrip(float unNormalizedDir[/*4*/],
                                   float unNormalizedOff[/*4*/])
@@ -2123,7 +2123,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 Assert(outPerStickerFaceCenters.length == stickerCentersF.length);
                 for (int iSticker = 0; iSticker < stickerCentersF.length; ++iSticker)
                     VecMath.copyvec(outPerStickerFaceCenters[iSticker],
-                                    faceCentersF[sticker2face[iSticker]]);
+                                    facetCentersF[sticker2face[iSticker]]);
             }
         } // computeVertsAndShrinkToPointsAtRest
 
@@ -2166,9 +2166,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             float matF[][] = VecMath.doubleToFloat(matD);
 
             boolean whichVertsGetMoved[] = new boolean[vertsF.length]; // false initially
-            int iFace = grip2face[gripIndex];
-            double thisFaceInwardNormal[] = faceInwardNormals[iFace];
-            double thisFaceCutOffsets[] = faceCutOffsets[iFace];
+            int iFacet = grip2face[gripIndex];
+            double thisFaceInwardNormal[] = facetInwardNormals[iFacet];
+            double thisFaceCutOffsets[] = facetCutOffsets[iFacet];
             for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
             {
                 if (pointIsInSliceMask(stickerCentersD[iSticker],
@@ -2182,7 +2182,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                     VecMath.vxm(outStickerCenters[iSticker], stickerCentersF[iSticker], matF);
                     VecMath.vxm(outStickerShrinkToPointsOnFaceBoundaries[iSticker], stickerAltCentersF[iSticker], matF);
-                    VecMath.vxm(outPerStickerFaceCenters[iSticker], faceCentersF[sticker2face[iSticker]], matF);
+                    VecMath.vxm(outPerStickerFaceCenters[iSticker], facetCentersF[sticker2face[iSticker]], matF);
                 }
                 else
                 {
@@ -2191,7 +2191,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     VecMath.copyvec(outStickerShrinkToPointsOnFaceBoundaries[iSticker],
                                     stickerAltCentersF[iSticker]);
                     VecMath.copyvec(outPerStickerFaceCenters[iSticker],
-                                    faceCentersF[sticker2face[iSticker]]);
+                                    facetCentersF[sticker2face[iSticker]]);
                 }
             }
 
@@ -2217,14 +2217,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             // Make sure caller didn't mess it up from last time!!
             if (!VecMath.equals(sticker2face, sticker2faceShadow))
-                throw new RuntimeException("PolytopePuzzleDescription.getSticker2Face: caller modified previously returned sticker2face! BAD! BAD! BAD!");
+                throw new RuntimeException("PolytopePuzzleDescription.getSticker2Facet: caller modified previously returned sticker2face! BAD! BAD! BAD!");
             return sticker2face;
         }
         public int[/*nStickers*/] getSticker2Cubie()
         {
             return sticker2cubie;
         }
-        public int[/*nFaces*/] getGrip2Face()
+        public int[/*nFacets*/] getGrip2Face()
         {
             return grip2face;
         }
@@ -2232,19 +2232,19 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             return stickerPoly2Grip;
         }
-        public int[/*nFaces*/] getFace2OppositeFace()
+        public int[/*nFacets*/] getFace2OppositeFace()
         {
-            return face2OppositeFace;
+            return facet2OppositeFacet;
         }
         public int[][/*2*/][/*2*/]
             getAdjacentStickerPairs()
         {
             return adjacentStickerPairs;
         }
-        public float[/*nFaces*/][/*nDisplayDims*/]
+        public float[/*nFacets*/][/*nDisplayDims*/]
             getFaceCentersAtRest()
         {
-            return faceCentersF;
+            return facetCentersF;
         }
         public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
                                                     int gripIndex,
@@ -2264,9 +2264,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             double scratchVert[] = new double[nDims()];
             double matD[][] = getTwistMat(gripIndex, dir, 1.);
             int newState[] = new int[state.length];
-            int iFace = grip2face[gripIndex];
-            double thisFaceInwardNormal[] = faceInwardNormals[iFace];
-            double thisFaceCutOffsets[] = faceCutOffsets[iFace];
+            int iFacet = grip2face[gripIndex];
+            double thisFaceInwardNormal[] = facetInwardNormals[iFacet];
+            double thisFaceCutOffsets[] = facetCutOffsets[iFacet];
             for (int iSticker = 0; iSticker < state.length; ++iSticker)
             {
                 if (pointIsInSliceMask(stickerCentersD[iSticker],
