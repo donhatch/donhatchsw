@@ -386,7 +386,9 @@
 
 package com.donhatchsw.mc4d;
 import com.donhatchsw.compat.regex;
-import com.donhatchsw.util.*; // XXX get rid... at least get more specific
+import com.donhatchsw.util.CSG;
+import com.donhatchsw.util.FuzzyPointHashTable;
+import com.donhatchsw.util.VecMath;
 
 public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
