@@ -153,11 +153,19 @@
         - with multiple windows, animation doesn't go by itself any more
         - {4,4,4} 2 (and probably other 2's) won't rotate edge to center
         - doFurtherCuts issues:
+          - get grips right for heterogeneous boxes.
+            Sample bad one:
+              '(2)x(2)x(1)x(1) 2,2,1,1'
+          - the following seem to have pieces with ambiguous inside-outness (maybe just same as the flicker issue already mentioned)
+                  '(1)x(1)x(1)x(2) 1,1,1,2'
+                  '(1)x(1)x(2)x(2) 1,1,2,2'
+                  '(1)x(2)x(2)x(2) 1,2,2,2'
+                  '(2)x(1)x(1)x(1) 2,1,1,1'
             - 3x5 2  and  5x5 2  some stickers flicker on and off... thinks they are sort of inside out I guess, damn   (this was true when I was doFurtherCut'sing triangles as well as squares... turn that on to debug this)
             - 3x4 2  still using old closestGrip method, so gets wrong thing when clicking on outer square or edges
             - maybe doFurtherCuts needs to be on if there's a triangle too (not just if there's a square), e.g. 3,3,3 2  or 3,3,4 2   or 3,4,3 2
             - and maybe triangles need a separate scheme?  think about it
-            - maybe only further-cut only the polygons that need it? (squares, maybe triangles)
+            - maybe only further-cut only the polygons that need it? (squares, maybe triangles... not sure this is feasible though, since the current method just adds global slice planes)
 
         - {5,3} 3(1.0001) "stickers shrink to face boundaries" doesn't work
 
@@ -825,6 +833,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         // Only need further cuts if there's a square, e.g. {5,3,3} 2 doesn't need it
         // (hmm, do triangles need it?  separate scheme?)
+        // And "there's a square" might be equivalent to "the whole thing is a prism of some sort", I'm not sure.
+        // These heuristics are a bit wacky; should revisit them.
+        // Unfortunately it's not feasible to do further cuts in *all* circumstances in which we technically
+        // need them, e.g. on a huge object that's not sliced at all, that we're just viewing;
+        // that's why we check for at least one cut.
         boolean doFurtherCuts;
         {
             boolean theresASquare = false;  // weird condition, not entirely sure whether it's appropriate
@@ -851,10 +864,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                       theresACut = true;
               }
             }
-            // These heuristics are a bit wacky; should revisit them.
-            // Unfortunately it's not feasible to do further cuts in *all* circumstances in which we technically
-            // need them, e.g. on a huge object that's not sliced at all, that we're just viewing;
-            // that's why we check for at least one cut.
             doFurtherCuts = nDims==4
                          && theresACut
                          && theresASquare
@@ -994,7 +1003,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         com.donhatchsw.util.CSG.Hyperplane cutHyperplane;
                         if (faceCutOffsets[iFace].length == 0)
                         {
-                            // There are no cuts here yet.  Cut the edge in thirds.
+                            // There are no cuts here yet.
+                            // Put a cut 1/4 of the way from this face to the end of the incident edge.
                             // XXX THIS ISNT RIGHT YET-- NEED TO USE FULLTHICKNESSES[iFace].  (But it's right for boxes)
                             cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
                                 faceInwardNormals[iFace],
@@ -1009,9 +1019,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         }
 
 
-                        Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual case) that will get nulls for auxes, and that's fine
+                        Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual 4d case) that will get nulls for auxes, and that's fine
                         slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut,
-                            new int[]{3,4}); // sizes (only further-cut squares) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* faces were squares
+                            new int[]{3,4}); // sizes (only further-cut squares and triangles) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* faces were squares. bleah!)
                         if (progressWriter != null)
                         {
                             progressWriter.print("."); // one dot per cut
@@ -1082,7 +1092,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // The 4d case:
             //     for each polygon in the sliced puzzle
             //         if it's part of an original polygon (not a cut)
-            //             merge the two incident stickers
+            //             merge the two incident stickers that meet at this polygon; those stickers are part of a single cubie
 
             CSG.Polytope slicedRidges[] = slicedPolytope.p.getAllElements()[nDims-2];
             int allSlicedIncidences[][][][] = slicedPolytope.p.getAllIncidences();
@@ -1409,8 +1419,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         // Now think about the twist grips.
         // There will be one grip at each vertex,edge,face center
-        // of the original polytope (if 3d)
-        // or of each cell of the original polytope (if 4d).
+        // of either the original polytope (if 3d)
+        // or each cell of the original polytope (if 4d).
         // XXX woops, I'm retarded, 3d doesn't have that...
         // XXX but actually it wouldn't hurt, could just make that
         // XXX rotate the whole puzzle.
@@ -1561,6 +1571,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         stickerPoly2Grip[iSticker] = new int[nPolysThisSticker];
                         for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
                         {
+                          if (true)  // XXX THIS METHOD SUCKS; KILL IT!
+                          {
                             float stickerCenter[] = VecMath.doubleToFloat(stickerCentersD[iSticker]);
                             float polyCenter[] = VecMath.doubleToFloat(VecMath.averageIndexed(stickerInds[iSticker][iPolyThisSticker], restVerts));
                             // So that it doesn't get confused and get
@@ -1572,7 +1584,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             int iGrip = getClosestGrip(faceCenterF,
                                                        VecMath.vmv(polyCenter, faceCenterF));
 
-
                             // Don't highlight the one that's going to say "Can't twist that"...
                             // XXX actually we should, if rotate-arbitrary-elements-to-center is on... maybe
                             if (iGrip != -1 && gripSymmetryOrders[iGrip] == 0)
@@ -1581,6 +1592,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
 
                             //System.out.println("stickerPoly2Grip["+iSticker+"]["+iPolyThisSticker+"] = "+stickerPoly2Grip[iSticker][iPolyThisSticker]);
+                          }
+                            if (true)
+                            {
+                                // Group the polys.
+                                // Two polys are in the same group if:
+                                //   - they are on the same face, and
+                                //   - they were not cut by a cut that separates two grips
+                            }
                         }
                     }
                 }
@@ -1761,6 +1780,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         iCutThisFace = 0;
                     }
                     double cutDepth = iCutThisFace / doubleLengths[whichLengthToUseForFace[iFace]];
+                    System.out.println("USING DOUBLE LENGTH "+doubleLengths[whichLengthToUseForFace[iFace]]+"!!!");
                     double depth = cutDepth;
                     if (avgDepthOfThisStickerBelowFace[iFace] != -1.)
                     {
@@ -1816,6 +1836,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         iCutThisFace = 0;
                     }
                     double cutDepth = iCutThisFace / doubleLengths[whichLengthToUseForFace[iFace]];
+                    System.out.println("USING DOUBLE LENGTH "+doubleLengths[whichLengthToUseForFace[iFace]]);
                     double cutWeight = 1.;
                     if (nCutsParallelToThisFace[iFace] == 2)
                     {
@@ -2009,6 +2030,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // XXX (wait, isn't it, now?  stickerPoly2grip())
         // This is called using
         // faceCenter, polyCenter-stickerCenter.
+        // XXX NEED TO TOTALLY REPLACE THE MATH TOO, WITH SOMETHING PRINCIPLED
         public int getClosestGrip(float unNormalizedDir[/*4*/],
                                   float unNormalizedOff[/*4*/])
         {
