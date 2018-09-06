@@ -134,6 +134,7 @@
 
     FIXED I think (test cases):
     ===================
+        - "{4,3} 3(10)" isn't making the slice thin
         - "3x3 3(4)" try to click on square, it says can't twist that
         - "{3,3}x{} 5(9)" twists are wrong and says "can't twist that"
         - "(0)---(1)-4-(1)---(0) 3(4.0)"  twists wrong thing
@@ -146,8 +147,6 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - argh, broke doubleLength in 4c5f9ec708e3a92860f89420e5ae30e83d232951 apparently:
-                "{4,3} 3(10)"
         - >=5 dimensional puzzles on command line non-gracefully excepts
         - ctrl-alt-space for debugging... doesn't stop things any more?? (does for rotates, not for twists)
         - with multiple windows, animation doesn't go by itself any more
@@ -161,6 +160,7 @@
                   '(1)x(1)x(2)x(2) 1,1,2,2'
                   '(1)x(2)x(2)x(2) 1,2,2,2'
                   '(2)x(1)x(1)x(1) 2,1,1,1'
+                  '{4,3,3} 2(10)'
             - 3x5 2  and  5x5 2  some stickers flicker on and off... thinks they are sort of inside out I guess, damn   (this was true when I was doFurtherCut'sing triangles as well as squares... turn that on to debug this)
             - 3x4 2  still using old closestGrip method, so gets wrong thing when clicking on outer square or edges
             - maybe doFurtherCuts needs to be on if there's a triangle too (not just if there's a square), e.g. 3,3,3 2  or 3,3,4 2   or 3,4,3 2
@@ -724,7 +724,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // and repeat entries if not enough.  This gets it right for the (a)x(b)x(c)x(d), for example.
                 whichLengthToUseForFace[iFace] = VecMath.maxabsi(faceInwardNormals[iFace]) % intLengths.length;
                 int intLength = intLengths[whichLengthToUseForFace[iFace]];
-                double doubleLength = intLengths[whichLengthToUseForFace[iFace]];
+                double doubleLength = doubleLengths[whichLengthToUseForFace[iFace]];
 
                 double fullThickness = 0.;
                 {
@@ -1780,7 +1780,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         iCutThisFace = 0;
                     }
                     double cutDepth = iCutThisFace / doubleLengths[whichLengthToUseForFace[iFace]];
-                    System.out.println("USING DOUBLE LENGTH "+doubleLengths[whichLengthToUseForFace[iFace]]+"!!!");
                     double depth = cutDepth;
                     if (avgDepthOfThisStickerBelowFace[iFace] != -1.)
                     {
@@ -1836,7 +1835,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         iCutThisFace = 0;
                     }
                     double cutDepth = iCutThisFace / doubleLengths[whichLengthToUseForFace[iFace]];
-                    System.out.println("USING DOUBLE LENGTH "+doubleLengths[whichLengthToUseForFace[iFace]]);
                     double cutWeight = 1.;
                     if (nCutsParallelToThisFace[iFace] == 2)
                     {
