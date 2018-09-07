@@ -905,6 +905,9 @@ public class GenericPipelineUtils
             return frame.puzzleDescription.getStickerPoly2Grip()[stickerAndPoly[0]][stickerAndPoly[1]];
         }
 
+        // XXXTODO: get clear on when this is called.  I think it's the "non-generic" puzzle that's not further cut, in which case the naive logic is good enough
+        //Assert(false);
+
         float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame);
         if (polyAndStickerAndFaceCenter == null)
             return -1;

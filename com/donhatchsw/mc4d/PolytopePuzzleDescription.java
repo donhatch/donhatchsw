@@ -152,13 +152,18 @@
         - with multiple windows, animation doesn't go by itself any more
         - {4,4,4} 2 (and probably other 2's) won't rotate edge to center
         - doFurtherCuts issues:
+          - in '4,3,3 2', rotate-element-to-center not working right when element is an edge-- it rotates a vert to center instead. (both with old and new poly-to-grip code)
           - get grips right for heterogeneous boxes.
             Sample bad one:
-              '(2)x(2)x(1)x(1) 2,2,1,1'
+              '(2)x(2)x(1)x(1) 2,2,1,1'  (this one is correct now)
+              '4,3,3 2'  (argh, it's missing some poly-to-grip highlighting and functionality on some of the light blue/gray edge polys)
+              '(4)x(3)x(2)x(1) 4,3,2,1', leftmost 2d grip on leftmost 3x2 array face incorrectly merged into wrong grip
+              '(1)x(3)x(2)x(1) 1,3,2,1', leftmost 2d grip on leftmost 3x2 array face incorrectly merged into wrong grip
           - the following seem to have pieces with ambiguous inside-outness (maybe just same as the flicker issue already mentioned)
                   '(1)x(1)x(1)x(2) 1,1,1,2'
                   '(1)x(1)x(2)x(2) 1,1,2,2'
                   '(1)x(2)x(2)x(2) 1,2,2,2'
+                  '(1)x(2)x(2)x(1) 1,2,2,1'
                   '(2)x(1)x(1)x(1) 2,1,1,1'
                   '{4,3,3} 2(10)'
             - 3x5 2  and  5x5 2  some stickers flicker on and off... thinks they are sort of inside out I guess, damn   (this was true when I was doFurtherCut'sing triangles as well as squares... turn that on to debug this)
@@ -1175,7 +1180,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         //
         // Get the rest verts (with no shrinkage)
-        // and the sticker polygon indices.
+        // and the sticker polygon indices (i.e. mapping from sticker-and-polyThisSticker to vert).
         // This is dimension-specific.
         //
         double restVerts[][];
@@ -1206,7 +1211,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 nVerts = 0; // reset, count again
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
-                    //System.out.println("          iSticker = "+iSticker);
                     CSG.Polytope sticker = stickers[iSticker];
                     CSG.Polytope sticker4d = sticker;
                     if (nDims < _nDisplayDims)
@@ -1226,10 +1230,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     // XXX note, we MUST step through the polys in the order in which they appear in getAllElements, NOT the order in which they appear in the facets list.  however, we need to get the sign from the facets list!
                     CSG.Polytope[] polysThisSticker = sticker4d.getAllElements()[2];
                     stickerInds[iSticker] = new int[polysThisSticker.length][];
+
                     for (int iPolyThisSticker = 0; iPolyThisSticker < polysThisSticker.length; ++iPolyThisSticker)
                     {
                         CSG.Polytope polygon = polysThisSticker[iPolyThisSticker];
-                        //System.out.println("              iPolyThisSticker = "+iPolyThisSticker);
+
+                        //Assert(polygon == slicedPolytope.p.getAllElements()[2][slicedPolytope.p.getAllIncidences()[nDims-1][iSticker][2][iPolyThisSticker]]);  // sanity check; we're going to need this fact later when deducing grips
+
                         stickerInds[iSticker][iPolyThisSticker] = new int[polygon.facets.length];
                         for (int iVertThisPoly = 0; iVertThisPoly < polygon.facets.length; ++iVertThisPoly)
                         {
@@ -1271,7 +1278,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 stickerInds[iSticker][iPolyThisSticker]);
                         }
                     }
-                    // clear the vertices' aux indices after each sticker,
+                    // clear the vertices' (pushed) aux indices after each sticker,
                     // so that different stickers won't share vertices.
                     for (int iPolyThisSticker = 0; iPolyThisSticker < polysThisSticker.length; ++iPolyThisSticker)
                     {
@@ -1478,6 +1485,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.gripSymmetryOrders = new int[nGrips];
                 this.gripUsefulMats = new double[nGrips][_nDisplayDims][_nDisplayDims];
                 this.grip2face = new int[nGrips];
+                int minDim = nDims==4 ? 0 : 2;
+                int maxDim = nDims==4 ? 3 : 2; // yes, even for cell center, which doesn't do anything
+                int[][][] originalFacetElt2grip = new int[nFacets][][];
                 {
                     CSG.SPolytope padHypercube = nDims < 4 ? CSG.makeHypercube(4-nDims) : null;
                     int iGrip = 0;
@@ -1487,11 +1497,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         if (padHypercube != null)
                             facet = CSG.cross(new CSG.SPolytope(0,1,facet), padHypercube).p;
                         com.donhatchsw.util.CSG.Polytope[][] allElementsOfFacet = facet.getAllElements();
-                        int minDim = nDims==4 ? 0 : 2;
-                        int maxDim = nDims==4 ? 3 : 2; // yes, even for cell center, which doesn't do anything
                         int[][][][] allIncidencesThisFacet = facet.getAllIncidences();
+                        originalFacetElt2grip[iFacet] = new int[maxDim+1][];
                         for (int iDim = minDim; iDim <= maxDim; ++iDim)
                         {
+                            originalFacetElt2grip[iFacet][iDim] = VecMath.fillvec(allElementsOfFacet[iDim].length, -1);
                             for (int iElt = 0; iElt < allElementsOfFacet[iDim].length; ++iElt)
                             {
                                 CSG.Polytope elt = allElementsOfFacet[iDim][iElt];
@@ -1532,9 +1542,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 this.gripDirsF[iGrip] = VecMath.normalize(this.gripDirsF[iGrip]);
                                 if (this.gripSymmetryOrders[iGrip] != 0)
                                     this.gripOffsF[iGrip] = VecMath.normalize(this.gripOffsF[iGrip]);
-                                grip2face[iGrip] = iFacet;
-                                //System.out.println("iGrip = "+iGrip);
-                                //System.out.println("this.gripSymmetryOrders["+iGrip+"] = "+VecMath.toString(gripUsefulMats[iGrip]));
+                                this.grip2face[iGrip] = iFacet;
+                                if (elt.aux != null)  // XXX it's null sometimes, in 3d, not sure why yet.  in this case we won't be able to look up the grip ... ? but it doesn't matter I don't think, originalFacetElt2grip is used only in 4d
+                                {
+                                   int iEltGlobal = ((Integer)elt.aux).intValue();
+                                   Assert(originalFacetElt2grip[iFacet][iDim][iElt] == -1);
+                                   originalFacetElt2grip[iFacet][iDim][iElt] = iGrip;
+                                }
 
                                 iGrip++;
                                 if (doTheOddFaceIn3dThing)
@@ -1542,7 +1556,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                     if (nDims==3 && originalFacets[iFacet].facets.length%2 == 1 && this.gripSymmetryOrders[iGrip-1] == 2)
                                     {
                                         // It's an edge of an odd polygon facet in 3d...
-                                        // need the opposite edge too, for adjacent tiles facing it the opposite way
+                                        // need the opposite edge too, for adjacent tiles facing it the opposite way.
+                                        // (This isn't needed for even-number-of-sided polygons,
+                                        // since those grips will be generated by the opposite edge of the polygon)
                                         this.gripSymmetryOrders[iGrip] = this.gripSymmetryOrders[iGrip-1];
                                         this.gripDirsF[iGrip] = this.gripDirsF[iGrip-1];
                                         this.gripOffsF[iGrip] = VecMath.sxv(-1.f, this.gripOffsF[iGrip-1]);
@@ -1569,6 +1585,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     // Precompute sticker-and-polygon-to-grip.
                     this.stickerPoly2Grip = new int[nStickers][];
+                  if (true)  // XXX THIS METHOD SUCKS; KILL IT!
+                  {
                     for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                     {
                         //System.out.println("      iSticker = "+iSticker);
@@ -1576,8 +1594,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         stickerPoly2Grip[iSticker] = new int[nPolysThisSticker];
                         for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
                         {
-                          if (true)  // XXX THIS METHOD SUCKS; KILL IT!
-                          {
                             float[] stickerCenter = VecMath.doubleToFloat(stickerCentersD[iSticker]);
                             float[] polyCenter = VecMath.doubleToFloat(VecMath.averageIndexed(stickerInds[iSticker][iPolyThisSticker], restVerts));
                             // So that it doesn't get confused and get
@@ -1597,21 +1613,91 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
 
                             //System.out.println("stickerPoly2Grip["+iSticker+"]["+iPolyThisSticker+"] = "+stickerPoly2Grip[iSticker][iPolyThisSticker]);
-                          }
-                            if (true)
+                        }
+                    }
+                  }
+                    if (false)
+                    {
+                        // We recorded which original element of the whole polytope
+                        // each element of each poly is from.
+                        // Within this facet, those original elements will be in 1-1 correspondence with the grips
+                        // (in 4d, anyway... which is the only case in which we're actually doing further cuts with grips, I think? not sure).
+                        // How do we find the grip that a given poly should be associated with?
+                        // 1. If the poly has a vertex that came from a vert of the original polytope,
+                        //    then associate it with the grip corresponding to this facets's vertex that
+                        //    also came from that original vertex.
+                        // 2. Otherwise, if the poly has an edge that came from an edge of the original polytope,
+                        //    then associate it with the grip corresponding to this facet's edge
+                        //    that also came from that original edge.
+                        // 3. Otherwise, if the poly itself came from a poly of the original polytope,
+                        //    then associate it with the grip correspoding to this facet's poly
+                        //    that also came from that original poly.
+                        // We can iterate over the slicedPolytope.p.getAllElements() arrays again, since
+                        // they are in the same order as our lists of stickers and polys-per-sticker.
+
+                        // First make it so that we can easily lookup from global element index to element index on a given facet...
+                        int maxRelevantDim = 2;  // we're looking at elements of polygons
+                        java.util.Hashtable[/*nFacets*/][/*nRelevantDims*/] indexOfOriginalEltOnFacet = new java.util.Hashtable[nFacets][maxRelevantDim+1];
+                        for (int iFacet = 0; iFacet < nFacets; ++iFacet)
+                        {
+                            com.donhatchsw.util.CSG.Polytope[][] allElementsOfFacet = originalFacets[iFacet].getAllElements();
+                            for (int iDim = 0; iDim <= maxRelevantDim; ++iDim) {
+                                indexOfOriginalEltOnFacet[iFacet][iDim] = new java.util.Hashtable();
+                                int nFacetEltsOfDim = allElementsOfFacet[iDim].length;
+                                for (int iFacetEltOfDim = 0; iFacetEltOfDim < nFacetEltsOfDim; ++iFacetEltOfDim) {
+                                    com.donhatchsw.util.CSG.Polytope elt = allElementsOfFacet[iDim][iFacetEltOfDim];
+                                    int iElt = ((Integer)elt.aux).intValue();
+                                    indexOfOriginalEltOnFacet[iFacet][iDim].put(iElt, iFacetEltOfDim);
+                                }
+                            }
+                        }
+
+                        com.donhatchsw.util.CSG.Polytope[][] allSlicedElements = slicedPolytope.p.getAllElements();
+                        int[][][][] allSlicedIncidences = slicedPolytope.p.getAllIncidences();
+                        for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                        {
+                            int iFacet = sticker2face[iSticker];
+                            int nPolysThisSticker = stickerInds[iSticker].length;
+                            Assert(nPolysThisSticker == allSlicedIncidences[nDims-1][iSticker][2].length);
+                            stickerPoly2Grip[iSticker] = VecMath.fillvec(nPolysThisSticker, -1);
+                            for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
                             {
-                                // We recorded which original element of the whole polytope
-                                // each element of each poly is from.
-                                // Within this facet, those original elements will be in 1-1 correspondence with the grips
-                                // (in 4d, anyway... which is the only case in which we're actually doing further cuts with grips, I think? not sure XXX)
-                                //System.out.println("          iPolyThisSticker = "+iPolyThisSticker);
-                                //for each facet of the poly
+                                int iPoly = allSlicedIncidences[nDims-1][iSticker][2][iPolyThisSticker];
+                                com.donhatchsw.util.CSG.Polytope poly = allSlicedElements[2][iPoly];
+
+                                boolean foundGrip = false;
+                                for (int iOriginalEltDim = 0; !foundGrip && iOriginalEltDim <= 2; ++iOriginalEltDim)
+                                {
+                                    int nPolyEltsThisDim = allSlicedIncidences[2][iPoly][iOriginalEltDim].length;
+                                    for (int iPolyEltThisDim = 0; !foundGrip && iPolyEltThisDim < nPolyEltsThisDim; ++iPolyEltThisDim) {
+                                      com.donhatchsw.util.CSG.Polytope polyEltThisDim = allSlicedElements[iOriginalEltDim][
+                                          allSlicedIncidences[2][iPoly][iOriginalEltDim][iPolyEltThisDim]];
+                                      Object aux = polyEltThisDim.aux;
+                                      // Aux is one of:
+                                      // - an Integer (if polyEltThisDim came from an original element)
+                                      // - a CutInfo (if it came from a primary cut)
+                                      // - null (if it came from a "further" cut) (furthermore, this can't happen if iOriginalEltDim is nDims-2)
+                                      boolean eltIsFromOriginal = (aux instanceof Integer);
+                                      if (eltIsFromOriginal)
+                                      {
+                                          int iOriginalElt = ((Integer)aux).intValue();
+                                          Assert(iOriginalElt != -1);
+                                          Integer iOriginalEltOnThisFacet = (Integer)indexOfOriginalEltOnFacet[iFacet][iOriginalEltDim].get(iOriginalElt);
+                                          Assert(iOriginalEltOnThisFacet != null);
+                                          int iGrip = originalFacetElt2grip[iFacet][iOriginalEltDim][iOriginalEltOnThisFacet];
+                                          Assert(this.stickerPoly2Grip[iSticker][iPolyThisSticker] == -1);
+                                          this.stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
+                                          foundGrip = true;
+                                          break;
+                                      }
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-            else
+            else // nDims > 4
             {
                 // not thinking very hard
                 this.grip2face = new int[0];
