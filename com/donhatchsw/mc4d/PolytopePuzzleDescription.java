@@ -1592,37 +1592,37 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     // Precompute sticker-and-polygon-to-grip.
                     this.stickerPoly2Grip = new int[nStickers][];
-                  if (false)  // XXX THIS METHOD SUCKS; KILL IT!  but keeping it for reference right now because there's something I like about it-- it highlights a bit more polys, allowing some reacharound, and looks more coherent somehow
-                  {
-                    for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                    if (false)  // XXX THIS METHOD SUCKS; KILL IT!  but keeping it for reference right now because there's something I like about it-- it highlights a bit more polys, allowing some reacharound, and looks more coherent somehow
                     {
-                        //System.out.println("      iSticker = "+iSticker);
-                        int nPolysThisSticker = stickerInds[iSticker].length;
-                        stickerPoly2Grip[iSticker] = new int[nPolysThisSticker];
-                        for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
+                        for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                         {
-                            float[] stickerCenter = VecMath.doubleToFloat(stickerCentersD[iSticker]);
-                            float[] polyCenter = VecMath.doubleToFloat(VecMath.averageIndexed(stickerInds[iSticker][iPolyThisSticker], restVerts));
-                            // So that it doesn't get confused and get
-                            // the wrong facet, bump it a little bit towards sticker center
-                            VecMath.lerp(polyCenter, polyCenter, stickerCenter, .01f);
+                            //System.out.println("      iSticker = "+iSticker);
+                            int nPolysThisSticker = stickerInds[iSticker].length;
+                            stickerPoly2Grip[iSticker] = new int[nPolysThisSticker];
+                            for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
+                            {
+                                float[] stickerCenter = VecMath.doubleToFloat(stickerCentersD[iSticker]);
+                                float[] polyCenter = VecMath.doubleToFloat(VecMath.averageIndexed(stickerInds[iSticker][iPolyThisSticker], restVerts));
+                                // So that it doesn't get confused and get
+                                // the wrong facet, bump it a little bit towards sticker center
+                                VecMath.lerp(polyCenter, polyCenter, stickerCenter, .01f);
 
 
-                            float[] facetCenterF = facetCentersF[sticker2face[iSticker]];
-                            int iGrip = getClosestGrip(facetCenterF,
-                                                       VecMath.vmv(polyCenter, facetCenterF));
+                                float[] facetCenterF = facetCentersF[sticker2face[iSticker]];
+                                int iGrip = getClosestGrip(facetCenterF,
+                                                           VecMath.vmv(polyCenter, facetCenterF));
 
-                            // Don't highlight the one that's going to say "Can't twist that"...
-                            // XXX actually we should, if rotate-arbitrary-elements-to-center is on... maybe
-                            if (iGrip != -1 && gripSymmetryOrders[iGrip] == 0)
-                                iGrip = -1;
+                                // Don't highlight the one that's going to say "Can't twist that"...
+                                // XXX actually we should, if rotate-arbitrary-elements-to-center is on... maybe
+                                if (iGrip != -1 && gripSymmetryOrders[iGrip] == 0)
+                                    iGrip = -1;
 
-                            stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
+                                stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
 
-                            //System.out.println("stickerPoly2Grip["+iSticker+"]["+iPolyThisSticker+"] = "+stickerPoly2Grip[iSticker][iPolyThisSticker]);
+                                //System.out.println("stickerPoly2Grip["+iSticker+"]["+iPolyThisSticker+"] = "+stickerPoly2Grip[iSticker][iPolyThisSticker]);
+                            }
                         }
                     }
-                  }
                     else // NEW WAY
                     {
                         // We recorded which original element of the whole polytope
