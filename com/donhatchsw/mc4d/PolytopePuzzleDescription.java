@@ -1311,7 +1311,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     stickerPolyToOriginalStickerPoly[iSticker] = VecMath.identityperm(stickerInds[iSticker].length);
                     if (doFurtherCuts)
                     {
-                        // Find one that's not adjacent to [0] at all.
+                        // Find a poly that's not adjacent to polys[0] at all: doesn't even share any verts.
                         int[][] polys = stickerInds[iSticker];
                         int iPoly = 0;
                         int jPoly;
@@ -1339,7 +1339,23 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 break;
                             }
                         }
-                        Assert(jPoly < polys.length); // had to find one
+                        // Had to find one... hmm, maybe not!
+                        // This fails on the runcinateds:
+                        //   '(1)---(0)---(0)---(1) 2'
+                        //   '(1)-4-(0)---(0)---(1) 2'
+                        //   '(1)---(0)-4-(0)---(1) 2'
+                        //   '(1)-5-(0)---(0)---(1) 2'
+                        // where polys.length is 7 and polys is:
+                        // {{716,717,718},{719,718,717},{718,720,716},{717,716,721},{721,722,719,717},{718,719,722,720},{720,722,721,716}}
+                        // (4 tris, 3 quads)
+                        // Ok, that's, topologically, a cube with one vertex truncated all the way to the three adjacent verts.
+                        // I guess it happens.
+                        if (false)
+                        {
+                            System.out.println("polys.length = "+polys.length);
+                            System.out.println("polys = "+com.donhatchsw.util.Arrays.toStringCompact(polys));
+                            Assert(polys.length == 4 || jPoly < polys.length);
+                        }
                     }
 
                     int[] polygon0 = stickerInds[iSticker][0];
