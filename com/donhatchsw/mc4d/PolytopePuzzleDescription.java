@@ -1349,7 +1349,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         // {{716,717,718},{719,718,717},{718,720,716},{717,716,721},{721,722,719,717},{718,719,722,720},{720,722,721,716}}
                         // (4 tris, 3 quads)
                         // Ok, that's, topologically, a cube with one vertex truncated all the way to the three adjacent verts.
-                        // I guess it happens.
+                        // I guess it happens.  It's benign in that case, though (I think?)
+                        // TODO: make a tighter assertion that's valid.
                         if (false)
                         {
                             System.out.println("polys.length = "+polys.length);
