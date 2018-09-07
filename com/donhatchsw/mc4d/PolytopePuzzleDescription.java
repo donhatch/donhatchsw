@@ -153,12 +153,6 @@
         - {4,4,4} 2 (and probably other 2's) won't rotate edge to center
         - doFurtherCuts issues:
           - in '4,3,3 2', rotate-element-to-center not working right when element is an edge-- it rotates a vert to center instead. (both with old and new poly-to-grip code). ah, I think it's getting confused and assuming stickers, grips, and elements-rotatable-to-center are all the same.
-          - get grips right for heterogeneous boxes.
-            Sample bad one:
-              '(2)x(2)x(1)x(1) 2,2,1,1'  (this one is correct now)
-              '4,3,3 2'  (argh, it's missing some poly-to-grip highlighting and functionality on some of the light blue/gray edge polys)
-              '(4)x(3)x(2)x(1) 4,3,2,1', leftmost 2d grip on leftmost 3x2 array face incorrectly merged into wrong grip
-              '(1)x(3)x(2)x(1) 1,3,2,1', leftmost 2d grip on leftmost 3x2 array face incorrectly merged into wrong grip
           - the following seem to have pieces with ambiguous inside-outness (maybe just same as the flicker issue already mentioned)
                   '(1)x(1)x(1)x(2) 1,1,1,2'
                   '(1)x(1)x(2)x(2) 1,1,2,2'
@@ -1557,7 +1551,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 if (this.gripSymmetryOrders[iGrip] != 0)
                                     this.gripOffsF[iGrip] = VecMath.normalize(this.gripOffsF[iGrip]);
                                 this.grip2face[iGrip] = iFacet;
-                                if (elt.aux != null)  // XXX it's null sometimes, in 3d, not sure why yet.  in this case we won't be able to look up the grip ... ? but it doesn't matter I don't think, originalFacetElt2grip is used only in 4d
+                                if (elt.aux != null && elt.aux instanceof Integer)  // XXX it's null sometimes, in 3d, not sure why yet.  in this case we won't be able to look up the grip ... ? but it doesn't matter I don't think, originalFacetElt2grip is used only in 4d
                                 {
                                    int iEltGlobal = ((Integer)elt.aux).intValue();
                                    Assert(originalFacetElt2grip[iFacet][iDim][iElt] == -1);
