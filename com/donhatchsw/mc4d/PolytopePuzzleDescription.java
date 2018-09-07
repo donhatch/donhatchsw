@@ -410,8 +410,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private String prescription; // what was originally passed to the constructor. we are an immutable object that is completely a function of this string, so an identical clone of ourself can be constructed using this string in any future lifetime.
 
-    private com.donhatchsw.util.CSG.SPolytope originalPolytope;
-    private com.donhatchsw.util.CSG.SPolytope slicedPolytope;
+    private CSG.SPolytope originalPolytope;
+    private CSG.SPolytope slicedPolytope;
 
     private int _nDisplayDims = 4; // never tried anything else, it will probably crash
     private float _circumRadius;
@@ -623,7 +623,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.print("    Constructing polytope...");
             progressWriter.flush();
         }
-        this.originalPolytope = com.donhatchsw.util.CSG.makeRegularStarPolytopeProductFromString(schlafliProduct);
+        this.originalPolytope = CSG.makeRegularStarPolytopeProductFromString(schlafliProduct);
         if (progressWriter != null)
         {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
@@ -923,11 +923,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 for (int iCut = 0; iCut < facetCutOffsets[iFacet].length; ++iCut)
                 {
                     if (maxCuts >= 0 && iTotalCut >= maxCuts) break;
-                    com.donhatchsw.util.CSG.Hyperplane cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
+                    CSG.Hyperplane cutHyperplane = new CSG.Hyperplane(
                         facetInwardNormals[iFacet],
                         facetCutOffsets[iFacet][iCut]);
                     Object auxOfCut = new CutInfo(iFacet,iCut);
-                    slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut, /*sizes=*/null);
+                    slicedPolytope = CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-1, cutHyperplane, auxOfCut, /*sizes=*/null);
                     iTotalCut++;
                     if (progressWriter != null)
                     {
@@ -1006,27 +1006,27 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     {
                         // Not enough cuts along the edge perpendicular to this facet.
                         // Make another cut.
-                        com.donhatchsw.util.CSG.Hyperplane cutHyperplane;
+                        CSG.Hyperplane cutHyperplane;
                         if (facetCutOffsets[iFacet].length == 0)
                         {
                             // There are no cuts here yet.
                             // Put a cut 1/4 of the way from this facet to the end of the incident edge.
                             // XXX THIS ISNT RIGHT YET-- NEED TO USE FULLTHICKNESSES[iFacet].  (But it's right for boxes)
-                            cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
+                            cutHyperplane = new CSG.Hyperplane(
                                 facetInwardNormals[iFacet],
                                 facetOffsets[iFacet] / 2.);
                         }
                         else
                         {
                             // There's 1 cut already.  Bisect the near piece.
-                            cutHyperplane = new com.donhatchsw.util.CSG.Hyperplane(
+                            cutHyperplane = new CSG.Hyperplane(
                                 facetInwardNormals[iFacet],
                                 (facetOffsets[iFacet]+facetCutOffsets[iFacet][0])/2.);
                         }
 
 
                         Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual 4d case) that will get nulls for auxes, and that's fine
-                        slicedPolytope = com.donhatchsw.util.CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut,
+                        slicedPolytope = CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut,
                             new int[]{3,4}); // sizes (only further-cut squares and triangles) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* facets were squares. bleah!)
                         if (progressWriter != null)
                         {
@@ -1062,7 +1062,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     progressWriter.flush();
                 }
                 startTimeMillis = System.currentTimeMillis();
-                com.donhatchsw.util.CSG.orientDeepCosmetic(slicedPolytope);
+                CSG.orientDeepCosmetic(slicedPolytope);
                 endTimeMillis = System.currentTimeMillis();
                 if (progressWriter != null)
                 {
@@ -1148,14 +1148,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             {
                 for (int iFacet = 0; iFacet < nFacets; ++iFacet)
-                    com.donhatchsw.util.CSG.cgOfVerts(facetCentersD[iFacet], originalFacets[iFacet]);
+                    CSG.cgOfVerts(facetCentersD[iFacet], originalFacets[iFacet]);
             }
             this.stickerCentersD = new double[nStickers][nDims];
             this.stickerCentersHashTable = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
             {
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
-                    com.donhatchsw.util.CSG.cgOfVerts(stickerCentersD[iSticker], stickers[iSticker]);
+                    CSG.cgOfVerts(stickerCentersD[iSticker], stickers[iSticker]);
                     stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
                 }
             }
@@ -1461,7 +1461,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int nGrips = 0;
                 for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                 {
-                    com.donhatchsw.util.CSG.Polytope[][] allElementsOfFacet = originalFacets[iFacet].getAllElements();
+                    CSG.Polytope[][] allElementsOfFacet = originalFacets[iFacet].getAllElements();
                     if (nDims == 4)
                         for (int iDim = 0; iDim <= 3; ++iDim) // yes, even for cell center, which doesn't do anything
                             nGrips += allElementsOfFacet[iDim].length;
@@ -1496,7 +1496,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         CSG.Polytope facet = originalFacets[iFacet];
                         if (padHypercube != null)
                             facet = CSG.cross(new CSG.SPolytope(0,1,facet), padHypercube).p;
-                        com.donhatchsw.util.CSG.Polytope[][] allElementsOfFacet = facet.getAllElements();
+                        CSG.Polytope[][] allElementsOfFacet = facet.getAllElements();
                         int[][][][] allIncidencesThisFacet = facet.getAllIncidences();
                         originalFacetElt2grip[iFacet] = new int[maxDim+1][];
                         for (int iDim = minDim; iDim <= maxDim; ++iDim)
@@ -1585,7 +1585,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     // Precompute sticker-and-polygon-to-grip.
                     this.stickerPoly2Grip = new int[nStickers][];
-                  if (true)  // XXX THIS METHOD SUCKS; KILL IT!
+                  if (false)  // XXX THIS METHOD SUCKS; KILL IT!
                   {
                     for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                     {
@@ -1616,7 +1616,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         }
                     }
                   }
-                    if (false)
+                    if (true)
                     {
                         // We recorded which original element of the whole polytope
                         // each element of each poly is from.
@@ -1640,37 +1640,40 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         java.util.Hashtable[/*nFacets*/][/*nRelevantDims*/] indexOfOriginalEltOnFacet = new java.util.Hashtable[nFacets][maxRelevantDim+1];
                         for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                         {
-                            com.donhatchsw.util.CSG.Polytope[][] allElementsOfFacet = originalFacets[iFacet].getAllElements();
+                            CSG.Polytope[][] allElementsOfFacet = originalFacets[iFacet].getAllElements();
                             for (int iDim = 0; iDim <= maxRelevantDim; ++iDim) {
                                 indexOfOriginalEltOnFacet[iFacet][iDim] = new java.util.Hashtable();
                                 int nFacetEltsOfDim = allElementsOfFacet[iDim].length;
                                 for (int iFacetEltOfDim = 0; iFacetEltOfDim < nFacetEltsOfDim; ++iFacetEltOfDim) {
-                                    com.donhatchsw.util.CSG.Polytope elt = allElementsOfFacet[iDim][iFacetEltOfDim];
+                                    CSG.Polytope elt = allElementsOfFacet[iDim][iFacetEltOfDim];
                                     int iElt = ((Integer)elt.aux).intValue();
                                     indexOfOriginalEltOnFacet[iFacet][iDim].put(iElt, iFacetEltOfDim);
                                 }
                             }
                         }
 
-                        com.donhatchsw.util.CSG.Polytope[][] allSlicedElements = slicedPolytope.p.getAllElements();
+                        CSG.Polytope[][] allSlicedElements = slicedPolytope.p.getAllElements();
                         int[][][][] allSlicedIncidences = slicedPolytope.p.getAllIncidences();
                         for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                         {
+                            //System.out.println("      looking for grips on polys of iSticker = "+iSticker);
                             int iFacet = sticker2face[iSticker];
                             int nPolysThisSticker = stickerInds[iSticker].length;
                             Assert(nPolysThisSticker == allSlicedIncidences[nDims-1][iSticker][2].length);
                             stickerPoly2Grip[iSticker] = VecMath.fillvec(nPolysThisSticker, -1);
                             for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
                             {
+                                //System.out.println("          iPolyThisSticker = "+iPolyThisSticker);
                                 int iPoly = allSlicedIncidences[nDims-1][iSticker][2][iPolyThisSticker];
-                                com.donhatchsw.util.CSG.Polytope poly = allSlicedElements[2][iPoly];
+                                //System.out.println("              iPoly = "+iPoly);
+                                CSG.Polytope poly = allSlicedElements[2][iPoly];
 
                                 boolean foundGrip = false;
                                 for (int iOriginalEltDim = 0; !foundGrip && iOriginalEltDim <= 2; ++iOriginalEltDim)
                                 {
                                     int nPolyEltsThisDim = allSlicedIncidences[2][iPoly][iOriginalEltDim].length;
                                     for (int iPolyEltThisDim = 0; !foundGrip && iPolyEltThisDim < nPolyEltsThisDim; ++iPolyEltThisDim) {
-                                      com.donhatchsw.util.CSG.Polytope polyEltThisDim = allSlicedElements[iOriginalEltDim][
+                                      CSG.Polytope polyEltThisDim = allSlicedElements[iOriginalEltDim][
                                           allSlicedIncidences[2][iPoly][iOriginalEltDim][iPolyEltThisDim]];
                                       Object aux = polyEltThisDim.aux;
                                       // Aux is one of:
@@ -1724,7 +1727,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iDim = 0; iDim < originalElements.length; ++iDim)
             for (int iElt = 0; iElt < originalElements[iDim].length; ++iElt)
             {
-                com.donhatchsw.util.CSG.cgOfVerts(eltCenter, originalElements[iDim][iElt]);
+                CSG.cgOfVerts(eltCenter, originalElements[iDim][iElt]);
                 // all nice points will be on unit sphere...
                 VecMath.normalize(eltCenter, eltCenter);
                 VecMath.doubleToFloat(nicePointsToRotateToCenter[iNicePoint++],
@@ -1745,10 +1748,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     public String toString(boolean verbose)
     {
         String nl = System.getProperty("line.separator");
-        com.donhatchsw.util.CSG.Polytope[][] allElements = slicedPolytope.p.getAllElements();
+        CSG.Polytope[][] allElements = slicedPolytope.p.getAllElements();
         String answer = "{sliced polytope counts per dim = "
                       +com.donhatchsw.util.Arrays.toStringCompact(
-                       com.donhatchsw.util.CSG.counts(slicedPolytope.p))
+                       CSG.counts(slicedPolytope.p))
                       +", "+nl+"  nDims = "+nDims()
                       +", "+nl+"  nFacets = "+nFaces()
                       +", "+nl+"  nStickers = "+nStickers()
@@ -2419,7 +2422,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         System.out.println("in main");
 
-        //com.donhatchsw.util.CSG.verboseLevel = 2;
+        //CSG.verboseLevel = 2;
 
         java.io.PrintWriter progressWriter = new java.io.PrintWriter(
                                              new java.io.BufferedWriter(
