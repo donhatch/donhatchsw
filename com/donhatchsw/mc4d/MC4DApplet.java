@@ -25,10 +25,10 @@ public class MC4DApplet
     public boolean doDoubleBuffer = true; // XXX get this from viewing params?
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
-        {"x", "integer", "x position for spawned viewers"},
-        {"y", "integer", "y position for spawned viewers"},
-        {"w", "integer", "width of spawned viewers"},
-        {"h", "integer", "height of spawned viewers"},
+        {"x", "integer", "x position for spawned viewers"},  // XXX does this work?
+        {"y", "integer", "y position for spawned viewers"},  // XXX does this work?
+        {"w", "integer", "width of spawned viewers"},  // XXX does this work?
+        {"h", "integer", "height of spawned viewers"},  // XXX does this work?
         {"doDoubleBuffer", "boolean", "whether to double buffer"},
     };
     public String[][] getParameterInfo()

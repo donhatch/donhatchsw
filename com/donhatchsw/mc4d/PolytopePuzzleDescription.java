@@ -1178,6 +1178,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 allElements[iDim][iElt].aux = null;
         }
 
+        // We'll need to keep track of any swaps we do...
+        int[][] stickerPolyToOriginalStickerPoly = new int[nStickers][];
+
         //
         // Get the rest verts (with no shrinkage)
         // and the sticker polygon indices (i.e. mapping from sticker-and-polyThisSticker to vert).
@@ -1311,6 +1314,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker)
                 {
+                    stickerPolyToOriginalStickerPoly[iSticker] = VecMath.identityperm(stickerInds[iSticker].length);
                     if (doFurtherCuts)
                     {
                         // Find one that's not adjacent to [0] at all.
@@ -1335,6 +1339,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             {
                                 com.donhatchsw.util.Arrays.swap(polys, 1,
                                                                 polys, jPoly);
+                                // WARNING: we know this is correct only because we do at most one swap.  If we did more than one swap, then the permutation would not be self-inverse any more and we'd have to think about whether we're doing it correctly or whether we are backwards.
+                                com.donhatchsw.util.Arrays.swap(stickerPolyToOriginalStickerPoly[iSticker], 1,
+                                                                stickerPolyToOriginalStickerPoly[iSticker], jPoly);
                                 break;
                             }
                         }
@@ -1585,7 +1592,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     // Precompute sticker-and-polygon-to-grip.
                     this.stickerPoly2Grip = new int[nStickers][];
-                  if (false)  // XXX THIS METHOD SUCKS; KILL IT!
+                  if (false)  // XXX THIS METHOD SUCKS; KILL IT!  but keeping it for reference right now because there's something I like about it-- it highlights a bit more polys, allowing some reacharound, and looks more coherent somehow
                   {
                     for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                     {
@@ -1616,7 +1623,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         }
                     }
                   }
-                    if (true)
+                    else // NEW WAY
                     {
                         // We recorded which original element of the whole polytope
                         // each element of each poly is from.
@@ -1656,47 +1663,47 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         int[][][][] allSlicedIncidences = slicedPolytope.p.getAllIncidences();
                         for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                         {
-                            //System.out.println("      looking for grips on polys of iSticker = "+iSticker);
                             int iFacet = sticker2face[iSticker];
                             int nPolysThisSticker = stickerInds[iSticker].length;
                             Assert(nPolysThisSticker == allSlicedIncidences[nDims-1][iSticker][2].length);
                             stickerPoly2Grip[iSticker] = VecMath.fillvec(nPolysThisSticker, -1);
                             for (int iPolyThisSticker = 0; iPolyThisSticker < nPolysThisSticker; ++iPolyThisSticker)
                             {
-                                //System.out.println("          iPolyThisSticker = "+iPolyThisSticker);
-                                int iPoly = allSlicedIncidences[nDims-1][iSticker][2][iPolyThisSticker];
-                                //System.out.println("              iPoly = "+iPoly);
+                                int iPolyThisStickerOriginal = stickerPolyToOriginalStickerPoly[iSticker][iPolyThisSticker];  // prior to any permuting we did
+                                int iPoly = allSlicedIncidences[nDims-1][iSticker][2][iPolyThisStickerOriginal];
                                 CSG.Polytope poly = allSlicedElements[2][iPoly];
-
                                 boolean foundGrip = false;
                                 for (int iOriginalEltDim = 0; !foundGrip && iOriginalEltDim <= 2; ++iOriginalEltDim)
                                 {
                                     int nPolyEltsThisDim = allSlicedIncidences[2][iPoly][iOriginalEltDim].length;
-                                    for (int iPolyEltThisDim = 0; !foundGrip && iPolyEltThisDim < nPolyEltsThisDim; ++iPolyEltThisDim) {
-                                      CSG.Polytope polyEltThisDim = allSlicedElements[iOriginalEltDim][
-                                          allSlicedIncidences[2][iPoly][iOriginalEltDim][iPolyEltThisDim]];
-                                      Object aux = polyEltThisDim.aux;
-                                      // Aux is one of:
-                                      // - an Integer (if polyEltThisDim came from an original element)
-                                      // - a CutInfo (if it came from a primary cut)
-                                      // - null (if it came from a "further" cut) (furthermore, this can't happen if iOriginalEltDim is nDims-2)
-                                      boolean eltIsFromOriginal = (aux instanceof Integer);
-                                      if (eltIsFromOriginal)
-                                      {
-                                          int iOriginalElt = ((Integer)aux).intValue();
-                                          Assert(iOriginalElt != -1);
-                                          Integer iOriginalEltOnThisFacet = (Integer)indexOfOriginalEltOnFacet[iFacet][iOriginalEltDim].get(iOriginalElt);
-                                          Assert(iOriginalEltOnThisFacet != null);
-                                          int iGrip = originalFacetElt2grip[iFacet][iOriginalEltDim][iOriginalEltOnThisFacet];
-                                          Assert(this.stickerPoly2Grip[iSticker][iPolyThisSticker] == -1);
-                                          this.stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
-                                          foundGrip = true;
-                                          break;
-                                      }
+
+                                    for (int iPolyEltThisDim = 0; !foundGrip && iPolyEltThisDim < nPolyEltsThisDim; ++iPolyEltThisDim)
+                                    {
+                                        CSG.Polytope polyEltThisDim = allSlicedElements[iOriginalEltDim][
+                                            allSlicedIncidences[2][iPoly][iOriginalEltDim][iPolyEltThisDim]];
+                                        Object aux = polyEltThisDim.aux;
+                                        // Aux is one of:
+                                        // - an Integer (if polyEltThisDim came from an original element)
+                                        // - a CutInfo (if it came from a primary cut)
+                                        // - null (if it came from a "further" cut) (furthermore, this can't happen if iOriginalEltDim is nDims-2)
+                                        boolean eltIsFromOriginal = (aux instanceof Integer);
+                                        if (eltIsFromOriginal)
+                                        {
+                                            int iOriginalElt = ((Integer)aux).intValue();
+                                            Assert(iOriginalElt != -1);
+                                            Integer iOriginalEltOnThisFacet = (Integer)indexOfOriginalEltOnFacet[iFacet][iOriginalEltDim].get(iOriginalElt);
+                                            Assert(iOriginalEltOnThisFacet != null);
+                                            int iGrip = originalFacetElt2grip[iFacet][iOriginalEltDim][iOriginalEltOnThisFacet];
+                                            Assert(this.stickerPoly2Grip[iSticker][iPolyThisSticker] == -1);
+                                            this.stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
+                                            foundGrip = true;
+                                            break;
+                                        }
                                     }
                                 }
-                            }
-                        }
+                                Assert(foundGrip == (this.stickerPoly2Grip[iSticker][iPolyThisSticker] != -1));
+                            }  // for iPolyThisSticker
+                        } // for iSticker
                     }
                 }
             }
