@@ -152,7 +152,7 @@
         - with multiple windows, animation doesn't go by itself any more
         - {4,4,4} 2 (and probably other 2's) won't rotate edge to center
         - doFurtherCuts issues:
-          - in '4,3,3 2', rotate-element-to-center not working right when element is an edge-- it rotates a vert to center instead. (both with old and new poly-to-grip code)
+          - in '4,3,3 2', rotate-element-to-center not working right when element is an edge-- it rotates a vert to center instead. (both with old and new poly-to-grip code). ah, I think it's getting confused and assuming stickers, grips, and elements-rotatable-to-center are all the same.
           - get grips right for heterogeneous boxes.
             Sample bad one:
               '(2)x(2)x(1)x(1) 2,2,1,1'  (this one is correct now)
@@ -1544,6 +1544,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                            originalPolytope.p,
                                                                            maxOrder,
                                                                            gripUsefulMats[iGrip]);
+                                    if (false) {  // set to true to *disable* order-1 rotations, i.e. 360 degree rotations.  This is experimental.
+                                        // XXX don't do it like this-- we should store the actual order, 1, regardless, but then make the decision of whether it's functional or not based on a flag.
+                                        if (this.gripSymmetryOrders[iGrip] == 1) {
+                                            VecMath.zeromat(gripUsefulMats[iGrip]);
+                                            this.gripSymmetryOrders[iGrip]  = 0;  // XXX experimental
+                                        }
+                                    }
                                 }
                                 // Make sure dirs and offs are normalized (if not zero)
                                 this.gripDirsF[iGrip] = VecMath.normalize(this.gripDirsF[iGrip]);
@@ -1695,8 +1702,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                             Assert(iOriginalEltOnThisFacet != null);
                                             int iGrip = originalFacetElt2grip[iFacet][iOriginalEltDim][iOriginalEltOnThisFacet];
                                             Assert(this.stickerPoly2Grip[iSticker][iPolyThisSticker] == -1);
-                                            this.stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
                                             foundGrip = true;
+                                            if (gripSymmetryOrders[iGrip] != 0)
+                                            {
+                                                this.stickerPoly2Grip[iSticker][iPolyThisSticker] = iGrip;
+                                            }
                                             break;
                                         }
                                     }
