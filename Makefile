@@ -163,6 +163,7 @@ donhatchsw.jar: \
     com/donhatchsw/util/SortStuff.class \
     com/donhatchsw/util/Minimizer.class \
     com/donhatchsw/util/FuzzyPointHashTable.class \
+    com/donhatchsw/util/FuzzyPointHashSet.class \
     com/donhatchsw/util/MergeFind.class \
     com/donhatchsw/util/IndexBinaryHeap.class \
     com/donhatchsw/util/IndexBinaryHeapKeyed.class \

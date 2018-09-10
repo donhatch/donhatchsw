@@ -201,4 +201,4 @@ public class FuzzyPointHashTable
         }
     } // FuzzyException
 
-} // class SpatialHashtable
+}  // class FuzzyPointHashTable

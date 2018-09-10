@@ -147,6 +147,9 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - on macbook, can't get to the Twist Duration slider (needs scrolled panel maybe)
+        - close a view window that's in sync with another view window...
+           it's now in bad state in which the remaining one doesn't update any more  except when it needs to redraw, e.g. hover mouse back and forth :-(
         - >=5 dimensional puzzles on command line non-gracefully excepts
         - ctrl-alt-space for debugging... doesn't stop things any more?? (does for rotates, not for twists)
         - with multiple windows, animation doesn't go by itself any more
@@ -161,7 +164,7 @@
                   '(2)x(1)x(1)x(1) 2,1,1,1'
                   '{4,3,3} 2(10)'
             - 3x5 2  and  5x5 2  some stickers flicker on and off... thinks they are sort of inside out I guess, damn   (this was true when I was doFurtherCut'sing triangles as well as squares... turn that on to debug this)
-            - 3x4 2  still using old closestGrip method, so gets wrong thing when clicking on outer square or edges
+            - 3x4 2  still using old closestGrip method, so gets wrong thing when clicking on outer square or edges (fixed now I think?)
             - maybe doFurtherCuts needs to be on if there's a triangle too (not just if there's a square), e.g. 3,3,3 2  or 3,3,4 2   or 3,4,3 2
             - and maybe triangles need a separate scheme?  think about it
             - maybe only further-cut only the polygons that need it? (squares, maybe triangles... not sure this is feasible though, since the current method just adds global slice planes)
@@ -191,8 +194,6 @@
         - status bar and puzzle prescription bar
         - implement expert control panel
             - num paints should go under it, probably... maybe (I like seeing it from very start though)
-        - close a view window that's in sync with another view window...
-           the remaining one doesn't update any more :-(
         - shared view/cloned puzzle state restrict roll doesn't work right
             -- do I really want shared view?  seems like a weird concept
         - puzzle change or load makes undo tree viewer go stale...
