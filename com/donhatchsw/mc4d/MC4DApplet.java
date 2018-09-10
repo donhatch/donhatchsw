@@ -1122,6 +1122,10 @@ public class MC4DApplet
                                                 viewGuts.viewParams,
                                                 viewGuts.viewState); // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
 
+            java.awt.ScrollPane controlPanelScrollPane = new java.awt.ScrollPane(ScrollPane.SCROLLBARS_AS_NEEDED);
+            controlPanelScrollPane.setSize(controlPanel.getPreferredSize());  // why doesn't this work?  makes it too small.  we adjust for it later, when packing.
+            controlPanelScrollPane.add(controlPanel);
+
             System.out.println("Making the window...");
             final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4D Control Panel");
             // XXX the following is probably not what I want
@@ -1132,12 +1136,24 @@ public class MC4DApplet
                     // no exit, this isn't a main window
                 }
             });
-            controlPanelFrame.add(controlPanel);
+
+            controlPanelFrame.add(controlPanelScrollPane);
 
             allPuzzlesAndWindows.addControlPanel(controlPanel); // needs the frame before doing this, so it can set window titles
 
             System.out.println("Packing the window...");
             controlPanelFrame.pack();
+            if (true)
+            {
+                // I don't know why, but controlPanel.getPreferredSize isn't right until after we pack once.
+                // So, now that we've packed, set size again.
+                // And get it right with respect to added scroll bar sizes, too.
+                Dimension controlPanelSize = controlPanel.getPreferredSize();
+                controlPanelScrollPane.setSize(
+                  controlPanelSize.width + controlPanelScrollPane.getVScrollbarWidth(),
+                  controlPanelSize.height + controlPanelScrollPane.getHScrollbarHeight());
+                controlPanelFrame.pack();
+            }
             System.out.println("Showing the window...");
             controlPanelFrame.show();
             System.out.println("Done.");
