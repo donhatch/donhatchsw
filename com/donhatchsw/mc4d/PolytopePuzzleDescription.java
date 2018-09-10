@@ -144,10 +144,10 @@
         - "(0)---(1)---(1)---(1) 3(4.0)" twists wrong thing
         - "5x5 3" and up, twists wrong thing
         - truncated hypercube, twists mostly right except twists something when left-click on center sticker
+        - on macbook, can't get to the Twist Duration slider (needs scrolled panel maybe)
 
     BUGS / URGENT TODOS:
     ===================
-        - on macbook, can't get to the Twist Duration slider (needs scrolled panel maybe)
         - close a view window that's in sync with another view window...
            it's now in bad state in which the remaining one doesn't update any more  except when it needs to redraw, e.g. hover mouse back and forth :-(
         - >=5 dimensional puzzles on command line non-gracefully excepts
