@@ -1145,8 +1145,9 @@ public class MC4DApplet
             controlPanelFrame.pack();
             if (true)
             {
-                // I don't know why, but controlPanel.getPreferredSize isn't right until after we pack once.
-                // So, now that we've packed, set size again.
+                // I don't know why, but the earlier controlPanel.getPreferredSize
+                // gave a size that's too small.  Now that we've packed, get it again,
+                // and it will be correct.
                 // And get it right with respect to added scroll bar sizes, too.
                 Dimension controlPanelSize = controlPanel.getPreferredSize();
                 controlPanelScrollPane.setSize(
