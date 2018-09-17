@@ -678,7 +678,8 @@ public class MC4DApplet
                 {
                     if (!closedAlreadyYouMoron)
                     {
-                        System.out.println("ciao from makeNewViewWindow!");
+                        System.out.println("ciao!");
+                        newViewGuts.setModel(null);
                         newViewGuts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
                         newViewGuts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
                         com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
@@ -746,7 +747,7 @@ public class MC4DApplet
                     windowState = applet@100x100+20+20,
                     undoTree = "{4,3,3} 3"
                     undoTreePos=3
-                    puzzleState={0,0,0,1,1,1,2,2,2,...}}
+                    puzzleState={0,0,0,1,1,1,2,2,2,...}
                 },
                 {
                     name = "Animation Undo Tree Squirrel 1",
@@ -1041,14 +1042,15 @@ public class MC4DApplet
     } // getTopLevelFrameOrApplet
 
 
+    private MC4DViewGuts mainViewGuts;
     public void init()
     {
         System.out.println("    in MC4DApplet init");
 
         com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, 0);
 
-        final MC4DViewGuts viewGuts = new MC4DViewGuts();
-        viewGuts.setModel(new MC4DModel(puzzleDescription));
+        mainViewGuts = new MC4DViewGuts();
+        mainViewGuts.setModel(new MC4DModel(puzzleDescription));
 
         //
         // Initial control panel window(s)
@@ -1056,7 +1058,7 @@ public class MC4DApplet
         {
             int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
             for (int i = 0; i < nControlPanelsAtStartup; ++i)
-                openOrMakeNewControlPanelWindow(viewGuts,
+                openOrMakeNewControlPanelWindow(mainViewGuts,
                                                 allPuzzlesAndWindows);
         }
 
@@ -1066,13 +1068,13 @@ public class MC4DApplet
         {
             int nUndoTreeWindowsAtStartup = 0; // can manually set this to more, for debugging
             for (int i = 0; i < nUndoTreeWindowsAtStartup; ++i)
-                makeNewUndoTreeWindow(viewGuts);
+                makeNewUndoTreeWindow(mainViewGuts);
         }
 
 
         String viewName = "View "+(allPuzzlesAndWindows.nextViewerNumber++);
         Panel mainWindowPanel = new MC4DViewerPanel(viewName,
-                                                    viewGuts,
+                                                    mainViewGuts,
                                                     doDoubleBuffer,
                                                     MC4DApplet.this,
                                                     allPuzzlesAndWindows);
@@ -1096,6 +1098,9 @@ public class MC4DApplet
     public void destroy()
     {
         System.out.println("    in MC4DApplet destroy");
+        mainViewGuts.setModel(null);
+        mainViewGuts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
+        mainViewGuts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
         System.out.println("    out MC4DApplet destroy");
     } // stop
 

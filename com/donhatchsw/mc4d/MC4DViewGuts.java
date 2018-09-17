@@ -1580,7 +1580,8 @@ public class MC4DViewGuts
                 }
                 public void windowClosed(java.awt.event.WindowEvent we)
                 {
-                    System.out.println("ciao!");
+                    System.out.println("ciao!!");
+                    guts.setModel(null);
                     guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
                     guts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
                     com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();

@@ -148,8 +148,6 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - close a view window that's in sync with another view window...
-           it's now in bad state in which the remaining one doesn't update any more  except when it needs to redraw, e.g. hover mouse back and forth :-(
         - >=5 dimensional puzzles on command line non-gracefully excepts
         - ctrl-alt-space for debugging... doesn't stop things any more?? (does for rotates, not for twists)
         - with multiple windows, animation doesn't go by itself any more

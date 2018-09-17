@@ -151,8 +151,9 @@ public class AppletViewer
         }
 
 
-        //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
-        final java.awt.Frame frame = new java.awt.Frame("Applet Viewer: "+appletClassName) {
+        //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet")
+        final java.awt.Frame frame = new java.awt.Frame("Applet Viewer: "+appletClassName)
+        {
             OVERRIDE public boolean handleEvent(java.awt.Event event)
             {
                 switch(event.id)
@@ -184,6 +185,7 @@ public class AppletViewer
         // XXX not sure how far back this exists, may need to use reflection to get it
         {
             com.donhatchsw.awt.MainWindowCount.increment();
+            final java.applet.Applet finalApplet = applet;
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
                 OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
                 {
@@ -191,6 +193,10 @@ public class AppletViewer
                 } 
                 OVERRIDE public void windowClosed(java.awt.event.WindowEvent we)
                 {
+                    // It's not entirely clear whether destroy() should be called when the main window closes,
+                    // or whether the *last* window closes.  I'm choosing the former,
+                    // for pragmatic reasons, so the applet can detach that window's resources.
+                    finalApplet.destroy();
                     System.out.println("ciao!");
                     com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
                 }
