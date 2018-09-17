@@ -1,0 +1,24 @@
+/* vim: set filetype=java: */
+/*
+* Copyright (c) 2018 Don Hatch Software
+*/
+package com.donhatchsw.util;
+public class FuzzyPointHashSet
+{
+    public FuzzyPointHashSet(double littleTol, double bigTol, double bucketSize)
+    {
+      this.table = new FuzzyPointHashTable(littleTol, bigTol, bucketSize);
+    }
+    public boolean add(double key[])
+    {
+      return table.put(key, dummy) == null;  // whether set did *not* already contain it
+    }
+    public boolean contains(double key[])
+    {
+      return table.get(key) != null;
+    }
+    private FuzzyPointHashTable table;
+    private static Object dummy = new Object();  // must be distinct from null
+}  // class FuzzyPointHashSet
+
+
