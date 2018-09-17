@@ -221,14 +221,28 @@ public class MC4DModel
         /** Adds a listener that will be notified when the puzzle animation progresses. */
         public synchronized void addListener(Listener listener)
         {
-            // XXX assert it wasn't there
+            Assert(listeners.indexOf(listener) == -1);  // it wasn't there
             listeners.add(listener);
         }
         /** Removes a listener. */
         public synchronized void removeListener(Listener listener)
         {
-            // XXX assert it was there
+            Assert(listeners.indexOf(listener) != -1);  // it was there
             listeners.remove(listener);
+
+            // Hack: if we don't do anything special,
+            // and the listener is removed at the wrong time,
+            // that is, after its movingNotify() calls repaint
+            // but when the paint hasn't happened yet (and will never happen),
+            // the ball will be dropped; that is, the animation will stop for no reason.
+            // To prevent that, we call movingNotify()
+            // on some remaining listener.
+            // This may cause two animations to be going at once,
+            // which isn't good, but it only lasts until the end of this animation.
+            if (listeners.size() > 0 && isMoving()) {
+                System.out.println("KICK!");
+                ((Listener)listeners.get(0)).movingNotify();
+            }
         }
         public synchronized int nListeners()
         {
