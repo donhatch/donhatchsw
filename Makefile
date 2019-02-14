@@ -109,16 +109,16 @@
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.8 which requires -target >= 1.8
-#JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=javac -source 1.8 -target 1.8
-#JAR=jar
-#JAVADOC=javadoc
-
-# ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
 JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=javac
+JAVAC=javac -source 1.8 -target 1.8
 JAR=jar
 JAVADOC=javadoc
+
+# ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=javac
+#JAR=jar
+#JAVADOC=javadoc
 
 
 # Pattern rule for making a .class file out of a .prejava file.
