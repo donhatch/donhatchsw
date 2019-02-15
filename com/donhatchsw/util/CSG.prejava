@@ -2480,7 +2480,7 @@ public final class CSG
                   {
                     // Find procrustes rotation and translation that best-fits a regular polygon of the appropriate size to this face's verts.
                     int gonality = f2v[iFace].length;
-                    double[][] targetRegularPolygon = bestFitRotatedAndTranslated(regularPolygons[gonality], get(scratchVertCoords, f2v[iFace]));
+                    double[][] targetRegularPolygon = VecMath.bestFitRotatedAndTranslated(regularPolygons[gonality], get(scratchVertCoords, f2v[iFace]));
                     // targetRegularPolygon is now the set of target points for the vertices of this face.
                     for (int i = 0; i < gonality; ++i) {
                       int iVert = f2v[iFace][i];
@@ -2525,7 +2525,7 @@ public final class CSG
                         skewPolygonOffset *= -1.;
                     }
 
-                    double[][] targetRegularPolygon = bestFitRotatedAndTranslated(regularPolygons[gonality], skewPolygon);
+                    double[][] targetRegularPolygon = VecMath.bestFitRotatedAndTranslated(regularPolygons[gonality], skewPolygon);
 
                     double[] newFaceNormal = new double[3];
                     for (int i = 0; i < targetRegularPolygon.length-2; ++i)
@@ -2568,7 +2568,6 @@ public final class CSG
                 }
                 OUT("DONE ATTEMPTING TO REGULARIZE");
                 OUT("================================");
-                testProcrustes();
             }  // regularize
 
 
@@ -2583,119 +2582,6 @@ public final class CSG
             }
             return answer;
         }
-
-
-        /** Find the best fit column-oriented homogeneous rotation and translation matrix
-        * that takes point cloud A to point cloud B.  The translation part matches the centroids,
-        * and the rotation part is the procrustes rotation.  This is used by the more convenient
-        * {@link #bestFitRotatedAndTranslated}.
-        * See https://en.wikipedia.org/wiki/Procrustes_analysis .
-        */
-        public static double[][] findColumnOrientedProcrustesRotationAndTranslation(double[][] A, double[][] B)
-        {
-          int n = A.length;
-          int dim = A[0].length;
-          assert(n == B.length);
-          assert(dim == B[0].length);
-          double[] Acentroid = VecMath.average(A);
-          double[] Bcentroid = VecMath.average(B);
-          double[][] crossCovarianceMatrix = new double[dim][dim];
-          double[] a = new double[dim]; // scratch;
-          double[] b = new double[dim]; // scratch;
-          double[][] oneOuterProduct = new double[dim][dim]; // scratch;
-          for (int i = 0; i < n; ++i) {
-            VecMath.vmv(a, A[i], Acentroid);
-            VecMath.vmv(b, B[i], Bcentroid);
-            VecMath.outerProduct(oneOuterProduct, a, b);
-            VecMath.mpm(crossCovarianceMatrix, crossCovarianceMatrix, oneOuterProduct);
-          }
-          // Compute the SVD.
-          // There's an algorithm based on eigendecomposition here: https://en.wikipedia.org/wiki/Singular_value_decomposition
-          // there's an algorithm (jama's I think) here: https://alvinalexander.com/java/jwarehouse/jama/SingularValueDecomposition.java.shtml
-          double[][] U = new double[dim][dim];  // LHS
-          double[] d = new double[dim];  // middle diagonal part
-          double[][] V = new double[dim][dim];  // transpose of RHS
-          VecMath.SVD(crossCovarianceMatrix, dim, dim, U, d, V, /*force_positive_rotations=*/true);
-          double[][] rotationPart = VecMath.mxtransposem(U, V);
-
-          // XXX FUDGE: this seems to make it come out right.  So evidently I have something backwards.
-          rotationPart = VecMath.transpose(rotationPart);
-
-          double[][] rotationAndTranslation = new double[dim+1][dim+1];  // zeros
-          for (int i = 0; i < dim; ++i) {
-            for (int j = 0; j < dim; ++j) {
-              rotationAndTranslation[i][j] = rotationPart[i][j];
-            }
-          }
-          for (int i = 0; i < dim; ++i) {
-            rotationAndTranslation[i][dim] = Bcentroid[i] - Acentroid[i];
-          }
-          rotationAndTranslation[dim][dim] = 1.;
-          return rotationAndTranslation;
-        } // findColumnOrientedProcrustesRotationAndTranslation
-
-        /** Returns point cloud A rotated and translated so that it matches point cloud B
-        * as closely as possible, by matching centers and using a procrustes rotation.
-        * See https://en.wikipedia.org/wiki/Procrustes_analysis .
-        */
-        private static double[][] bestFitRotatedAndTranslated(double[][] A, double[][] B)
-        {
-            int n = A.length;
-            int dim = A[0].length;
-            assert(n == B.length);
-            assert(dim == B[0].length);
-            double[][] columnOrientedRotationAndTranslation = findColumnOrientedProcrustesRotationAndTranslation(A, B);
-            double[][] answer = new double[n][dim];
-            if (false) {
-                // XXX TODO: this doesn't work! need to fix mxv so it allows a 4x4 homo matrix times a 3 vector.  currently it index-out-of-boundses.
-                for (int i = 0; i < n; ++i) {
-                    VecMath.mxv(answer[i], columnOrientedRotationAndTranslation, A[i]);
-                }
-            } else {
-                // for now
-                double[][] rowOrientedRotationAndTranslation = VecMath.transpose(columnOrientedRotationAndTranslation);
-                for (int i = 0; i < n; ++i) {
-                  VecMath.vxm(answer[i], A[i], rowOrientedRotationAndTranslation);
-                }
-            }
-            return answer;
-        }
-
-        public static void testProcrustes()
-        {
-            System.out.println("    in testProcrustes");
-            // Very minimal test of bestFitRotatedAndTranslated.  It seems to work.
-            // square in xy plane
-            double A[][] = {
-                {1,0,0},
-                {0,1,0},
-                {-1,0,0},
-                {0,-1,0},
-            };
-            // square in xz plane, at y=3
-            double B[][] = {
-                {1,3,0},
-                {0,3,-1},
-                {-1,3,0},
-                {0,3,1},
-            };
-            PRINTMAT(A);
-            PRINTMAT(B);
-            // xform should be:
-            //  rotate 90 around x axis (i.e. y goes to z)
-            //  translate by 0,3,0
-            // that is:
-            //  1  0  0  0
-            //  0  0 -1  3
-            //  0  1  0  0
-            //  0  0  0  1
-            double[][] xform = findColumnOrientedProcrustesRotationAndTranslation(A, B);
-            PRINTMAT(xform);
-            double[][] Axformed = bestFitRotatedAndTranslated(A, B);
-            PRINTMAT(Axformed);
-            assert(VecMath.equals(Axformed, B, 1e-12));
-            System.out.println("    out testProcrustes");
-        } // testProcrustes
 
 
         public static SPolytope makeGrandAntiprism()
