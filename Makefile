@@ -153,6 +153,7 @@ donhatchsw.jar: \
     com/donhatchsw/compat/ArrayList.class \
     com/donhatchsw/compat/IntArrayList.class \
     com/donhatchsw/compat/DoubleArrayList.class \
+    com/donhatchsw/util/SortStuff.class \
     com/donhatchsw/util/MyMath.class \
     com/donhatchsw/util/Complex.class \
     com/donhatchsw/util/Arrays.class \
@@ -160,7 +161,6 @@ donhatchsw.jar: \
     com/donhatchsw/util/LinearProgramming.class \
     com/donhatchsw/compat/regex.class \
     com/donhatchsw/compat/Format.class \
-    com/donhatchsw/util/SortStuff.class \
     com/donhatchsw/util/Minimizer.class \
     com/donhatchsw/util/FuzzyPointHashTable.class \
     com/donhatchsw/util/FuzzyPointHashSet.class \
