@@ -3343,8 +3343,16 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     */
     public static void svdcmpPolish(double[][] U, int m, int n, double d[], double V[][], boolean force_positive_rotations)
     {
-        assert(d.length == Math.min(m, n));
+        // TODO: can we relax some of these?  or maybe just get rid of m and n?
+        assert(U.length == m);
+        assert(m==0 || U[0].length == n);
+        assert(m >= n);
+        assert(d.length == n);
+        assert(V.length == n);
+        assert(n==0 || V[0].length == n);
+
         assert(m == n);  // TODO: haven't thought about non-square case, yet.
+
         {
             int[] order = identityperm(d.length);
             SortStuff.sort(order, new SortStuff.IntComparator() {
