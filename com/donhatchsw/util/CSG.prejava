@@ -1332,7 +1332,7 @@ public final class CSG
             // cos(pi*n/d) = sin(pi/2 - pi*n/d)
             //             = sin(pi * (1/2 - n/d))
             //             = sin(pi * (1/2 - n/d))
-            //             = sin(pi * (d-2*n)/(2*d)
+            //             = sin(pi * (d-2*n)/(2*d))
             return sinSquaredPiTimes(d-2*n, 2*d);
         }
 
@@ -1789,6 +1789,13 @@ public final class CSG
                 // Hack to smuggle a grand antiprism: {5,0,3}
                 return makeGrandAntiprism();
             }
+            if (schlafli.length == 2
+             && schlafli[0] == 7
+             && schlafli[1] == 0)
+            {
+                // Hack to smuggle a Frucht: {7,0}
+                return makeFruchtPolyhedron();
+            }
 
             if (!isLegalSchlafli(schlafli, schlafliDenoms))
             {
@@ -2176,6 +2183,9 @@ public final class CSG
             // so the parsing would get confused.
             s = regex.replaceAll(s, "[Gg]rand.[Aa]nti[Pp]rism", "{5,0,3}");
 
+            // Similarly for frucht, smuggle it in as {7,0}.
+            s = regex.replaceAll(s, "[Ff]rucht", "{7,0}");
+
             String factors[] = regex.split(s.trim(), "[x*]");
             int schlaflis[][] = new int[factors.length][];
             int schlafliDenomss[][] = new int[factors.length][];
@@ -2280,6 +2290,402 @@ public final class CSG
             return new Object[][]{schlaflis, schlafliDenomss, wythoffs};
         } // makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString
 
+
+        public static SPolytope makeFruchtPolyhedron()
+        {
+            // Make a polyhedron based on the Frucht graph--
+            // that is, the simplest asymmmetric trivalent graph:
+            //  *-----*
+            //  |\    |\1
+            //  | \ 6 *-*
+            //  |  \ /  |
+            //  |   *   |
+            //  | 5 | 4 |
+            //  |   *   |
+            //  |  / \  |
+            //  *-* 7 *-*
+            //  3\|   |/2
+            //    *---*
+            double[][] normalAndOffsetPairs;
+            if (false) {
+              // connectivity nicely visible from front:  "frucht 3(10)"
+              normalAndOffsetPairs = new double[][] {
+                /* 0 */ {0,0,-1, .5},
+                /* 1 */ {1,1,1, 1.5},
+                /* 2 */ {1,-1,1, 1.5},
+                /* 3 */ {-1,-1,1, 1.5},
+                /* 4 */ {1,0,1, .75},
+                /* 5 */ {-1,0,1, .75},
+                /* 6 */ {0,1,1, 1},
+                /* 7 */ {0,-1,1, 1},
+              };
+            }
+            if (false) {
+              // (roughly) regular triangular prism with three vertices truncated with regular tris:  "frucht 3(4)"
+              // actually regular tris aren't very good; they make the truncation planes too close to parallel
+              // with the prism bases.  and it doesn't take too much heightening to fix that.
+              double sin30 = Math.sin(30*Math.PI/180);
+              double cos30 = Math.cos(30*Math.PI/180);
+              double sqrt2 = Math.sqrt(2);
+              normalAndOffsetPairs = new double[][] {
+                /* 0 */ {0,0,-1, 1.5},
+                /* 1 */ {cos30,2.5,-1+sin30, 7},
+                /* 2 */ {cos30,-2.5,-1+sin30, 7},
+                /* 3 */ {-cos30,-2.5,-1+sin30, 7},
+                /* 4 */ {cos30,0,sin30, 1.5},
+                /* 5 */ {-cos30,0,sin30, 1.5},
+                /* 6 */ {0,1,0, 2},
+                /* 7 */ {0,-1,0, 2},
+              };
+            }
+            if (true) {
+              // heightening the truncating tris a bit.  "frucht 3(4)"
+              double sin30 = Math.sin(30*Math.PI/180);
+              double cos30 = Math.cos(30*Math.PI/180);
+              double sqrt2 = Math.sqrt(2);
+              normalAndOffsetPairs = new double[][] {
+                /* 0 */ {0,0,-1, 1.5},
+                /* 1 */ {cos30,1.5,-1+sin30, 4.2},
+                /* 2 */ {cos30,-1.5,-1+sin30, 4.2},
+                /* 3 */ {-cos30,-1.5,-1+sin30, 4.2},
+                /* 4 */ {cos30,0,sin30, 1.5},
+                /* 5 */ {-cos30,0,sin30, 1.5},
+                /* 6 */ {0,1,0, 2},
+                /* 7 */ {0,-1,0, 2},
+              };
+            }
+
+
+            // XXX make a function out of this?  hmm.
+            SPolytope answer = makeHypercube(3);  // unit in-radius
+            SPolytope[] returnBelow = new SPolytope[1];
+            for (int i = 0; i < normalAndOffsetPairs.length; ++i) {
+                double[] normal = (double[])Arrays.subarray(normalAndOffsetPairs[i], 0, 3);
+                double offset = normalAndOffsetPairs[i][3] * .25;
+                Hyperplane hyperplane = new Hyperplane(normal, offset);
+                slice(answer,
+                      hyperplane,
+                      /*aux=*/null,
+                      returnBelow, /*returnBelowIndex=*/0,
+                      /*returnBelowCapFacet=*/null, /*returnAboveCapFacetIndex=*/-1,
+                      /*returnAboveCapFacet=*/null, /*returnAboveCapFacetIndex=*/-1,
+                      /*returnAbove=*/null, /*returnAboveIndex=*/-1);
+                answer = returnBelow[0];
+            }
+
+            if (true) {
+                // this is awesome!  works with any of the above as a start, I think.
+                // "frucht 3(4)" or "frucht 5(7)" or "frucht 7(10)" or "frucht 9(13)"
+                // TODO: this apparently works best with only the first or third version above.  should make it better so that it always relaxes to the same thing.  I bet that will happen if I actually re-polytope-ize after each iteration (currently it doesn't actually re-planarize each face on each iteration, so maybe it gets happy in situations it shouldn't be and then gets a rude awakening only at the end when polytope-ized)
+                OUT("================================");
+                OUT("ATTEMPTING TO REGULARIZE");
+                // Try to regularize.
+                // Goal is to make all the faces as close to regular polygons as possible, right?
+                // So, repeatedly:
+                // 1. for each face, find best fit regular, superimpose, say that's where the vertex wants to be.
+                //    so each vertex has 3 goals.  Move it to the average of the 3 goals.
+                // 2. Faces are no longer planar.  But find best fit plane through each.
+                Polytope[][] allElements = answer.p.getAllElements();
+                int[/*4*/][][/*4*/][] allIncidences = answer.p.getAllIncidences();
+                int[] counts = counts(answer.p);
+                assert(counts.length == 4);
+                int nVerts = counts[0];
+                int nEdges = counts[1];
+                int nFaces = counts[2];
+                int nCells = counts[3];
+                assert(nVerts == 12);
+                assert(nEdges == 18);
+                assert(nFaces == 8);
+                assert(nCells == 1);
+                Polytope[] verts = allElements[0];
+
+                double[][] scratchVertCoords = new double[nVerts][3];
+                for (int iVert = 0; iVert < nVerts; ++iVert) {
+                  VecMath.copyvec(scratchVertCoords[iVert], verts[iVert].getCoords());
+                }
+                PRINTMAT(scratchVertCoords);
+
+                // *ordered* verts around each face.
+                // This is O(n^2) but whatever.
+                int[][] f2v = new int[nFaces][];
+                System.out.println("foo.");
+                for (int iFace = 0; iFace < nFaces; ++iFace) {
+                  System.out.println("iFace = "+iFace);
+                  System.out.println("    verts on this face are "+Arrays.toStringCompact(allIncidences[2][iFace][0]));
+                  assert(allIncidences[2][iFace][0].length == allIncidences[2][iFace][1].length);
+                  f2v[iFace] = new int[allIncidences[2][iFace][0].length];
+                  int iFirstEdgeThisFace = allIncidences[2][iFace][1][0];
+                  f2v[iFace][0] = allIncidences[1][iFirstEdgeThisFace][0][0];
+                  f2v[iFace][1] = allIncidences[1][iFirstEdgeThisFace][0][1];
+                  System.out.println("    first two verts are "+f2v[iFace][0]+", "+f2v[iFace][1]);
+                  int nextVertexOnFace = -1;
+                  for (int iVertThisFace = 2; iVertThisFace < f2v[iFace].length; ++iVertThisFace) {
+                    System.out.println("    iVertThisFace = "+iVertThisFace);
+                    // find the next vertex on this face: that is, the vertex that's adjacent to the previous, but is not equal to the previous-previous
+                    for (int i = 0; i < f2v[iFace].length; ++i) {
+                      int iVert = allIncidences[2][iFace][0][i];
+                      System.out.println("        iVert="+iVert+"?");
+                      if (iVert == f2v[iFace][iVertThisFace-2]) continue;
+                      if (iVert == f2v[iFace][iVertThisFace-1]) continue;
+                      System.out.println("            maybe...");
+                      // is iVert adjacent to f2v[iFace][iVertThisFace-1]?
+                      boolean foundThatItsAdjacent = false;
+                      for (int j = 0; j < allIncidences[0][iVert][1].length; ++j) {
+                        int iEdge = allIncidences[0][iVert][1][j];
+                        if (allIncidences[1][iEdge][0][0] == f2v[iFace][iVertThisFace-1] || allIncidences[1][iEdge][0][1] == f2v[iFace][iVertThisFace-1]) {
+                          foundThatItsAdjacent = true;
+                        }
+                      }
+                      if (foundThatItsAdjacent) {
+                        nextVertexOnFace = iVert;
+                        break;
+                      }
+                    }
+                    assert(nextVertexOnFace != -1);
+                    f2v[iFace][iVertThisFace] = nextVertexOnFace;
+                  }
+                  System.out.println("    f2v[iFace="+iFace+"] = "+Arrays.toStringCompact(f2v[iFace]));
+                }
+
+                int nIters = 100;
+                //int nIters = 2;
+                //int nIters = 0;
+
+                // What's the average edge length?  Make that the target.
+                double averageEdgeLength = 0.;
+                for (int iEdge = 0; iEdge < nEdges; ++iEdge) {
+                    averageEdgeLength += volume(new SPolytope(/*initialDensity*/0,/*sign=*/1,allElements[1][iEdge]));
+                }
+                averageEdgeLength /= nEdges;
+                PRINT(averageEdgeLength);
+
+                double targetEdgeLength = averageEdgeLength;
+                double[][][] regularPolygons = new double[8][][];  // max face size is 8
+                for (int n = 0; n < regularPolygons.length; ++n) {
+                  double circumRadius = n<=1 ? -1. : targetEdgeLength / (2 * Math.sin(Math.PI / n));  // https://www.mathopenref.com/polygonradius.html
+                  System.out.println("          targetEdgeLength="+targetEdgeLength+" n="+n+" -> circumRadius="+circumRadius);
+                  regularPolygons[n] = new double[n][3];
+                  for (int i = 0; i < n; ++i) {
+                    regularPolygons[n][i][0] = Math.cos(2*Math.PI / n * i) * circumRadius;
+                    regularPolygons[n][i][1] = Math.sin(2*Math.PI / n * i) * circumRadius;
+                    regularPolygons[n][i][2] = 0.;
+                  }
+                }
+
+                double[][] newScratchVertCoords = new double[nVerts][3];  // scratch for loop
+                for (int iIter = 0; iIter < nIters; ++iIter)
+                {
+                  VecMath.zeromat(newScratchVertCoords);
+                  for (int iFace = 0; iFace < nFaces; ++iFace)
+                  {
+                    // Find procrustes rotation and translation that best-fits a regular polygon of the appropriate size to this face's verts.
+                    int gonality = f2v[iFace].length;
+                    double[][] targetRegularPolygon = bestFitRotatedAndTranslated(regularPolygons[gonality], get(scratchVertCoords, f2v[iFace]));
+                    // targetRegularPolygon is now the set of target points for the vertices of this face.
+                    for (int i = 0; i < gonality; ++i) {
+                      int iVert = f2v[iFace][i];
+                      VecMath.vpsxv(newScratchVertCoords[iVert], newScratchVertCoords[iVert], 1/3., targetRegularPolygon[i]);
+                    }
+                  }
+                  VecMath.copymat(scratchVertCoords, newScratchVertCoords);
+                }
+
+                // Ok, now we have scratchVertCoords, optimized.
+                // Can we re-make the polyhedron, using that?
+                // How?
+                // Well, let's try to find a best-fit plane through each face's verts.
+                // We can use the same code as above for finding a best-fit-regular polygon for a given face;
+                // then just take the plane through that polygon.
+                if (true)
+                {
+                    // Re-center vert-centroid of scratchVertCoords at origin
+                    double[] centroid = VecMath.average(scratchVertCoords);
+                    for (int iVert = 0; iVert < scratchVertCoords.length; ++iVert) {
+                        VecMath.vmv(scratchVertCoords[iVert], scratchVertCoords[iVert], centroid);
+                    }
+                }
+                double[][] newFaceNormals = new double[nFaces][3];
+                double[] newFaceOffsets = new double[nFaces];
+                for (int iFace = 0; iFace < nFaces; ++iFace) {
+                    int gonality = f2v[iFace].length;
+
+                    double[][] skewPolygon = get(scratchVertCoords, f2v[iFace]);
+                    double[] skewPolygonNormal = new double[3];
+                    for (int i = 0; i < skewPolygon.length-2; ++i) {
+                        VecMath.vpv(skewPolygonNormal,
+                                    skewPolygonNormal,
+                                    VecMath.crossprod(new double[][] {VecMath.vmv(skewPolygon[i+1], skewPolygon[0]),
+                                                                      VecMath.vmv(skewPolygon[i+2], skewPolygon[0])}));
+                    }
+                    VecMath.normalize(skewPolygonNormal, skewPolygonNormal);
+                    double skewPolygonOffset = VecMath.dot(skewPolygonNormal, skewPolygon[0]);
+                    if (skewPolygonOffset < 0.)
+                    {
+                        VecMath.vxs(skewPolygonNormal, skewPolygonNormal, -1.);
+                        skewPolygonOffset *= -1.;
+                    }
+
+                    double[][] targetRegularPolygon = bestFitRotatedAndTranslated(regularPolygons[gonality], skewPolygon);
+
+                    double[] newFaceNormal = new double[3];
+                    for (int i = 0; i < targetRegularPolygon.length-2; ++i)
+                    {
+                        VecMath.vpv(newFaceNormal,
+                                    newFaceNormal,
+                                    VecMath.crossprod(new double[][] {VecMath.vmv(targetRegularPolygon[i+1], targetRegularPolygon[0]),
+                                                                      VecMath.vmv(targetRegularPolygon[i+2], targetRegularPolygon[0])}));
+                    }
+                    VecMath.normalize(newFaceNormal, newFaceNormal);
+                    double newFaceOffset = VecMath.dot(newFaceNormal, targetRegularPolygon[0]);
+                    if (newFaceOffset < 0)
+                    {
+                        // make it face outward
+                        VecMath.vxs(newFaceNormal, newFaceNormal, -1.);
+                        newFaceOffset *= -1.;
+                    }
+
+                    newFaceNormals[iFace] = newFaceNormal;
+                    newFaceOffsets[iFace] = newFaceOffset;
+                }
+                //PRINTMAT(newFaceNormals);
+                //PRINTVEC(newFaceOffsets);
+
+
+                // XXX dup code. make a function out of this?  hmm.
+                answer = makeHypercube(3);  // unit in-radius
+                for (int iFace = 0; iFace < normalAndOffsetPairs.length; ++iFace) {
+                    double[] normal = newFaceNormals[iFace];
+                    double offset = newFaceOffsets[iFace];
+                    Hyperplane hyperplane = new Hyperplane(normal, offset);
+                    slice(answer,
+                          hyperplane,
+                          /*aux=*/null,
+                          returnBelow, /*returnBelowIndex=*/0,
+                          /*returnBelowCapFacet=*/null, /*returnAboveCapFacetIndex=*/-1,
+                          /*returnAboveCapFacet=*/null, /*returnAboveCapFacetIndex=*/-1,
+                          /*returnAbove=*/null, /*returnAboveIndex=*/-1);
+                    answer = returnBelow[0];
+                }
+                OUT("DONE ATTEMPTING TO REGULARIZE");
+                OUT("================================");
+                testProcrustes();
+            }  // regularize
+
+
+            return answer;
+        }  // makeFruchtPolyhedron
+
+        private static double[][] get(double[][] A, int inds[])
+        {
+            double[][] answer = new double[inds.length][inds.length==0 ? 0 : A[0].length];
+            for (int i = 0; i < inds.length; ++i) {
+                answer[i] = A[inds[i]];
+            }
+            return answer;
+        }
+        private static double[][] bestFitRotatedAndTranslated(double[][] A, double[][] B)
+        {
+            int n = A.length;
+            int dim = A[0].length;
+            assert(n == B.length);
+            assert(dim == B[0].length);
+            double[][] columnOrientedRotationAndTranslation = findColumnOrientedProcrustesRotationAndTranslation(A, B);
+            double[][] answer = new double[n][dim];
+            for (int i = 0; i < n; ++i) {
+                // XXX TODO: fix mxv so it takes a 4x4 homo matrix times a 3 vector.  currently it index-out-of-boundses.
+                //VecMath.mxv(answer[i], columnOrientedRotationAndTranslation, regularPolygon[i]);
+                VecMath.vxm(answer[i], A[i], VecMath.transpose(columnOrientedRotationAndTranslation));  // XXX ridiculously inefficient!
+            }
+            return answer;
+        }
+
+        // XXX TODO: put this in VecMath maybe
+        // find best fit homogeneous rotation and translation matrix that takes point cloud A to point cloud B.
+        // https://en.wikipedia.org/wiki/Procrustes_analysis
+        public static double[][] findColumnOrientedProcrustesRotationAndTranslation(double[][] A, double[][] B)
+        {
+          int n = A.length;
+          int dim = A[0].length;
+          assert(n == B.length);
+          assert(dim == B[0].length);
+          double[] Acentroid = VecMath.average(A);
+          double[] Bcentroid = VecMath.average(B);
+          double[][] crossCovarianceMatrix = new double[dim][dim];
+          double[] a = new double[dim]; // scratch;
+          double[] b = new double[dim]; // scratch;
+          double[][] oneOuterProduct = new double[dim][dim]; // scratch;
+          for (int i = 0; i < n; ++i) {
+            VecMath.vmv(a, A[i], Acentroid);
+            VecMath.vmv(b, B[i], Bcentroid);
+            VecMath.outerProduct(oneOuterProduct, a, b);
+            VecMath.mpm(crossCovarianceMatrix, crossCovarianceMatrix, oneOuterProduct);
+          }
+          // Compute the SVD.
+          // There's an algorithm based on eigendecomposition here: https://en.wikipedia.org/wiki/Singular_value_decomposition
+          // there's an algorithm (jama's I think) here: https://alvinalexander.com/java/jwarehouse/jama/SingularValueDecomposition.java.shtml
+          double[][] U = new double[dim][dim];  // LHS
+          double[] d = new double[dim];  // middle diagonal part
+          double[][] V = new double[dim][dim];  // transpose of RHS
+          VecMath.SVD(crossCovarianceMatrix, dim, dim, U, d, V, /*force_positive_rotations=*/true);
+          //PRINTMAT(U);
+          //PRINTVEC(d);
+          //PRINTMAT(V);
+          double[][] rotationPart = VecMath.mxtransposem(U, V);
+
+          // XXX FUDGE: this seems to make it come out right.  So evidently I have something backwards.
+          rotationPart = VecMath.transpose(rotationPart);
+
+          double[][] rotationAndTranslation = new double[dim+1][dim+1];  // zeros
+          for (int i = 0; i < dim; ++i) {
+            for (int j = 0; j < dim; ++j) {
+              rotationAndTranslation[i][j] = rotationPart[i][j];
+            }
+          }
+          //PRINTVEC(Acentroid);
+          //PRINTVEC(Bcentroid);
+          //PRINT(dim);
+          for (int i = 0; i < dim; ++i) {
+            rotationAndTranslation[i][dim] = Bcentroid[i] - Acentroid[i];
+          }
+          rotationAndTranslation[dim][dim] = 1.;
+          //PRINTMAT(rotationAndTranslation);
+          return rotationAndTranslation;
+        } // findColumnOrientedProcrustesRotationAndTranslation
+
+        public static void testProcrustes()
+        {
+            System.out.println("    in testProcrustes");
+            // square in xy plane
+            double A[][] = {
+                {1,0,0},
+                {0,1,0},
+                {-1,0,0},
+                {0,-1,0},
+            };
+            // square in xz plane, at y=3
+            double B[][] = {
+                {1,3,0},
+                {0,3,-1},
+                {-1,3,0},
+                {0,3,1},
+            };
+            PRINTMAT(A);
+            PRINTMAT(B);
+            // xform should be:
+            //  rotate 90 around x axis (i.e. y goes to z)
+            //  translate by 0,3,0
+            // that is:
+            //  1  0  0  0
+            //  0  0 -1  3
+            //  0  1  0  0
+            //  0  0  0  1
+            double[][] xform = findColumnOrientedProcrustesRotationAndTranslation(A, B);
+            PRINTMAT(xform);
+            double[][] Axformed = bestFitRotatedAndTranslated(A, B);
+            PRINTMAT(Axformed);
+            assert(VecMath.equals(Axformed, B, 1e-12));
+            System.out.println("    out testProcrustes");
+        } // testProcrustes
 
         public static SPolytope makeGrandAntiprism()
         {
