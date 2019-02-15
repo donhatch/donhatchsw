@@ -3360,8 +3360,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         VecMath.mpm(crossCovarianceMatrix, crossCovarianceMatrix, oneOuterProduct);
       }
       // Compute the SVD.
-      // There's an algorithm based on eigendecomposition here: https://en.wikipedia.org/wiki/Singular_value_decomposition
-      // there's an algorithm (jama's I think) here: https://alvinalexander.com/java/jwarehouse/jama/SingularValueDecomposition.java.shtml
       double[][] U = new double[dim][dim];  // LHS
       double[] d = new double[dim];  // middle diagonal part
       double[][] V = new double[dim][dim];  // transpose of RHS
