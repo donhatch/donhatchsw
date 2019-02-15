@@ -3393,9 +3393,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             double detV = det(V);
             assert(EQ(Math.abs(detU), 1., 1e-12));
             assert(EQ(Math.abs(detV), 1., 1e-12));
-            PRINTVEC(d);
-            PRINT(detU);
-            PRINT(detV);
             if (detU < 0. || detV < 0.) {
                 if (detU < 0. && detV < 0.) {
                     // Both U and V are reflections.
@@ -3411,12 +3408,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 } else if (detU < 0.) {
                     //if (force_positive_rotations) {  // XXX tolerance? in which case would we force it to 0 rather than negating?
                     if (force_positive_rotations || d[d.length-1] == 0.) {  // XXX tolerance? in which case would we force it to 0 rather than negating?
-                        PRINTVEC(d);
-                        // I *think* this can happen only if there's a sv that's effectively 0.
-                        // That's the only way it can be possible to negate only one of U,V but not the other, without messing up overall determinant.
-                        // XXX woops! not true.  it can happen if in fact the original had negative determinant.
-                        PRINTVEC(d);
-                        //assert(EQ(d[d.length-1], 0., 1e-12));
                         for (int iRow = 0; iRow < U.length; ++iRow) {
                             U[iRow][U[iRow].length-1] *= -1.;
                         }
@@ -3427,12 +3418,6 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 } else if (detV < 0.) {
                     //if (force_positive_rotations) {  // XXX tolerance? in which case would we force it to 0 rather than negating?
                     if (force_positive_rotations || d[d.length-1] == 0.) {  // XXX tolerance? in which case would we force it to 0 rather than negating?
-                        PRINTVEC(d);
-                        // I *think* this can happen only if there's a sv that's effectively 0.
-                        // That's the only way it can be possible to negate only one of U,V but not the other, without messing up overall determinant.
-                        // XXX woops! not true.  it can happen if in fact the original had negative determinant.
-                        PRINTVEC(d);
-                        //assert(EQ(d[d.length-1], 0., 1e-12));
                         for (int iRow = 0; iRow < V.length; ++iRow) {
                             V[iRow][V[iRow].length-1] *= -1.;
                         }
@@ -5761,6 +5746,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 System.out.println("          ----------------------");
             }
         }
+
         System.out.println("END SVDCMP TEST");
         System.out.println("============================================");
     } // svdcmpTest
