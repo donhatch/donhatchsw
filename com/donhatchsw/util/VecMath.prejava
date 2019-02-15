@@ -3339,12 +3339,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** Polish results of svdcmp:
     * - put singular values in order of decreasing magnitude
     * - make sure both U and V have positive determinant.
-    #   If not, adjust (XXX possibly by negating the smallest singular value? possibly by swapping columns? possibly by negating a column? have to think)
+    *   If not, adjust (XXX possibly by negating the smallest singular value? possibly by swapping columns? possibly by negating a column? have to think)
     */
     public static void svdcmpPolish(double[][] U, int m, int n, double d[], double V[][], boolean force_positive_rotations)
     {
         assert(d.length == Math.min(m, n));
-        assert(m == n);  // XXX haven't thought about non-square case
+        assert(m == n);  // TODO: haven't thought about non-square case, yet.
         {
             int[] order = identityperm(d.length);
             SortStuff.sort(order, new SortStuff.IntComparator() {
@@ -3392,9 +3392,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 if (detU < 0. && detV < 0.) {
                     // Both U and V are reflections.
                     // This happens sometimes, even if all SVs were positive, distinct, and in order.
-                    // XXX or does it? did we gratuitously reverse sign of both U and V?  yeah, I think so.
+                    // XXX or does it? didn't we gratuitously reverse sign of both U and V?  yeah, I think so, oh well.
                     // It can be fixed by simply negating the last column of each.
-                    // (XXX does this work?? seems like it should, since minus an eigenvector is still an eigenvector with the same eigenvalue... but seems like it might alter the product, which would be bad. think about it)
                     for (int iRow = 0; iRow < U.length; ++iRow) {
                         U[iRow][U[iRow].length-1] *= -1.;
                     }
@@ -3402,7 +3401,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         V[iRow][V[iRow].length-1] *= -1.;
                     }
                 } else if (detU < 0.) {
-                    if (force_positive_rotations) {
+                    //if (force_positive_rotations) {  // XXX tolerance? in which case would we force it to 0 rather than negating?
+                    if (force_positive_rotations || d[d.length-1] == 0.) {  // XXX tolerance? in which case would we force it to 0 rather than negating?
                         PRINTVEC(d);
                         // I *think* this can happen only if there's a sv that's effectively 0.
                         // That's the only way it can be possible to negate only one of U,V but not the other, without messing up overall determinant.
@@ -3417,14 +3417,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         // XXX I'm conflicted here.  on one hand, this is the way to make the product come out right.  on the other hand, it can introduce an actually slightly negative sv, when in fact the original didn't have any
                     }
                 } else if (detV < 0.) {
-                    if (force_positive_rotations) {
+                    //if (force_positive_rotations) {  // XXX tolerance? in which case would we force it to 0 rather than negating?
+                    if (force_positive_rotations || d[d.length-1] == 0.) {  // XXX tolerance? in which case would we force it to 0 rather than negating?
                         PRINTVEC(d);
                         // I *think* this can happen only if there's a sv that's effectively 0.
                         // That's the only way it can be possible to negate only one of U,V but not the other, without messing up overall determinant.
                         // XXX woops! not true.  it can happen if in fact the original had negative determinant.
                         PRINTVEC(d);
                         //assert(EQ(d[d.length-1], 0., 1e-12));
-                        for (int iRow = 0; iRow < U.length; ++iRow) {
+                        for (int iRow = 0; iRow < V.length; ++iRow) {
                             V[iRow][V[iRow].length-1] *= -1.;
                         }
                         //d[d.length-1] = 0.;  // make it exact
@@ -3436,7 +3437,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             detU = det(U);
             detV = det(V);
             assert(detU > 0. || detV > 0.);  // not both negative, or we would have fixed
-            if (force_positive_rotations) {
+            if (force_positive_rotations || (d.length >= 1 && d[d.length-1] == 0.)) {
                 assert(EQ(detU, 1., 1e-12));
                 assert(EQ(detV, 1., 1e-12));
             }
@@ -5597,6 +5598,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
     public static void svdcmpTest(int mindim, int maxdim)
     {
+        // TODO: (implement and) test non-square matrices
         System.out.println("============================================");
         System.out.println("SVDCMP TEST");
         System.out.println("  dims "+mindim+".."+maxdim+"");
@@ -5662,7 +5664,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
                 for (int iForcePositiveRotations = 0; iForcePositiveRotations < 2; ++iForcePositiveRotations)
                 {
-                    boolean force_positive_rotations = true;  // XXX TODO: test false too
+                    boolean force_positive_rotations = iForcePositiveRotations==1;
                     System.out.println("          force_positive_rotations = "+force_positive_rotations);
 
                     // CBB: don't need to do this twice; the only reason we're doing it twice is that svdcmpPolish wiped out the previous result.  should make copies of them instead of recomputing
@@ -5722,10 +5724,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         // And that it's canonical, too.
 
                         // Uniqueness is not guaranteed.  But do assert some stuff.
-                        // The svs should be in canonical order (nonincreasing magnitude) and at most the last one negative; i.e. they should agree with the original D, which was of that form
+                        // If force_positive_rotations, then:
+                        //   the sv's should be in canonical order (nonincreasing magnitude) and at most the last one negative;
+                        //   i.e. they should agree with the original D, which was of that form.
+                        // If not force_positive_rotations, then:
+                        //   the sv's should be all non-negative, and det of U or V (but not both) is allowed to be -1 (unless some answer sv was 0,
+                        //   in which case the implementation is expected to fix it, since it can do that without violating non-negativeness of svs)
                         assert(shouldBeDvector.length == D.length);
                         for (int i = 0; i < D.length; ++i) {
-                            if (force_positive_rotations) {
+                            if (force_positive_rotations || shouldBeDvector[dim-1] == 0.) {
                                 // when conflict, it forced positive rotation at the expense of possibly negating an sv...
                                 // which is how we set up the problem originally, so the sv's will match ours exactly.
                                 // which means it'll agree with our original sv.
@@ -5736,7 +5743,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                             }
                         }
 
-                        if (force_positive_rotations) {
+                        if (force_positive_rotations || (dim >= 1 && shouldBeDvector[dim-1] == 0.)) {  // have to test shouldBeDvector, *not* D, since the implementation refrains when it doesn't realize it's exactly 0
                             assert(det(shouldBeU) > 0.);  // i.e. it's 1
                             assert(det(shouldBeV) > 0.);  // i.e. it's 1
                         }
