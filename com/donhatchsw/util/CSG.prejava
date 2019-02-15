@@ -2583,25 +2583,14 @@ public final class CSG
             }
             return answer;
         }
-        private static double[][] bestFitRotatedAndTranslated(double[][] A, double[][] B)
-        {
-            int n = A.length;
-            int dim = A[0].length;
-            assert(n == B.length);
-            assert(dim == B[0].length);
-            double[][] columnOrientedRotationAndTranslation = findColumnOrientedProcrustesRotationAndTranslation(A, B);
-            double[][] answer = new double[n][dim];
-            for (int i = 0; i < n; ++i) {
-                // XXX TODO: fix mxv so it takes a 4x4 homo matrix times a 3 vector.  currently it index-out-of-boundses.
-                //VecMath.mxv(answer[i], columnOrientedRotationAndTranslation, regularPolygon[i]);
-                VecMath.vxm(answer[i], A[i], VecMath.transpose(columnOrientedRotationAndTranslation));  // XXX ridiculously inefficient!
-            }
-            return answer;
-        }
 
-        // XXX TODO: put this in VecMath maybe
-        // find best fit homogeneous rotation and translation matrix that takes point cloud A to point cloud B.
-        // https://en.wikipedia.org/wiki/Procrustes_analysis
+
+        /** Find the best fit column-oriented homogeneous rotation and translation matrix
+        * that takes point cloud A to point cloud B.  The translation part matches the centroids,
+        * and the rotation part is the procrustes rotation.  This is used by the more convenient
+        * {@link #bestFitRotatedAndTranslated}.
+        * See https://en.wikipedia.org/wiki/Procrustes_analysis .
+        */
         public static double[][] findColumnOrientedProcrustesRotationAndTranslation(double[][] A, double[][] B)
         {
           int n = A.length;
@@ -2627,9 +2616,6 @@ public final class CSG
           double[] d = new double[dim];  // middle diagonal part
           double[][] V = new double[dim][dim];  // transpose of RHS
           VecMath.SVD(crossCovarianceMatrix, dim, dim, U, d, V, /*force_positive_rotations=*/true);
-          //PRINTMAT(U);
-          //PRINTVEC(d);
-          //PRINTMAT(V);
           double[][] rotationPart = VecMath.mxtransposem(U, V);
 
           // XXX FUDGE: this seems to make it come out right.  So evidently I have something backwards.
@@ -2641,20 +2627,44 @@ public final class CSG
               rotationAndTranslation[i][j] = rotationPart[i][j];
             }
           }
-          //PRINTVEC(Acentroid);
-          //PRINTVEC(Bcentroid);
-          //PRINT(dim);
           for (int i = 0; i < dim; ++i) {
             rotationAndTranslation[i][dim] = Bcentroid[i] - Acentroid[i];
           }
           rotationAndTranslation[dim][dim] = 1.;
-          //PRINTMAT(rotationAndTranslation);
           return rotationAndTranslation;
         } // findColumnOrientedProcrustesRotationAndTranslation
+
+        /** Returns point cloud A rotated and translated so that it matches point cloud B
+        * as closely as possible, by matching centers and using a procrustes rotation.
+        * See https://en.wikipedia.org/wiki/Procrustes_analysis .
+        */
+        private static double[][] bestFitRotatedAndTranslated(double[][] A, double[][] B)
+        {
+            int n = A.length;
+            int dim = A[0].length;
+            assert(n == B.length);
+            assert(dim == B[0].length);
+            double[][] columnOrientedRotationAndTranslation = findColumnOrientedProcrustesRotationAndTranslation(A, B);
+            double[][] answer = new double[n][dim];
+            if (false) {
+                // XXX TODO: this doesn't work! need to fix mxv so it allows a 4x4 homo matrix times a 3 vector.  currently it index-out-of-boundses.
+                for (int i = 0; i < n; ++i) {
+                    VecMath.mxv(answer[i], columnOrientedRotationAndTranslation, A[i]);
+                }
+            } else {
+                // for now
+                double[][] rowOrientedRotationAndTranslation = VecMath.transpose(columnOrientedRotationAndTranslation);
+                for (int i = 0; i < n; ++i) {
+                  VecMath.vxm(answer[i], A[i], rowOrientedRotationAndTranslation);
+                }
+            }
+            return answer;
+        }
 
         public static void testProcrustes()
         {
             System.out.println("    in testProcrustes");
+            // Very minimal test of bestFitRotatedAndTranslated.  It seems to work.
             // square in xy plane
             double A[][] = {
                 {1,0,0},
@@ -2686,6 +2696,7 @@ public final class CSG
             assert(VecMath.equals(Axformed, B, 1e-12));
             System.out.println("    out testProcrustes");
         } // testProcrustes
+
 
         public static SPolytope makeGrandAntiprism()
         {
