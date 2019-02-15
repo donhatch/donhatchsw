@@ -280,6 +280,8 @@ public class GenericGlue
           {"        {10}x{} Decagonal prism",    "1,2,3,4,5"},
           {"        {11}x{} Hendecagonal prism", "1,2,3,4,5"},
           {"        {12}x{} Dodecagonal prism",  "1,2,3,4,5"},
+          {"    3d highly irregular"},
+          {"        Frucht",    "1,3(4.0),5(7.0),7(10.0),9(13.0)"},
           {"4d puzzles"},
           {"    4d regular"},
           {"        {3,3,3} Simplex (5-cell)",          "1,3(5.0),5(9.0),7(13.0)"},
@@ -365,7 +367,7 @@ public class GenericGlue
           {"            (1)-5-(0)---(1)---(1) Runcitruncated 600-cell",         "1"}, // vertex figure not simplex
           {"            (0)-5-(1)---(1)---(1) Cantitruncated 600-cell",         "1,3"},
           {"            (1)-5-(1)---(1)---(1) Omnitruncated 120-cell/600-cell", "1,3"},
-          {"    4d uniform anomolous"},
+          {"    4d uniform anomalous"},
           {"        Grand Antiprism", "1"},
           {"    3d regular x 1d  hyperprisms"},
           {"        {3,3}x{} Tetrahedral prism",                "1,3(5.0),5(9.0),7(13.0)"},
