@@ -1127,12 +1127,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int i, vLen = v.length;
         FOR (i, vLen)
             vpsxv(result, result, v[i], m[i]);
-        // if v is short, pad it with 1's
+        // if v is short, pretend it's padded with 1's
         for (; i < m.length; ++i)
             vpv(result, result, m[i]);
     } // vxm double
 
-    // XXX duplicate code above
+    // XXX duplicate code above and below
     /** row vector times matrix */
     public static void vxm(float result[], float v[], float m[][])
     {
@@ -1142,7 +1142,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int i, j;
         FOR (i, vLen)
             vpsxv(result, result, v[i], m[i]);
-        // if v is short, pad it with 1's
+        // if v is short, pretend it's padded with 1's
         for (; i < m.length; ++i)
             vpv(result, result, m[i]);
     } // vxm float
@@ -1157,7 +1157,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int i, j;
         FOR (i, vLen)
             vpsxv(result, result, v[i], m[i]);
-        // if v is short, pad it with 1's
+        // if v is short, pretend it's padded with 1's
         for (; i < m.length; ++i)
             vpv(result, result, m[i]);
     } // vxm int
@@ -1248,6 +1248,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             vxm(result[i], m0[i], m1);
     } // mxm
 
+    // XXX duplicate code below
     /** matrix times column vector */
     public static void mxv(double result[], double m[][], double v[])
     {
@@ -1255,20 +1256,26 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int nRows = m.length;
         if (nRows == 0)
             return;
-        int nCols = v.length; // = m[0].length
+        int nCols = m[0].length;
+        assert(v.length <= nCols);
         int i, j;
-        // XXX convert to FORIDOWN if appropriate; I didn't think about it for too long
-        FOR (i, nRows)
+        FOR (i, result.length)
         {
             double m_i[] = m[i];
             double sum = (double)0;
-            FOR (j, nCols)
+            FOR (j, v.length)
             {
                 sum += m_i[j] * v[j];
+            }
+            // if v is short, pretend it's padded with 1's
+            for (; j < nCols; ++j)
+            {
+                sum += m_i[j];
             }
             result[i] = sum;
         }
     }
+    // XXX duplicate code below and above
     /** matrix times column vector */
     public static void mxv(float result[], float m[][], float v[])
     {
@@ -1276,20 +1283,26 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int nRows = m.length;
         if (nRows == 0)
             return;
-        int nCols = v.length; // = m[0].length
+        int nCols = m[0].length;
+        assert(v.length <= nCols);
         int i, j;
-        // XXX convert to FORIDOWN if appropriate; I didn't think about it for too long
         FOR (i, nRows)
         {
             float m_i[] = m[i];
             float sum = (float)0;
-            FOR (j, nCols)
+            FOR (j, v.length)
             {
                 sum += m_i[j] * v[j];
+            }
+            // if v is short, pretend it's padded with 1's
+            for (; j < nCols; ++j)
+            {
+                sum += m_i[j];
             }
             result[i] = sum;
         }
     }
+    // XXX duplicate code above
     /** matrix times column vector */
     public static void mxv(int result[], int m[][], int v[])
     {
@@ -1297,16 +1310,21 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int nRows = m.length;
         if (nRows == 0)
             return;
-        int nCols = v.length; // = m[0].length
+        int nCols = m[0].length;
+        assert(v.length <= nCols);
         int i, j;
-        // XXX convert to FORIDOWN if appropriate; I didn't think about it for too long
         FOR (i, nRows)
         {
             int m_i[] = m[i];
             int sum = (int)0;
-            FOR (j, nCols)
+            FOR (j, v.length)
             {
                 sum += m_i[j] * v[j];
+            }
+            // if v is short, pretend it's padded with 1's
+            for (; j < nCols; ++j)
+            {
+                sum += m_i[j];
             }
             result[i] = sum;
         }
@@ -3394,17 +3412,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         assert(dim == B[0].length);
         double[][] columnOrientedRotationAndTranslation = findColumnOrientedProcrustesRotationAndTranslation(A, B);
         double[][] answer = new double[n][dim];
-        if (false) {
-            // XXX TODO: this doesn't work! need to fix mxv so it allows a 4x4 homo matrix times a 3 vector.  currently it index-out-of-boundses.
-            for (int i = 0; i < n; ++i) {
-                VecMath.mxv(answer[i], columnOrientedRotationAndTranslation, A[i]);
-            }
-        } else {
-            // for now
-            double[][] rowOrientedRotationAndTranslation = VecMath.transpose(columnOrientedRotationAndTranslation);
-            for (int i = 0; i < n; ++i) {
-              VecMath.vxm(answer[i], A[i], rowOrientedRotationAndTranslation);
-            }
+        for (int i = 0; i < n; ++i) {
+            VecMath.mxv(answer[i], columnOrientedRotationAndTranslation, A[i]);
         }
         return answer;
     }
