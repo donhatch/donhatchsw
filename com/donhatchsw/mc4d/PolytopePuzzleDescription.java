@@ -148,6 +148,7 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - make && java -jar donhatchsw.jar puzzleDescription="Fruity 3(9)" shouldn't require such a shallow cut specification!  isn't it supposed to be using the edge that would give the shallowest cut?
         - `java -jar donhatchsw.jar puzzleDescription='{4,3} 2,3,4'`, twisting gives Assertion failure: "Assert(whereIstickerGoes != null);", 	at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:2402)
         - >=5 dimensional puzzles on command line non-gracefully excepts
         - ctrl-alt-space for debugging... doesn't stop things any more?? (does for rotates, not for twists)

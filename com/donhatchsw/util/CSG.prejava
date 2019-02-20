@@ -1796,6 +1796,14 @@ public final class CSG
                 // Hack to smuggle a Frucht: {7,0}
                 return makeFruchtPolyhedron();
             }
+            if (schlafli.length == 3
+             && schlafli[0] == 7
+             && schlafli[1] == 0
+             && schlafli[2] == 0)
+            {
+                // Hack to smuggle a fruity polychoron: {7,0,0}
+                return makeFruityPolychoron();
+            }
 
             if (!isLegalSchlafli(schlafli, schlafliDenoms))
             {
@@ -2186,6 +2194,9 @@ public final class CSG
             // Similarly for frucht, smuggle it in as {7,0}.
             s = regex.replaceAll(s, "[Ff]rucht", "{7,0}");
 
+            // Similarly for fruity, smuggle it in as {7,0,0}.
+            s = regex.replaceAll(s, "[Ff]ruity", "{7,0,0}");
+
             String factors[] = regex.split(s.trim(), "[x*]");
             int schlaflis[][] = new int[factors.length][];
             int schlafliDenomss[][] = new int[factors.length][];
@@ -2290,6 +2301,38 @@ public final class CSG
             return new Object[][]{schlaflis, schlafliDenomss, wythoffs};
         } // makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString
 
+
+        public static SPolytope makeFruityPolychoron()
+        {
+          // Make the simplest asymmetric tetravalent polychoron.
+          double[][] normalAndOffsetPairs = new double[][] {
+            {-1,0,0,0,1},
+            {1,0,0,0,1},
+            {-.25,-1,0,-.25,.25},
+            {-.25,1,0,-.25,.25},
+            {.25,0,-1,-.25,.25},
+            {.25,0,1,-.25,.25},
+            ///* 6 */ {0,0,0,-1,1},  // omit the one towards the center (not that it matters, the bounding hypercube bounds it anyway)
+            {1,1,1,1,2.75},  // truncate one vertex incident on the cube
+          };
+          // XXX make a function out of this?  hmm.
+          SPolytope answer = makeHypercube(4);  // unit in-radius
+          SPolytope[] returnBelow = new SPolytope[1];
+          for (int i = 0; i < normalAndOffsetPairs.length; ++i) {
+              double[] normal = (double[])Arrays.subarray(normalAndOffsetPairs[i], 0, 4);
+              double offset = normalAndOffsetPairs[i][4] * .25;
+              Hyperplane hyperplane = new Hyperplane(normal, offset);
+              slice(answer,
+                    hyperplane,
+                    /*aux=*/null,
+                    returnBelow, /*returnBelowIndex=*/0,
+                    /*returnBelowCapFacet=*/null, /*returnAboveCapFacetIndex=*/-1,
+                    /*returnAboveCapFacet=*/null, /*returnAboveCapFacetIndex=*/-1,
+                    /*returnAbove=*/null, /*returnAboveIndex=*/-1);
+              answer = returnBelow[0];
+          }
+          return answer;
+        }
 
         public static SPolytope makeFruchtPolyhedron()
         {

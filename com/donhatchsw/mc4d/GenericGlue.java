@@ -417,6 +417,8 @@ public class GenericGlue
           {"        {5}x{10}",                                  "1,3(2.5),3"},
           {"        {10}x{5}",                                  "1,3(2.5),3"},
           {"        {10}x{10}",                                 "1,3(2.5),3"},
+          {"    4d highly irregular"},
+          {"        Fruity (work in progress)",    "1,3(9.0)"},
           {"5d puzzles"},
           {"    {3,3,3,3} Simplex",        "1,3(6.0),5(11.0)"},
           {"    {4,3,3,3} Hypercube",      "1,2,3,4,5"},
