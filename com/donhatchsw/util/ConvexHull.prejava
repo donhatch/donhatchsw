@@ -39,7 +39,8 @@ public class ConvexHull
     *      {{1,0},{1,0},{1,0}}}  // and the 0 below it says facet 1 occurs at index 0 in facet 0's neighbors
     * </pre>
     * <p>
-    * WARNING: no attempt is made to correct topological faults
+    * WARNING: no attempt is made to correct topological faults.
+    * WARNING: assumes general position.  It'll work otherwise only if you're lucky.
     */
     public static int[/*3*/][][/*d*/] convexHull(double verts[][/*d*/],
                                                  double tol)
@@ -1127,6 +1128,30 @@ public class ConvexHull
     */
     public static void main(String args[])
     {
+        if (true)
+        {
+            // See what a 4d cross polytope goes through.
+            double[][] allVerts = {
+                {1,0,0,0},
+                {0,1,0,0},
+                {0,0,1,0},
+                {0,0,0,1},
+                {-1,0,0,0},
+                {0,-1,0,0},
+                {0,0,-1,0},
+                {0,0,0,-1},
+            };
+            for (int nVerts = 5; nVerts <= allVerts.length; ++nVerts) {
+                System.out.println("  nVerts = "+nVerts);
+                double[][] verts = (double[][])Arrays.subarray(allVerts, 0, nVerts);
+                testTheseVerts(4, verts);
+            }
+            if (false)
+            {
+                System.err.println("EXITING EARLY");
+                System.exit(33);
+            }
+        }
         if (true)
         {
             // this was failing at one time.
