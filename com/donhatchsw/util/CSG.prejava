@@ -2331,6 +2331,7 @@ public final class CSG
                     /*returnAbove=*/null, /*returnAboveIndex=*/-1);
               answer = returnBelow[0];
           }
+          // TODO: optimize, like for makeFruchtPolyhedron.
           return answer;
         }
 
@@ -2533,6 +2534,276 @@ public final class CSG
                   VecMath.copymat(scratchVertCoords, newScratchVertCoords);
                 }
 
+                if (false) {
+                  OUT("================================");
+                  OUT("ATTEMPTING TO ANSWER OSKAR'S QUESTION");
+                  int edges[][] = new int[18+2][2];
+                  assert(allIncidences[1].length == 18);
+                  for (int iEdge = 0; iEdge < allIncidences[1].length; ++iEdge) {
+                    assert(allIncidences[1][iEdge][0].length == 2);
+                    int iVert = allIncidences[1][iEdge][0][0];
+                    int jVert = allIncidences[1][iEdge][0][1];
+                    edges[iEdge][0] = iVert;
+                    edges[iEdge][1] = jVert;
+                  }
+                  // Find index of the quad face.
+                  int theQuadFaceIndex = -1;
+                  for (int iFace = 0; iFace < allIncidences[2].length; ++iFace) {
+                    if (allIncidences[2][iFace][1].length == 4) {
+                      assert(theQuadFaceIndex == -1);
+                      theQuadFaceIndex = iFace;
+                    }
+                  }
+                  assert(theQuadFaceIndex != -1);
+                  // Find the quad face vertices in order...
+                  int quadVerts[] = VecMath.copyvec(allIncidences[2][theQuadFaceIndex][0]);
+                  assert(quadVerts.length == 4);
+                  // Which quad face vert is *not* incident on its vert 0?
+                  int vert0 = quadVerts[0];
+                  int oppositeVert0Index = -1;
+                  for (int i = 1; i < 4; ++i) {
+                    int maybeOppositeVert0 = quadVerts[i];
+                    boolean theEdgeExists = false;
+                    for (int iEdge = 0; iEdge < 18; ++iEdge) { // not including the two we haven't added yet
+                      if ((edges[iEdge][0] == vert0 && edges[iEdge][1] == maybeOppositeVert0)
+                       || (edges[iEdge][1] == vert0 && edges[iEdge][0] == maybeOppositeVert0))
+                      {
+                         theEdgeExists = true;
+                         break;
+                      }
+                    }
+                    if (!theEdgeExists) {
+                      assert(oppositeVert0Index == -1);
+                      oppositeVert0Index = i;
+                    }
+                  }
+                  assert(oppositeVert0Index != -1);
+                  int temp;
+                  PRINTARRAY(quadVerts);
+                  SWAP(quadVerts[2], quadVerts[oppositeVert0Index], temp);
+                  PRINTARRAY(quadVerts);
+                  // These two edges want to have length sqrt(2)
+                  edges[18][0] = quadVerts[0];
+                  edges[18][1] = quadVerts[2];
+                  edges[19][0] = quadVerts[1];
+                  edges[19][1] = quadVerts[3];
+
+                  int nItersEdgeSprings = 10000;
+                  int[] weights = new int[nVerts];  // scratch for loop
+                  for (int iIter = 0; iIter < nItersEdgeSprings; ++iIter) {
+                    // Move each vert to the average of where its edge springs want to go...
+                    VecMath.zeromat(newScratchVertCoords);
+                    VecMath.zerovec(weights);
+                    assert(edges.length == 18+2);
+                    int nEdgesToEnforce = edges.length;
+                    //int nEdgesToEnforce = 18;  // all but the square diagonals
+                    for (int iEdge = 0; iEdge < nEdgesToEnforce; ++iEdge)
+                    {
+                      int i0 = edges[iEdge][0];
+                      int i1 = edges[iEdge][1];
+                      double desiredEdgeLength = (iEdge<18 ? 1. : Math.sqrt(2.));
+                      double currentEdgeLength = VecMath.dist(scratchVertCoords[i0], scratchVertCoords[i1]);
+                      double[] edgeCenter = VecMath.lerp(scratchVertCoords[i0], scratchVertCoords[i1], .5);
+                      assert(currentEdgeLength != 0.);
+                      double target0[] = VecMath.lerp(edgeCenter, scratchVertCoords[i0], desiredEdgeLength/currentEdgeLength);
+                      double target1[] = VecMath.lerp(edgeCenter, scratchVertCoords[i1], desiredEdgeLength/currentEdgeLength);
+                      VecMath.vpv(newScratchVertCoords[i0], newScratchVertCoords[i0], target0);
+                      VecMath.vpv(newScratchVertCoords[i1], newScratchVertCoords[i1], target1);
+                      weights[i0]++;
+                      weights[i1]++;
+                    }
+                    for (int iVert = 0; iVert < nVerts; ++iVert) {
+                      if (weights[iVert] == 0) {
+                        VecMath.copyvec(newScratchVertCoords[iVert], scratchVertCoords[iVert]);
+                      } else {
+                        VecMath.vxs(newScratchVertCoords[iVert], newScratchVertCoords[iVert], 1./weights[iVert]);
+                      }
+                    }
+                    //PRINTMAT(newScratchVertCoords);
+                    VecMath.copymat(scratchVertCoords, newScratchVertCoords);
+
+                    {
+                      // print edge lengths before normalizing
+                      double edgeLengths[] = new double[edges.length];
+                      for (int iEdge = 0; iEdge < edges.length; ++iEdge) {
+                        edgeLengths[iEdge] = VecMath.dist(scratchVertCoords[edges[iEdge][0]], scratchVertCoords[edges[iEdge][1]]);
+                      }
+                      PRINTVEC(edgeLengths);
+                    }
+
+                    // And project to average-radius sphere.
+                    {
+                      double radiusSum = 0.;
+                      for (int i = 0; i < scratchVertCoords.length; ++i) {
+                        radiusSum += VecMath.norm(scratchVertCoords[i]);
+                      }
+                      double radiusAvg = radiusSum / scratchVertCoords.length;
+
+                      if (false) 
+                      {
+                        // see if we can make it converge to anything other than 1.1529514113610924.
+                        // Yes, we can:
+                        // If I use the LHS for first half, then relax, I get the following.
+                        //    1.2 -> 1.1603250494151354
+                        //    1.56 -> 1.1588165925160983
+                        //    1.75 -> 1.1551804712278597
+                        //    1.6 -> 1.1520790557486702
+                        //    2 -> 1.4155905092142513
+                        //    3 -> 2.8204609090536152  (but starts to be inside out)
+                        //    4 -> 3.8895526737549204
+                        //    5 -> 4.914543779458654
+                        // hmm, but the large numbers end up looking all tangled.
+                        // hmm, behavior is rather confusing.
+                        if (iIter < nIters/2) {
+                          //radiusAvg = 2.5; // inside out
+                          radiusAvg = 2.45;
+                          //radiusAvg = 2.4;
+                          //radiusAvg = 2.3;
+                          //radiusAvg = 2.25;
+                          //radiusAvg = 2;  // inside out
+                          //radiusAvg = 1.9;
+                          //radiusAvg = 1.75;
+                          //radiusAvg = 1.6; // starting to reverse.  Hmm, that's no good.
+                          //radiusAvg = 1.58; // starting to reverse
+                          //radiusAvg = 1.57; // starting to reverse
+                          //radiusAvg = 1.56; // looks almost straight  (if we only do this to halfway and then let it snap back, it's not the final target)
+                          //radiusAvg = 1.55; // good, barely
+                          //radiusAvg = 1.5; // good, but looking very stretched
+                          //radiusAvg = 1.25;  // good.  but can't get it to that exactly (using halfway) nor snapping, hmm.
+                          //radiusAvg = 1.16;
+                          //radiusAvg = 1.1588165925160983;
+                          //radiusAvg = 1.14;
+                          //radiusAvg = 1.1;
+                          //radiusAvg = 1.;
+                        }
+                      }
+                      PRINT(radiusAvg);
+                      if (false)
+                      {
+                        // (Hmm,  this converged to something different in general-- abandoning for now :-( )
+
+                        // Let's try something more graceful.
+                        // 0..1/3: let it relax
+                        // 1/3..2/3: nudge it towards target
+                        // 2/3..1: keep it at target.
+
+                        //double target = 3;
+                        //double target = 2;  // snaps to the side
+                        double target = 1.56;
+                        //double target = 1.2;  // no good, it can't get there!
+                        //double target = 1.17; // nope, can't get there
+                        //double target = 1.16;  // fine
+                        //double target = 1.1588165925160983;  // fine
+
+                        if (iIter < nIters*1/3) {
+                          // nothing
+                        } else if (iIter < nIters*2/3) {
+                          radiusAvg = LERP(radiusAvg, target, (iIter - nIters*1/3)/(double)(nIters*2/3-nIters*1/3));
+                        } else {
+                          radiusAvg = target;
+                        }
+                      }
+                      PRINT(radiusAvg);
+
+                      for (int i = 0; i < scratchVertCoords.length; ++i) {
+                        VecMath.vxs(scratchVertCoords[i], scratchVertCoords[i], radiusAvg / VecMath.norm(scratchVertCoords[i]));
+                      }
+                    }
+                    {
+                      // print edge lengths after normalizing
+                      double edgeLengths[] = new double[edges.length];
+                      for (int iEdge = 0; iEdge < edges.length; ++iEdge) {
+                        edgeLengths[iEdge] = VecMath.dist(scratchVertCoords[edges[iEdge][0]], scratchVertCoords[edges[iEdge][1]]);
+                      }
+                      PRINTVEC(edgeLengths);
+                    }
+                    {
+                      // and print radii
+                      double radii[] = new double[scratchVertCoords.length];
+                      for (int i = 0; i < scratchVertCoords.length; ++i)
+                      {
+                        radii[i] = VecMath.norm(scratchVertCoords[i]);
+                      }
+                      PRINTVEC(radii);
+                    }
+                  }
+                  PRINTMAT(scratchVertCoords);
+                  PRINTARRAY(edges);
+
+                  // Print a quick svg of it
+                  /*
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" width="224pt" height="214pt" viewBox="0.00 0.00 224.00 214.00">
+<g style="fill:none;stroke:#000000" transform="translate(0,0)">
+<path d="M 208,-97 C 204,-86 195,-60 192,-48" />
+<path d="M 82,-200 C 94,-200 121,-200 133,-200" />
+<path d="M 9,-107 C 21,-123 61,-179 73,-196" />
+<path d="M 8,-97 C 11,-86 20,-60 23,-48" />
+<path d="M 134,-8 C 115,-14 49,-35 30,-41" />
+<path d="M 185,-40 C 176,-32 153,-16 144,-9" /> </g>
+
+<g style="fill:blue;stroke:black">
+<path d="M 143.59307,12.969697 L 153.32035,62.532468" />
+<path d="M 211.68398,108.85281 L 153.32035,64.385281" />
+<path d="M 188.1,164.06833 L 137.57143,138.96104" />
+<path d="M 102.83117,159.34199 L 137.57143,137.57143" />
+<path d="M 141.74026,201.49351 L 102.36797,159.34199" />
+<path d="M 33.813853,166.29004 L 102.36797,159.80519" />
+<path d="M 80,70 L 79.670996,14.359307" />
+<path d="M 12.969697,105.61039 L 69,97" />
+<path d="M 80,70 L 153.32035,63.458874" />
+<path d="M 145.44589,10.65368 L 214,108.38961" />
+<path d="M 80,70 L 69,97" />
+<path d="M 137,138 L 69,97" />
+<circle cx="137" cy="138" r="5" />
+<circle cx="80" cy="70" r="5" />
+<circle cx="69" cy="97" r="5" />
+<circle cx="102" cy="159" r="5" />
+<g transform="translate(4,210)">
+<circle cx="210" cy="-103" r="5" />
+<circle cx="190" cy="-43" r="5" />
+<circle cx="150" cy="-145" r="5" />
+<circle cx="139" cy="-200" r="5" />
+<circle cx="76" cy="-200" r="5" />
+<circle cx="6" cy="-103" r="5" />
+<circle cx="25" cy="-43" r="5" />
+<circle cx="139" cy="-6" r="5" />
+</g>
+</g></svg>
+                  */
+                  if (true) {
+                    System.out.println("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>");
+                    System.out.println("<svg xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:cc=\"http://creativecommons.org/ns#\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns=\"http://www.w3.org/2000/svg\" width=\"512pt\" height=\"214pt\" viewBox=\"0.00 0.00 224.00 214.00\">");
+
+                    double scale = 50.;
+
+                    System.out.println("<g style=\"fill:none;stroke:#000000\" transform=\"translate(-50,150)\">");
+                    for (int iEdge = 0; iEdge < 18; ++iEdge) {
+                      System.out.println("<path d=\"M "+(scratchVertCoords[edges[iEdge][0]][0]*scale)+","+(-scratchVertCoords[edges[iEdge][0]][1]*scale)+" L "+(scratchVertCoords[edges[iEdge][1]][0]*scale)+","+(-scratchVertCoords[edges[iEdge][1]][1]*scale)+"\" />");
+                    }
+                    System.out.println("</g>");
+
+                    System.out.println("<g style=\"fill:none;stroke:#000000\" transform=\"translate(100,150)\">");
+                    for (int iEdge = 0; iEdge < 18; ++iEdge) {
+                      System.out.println("<path d=\"M "+(scratchVertCoords[edges[iEdge][0]][0]*scale)+","+(-scratchVertCoords[edges[iEdge][0]][2]*scale)+" L "+(scratchVertCoords[edges[iEdge][1]][0]*scale)+","+(-scratchVertCoords[edges[iEdge][1]][2]*scale)+"\" />");
+                    }
+                    System.out.println("</g>");
+
+                    System.out.println("<g style=\"fill:none;stroke:#000000\" transform=\"translate(250,150)\">");
+                    for (int iEdge = 0; iEdge < 18; ++iEdge) {
+                      System.out.println("<path d=\"M "+(scratchVertCoords[edges[iEdge][0]][1]*scale)+","+(-scratchVertCoords[edges[iEdge][0]][2]*scale)+" L "+(scratchVertCoords[edges[iEdge][1]][1]*scale)+","+(-scratchVertCoords[edges[iEdge][1]][2]*scale)+"\" />");
+                    }
+                    System.out.println("</g>");
+
+                    System.out.println("</svg>");
+                    System.out.flush();
+                    System.exit(0);
+                  }
+
+                  OUT("DONE ATTEMPTING TO ANSWER OSKAR'S QUESTION");
+                  OUT("================================");
+                }
+
                 // Ok, now we have scratchVertCoords, optimized.
                 // Can we re-make the polyhedron, using that?
                 // How?
@@ -2612,7 +2883,6 @@ public final class CSG
                 OUT("DONE ATTEMPTING TO REGULARIZE");
                 OUT("================================");
             }  // regularize
-
 
             return answer;
         }  // makeFruchtPolyhedron
