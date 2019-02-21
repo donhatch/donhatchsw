@@ -282,6 +282,7 @@ public class GenericGlue
           {"        {12}x{} Dodecagonal prism",  "1,2,3,4,5"},
           {"    3d highly irregular"},
           {"        Frucht",    "1,3(4.0),5(7.0),7(10.0),9(13.0)"},
+          {"        Not-Frucht (other minimal asymmetric trivalant)",    "1,3(4.0),5(7.0),7(10.0),9(13.0)"},
           {"4d puzzles"},
           {"    4d regular"},
           {"        {3,3,3} Simplex (5-cell)",          "1,3(5.0),5(9.0),7(13.0)"},

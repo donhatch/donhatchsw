@@ -1789,13 +1789,22 @@ public final class CSG
                 // Hack to smuggle a grand antiprism: {5,0,3}
                 return makeGrandAntiprism();
             }
+
             if (schlafli.length == 2
              && schlafli[0] == 7
              && schlafli[1] == 0)
             {
                 // Hack to smuggle a Frucht: {7,0}
-                return makeFruchtPolyhedron();
+                return makeFruchtPolyhedron(false);
             }
+            if (schlafli.length == 2
+             && schlafli[0] == 77
+             && schlafli[1] == 0)
+            {
+                // Hack to smuggle a not-Frucht: {77,0}
+                return makeFruchtPolyhedron(true);
+            }
+
             if (schlafli.length == 3
              && schlafli[0] == 7
              && schlafli[1] == 0
@@ -2191,7 +2200,9 @@ public final class CSG
             // so the parsing would get confused.
             s = regex.replaceAll(s, "[Gg]rand.[Aa]nti[Pp]rism", "{5,0,3}");
 
-            // Similarly for frucht, smuggle it in as {7,0}.
+            // Similarly for frucht, smuggle it in as {7,0},
+            // and not-frucht as 77,0.
+            s = regex.replaceAll(s, "[Nn]ot-?[Ff]rucht", "{77,0}");
             s = regex.replaceAll(s, "[Ff]rucht", "{7,0}");
 
             // Similarly for fruity, smuggle it in as {7,0,0}.
@@ -2335,7 +2346,7 @@ public final class CSG
           return answer;
         }
 
-        public static SPolytope makeFruchtPolyhedron()
+        public static SPolytope makeFruchtPolyhedron(boolean notFruchtFlag)
         {
             // Make a polyhedron based on the Frucht graph--
             // that is, the simplest asymmmetric trivalent graph:
@@ -2363,6 +2374,7 @@ public final class CSG
                 /* 6 */ {0,1,1, 1},
                 /* 7 */ {0,-1,1, 1},
               };
+              System.out.println("NOTE: nonFruchtFlag not supported here");  // TODO: support it
             }
             if (false) {
               // (roughly) regular triangular prism with three vertices truncated with regular tris:  "frucht 3(4)"
@@ -2381,9 +2393,11 @@ public final class CSG
                 /* 6 */ {0,1,0, 2},
                 /* 7 */ {0,-1,0, 2},
               };
+              System.out.println("NOTE: nonFruchtFlag not supported here");  // TODO: support it
             }
             if (true) {
-              // heightening the truncating tris a bit.  "frucht 3(4)"
+              // heightening the truncating tris a bit.  "frucht 3(4)".
+              // I think this ends up looking best.
               double sin30 = Math.sin(30*Math.PI/180);
               double cos30 = Math.cos(30*Math.PI/180);
               double sqrt2 = Math.sqrt(2);
@@ -2397,6 +2411,13 @@ public final class CSG
                 /* 6 */ {0,1,0, 2},
                 /* 7 */ {0,-1,0, 2},
               };
+              if (notFruchtFlag) {
+                // fudge plane 2 to get non-frucht.
+                // Instead of pointing right-down-back, point right-down
+                normalAndOffsetPairs[2] = new double[]
+                  /* 2 */ {cos30,-1.5,.5, 4}
+                ;
+              }
             }
 
 
@@ -2405,7 +2426,8 @@ public final class CSG
             SPolytope[] returnBelow = new SPolytope[1];
             for (int i = 0; i < normalAndOffsetPairs.length; ++i) {
                 double[] normal = (double[])Arrays.subarray(normalAndOffsetPairs[i], 0, 3);
-                double offset = normalAndOffsetPairs[i][3] * .25;
+                double offsetFudge = .24;  // .25 is too big for not-frucht; .24 works fine for both
+                double offset = normalAndOffsetPairs[i][3] * offsetFudge;
                 Hyperplane hyperplane = new Hyperplane(normal, offset);
                 slice(answer,
                       hyperplane,

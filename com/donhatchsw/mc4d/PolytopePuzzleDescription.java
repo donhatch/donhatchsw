@@ -1455,7 +1455,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // XXX but actually it wouldn't hurt, could just make that
         // XXX rotate the whole puzzle.
         //
-        boolean forceSkipTwists = regex.matches(schlafliProduct, "[Ff]rucht");  // XXX hack to avoid assert failure in frucht at the moment, for some reason.  need to fix this.
+        boolean forceSkipTwists = regex.matches(schlafliProduct, ".*[Ff]rucht");  // XXX hack to avoid assert failure in frucht at the moment, for some reason.  need to fix this.
         if (forceSkipTwists || nDims == 4 && intLengths.length == 1 && intLengths[0] == 1)
         {
             // Don't bother with grips for now, it's taking too long
