@@ -429,6 +429,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int[/*nGrips*/] grip2face;
     private int[/*nGrips*/] gripSymmetryOrders;
     private double[/*nGrips*/][/*nDims*/][/*nDims*/] gripUsefulMats; // weird name
+    private double[/*nGrips*/][/*nDims*/] gripTwistRotationFixedPoints;  // a point that should remain fixed by the twist rotation.  for uniform, can be origin, but for frucht, needs to be face center or something.
     private int[/*nStickers*/][/*nPolygonsThisSticker*/] stickerPoly2Grip;
 
     private double[/*nFacets*/][/*nDims*/] facetInwardNormals;
@@ -1464,6 +1465,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             this.gripOffsF = new float[nGrips][];
             this.gripSymmetryOrders = new int[nGrips];
             this.gripUsefulMats = new double[nGrips][nDims][nDims];
+            this.gripTwistRotationFixedPoints = new double[nGrips][nDims];
             this.grip2face = new int[nGrips];
         }
         else
@@ -1506,6 +1508,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.gripOffsF = new float[nGrips][];
                 this.gripSymmetryOrders = new int[nGrips];
                 this.gripUsefulMats = new double[nGrips][_nDisplayDims][_nDisplayDims];
+                this.gripTwistRotationFixedPoints = new double[nGrips][_nDisplayDims];
                 this.grip2face = new int[nGrips];
                 int minDim = nDims==4 ? 0 : 2;
                 int maxDim = nDims==4 ? 3 : 2; // yes, even for cell center, which doesn't do anything
@@ -1528,18 +1531,20 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             {
                                 CSG.Polytope elt = allElementsOfFacet[iDim][iElt];
 
-                                // gripUsefulMats[0] should be the point closest to the origin
+                                // gripUsefulMats[0] should be (in the direction of)
+                                // the point closest to the origin
                                 // on the affine subspace containing the face to twist.
-                                if (true)  // TODO: change to false when I get something more principled working, see below
+                                if (true)
                                 {
                                   // Naive-- use facet center.
                                   // This works for uniform polytopes, but not in general
                                   // (e.g. it's wrong for frucht).
                                   VecMath.copyvec(gripUsefulMats[iGrip][0], facetCentersD[iFacet]);
+                                  VecMath.zerovec(gripTwistRotationFixedPoints[iGrip]);
                                 }
                                 else
                                 {
-                                  // TODO: this doesn't seem to be better, it seems to be worse.  Bug?
+                                  // TODO: seems to be better than naive for frucht, but still not quite right-- the rotation isn't exactly the facet's plane.  Wtf?
                                   // More principled approach, that works for frucht.
                                   // CBB: we recompute facetNormal a lot.  Should move this into precomputed stuff like facetCentersD is.
                                   double[] facetNormal = new double[nDims];
@@ -1552,6 +1557,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                   double currentDot = VecMath.dot(facetNormal, facetNormal);
                                   double desiredDot = VecMath.dot(facetCentersD[iFacet], facetNormal);
                                   VecMath.vxs(gripUsefulMats[iGrip][0], facetNormal, desiredDot/currentDot);
+                                  VecMath.copyvec(gripTwistRotationFixedPoints[iGrip], facetCentersD[iFacet]);
                                 }
 
                                 // gripUsefulMats[1] should be a vector pointing
@@ -1628,6 +1634,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                             this.gripUsefulMats[iGrip-1][3],
                                             this.gripUsefulMats[iGrip-1][2],
                                         };
+                                        this.gripTwistRotationFixedPoints[iGrip] = this.gripTwistRotationFixedPoints[iGrip-1];
                                         iGrip++;
                                     }
                                 }
@@ -1646,6 +1653,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                       this.gripOffsF = (float[][])com.donhatchsw.util.Arrays.subarray(this.gripOffsF, 0, nGrips);
                       this.gripSymmetryOrders = (int[])com.donhatchsw.util.Arrays.subarray(this.gripSymmetryOrders, 0, nGrips);
                       this.gripUsefulMats = (double[][][])com.donhatchsw.util.Arrays.subarray(this.gripUsefulMats, 0, nGrips);
+                      this.gripTwistRotationFixedPoints = (double[][])com.donhatchsw.util.Arrays.subarray(this.gripTwistRotationFixedPoints, 0, nGrips);
                       this.grip2face = (int[])com.donhatchsw.util.Arrays.subarray(this.grip2face, 0, nGrips);
                     }
 
@@ -2108,16 +2116,20 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // magic crap used in a couple of methods below
         private double[][] getTwistMat(int gripIndex, int dir, double frac)
         {
-            int order = gripSymmetryOrders[gripIndex];
+            int order = this.gripSymmetryOrders[gripIndex];
             double angle = dir * (2*Math.PI/order) * frac;
-            double[][] gripUsefulMat = gripUsefulMats[gripIndex];
+            double[][] gripUsefulMat = this.gripUsefulMats[gripIndex];
             Assert(gripUsefulMat.length == _nDisplayDims);
-            double[][] mat = VecMath.mxmxm(VecMath.transpose(gripUsefulMats[gripIndex]),
-                                 VecMath.makeRowRotMat(_nDisplayDims,
-                                                       _nDisplayDims-2,_nDisplayDims-1,
-                                                       angle),
-                                 gripUsefulMats[gripIndex]);
-            return mat;
+            double[][] rotMat = VecMath.mxmxm(VecMath.transpose(gripUsefulMat),
+                                    VecMath.makeRowRotMat(_nDisplayDims,
+                                                          _nDisplayDims-2,_nDisplayDims-1,
+                                                          angle),
+                                    gripUsefulMat);
+            double[] gripTwistRotationFixedPoint = gripTwistRotationFixedPoints[gripIndex];
+            double[][] translateOriginToFixedPoint = VecMath.makeRowTransMat(gripTwistRotationFixedPoint);
+            double[][] translateFixedPointToOrigin = VecMath.makeRowTransMatInv(gripTwistRotationFixedPoint);
+            double[][] answer = VecMath.mxmxm(translateFixedPointToOrigin, rotMat, translateOriginToFixedPoint);
+            return answer;
         } // getTwistMat
 
 
