@@ -1455,8 +1455,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // XXX but actually it wouldn't hurt, could just make that
         // XXX rotate the whole puzzle.
         //
-        boolean forceSkipTwists = regex.matches(schlafliProduct, ".*[Ff]rucht");  // XXX hack to avoid assert failure in frucht at the moment, for some reason.  need to fix this.
-        if (forceSkipTwists || nDims == 4 && intLengths.length == 1 && intLengths[0] == 1)
+        if (nDims == 4 && intLengths.length == 1 && intLengths[0] == 1)
         {
             // Don't bother with grips for now, it's taking too long
             // for the big ones
@@ -1491,6 +1490,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         nGrips += allElementsOfFacet[1].length;
                         if (doTheOddFaceIn3dThing)
                         {
+                            // Note, the actual condition used is slightly more conservative, so
+                            // we may end up with fewer grips than this.
+                            // If so, we'll adjust at the end.
                             if (allElementsOfFacet[1].length % 2 == 1)
                                 nGrips += allElementsOfFacet[1].length;
                         }
@@ -1604,7 +1606,19 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     //System.out.println("nGrips = "+nGrips);
                     //System.out.println("iGrip = "+iGrip);
-                    Assert(iGrip == nGrips);
+
+                    // If the "&& this.gripSymmetryOrders[iGrip-1] == 2" clause ever happened, then iGrip will now be less than nGrips.
+                    // Correct it.
+                    if (iGrip < nGrips) {
+                      //System.out.println("CORRECTING nGrips from "+nGrips+" to "+iGrip+"");
+                      nGrips = iGrip;
+                      this.gripDirsF = (float[][])com.donhatchsw.util.Arrays.subarray(this.gripDirsF, 0, nGrips);
+                      this.gripOffsF = (float[][])com.donhatchsw.util.Arrays.subarray(this.gripOffsF, 0, nGrips);
+                      this.gripSymmetryOrders = (int[])com.donhatchsw.util.Arrays.subarray(this.gripSymmetryOrders, 0, nGrips);
+                      this.gripUsefulMats = (double[][][])com.donhatchsw.util.Arrays.subarray(this.gripUsefulMats, 0, nGrips);
+                      this.grip2face = (int[])com.donhatchsw.util.Arrays.subarray(this.grip2face, 0, nGrips);
+                    }
+
                     //System.out.println("this.gripSymmetryOrders = "+com.donhatchsw.util.Arrays.toStringCompact(this.gripSymmetryOrders));
                 }
 
@@ -1772,7 +1786,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.println("Done.");
             progressWriter.flush();
         }
-    } // ctor from schlafli and length
+    } // init from schlafli and length
 
     // XXX figure out a good public interface for something that shows stats
     public String toString(boolean verbose)

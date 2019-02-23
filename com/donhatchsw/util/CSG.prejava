@@ -2444,7 +2444,7 @@ public final class CSG
                 // "frucht 3(4)" or "frucht 5(7)" or "frucht 7(10)" or "frucht 9(13)"
                 // TODO: this apparently works best with only the first or third version above.  should make it better so that it always relaxes to the same thing.  I bet that will happen if I actually re-polytope-ize after each iteration (currently it doesn't actually re-planarize each face on each iteration, so maybe it gets happy in situations it shouldn't be and then gets a rude awakening only at the end when polytope-ized)
                 OUT("================================");
-                OUT("ATTEMPTING TO REGULARIZE");
+                OUT("ATTEMPTING TO REGULARIZE "+(notFruchtFlag?"NOT-FRUCHT":"FRUCHT")+"");
                 // Try to regularize.
                 // Goal is to make all the faces as close to regular polygons as possible, right?
                 // So, repeatedly:
@@ -2469,31 +2469,30 @@ public final class CSG
                 for (int iVert = 0; iVert < nVerts; ++iVert) {
                   VecMath.copyvec(scratchVertCoords[iVert], verts[iVert].getCoords());
                 }
-                PRINTMAT(scratchVertCoords);
+                //PRINTMAT(scratchVertCoords);
 
                 // *ordered* verts around each face.
                 // This is O(n^2) but whatever.
                 int[][] f2v = new int[nFaces][];
-                System.out.println("foo.");
                 for (int iFace = 0; iFace < nFaces; ++iFace) {
-                  System.out.println("iFace = "+iFace);
-                  System.out.println("    verts on this face are "+Arrays.toStringCompact(allIncidences[2][iFace][0]));
+                  //System.out.println("iFace = "+iFace);
+                  //System.out.println("    verts on this face are "+Arrays.toStringCompact(allIncidences[2][iFace][0]));
                   assert(allIncidences[2][iFace][0].length == allIncidences[2][iFace][1].length);
                   f2v[iFace] = new int[allIncidences[2][iFace][0].length];
                   int iFirstEdgeThisFace = allIncidences[2][iFace][1][0];
                   f2v[iFace][0] = allIncidences[1][iFirstEdgeThisFace][0][0];
                   f2v[iFace][1] = allIncidences[1][iFirstEdgeThisFace][0][1];
-                  System.out.println("    first two verts are "+f2v[iFace][0]+", "+f2v[iFace][1]);
+                  //System.out.println("    first two verts are "+f2v[iFace][0]+", "+f2v[iFace][1]);
                   int nextVertexOnFace = -1;
                   for (int iVertThisFace = 2; iVertThisFace < f2v[iFace].length; ++iVertThisFace) {
-                    System.out.println("    iVertThisFace = "+iVertThisFace);
+                    //System.out.println("    iVertThisFace = "+iVertThisFace);
                     // find the next vertex on this face: that is, the vertex that's adjacent to the previous, but is not equal to the previous-previous
                     for (int i = 0; i < f2v[iFace].length; ++i) {
                       int iVert = allIncidences[2][iFace][0][i];
-                      System.out.println("        iVert="+iVert+"?");
+                      //System.out.println("        iVert="+iVert+"?");
                       if (iVert == f2v[iFace][iVertThisFace-2]) continue;
                       if (iVert == f2v[iFace][iVertThisFace-1]) continue;
-                      System.out.println("            maybe...");
+                      //System.out.println("            maybe...");
                       // is iVert adjacent to f2v[iFace][iVertThisFace-1]?
                       boolean foundThatItsAdjacent = false;
                       for (int j = 0; j < allIncidences[0][iVert][1].length; ++j) {
@@ -2510,7 +2509,7 @@ public final class CSG
                     assert(nextVertexOnFace != -1);
                     f2v[iFace][iVertThisFace] = nextVertexOnFace;
                   }
-                  System.out.println("    f2v[iFace="+iFace+"] = "+Arrays.toStringCompact(f2v[iFace]));
+                  //System.out.println("    f2v[iFace="+iFace+"] = "+Arrays.toStringCompact(f2v[iFace]));
                 }
 
                 int nIters = 100;
@@ -2523,13 +2522,13 @@ public final class CSG
                     averageEdgeLength += volume(new SPolytope(/*initialDensity*/0,/*sign=*/1,allElements[1][iEdge]));
                 }
                 averageEdgeLength /= nEdges;
-                PRINT(averageEdgeLength);
+                //PRINT(averageEdgeLength);
 
                 double targetEdgeLength = averageEdgeLength;
                 double[][][] regularPolygons = new double[8][][];  // max face size is 8
                 for (int n = 0; n < regularPolygons.length; ++n) {
                   double circumRadius = n<=1 ? -1. : targetEdgeLength / (2 * Math.sin(Math.PI / n));  // https://www.mathopenref.com/polygonradius.html
-                  System.out.println("          targetEdgeLength="+targetEdgeLength+" n="+n+" -> circumRadius="+circumRadius);
+                  //System.out.println("          targetEdgeLength="+targetEdgeLength+" n="+n+" -> circumRadius="+circumRadius);
                   regularPolygons[n] = new double[n][3];
                   for (int i = 0; i < n; ++i) {
                     regularPolygons[n][i][0] = Math.cos(2*Math.PI / n * i) * circumRadius;
@@ -2902,7 +2901,7 @@ public final class CSG
                           /*returnAbove=*/null, /*returnAboveIndex=*/-1);
                     answer = returnBelow[0];
                 }
-                OUT("DONE ATTEMPTING TO REGULARIZE");
+                OUT("DONE ATTEMPTING TO REGULARIZE "+(notFruchtFlag?"NOT-FRUCHT":"FRUCHT")+"");
                 OUT("================================");
             }  // regularize
 
