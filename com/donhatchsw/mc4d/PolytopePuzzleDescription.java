@@ -1527,11 +1527,41 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             for (int iElt = 0; iElt < allElementsOfFacet[iDim].length; ++iElt)
                             {
                                 CSG.Polytope elt = allElementsOfFacet[iDim][iElt];
-                                VecMath.copyvec(gripUsefulMats[iGrip][0], facetCentersD[iFacet]);
+
+                                // gripUsefulMats[0] should be the point closest to the origin
+                                // on the affine subspace containing the face to twist.
+                                if (true)  // TODO: change to false when I get something more principled working, see below
+                                {
+                                  // Naive-- use facet center.
+                                  // This works for uniform polytopes, but not in general
+                                  // (e.g. it's wrong for frucht).
+                                  VecMath.copyvec(gripUsefulMats[iGrip][0], facetCentersD[iFacet]);
+                                }
+                                else
+                                {
+                                  // TODO: this doesn't seem to be better, it seems to be worse.  Bug?
+                                  // More principled approach, that works for frucht.
+                                  // CBB: we recompute facetNormal a lot.  Should move this into precomputed stuff like facetCentersD is.
+                                  double[] facetNormal = new double[nDims];
+                                  // CBB: creating an SPolytope here is awkward. Should we have stored the facets as SPolytopes initially?
+                                  CSG.areaNormal(facetNormal, new CSG.SPolytope(/*initialDensity=*/0, /*sign=*/1, originalFacets[iFacet]));
+                                  if (VecMath.dot(facetCentersD[iFacet], facetNormal) < 0)
+                                  {
+                                      VecMath.vxs(facetNormal, facetNormal, -1.);
+                                  }
+                                  double currentDot = VecMath.dot(facetNormal, facetNormal);
+                                  double desiredDot = VecMath.dot(facetCentersD[iFacet], facetNormal);
+                                  VecMath.vxs(gripUsefulMats[iGrip][0], facetNormal, desiredDot/currentDot);
+                                }
+
+                                // gripUsefulMats[1] should be a vector pointing
+                                // from gripUsefulMats[0] in the direction of twist axis,
+                                // in the hyperplane being twisted.
                                 CSG.cgOfVerts(gripUsefulMats[iGrip][1], elt);
                                 VecMath.vmv(gripUsefulMats[iGrip][1],
                                             gripUsefulMats[iGrip][1],
                                             gripUsefulMats[iGrip][0]);
+
                                 this.gripDirsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][0]);
                                 this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
                                 if (VecMath.normsqrd(this.gripOffsF[iGrip]) <= 1e-4*1e-4)

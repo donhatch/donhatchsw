@@ -5157,13 +5157,15 @@ public final class CSG
             return array;
         } // simplicallySubdivide
 
-        // This will be the actual (signed) volume
-        // if all the hyperplanes are orthogonal and unit length
-        // (which includes the case when there are no hyperplanes,
-        // i.e. when sp.p.dim is the full dimension of the space).
-        // Otherwise it will be scaled by the volume
-        // of the parallelepiped spanned by those normals.
-        private static double volume(SPolytope sp)
+        /**
+        * This will be the actual (signed) volume
+        * if all the hyperplanes are orthogonal and unit length
+        * (which includes the case when there are no hyperplanes,
+        * i.e. when sp.p.dim is the full dimension of the space).
+        * Otherwise it will be scaled by the volume
+        * of the parallelepiped spanned by those normals.
+        */
+        public static double volume(SPolytope sp)
         {
             int nNormals = sp.p.contributingHyperplanes.length;
             double simplices[][][] = simpliciallySubdivide(sp.p);
@@ -5192,12 +5194,14 @@ public final class CSG
             return sum * sp.sign / factorial(k);
         } // volume
 
-        // Get the normal of the n-1-dimensional polytope sp,
-        // with length equal to the hyper-area of sp.
-        // Uses the vertices but not the hyperplanes,
-        // so can be used to build the hyperplanes
-        // if only the vertices are known.
-        private static void areaNormal(double result[], SPolytope sp)
+        /**
+        * Get the normal of the n-1-dimensional polytope sp,
+        * with length equal to the hyper-area of sp.
+        * Uses the vertices but not the hyperplanes,
+        * so can be used to build the hyperplanes
+        * if only the vertices are known.
+        */
+        public static void areaNormal(double result[], SPolytope sp)
         {
             VecMath.zerovec(result);
             double simplices[][][] = simpliciallySubdivide(sp.p);
