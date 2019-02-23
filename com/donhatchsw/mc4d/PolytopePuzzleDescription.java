@@ -430,6 +430,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int[/*nGrips*/] gripSymmetryOrders;
     private double[/*nGrips*/][/*nDims*/][/*nDims*/] gripUsefulMats; // weird name
     private double[/*nGrips*/][/*nDims*/] gripTwistRotationFixedPoints;  // a point that should remain fixed by the twist rotation.  for uniform, can be origin, but for frucht, needs to be face center or something.
+    private boolean XXXfruchtFudge;  // TODO: get rid of this when I get frucht working right
     private int[/*nStickers*/][/*nPolygonsThisSticker*/] stickerPoly2Grip;
 
     private double[/*nFacets*/][/*nDims*/] facetInwardNormals;
@@ -1446,6 +1447,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         this.vertsF = VecMath.doubleToFloat(restVerts);
 
+        this.XXXfruchtFudge = regex.matches(schlafliProduct, ".*[Ff]rucht");
 
         //
         // Now think about the twist grips.
@@ -1534,7 +1536,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 // gripUsefulMats[0] should be (in the direction of)
                                 // the point closest to the origin
                                 // on the affine subspace containing the face to twist.
-                                if (true)
+                                if (false)
                                 {
                                   // Naive-- use facet center.
                                   // This works for uniform polytopes, but not in general
@@ -1546,17 +1548,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 {
                                   // TODO: seems to be better than naive for frucht, but still not quite right-- the rotation isn't exactly the facet's plane.  Wtf?
                                   // More principled approach, that works for frucht.
-                                  // CBB: we recompute facetNormal a lot.  Should move this into precomputed stuff like facetCentersD is.
-                                  double[] facetNormal = new double[nDims];
-                                  // CBB: creating an SPolytope here is awkward. Should we have stored the facets as SPolytopes initially?
-                                  CSG.areaNormal(facetNormal, new CSG.SPolytope(/*initialDensity=*/0, /*sign=*/1, originalFacets[iFacet]));
-                                  if (VecMath.dot(facetCentersD[iFacet], facetNormal) < 0)
-                                  {
-                                      VecMath.vxs(facetNormal, facetNormal, -1.);
-                                  }
-                                  double currentDot = VecMath.dot(facetNormal, facetNormal);
-                                  double desiredDot = VecMath.dot(facetCentersD[iFacet], facetNormal);
-                                  VecMath.vxs(gripUsefulMats[iGrip][0], facetNormal, desiredDot/currentDot);
+                                  double[] facetInwardNormal = this.facetInwardNormals[iFacet];
+                                  // it's pointing in the opposite direction from what we want,
+                                  // but the following will reverse it, since currentDot>0
+                                  // and desiredDot<0.
+                                  double currentDot = VecMath.dot(facetInwardNormal, facetInwardNormal);
+                                  double desiredDot = VecMath.dot(facetCentersD[iFacet], facetInwardNormal);
+                                  VecMath.vxs(gripUsefulMats[iGrip][0], facetInwardNormal, desiredDot/currentDot);
                                   VecMath.copyvec(gripTwistRotationFixedPoints[iGrip], facetCentersD[iFacet]);
                                 }
 
@@ -1566,7 +1564,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 CSG.cgOfVerts(gripUsefulMats[iGrip][1], elt);
                                 VecMath.vmv(gripUsefulMats[iGrip][1],
                                             gripUsefulMats[iGrip][1],
-                                            gripUsefulMats[iGrip][0]);
+                                            facetCentersD[iFacet]);
 
                                 this.gripDirsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][0]);
                                 this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
@@ -1595,6 +1593,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                            originalPolytope.p,
                                                                            maxOrder,
                                                                            gripUsefulMats[iGrip]);
+                                    if (this.XXXfruchtFudge) {
+                                      this.gripSymmetryOrders[iGrip] = originalFacets[iFacet].facets.length;
+                                    }
+
                                     if (false) {  // set to true to *disable* order-1 rotations, i.e. 360 degree rotations.  This is experimental.
                                         // XXX don't do it like this-- we should store the actual order, 1, regardless, but then make the decision of whether it's functional or not based on a flag.
                                         if (this.gripSymmetryOrders[iGrip] == 1) {
@@ -2449,6 +2451,121 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             int iFacet = grip2face[gripIndex];
             double[] thisFaceInwardNormal = facetInwardNormals[iFacet];
             double[] thisFaceCutOffsets = facetCutOffsets[iFacet];
+
+            if (this.XXXfruchtFudge && this.gripSymmetryOrders[gripIndex] != 1)
+            {
+                // Do some preliminary analysis:
+                //   1. partition relevant stickers according to signed distance from cut facet plane;
+                //      the permutation will stay within those partions.
+                //   2. within each such partition, partition into onion peels (successive convex hulls).
+                int[] affectedStickerInds = new int[state.length];
+                int nAffectedStickerInds = 0;
+                for (int iSticker = 0; iSticker < state.length; ++iSticker)
+                {
+                    if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                           slicemask,
+                                           thisFaceInwardNormal,
+                                           thisFaceCutOffsets))
+                    {
+                        affectedStickerInds[nAffectedStickerInds++] = iSticker;
+                    }
+                }
+
+                double[] offsets = new double[state.length];  // sparse
+                for (int iAffected = 0; iAffected < nAffectedStickerInds; ++iAffected)
+                {
+                    int iSticker = affectedStickerInds[iAffected];
+                    offsets[iSticker] = VecMath.dot(stickerCentersD[iSticker], thisFaceInwardNormal);
+                }
+
+                com.donhatchsw.util.SortStuff.sort(affectedStickerInds, 0, nAffectedStickerInds, new com.donhatchsw.util.SortStuff.IntComparator() {
+                    public int compare(int iSticker, int jSticker)
+                    {
+                        double iOff = offsets[iSticker];
+                        double jOff = offsets[jSticker];
+                        return iOff < jOff ? -1 :
+                               iOff > jOff ? 1 : 0;
+                    }
+                });
+                System.out.println("affectedStickerInds = "+com.donhatchsw.util.Arrays.toStringCompact(com.donhatchsw.util.Arrays.subarray(affectedStickerInds,0,nAffectedStickerInds)));
+
+                // CBB: computing the dot products, again?  should do that only once
+                int[][] partitions = new int[0][];
+                for (int iAffected = 0; iAffected < nAffectedStickerInds; ++iAffected)
+                {
+                    int iSticker = affectedStickerInds[iAffected];
+                    if (iAffected == 0 || Math.abs(offsets[affectedStickerInds[iAffected]]
+                                                 - offsets[affectedStickerInds[iAffected-1]]) > 1e-9) {
+                        
+                        partitions = (int[][])com.donhatchsw.util.Arrays.append(partitions, new int[0]);
+                    }
+                    partitions[partitions.length-1] = (int[])com.donhatchsw.util.Arrays.append(partitions[partitions.length-1], iSticker);
+                }
+
+                /*  XXX get rid
+                // Sort partitions into increasing size
+                com.donhatchsw.util.SortStuff.sort(partitions, 0, partitions.length, new com.donhatchsw.util.SortStuff.Comparator() {
+                    public int compare(Object a, Object b) {
+                        int aLength = ((int[])a).length;
+                        int bLength = ((int[])b).length;
+                        return aLength < bLength ? -1 : aLength > bLength ? 1 : 0;
+                    }
+                });
+                System.out.println("partitions = "+com.donhatchsw.util.Arrays.toStringCompact(partitions));
+                */
+
+
+                // Now, within each partition, make the onion.
+                // Can't use standard convex hull for this, since (1) it's not robust :-(
+                // (2) we want each shell to include all points on that shell surface, even
+                // when not an extreme point of the shell.
+                // How do we do it?
+
+                // Well, let's just assume 3d for now.
+                // If slicesmask is 1 (i.e. just the shallowest cut),
+                // then the partition sizes for an n-gonal face are:
+                //   2*n+1  (the partition consisting of stickers on this facet)
+                //   3*n (any other partition).
+                // The latter is always bigger than the former (since n>=3).
+                // So, if the former exists, it'll be the last one in the sorted list of partitions.
+                // In general, if k shallow cuts per face:
+                //   k*(k+1)*n + 1 (the partition consisting of stickers on this facet)
+                //   (2*k+1)*n (any other partition
+                /*
+                int gonality = originalIncidences[nDims-1][this.grip2face[gripIndex]][nDims-2].length;  // woops, we didn't save that
+                System.out.println("gonality = "+gonality);
+                */
+                boolean containsSlice0 = partitions.length >= 2 && partitions[0].length != partitions[1].length;   // XXX actually not sure this is true... can there be equality?
+                Assert(containsSlice0 == ((slicemask & 1) != 0));  // XXX actually not true, if there's an opposite face.  but there isn't, for frucht.
+                System.out.println("containsSlice0 = "+containsSlice0);
+                if (containsSlice0) {
+                    int A = partitions[0].length;
+                    int B = partitions[1].length;
+                    int n = -1;  // gonality
+                    int k = -1;  // num shallow cuts
+                    for (int nMaybe = 3; nMaybe <= 7; ++nMaybe)  // hard-coded for the gonalities of the frucht graph
+                    {
+                        for (int kMaybe = 1; kMaybe <= 10; ++kMaybe)
+                        {
+                          //System.out.println("  trying n="+nMaybe+" k="+kMaybe);
+                          //System.out.println("      k*(k+1)*n = "+(kMaybe*(kMaybe+1)*nMaybe+1));
+                          //System.out.println("      (2*k+1)*n = "+((2*kMaybe+1)*nMaybe+1));
+                          if (kMaybe*(kMaybe+1)*nMaybe+1 == A
+                           && (2*kMaybe+1)*nMaybe == B) {
+                            Assert(n == -1);
+                            //System.out.println("      got it!");
+                            n = nMaybe;
+                            k = kMaybe;
+                          }
+                        }
+                    }
+                    System.out.println("  n="+n+" k="+k);
+                } else {
+                    Assumpt(false);  // XXX implement me!
+                }
+
+            }
+
             for (int iSticker = 0; iSticker < state.length; ++iSticker)
             {
                 if (pointIsInSliceMask(stickerCentersD[iSticker],
@@ -2456,6 +2573,18 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                        thisFaceInwardNormal,
                                        thisFaceCutOffsets))
                 {
+                    if (this.XXXfruchtFudge && this.gripSymmetryOrders[gripIndex] != 1) {
+                      // Slow proof of concept:
+                      // find best-fit "morph matrix" that maps the verts of this facet to a polygon,
+                      // apply that matrix to all the sticker center coords,
+                      // then do the rotation,
+                      // then apply the inverse of that matrix,
+                      // then find the closest sticker center in the slice mask; that's the destination sticker.
+                      // Actually, want a global optimal matching, maybe in least-squared sense, but really it should maintain local coherence.
+                      // how do I do that??
+                      newState[iSticker] = state[iSticker];
+                      continue;
+                    }
                     VecMath.vxm(scratchVert, stickerCentersD[iSticker], matD);
                     Integer whereIstickerGoes = (Integer)stickerCentersHashTable.get(scratchVert);
                     Assert(whereIstickerGoes != null);
@@ -2465,6 +2594,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     newState[iSticker] = state[iSticker];
             }
             VecMath.copyvec(state, newState);
+            // XXX we both modify state, and return a different array?  This can't be right
             return newState;
         } // applyTwistToState
 

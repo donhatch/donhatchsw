@@ -5165,7 +5165,7 @@ public final class CSG
         * Otherwise it will be scaled by the volume
         * of the parallelepiped spanned by those normals.
         */
-        public static double volume(SPolytope sp)
+        private static double volume(SPolytope sp)
         {
             int nNormals = sp.p.contributingHyperplanes.length;
             double simplices[][][] = simpliciallySubdivide(sp.p);
@@ -5201,7 +5201,7 @@ public final class CSG
         * so can be used to build the hyperplanes
         * if only the vertices are known.
         */
-        public static void areaNormal(double result[], SPolytope sp)
+        private static void areaNormal(double result[], SPolytope sp)
         {
             VecMath.zerovec(result);
             double simplices[][][] = simpliciallySubdivide(sp.p);
