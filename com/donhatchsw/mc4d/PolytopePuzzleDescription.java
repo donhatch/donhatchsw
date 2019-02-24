@@ -1598,9 +1598,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                     if (this.XXXfruchtFudge) {
                                       Assert(nDims == 3);
                                       Assert(iDim == 2);
-                                      if (true) {
-                                          System.out.println("HEY: elt.facets.length is "+elt.facets.length+", gripUsefulMats[iGrip] = "+VecMath.toString(gripUsefulMats[iGrip]));
-                                      }
                                       // Since it's 3d, grips are 2d polygons.
                                       // There are two cases: it's a rotational grip,
                                       // in which case the rotation order is elt.facets.length (the gonality),
@@ -2474,7 +2471,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             double[] thisFaceInwardNormal = facetInwardNormals[iFacet];
             double[] thisFaceCutOffsets = facetCutOffsets[iFacet];
 
-            System.out.println("this.gripSymmetryOrders[gripIndex="+gripIndex+"] = "+this.gripSymmetryOrders[gripIndex]);
             if (this.XXXfruchtFudge && this.gripSymmetryOrders[gripIndex] != 1)
             {
                 // 1. partition relevant stickers according to signed distance from cut facet plane;
