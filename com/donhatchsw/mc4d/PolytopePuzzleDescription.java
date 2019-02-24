@@ -1598,11 +1598,24 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                     if (this.XXXfruchtFudge) {
                                       Assert(nDims == 3);
                                       Assert(iDim == 2);
-                                      this.gripSymmetryOrders[iGrip] = elt.facets.length;
-                                      // Fudge: if it's 4, assume it's an edge and make it 2.
-                                      // XXX that's wrong if it should really be 4
-                                      if (this.gripSymmetryOrders[iGrip] == 4) {
+                                      if (true) {
+                                          System.out.println("HEY: elt.facets.length is "+elt.facets.length+", gripUsefulMats[iGrip] = "+VecMath.toString(gripUsefulMats[iGrip]));
+                                      }
+                                      // Since it's 3d, grips are 2d polygons.
+                                      // There are two cases: it's a rotational grip,
+                                      // in which case the rotation order is elt.facets.length (the gonality),
+                                      // or it's a reflectional grip, in which case elt.facets.length is 4 (a quad)
+                                      // but we want rotation order 2.
+                                      // How to tell the difference?
+                                      // Well, for the rotational ones,
+                                      // usefulMat[1] will be point at +-w;
+                                      // for the reflectional ones, usefulMat[2] will point at +-w.
+                                      if (VecMath.normsqrd(3, gripUsefulMats[iGrip][1]) < 1e-6*1e-6) {
+                                        this.gripSymmetryOrders[iGrip] = elt.facets.length;
+                                      } else if (VecMath.normsqrd(3, gripUsefulMats[iGrip][2]) < 1e-6*1e-6) {
                                         this.gripSymmetryOrders[iGrip] = 2;
+                                      } else {
+                                        Assert(false);
                                       }
                                     }
 
@@ -1652,7 +1665,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             }
                         }
                     }
-                    System.out.println("this.gripSymmetryOrders = "+VecMath.toString(this.gripSymmetryOrders));
                     //System.out.println("nGrips = "+nGrips);
                     //System.out.println("iGrip = "+iGrip);
 
@@ -2631,6 +2643,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
 
 
+/*
                   // XXX ARGH!  This part is all just wrong, and I'm spending too much time on it, I think
 
 
@@ -2653,6 +2666,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                   // CBB: this is silly, should provide a shift-by mechanism for it
                   VecMath.copyvec(partition, (int[])com.donhatchsw.util.Arrays.concat(com.donhatchsw.util.Arrays.subarray(partition, farthestI+1, partition.length-(farthestI+1)),
                                                                        com.donhatchsw.util.Arrays.subarray(partition, 0, farthestI+1)));
+*/
                 }
 
                 VecMath.copyvec(newState, state);  // everything in its original place, for starters
@@ -2672,11 +2686,21 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                   int bestPerm[] = new int[partition.length];
                   double bestCost = Double.POSITIVE_INFINITY;
                   int nBests = 0;
-                  for (int iPerm = 0; iPerm < 2*n; ++iPerm) {
+
+                  //int nPerms = 2*n;  // we're not smart enough to do this yet-- we don't know how to restrict the flips to the correct offset
+                  int nPerms = 2*partition.length;
+
+                  for (int iPerm = 0; iPerm < nPerms; ++iPerm) {
                     for (int i = 0; i < partition.length; ++i) {
-                      perm[i] = (i + (iPerm%n) * (partition.length/n)) % partition.length;
+                      if (nPerms == 2*n) {
+                        perm[i] = (i + (iPerm%n) * (partition.length/n)) % partition.length;
+                      } else if (nPerms == 2*partition.length) {
+                        perm[i] = (i + (iPerm%partition.length)) % partition.length;
+                      } else {
+                        Assert(false);
+                      }
                     }
-                    if (iPerm >= n) com.donhatchsw.util.Arrays.reverse(perm, perm, perm.length-1); // so the last element (an extremal one) stays fixed
+                    if (iPerm >= nPerms/2) com.donhatchsw.util.Arrays.reverse(perm, perm, perm.length-1); // so the last element stays fixed (not that it matters, currently)
 
                     double thisCost = 0.;
                     for (int i = 0; i < partition.length; ++i) {
