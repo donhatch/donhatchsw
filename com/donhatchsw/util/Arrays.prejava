@@ -812,10 +812,8 @@ public final class Arrays
         return (double[])fill(n, new Double(item));
     }
 
-    public static void reverse(int to[], int from[])
+    public static void reverse(int to[], int from[], int n)
     {
-        int n = from.length;
-        assert_eq(n, to.length);
         if (to == from)
         {
             int temp;
@@ -829,10 +827,14 @@ public final class Arrays
                 to[i] = from[n-1-i];
         }
     } // reverse, int
-    public static void reverse(Object to, Object from)
+    public static void reverse(int to[], int from[])
     {
-        int n = java.lang.reflect.Array.getLength(from);
-        assert_eq(n, java.lang.reflect.Array.getLength(to));
+        int n = from.length;
+        assert_eq(n, to.length);
+        reverse(to, from, n);
+    } // reverse, int
+    public static void reverse(Object to, Object from, int n)
+    {
         if (to == from)
         {
             int halfN = n/2; // rounded down
@@ -845,6 +847,12 @@ public final class Arrays
                 java.lang.reflect.Array.set(to, i,
                                     java.lang.reflect.Array.get(from, n-1-i));
         }
+    } // reverse, general
+    public static void reverse(Object to, Object from)
+    {
+        int n = java.lang.reflect.Array.getLength(from);
+        assert_eq(n, java.lang.reflect.Array.getLength(to));
+        reverse(to, from, n);
     } // reverse, general
     public static Object reverse(Object from)
     {
