@@ -2559,7 +2559,7 @@ public final class CSG
                 if (false) {
                   OUT("================================");
                   OUT("ATTEMPTING TO ANSWER OSKAR'S QUESTION");
-                  int edges[][] = new int[18+2][2];
+                  int edges[][] = new int[18][2];
                   assert(allIncidences[1].length == 18);
                   for (int iEdge = 0; iEdge < allIncidences[1].length; ++iEdge) {
                     assert(allIncidences[1][iEdge][0].length == 2);
@@ -2568,47 +2568,50 @@ public final class CSG
                     edges[iEdge][0] = iVert;
                     edges[iEdge][1] = jVert;
                   }
-                  // Find index of the quad face.
-                  int theQuadFaceIndex = -1;
+                  // Find index of the quad face(s).  1 for frucht, 2 for not-frucht.
+                  int[] theQuadFaceIndices = {};
                   for (int iFace = 0; iFace < allIncidences[2].length; ++iFace) {
                     if (allIncidences[2][iFace][1].length == 4) {
-                      assert(theQuadFaceIndex == -1);
-                      theQuadFaceIndex = iFace;
+                      System.out.println("      Found a quad at face index "+iFace);
+                      theQuadFaceIndices = Arrays.append(theQuadFaceIndices, iFace);
                     }
                   }
-                  assert(theQuadFaceIndex != -1);
-                  // Find the quad face vertices in order...
-                  int quadVerts[] = VecMath.copyvec(allIncidences[2][theQuadFaceIndex][0]);
-                  assert(quadVerts.length == 4);
-                  // Which quad face vert is *not* incident on its vert 0?
-                  int vert0 = quadVerts[0];
-                  int oppositeVert0Index = -1;
-                  for (int i = 1; i < 4; ++i) {
-                    int maybeOppositeVert0 = quadVerts[i];
-                    boolean theEdgeExists = false;
-                    for (int iEdge = 0; iEdge < 18; ++iEdge) { // not including the two we haven't added yet
-                      if ((edges[iEdge][0] == vert0 && edges[iEdge][1] == maybeOppositeVert0)
-                       || (edges[iEdge][1] == vert0 && edges[iEdge][0] == maybeOppositeVert0))
-                      {
-                         theEdgeExists = true;
-                         break;
+                  assert(theQuadFaceIndices.length == (notFruchtFlag ? 3 : 1));
+                  for (int iQuadFaceIndex = 0; iQuadFaceIndex < theQuadFaceIndices.length; ++iQuadFaceIndex) {
+                    int theQuadFaceIndex = theQuadFaceIndices[iQuadFaceIndex];
+                    // Find the quad face vertices in order...
+                    int quadVerts[] = VecMath.copyvec(allIncidences[2][theQuadFaceIndex][0]);
+                    assert(quadVerts.length == 4);
+                    // Which quad face vert is *not* incident on its vert 0?
+                    int vert0 = quadVerts[0];
+                    int oppositeVert0Index = -1;
+                    for (int i = 1; i < 4; ++i) {
+                      int maybeOppositeVert0 = quadVerts[i];
+                      boolean theEdgeExists = false;
+                      for (int iEdge = 0; iEdge < edges.length; ++iEdge) { // before adding the diagonals
+                        if ((edges[iEdge][0] == vert0 && edges[iEdge][1] == maybeOppositeVert0)
+                         || (edges[iEdge][1] == vert0 && edges[iEdge][0] == maybeOppositeVert0))
+                        {
+                           theEdgeExists = true;
+                           break;
+                        }
+                      }
+                      if (!theEdgeExists) {
+                        assert(oppositeVert0Index == -1);
+                        oppositeVert0Index = i;
                       }
                     }
-                    if (!theEdgeExists) {
-                      assert(oppositeVert0Index == -1);
-                      oppositeVert0Index = i;
-                    }
+                    assert(oppositeVert0Index != -1);
+                    int temp;
+                    PRINTARRAY(quadVerts);
+                    SWAP(quadVerts[2], quadVerts[oppositeVert0Index], temp);
+                    PRINTARRAY(quadVerts);
+                    // Add two more edges of length sqrt(2) for this quad
+                    edges = (int[][])Arrays.concat(edges, new int[][] {
+                      {quadVerts[0], quadVerts[2]},
+                      {quadVerts[1], quadVerts[3]},
+                    });
                   }
-                  assert(oppositeVert0Index != -1);
-                  int temp;
-                  PRINTARRAY(quadVerts);
-                  SWAP(quadVerts[2], quadVerts[oppositeVert0Index], temp);
-                  PRINTARRAY(quadVerts);
-                  // These two edges want to have length sqrt(2)
-                  edges[18][0] = quadVerts[0];
-                  edges[18][1] = quadVerts[2];
-                  edges[19][0] = quadVerts[1];
-                  edges[19][1] = quadVerts[3];
 
                   int nItersEdgeSprings = 10000;
                   int[] weights = new int[nVerts];  // scratch for loop
@@ -2616,7 +2619,7 @@ public final class CSG
                     // Move each vert to the average of where its edge springs want to go...
                     VecMath.zeromat(newScratchVertCoords);
                     VecMath.zerovec(weights);
-                    assert(edges.length == 18+2);
+                    assert(edges.length == 18+2*(notFruchtFlag?3:1));
                     int nEdgesToEnforce = edges.length;
                     //int nEdgesToEnforce = 18;  // all but the square diagonals
                     for (int iEdge = 0; iEdge < nEdgesToEnforce; ++iEdge)
@@ -2751,6 +2754,60 @@ public final class CSG
                   }
                   PRINTMAT(scratchVertCoords);
                   PRINTARRAY(edges);
+
+                  if (notFruchtFlag) {
+                    // one of the quads comes out flat which isn't interesting.
+                    // rotate y ever so slightly towards z.  or backwards.
+                    double[][] fudgeRotMatYZ;
+                    {
+                      double fudgeDegreesYZ = 10;
+                      double c = Math.cos(DTOR(fudgeDegreesYZ));
+                      double s = Math.sin(DTOR(fudgeDegreesYZ));
+                      fudgeRotMatYZ = new double[][] {
+                        {1,0,0},
+                        {0,c,s},
+                        {0,-s,c},
+                      };
+                    }
+                    double[][] fudgeRotMatXY;
+                    {
+                      double fudgeDegreesXY = 5;
+                      double c = Math.cos(DTOR(fudgeDegreesXY));
+                      double s = Math.sin(DTOR(fudgeDegreesXY));
+                      fudgeRotMatXY = new double[][] {
+                        {c,s,0},
+                        {-s,c,0},
+                        {0,0,1},
+                      };
+                    }
+                    scratchVertCoords = VecMath.mxmxm(scratchVertCoords, fudgeRotMatXY, fudgeRotMatYZ);
+                    //scratchVertCoords = VecMath.mxmxm(scratchVertCoords, fudgeRotMatYZ, fudgeRotMatXY);
+                  } else {
+                    double[][] fudgeRotMatXZ;
+                    {
+                      double fudgeDegreesXZ = -4;
+                      double c = Math.cos(DTOR(fudgeDegreesXZ));
+                      double s = Math.sin(DTOR(fudgeDegreesXZ));
+                      fudgeRotMatXZ = new double[][] {
+                        {c,0,s},
+                        {0,1,0},
+                        {-s,0,c},
+                      };
+                    }
+                    double[][] fudgeRotMatYZ;
+                    {
+                      double fudgeDegreesYZ = 5;
+                      double c = Math.cos(DTOR(fudgeDegreesYZ));
+                      double s = Math.sin(DTOR(fudgeDegreesYZ));
+                      fudgeRotMatYZ = new double[][] {
+                        {1,0,0},
+                        {0,c,s},
+                        {0,-s,c},
+                      };
+                    }
+                    scratchVertCoords = VecMath.mxmxm(scratchVertCoords, fudgeRotMatXZ, fudgeRotMatYZ);
+                  }
+
 
                   // Print a quick svg of it
                   /*
