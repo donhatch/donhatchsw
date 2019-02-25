@@ -2688,7 +2688,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                   int nBests = 0;
 
                   //int nPerms = 2*n;  // we're not smart enough to do this yet-- we don't know how to restrict the flips to the correct offset
-                  int nPerms = 2*partition.length;
+                  //int nPerms = 2*partition.length;
+                  int nPerms = this.gripSymmetryOrders[gripIndex]==2 ? 2*partition.length : 2*n;
 
                   for (int iPerm = 0; iPerm < nPerms; ++iPerm) {
                     for (int i = 0; i < partition.length; ++i) {
