@@ -2639,30 +2639,34 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
 
 
-/*
-                  // XXX ARGH!  This part is all just wrong, and I'm spending too much time on it, I think
 
+                  if (false) {  // ARGH!  just plain wrong.  extremal doesn't even help at all, for stickers that aren't on the primary facet plane.
 
-                  double farthestDist2 = Double.NEGATIVE_INFINITY;
-                  int farthestI = -1;
-                  for (int i = 0; i < partition.length; ++i) {
-                    double thisDist2 = VecMath.distsqrd(partitionCenter, stickerCentersD[partition[i]]);
-                    if (thisDist2 > farthestDist2) {
-                      farthestI = i;
-                      farthestDist2 = thisDist2;
+                    double farthestDist2 = Double.NEGATIVE_INFINITY;
+                    int farthestI = -1;
+                    for (int i = 0; i < partition.length; ++i) {
+                      double thisDist2 = VecMath.distsqrd(partitionCenter, stickerCentersD[partition[i]]);
+                      if (thisDist2 > farthestDist2) {
+                        farthestI = i;
+                        farthestDist2 = thisDist2;
+                      }
                     }
-                  }
-                  // Woops!  We don't want to fix-in-place the sticker farthest away at all--
-                  // we actually want to do the opposite, that is, fix-in-place
-                  // a sticker *closest* to the center... except sometimes that's not right.
-                  // So, now that we have in hand an extremal sticker on this partition,
-                  // just walk 1/(2*n) of the way around.
+                    // Woops!  We don't want to fix-in-place the sticker farthest away at all--
+                    // we actually want to do the opposite, sort of... that is,
+                    // fix an edge rather than a vertex.
+                    // So, now that we have in hand an extremal sticker on this partition,
+                    // just walk 1/(2*n) of the way around.
+                    // (argh, this only works for the shells of the primary facet; it doesn't
+                    // work at all for the others)
 
-                  // Cyclically permute farthestI to the end.
-                  // CBB: this is silly, should provide a shift-by mechanism for it
-                  VecMath.copyvec(partition, (int[])com.donhatchsw.util.Arrays.concat(com.donhatchsw.util.Arrays.subarray(partition, farthestI+1, partition.length-(farthestI+1)),
-                                                                       com.donhatchsw.util.Arrays.subarray(partition, 0, farthestI+1)));
-*/
+                    Assert(partition.length % (2*n) == 0);
+                    farthestI = (farthestI + partition.length/(2*n)) % partition.length;
+
+                    // Cyclically permute farthestI to the end.
+                    // CBB: this is silly, should provide a shift-by mechanism for it
+                    VecMath.copyvec(partition, (int[])com.donhatchsw.util.Arrays.concat(com.donhatchsw.util.Arrays.subarray(partition, farthestI+1, partition.length-(farthestI+1)),
+                                                                         com.donhatchsw.util.Arrays.subarray(partition, 0, farthestI+1)));
+                  }
                 }
 
                 VecMath.copyvec(newState, state);  // everything in its original place, for starters
