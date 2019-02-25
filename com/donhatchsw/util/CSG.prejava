@@ -2555,7 +2555,10 @@ public final class CSG
                   VecMath.copymat(scratchVertCoords, newScratchVertCoords);
                 }
 
-                if (false) {
+                if (false) {  // set to true to dump some svgs and exit
+                  /*
+                  make && java -classpath donhatchsw.jar com.donhatchsw.mc4d.PolytopePuzzleDescription "Frucht 3(5)" ; make && java -classpath donhatchsw.jar com.donhatchsw.mc4d.PolytopePuzzleDescription "Frucht 3(5)" | perl -ne 'print if (/xml/../^<\/svg/); flush;' >| ~/tmp/FOO.svg
+                  */
                   OUT("================================");
                   OUT("ATTEMPTING TO ANSWER OSKAR'S QUESTION");
                   int edges[][] = new int[18][2];
@@ -2665,6 +2668,7 @@ public final class CSG
 
                       if (false) 
                       {
+                        // (note, numbers changed since I changed a scale factor from .25 to .24 somewhere, oh well)
                         // see if we can make it converge to anything other than 1.1529514113610924.
                         // Yes, we can:
                         // If I use the LHS for first half, then relax, I get the following.
@@ -2807,49 +2811,186 @@ public final class CSG
                     scratchVertCoords = VecMath.mxmxm(scratchVertCoords, fudgeRotMatXZ, fudgeRotMatYZ);
                   }
 
+                  if (true)
+                  {
+                    System.out.println("  Attempting to do some spherical circles");
+                    double[][] circleXYRs = new double[2*nVerts][3];
+                    int nSamplesPerCircle = 360;
+                    double[][] samples3d = new double[nSamplesPerCircle*2*nVerts][3];
+                    double[][][] edges3d = new double[nEdges][2][3];
+                    double[][][] edges2d = new double[nEdges][2][2];
+                    {
+                      // Make circles on the sphere, and apply stereographic projection
+                      // https://en.wikipedia.org/wiki/Stereographic_projection
+                      double[] sphericalCircleAngularRadii = {
+                        .01, // small, to draw a circle representing the center
+                        .525,  // tweaked til it's roughly right, meet in center of triangle, so edges-only puzzle
+                        //.66,  // tweaked til it meets in center of square
+                      };
+                      for (int iRadius = 0; iRadius < sphericalCircleAngularRadii.length; ++iRadius) {
+                        double sphericalCircleAngularRadius = sphericalCircleAngularRadii[iRadius];
+                        double sin = Math.sin(sphericalCircleAngularRadius);
+                        double cos= Math.cos(sphericalCircleAngularRadius);
+                        for (int iEdge = 0; iEdge < nEdges; ++iEdge) {
+                          for (int iEnd = 0; iEnd < 2; ++iEnd) {
+                            edges3d[iEdge][iEnd] = VecMath.normalize(scratchVertCoords[edges[iEdge][iEnd]]);
+                            edges2d[iEdge][iEnd][0] = edges3d[iEdge][iEnd][0]/(1+edges3d[iEdge][iEnd][2]);
+                            edges2d[iEdge][iEnd][1] = edges3d[iEdge][iEnd][1]/(1+edges3d[iEdge][iEnd][2]);
+                          }
+                        }
+                        for (int iVert = 0; iVert < nVerts; ++iVert) {
+                          double[][] mat = new double[3][3];
+                          VecMath.normalize(mat[0], scratchVertCoords[iVert]);
+                          VecMath.extendAndOrthogonalize(1, 3, mat, mat);
+                          double[] normal = mat[0];
 
-                  // Print a quick svg of it
+                          for (int iSample = 0; iSample < nSamplesPerCircle; ++iSample) {
+                            VecMath.sxvpsxvpsxv(samples3d[(iRadius*nVerts+iVert)*nSamplesPerCircle+iSample],
+                                                cos, normal, 
+                                                sin*Math.cos(2*Math.PI*iSample/nSamplesPerCircle), mat[1],
+                                                sin*Math.sin(2*Math.PI*iSample/nSamplesPerCircle), mat[2]);
+                          }
+
+                          // points3d will be the circle center, and 3 points on the circle.
+                          double[][] points3d = new double[4][3];
+                          VecMath.copyvec(points3d[0], normal);
+                          VecMath.sxvpsxv(points3d[1], cos, normal, sin, mat[1]);
+                          VecMath.sxvpsxv(points3d[2], cos, normal, sin, mat[2]);
+                          VecMath.sxvpsxv(points3d[3], cos, normal, -sin, mat[1]);
+                          // project those to the plane.
+                          double points2d[][] = new double[4][2];
+                          for (int i = 0; i < 4; ++i) {
+                            points2d[i][0] = points3d[i][0]/(1+points3d[i][2]);
+                            points2d[i][1] = points3d[i][1]/(1+points3d[i][2]);
+                          }
+                          PRINTMAT(points3d);
+                          PRINTMAT(points2d);
+                          // Find circumcircle of points2d[1,2,3].
+                          // http://mathworld.wolfram.com/BarycentricCoordinates.html
+                          // https://en.wikipedia.org/wiki/Circumscribed_circle#Barycentric_coordinates
+                          double a = VecMath.dist(points2d[2], points2d[3]);
+                          double b = VecMath.dist(points2d[3], points2d[1]);
+                          double c = VecMath.dist(points2d[1], points2d[2]);
+                          double aBary = a*a*(b*b+c*c-a*a);
+                          double bBary = b*b*(c*c+a*a-b*b);
+                          double cBary = c*c*(a*a+b*b-c*c);
+                          double barySum = aBary+bBary+cBary;
+                          aBary /= barySum;
+                          bBary /= barySum;
+                          cBary /= barySum;
+                          double[] xy = VecMath.sxvpsxvpsxv(aBary, points2d[1],
+                                                            bBary, points2d[2],
+                                                            cBary, points2d[3]);
+                          double r = a*b*c/Math.sqrt((a+b+c)*(b+c-a)*(c+a-b)*(a+b-c));
+                          System.out.println("          aBary+bBary+cBary="+(aBary+bBary+cBary));
+                          System.out.println("          r = "+r);
+                          System.out.println("should be r = "+VecMath.dist(xy, points2d[1]));
+                          System.out.println("should be r = "+VecMath.dist(xy, points2d[2]));
+                          System.out.println("should be r = "+VecMath.dist(xy, points2d[3]));
+                          circleXYRs[2*iVert+iRadius][0] = xy[0];
+                          circleXYRs[2*iVert+iRadius][1] = xy[1];
+                          circleXYRs[2*iVert+iRadius][2] = r;
+                        }
+                      }  // for both radii
+                    }
+
+
+
+                    System.out.println("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>");
+                    System.out.println("<svg xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:cc=\"http://creativecommons.org/ns#\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns=\"http://www.w3.org/2000/svg\" width=\"256pt\" height=\"256pt\" viewBox=\"0.00 0.00 256.00 256.00\">");
+
+                    if (true) // The stereographic projection on the plane
+                    {
+                      System.out.println("<g style=\"fill:none;stroke:#000000\" transform=\"translate(128,128)\">");
+                      double scale = 35;
+                      if (false) {  // draw the edges too
+                        System.out.println("<g style=\"fill:none;stroke:#e0e0e0\" transform=\"translate(0,0)\">");
+                        for (int iEdge = 0; iEdge < nEdges; ++iEdge)
+                        {
+                          double x0 = edges2d[iEdge][0][0];
+                          double y0 = edges2d[iEdge][0][1];
+                          double x1 = edges2d[iEdge][1][0];
+                          double y1 = edges2d[iEdge][1][1];
+                          System.out.println("  <path d=\"M "+(x0*scale)+","+(-y0*scale)+" L"+(x1*scale)+","+(-y1*scale)+" \" />\"");
+                        }
+                        System.out.println("</g>");
+                      }
+                      for (int i = 0; i < circleXYRs.length; ++i) {
+                        double cx = circleXYRs[i][0];
+                        double cy = circleXYRs[i][1];
+                        double r = circleXYRs[i][2];
+                        System.out.println("<circle cx=\""+(cx*scale)+"\" cy=\""+(-cy*scale)+"\" r=\""+(r*scale)+"\" />");
+                      }
+                      System.out.println("</g>");
+                    }
+                    if (false) // The samples in 3d, so it looks like a sphere
+                    {
+                      double scale = 70;
+                      double R = .01;
+                      double r = .005;
+                      System.out.println("<g style=\"fill:none;stroke:#e0e0e0\" transform=\"translate(128,128)\">");
+                      for (int i = 0; i < samples3d.length; ++i) {
+                        double cx = samples3d[i][0];
+                        double cy = samples3d[i][1];
+                        double cz = samples3d[i][2];
+                        if (cz <= 0) {
+                          System.out.println("<circle cx=\""+(cx*scale)+"\" cy=\""+(-cy*scale)+"\" r=\""+(r*scale)+"\" />");
+                        }
+                      }
+                      System.out.println("</g>");
+
+                      System.out.println("<g style=\"fill:none;stroke:#8080ff\" transform=\"translate(128,128)\">");
+                      System.out.println("<circle stroke-width=\"3\" cx=\""+(0*scale)+"\" cy=\""+(-0*scale)+"\" r=\""+(1*scale)+"\" />");
+                      System.out.println("</g>");
+
+                      System.out.println("<g style=\"fill:none;stroke:#000000\" transform=\"translate(128,128)\">");
+                      for (int i = 0; i < samples3d.length; ++i) {
+                        double cx = samples3d[i][0];
+                        double cy = samples3d[i][1];
+                        double cz = samples3d[i][2];
+                        if (cz >= 0) {
+                          System.out.println("<circle cx=\""+(cx*scale)+"\" cy=\""+(-cy*scale)+"\" r=\""+(R*scale)+"\" />");
+                        }
+                      }
+                      System.out.println("</g>");
+
+                      if (true) {  // draw the edges too
+                        System.out.println("<g style=\"fill:none;stroke:#000000\" transform=\"translate(128,128)\">");
+                        for (int iEdge = 0; iEdge < nEdges; ++iEdge)
+                        {
+                          double x0 = edges3d[iEdge][0][0];
+                          double y0 = edges3d[iEdge][0][1];
+                          double x1 = edges3d[iEdge][1][0];
+                          double y1 = edges3d[iEdge][1][1];
+                          System.out.println("  <path d=\"M "+(x0*scale)+","+(-y0*scale)+" L"+(x1*scale)+","+(-y1*scale)+" \" />\"");
+                        }
+                        System.out.println("</g>");
+                      }
+                    }
+                    System.out.println("</svg>");
+
+                    System.out.flush();
+                    System.exit(0);
+
+                  }  // circles picture (3d or planar)
+
+                  // Print a quick svg of it.
+                  // As template of sorts, here is part of the svg for frucht graph from wikipedia:
                   /*
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:svg="http://www.w3.org/2000/svg" xmlns="http://www.w3.org/2000/svg" width="224pt" height="214pt" viewBox="0.00 0.00 224.00 214.00">
 <g style="fill:none;stroke:#000000" transform="translate(0,0)">
 <path d="M 208,-97 C 204,-86 195,-60 192,-48" />
-<path d="M 82,-200 C 94,-200 121,-200 133,-200" />
-<path d="M 9,-107 C 21,-123 61,-179 73,-196" />
-<path d="M 8,-97 C 11,-86 20,-60 23,-48" />
-<path d="M 134,-8 C 115,-14 49,-35 30,-41" />
-<path d="M 185,-40 C 176,-32 153,-16 144,-9" /> </g>
 
 <g style="fill:blue;stroke:black">
 <path d="M 143.59307,12.969697 L 153.32035,62.532468" />
-<path d="M 211.68398,108.85281 L 153.32035,64.385281" />
-<path d="M 188.1,164.06833 L 137.57143,138.96104" />
-<path d="M 102.83117,159.34199 L 137.57143,137.57143" />
-<path d="M 141.74026,201.49351 L 102.36797,159.34199" />
-<path d="M 33.813853,166.29004 L 102.36797,159.80519" />
-<path d="M 80,70 L 79.670996,14.359307" />
-<path d="M 12.969697,105.61039 L 69,97" />
-<path d="M 80,70 L 153.32035,63.458874" />
-<path d="M 145.44589,10.65368 L 214,108.38961" />
-<path d="M 80,70 L 69,97" />
-<path d="M 137,138 L 69,97" />
-<circle cx="137" cy="138" r="5" />
-<circle cx="80" cy="70" r="5" />
-<circle cx="69" cy="97" r="5" />
 <circle cx="102" cy="159" r="5" />
 <g transform="translate(4,210)">
 <circle cx="210" cy="-103" r="5" />
-<circle cx="190" cy="-43" r="5" />
-<circle cx="150" cy="-145" r="5" />
-<circle cx="139" cy="-200" r="5" />
-<circle cx="76" cy="-200" r="5" />
-<circle cx="6" cy="-103" r="5" />
-<circle cx="25" cy="-43" r="5" />
-<circle cx="139" cy="-6" r="5" />
 </g>
 </g></svg>
                   */
-                  if (true) {
+                  if (false) {  // svg of the polyhedron
                     System.out.println("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>");
                     System.out.println("<svg xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:cc=\"http://creativecommons.org/ns#\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\" xmlns:svg=\"http://www.w3.org/2000/svg\" xmlns=\"http://www.w3.org/2000/svg\" width=\"512pt\" height=\"214pt\" viewBox=\"0.00 0.00 224.00 214.00\">");
 
@@ -2876,7 +3017,8 @@ public final class CSG
                     System.out.println("</svg>");
                     System.out.flush();
                     System.exit(0);
-                  }
+
+                  }  // svg of just the polyhedron
 
                   OUT("DONE ATTEMPTING TO ANSWER OSKAR'S QUESTION");
                   OUT("================================");
