@@ -633,7 +633,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
 
         this.XXXfutt = regex.matches(schlafliProduct, ".*[Ff]rucht");
-        //this.XXXfutt = nDims == 3;  // UNCOMMENT FOR DEBUGGING: so I can debug it on a cube, which is easier than the frucht polyhedron.  Q: I'd also like this on futtminx 3(1)5, also all the other truncateds p(1)q and omnitruncateds p(1)q(1) and maybe more; how?  maybe hint with futt in the name?  note, when futt fully debugged and featured, it might be suitable for all 3d puzzles
+        //this.XXXfutt = nDims == 3;  // UNCOMMENT FOR DEBUGGING: so I can debug it on a cube, which is easier than the frucht polyhedron.  Q: I'd also like this on futtminx 3(1)5, also all the other truncateds p(1)q and omnitruncateds p(1)q(1) and prisms and maybe more; how?  maybe hint with futt in the name?  note, when futt fully debugged and featured, it might be suitable for all 3d puzzles
         this.XXXfuttIntLengths = VecMath.copyvec(intLengths);  // it's hard for the on-the-fly futt stuff to figure it out otherwise
 
         CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
