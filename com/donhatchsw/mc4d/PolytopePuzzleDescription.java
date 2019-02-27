@@ -632,7 +632,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
 
         this.XXXfutt = regex.matches(schlafliProduct, ".*[Ff]rucht");
-        this.XXXfutt = nDims == 3;  // FOR DEBUGGING: so I can debug it on a cube, which is easier
+        //this.XXXfutt = nDims == 3;  // FOR DEBUGGING: so I can debug it on a cube, which is easier
 
         CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
         CSG.Polytope[] originalVerts = originalElements[0];
