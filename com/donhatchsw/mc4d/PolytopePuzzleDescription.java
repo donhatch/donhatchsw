@@ -2615,7 +2615,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         // Need to apply the inverse of the *full* (i.e. frac=1) twist mat to toF
                         // to get its coords in from space,
                         // then apply the morph,
-                        // then apply the twist mat.
+                        // then apply the partial twist mat.
                         float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
                         float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
                         VecMath.vxm(outVerts[iVert], morphedFrom, matF);
@@ -2625,6 +2625,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
 
                 // TODO: something other than the following: what?
+                //       - well, I think recompute sticker centers, and the rest too I guess :-(
                 VecMath.copymat(outStickerCenters, stickerCentersF);
                 VecMath.copymat(outStickerShrinkToPointsOnFaceBoundaries, stickerAltCentersF);
                 VecMath.copymat(outPerStickerFaceCenters, facetCentersF);
