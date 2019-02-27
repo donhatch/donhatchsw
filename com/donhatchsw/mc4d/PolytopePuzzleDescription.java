@@ -633,7 +633,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
 
         this.XXXfutt = regex.matches(schlafliProduct, ".*[Ff]rucht");
-        //this.XXXfutt = nDims == 3;  // UNCOMMENT FOR DEBUGGING: so I can debug it on a cube, which is easier than the frucht polyhedron
+        //this.XXXfutt = nDims == 3;  // UNCOMMENT FOR DEBUGGING: so I can debug it on a cube, which is easier than the frucht polyhedron.  Q: I'd also like this on futtminx 3(1)5, also all the other truncateds p(1)q and omnitruncateds p(1)q(1) and maybe more; how?  maybe hint with futt in the name?  note, when futt fully debugged and featured, it might be suitable for all 3d puzzles
         this.XXXfuttIntLengths = VecMath.copyvec(intLengths);  // it's hard for the on-the-fly futt stuff to figure it out otherwise
 
         CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
@@ -1612,7 +1612,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                       // Answer: look at usefulMat[1], which by definition
                                       // points from the facet center to the grip center.
                                       // It will point at +-1 for the rotational case,
-                                      // and orthogonal to that for the reflectional case.
+                                      // and it will lie in the xyz space for the reflectional case.
                                       if (intLengths.length == 1 && intLengths[0] == 1) {  // no cuts
                                         this.gripSymmetryOrders[iGrip] = 1;
                                       } else if (VecMath.normsqrd(3, gripUsefulMats[iGrip][1]) < 1e-6*1e-6) {
@@ -2461,67 +2461,68 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     edgeIsIncidentOnThisFace[iEdge] = true;
                 }
 
-                int[] vertsThisFaceInOrder = new int[gonality];
-                int[] edgesThisFaceInOrder = new int[gonality];
                 int[] neighborsThisFaceInOrder = new int[gonality];
                 {
+                    int[] vertsThisFaceInOrder = new int[gonality];
+                    int[] edgesThisFaceInOrder = new int[gonality];
                     System.out.println("facet center = "+VecMath.toString(CSG.cgOfVerts(originalElements[2][iFacet])));
                     int iFirstEdge = originalIncidences[2][iFacet][1][0];
                     int iFirstVert = originalIncidences[1][iFirstEdge][0][0];
                     System.out.println("first edge center = "+VecMath.toString(CSG.cgOfVerts(originalElements[1][iFirstEdge])));
                     System.out.println("first vert center = "+VecMath.toString(CSG.cgOfVerts(originalElements[0][iFirstVert])));
-                    // Make sure we go counterclockwise around the face.
-                    // XXX TODO: this seems to be backwards
+                    // We want to go ccw around the face,
+                    // so first vertex should be before first edge
+                    // in ccw order.
+                    // That is, det(facetcenter, edgecenter, vertcenter) should be <0.
                     double det = VecMath.det(new double[/*3*/][/*3*/] {
                       CSG.cgOfVerts(originalElements[2][iFacet]),
                       CSG.cgOfVerts(originalElements[1][iFirstEdge]),
                       CSG.cgOfVerts(originalElements[0][iFirstVert]),
                     });
                     System.out.println("det = "+det);
-                    if (det < 0)
+                    if (det > 0)
                     {
                         iFirstVert = originalIncidences[1][iFirstEdge][0][1];
                         System.out.println("first vert center adjusted = "+VecMath.toString(CSG.cgOfVerts(originalElements[0][iFirstVert])));
                     }
-                    for (int i = 0; i < gonality; ++i) {
-                        if (i == 0) {
-                            vertsThisFaceInOrder[i] = iFirstVert;
-                            edgesThisFaceInOrder[i] = iFirstEdge;
-                        } else {
-                            // this vert is other vert on prev edge
-                            int iPrevVert = vertsThisFaceInOrder[i-1];
-                            int iPrevEdge = edgesThisFaceInOrder[i-1];
-                            int iThisVert = originalIncidences[1][iPrevEdge][0][0];  // or the other one
-                            if (iThisVert == iPrevVert) iThisVert = originalIncidences[1][iPrevEdge][0][1];
-                            vertsThisFaceInOrder[i] = iThisVert;
+                    vertsThisFaceInOrder[0] = iFirstVert;
+                    edgesThisFaceInOrder[0] = iFirstEdge;
+                    for (int i = 1; i < gonality; ++i) {  // skipping 0
+                        // this vert is other vert on prev edge
+                        int iPrevVert = vertsThisFaceInOrder[i-1];
+                        int iPrevEdge = edgesThisFaceInOrder[i-1];
+                        int iThisVert = originalIncidences[1][iPrevEdge][0][0];  // or the other one
+                        if (iThisVert == iPrevVert) iThisVert = originalIncidences[1][iPrevEdge][0][1];
+                        vertsThisFaceInOrder[i] = iThisVert;
 
-                            // this edge is the other edge incident on this vert
-                            // that's incident on this face.
-                            int iThisEdge = -1;
-                            for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iThisVert][1].length; ++iEdgeThisVert)
+                        // this edge is the other edge incident on this vert
+                        // that's incident on this face.
+                        int iThisEdge = -1;
+                        for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iThisVert][1].length; ++iEdgeThisVert)
+                        {
+                            int iEdge = originalIncidences[0][iThisVert][1][iEdgeThisVert];
+                            if (iEdge != iPrevEdge && edgeIsIncidentOnThisFace[iEdge])
                             {
-                                int iEdge = originalIncidences[0][iThisVert][1][iEdgeThisVert];
-                                if (iEdge != iPrevEdge && edgeIsIncidentOnThisFace[iEdge])
-                                {
-                                    // found it!
-                                    Assert(iThisEdge == -1);
-                                    iThisEdge = iEdge;
-                                    break;
-                                }
+                                // found it!
+                                Assert(iThisEdge == -1);
+                                iThisEdge = iEdge;
+                                break;
                             }
-                            Assert(iThisEdge != -1);
-                            edgesThisFaceInOrder[i] = iThisEdge;
                         }
+                        Assert(iThisEdge != -1);
+                        edgesThisFaceInOrder[i] = iThisEdge;
+                    }
+                    for (int i = 0; i < gonality; ++i) {
                         // this neighbor face is the other face
                         // incident on this edge.
                         int iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][0];  // or the other one
                         if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][1];
                         neighborsThisFaceInOrder[i] = iThisNeighborFace;
                     }
+                    System.out.println("      vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
+                    System.out.println("      edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
+                    System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
                 }
-                System.out.println("      vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
-                System.out.println("      edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
-                System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
                 System.out.println("      coord dim = "+vertsF[0].length);  // XXX oh bleah, it's 4!  whatever will we do now, we need another hyperplane?  no, the w dimension is trivial, I think, so use that fact.
 
 
@@ -2632,15 +2633,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 //System.out.println("sticker center coords = "+VecMath.toString(stickerCenterCoords));
 
-                // either of the following seems to work... use the coarser one if it turns out the finer one fails.  bucket size is chosen because the implementation guides it by throwing if it's too small
-                FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-7, 1e-6, 1./64);  // coarser than usual 1e-9,1e-8, since we're comparing floats.
-                //FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-6, 1e-5, 1./8);  // coarser than usual 1e-9,1e-8, since we're comparing floats.
+                // bucket size is chosen by listening to the the implementation which throws if it's too small.
+                FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-6, 1e-5, 1./8);  // coarser than usual 1e-9,1e-8, since we're comparing floats. actually even 1e-7,1e-6 is too fine, for futtminx
 
                 for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
                 {
-                    // TODO: sign seems backwards
                     // TODO: this sign computation makes no sense for edge grips
-                    int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?1:-1)*dir + gonality)%gonality;
+                    int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
                     // CBB: all these dimensions better be the same, so don't need to be looking at all different lengths.  same when creating them
                     for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
                     for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
@@ -2929,7 +2928,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                       for (int i = 0; i < nVertsLeft; ++i) {
                         if (isOnShell[i]) shellSize++;
                       }
-                      Assert(shellSize % n == 0);
+                      Assert(shellSize % n == 0);  // CBB: fails if we don't make doubleLengths large enough.  should fail more gracefully here, probably just don't allow the futt twist if we run into trouble
                       int[] subpartition = new int[shellSize];
                       int iShell = 0;
                       for (int i = 0; i < nVertsLeft; ++i) {
