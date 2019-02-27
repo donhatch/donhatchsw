@@ -431,11 +431,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int[/*nGrips*/] gripSymmetryOrders;
     private double[/*nGrips*/][/*nDims*/][/*nDims*/] gripUsefulMats; // weird name
     private double[/*nGrips*/][/*nDims*/] gripTwistRotationFixedPoints;  // a point that should remain fixed by the twist rotation.  for uniform, can be origin, but for frucht, needs to be face center or something.
-    private boolean XXXfruchtFudge;  // TODO: get rid of this when I get frucht working right
+    private boolean XXXfutt;  // TODO: get rid of this when I get frucht working right... I think, maybe
     private int[/*nStickers*/][/*nPolygonsThisSticker*/] stickerPoly2Grip;
 
     private double[/*nFacets*/][/*nDims*/] facetInwardNormals;
     private double[/*nFacets*/][/*nCutsThisFacet*/] facetCutOffsets; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
+    private double[/*nFacets*/] facetOffsetsIfFutt; // not needed in general, but currently needed for on-the-fly analysis is futt'ing.
 
     private float[][] nicePointsToRotateToCenter;
 
@@ -604,6 +605,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                       double[] doubleLengths, // edge length / length of first edge segment, possibly per-face
                       java.io.PrintWriter progressWriter)
     {
+        this.XXXfutt = regex.matches(schlafliProduct, ".*[Ff]rucht");
+        //this.XXXfutt = nDims == 3;  // FOR DEBUGGING: so I can debug it on a cube, which is easier
+
         Assert(intLengths.length == doubleLengths.length);
         for (int i = 0; i < intLengths.length; ++i) {
           if (intLengths[i] < 1)
@@ -663,9 +667,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             VecMath.vxs(facetInwardNormals[iFacet], facetInwardNormals[iFacet], invNormalLength);
             facetOffsets[iFacet] *= invNormalLength;
         }
+        this.facetOffsetsIfFutt = this.XXXfutt ? facetOffsets : null;
 
         //
-        // Figure out the circumRadius (farthest vertex from orign)
+        // Figure out the circumRadius (farthest vertex from origin)
         // and inRadius (closest facet plane to origin)
         // of the original polytope...
         //
@@ -1448,9 +1453,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         this.vertsF = VecMath.doubleToFloat(restVerts);
 
-        this.XXXfruchtFudge = regex.matches(schlafliProduct, ".*[Ff]rucht");
-        //this.XXXfruchtFudge = nDims == 3;  // FOR DEBUGGING: so I can debug it on a cube, which is easier
-
         //
         // Now think about the twist grips.
         // There will be one grip at each vertex,edge,facet center
@@ -1595,7 +1597,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                            originalPolytope.p,
                                                                            maxOrder,
                                                                            gripUsefulMats[iGrip]);
-                                    if (this.XXXfruchtFudge) {
+                                    if (this.XXXfutt) {
                                       Assert(nDims == 3);
                                       Assert(iDim == 2);
                                       // Since it's 3d, grips are 2d polygons.
@@ -2372,6 +2374,133 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             int iFacet = grip2face[gripIndex];
             double[] thisFaceInwardNormal = facetInwardNormals[iFacet];
             double[] thisFaceCutOffsets = facetCutOffsets[iFacet];
+
+            if (this.XXXfutt && this.gripSymmetryOrders[gripIndex] != 1)
+            {
+                // Whole lotta fudgin goin on.
+                // Each "corner region" of the puzzle
+                // gets a different actual transform; the verts
+                // in that corner region get transformed by that transform.
+                // TODO: Sticker centers and shrink-to-points are more problematic...
+                // I think those will need to be recomputed
+                // as blends of the resulting vertex coords.
+                System.out.println("  ==========================");
+                System.out.println("  WHOLE LOTTA FUTTIN GOIN ON");
+                System.out.println("      gripIndex = "+gripIndex);
+                System.out.println("      dir = "+dir);
+                System.out.println("      slicemask = "+slicemask);
+                System.out.println("      frac = "+frac);
+                System.out.println("      iFacet = "+iFacet);
+
+                int nDims = nDims();
+
+                // Find the incident verts and edges, in cyclic order.
+                // This assumes nDims==3.
+                Assert(nDims == 3);
+                // So, facet=face, ridge=edge, peak=vertex.
+
+                CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();  // argh, recomputing
+                int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();  // argh, recomputing
+
+                int gonality = originalIncidences[2][iFacet][1].length;
+
+                boolean[] edgeIsIncidentOnThisFace = new boolean[originalElements[1].length];  // false initially
+                for (int iEdgeThisFace = 0; iEdgeThisFace < originalIncidences[2][iFacet][1].length; ++iEdgeThisFace)
+                {
+                    int iEdge = originalIncidences[2][iFacet][1][iEdgeThisFace];
+                    edgeIsIncidentOnThisFace[iEdge] = true;
+                }
+
+                int[] vertsThisFaceInOrder = new int[gonality];
+                int[] edgesThisFaceInOrder = new int[gonality];
+                int[] neighborsThisFaceInOrder = new int[gonality];
+                {
+                    int iFirstEdge = originalIncidences[2][iFacet][1][0];
+                    int iFirstVert = originalIncidences[1][iFirstEdge][0][0];
+                    vertsThisFaceInOrder[0] = iFirstVert;
+                    edgesThisFaceInOrder[0] = iFirstEdge;
+                    for (int i = 1; i < gonality; ++i)
+                    {
+                        // this vert is other vert on prev edge
+                        int iPrevVert = vertsThisFaceInOrder[i-1];
+                        int iPrevEdge = edgesThisFaceInOrder[i-1];
+                        int iThisVert = originalIncidences[1][iPrevEdge][0][0];  // or the other one
+                        if (iThisVert == iPrevVert) iThisVert = originalIncidences[1][iPrevEdge][0][1];
+                        vertsThisFaceInOrder[i] = iThisVert;
+
+                        // this edge is the other edge incident on this vert
+                        // that's incident on this face.
+                        int iThisEdge = -1;
+                        for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iThisVert][1].length; ++iEdgeThisVert)
+                        {
+                            int iEdge = originalIncidences[0][iThisVert][1][iEdgeThisVert];
+                            if (iEdge != iPrevEdge && edgeIsIncidentOnThisFace[iEdge])
+                            {
+                                // found it!
+                                Assert(iThisEdge == -1);
+                                iThisEdge = iEdge;
+                                break;
+                            }
+                        }
+                        Assert(iThisEdge != -1);
+                        edgesThisFaceInOrder[i] = iThisEdge;
+
+                        // this neighbor face is the other face
+                        // incident on this edge.
+                        int iThisNeighborFace = originalIncidences[1][iThisEdge][2][0];  // or the other one
+                        if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][iThisEdge][2][1];
+                        neighborsThisFaceInOrder[i] = iThisNeighborFace;
+                    }
+                }
+                System.out.println("     vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
+                System.out.println("     edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
+                System.out.println("     neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
+                System.out.println("     coord dim = "+vertsF[0].length);  // XXX oh bleah, it's 4!  whatever will we do now, we need another hyperplane?  no, the w dimension is trivial, I think, so use that fact.
+
+
+                double[][][][][] cutIntersectionCoords = new double[gonality][/*nCutsThisFace+1*/][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
+                for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
+                {
+                    int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
+                    int iNextNeighborFace = neighborsThisFaceInOrder[(iCornerRegion+1) % gonality];
+
+                    // We are going to want to answer questions of the form:
+                    // "what is the intersection of the hyperplanes
+                    // at these three offsets from the three faces"?
+                    // The face normals stay constant but the offsets vary,
+                    // so compute an inverse matrix.
+                    double[/*3*/][/*3*/] faceInwardNormalsMat = {
+                        facetInwardNormals[iFacet],
+                        facetInwardNormals[iPrevNeighborFace],
+                        facetInwardNormals[iNextNeighborFace],
+                    };
+                    double[/*3*/][/*3*/] inverseOfFaceInwardNormalsMat = VecMath.invertmat(faceInwardNormalsMat);
+
+
+                    cutIntersectionCoords[iCornerRegion] = new double[facetCutOffsets[iFacet].length+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
+                    for (int iCutThisFace = 0; iCutThisFace < facetCutOffsets[iFacet].length+1; ++iCutThisFace)
+                    {
+                        cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[facetCutOffsets[iPrevNeighborFace].length+1][/*nCutsNextNeighborFace+1*/][];
+                        for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < facetCutOffsets[iPrevNeighborFace].length+1; ++iCutPrevNeighborFace)
+                        {
+                            // Need coords only where at least one of the three cut indices is 0,
+                            // i.e. on the surface of the polyhedron.
+                            // This is an important optimization if number of cuts is large.
+                            cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace] = new double[
+                                iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : facetCutOffsets[iNextNeighborFace].length+1][];
+                            for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace].length; ++iCutNextNeighborFace)
+                            {
+                                double[] coords3 = new double[3];
+                            }
+                        }
+                    }
+                }
+
+                System.out.println("  WHOLE LOTTA FUTTIN WENT ON");
+                System.out.println("  ==========================");
+                //return;
+            }
+
             for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
             {
                 if (pointIsInSliceMask(stickerCentersD[iSticker],
@@ -2471,7 +2600,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             double[] thisFaceInwardNormal = facetInwardNormals[iFacet];
             double[] thisFaceCutOffsets = facetCutOffsets[iFacet];
 
-            if (this.XXXfruchtFudge && this.gripSymmetryOrders[gripIndex] != 1)
+            if (this.XXXfutt && this.gripSymmetryOrders[gripIndex] != 1)
             {
                 // 1. partition relevant stickers according to signed distance from cut facet plane;
                 //    the permutation will respect those partitions.
