@@ -1610,7 +1610,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                       // Well, empirically, for the rotational ones,
                                       // usefulMat[1] will be point at +-w;
                                       // for the reflectional ones, usefulMat[2] point at +-w for futt, and +-y for cube, so don't rely on that.
-                                      if (VecMath.normsqrd(3, gripUsefulMats[iGrip][1]) < 1e-6*1e-6) {
+                                      if (intLengths.length == 1 && intLengths[0] == 1) {  // no cuts
+                                        this.gripSymmetryOrders[iGrip] = 1;
+                                      } else if (VecMath.normsqrd(3, gripUsefulMats[iGrip][1]) < 1e-6*1e-6) {
                                         this.gripSymmetryOrders[iGrip] = elt.facets.length;
                                       } else {
                                         this.gripSymmetryOrders[iGrip] = 2;
@@ -2606,6 +2608,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         double[] from = VecMath.floatToDouble(fromF);
                         double[] to = (double[])finalMorphDestinations.get(from);
                         System.out.println("found from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                        // TODO: sometimes null (for the pents and tris), figure out why
                         float[] toF = VecMath.doubleToFloat(to);
 
                         // Ok, now what's the right thing to do?
