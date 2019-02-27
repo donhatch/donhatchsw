@@ -4810,6 +4810,32 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return result;
         }
 
+        /** TODO: make this more general and move it into Arrays */
+        public static Object[] doubleToFloat(Object m)
+        {
+            if (m instanceof double[][])
+            {
+                return doubleToFloat((double[][])m);
+            }
+            else
+            {
+                int n = java.lang.reflect.Array.getLength(m);
+                // CBB: figure out the right type right away, rather than relying
+                // on a sub-result
+                Object[] scratch = new Object[n];
+                for (int i = 0; i < n; ++i) {
+                    scratch[i] = doubleToFloat(java.lang.reflect.Array.get(m, i));
+                }
+                Object[] answer = (Object[])java.lang.reflect.Array.newInstance(
+                    scratch[0].getClass(),
+                    n);
+                for (int i = 0; i < n; ++i) {
+                    answer[i] = scratch[i];
+                }
+                return answer;
+            }
+        }
+
         /** get matrix column, returning newly allocated result */
         public static double[] getcolumn(double M[][], int iCol)
         {
