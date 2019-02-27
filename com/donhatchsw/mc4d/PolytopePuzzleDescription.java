@@ -2423,6 +2423,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (this.XXXfutt && this.gripSymmetryOrders[gripIndex] != 1)
             {
+                int verboseLevel = 1;
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
@@ -2464,49 +2465,57 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int[] edgesThisFaceInOrder = new int[gonality];
                 int[] neighborsThisFaceInOrder = new int[gonality];
                 {
+                    System.out.println("facet center = "+VecMath.toString(CSG.cgOfVerts(originalElements[2][iFacet])));
                     int iFirstEdge = originalIncidences[2][iFacet][1][0];
                     int iFirstVert = originalIncidences[1][iFirstEdge][0][0];
+                    System.out.println("first edge center = "+VecMath.toString(CSG.cgOfVerts(originalElements[1][iFirstEdge])));
+                    System.out.println("first vert center = "+VecMath.toString(CSG.cgOfVerts(originalElements[0][iFirstVert])));
                     // Make sure we go counterclockwise around the face.
-                    if (VecMath.det(new double[/*3*/][/*3*/] {
+                    // XXX TODO: this seems to be backwards
+                    double det = VecMath.det(new double[/*3*/][/*3*/] {
                       CSG.cgOfVerts(originalElements[2][iFacet]),
                       CSG.cgOfVerts(originalElements[1][iFirstEdge]),
                       CSG.cgOfVerts(originalElements[0][iFirstVert]),
-                    }) < 0)
+                    });
+                    System.out.println("det = "+det);
+                    if (det < 0)
                     {
                         iFirstVert = originalIncidences[1][iFirstEdge][0][1];
+                        System.out.println("first vert center adjusted = "+VecMath.toString(CSG.cgOfVerts(originalElements[0][iFirstVert])));
                     }
-                    vertsThisFaceInOrder[0] = iFirstVert;
-                    edgesThisFaceInOrder[0] = iFirstEdge;
-                    for (int i = 1; i < gonality; ++i)
-                    {
-                        // this vert is other vert on prev edge
-                        int iPrevVert = vertsThisFaceInOrder[i-1];
-                        int iPrevEdge = edgesThisFaceInOrder[i-1];
-                        int iThisVert = originalIncidences[1][iPrevEdge][0][0];  // or the other one
-                        if (iThisVert == iPrevVert) iThisVert = originalIncidences[1][iPrevEdge][0][1];
-                        vertsThisFaceInOrder[i] = iThisVert;
+                    for (int i = 0; i < gonality; ++i) {
+                        if (i == 0) {
+                            vertsThisFaceInOrder[i] = iFirstVert;
+                            edgesThisFaceInOrder[i] = iFirstEdge;
+                        } else {
+                            // this vert is other vert on prev edge
+                            int iPrevVert = vertsThisFaceInOrder[i-1];
+                            int iPrevEdge = edgesThisFaceInOrder[i-1];
+                            int iThisVert = originalIncidences[1][iPrevEdge][0][0];  // or the other one
+                            if (iThisVert == iPrevVert) iThisVert = originalIncidences[1][iPrevEdge][0][1];
+                            vertsThisFaceInOrder[i] = iThisVert;
 
-                        // this edge is the other edge incident on this vert
-                        // that's incident on this face.
-                        int iThisEdge = -1;
-                        for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iThisVert][1].length; ++iEdgeThisVert)
-                        {
-                            int iEdge = originalIncidences[0][iThisVert][1][iEdgeThisVert];
-                            if (iEdge != iPrevEdge && edgeIsIncidentOnThisFace[iEdge])
+                            // this edge is the other edge incident on this vert
+                            // that's incident on this face.
+                            int iThisEdge = -1;
+                            for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iThisVert][1].length; ++iEdgeThisVert)
                             {
-                                // found it!
-                                Assert(iThisEdge == -1);
-                                iThisEdge = iEdge;
-                                break;
+                                int iEdge = originalIncidences[0][iThisVert][1][iEdgeThisVert];
+                                if (iEdge != iPrevEdge && edgeIsIncidentOnThisFace[iEdge])
+                                {
+                                    // found it!
+                                    Assert(iThisEdge == -1);
+                                    iThisEdge = iEdge;
+                                    break;
+                                }
                             }
+                            Assert(iThisEdge != -1);
+                            edgesThisFaceInOrder[i] = iThisEdge;
                         }
-                        Assert(iThisEdge != -1);
-                        edgesThisFaceInOrder[i] = iThisEdge;
-
                         // this neighbor face is the other face
                         // incident on this edge.
-                        int iThisNeighborFace = originalIncidences[1][iThisEdge][2][0];  // or the other one
-                        if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][iThisEdge][2][1];
+                        int iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][0];  // or the other one
+                        if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][1];
                         neighborsThisFaceInOrder[i] = iThisNeighborFace;
                     }
                 }
@@ -2525,10 +2534,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 double[][][][][] cutIntersectionCoords = new double[gonality][/*nCutsThisFace+1*/][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
                 for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
                 {
-                    System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
+                    if (verboseLevel >= 2) System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
                     int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
                     int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
-                    System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
+                    if (verboseLevel >= 2) System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
 
                     // We are going to want to answer questions of the form:
                     // "what is the intersection of the hyperplanes
@@ -2539,13 +2548,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     // but the offsets vary, so compute an inverse matrix so we can answer
                     // the questions quickly.
                     double[/*3*/][/*3*/] faceInwardNormalsMat = {
-                        facetInwardNormals[iFacet],
-                        facetInwardNormals[iPrevNeighborFace],
-                        facetInwardNormals[iNextNeighborFace],
+                        (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iFacet], 0, 3),
+                        (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iPrevNeighborFace], 0, 3),
+                        (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iNextNeighborFace], 0, 3),
                     };
-                    System.out.println("              facetInwardNormals = "+VecMath.toString(faceInwardNormalsMat));
+                    if (verboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(faceInwardNormalsMat));
                     double[/*3*/][/*3*/] inverseOfFaceInwardNormalsMat = VecMath.invertmat(faceInwardNormalsMat);
-                    System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
+                    if (verboseLevel >= 2) System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
 
 
                     cutIntersectionCoords[iCornerRegion] = new double[nStickerLayers+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
@@ -2621,7 +2630,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         VecMath.vxs(stickerCenterCoord, stickerCenterCoord, 1./8.);
                     }
                 }
-                System.out.println("sticker center coords = "+VecMath.toString(stickerCenterCoords));
+                //System.out.println("sticker center coords = "+VecMath.toString(stickerCenterCoords));
 
                 // either of the following seems to work... use the coarser one if it turns out the finer one fails.  bucket size is chosen because the implementation guides it by throwing if it's too small
                 FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-7, 1e-6, 1./64);  // coarser than usual 1e-9,1e-8, since we're comparing floats.
@@ -2641,7 +2650,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             double w = wdir * pad;
                             double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
                             double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
-                            System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                            //System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                             finalMorphDestinations.put(from, to);
                         }
                     }
@@ -2650,7 +2659,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     for (int k = 0; k < stickerCenterCoords[fromCornerRegion][i][j].length; ++k)  {
                         double[] from = com.donhatchsw.util.Arrays.append(stickerCenterCoords[fromCornerRegion][i][j][k], 0.);
                         double[] to = com.donhatchsw.util.Arrays.append(stickerCenterCoords[toCornerRegion][i][j][k], 0.);
-                        System.out.println("setting sticker center from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                        //System.out.println("setting sticker center from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                         // XXX TODO: make this a separate fuzzy table.  yeah, I think I'll have to make the one for shrink-to points separate, in any case.  hmm, or maybe not?  the collisions will actually have the same values.  think about this.
                         finalMorphDestinations.put(from, to);
                     }
@@ -2669,8 +2678,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         float[] fromF = vertsF[iVert];
                         double[] from = VecMath.floatToDouble(fromF);
                         double[] to = (double[])finalMorphDestinations.get(from);
-                        System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                        // TODO: sometimes null (for the pents and tris), figure out why
+                        //System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                         Assert(to != null);
                         float[] toF = VecMath.doubleToFloat(to);
 
@@ -2699,7 +2707,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             double[] from = stickerCentersD[iSticker];
                             float[] fromF = stickerCentersF[iSticker];
                             double[] to = (double[])finalMorphDestinations.get(from);
-                            System.out.println("found sticker center from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                            //System.out.println("found sticker center from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                             if (to == null) {
                                 // it must be a face center sticker; it doesn't move
                                 continue;
