@@ -7,7 +7,7 @@
               and the Ctrl key is now being used for other things
               ("Require Ctrl Key to Spin Drag", and centering
               arbitrary elements, both described below).
-             
+
         This version has the following enhancements:
 
             - New "Require Ctrl Key to Spin Drag" preference
@@ -213,7 +213,7 @@
                 Undo tree window:
                     if I can get all the views in the same undo tree window,
                     then just "model 0" or whatever
-                    NO, needs to be specific to a view-- 
+                    NO, needs to be specific to a view--
                     different squirrels in the same tree see the tree differently!
                     but yes, should show all the squirrels in that tree.
         - should there be an overall list of all the models and views,
@@ -270,7 +270,7 @@
                   failed attempt
             - should mention Johnson numbers and short names where applicable... and hyperlinks would be great.
                   Maybe an "about the shape" page with links.
-                       
+
         MISC:
             - checkbox "Auto 2d scale"
                 When checked, 2d view scale moves automatically
@@ -326,7 +326,7 @@
             - ooh, make more slices proportionally slower, would feel more massive!
             - completely general solve?
             - general uniform polytopes! yeah!
-            - make slicing faster-- for humongous polytopes, only need to 
+            - make slicing faster-- for humongous polytopes, only need to
                 look at neighbor facets (and slices thereof) and no farther,
                 that should cut stuff down by a factor of 100 maybe
             - hyperlinks to wikipedia or dinogeorge?
@@ -432,6 +432,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private double[/*nGrips*/][/*nDims*/][/*nDims*/] gripUsefulMats; // weird name
     private double[/*nGrips*/][/*nDims*/] gripTwistRotationFixedPoints;  // a point that should remain fixed by the twist rotation.  for uniform, can be origin, but for frucht, needs to be face center or something.
     private boolean XXXfutt;  // TODO: get rid of this when I get frucht working right... I think, maybe
+    private int[] XXXfuttIntLengths;  // TODO: get rid of this when I get frucht working right... I think, maybe
     private int[/*nStickers*/][/*nPolygonsThisSticker*/] stickerPoly2Grip;
 
     private double[/*nFacets*/][/*nDims*/] facetInwardNormals;
@@ -632,7 +633,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
 
         this.XXXfutt = regex.matches(schlafliProduct, ".*[Ff]rucht");
-        //this.XXXfutt = nDims == 3;  // FOR DEBUGGING: so I can debug it on a cube, which is easier
+        //this.XXXfutt = nDims == 3;  // UNCOMMENT FOR DEBUGGING: so I can debug it on a cube, which is easier than the frucht polyhedron
+        this.XXXfuttIntLengths = VecMath.copyvec(intLengths);  // it's hard for the on-the-fly futt stuff to figure it out otherwise
 
         CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
         CSG.Polytope[] originalVerts = originalElements[0];
@@ -800,7 +802,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 /*
                    Think about what's appropriate for simplex...
-                        thickness = 1/3 of full to get upside down tet in middle, 
+                        thickness = 1/3 of full to get upside down tet in middle,
                                         with its verts poking the facets
                         thickness = 1/4 of full to get nothing in middle
                         thickness = 1/5 of full to get nice rightside up cell in middle
@@ -1607,9 +1609,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                       // or it's a reflectional grip, in which case elt.facets.length is 4 (a quad)
                                       // but we want rotation order 2.
                                       // How to tell the difference?
-                                      // Well, empirically, for the rotational ones,
-                                      // usefulMat[1] will be point at +-w;
-                                      // for the reflectional ones, usefulMat[2] point at +-w for futt, and +-y for cube, so don't rely on that.
+                                      // Answer: look at usefulMat[1], which by definition
+                                      // points from the facet center to the grip center.
+                                      // It will point at +-1 for the rotational case,
+                                      // and orthogonal to that for the reflectional case.
                                       if (intLengths.length == 1 && intLengths[0] == 1) {  // no cuts
                                         this.gripSymmetryOrders[iGrip] = 1;
                                       } else if (VecMath.normsqrd(3, gripUsefulMats[iGrip][1]) < 1e-6*1e-6) {
@@ -2437,6 +2440,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 int nDims = nDims();
 
+                int nStickerLayers = this.XXXfuttIntLengths[0]/2;  // round down. assumes all intLengths are same.
+                System.out.println("      nStickerLayers = "+nStickerLayers);
+
                 // Find the incident verts and edges, in cyclic order.
                 // This assumes nDims==3.
                 Assert(nDims == 3);
@@ -2542,17 +2548,20 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
 
 
-                    cutIntersectionCoords[iCornerRegion] = new double[facetCutOffsets[iFacet].length+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
-                    for (int iCutThisFace = 0; iCutThisFace < facetCutOffsets[iFacet].length+1; ++iCutThisFace)
+                    cutIntersectionCoords[iCornerRegion] = new double[nStickerLayers+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
+                    for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
                     {
-                        cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[facetCutOffsets[iPrevNeighborFace].length+1][/*nCutsNextNeighborFace+1*/][];
-                        for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < facetCutOffsets[iPrevNeighborFace].length+1; ++iCutPrevNeighborFace)
+                        cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[nStickerLayers+1+1][/*nCutsNextNeighborFace+1*/][];  // one extra layer in this direction, but we don't populate it yet; we'll copy it from the next corner afterwards
+                        for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1+1; ++iCutPrevNeighborFace)
                         {
                             // Need coords only where at least one of the three cut indices is 0,
                             // i.e. on the surface of the polyhedron.
                             // This is an important optimization if number of cuts is large.
                             cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace] = new double[
-                                iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : facetCutOffsets[iNextNeighborFace].length+1][];
+                                iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : nStickerLayers+1][];
+                            if (iCutPrevNeighborFace == nStickerLayers+1) {
+                                continue;  // this is the extra layer we'll populate afterwards
+                            }
                             for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace].length; ++iCutNextNeighborFace)
                             {
                                 double[] desiredOffsets = {
@@ -2567,6 +2576,52 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         }
                     }
                 }
+                // For each corner region, populate the extra fake cut in the j direction,
+                // copied from the next corner's k direction.  This will allow us to
+                // compute sticker centers more straightforwardly.
+                int jExtra = cutIntersectionCoords[0][0].length - 1;
+                for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
+                {
+                    for (int i = 0; i < cutIntersectionCoords[iCornerRegion].length; ++i) {
+                      for (int k = 0; k < cutIntersectionCoords[iCornerRegion][i][jExtra].length; ++k) {
+                          cutIntersectionCoords[iCornerRegion][i][jExtra][k] = cutIntersectionCoords[(iCornerRegion+1)%gonality][i][k][jExtra-1];
+                      }
+                    }
+                }
+
+                // Sticker center coords are indexed differently.
+                // CBB: this is all hard-coded for the first wave of shallow cuts, so can't do opposite layer of futtminx yet.  need smarter method
+
+                // XXX argh! this nStickerLayers assumption is completely bogus... it is *not* the same as the original intLengths when the object is symmetrical like the cube!
+                double stickerCenterCoords[][][][][] = new double[gonality][3][][][];
+                int[][] cutIndices = new int[3][2];  // scratch for loop
+                for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion) {
+                    stickerCenterCoords[iCornerRegion][0] = new double[nStickerLayers+1][nStickerLayers][3]; // has extra
+                    stickerCenterCoords[iCornerRegion][1] = new double[nStickerLayers][nStickerLayers][3];  // no extra
+                    stickerCenterCoords[iCornerRegion][2] = new double[nStickerLayers][nStickerLayers+1][3];  // has extra
+                    for (int i3 = 0; i3 < 3; ++i3)
+                    for (int j = 0; j < stickerCenterCoords[iCornerRegion][i3].length; ++j)
+                    for (int k = 0; k < stickerCenterCoords[iCornerRegion][i3][j].length; ++k)
+                    {
+                        // add up 8, just because it's easier.
+                        // there's really only 4 distinct.
+                        cutIndices[i3][0] = 0;
+                        cutIndices[i3][1] = 0;
+                        cutIndices[(i3+1)%3][0] = j;
+                        cutIndices[(i3+1)%3][1] = j+1;
+                        cutIndices[(i3+2)%3][0] = k;
+                        cutIndices[(i3+2)%3][1] = k+1;
+                        double[] stickerCenterCoord = stickerCenterCoords[iCornerRegion][i3][j][k];  // still zeros, for starters
+                        for (int ii = 0; ii < 2; ++ii)
+                        for (int jj = 0; jj < 2; ++jj)
+                        for (int kk = 0; kk < 2; ++kk)
+                        {
+                            VecMath.vpv(stickerCenterCoord, stickerCenterCoord, cutIntersectionCoords[iCornerRegion][cutIndices[0][ii]][cutIndices[1][jj]][cutIndices[2][kk]]);
+                        }
+                        VecMath.vxs(stickerCenterCoord, stickerCenterCoord, 1./8.);
+                    }
+                }
+                System.out.println("sticker center coords = "+VecMath.toString(stickerCenterCoords));
 
                 // either of the following seems to work... use the coarser one if it turns out the finer one fails.  bucket size is chosen because the implementation guides it by throwing if it's too small
                 FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-7, 1e-6, 1./64);  // coarser than usual 1e-9,1e-8, since we're comparing floats.
@@ -2578,19 +2633,26 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     // TODO: this sign computation makes no sense for edge grips
                     int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?1:-1)*dir + gonality)%gonality;
                     // CBB: all these dimensions better be the same, so don't need to be looking at all different lengths.  same when creating them
-                    for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i) {
-                        for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length; ++j) {
-                            for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
-                                for (int wdir = -1; wdir <= 1; wdir += 2) {
-                                    double pad = Math.abs(vertsF[0][3]); // hacky way to retrieve what was used
-                                    double w = wdir * pad;
-                                    double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
-                                    double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
-                                    System.out.println("setting from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                                    finalMorphDestinations.put(from, to);
-                                }
-                            }
+                    for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
+                    for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
+                    for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
+                        for (int wdir = -1; wdir <= 1; wdir += 2) {
+                            double pad = Math.abs(vertsF[0][3]); // hacky way to retrieve what was used for thickness in w direction
+                            double w = wdir * pad;
+                            double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
+                            double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
+                            System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                            finalMorphDestinations.put(from, to);
                         }
+                    }
+                    for (int i = 0; i < stickerCenterCoords[fromCornerRegion].length; ++i)
+                    for (int j = 0; j < stickerCenterCoords[fromCornerRegion][i].length; ++j)
+                    for (int k = 0; k < stickerCenterCoords[fromCornerRegion][i][j].length; ++k)  {
+                        double[] from = com.donhatchsw.util.Arrays.append(stickerCenterCoords[fromCornerRegion][i][j][k], 0.);
+                        double[] to = com.donhatchsw.util.Arrays.append(stickerCenterCoords[toCornerRegion][i][j][k], 0.);
+                        System.out.println("setting sticker center from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                        // XXX TODO: make this a separate fuzzy table.  yeah, I think I'll have to make the one for shrink-to points separate, in any case.  hmm, or maybe not?  the collisions will actually have the same values.  think about this.
+                        finalMorphDestinations.put(from, to);
                     }
                 }
 
@@ -2607,8 +2669,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         float[] fromF = vertsF[iVert];
                         double[] from = VecMath.floatToDouble(fromF);
                         double[] to = (double[])finalMorphDestinations.get(from);
-                        System.out.println("found from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                        System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                         // TODO: sometimes null (for the pents and tris), figure out why
+                        Assert(to != null);
                         float[] toF = VecMath.doubleToFloat(to);
 
                         // Ok, now what's the right thing to do?
@@ -2624,12 +2687,35 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
                 }
 
-                // TODO: something other than the following: what?
-                //       - well, I think recompute sticker centers, and the rest too I guess :-(
-                VecMath.copymat(outStickerCenters, stickerCentersF);
-                VecMath.copymat(outStickerShrinkToPointsOnFaceBoundaries, stickerAltCentersF);
-                VecMath.copymat(outPerStickerFaceCenters, facetCentersF);
-
+                for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
+                {
+                    if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                           slicemask,
+                                           thisFaceInwardNormal,
+                                           thisFaceCutOffsets))
+                    {
+                        {
+                            //VecMath.vxm(outStickerCenters[iSticker], stickerCentersF[iSticker], matF);
+                            double[] from = stickerCentersD[iSticker];
+                            float[] fromF = stickerCentersF[iSticker];
+                            double[] to = (double[])finalMorphDestinations.get(from);
+                            System.out.println("found sticker center from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                            if (to == null) {
+                                // it must be a face center sticker; it doesn't move
+                                continue;
+                            }
+                            float[] toF = VecMath.doubleToFloat(to);
+                            float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                            float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+                            VecMath.vxm(outStickerCenters[iSticker], morphedFrom, matF);
+                            // XXX TODO: at this moment, face shrink still not working.  why?
+                        }
+                        {
+                            //VecMath.vxm(outPerStickerFaceCenters[iSticker], facetCentersF[sticker2face[iSticker]], matF);
+                            // XXX TODO: implement
+                        }
+                    }
+                }
 
                 {
                     // just for printing
@@ -2753,7 +2839,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     int iSticker = affectedStickerInds[iAffected];
                     if (iAffected == 0 || Math.abs(offsets[affectedStickerInds[iAffected]]
                                                  - offsets[affectedStickerInds[iAffected-1]]) > 1e-9) {
-                        
+
                         partitions = (int[][])com.donhatchsw.util.Arrays.append(partitions, new int[0]);
                     }
                     partitions[partitions.length-1] = (int[])com.donhatchsw.util.Arrays.append(partitions[partitions.length-1], iSticker);
