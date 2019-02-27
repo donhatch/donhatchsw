@@ -2570,6 +2570,10 @@ public final class CSG
                     edges[iEdge][0] = iVert;
                     edges[iEdge][1] = jVert;
                   }
+                  //PRINTMAT(scratchVertCoords);
+                  //PRINTMAT(edges);
+                  //System.exit(33);
+
                   // Find index of the quad face(s).  1 for frucht, 2 for not-frucht.
                   int[] theQuadFaceIndices = {};
                   for (int iFace = 0; iFace < allIncidences[2].length; ++iFace) {
@@ -2970,7 +2974,6 @@ public final class CSG
                     System.out.println("</svg>");
 
                     System.out.flush();
-                    System.exit(0);
 
                   }  // circles picture (3d or planar)
 
@@ -3016,12 +3019,12 @@ public final class CSG
 
                     System.out.println("</svg>");
                     System.out.flush();
-                    System.exit(0);
 
                   }  // svg of just the polyhedron
 
                   OUT("DONE ATTEMPTING TO ANSWER OSKAR'S QUESTION");
                   OUT("================================");
+                  System.exit(0);
                 }
 
                 // Ok, now we have scratchVertCoords, optimized.
