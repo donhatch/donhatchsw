@@ -2423,7 +2423,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (this.XXXfutt && this.gripSymmetryOrders[gripIndex] != 1)
             {
-                int verboseLevel = 1;
+                int verboseLevel = 0;  // set to something higher to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
@@ -2431,18 +2431,18 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // TODO: Sticker centers and shrink-to-points are more problematic...
                 // I think those will need to be recomputed
                 // as blends of the resulting vertex coords.
-                System.out.println("  ==========================");
-                System.out.println("  WHOLE LOTTA FUTTIN GOIN ON");
-                System.out.println("      gripIndex = "+gripIndex);
-                System.out.println("      dir = "+dir);
-                System.out.println("      slicemask = "+slicemask);
-                System.out.println("      frac = "+frac);
-                System.out.println("      iFacet = "+iFacet);
+                if (verboseLevel >= 1) System.out.println("  ==========================");
+                if (verboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN GOIN ON");
+                if (verboseLevel >= 1) System.out.println("      gripIndex = "+gripIndex);
+                if (verboseLevel >= 1) System.out.println("      dir = "+dir);
+                if (verboseLevel >= 1) System.out.println("      slicemask = "+slicemask);
+                if (verboseLevel >= 1) System.out.println("      frac = "+frac);
+                if (verboseLevel >= 1) System.out.println("      iFacet = "+iFacet);
 
                 int nDims = nDims();
 
                 int nStickerLayers = this.XXXfuttIntLengths[0]/2;  // round down. assumes all intLengths are same.
-                System.out.println("      nStickerLayers = "+nStickerLayers);
+                if (verboseLevel >= 1) System.out.println("      nStickerLayers = "+nStickerLayers);
 
                 // Find the incident verts and edges, in cyclic order.
                 // This assumes nDims==3.
@@ -2465,11 +2465,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     int[] vertsThisFaceInOrder = new int[gonality];
                     int[] edgesThisFaceInOrder = new int[gonality];
-                    System.out.println("facet center = "+VecMath.toString(CSG.cgOfVerts(originalElements[2][iFacet])));
                     int iFirstEdge = originalIncidences[2][iFacet][1][0];
                     int iFirstVert = originalIncidences[1][iFirstEdge][0][0];
-                    System.out.println("first edge center = "+VecMath.toString(CSG.cgOfVerts(originalElements[1][iFirstEdge])));
-                    System.out.println("first vert center = "+VecMath.toString(CSG.cgOfVerts(originalElements[0][iFirstVert])));
                     // We want to go ccw around the face,
                     // so first vertex should be before first edge
                     // in ccw order.
@@ -2479,11 +2476,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                       CSG.cgOfVerts(originalElements[1][iFirstEdge]),
                       CSG.cgOfVerts(originalElements[0][iFirstVert]),
                     });
-                    System.out.println("det = "+det);
+                    if (verboseLevel >= 1) System.out.println("      det = "+det);
                     if (det > 0)
                     {
-                        iFirstVert = originalIncidences[1][iFirstEdge][0][1];
-                        System.out.println("first vert center adjusted = "+VecMath.toString(CSG.cgOfVerts(originalElements[0][iFirstVert])));
+                        iFirstVert = originalIncidences[1][iFirstEdge][0][1];  // the other one
                     }
                     vertsThisFaceInOrder[0] = iFirstVert;
                     edgesThisFaceInOrder[0] = iFirstEdge;
@@ -2519,11 +2515,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][1];
                         neighborsThisFaceInOrder[i] = iThisNeighborFace;
                     }
-                    System.out.println("      vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
-                    System.out.println("      edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
-                    System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
+                    if (verboseLevel >= 1) System.out.println("      vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
+                    if (verboseLevel >= 1) System.out.println("      edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
+                    if (verboseLevel >= 1) System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
                 }
-                System.out.println("      coord dim = "+vertsF[0].length);  // XXX oh bleah, it's 4!  whatever will we do now, we need another hyperplane?  no, the w dimension is trivial, I think, so use that fact.
 
 
                 // ALTERNATIVE IDEA TO THINK ABOUT:
@@ -2694,6 +2689,20 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
                 }
 
+                // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
+                // The others don't necessarily make any sense anyway.
+                int nFacets = originalElements[nDims-1].length;
+                float[][] rotatedMorphedFaceCenters = new float[nFacets][/*nDisplayDims=*/4];
+                for (int i = 0; i < gonality; ++i)
+                {
+                    float[] fromF = facetCentersF[neighborsThisFaceInOrder[i]];
+                    float[] toF = facetCentersF[neighborsThisFaceInOrder[(i+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality]];
+                    float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                    float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+                    VecMath.vxm(rotatedMorphedFaceCenters[neighborsThisFaceInOrder[i]], morphedFrom, matF);
+                }
+                VecMath.vxm(rotatedMorphedFaceCenters[iFacet], facetCentersF[iFacet], matF);
+
                 for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
                 {
                     if (pointIsInSliceMask(stickerCentersD[iSticker],
@@ -2715,14 +2724,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
                             float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
                             VecMath.vxm(outStickerCenters[iSticker], morphedFrom, matF);
-                            // XXX TODO: at this moment, face shrink still not working.  why?
                         }
-                        {
-                            //VecMath.vxm(outPerStickerFaceCenters[iSticker], facetCentersF[sticker2face[iSticker]], matF);
-                            // XXX TODO: implement
-                        }
+                        VecMath.copyvec(outPerStickerFaceCenters[iSticker], rotatedMorphedFaceCenters[sticker2face[iSticker]]);
                     }
                 }
+
+                for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
 
                 {
                     // just for printing
@@ -2736,9 +2743,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     //System.out.println("      vertsFthatGotMoved = "+VecMath.toString(vertsFthatGotMoved));
                 }
 
-                System.out.println("  WHOLE LOTTA FUTTIN WENT ON");
-                System.out.println("  ==========================");
-                return;
+                if (verboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN WENT ON");
+                if (verboseLevel >= 1) System.out.println("  ==========================");
             }
         } // computeVertsAndShrinkToPointsPartiallyTwisted
 
