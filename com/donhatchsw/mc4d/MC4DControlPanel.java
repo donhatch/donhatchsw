@@ -644,12 +644,15 @@ public class MC4DControlPanel
                  "",
                  "NOTE: Currently this is implemented only in a subset of puzzles:",
                  "that is, 3d trivalent puzzles:",
-                 "    - prisms",
-                 "    - truncated regular",
-                 "    - omnitruncated regular",
+                 "    - prisms (Futt allows turning the squares 90 degrees,",
+                 "      which was previously impossible",
+                 "    - truncated icosahedron, which is the Futtminx",
+                 "      (Futt allows turning the hexagons 60 degrees",
+                 "    - any truncated regular",
+                 "    - any omnitruncated regular",
                  "    - frucht and not-frucht",
-                 "with cuts shallow enough so that",
-                 "non-incident cut sets don't interact with each other.",
+                 "Cuts have to be shallow enough so that",
+                 "cut sets of non-incident faces don't interact with each other.",
             });
         addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
         addSingleLabelRow(new BigBoldLabel("Appearance"));

@@ -431,6 +431,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private int _nCubies;
 
     private float[/*nVerts*/][/*nDisplayDims*/] vertsF;
+    private double[/*nVerts*/][/*nDisplayDims*/] vertsDForFutt; // not needed in general, but currently needed for on-the-fly analysis when futt'ing.
     private int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/] stickerInds;  // indices into vertsF
 
     private float[/*nFacets*/][/*nDisplayDims*/] facetCentersF;
@@ -1570,6 +1571,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
         this.intLengthsForFutt = futtable ? VecMath.copyvec(intLengths) : null;  // it's hard for the on-the-fly futt stuff to figure it out otherwise
         this.facetOffsetsForFutt = futtable ? facetOffsets : null;
+        this.vertsDForFutt = futtable ? restVerts : null;
 
         //
         // Now think about the twist grips.
@@ -2751,8 +2753,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 //System.out.println("sticker center coords = "+VecMath.toString(stickerCenterCoords));
 
+                // The usual params.
                 // bucket size is chosen by listening to the the implementation which throws if it's too small.
-                FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-6, 1e-5, 1./8);  // coarser than usual 1e-9,1e-8, since we're comparing floats. actually even 1e-7,1e-6 is too fine, for futtminx
+                // CBB: should make two different tables for verts and sticker centers, since they won't mix
+                FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
 
                 for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
                 {
@@ -2763,7 +2767,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
                     for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
                         for (int wdir = -1; wdir <= 1; wdir += 2) {
-                            double pad = Math.abs(vertsF[0][3]); // hacky way to retrieve what was used for thickness in w direction
+                            double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
                             double w = wdir * pad;
                             double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
                             double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
@@ -2788,23 +2792,23 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
                 float[][] fullInvMatF = VecMath.doubleToFloat(fullInvMatD);
-                for (int iVert = 0; iVert < vertsF.length; ++iVert)
+                for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
                 {
                     if (whichVertsGetMoved[iVert])
                     {
-                        float[] fromF = vertsF[iVert];
-                        double[] from = VecMath.floatToDouble(fromF);
+                        double[] from = vertsDForFutt[iVert];
                         double[] to = (double[])finalMorphDestinations.get(from);
                         if (verboseLevel >= 3) System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                         Assert(to != null);
-                        float[] toF = VecMath.doubleToFloat(to);
 
                         // Ok, now what's the right thing to do?
                         // Need to apply the inverse of the *full* (i.e. frac=1) twist mat to toF
                         // to get its coords in from space,
                         // then apply the morph,
                         // then apply the partial twist mat.
+                        float toF[] = VecMath.doubleToFloat(to);
                         float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                        float[] fromF = vertsF[iVert];
                         float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
                         VecMath.vxm(outVerts[iVert], morphedFrom, matF);
                     }
@@ -2834,7 +2838,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                            thisFaceCutOffsets))
                     {
                         {
-                            //VecMath.vxm(outStickerCenters[iSticker], stickerCentersF[iSticker], matF);
+                            // TODO: change to double, like I did for the verts
                             double[] from = stickerCentersD[iSticker];
                             float[] fromF = stickerCentersF[iSticker];
                             double[] to = (double[])finalMorphDestinations.get(from);
