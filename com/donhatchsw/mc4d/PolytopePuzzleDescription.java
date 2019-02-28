@@ -255,6 +255,20 @@
 
     TODO:
     =====
+        FUTT:
+            - current limited implementation:
+              - detect when cut sets interact and, if so, disabel
+                - (futt, initial click on blue assert-fails  (OH that's when length is simply 3... expected)
+              - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around
+              - fix assertion fails in scramble of futt, and sometimes in "4,3 3"
+              - frucht face center still jumps a bit when clicked on
+              - interoperate with "Stickers shrink to face boundaries" other than 0
+              - edge twist state permutation is still flaky
+            - make more general implementation:
+              - support other than 3d
+              - support other than trivalent
+              - allow slicesmask to express more layers than just first wave
+
         SPECIFICATION:
             - be able to specify initial orientation
                   (using which elts to which axes)
@@ -429,15 +443,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private float[/*nGrips*/][] gripOffsF;
     private int[/*nGrips*/] grip2face;
     private int[/*nGrips*/] gripSymmetryOrders;
+    private int[/*nGrips*/] gripSymmetryOrdersFutted;
     private double[/*nGrips*/][/*nDims*/][/*nDims*/] gripUsefulMats; // weird name
     private double[/*nGrips*/][/*nDims*/] gripTwistRotationFixedPoints;  // a point that should remain fixed by the twist rotation.  for uniform, can be origin, but for frucht, needs to be face center or something.
-    private boolean XXXfutt;  // TODO: get rid of this when I get frucht working right... I think, maybe
-    private int[] XXXfuttIntLengths;  // TODO: get rid of this when I get frucht working right... I think, maybe
+    private boolean futtable;
+    private int[] intLengthsForFutt;  // not needed in general, but currently needed for on-the-fly analysis when futt'ing.
     private int[/*nStickers*/][/*nPolygonsThisSticker*/] stickerPoly2Grip;
 
     private double[/*nFacets*/][/*nDims*/] facetInwardNormals;
     private double[/*nFacets*/][/*nCutsThisFacet*/] facetCutOffsets; // slice 0 is bounded by -infinity and offset[0], slice i+1 is bounded by offset[i],offset[i+1], ... slice[nSlices-1] is bounded by offset[nSlices-2]..infinity
-    private double[/*nFacets*/] facetOffsetsIfFutt; // not needed in general, but currently needed for on-the-fly analysis is futt'ing.
+    private double[/*nFacets*/] facetOffsetsForFutt; // not needed in general, but currently needed for on-the-fly analysis when futt'ing.
 
     private float[][] nicePointsToRotateToCenter;
 
@@ -632,9 +647,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
 
-        this.XXXfutt = regex.matches(schlafliProduct, ".*[Ff]rucht");
-        //this.XXXfutt = nDims == 3;  // UNCOMMENT FOR DEBUGGING: so I can debug it on a cube, which is easier than the frucht polyhedron.  Q: I'd also like this on futtminx 3(1)5, also all the other truncateds p(1)q and omnitruncateds p(1)q(1) and prisms and maybe more; how?  maybe hint with futt in the name?  note, when futt fully debugged and featured, it might be suitable for all 3d puzzles
-        this.XXXfuttIntLengths = VecMath.copyvec(intLengths);  // it's hard for the on-the-fly futt stuff to figure it out otherwise
+        this.futtable = regex.matches(schlafliProduct, ".*[Ff]rucht");
+        this.futtable = nDims == 3;  // UNCOMMENT FOR DEBUGGING: so I can debug it on a cube, which is easier than the frucht polyhedron.  Q: I'd also like this on futtminx 3(1)5, also all the other truncateds p(1)q and omnitruncateds p(1)q(1) and prisms and maybe more; how?  maybe hint with futt in the name?  note, when futt fully debugged and featured, it might be suitable for all 3d puzzles
+        this.intLengthsForFutt = futtable ? VecMath.copyvec(intLengths) : null;  // it's hard for the on-the-fly futt stuff to figure it out otherwise
 
         CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
         CSG.Polytope[] originalVerts = originalElements[0];
@@ -669,7 +684,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             VecMath.vxs(facetInwardNormals[iFacet], facetInwardNormals[iFacet], invNormalLength);
             facetOffsets[iFacet] *= invNormalLength;
         }
-        this.facetOffsetsIfFutt = this.XXXfutt ? facetOffsets : null;
+        this.facetOffsetsForFutt = futtable ? facetOffsets : null;
 
         //
         // Figure out the circumRadius (farthest vertex from origin)
@@ -1516,6 +1531,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.gripDirsF = new float[nGrips][];
                 this.gripOffsF = new float[nGrips][];
                 this.gripSymmetryOrders = new int[nGrips];
+                this.gripSymmetryOrdersFutted = this.futtable ? new int[nGrips] : null;
                 this.gripUsefulMats = new double[nGrips][_nDisplayDims][_nDisplayDims];
                 this.gripTwistRotationFixedPoints = new double[nGrips][_nDisplayDims];
                 this.grip2face = new int[nGrips];
@@ -1600,7 +1616,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                            originalPolytope.p,
                                                                            maxOrder,
                                                                            gripUsefulMats[iGrip]);
-                                    if (this.XXXfutt) {
+                                    if (this.futtable) {
                                       Assert(nDims == 3);
                                       Assert(iDim == 2);
                                       // Since it's 3d, grips are 2d polygons.
@@ -1614,11 +1630,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                       // It will point at +-1 for the rotational case,
                                       // and it will lie in the xyz space for the reflectional case.
                                       if (intLengths.length == 1 && intLengths[0] == 1) {  // no cuts
-                                        this.gripSymmetryOrders[iGrip] = 1;
+                                        this.gripSymmetryOrdersFutted[iGrip] = 1;
                                       } else if (VecMath.normsqrd(3, gripUsefulMats[iGrip][1]) < 1e-6*1e-6) {
-                                        this.gripSymmetryOrders[iGrip] = elt.facets.length;
+                                        this.gripSymmetryOrdersFutted[iGrip] = elt.facets.length;
                                       } else {
-                                        this.gripSymmetryOrders[iGrip] = 2;
+                                        this.gripSymmetryOrdersFutted[iGrip] = 2;
                                       }
                                     }
 
@@ -2141,9 +2157,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         } // computeStickerAltCentersF
 
         // magic crap used in a couple of methods below
-        private double[][] getTwistMat(int gripIndex, int dir, double frac)
+        private double[][] getTwistMat(int gripIndex, int dir, boolean futtIfPossible, double frac)
         {
-            int order = this.gripSymmetryOrders[gripIndex];
+            int order = (futtIfPossible ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex];
             double angle = dir * (2*Math.PI/order) * frac;
             double[][] gripUsefulMat = this.gripUsefulMats[gripIndex];
             Assert(gripUsefulMat.length == _nDisplayDims);
@@ -2218,9 +2234,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             throw new RuntimeException("unimplemented");
         }
         public int[/*nGrips*/]
-            getGripSymmetryOrders()
+            getGripSymmetryOrders(boolean futtIfPossible)
         {
-            return gripSymmetryOrders;
+            return futtIfPossible && this.futtable ? gripSymmetryOrdersFutted : gripSymmetryOrders;
         }
 
         public double[][] getFaceInwardNormals()
@@ -2345,6 +2361,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int gripIndex,
                 int dir,
                 int slicemask,
+                boolean futtIfPossible,
                 float frac)
         {
             // Note, we purposely go through all the calculation
@@ -2352,7 +2369,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (gripIndex < 0 || gripIndex >= nGrips())
                 throw new IllegalArgumentException("computeVertsAndShrinkToPointsPartiallyTwisted called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
-            if (gripSymmetryOrders[gripIndex] == 0)
+            if ((futtIfPossible ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex] == 0)
                 throw new IllegalArgumentException("computeVertsAndShrinkToPointsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
             if (outVerts.length != vertsF.length)
                 throw new IllegalArgumentException("outVerts length "+outVerts.length+" does not match number of verts "+vertsF.length+"!");
@@ -2371,7 +2388,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (slicemask == 0)
                 slicemask = 1; // XXX is this the right place for this? lower and it might be time consuming, higher and too many callers will have to remember to do it
 
-            double[][] matD = getTwistMat(gripIndex, dir, frac);
+            double[][] matD = getTwistMat(gripIndex, dir, futtIfPossible, frac);
             float[][] matF = VecMath.doubleToFloat(matD);
 
             boolean[] whichVertsGetMoved = new boolean[vertsF.length]; // false initially
@@ -2421,9 +2438,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
 
 
-            if (this.XXXfutt && this.gripSymmetryOrders[gripIndex] != 1)
+            if (futtIfPossible && this.futtable && this.gripSymmetryOrdersFutted[gripIndex] != 1)
             {
-                int verboseLevel = 0;  // set to something higher to debug futt stuff
+                int verboseLevel = 1;  // set to something higher to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
@@ -2438,10 +2455,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 if (verboseLevel >= 1) System.out.println("      slicemask = "+slicemask);
                 if (verboseLevel >= 1) System.out.println("      frac = "+frac);
                 if (verboseLevel >= 1) System.out.println("      iFacet = "+iFacet);
+                if (verboseLevel >= 1) System.out.println("      symmetry order = "+this.gripSymmetryOrdersFutted[gripIndex]);
 
                 int nDims = nDims();
 
-                int nStickerLayers = this.XXXfuttIntLengths[0]/2;  // round down. assumes all intLengths are same.
+                int nStickerLayers = this.intLengthsForFutt[0]/2;  // round down. assumes all intLengths are same.
                 if (verboseLevel >= 1) System.out.println("      nStickerLayers = "+nStickerLayers);
 
                 // Find the incident verts and edges, in cyclic order.
@@ -2570,9 +2588,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace].length; ++iCutNextNeighborFace)
                             {
                                 double[] desiredOffsets = {
-                                    iCutThisFace==0 ? this.facetOffsetsIfFutt[iFacet] : facetCutOffsets[iFacet][iCutThisFace-1],
-                                    iCutPrevNeighborFace==0 ? this.facetOffsetsIfFutt[iPrevNeighborFace] : facetCutOffsets[iPrevNeighborFace][iCutPrevNeighborFace-1],
-                                    iCutNextNeighborFace==0 ? this.facetOffsetsIfFutt[iNextNeighborFace] : facetCutOffsets[iNextNeighborFace][iCutNextNeighborFace-1],
+                                    iCutThisFace==0 ? this.facetOffsetsForFutt[iFacet] : facetCutOffsets[iFacet][iCutThisFace-1],
+                                    iCutPrevNeighborFace==0 ? this.facetOffsetsForFutt[iPrevNeighborFace] : facetCutOffsets[iPrevNeighborFace][iCutPrevNeighborFace-1],
+                                    iCutNextNeighborFace==0 ? this.facetOffsetsForFutt[iNextNeighborFace] : facetCutOffsets[iNextNeighborFace][iCutNextNeighborFace-1],
                                 };
                                 double[] coords3 = VecMath.mxv(inverseOfFaceInwardNormalsMat, desiredOffsets);
                                 //System.out.println("              desiredOffsets = "+VecMath.toString(desiredOffsets)+" -> coords3 = "+VecMath.toString(coords3));
@@ -2663,7 +2681,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 //System.out.println("      cutIntersectionCoordsF = "+VecMath.toString((float[][][][][])VecMath.doubleToFloat(cutIntersectionCoords)));
                 // TODO: figure out why does VecMath.toString act lamely (just print addresses) if I don't cast to float[][][][][]?
 
-                double[][] fullInvMatD = getTwistMat(gripIndex, -dir, 1.);  // -dir instead of dir, 1. instead of frac
+                double[][] fullInvMatD = getTwistMat(gripIndex, -dir, futtIfPossible, 1.);  // -dir instead of dir, 1. instead of frac
                 float[][] fullInvMatF = VecMath.doubleToFloat(fullInvMatD);
                 for (int iVert = 0; iVert < vertsF.length; ++iVert)
                 {
@@ -2786,11 +2804,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
                                                     int gripIndex,
                                                     int dir,
-                                                    int slicemask)
+                                                    int slicemask,
+                                                    boolean futtIfPossible)
         {
             if (gripIndex < 0 || gripIndex >= nGrips())
                 throw new IllegalArgumentException("applyTwistToState called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
-            if (gripSymmetryOrders[gripIndex] == 0)
+            if ((futtIfPossible ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex] == 0)
                 throw new IllegalArgumentException("applyTwistToState called on gripIndex "+gripIndex+" which does not rotate!");
             if (state.length != stickerCentersD.length)
                 throw new IllegalArgumentException("applyTwistToState called with wrong size state "+state.length+", expected "+stickerCentersD.length+"!");
@@ -2799,14 +2818,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 slicemask = 1; // XXX is this the right place for this? lower and it might be time consuming, higher and too many callers will have to remember to do it
 
             double[] scratchVert = new double[nDims()];
-            double[][] matD = getTwistMat(gripIndex, dir, 1.);
+            double[][] matD = getTwistMat(gripIndex, dir, futtIfPossible, 1.);
             int[] newState = new int[state.length];
             int iFacet = grip2face[gripIndex];
             double[] thisFaceInwardNormal = facetInwardNormals[iFacet];
             double[] thisFaceCutOffsets = facetCutOffsets[iFacet];
 
 
-            if (this.XXXfutt && this.gripSymmetryOrders[gripIndex] != 1)
+            if (futtIfPossible && this.futtable && this.gripSymmetryOrdersFutted[gripIndex] != 1)
             {
                 // 1. partition relevant stickers according to signed distance from cut facet plane;
                 //    the permutation will respect those partitions.
@@ -3024,7 +3043,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                   //int nPerms = 2*n;  // we're not smart enough to do this yet-- we don't know how to restrict the flips to the correct offset
                   //int nPerms = 2*partition.length;
-                  int nPerms = this.gripSymmetryOrders[gripIndex]==2 ? 2*partition.length : 2*n;
+                  int nPerms = (futtIfPossible ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex]==2 ? 2*partition.length : 2*n;
 
                   for (int iPerm = 0; iPerm < nPerms; ++iPerm) {
                     for (int i = 0; i < partition.length; ++i) {

@@ -23,6 +23,7 @@ public class MC4DApplet
     public int x = 50, y = 50; // for spawned viewers
     public int w = 300, h = 300; // for spawned viewers
     public boolean doDoubleBuffer = true; // XXX get this from viewing params?
+    public boolean futtIfPossible = false;
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
         {"x", "integer", "x position for spawned viewers"},  // XXX does this work?
@@ -30,6 +31,7 @@ public class MC4DApplet
         {"w", "integer", "width of spawned viewers"},  // XXX does this work?
         {"h", "integer", "height of spawned viewers"},  // XXX does this work?
         {"doDoubleBuffer", "boolean", "whether to double buffer"},
+        {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
     };
     public String[][] getParameterInfo()
     {
@@ -214,7 +216,7 @@ public class MC4DApplet
                     int scramblechenfrengensen = c - '0';
                     System.out.println("Scramble "+scramblechenfrengensen);
                     GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
-                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
+                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen, viewGuts.viewParams.futtIfPossible.get());
                 }
                 else if (c == 'f'-'a'+1) // ctrl-f -- full scramble
                 {
@@ -223,7 +225,7 @@ public class MC4DApplet
                     int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
                     System.out.println("Fully scrambling");
                     GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
-                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
+                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen, viewGuts.viewParams.futtIfPossible.get());
                 }
                 else if (c == 'c'-'a'+1) // ctrl-c -- new control panel window
                 {
@@ -500,7 +502,7 @@ public class MC4DApplet
                                 {
                                     System.out.println("Scramble "+scramblechenfrengensen);
                                     GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
-                                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
+                                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen, viewGuts.viewParams.futtIfPossible.get());
                                 }
                             });
                         }
@@ -513,7 +515,7 @@ public class MC4DApplet
                                 int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
                                 System.out.println("Fully scrambling");
                                 GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
-                                glue.scrambleAction(canvas, new Label(), scramblechenfrengensen);
+                                glue.scrambleAction(canvas, new Label(), scramblechenfrengensen, viewGuts.viewParams.futtIfPossible.get());
                             }
                         });
                     }});
@@ -1051,6 +1053,7 @@ public class MC4DApplet
 
         mainViewGuts = new MC4DViewGuts();
         mainViewGuts.setModel(new MC4DModel(puzzleDescription));
+        mainViewGuts.viewParams.futtIfPossible.set(futtIfPossible);
 
         //
         // Initial control panel window(s)
@@ -1185,7 +1188,7 @@ public class MC4DApplet
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     Assert(twist != null);
                     Assert(twist.grip != -1);
-                    int order = viewGuts.model.genericPuzzleDescription.getGripSymmetryOrders()[twist.grip];
+                    int order = viewGuts.model.genericPuzzleDescription.getGripSymmetryOrders(twist.futtIfPossible)[twist.grip];
                     if (order <= 0)
                         return 1.; // XXX can this happen, and why?
                     double nQuarterTurns = 4./order
@@ -1206,7 +1209,7 @@ public class MC4DApplet
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
-                    int order = viewGuts.model.genericPuzzleDescription.getGripSymmetryOrders()[grip];
+                    int order = viewGuts.model.genericPuzzleDescription.getGripSymmetryOrders(twist.futtIfPossible)[grip];
                     String degrees = "\u00B0"; // XXX not sure this magic works everywhere, got it from http://www.fileformat.info/info/unicode/char/00b0/index.htm
 
                     if (order <= 0)

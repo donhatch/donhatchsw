@@ -84,7 +84,7 @@ public interface GenericPuzzleDescription {
     * will be 2*pi/order.
     */
     public int[/*nGrips*/]
-        getGripSymmetryOrders();
+        getGripSymmetryOrders(boolean futtIfPossible);
 
     /**
     * XXX floundering here... closest in what sense? normalized vectors on a sphere?
@@ -100,6 +100,7 @@ public interface GenericPuzzleDescription {
     * @param inGripIndex  grip of the twist
     * @param inDir        direction of the twist (1 is CCW, -1 is CW)
     * @param inSlicemask  slice mask of the twist
+    * @param inFuttIfPossible whether to try to do extra twists that are topologically valid even if it requires morphing geometry, e.g. Futtminx moves: https://www.youtube.com/watch?v=9rbs5xxHdRg
     * @param inFrac       fraction of the total angle (which is not the same as the fraction of the total time, if a smoothing function is used).
     * @param outVerts     output vertices before shrinking.
     * @param outStickerCenters  output sticker centers before shrinking.
@@ -115,6 +116,7 @@ public interface GenericPuzzleDescription {
             int inGripIndex,
             int inDir,
             int inSlicemask,
+            boolean futtIfPossible,
             float inFrac);
 
     /**
@@ -192,5 +194,6 @@ public interface GenericPuzzleDescription {
     public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
                                                 int gripIndex,
                                                 int dir,
-                                                int slicemask);
+                                                int slicemask,
+                                                boolean futtIfPossible);
 } // interface GenericPuzzleDescription

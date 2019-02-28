@@ -632,6 +632,25 @@ public class MC4DControlPanel
                  "You can turn this option on or off while the puzzle is spinning",
                  "if you want.",
             });
+        addCheckboxRow(
+            "Futt",
+            viewParams.futtIfPossible,
+            new String[] {
+                 "Futt (fudge) when possible.",
+                 "This means allow twists that are topologically possible",
+                 "even if it requires morphing geometry.",
+                 "See Oskar's Futtminx video:",
+                 "    https://www.youtube.com/watch?v=9rbs5xxHdRg for more info.",
+                 "",
+                 "NOTE: Currently this is implemented only in a subset of puzzles:",
+                 "that is, 3d trivalent puzzles:",
+                 "- prisms",
+                 "- truncated regular",
+                 "- omnitruncated regular",
+                 "- frucht and not-frucht",
+                 "with cuts shallow enough so that",
+                 "non-incident cut sets don't interact with each other.",
+            });
         addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
         addSingleLabelRow(new BigBoldLabel("Appearance"));
         addFloatSliderRow(

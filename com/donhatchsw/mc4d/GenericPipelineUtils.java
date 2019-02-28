@@ -113,6 +113,7 @@ public class GenericPipelineUtils
                                     int iGripOfTwist,    // -1 if not twisting
                                     int twistDir,               
                                     int twistSliceMask,
+                                    boolean twistFuttIfPossible,
                                     float fracIntoTwist,
 
                                     float rot4d[/*4*/][/*4 or 5*/],
@@ -224,6 +225,7 @@ public class GenericPipelineUtils
                 iGripOfTwist,
                 twistDir,
                 twistSliceMask,
+                twistFuttIfPossible,
                 fracIntoTwist);
         }
 

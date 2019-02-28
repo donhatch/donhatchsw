@@ -102,6 +102,7 @@ public class GenericGlue
      public int iTwistGrip;     // of twist in progress, if any
      public int twistDir_field;      // of twist in progress, if any  (called _field because a local was shadowing it and it was confusing me)
      public int twistSliceMask; // of twist in progress, if any
+     public boolean twistFuttIfPossible; // of twist in progress, if any
      public int twistIsUndo; // of twist in progress, if any-- when finished, don't put on undo stack
     //
     // A cheat is in progress if cheating == true.
@@ -132,11 +133,13 @@ public class GenericGlue
         public int iGrip;
         public int dir;
         public int slicemask;
-        public HistoryNode(int iGrip, int dir, int slicemask)
+        public boolean futtIfPossible;
+        public HistoryNode(int iGrip, int dir, int slicemask, boolean futtIfPossible)
         {
             this.iGrip = iGrip;
             this.dir = dir;
             this.slicemask = slicemask;
+            this.futtIfPossible = futtIfPossible;
         }
     }
     public com.donhatchsw.compat.ArrayList undoq = new com.donhatchsw.compat.ArrayList(); // of HistoryNode
@@ -951,7 +954,7 @@ public class GenericGlue
             //
             // Initiate the undo twist (opposite dir from original)
             //
-            int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
+            int order = model.genericPuzzleDescription.getGripSymmetryOrders(node.futtIfPossible)[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
             glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
             if (glue.nTwist == 0) glue.nTwist = 1;
@@ -959,6 +962,7 @@ public class GenericGlue
             glue.iTwistGrip = node.iGrip;
             glue.twistDir_field = -node.dir;
             glue.twistSliceMask = node.slicemask;
+            glue.twistFuttIfPossible = node.futtIfPossible;
 
             view.repaint();
         }
@@ -989,7 +993,7 @@ public class GenericGlue
             //
             // Initiate the redo twist (same dir as original)
             //
-            int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
+            int order = model.genericPuzzleDescription.getGripSymmetryOrders(node.futtIfPossible)[node.iGrip];
             double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
             glue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
             if (glue.nTwist == 0) glue.nTwist = 1;
@@ -997,6 +1001,7 @@ public class GenericGlue
             glue.iTwistGrip = node.iGrip;
             glue.twistDir_field = node.dir;
             glue.twistSliceMask = node.slicemask;
+            glue.twistFuttIfPossible = node.futtIfPossible;
 
             view.repaint();
         }
@@ -1017,8 +1022,12 @@ public class GenericGlue
 
     public void scrambleAction(Component view, // Canvas or JPanel, probably
                                Component statusLabel, // Label or JLabel
-                               int scramblechenfrengensen)
+                               int scramblechenfrengensen,
+                               boolean futtIfPossible)
     {
+        System.out.println("in scrambleAction");
+        System.out.println("  scramblechenfrengensen = "+scramblechenfrengensen);
+        System.out.println("  futtIfPossible = "+futtIfPossible);
         GenericGlue glue = this;
         int nDims = model.genericPuzzleDescription.nDims();
         java.util.Random rand = new java.util.Random();
@@ -1029,7 +1038,7 @@ public class GenericGlue
             do {
                 iGrip = rand.nextInt(model.genericPuzzleDescription.nGrips());
                 iFace = model.genericPuzzleDescription.getGrip2Face()[iGrip];
-                order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
+                order = model.genericPuzzleDescription.getGripSymmetryOrders(futtIfPossible)[iGrip];
             }
             while (
                 order < 2 || // don't use trivial ones
@@ -1041,12 +1050,15 @@ public class GenericGlue
             int slicemask = 1<<rand.nextInt(2); // XXX there's no getLength()! oh I think it's because I didn't think that was a generic enough concept to put in GenericPuzzleDescription, but I might have to rethink that.  for now, we just pick the first or second slice... this is fine for up to 4x, and even 5x (sort of)
             int dir = rand.nextBoolean() ? -1 : 1;
 
+            System.out.println("  calling applyTwistToState");
             // XXX let the model do this!!!!!
             model.genericPuzzleDescription.applyTwistToState(
                     model.genericPuzzleState,
                     iGrip,
                     dir,
-                    slicemask);
+                    slicemask,
+                    futtIfPossible);
+            System.out.println("  returned from applyTwistToState");
 
             // clear redo part
             //glue.undoq.setSize(glue.undoPartSize); // argh, setSize doesn't exist
@@ -1056,12 +1068,13 @@ public class GenericGlue
             glue.undoq.add(new GenericGlue.HistoryNode(
                                             iGrip,
                                             dir,
-                                            slicemask));
+                                            slicemask,
+                                            futtIfPossible));
             glue.undoPartSize++;
 
             // Do it in the undo tree too...
             // The undoq will be removed eventually
-            MC4DModel.Twist twist = new MC4DModel.Twist(iGrip, dir, slicemask);
+            MC4DModel.Twist twist = new MC4DModel.Twist(iGrip, dir, slicemask, futtIfPossible);
             model.controllerUndoTreeSquirrel.Do(twist);
         }
         model.animationUndoTreeSquirrel.setCurrentNodeIndex(model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
@@ -1074,6 +1087,7 @@ public class GenericGlue
             ((JLabel)statusLabel).setText(labelText);
         else
             ((Label)statusLabel).setText(labelText);
+        System.out.println("out scrambleAction");
     } // scrambleAction
 
 
@@ -1102,6 +1116,7 @@ public class GenericGlue
                                    float viewMat4d[/*4*/][/*4*/],
                                    float nFrames90,
                                    int slicemask,
+                                   boolean futtIfPossible,
 
                                    Component viewForViewChanges,
                                    Component viewForModelChanges)
@@ -1222,7 +1237,7 @@ public class GenericGlue
                             genericGlue.untwistedFrame);
             if (iGrip != -1)
             {
-                int order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
+                int order = model.genericPuzzleDescription.getGripSymmetryOrders(futtIfPossible)[iGrip];
 
                 if (false)
                 {
@@ -1258,6 +1273,7 @@ public class GenericGlue
                 genericGlue.iTwistGrip = iGrip;
                 genericGlue.twistDir_field = dir;
                 genericGlue.twistSliceMask = slicemask;
+                genericGlue.twistFuttIfPossible = futtIfPossible;
 
                 //
                 // Stick it in the undo queue now, instead
@@ -1289,7 +1305,8 @@ public class GenericGlue
                 genericGlue.undoq.add(new GenericGlue.HistoryNode(
                                                     genericGlue.iTwistGrip,
                                                     genericGlue.twistDir_field,
-                                                    genericGlue.twistSliceMask));
+                                                    genericGlue.twistSliceMask,
+                                                    genericGlue.twistFuttIfPossible));
                 genericGlue.undoPartSize++;
 
                 viewForModelChanges.repaint();
@@ -1388,6 +1405,7 @@ public class GenericGlue
         int iGripOfTwist = -1;
         int twistDir_local = 0; // called _local because it was shadowing a field... this will all go away soon anyway I think
         int slicemask = 0;
+        boolean futtIfPossible = false;
         float fracIntoTwist = 0.f;
         GenericPipelineUtils.Frame glueFrameToDrawInto = genericGlue.untwistedFrame;
 
@@ -1401,6 +1419,7 @@ public class GenericGlue
             iGripOfTwist = genericGlue.iTwistGrip;
             twistDir_local = genericGlue.twistDir_field;
             slicemask = genericGlue.twistSliceMask;
+            futtIfPossible = genericGlue.twistFuttIfPossible;
 
             fracIntoTwist = (float)interp.func((genericGlue.iTwist+1)/(float)genericGlue.nTwist);
             //System.out.println("    "+genericGlue.iTwist+"/"+genericGlue.nTwist+" -> "+(genericGlue.iTwist+1)+"/"+genericGlue.nTwist+"");
@@ -1437,6 +1456,7 @@ public class GenericGlue
             iGripOfTwist,
               twistDir_local,
               slicemask,
+              futtIfPossible,
               fracIntoTwist,
 
             com.donhatchsw.util.VecMath.mxs(viewMat4d, scaleFudge4d),
@@ -1506,7 +1526,8 @@ public class GenericGlue
                             model.genericPuzzleState,
                             genericGlue.iTwistGrip,
                             genericGlue.twistDir_field,
-                            genericGlue.twistSliceMask);
+                            genericGlue.twistSliceMask,
+                            genericGlue.twistFuttIfPossible);
                 // XXX need to update the hovered-over sticker! I think.
                 // XXX it would suffice to just call the mouseMoved callback... but maybe we don't want to do that after every frame in the cheat
             }
@@ -1530,7 +1551,7 @@ public class GenericGlue
                 //
                 // Initiate the undo twist (opposite dir from original)
                 //
-                int order = model.genericPuzzleDescription.getGripSymmetryOrders()[node.iGrip];
+                int order = model.genericPuzzleDescription.getGripSymmetryOrders(node.futtIfPossible)[node.iGrip];
                 double totalRotationAngle = 2*Math.PI/order*Math.abs(node.dir);
                 genericGlue.nTwist = (int)(Math.sqrt(totalRotationAngle/(Math.PI/2)) * nFrames90); // XXX unscientific rounding
                 if (genericGlue.nTwist == 0) genericGlue.nTwist = 1;

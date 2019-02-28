@@ -7,7 +7,7 @@ package com.donhatchsw.mc4d;
 *       Serializable part:
 *           - an immutable puzzle desciption (can be shared among multiple models)
 *           - the puzzle state (an array of ints)
-*           - a history (undo/redo tree of (grip,dir,slicemask) tuples)
+*           - a history (undo/redo tree of (grip,dir,slicemask,futtIfPossible) tuples)
 *       Non-serializable part:
 *           XXX this is out of date now that we have an undo tree
 *           - a queue of pending twists
@@ -36,30 +36,33 @@ public class MC4DModel
     //
     // CLASSES
     //
-    /** A twist (grip, dir, slicemask). */
+    /** A twist (grip, dir, slicemask,futtIfPossible). */
     public static class Twist
     {
         public int grip;
         public int dir; /** -1 = CCW, 1 = CW, can double or triple etc., for power */
         public int slicemask;
-        public Twist(int grip, int dir, int slicemask)
+        public boolean futtIfPossible;
+        public Twist(int grip, int dir, int slicemask, boolean futtIfPossible)
         {
             this.grip = grip;
             this.dir = dir;
             this.slicemask = slicemask;
+            this.futtIfPossible = futtIfPossible;
         }
 
         public String toString()
         {
             return (dir == 1 ? "" : dir==-1 ? "-" : ""+dir+"*")
                  + grip
-                 + (slicemask==1||slicemask==0 ? "" : ":"+slicemask); // XXX strange place to the 0->1 thing
+                 + (slicemask==1||slicemask==0 ? "" : ":"+slicemask) // XXX strange place to the 0->1 thing
+                 + (futtIfPossible ? "futt" : "");
         }
         public static Twist fromString(String s)
         {
             com.donhatchsw.compat.regex.Matcher matcher =
             com.donhatchsw.compat.regex.Pattern.compile(
-                "\\s*((-)|(-?\\d+)\\*)?(\\d+)(:(-?\\d+))?\\s*"
+                "\\s*((-)|(-?\\d+)\\*)?(\\d+)(:(-?\\d+))?(futt)?\\s*"
             ).matcher(s);
             if (!matcher.matches())
                 return null; // XXX this will probably lead to a null pointer exception in the caller which is lame... should throw an IllegalArgumentException instead
@@ -67,13 +70,15 @@ public class MC4DModel
             String dirStringNumber = matcher.group(3);
             String gripString = matcher.group(4);
             String slicemaskString = matcher.group(6);
+            String futtOrNotString = matcher.group(7);
 
             int dir = dirStringJustMinus != null ? -1 :
                          dirStringNumber != null ?  Integer.parseInt(dirStringNumber) : 1;
             int grip = Integer.parseInt(gripString);
             int slicemask = slicemaskString != null ? Integer.parseInt(slicemaskString) : 1;
+            boolean futtIfPossible = futtOrNotString != null;
 
-            return new Twist(grip, dir, slicemask);
+            return new Twist(grip, dir, slicemask, futtIfPossible);
         }
         /** regex describing the possible strings returned by fromString() and parsed by toString(). This is used by UndoTreeSquirrel.fromString() and UndoTreeSquirrel.toString(). */
         public static String regex()
@@ -87,8 +92,8 @@ public class MC4DModel
         * without having to decelerate to zero at the transition point.
         * <p>
         * XXX The undo tree decision could be more powerful if it took a comparison functor,
-        * then it could know that (grip,dir,slicemask)
-        * is the same as (opposite grip, -dir, slicemask)...
+        * then it could know that (grip,dir,slicemask,futtIfPossible)
+        * is the same as (opposite grip, -dir, slicemask, futtIfPossible)...
         * I could accomplish that by making the Twist class
         * be non-static so that it knows about the model,
         * but I'd hate to make this simple well-contained class
@@ -105,7 +110,8 @@ public class MC4DModel
             Twist that = (Twist)thatObject;
             return this.grip == that.grip
                 && this.dir == that.dir
-                && this.slicemask == that.slicemask;
+                && this.slicemask == that.slicemask
+                && this.futtIfPossible == that.futtIfPossible;
         }
     } // Twist
 
@@ -252,9 +258,10 @@ public class MC4DModel
         /** Initiates a twist. */
         public synchronized void initiateTwist(int grip,
                                                int dir,
-                                               int slicemask)
+                                               int slicemask,
+                                               boolean futtIfPossible)
         {
-            Twist twist = new Twist(grip, dir, slicemask);
+            Twist twist = new Twist(grip, dir, slicemask, futtIfPossible);
             controllerUndoTreeSquirrel.Do(twist);
         }
         /** Initiates an undo.  Returns true if successful, false if there was nothing to undo. */
@@ -365,7 +372,7 @@ public class MC4DModel
                         Twist twist = (Twist)item;
                         Assert(twist != null);
                         Assert(twist.grip != -1);
-                        int order = genericPuzzleDescription.getGripSymmetryOrders()[twist.grip];
+                        int order = genericPuzzleDescription.getGripSymmetryOrders(twist.futtIfPossible)[twist.grip];
                         if (order <= 0)
                             return 1.; // XXX can this happen, and why?
                         double nQuarterTurns = 4./order
@@ -387,7 +394,8 @@ public class MC4DModel
                     genericPuzzleState,
                     twist.grip,
                     discreteStateChange.dir * twist.dir,
-                    twist.slicemask);
+                    twist.slicemask,
+                    twist.futtIfPossible);
             }
 
             if (wasMoving)
@@ -438,12 +446,14 @@ public class MC4DModel
                 returnTwist.grip = -1;
                 returnTwist.dir = 0;
                 returnTwist.slicemask = 0;
+                returnTwist.futtIfPossible = false;
             }
             else
             {
                 returnTwist.grip = twist.grip;
                 returnTwist.dir = -twist.dir;
                 returnTwist.slicemask = twist.slicemask;
+                returnTwist.futtIfPossible = twist.futtIfPossible;
             }
             if (verboseLevel >= 1) System.out.println("MODEL: giving someone animation state: "+returnFrac+" of the way (in time) through a "+returnTwist+"");
             return returnFrac;

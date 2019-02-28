@@ -187,6 +187,7 @@ public class MC4DViewGuts
                 restrictRoll.set(newRestrictRoll);
             }
         public Listenable.Boolean stopBetweenMoves = new Listenable.Boolean(true);
+        public Listenable.Boolean futtIfPossible = new Listenable.Boolean(true);
 
         //
         // Ornamentational appearance params
@@ -643,7 +644,8 @@ public class MC4DViewGuts
                                         viewState.untwistedFrame);
                         if (iGrip != -1)
                         {
-                            int order = model.genericPuzzleDescription.getGripSymmetryOrders()[iGrip];
+                            boolean futtIfPossible = viewParams.futtIfPossible.get();
+                            int order = model.genericPuzzleDescription.getGripSymmetryOrders(futtIfPossible)[iGrip];
 
                             if (false)
                             {
@@ -659,7 +661,7 @@ public class MC4DViewGuts
 
                             int dir = (isLeftMouseButton(me) || isMiddleMouseButton(me)) ? 1 : -1; // ccw is 1, cw is -1
 
-                            model.initiateTwist(iGrip, dir, viewState.slicemask);
+                            model.initiateTwist(iGrip, dir, viewState.slicemask, futtIfPossible);
                             // do NOT call repaint here!
                             // the model will notify us when
                             // we need to repaint, when it's our turn.
@@ -916,7 +918,7 @@ public class MC4DViewGuts
             }
         }
 
-        MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1);
+        MC4DModel.Twist twist = new MC4DModel.Twist(-1,-1,-1,false);
         int puzzleState[] = new int[model.genericPuzzleDescription.nStickers()];
         float fractionOfWayThroughTwist = (float)model.getAnimationState(modelListener,
                                                                 puzzleState, // fills this
@@ -998,6 +1000,7 @@ public class MC4DViewGuts
             twist.grip,
             twist.dir,
             twist.slicemask,
+            twist.futtIfPossible,
             (float)fractionOfWayThroughTwist,
 
             VecMath.mxs(viewParams.viewMat4d.get(), scaleFudge4d),
@@ -1645,7 +1648,7 @@ public class MC4DViewGuts
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     Assert(twist != null);
                     Assert(twist.grip != -1);
-                    int order = model.genericPuzzleDescription.getGripSymmetryOrders()[twist.grip];
+                    int order = model.genericPuzzleDescription.getGripSymmetryOrders(twist.futtIfPossible)[twist.grip];
                     if (order <= 0)
                         return 1.; // XXX can this happen, and why?
                     double nQuarterTurns = 4./order
@@ -1666,7 +1669,7 @@ public class MC4DViewGuts
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
-                    int order = model.genericPuzzleDescription.getGripSymmetryOrders()[grip];
+                    int order = model.genericPuzzleDescription.getGripSymmetryOrders(twist.futtIfPossible)[grip];
                     String degrees = "\u00B0"; // XXX not sure this magic works everywhere, got it from http://www.fileformat.info/info/unicode/char/00b0/index.htm
 
                     if (order <= 0)
