@@ -256,11 +256,11 @@
     TODO:
     =====
         FUTT:
+            - need to make the help text copyable to clipboard, since it now has that youtube linke
             - current limited implementation:
-              - detect when cut sets interact and, if so, disabel
-                - (futt, initial click on blue assert-fails  (OH that's when length is simply 3... expected)
+              - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
               - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around
-              - fix assertion fails in scramble of futt, and sometimes in "4,3 3"
+              - fix assertion fails and/or hangls in scramble of futt, and sometimes assert-fails in "4,3 3"
               - frucht face center still jumps a bit when clicked on
               - interoperate with "Stickers shrink to face boundaries" other than 0
               - edge twist state permutation is still flaky
@@ -268,6 +268,8 @@
               - support other than 3d
               - support other than trivalent
               - allow slicesmask to express more layers than just first wave
+              - do the right thing for length=2 in various cases (cube, triprism, ...)
+              - interact properly with heterogeneous intLengths
 
         SPECIFICATION:
             - be able to specify initial orientation
@@ -616,6 +618,76 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         this.prescription = prescription;
     } // ctor that takes just a string
 
+    private int intpow(int a, int b) { return b==0 ? 1 : intpow(a,b-1) * a; }  // simple, slow
+
+    private boolean decideWhetherFuttable(int[] intLengths)
+    {
+        int nDims = this.originalPolytope.p.dim;
+        if (nDims != 3) return false;
+
+        // If intLengths are not all the same, we can't handle it.
+        int intLength = intLengths[0];
+        for (int i = 0; i < intLengths.length; ++i) {
+            if (intLengths[i] != intLength) return false;
+        }
+
+        // If intLength<3, we can't handle it.
+        if (intLength < 3) return false;
+
+        // If intLength isn't odd, we can't handle it.
+        if (intLength % 2 == 0) return false;
+
+        int nCutsPerFace = (intLength-1)/2;
+
+        CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
+        int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
+
+        // If any vertex figure is not a simplex (i.e. has valence other than nDims),
+        // we can't handle it.
+        int nVerts = originalElements[0].length;
+        for (int iVert = 0; iVert < nVerts; ++iVert) {
+            if (originalIncidences[0][iVert][1].length != nDims) return false;
+        }
+
+        int nFacets = originalElements[2].length;
+        int nEdges = originalElements[1].length;
+
+        // If any non-incident cut sets interact, we can't handle it.
+
+        // We get a pretty good idea of this by counting total number of
+        // elements of each dimension on the stickers.
+        // XXX this isn't actually the stickers, it's the sliced polytope, without having been separated yet.  so, should rename the vars
+        int[] stickerElementCounts = CSG.counts(this.slicedPolytope.p);
+        int nStickerVerts = stickerElementCounts[0];
+        int nStickerEdges = stickerElementCounts[1];
+        int nStickers = stickerElementCounts[2];
+        Assert(nStickerVerts + nStickers == nStickerEdges + 2);  // Euler's formula
+        System.out.println("sticker element counts = "+VecMath.toString(stickerElementCounts));
+        {
+            int expectedNumStickers = 0;  // and counting
+            for (int iDim = 0; iDim <= nDims-1; ++iDim) {
+                int contributionPerElement = intpow(nCutsPerFace, nDims-1 - iDim) * (nDims-iDim);
+                expectedNumStickers += originalElements[iDim].length * contributionPerElement;
+            }
+            System.out.println("expectedNumStickers = "+expectedNumStickers);
+            System.out.println("actual num stickers = "+stickerElementCounts[nDims-1]);
+            if (nStickers != expectedNumStickers) return false;
+        }
+        {
+            int expectedNumStickerVerts = 0;  // and counting
+            expectedNumStickerVerts += nVerts;
+            expectedNumStickerVerts += nEdges * (2 * nCutsPerFace);
+            expectedNumStickerVerts += nEdges * 2 * nCutsPerFace*nCutsPerFace;
+            System.out.println("expectedNumStickerVerts = "+expectedNumStickerVerts);
+            System.out.println("actual num stickerVerts = "+nStickerVerts);
+            if (nStickerVerts != expectedNumStickerVerts) return false;
+        }
+
+        // XXX TODO: still no good!  we need to declare "frucht 3(2.5)" non-futtable, but haven't figured out how to detect them yet!  Well at least it rejects "fruct 3".
+
+        return true;
+    }  // decideWhetherFuttable
+
     private void init(String schlafliProduct,
                       int[] intLengths, // number of segments per edge, possibly per-face
                       double[] doubleLengths, // edge length / length of first edge segment, possibly per-face
@@ -646,10 +718,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
         int nDims = originalPolytope.p.dim;  // == originalPolytope.fullDim
-
-        this.futtable = regex.matches(schlafliProduct, ".*[Ff]rucht");
-        this.futtable = nDims == 3;  // UNCOMMENT FOR DEBUGGING: so I can debug it on a cube, which is easier than the frucht polyhedron.  Q: I'd also like this on futtminx 3(1)5, also all the other truncateds p(1)q and omnitruncateds p(1)q(1) and prisms and maybe more; how?  maybe hint with futt in the name?  note, when futt fully debugged and featured, it might be suitable for all 3d puzzles
-        this.intLengthsForFutt = futtable ? VecMath.copyvec(intLengths) : null;  // it's hard for the on-the-fly futt stuff to figure it out otherwise
 
         CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
         CSG.Polytope[] originalVerts = originalElements[0];
@@ -684,7 +752,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             VecMath.vxs(facetInwardNormals[iFacet], facetInwardNormals[iFacet], invNormalLength);
             facetOffsets[iFacet] *= invNormalLength;
         }
-        this.facetOffsetsForFutt = futtable ? facetOffsets : null;
 
         //
         // Figure out the circumRadius (farthest vertex from origin)
@@ -1152,6 +1219,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     if (sticker2cubie[iSticker] == iSticker)
                         _nCubies++;
                 progressWriter.println("    There seem to be "+_nCubies+" accessible cubie(s).");
+                progressWriter.flush();
             }
             // XXX note, we could easily collapse the cubie indicies
             // XXX so that they are consecutive, if we cared
@@ -1470,6 +1538,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
         this.vertsF = VecMath.doubleToFloat(restVerts);
+
+        this.futtable = decideWhetherFuttable(intLengths);
+        if (progressWriter != null)
+        {
+            progressWriter.println("    Polytope is "+(this.futtable ? "futtable! (but need to enable futting in UI as well in order to futt)." : "not futtable."));
+        }
+        this.intLengthsForFutt = futtable ? VecMath.copyvec(intLengths) : null;  // it's hard for the on-the-fly futt stuff to figure it out otherwise
+        this.facetOffsetsForFutt = futtable ? facetOffsets : null;
 
         //
         // Now think about the twist grips.
@@ -2159,7 +2235,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // magic crap used in a couple of methods below
         private double[][] getTwistMat(int gripIndex, int dir, boolean futtIfPossible, double frac)
         {
-            int order = (futtIfPossible ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex];
+            int order = (futtIfPossible && this.futtable ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex];
             double angle = dir * (2*Math.PI/order) * frac;
             double[][] gripUsefulMat = this.gripUsefulMats[gripIndex];
             Assert(gripUsefulMat.length == _nDisplayDims);
@@ -2369,7 +2445,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (gripIndex < 0 || gripIndex >= nGrips())
                 throw new IllegalArgumentException("computeVertsAndShrinkToPointsPartiallyTwisted called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
-            if ((futtIfPossible ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex] == 0)
+            if ((futtIfPossible && this.futtable ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex] == 0)
                 throw new IllegalArgumentException("computeVertsAndShrinkToPointsPartiallyTwisted called on gripIndex "+gripIndex+" which does not rotate!");
             if (outVerts.length != vertsF.length)
                 throw new IllegalArgumentException("outVerts length "+outVerts.length+" does not match number of verts "+vertsF.length+"!");
@@ -2809,7 +2885,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             if (gripIndex < 0 || gripIndex >= nGrips())
                 throw new IllegalArgumentException("applyTwistToState called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
-            if ((futtIfPossible ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex] == 0)
+            if ((futtIfPossible && this.futtable ? this.gripSymmetryOrdersFutted : this.gripSymmetryOrders)[gripIndex] == 0)
                 throw new IllegalArgumentException("applyTwistToState called on gripIndex "+gripIndex+" which does not rotate!");
             if (state.length != stickerCentersD.length)
                 throw new IllegalArgumentException("applyTwistToState called with wrong size state "+state.length+", expected "+stickerCentersD.length+"!");
