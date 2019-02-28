@@ -1025,11 +1025,29 @@ public class GenericGlue
                                int scramblechenfrengensen,
                                boolean futtIfPossible)
     {
-        System.out.println("in scrambleAction");
-        System.out.println("  scramblechenfrengensen = "+scramblechenfrengensen);
-        System.out.println("  futtIfPossible = "+futtIfPossible);
         GenericGlue glue = this;
         int nDims = model.genericPuzzleDescription.nDims();
+
+        // Are all grip orders trivial?  If so, we can't really scramble,
+        // and if we try, the code below will endless loop.
+        {
+            int nGrips = model.genericPuzzleDescription.nGrips();
+            boolean foundOne = false;
+            for (int iGrip = 0; iGrip < nGrips; ++iGrip) {
+                int iFace = model.genericPuzzleDescription.getGrip2Face()[iGrip];
+                int order = model.genericPuzzleDescription.getGripSymmetryOrders(futtIfPossible)[iGrip];
+                if (!(order < 2 || (nDims==3 && order==2) || nDims==2 && order==4))
+                {
+                    foundOne = true;
+                    break;
+                }
+            }
+            if (!foundOne) {
+                System.out.println("There are no scrambling twists!");
+                return;
+            }
+        }
+
         java.util.Random rand = new java.util.Random();
         int previous_face = -1;
         for(int s = 0; s < scramblechenfrengensen; s++) {
@@ -1050,7 +1068,6 @@ public class GenericGlue
             int slicemask = 1<<rand.nextInt(2); // XXX there's no getLength()! oh I think it's because I didn't think that was a generic enough concept to put in GenericPuzzleDescription, but I might have to rethink that.  for now, we just pick the first or second slice... this is fine for up to 4x, and even 5x (sort of)
             int dir = rand.nextBoolean() ? -1 : 1;
 
-            System.out.println("  calling applyTwistToState");
             // XXX let the model do this!!!!!
             model.genericPuzzleDescription.applyTwistToState(
                     model.genericPuzzleState,
@@ -1058,7 +1075,6 @@ public class GenericGlue
                     dir,
                     slicemask,
                     futtIfPossible);
-            System.out.println("  returned from applyTwistToState");
 
             // clear redo part
             //glue.undoq.setSize(glue.undoPartSize); // argh, setSize doesn't exist
@@ -1087,7 +1103,6 @@ public class GenericGlue
             ((JLabel)statusLabel).setText(labelText);
         else
             ((Label)statusLabel).setText(labelText);
-        System.out.println("out scrambleAction");
     } // scrambleAction
 
 
