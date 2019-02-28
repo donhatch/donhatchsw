@@ -137,7 +137,7 @@ public class MC4DModel
     // PERSISTENT SERIALIZABLE PART
     //
         public GenericPuzzleDescription genericPuzzleDescription;
-        public int genericPuzzleState[]; // only accessible via listener notification     XXX make this private!  glue looks at it currently
+        public int genericPuzzleState[]; // accessible only via listener notification     XXX make this private!  glue looks at it currently
 
         public com.donhatchsw.util.UndoTreeSquirrel controllerUndoTreeSquirrel;
 
@@ -244,7 +244,7 @@ public class MC4DModel
             // To prevent that, we call movingNotify()
             // on some remaining listener.
             // This may cause two animations to be going at once,
-            // which isn't good, but it only lasts until the end of this animation.
+            // which isn't good, but it lasts only until the end of this animation.
             if (listeners.size() > 0 && isMoving()) {
                 System.out.println("KICK!");
                 ((Listener)listeners.get(0)).movingNotify();
@@ -353,7 +353,7 @@ public class MC4DModel
         {
             if (verboseLevel >= 1) System.out.println("MODEL: advancing animation");
 
-            // XXX hack-- trying to figure out the nice way to do it when there are like 90 windows each with different nFrames90... go at the speed of the slowest?  for now, since each listener is only getting 1/nListeners of the notifications, multiply by the number of listeners, otherwise we'll get huge gaps and it sucks.  I tried it.
+            // XXX hack-- trying to figure out the nice way to do it when there are like 90 windows each with different nFrames90... go at the speed of the slowest?  for now, since each listener is getting only 1/nListeners of the notifications, multiply by the number of listeners, otherwise we'll get huge gaps and it sucks.  I tried it.
             nFrames90 *= listeners.size();
 
             boolean wasMoving = animationUndoTreeSquirrel.isMoving(controllerUndoTreeSquirrel);

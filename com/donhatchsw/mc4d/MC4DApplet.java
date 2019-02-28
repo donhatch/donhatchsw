@@ -321,7 +321,7 @@ public class MC4DApplet
                         } // mouseExited
                     });
                 }});
-                // XXX how to tell when a menu has disappeared?  this isn't the way-- it only comes up in some of the cases of what can happen
+                // XXX how to tell when a menu has disappeared?  this isn't the way-- it comes up in only some of the cases of what can happen
                 menu.addActionListener(new java.awt.event.ActionListener() {
                     public void actionPerformed(java.awt.event.ActionEvent e)
                     {

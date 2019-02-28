@@ -752,7 +752,7 @@ public class GenericGlue
                                         "        "+newPuzzle.nStickers()+" stickers\n"+
                                         "        "+newPuzzle.nCubies()+" visible cubie"+(newPuzzle.nCubies()==1?"":"s")+"\n"+
                                         "        "+newPuzzle.nVerts()+" sticker vertices\n"+
-                                        "However, we are only accepting 4-dimensional inventions at this time.",
+                                        "However, we are accepting only 4-dimensional inventions at this time.",
                                         "Invention Rejection Form Letter",
                                         JOptionPane.ERROR_MESSAGE);
                                     // XXX Lame, should try to get back in the loop and prompt again instead
@@ -904,7 +904,7 @@ public class GenericGlue
                                     "        "+newPuzzle.nStickers()+" stickers\n"+
                                     "        "+newPuzzle.nCubies()+" visible cubie"+(newPuzzle.nCubies()==1?"":"s")+"\n"+
                                     "        "+newPuzzle.nVerts()+" sticker vertices\n"+
-                                    "However, we are only accepting 4-dimensional inventions at this time.",
+                                    "However, we are accepting only 4-dimensional inventions at this time.",
                                     "Invention Rejection Form Letter",
                                     JOptionPane.ERROR_MESSAGE);
                                 // XXX Lame, should try to get back in the loop and prompt again instead
@@ -1202,7 +1202,7 @@ public class GenericGlue
                         Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
                         float polyCenter[] = polyAndStickerAndFaceCenter[0];
 
-                        // Only interested in the w component
+                        // Interested in only the w component
                         // (and the z component if the puzzle is 2d).
                         // So zero out the first nDims dimensions...
                         polyCenter = com.donhatchsw.util.VecMath.copyvec(polyCenter);
@@ -1355,7 +1355,7 @@ public class GenericGlue
         float towardsSunVec[], // used by compute part if showShadows is true
         boolean showShadows, // used by both compute and paint parts
 
-        // All the rest are for paint the paint part only
+        // All the rest are for the paint part only
         Color ground,
         float faceRGB[][],
         boolean highlightByCubie,

@@ -57,7 +57,7 @@
                       when you click to twist.
 
             - "Restrict Roll" preference
-               (only works for generic puzzles currently) XXX might not be true by the time I'm through
+               (works for only generic puzzles currently) XXX might not be true by the time I'm through
             - Friendlier interface to the 2x2x2x2 puzzle
                that lets you use the same moves as for the other puzzles,
                (rather than just corner twists).
@@ -68,7 +68,7 @@
                ctrl-middle-click on it.  Middle-click without holding down ctrl
                rotates the entire hyperface face to the center,
                as it always did.
-               (only works for generic puzzles currently)
+               (works for only generic puzzles currently)
             - Speed of twists and rotations
                have been adjusted to feel more uniform for different
                rotation amounts
@@ -77,7 +77,7 @@
                for all types of moves).
             - Better depth sorting of polygons
                (still doesn't always work though)
-               (only works for generic puzzles currently)
+               (works for only generic puzzles currently)
                (and only 4d generic puzzles, doesn't work for 3d ones at all)
             - Lots of new puzzle types available from the Puzzle menu,
                of dimension 2,3, and 4.
@@ -90,8 +90,8 @@
             - sometimes the highlighted sticker fails to get updated correctly
               at the end of a twist (jiggle the mouse to fix it)
             - no real solve
-            - scramble only affects outer or 2nd slices (you'll
-              only notice this if your puzzle length is >= 6)
+            - scramble affects only outer or 2nd slices (you'll
+              notice this only if your puzzle length is >= 6)
             - The frame display routines are not optimized for memory use,
               which means they place a heavy load on the garbage collector.
               This can cause short but noticeable pauses during
@@ -167,7 +167,7 @@
             - 3x4 2  still using old closestGrip method, so gets wrong thing when clicking on outer square or edges (fixed now I think?)
             - maybe doFurtherCuts needs to be on if there's a triangle too (not just if there's a square), e.g. 3,3,3 2  or 3,3,4 2   or 3,4,3 2
             - and maybe triangles need a separate scheme?  think about it
-            - maybe only further-cut only the polygons that need it? (squares, maybe triangles... not sure this is feasible though, since the current method just adds global slice planes)
+            - maybe further-cut only the polygons that need it? (squares, maybe triangles... not sure this is feasible though, since the current method just adds global slice planes)
 
         - {5,3} 3(1.0001) "stickers shrink to face boundaries" doesn't work
 
@@ -186,9 +186,9 @@
              definitely the help menu, maybe the web page itself too
         - need About menu before shipping
         - make sure our methods for detecting shift/alt/ctrl work in all versions (was it 1.1 -> 1.2 in which things changed?) (also maybe something in different 1.6 versions too?)
-        - hotkeys don't work from java 1.6??  e.g. ctrl-c only gives what c gives
+        - hotkeys don't work from java 1.6??  e.g. ctrl-c gives only what c gives
            (seems to be okay now... was it just an early release of 1.6?)
-        - clicking on the < or > on side of the scrollbars only take about every other time
+        - clicking on the < or > on side of the scrollbars take only about every other time
         - twist speed of generic 2x in melinda's is way too fast
         - gratuitous undo tree animation is really slow and postpones puzzle animation!?
         - status bar and puzzle prescription bar
@@ -342,8 +342,8 @@
             - ooh, make more slices proportionally slower, would feel more massive!
             - completely general solve?
             - general uniform polytopes! yeah!
-            - make slicing faster-- for humongous polytopes, only need to
-                look at neighbor facets (and slices thereof) and no farther,
+            - make slicing faster-- for humongous polytopes, need to
+                look at only neighbor facets (and slices thereof) and no farther,
                 that should cut stuff down by a factor of 100 maybe
             - hyperlinks to wikipedia or dinogeorge?
 
@@ -552,7 +552,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                               "Grand_Antiprism");
 
         //com.donhatchsw.compat.regex.verboseLevel = 2;
-        // TODO: Document this not-yet-documented feature: can be more than one length (each with optional double override), specifying a different cut scheme for each dimension.  The one chosen for a given facet is the one whose index is the index of the coord axis most closely aligned with the facet normal.  Probably only makes sense for axis-aligned boxes.
+        // TODO: Document this not-yet-documented feature: can be more than one length (each with optional double override), specifying a different cut scheme for each dimension.  The one chosen for a given facet is the one whose index is the index of the coord axis most closely aligned with the facet normal.  Probably makes sense for only axis-aligned boxes.
         com.donhatchsw.compat.regex.Matcher matcher =
         com.donhatchsw.compat.regex.Pattern.compile(
             "\\s*([^ ]+)\\s+((\\d+)(\\((.*)\\))?(,(\\d+)(\\((.*)\\))?)*)"
@@ -876,8 +876,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                             // If there are more than one neighbor vertex
                             // that's not on this facet, pick one that's
-                            // closest to the facet plane.  This can only
-                            // happen if the vertex figure is NOT a simplex
+                            // closest to the facet plane.  This can
+                            // happen only if the vertex figure is NOT a simplex
                             // (e.g. it happens for the icosahedron).
                             if (thisThickness > 1e-6
                              && (fullThickness == 0. || thisThickness < fullThickness))
@@ -949,7 +949,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //System.out.println("facet inward normals = "+com.donhatchsw.util.Arrays.toStringCompact(facetInwardNormals));
         //System.out.println("cut offsets = "+com.donhatchsw.util.Arrays.toStringCompact(facetCutOffsets));
 
-        // Only need further cuts if there's a square, e.g. {5,3,3} 2 doesn't need it
+        // Need further cuts only if there's a square, e.g. {5,3,3} 2 doesn't need it
         // (hmm, do triangles need it?  separate scheme?)
         // And "there's a square" might be equivalent to "the whole thing is a prism of some sort", I'm not sure.
         // These heuristics are a bit wacky; should revisit them.
@@ -1139,7 +1139,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                         Object auxOfCut = null; // note this should not mess up the showFurtherCuts thing, since we are now dividing the ridges of the stickers (e.g. the polygons, in the usual 4d case) so the divided ridges themselves will still have an aux... it's the peaks (i.e. nDims-3 dimensional elements, i.e. edges in the usual 4d case) that will get nulls for auxes, and that's fine
                         slicedPolytope = CSG.sliceElements(slicedPolytope, slicedPolytope.p.dim-2, cutHyperplane, auxOfCut,
-                            new int[]{3,4}); // sizes (only further-cut squares and triangles) (XXX that's not quite working like I intended... I wanted to only further-cut when *original* facets were squares. bleah!)
+                            new int[]{3,4}); // sizes (further-cut only squares and triangles) (XXX that's not quite working like I intended... I wanted to further-cut only when *original* facets were squares. bleah!)
                         if (progressWriter != null)
                         {
                             progressWriter.print("."); // one dot per cut
@@ -2060,7 +2060,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
 
             // Scratch arrays... the size of the whole thing,
-            // but we only use the parts that are incident on a particular sticker
+            // but we use only the parts that are incident on a particular sticker
             // at a time, and we clear those parts
             // when we are through with that sticker.
             double[] avgDepthOfThisStickerBelowFacet = VecMath.fillvec(nFacets, -1.);
@@ -2469,7 +2469,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // XXX dup code
             boolean weWillFutt = futtIfPossible
                               && this.futtable
-                              && slicemask < (1<<((this.intLengthsForFutt[0]-1)/2))  // e.g. if intLength is 9, then nCuts is 4, so we can only handle up through 1+2+4+8
+                              && slicemask < (1<<((this.intLengthsForFutt[0]-1)/2))  // e.g. if intLength is 9, then nCuts is 4, so we can handle only up through 1+2+4+8
                               && this.gripSymmetryOrdersFutted[gripIndex] != 1;
             // Note, we purposely go through all the calculation
             // even if dir*frac is 0; we get more consistent timing that way.
@@ -2919,7 +2919,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // XXX dup code
             boolean weWillFutt = futtIfPossible
                               && this.futtable
-                              && slicemask < (1<<((this.intLengthsForFutt[0]-1)/2))  // e.g. if intLength is 9, then nCuts is 4, so we can only handle up through 1+2+4+8
+                              && slicemask < (1<<((this.intLengthsForFutt[0]-1)/2))  // e.g. if intLength is 9, then nCuts is 4, so we can handle only up through 1+2+4+8
                               && this.gripSymmetryOrdersFutted[gripIndex] != 1;
             if (gripIndex < 0 || gripIndex >= nGrips())
                 throw new IllegalArgumentException("applyTwistToState called on bad gripIndex "+gripIndex+", there are "+nGrips()+" grips!");
@@ -3124,7 +3124,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     // fix an edge rather than a vertex.
                     // So, now that we have in hand an extremal sticker on this partition,
                     // just walk 1/(2*n) of the way around.
-                    // (argh, this only works for the shells of the primary facet; it doesn't
+                    // (argh, this works only for the shells of the primary facet; it doesn't
                     // work at all for the others)
 
                     Assert(partition.length % (2*n) == 0);
@@ -3232,7 +3232,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                   double cutOffsets[])
         {
             // XXX a binary search would work better if num cuts is big.
-            // XXX really only need to check offsets between differing
+            // XXX really need to check offsets only between differing
             // XXX bits of slicmask.
             double pointHeight = VecMath.dot(point, cutNormal);
             int iSlice = 0;

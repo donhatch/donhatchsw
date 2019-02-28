@@ -642,7 +642,7 @@ public class MC4DControlPanel
                  "See Oskar's Futtminx video:",
                  "    https://www.youtube.com/watch?v=9rbs5xxHdRg for more info.",
                  "",
-                 "NOTE: Currently this is implemented only in a subset of puzzles:",
+                 "NOTE: Currently this is implemented in only a subset of puzzles:",
                  "that is, 3d trivalent puzzles:",
                  "    - prisms (Futt allows turning the squares 90 degrees,",
                  "      which was previously impossible",
@@ -796,7 +796,7 @@ public class MC4DControlPanel
                                    "With these settings, all the stickers of a given cubie",
                                    "will appear to be contiguous",
                                    "",
-                                   "This button is only enabled when not already contiguous.",
+                                   "This button is enabled only when not already contiguous.",
                                 }),
                 new GridBagConstraints(){{gridy = nRows;}});
             nRows++;
@@ -906,7 +906,7 @@ public class MC4DControlPanel
                                 return;
                             }
                             float rescaleNeeded = .9f / oldPercentage;
-                            // XXX I think there's a bug that makes the effect of scale get squared... so only rescale it by square root of what we should REALLY rescale it by
+                            // XXX I think there's a bug that makes the effect of scale get squared... so rescale it by only the square root of what we should REALLY rescale it by
                             rescaleNeeded = (float)Math.sqrt(rescaleNeeded);
                             float newScale = oldScale * rescaleNeeded;
                             viewParams.viewScale2d.set(newScale);

@@ -331,7 +331,7 @@ public class GenericPipelineUtils
                 VecMath.vmv(3, mat[1], v2, v0); // 3 out of 4
                 VecMath.vmv(3, mat[2], v3, v0); // 3 out of 4
                 float volume = VecMath.vxvxv3(mat[0], mat[1], mat[2]);
-                if (!doFrontCellCull || volume < 0.f) // only draw *back* cells; cull front ones
+                if (!doFrontCellCull || volume < 0.f) // draw only *back* cells; cull front ones
                 {
                     // append references to this sticker's polys into drawList
                     for (int iPolyThisSticker = 0; iPolyThisSticker < thisStickerInds.length; ++iPolyThisSticker)
@@ -350,7 +350,7 @@ public class GenericPipelineUtils
 
         //
         // 3d face shrink and sticker shrink
-        // XXX could try to only do this on vertices that passed the culls
+        // XXX could try to do this on only vertices that passed the culls
         // XXX need to do this with the xformed and projected shrink-to point,
         // XXX not calculate screwy centers on the fly here.
         // XXX Q: should the sticker shrink-to point always be shrunk towards the face shrink-to point in 4d?  Or does 3d make sense?  Well, 4d would be more robust, since that shrinking could prevent having to do with projected original points that could end up behind the eye.  So that's what we do.
@@ -364,7 +364,7 @@ public class GenericPipelineUtils
 
         //
         // Rotate/scale in 3d
-        // XXX could try to only do this on vertices that passed the culls
+        // XXX could try to do this on only vertices that passed the culls
         //
         {
             if (verboseLevel >= 4) System.out.println("rot3d = "+com.donhatchsw.util.Arrays.toStringCompact(rot3d));
@@ -422,7 +422,7 @@ public class GenericPipelineUtils
         // Compute brightnesses.
         //
         {
-            // XXX should only do this faces that are going
+            // XXX should do this on only faces that are going
             // XXX to pass the cull... PolygonManager did this cleverly I think,
             // XXX computing the 2d verts first, culling, and then
             // XXX going back to the 3d verts of the polys that remained.
@@ -522,7 +522,7 @@ public class GenericPipelineUtils
 
         //
         // Project down to 2d
-        // XXX could try to only do this on vertices that passed the culls
+        // XXX could try to do this on only vertices that passed the culls
         //
         {
             for (int i = 0; i < verts.length; ++i)
@@ -598,7 +598,7 @@ public class GenericPipelineUtils
 
         //
         // Rotate/scale in 2d
-        // XXX could try to only do this on vertices that passed both culls
+        // XXX could try to do this on only vertices that passed both culls
         //
         {
             if (verboseLevel >= 4) System.out.println("rot2d = "+com.donhatchsw.util.Arrays.toStringCompact(rot2d));
@@ -1109,12 +1109,12 @@ public class GenericPipelineUtils
                         if (true)
                             if (jSticker >= nStickers
                              && (jSticker-nStickers)%2 != 1)
-                                continue; // only draw to other-group end tokens
+                                continue; // draw only to other-group end tokens
 
                         if (true)
                             if (jSticker >= nStickers
                              && (jSticker-nStickers)%2 != 0)
-                                continue; // only draw to this-group start tokens
+                                continue; // draw only to this-group start tokens
 
                         float otherStickerCenter[] = partialOrderNodeCenters2d[jSticker];
                         float myStickerCenter[] = partialOrderNodeCenters2d[iSticker];
@@ -1297,7 +1297,7 @@ public class GenericPipelineUtils
                     // The node position nSticker+2*iSlice+1 is not used;
                     // it is just an end token for the group,
                     // so that when we need a sticker to be > an entire group,
-                    // we only have to specify one inequality instead
+                    // we have to specify only one inequality instead
                     // of one for each element of the group.
                 }
 
@@ -1397,7 +1397,7 @@ public class GenericPipelineUtils
                     {
                         // The two stickers are immediate siblings,
                         // i.e. both in the same (compressed) slice.
-                        // This relationship only matters if they are both visible.
+                        // This relationship matters only if they are both visible.
                         if (!iStickerIsVisible || !jStickerIsVisible)
                             continue;
                         //System.out.println("    stickers "+iSticker+","+jSticker+" in same slice "+sticker2Slice[iSticker]+"");

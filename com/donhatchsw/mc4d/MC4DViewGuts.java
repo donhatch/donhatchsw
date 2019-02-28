@@ -518,7 +518,7 @@ public class MC4DViewGuts
                     if (viewParams.requireCtrlTo3dRotate.get())
                     {
                         if (me.isControlDown())
-                            return; // restricted mode, so ctrled mouse only affects the spin... which is implemented in the press,drag,release callbacks, not this one
+                            return; // restricted mode, so ctrled mouse affects only the spin... which is implemented in the press,drag,release callbacks, not this one
                         if (viewComponent != null)
                             viewComponent.repaint(); // so it keeps spinning if it was spinning
                     }
@@ -593,7 +593,7 @@ public class MC4DViewGuts
                                     Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
                                     float polyCenter[] = polyAndStickerAndFaceCenter[0];
 
-                                    // Only interested in the w component
+                                    // Interested in only the w component
                                     // (and the z component if the puzzle is 2d).
                                     // So zero out the first nDims dimensions...
                                     polyCenter = VecMath.copyvec(polyCenter);
