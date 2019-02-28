@@ -2029,11 +2029,18 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // to it, in that sticker.
         // The planes that contribute to a sticker
         // come in parallel pairs and singletons.  Singletons
-        // get weight 1, parallel pairs get weights according
-        // to the relative depths of the cut, so that
+        // get weight 1, parallel pairs get weights summing to 1
+        // according to the relative depths of the cut, so that
         // the closer the cut is to the surface, the higher the weight:
         // weight 1 if the cut is at the surface.
         //
+        // CBB: This isn't the greatest for stickers that are
+        // triangles or simplices, other than face center stickers:
+        // notice that stickers that are simplices don't even move
+        // when the "Stickers shrink to face boundaries" slider is moved,
+        // even ones that are in fact on a face boundary, and those should
+        // certainly move to the face boundary.
+        // Should try to come up with an even better scheme.
         //
         private static float[][] computeStickerAltCentersF(
                 CSG.SPolytope slicedPolytope,
