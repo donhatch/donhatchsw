@@ -257,7 +257,6 @@
     =====
         FUTT:
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing
-            - need to make the help text copyable to clipboard, since it now has that youtube linke
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
               - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around  (hmm, can't reproduce any more?
