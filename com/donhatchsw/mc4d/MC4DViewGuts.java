@@ -187,7 +187,7 @@ public class MC4DViewGuts
                 restrictRoll.set(newRestrictRoll);
             }
         public Listenable.Boolean stopBetweenMoves = new Listenable.Boolean(true);
-        public Listenable.Boolean futtIfPossible = new Listenable.Boolean(true);
+        public Listenable.Boolean futtIfPossible = new Listenable.Boolean(false);
 
         //
         // Ornamentational appearance params

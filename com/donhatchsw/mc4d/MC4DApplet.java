@@ -22,8 +22,8 @@ public class MC4DApplet
     public String puzzleDescription = "{4,3,3} 3";
     public int x = 50, y = 50; // for spawned viewers
     public int w = 300, h = 300; // for spawned viewers
-    public boolean doDoubleBuffer = true; // XXX get this from viewing params?
-    public boolean futtIfPossible = false;
+    public boolean doDoubleBuffer = true; // XXX get this from viewing params? currently this must match viewing params' default value
+    public boolean futtIfPossible = false; // XXX get this from viewing params? currently this must match viewing params' default value
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
         {"x", "integer", "x position for spawned viewers"},  // XXX does this work?
