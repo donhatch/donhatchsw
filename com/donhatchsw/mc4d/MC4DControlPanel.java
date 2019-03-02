@@ -361,26 +361,42 @@ public class MC4DControlPanel
         {
             super("Help");
             if (helpMessage != null)
+            {
                 addActionListener(new ActionListener() {
                     public void actionPerformed(ActionEvent e)
                     {
-                        // The preferred height of a label
-                        // whose font metrics says height=15
-                        // is 21.. kinda weird...
-                        // and it makes it so it's too spread out
-                        // vertically when we stack them up.
-                        // The external and internal padding
-                        // added by the gridbagconstraint is 0 by default,
-                        // so we adjust by setting the internal
-                        // vertical padding to -6
-                        // to get rid of that extra space.
-                        // XXX I don't know if this behavior is the same on other VMs besides linux, need to check
-                        final GridBagConstraints c = new GridBagConstraints(){{anchor = WEST; ipady = -6;}};
-
-                        Container panel = new Col() {{
+                        Component panel;
+                        // TODO: new way using TextArea instead of Labels seems to work great on mac; see if it works on linux, and if so, delete the old way
+                        if (false) {
+                          // The preferred height of a label
+                          // whose font metrics says height=15
+                          // is 21.. kinda weird...
+                          // and it makes it so it's too spread out
+                          // vertically when we stack them up.
+                          // The external and internal padding
+                          // added by the gridbagconstraint is 0 by default,
+                          // so we adjust by setting the internal
+                          // vertical padding to -6
+                          // to get rid of that extra space.
+                          // XXX I don't know if this behavior is the same on other VMs besides linux, need to check
+                          // Answer: it ends up pretty cramped on mac :-(
+                          final GridBagConstraints c = new GridBagConstraints(){{anchor = WEST; ipady = -6;}};
+                          panel = new Col() {{
+                              for (int i = 0; i < helpMessage.length; ++i)
+                                  add(new Label(helpMessage[i]), c);
+                          }};
+                        }
+                        else
+                        {
+                            int nRows = helpMessage.length;
+                            int nCols = 0;
                             for (int i = 0; i < helpMessage.length; ++i)
-                                add(new Label(helpMessage[i]), c);
-                        }};
+                                nCols = Math.max(nCols, helpMessage[i].length());
+                            panel = new TextArea(String.join("\n", helpMessage),
+                                                 nRows, nCols, TextArea.SCROLLBARS_BOTH) {{
+                                setEditable(false);
+                            }};
+                        }
 
                         final Frame helpWindow = new Frame("MC4D Help: "+helpWindowTitle);
                         helpWindow.add(panel);
@@ -393,8 +409,10 @@ public class MC4DControlPanel
                                 helpWindow.dispose();
                             }
                         });
+
                     }
                 });
+            }
             else
             {
                 // XXX ARGH! just want to not draw it, but leave space. this sucks. really need to overhaul this whole thing and make use of actual grid coords
