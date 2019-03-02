@@ -260,7 +260,7 @@
             - need to make the help text copyable to clipboard, since it now has that youtube linke
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
-              - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around
+              - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around  (hmm, can't reproduce any more?
               - frucht face center still jumps a bit when clicked on
               - interoperate with "Stickers shrink to face boundaries" other than 0
               - edge twist state permutation is still flaky
