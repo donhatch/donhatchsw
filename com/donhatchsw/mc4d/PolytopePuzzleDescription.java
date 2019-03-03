@@ -261,7 +261,6 @@
               - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
               - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around  (hmm, can't reproduce any more?
               - frucht face center still jumps a bit when clicked on
-              - interoperate with "Stickers shrink to face boundaries" other than 0
               - edge twist state permutation is still flaky
             - make more general implementation:
               - support other than 3d
@@ -683,7 +682,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (nStickerVerts != expectedNumStickerVerts) return false;
         }
 
-        if (true)  // can set this to false if I want to debug futt behavior on, say, a cube.
+        if (false)  // can set this to false if I want to debug futt behavior on, say, a cube.
         {
             // If original polytope is regular, then don't *need* to futt.
             // I think regular means the incidences look as symmetrical as possible.
@@ -2517,7 +2516,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                        thisFaceCutOffsets))
                 {
                     for (int i = 0; i < stickerInds[iSticker].length; ++i)
-                    for (int j = 0; j < stickerInds[iSticker][i].length; ++j)
+                    for (int j = 0; j < stickerInds[iSticker][i].length; ++j) // around the polygon
                         whichVertsGetMoved[stickerInds[iSticker][i][j]] = true;
 
                     VecMath.vxm(outStickerCenters[iSticker], stickerCentersF[iSticker], matF);
@@ -2553,14 +2552,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
+                int verboseLevel = 1;  // set to something higher than 0 to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
                 // in that corner region get transformed by that transform.
-                // TODO: Sticker centers and shrink-to-points are more problematic...
-                // I think those will need to be recomputed
-                // as blends of the resulting vertex coords.
                 if (verboseLevel >= 1) System.out.println("  ==========================");
                 if (verboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN GOIN ON");
                 if (verboseLevel >= 1) System.out.println("      gripIndex = "+gripIndex);
@@ -2729,6 +2725,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // CBB: this is all hard-coded for the first wave of shallow cuts, so can't do opposite layer of futtminx yet.  need smarter method
 
                 // XXX argh! this nStickerLayers assumption is completely bogus... it is *not* the same as the original intLengths when the object is symmetrical like the cube!
+                // TODO: call this indices2stickerCenterCoords
                 double stickerCenterCoords[][][][][] = new double[gonality][3][][][];
                 int[][] cutIndices = new int[3][2];  // scratch for loop
                 for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion) {
@@ -2759,9 +2756,91 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 //System.out.println("sticker center coords = "+VecMath.toString(stickerCenterCoords));
 
+                // Make a table that is the inverse of stickerCenterCoords array we just made.
+                // That is, a fuzzy hash table mapping sticker center coords to iCornerRegion,i3,j,k.
+                // Use that to make a lookup table from external sticker index to iCornerRegion,i3,j,k,
+                // and back.
+                // Then use that to make a lookup table from "from" external sticker index
+                // to "to" sticker index.
+                int[][] externalStickerIndex2indices = new int[stickerCentersD.length][];
+                //int[][][][] indices2externalStickerIndex = new int[gonality][3][][];
+                int[][][][] indices2externalStickerIndex = (int[][][][])com.donhatchsw.util.Arrays.arrayLengths(stickerCenterCoords, 4, 0);  // just to get a multidim ragged array of same dimensions as stickerCenterCoords
+                {
+                    FuzzyPointHashTable stickerCenterCoord2indices = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
+                    for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
+                    for (int i3 = 0; i3 < 3; ++i3)
+                    {
+                        //indices2externalStickerIndex[iCornerRegion][i3] = new int[stickerCenterCoords[iCornerRegion][i3].length][];
+                        for (int j = 0; j < stickerCenterCoords[iCornerRegion][i3].length; ++j)
+                        {
+                            //indices2externalStickerIndex[iCornerRegion][i3][j] = new int[stickerCenterCoords[iCornerRegion][i3][j].length];
+                            for (int k = 0; k < stickerCenterCoords[iCornerRegion][i3][j].length; ++k)
+                            {
+                                double[] coord3 = stickerCenterCoords[iCornerRegion][i3][j][k];
+                                double[] coord4 = com.donhatchsw.util.Arrays.append(coord3, 0.);
+                                stickerCenterCoord2indices.put(coord4, new int[] {iCornerRegion, i3, j, k});
+                                if (verboseLevel >= 3) System.out.println("                  putting "+VecMath.toString(coord4)+" -> "+VecMath.toString((int[])stickerCenterCoord2indices.get(coord4)));
+                            }
+                        }
+                    }
+                    int numNulls = 0;  // and counting
+                    int numNonNulls = 0;  // and counting
+                    for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
+                    {
+                        // XXX TODO: we are testing these too many times!
+                        if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                               slicemask,
+                                               thisFaceInwardNormal,
+                                               thisFaceCutOffsets))
+                        {
+                            double[] coord = stickerCentersD[iSticker];
+                            int[] indices = (int[])stickerCenterCoord2indices.get(coord);
+                            if (verboseLevel >= 3) System.out.println("                  got "+VecMath.toString(coord)+" -> "+VecMath.toString(indices));
+                            // Note, may be null, in which case it must be a face center, which doesn't move.
+                            externalStickerIndex2indices[iSticker] = indices;
+                            if (indices != null)
+                            {
+                                indices2externalStickerIndex[indices[0]][indices[1]][indices[2]][indices[3]] = iSticker;
+                                numNonNulls++;
+                            }
+                            else
+                            {
+                                numNulls++;
+                            }
+                        }
+                    }
+                    if (verboseLevel >= 3) System.out.println("              externalStickerIndex2indices = "+com.donhatchsw.util.Arrays.toStringCompact(externalStickerIndex2indices));
+                    if (verboseLevel >= 3) System.out.println("              indices2externalStickerIndex = "+com.donhatchsw.util.Arrays.toStringCompact(indices2externalStickerIndex));
+                    System.out.println("numNulls = "+numNulls+"/"+(numNulls+numNonNulls));
+                    Assert(numNulls == 1);
+                }
+                int[] from2to = VecMath.fillvec(stickerCentersD.length, -1);
+                int numNulls = 0;
+                for (int fromIndex = 0; fromIndex < from2to.length; ++fromIndex)  // CBB: if we make a list of sticker inds of interest, to avoid testing over and over, then should iterate over that instead of the entire list
+                {
+                    int[] fromIndices = externalStickerIndex2indices[fromIndex];
+                    int toIndex;
+                    if (fromIndices == null)
+                    {
+                        toIndex = fromIndex;
+                        numNulls++;
+                    }
+                    else
+                    {
+                        int fromCornerRegion = fromIndices[0];
+                        int i3 = fromIndices[1];
+                        int j = fromIndices[2];
+                        int k = fromIndices[3];
+                        int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
+                        toIndex = indices2externalStickerIndex[toCornerRegion][i3][j][k];
+                    }
+                    from2to[fromIndex] = toIndex;
+                }
+                System.out.println("numNulls = "+numNulls+"/"+from2to.length+"");
+                //Assert(numNulls == 1);  // enable this if we change the code above to iterate only over the ones of interest
+
                 // The usual params.
                 // bucket size is chosen by listening to the the implementation which throws if it's too small.
-                // CBB: should make two different tables for verts and sticker centers, since they won't mix
                 FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
 
                 for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
@@ -2780,15 +2859,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             if (verboseLevel >= 3) System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                             finalMorphDestinations.put(from, to);
                         }
-                    }
-                    for (int i = 0; i < stickerCenterCoords[fromCornerRegion].length; ++i)
-                    for (int j = 0; j < stickerCenterCoords[fromCornerRegion][i].length; ++j)
-                    for (int k = 0; k < stickerCenterCoords[fromCornerRegion][i][j].length; ++k)  {
-                        double[] from = com.donhatchsw.util.Arrays.append(stickerCenterCoords[fromCornerRegion][i][j][k], 0.);
-                        double[] to = com.donhatchsw.util.Arrays.append(stickerCenterCoords[toCornerRegion][i][j][k], 0.);
-                        //System.out.println("setting sticker center from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                        // XXX TODO: make this a separate fuzzy table.  yeah, I think I'll have to make the one for shrink-to points separate, in any case.  hmm, or maybe not?  the collisions will actually have the same values.  think about this.
-                        finalMorphDestinations.put(from, to);
                     }
                 }
 
@@ -2838,32 +2908,33 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
                 {
+                    // XXX TODO: we are testing these too many times!
                     if (pointIsInSliceMask(stickerCentersD[iSticker],
                                            slicemask,
                                            thisFaceInwardNormal,
                                            thisFaceCutOffsets))
                     {
+                        int jSticker = from2to[iSticker];
+                        if (verboseLevel >= 3) System.out.println("sticker "+iSticker+" -> "+jSticker);
                         {
-                            // TODO: change to double, like I did for the verts
-                            double[] from = stickerCentersD[iSticker];
                             float[] fromF = stickerCentersF[iSticker];
-                            double[] to = (double[])finalMorphDestinations.get(from);
-                            //System.out.println("found sticker center from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                            if (to == null) {
-                                // it must be a face center sticker; it doesn't move
-                                continue;
-                            }
-                            float[] toF = VecMath.doubleToFloat(to);
+                            float[] toF = stickerCentersF[jSticker];
                             float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
                             float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
                             VecMath.vxm(outStickerCenters[iSticker], morphedFrom, matF);
+                        }
+                        {
+                            float[] fromF = stickerAltCentersF[iSticker];
+                            float[] toF = stickerAltCentersF[jSticker];
+                            float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                            float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+                            VecMath.vxm(outStickerShrinkToPointsOnFaceBoundaries[iSticker], morphedFrom, matF);
                         }
                         VecMath.copyvec(outPerStickerFaceCenters[iSticker], rotatedMorphedFaceCenters[sticker2face[iSticker]]);
                     }
                 }
 
                 for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
-
                 {
                     // just for printing
                     int nVertsMoved = 0;
