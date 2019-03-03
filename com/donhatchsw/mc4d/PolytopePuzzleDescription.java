@@ -2803,8 +2803,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     if (verboseLevel >= 3) System.out.println("              externalStickerIndex2indices = "+com.donhatchsw.util.Arrays.toStringCompact(externalStickerIndex2indices));
                     if (verboseLevel >= 3) System.out.println("              indices2externalStickerIndex = "+com.donhatchsw.util.Arrays.toStringCompact(indices2externalStickerIndex));
-                    if (verboseLevel >= 1) System.out.println("numNulls = "+numNulls+"/"+(numNulls+numNonNulls));
-                    Assert(numNulls == 1);
+                    if (verboseLevel >= 1 || numNulls > 1) System.out.println("numNulls = "+numNulls+"/"+(numNulls+numNonNulls));
+                    Assert(numNulls <= 1);  // it'll be 0 if slicmask doesn't include first slice
                 }
                 int[] from2to = VecMath.fillvec(stickerCentersD.length, -1);
                 int numNulls = 0;
