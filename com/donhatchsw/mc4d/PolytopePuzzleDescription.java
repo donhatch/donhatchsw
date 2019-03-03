@@ -682,7 +682,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (nStickerVerts != expectedNumStickerVerts) return false;
         }
 
-        if (false)  // can set this to false if I want to debug futt behavior on, say, a cube.
+        if (true)  // can set this to false if I want to debug futt behavior on, say, a cube.
         {
             // If original polytope is regular, then don't *need* to futt.
             // I think regular means the incidences look as symmetrical as possible.
@@ -2552,7 +2552,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int verboseLevel = 1;  // set to something higher than 0 to debug futt stuff
+                int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
@@ -2763,31 +2763,24 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // Then use that to make a lookup table from "from" external sticker index
                 // to "to" sticker index.
                 int[][] externalStickerIndex2indices = new int[stickerCentersD.length][];
-                //int[][][][] indices2externalStickerIndex = new int[gonality][3][][];
                 int[][][][] indices2externalStickerIndex = (int[][][][])com.donhatchsw.util.Arrays.arrayLengths(stickerCenterCoords, 4, 0);  // just to get a multidim ragged array of same dimensions as stickerCenterCoords
                 {
                     FuzzyPointHashTable stickerCenterCoord2indices = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
                     for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
                     for (int i3 = 0; i3 < 3; ++i3)
+                    for (int j = 0; j < stickerCenterCoords[iCornerRegion][i3].length; ++j)
+                    for (int k = 0; k < stickerCenterCoords[iCornerRegion][i3][j].length; ++k)
                     {
-                        //indices2externalStickerIndex[iCornerRegion][i3] = new int[stickerCenterCoords[iCornerRegion][i3].length][];
-                        for (int j = 0; j < stickerCenterCoords[iCornerRegion][i3].length; ++j)
-                        {
-                            //indices2externalStickerIndex[iCornerRegion][i3][j] = new int[stickerCenterCoords[iCornerRegion][i3][j].length];
-                            for (int k = 0; k < stickerCenterCoords[iCornerRegion][i3][j].length; ++k)
-                            {
-                                double[] coord3 = stickerCenterCoords[iCornerRegion][i3][j][k];
-                                double[] coord4 = com.donhatchsw.util.Arrays.append(coord3, 0.);
-                                stickerCenterCoord2indices.put(coord4, new int[] {iCornerRegion, i3, j, k});
-                                if (verboseLevel >= 3) System.out.println("                  putting "+VecMath.toString(coord4)+" -> "+VecMath.toString((int[])stickerCenterCoord2indices.get(coord4)));
-                            }
-                        }
+                        double[] coord3 = stickerCenterCoords[iCornerRegion][i3][j][k];
+                        double[] coord4 = com.donhatchsw.util.Arrays.append(coord3, 0.);
+                        stickerCenterCoord2indices.put(coord4, new int[] {iCornerRegion, i3, j, k});
+                        if (verboseLevel >= 3) System.out.println("                  putting "+VecMath.toString(coord4)+" -> "+VecMath.toString((int[])stickerCenterCoord2indices.get(coord4)));
                     }
                     int numNulls = 0;  // and counting
                     int numNonNulls = 0;  // and counting
                     for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
                     {
-                        // XXX TODO: we are testing these too many times!
+                        // CBB: we are testing these too many times!
                         if (pointIsInSliceMask(stickerCentersD[iSticker],
                                                slicemask,
                                                thisFaceInwardNormal,
@@ -2796,7 +2789,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             double[] coord = stickerCentersD[iSticker];
                             int[] indices = (int[])stickerCenterCoord2indices.get(coord);
                             if (verboseLevel >= 3) System.out.println("                  got "+VecMath.toString(coord)+" -> "+VecMath.toString(indices));
-                            // Note, may be null, in which case it must be a face center, which doesn't move.
+                            // Note, may be null, in which case it must be the face center, which doesn't move.
                             externalStickerIndex2indices[iSticker] = indices;
                             if (indices != null)
                             {
@@ -2811,7 +2804,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     if (verboseLevel >= 3) System.out.println("              externalStickerIndex2indices = "+com.donhatchsw.util.Arrays.toStringCompact(externalStickerIndex2indices));
                     if (verboseLevel >= 3) System.out.println("              indices2externalStickerIndex = "+com.donhatchsw.util.Arrays.toStringCompact(indices2externalStickerIndex));
-                    System.out.println("numNulls = "+numNulls+"/"+(numNulls+numNonNulls));
+                    if (verboseLevel >= 1) System.out.println("numNulls = "+numNulls+"/"+(numNulls+numNonNulls));
                     Assert(numNulls == 1);
                 }
                 int[] from2to = VecMath.fillvec(stickerCentersD.length, -1);
@@ -2836,8 +2829,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     from2to[fromIndex] = toIndex;
                 }
-                System.out.println("numNulls = "+numNulls+"/"+from2to.length+"");
-                //Assert(numNulls == 1);  // enable this if we change the code above to iterate only over the ones of interest
+                if (verboseLevel >= 1) System.out.println("numNulls = "+numNulls+"/"+from2to.length+"");
+                //Assert(numNulls == 1);  // enable this if we change the code above to iterate over only the ones of interest
 
                 // The usual params.
                 // bucket size is chosen by listening to the the implementation which throws if it's too small.
@@ -2908,7 +2901,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
                 {
-                    // XXX TODO: we are testing these too many times!
+                    // CBB: we are testing these too many times!
                     if (pointIsInSliceMask(stickerCentersD[iSticker],
                                            slicemask,
                                            thisFaceInwardNormal,
