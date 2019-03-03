@@ -259,8 +259,7 @@
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
-              - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around  (hmm, can't reproduce any more?
-              - frucht face center still jumps a bit when clicked on
+              - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around  (hmm, can't reproduce any more?)
               - edge twist state permutation is still flaky
             - make more general implementation:
               - support other than 3d
