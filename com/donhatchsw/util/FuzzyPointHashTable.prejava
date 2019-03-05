@@ -9,7 +9,7 @@ package com.donhatchsw.util;
 *  Spatial hash table where the key is a double[], with fuzzy equality.
 *  <p>
 *  Two doubles a,b are considered equal if |a-b| &le; littleTol,
-*  and unequal if |a-b| > bigTol.
+*  and unequal if |a-b| &gt; bigTol.
 *  If a pair of doubles is encountered that are neither equal
 *  nor unequal (i.e. their difference is in the forbidden range (littleTol,bigTol] ),
 *  then a FuzzyException is thrown.
@@ -189,7 +189,7 @@ public class FuzzyPointHashTable
     * Gets thrown when the fuzzyiness assumption is violated.
     * The fuzziness assumption is that for any two points a,b,
     * the max-norm-distance between a and b
-    * is either &le; littleTol, or > bigTol.
+    * is either &le; littleTol, or &gt; bigTol.
     * I.e. this exception gets thrown if any max-norm
     * distance between two points is in the forbidden interval (littleTol, bigTol].
     */
