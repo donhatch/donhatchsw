@@ -2860,28 +2860,33 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
                 float[][] fullInvMatF = VecMath.doubleToFloat(fullInvMatD);
-                for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
                 {
-                    if (whichVertsGetMoved[iVert])
+                    float[] toF = new float[4];  // scratch for loop
+                    float[] toFinFromSpace = new float[4];  // scratch for loop
+                    float[] morphedFromF = new float[4];  // scratch for loop
+                    for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
                     {
-                        double[] from = vertsDForFutt[iVert];
-                        double[] to = (double[])finalMorphDestinations.get(from);
-                        if (verboseLevel >= 3) System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                        Assert(to != null);
+                        if (whichVertsGetMoved[iVert])
+                        {
+                            double[] from = vertsDForFutt[iVert];
+                            double[] to = (double[])finalMorphDestinations.get(from);
+                            if (verboseLevel >= 3) System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                            Assert(to != null);
 
-                        // Ok, now what's the right thing to do?
-                        // Need to apply the inverse of the *full* (i.e. frac=1) twist mat to toF
-                        // to get its coords in from space,
-                        // then apply the morph,
-                        // then apply the partial twist mat.
-                        float toF[] = VecMath.doubleToFloat(to);
-                        float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
-                        float[] fromF = vertsF[iVert];
-                        float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
-                        VecMath.vxm(outVerts[iVert], morphedFrom, matF);
+                            // Ok, now what's the right thing to do?
+                            // Need to apply the inverse of the *full* (i.e. frac=1) twist mat to toF
+                            // to get its coords in from space,
+                            // then apply the morph,
+                            // then apply the partial twist mat.
+                            VecMath.doubleToFloat(toF, to);
+                            VecMath.vxm(toFinFromSpace, toF, fullInvMatF);
+                            float[] fromF = vertsF[iVert];
+                            VecMath.lerp(morphedFromF, fromF, toFinFromSpace, frac);
+                            VecMath.vxm(outVerts[iVert], morphedFromF, matF);
+                        }
+                        else
+                            VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
                     }
-                    else
-                        VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
                 }
 
                 // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
@@ -2924,19 +2929,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         }
                         VecMath.copyvec(outPerStickerFaceCenters[iSticker], rotatedMorphedFaceCenters[sticker2face[iSticker]]);
                     }
-                }
-
-                for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
-                {
-                    // just for printing
-                    int nVertsMoved = 0;
-                    for (int i = 0; i < whichVertsGetMoved.length; ++i) if (whichVertsGetMoved[i]) nVertsMoved++;
-                    float[][] vertsFthatGotMoved = new float[nVertsMoved][];
-                    int iVertMoved = 0;
-                    for (int i = 0; i < whichVertsGetMoved.length; ++i) if (whichVertsGetMoved[i]) vertsFthatGotMoved[iVertMoved++] = vertsF[i];
-                    Assert(iVertMoved == nVertsMoved);
-                    //System.out.println("      nVertsMoved = "+nVertsMoved+"/"+whichVertsGetMoved.length);
-                    //System.out.println("      vertsFthatGotMoved = "+VecMath.toString(vertsFthatGotMoved));
                 }
 
                 if (verboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN WENT ON");
