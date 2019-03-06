@@ -191,7 +191,8 @@ public final class CSG
             public int fullDim; // dimension of the space it lives in
             public SPolytope facets[];
             public Hyperplane contributingHyperplanes[]; // the hyperplanes whose intersection is the space of this Polytope, in sorted order. // XXX sigh, should probably be a HashableSortedArray so we don't have to keep creating and destorying them every time we want to look it up... but that means this definition is getting more and more obscured
-            private Object aux; // user data; creator can set this if desired. accuss is through getAux/setAux/pushAux/popAux
+            private Object aux; // user data; creator can set this if desired. access is through getAux/setAux/pushAux/popAux; this member is actually the top of the aux stack.
+            private PushedAuxNext pushedAuxNext;
             private double _coords[];      // if vertex, null otherwise.  XXX should probably calculate only on demand, but then need a way to differentiate between dirty and nonexistent (for example, this is needed in getBBox below). XXX ctually not currently calculated at all.
             private double _bbox[/*2*/][]; // bounding box of all vertices, so it can be finite even if the polytope is infinite (co-finite).  calculated Lazily via getBBox().
             private Polytope[/*dim+1*/][] _allElements; // sorted lists of vertices, edges, ..., ridges, facets, calculated lazily via getAllElements()
@@ -214,6 +215,7 @@ public final class CSG
                 this.facets = facets;
                 this.contributingHyperplanes = contributingHyperplanes;
                 this.aux = aux;
+                this.pushedAuxNext = null;
                 this._coords = null;
                 this._bbox = null;
                 this._allElements = null;
@@ -307,45 +309,40 @@ public final class CSG
             } // getBBox
 
             // For pushAux/popAux/getAux/setAux
-            private class PushedAux
+            private class PushedAuxNext
             {
                 public Object thisAux;
-                public Object savedAux;
-                public PushedAux(Object thisAux, Object savedAux)
+                public PushedAuxNext next;
+                public PushedAuxNext(Object thisAux, PushedAuxNext next)
                 {
                     this.thisAux = thisAux;
-                    this.savedAux = savedAux;
+                    this.next = next;
                 }
             }
             /** Pushes the new aux value onto a stack of aux values; popAux can be used to pop it back off later. */
             public void pushAux(Object newAux)
             {
-                aux = new PushedAux(newAux, aux);
+                this.pushedAuxNext = new PushedAuxNext(this.aux, this.pushedAuxNext);
+                this.aux = newAux;
             }
             /** Pops the top aux value off the stack and returns it. */
             public Object popAux()
             {
-                assert(aux instanceof PushedAux); // XXX throw something useful
-                PushedAux pushedAux = (PushedAux)aux;
-                aux = pushedAux.savedAux;
-                return pushedAux.thisAux;
+                assert(this.pushedAuxNext != null); // CBB: could throw something useful
+                Object answer = this.aux;
+                this.aux = this.pushedAuxNext.thisAux;
+                this.pushedAuxNext = this.pushedAuxNext.next;
+                return answer;
             }
-            /** Returns the value at the top of the aux stack.  If the stack has depth 1 (e.g. if pushAux has never been called), this is simply the aux member. */
+            /** Returns the value at the top of the aux stack. */
             public Object getAux()
             {
-                // CBB: this instanceof is probably slow.  Would be more efficient to have aux and auxStack be two separate variables.
-                if (aux instanceof PushedAux)
-                    return  ((PushedAux)aux).thisAux;
-                else
-                    return aux;
+                return this.aux;
             }
             /** Replaces the value at the top of the aux stack with the new value. */
             public void setAux(Object newAux)
             {
-                if (aux instanceof PushedAux)
-                    ((PushedAux)aux).thisAux = newAux;
-                else
-                    aux = newAux;
+                this.aux = newAux;
             }
 
             /**
