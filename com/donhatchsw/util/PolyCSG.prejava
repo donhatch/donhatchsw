@@ -386,11 +386,21 @@ public final class PolyCSG
 
         Object auxs;
         {
-            if (nFaces > 0
-             && allFaces[0].p.aux != null)
-                auxs = java.lang.reflect.Array.newInstance(allFaces[0].p.aux.getClass(), nFaces);
+            if (nFaces > 0) {
+                Object aux = allFaces[0].p.getAux();
+                if (aux != null)
+                {
+                    auxs = java.lang.reflect.Array.newInstance(aux.getClass(), nFaces);
+                }
+                else
+                {
+                    auxs = null;
+                }
+            }
             else
+            {
                 auxs = null;
+            }
         }
 
         {
@@ -463,7 +473,7 @@ public final class PolyCSG
                 faceContours[iFace] = (int[][])Arrays.subarray(scratchFace, 0, nContoursThisFace);
                 if (auxs != null)
                     java.lang.reflect.Array.set(auxs, iFace,
-                                                allFaces[iFace].p.aux);
+                                                allFaces[iFace].p.getAux());
             }
         } // faceContours
 
