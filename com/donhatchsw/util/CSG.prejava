@@ -330,9 +330,10 @@ public final class CSG
                 aux = pushedAux.savedAux;
                 return pushedAux.thisAux;
             }
-            /** Returns the value at the top of the aux stack.  If the stack has depth 1 (e.g. if pushAux has never been called), this is simply the aux member.XXX direct public access to the aux member is likely to go away soon */
+            /** Returns the value at the top of the aux stack.  If the stack has depth 1 (e.g. if pushAux has never been called), this is simply the aux member. */
             public Object getAux()
             {
+                // CBB: this instanceof is probably slow.  Would be more efficient to have aux and auxStack be two separate variables.
                 if (aux instanceof PushedAux)
                     return  ((PushedAux)aux).thisAux;
                 else

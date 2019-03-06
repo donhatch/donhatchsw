@@ -1302,18 +1302,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         if (nDims <= _nDisplayDims) // if 4d or less
         {
             {
-                class iVertAux {
-                    int iVert;
-                    Object savedAux;
-                    iVertAux(int iVert, Object savedAux)
-                    {
-                        this.iVert = iVert;
-                        this.savedAux = savedAux;
-                    }
-                };
                 CSG.Polytope[] allSlicedVerts = slicedPolytope.p.getAllElements()[0];
                 for (int iVert = 0; iVert < allSlicedVerts.length; ++iVert)
-                    allSlicedVerts[iVert].setAux(new iVertAux(-1, allSlicedVerts[iVert].getAux()));
+                {
+                    allSlicedVerts[iVert].pushAux(-1);
+                }
 
                 int nVerts = 0;
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
@@ -1339,7 +1332,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         CSG.Polytope[] stickerVerts4d = sticker4d.getAllElements()[0];
                         for (int iVert = 0; iVert < stickerVerts4d.length; ++iVert)
                         {
-                            stickerVerts4d[iVert].setAux(new iVertAux(-1, stickerVerts4d[iVert].getAux()));
+                            stickerVerts4d[iVert].pushAux(-1);
                             stickerVerts4d[iVert].getCoords()[3] *= -1; // XXX FUDGE-- and this is not really legal... should do this afterwards
                         }
                     }
@@ -1367,12 +1360,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             Assert(nextEdge.sign == -1 || nextEdge.sign == 1);
                             CSG.Polytope vertex = thisEdge.p.facets[thisEdge.sign==-1?0:1].p;
                             Assert(vertex == nextEdge.p.facets[nextEdge.sign==-1?1:0].p);
-                            int iVert = ((iVertAux)vertex.getAux()).iVert;
+                            int iVert = (Integer)vertex.getAux();
                             if (iVert == -1)
                             {
                                 iVert = nVerts++;
                                 restVerts[iVert] = vertex.getCoords(); // okay to share with it, we aren't going to change it
-                                ((iVertAux)vertex.getAux()).iVert = iVert;
+                                vertex.setAux(iVert);
                             }
                             stickerInds[iSticker][iPolyThisSticker][iVertThisPoly] = iVert;
                         }
@@ -1403,7 +1396,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         {
                             CSG.SPolytope thisEdge = polygon.facets[iVertThisPoly];
                             CSG.Polytope vertex = thisEdge.p.facets[thisEdge.sign==-1?0:1].p;
-                            ((iVertAux)vertex.getAux()).iVert = -1;
+                            vertex.setAux(-1);
                         }
                     }
                 }
@@ -1411,8 +1404,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 for (int iVert = 0; iVert < allSlicedVerts.length; ++iVert)
                 {
-                    // TODO: use pushAux/popAux?
-                    allSlicedVerts[iVert].setAux(((iVertAux)allSlicedVerts[iVert].getAux()).savedAux);
+                    allSlicedVerts[iVert].popAux();
                 }
             }
 
