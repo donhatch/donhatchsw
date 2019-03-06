@@ -2458,6 +2458,44 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         } // computeVertsAndShrinkToPointsAtRest
 
+        // sort an even-length array so that pairs[0]<=pairs[2]<=...pairs[n-2].
+        private void quickDirtySortInPairs(int[] pairs) {
+            //System.out.println("  old: pairs="+VecMath.toString(pairs));
+            for (int i = 0; i <= pairs.length-4; i += 2) {
+                // indices <i are now correct.
+                // move the smallest remaining pair into position i.
+                for (int j = pairs.length-4; j >= i; j -= 2) {
+                    if (pairs[j] > pairs[j+2]) {
+                        com.donhatchsw.util.Arrays.swap(pairs, j, pairs, j+2);
+                        com.donhatchsw.util.Arrays.swap(pairs, j+1, pairs, j+3);
+                    }
+                }
+                // indices <=i are now correct
+            }
+            //System.out.println("  new: pairs="+VecMath.toString(pairs));
+            for (int i = 0; i+2 < pairs.length; i += 2) {
+                //System.out.println("    i="+i+": comparing "+pairs[i]+" with "+pairs[i+2]);
+                Assert(pairs[i] <= pairs[i+2]);
+            }
+        }
+        // wrapper for int[] that can be used as a hash key.  CBB: surely this has been done?  note CSG.prejava has HashableSortedArray which is similar
+        private static class IntArrayKey {
+            public IntArrayKey(int[] intArray)
+            {
+                this.intArray = intArray;
+            }
+            public boolean equals(Object thatObject)
+            {
+                IntArrayKey thatIntArrayKey = (IntArrayKey)thatObject;
+                return java.util.Arrays.equals(this.intArray, thatIntArrayKey.intArray);
+            }
+            public int hashCode()
+            {
+                return java.util.Arrays.hashCode(this.intArray);
+            }
+            private int[] intArray;
+        };  // IntArrayKey
+
         public void
             computeVertsAndShrinkToPointsPartiallyTwisted(
                 float outVerts[/*nVerts*/][/*nDisplayDims*/],
@@ -2649,10 +2687,101 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 if (true)  // WORK IN PROGRESS - new more general way
                 {
-                    FuzzyPointHashTable coord2cutSet;
-                    java.util.HashMap cutSet2coord;
+                    FuzzyPointHashTable coord2cutSet = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);  // CBB: specify initial capacity (need to provide constructor)
+                    java.util.HashMap cutSet2coord = new java.util.HashMap();  // CBB: specify initial capacity
                     for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
                     {
+                        if (verboseLevel >= 2) System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
+                        int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
+                        int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
+                        if (verboseLevel >= 2) System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
+
+                        // We are going to want to answer questions of the form:
+                        // "what is the intersection of the hyperplanes
+                        // at these three offsets from the three faces"?
+                        // I.e. "what is the point whose dot products with the three hyperplane normals
+                        // equals the three hyperplane offsets"?
+                        // The face normals stay constant (throughout this corner region)
+                        // but the offsets vary, so compute an inverse matrix so we can answer
+                        // the questions quickly.
+                        double[/*3*/][/*3*/] faceInwardNormalsMat = {
+                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iFacet], 0, 3),
+                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iPrevNeighborFace], 0, 3),
+                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iNextNeighborFace], 0, 3),
+                        };
+                        if (verboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(faceInwardNormalsMat));
+                        double[/*3*/][/*3*/] inverseOfFaceInwardNormalsMat = VecMath.invertmat(faceInwardNormalsMat);
+                        if (verboseLevel >= 2) System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
+                        for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
+                        {
+                            int nCutsPrevNeighborFace = nStickerLayers+1;  // there'll be one more layer in this direction after this, but we don't populate it yet; we'll copy it from the next corner afterwards
+                            for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1; ++iCutPrevNeighborFace)
+                            {
+                                // Need coords only where at least one of the three cut indices is 0,
+                                // i.e. on the surface of the polyhedron.
+                                // This is an important optimization if number of cuts is large.
+                                int nCutsNextNeighborFace = iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : nStickerLayers+1;
+                                for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < nCutsNextNeighborFace; ++iCutNextNeighborFace)
+                                {
+                                    double[] desiredOffsets = {
+                                        iCutThisFace==0 ? this.facetOffsetsForFutt[iFacet] : facetCutOffsets[iFacet][iCutThisFace-1],
+                                        iCutPrevNeighborFace==0 ? this.facetOffsetsForFutt[iPrevNeighborFace] : facetCutOffsets[iPrevNeighborFace][iCutPrevNeighborFace-1],
+                                        iCutNextNeighborFace==0 ? this.facetOffsetsForFutt[iNextNeighborFace] : facetCutOffsets[iNextNeighborFace][iCutNextNeighborFace-1],
+                                    };
+                                    double[] coords3 = VecMath.mxv(inverseOfFaceInwardNormalsMat, desiredOffsets);
+                                    //System.out.println("              desiredOffsets = "+VecMath.toString(desiredOffsets)+" -> coords3 = "+VecMath.toString(coords3));
+
+                                    int[] cutSet = {
+                                        iFacet,
+                                        iCutThisFace,
+                                        iPrevNeighborFace,
+                                        iCutPrevNeighborFace,
+                                        iNextNeighborFace,
+                                        iCutNextNeighborFace,
+                                    };
+                                    quickDirtySortInPairs(cutSet);  // so facets appear in canonical (increasing) order
+                                    if (verboseLevel >= 3) System.out.println("                  putting cutSet="+VecMath.toString(cutSet)+" <-> coords3="+VecMath.toString(coords3));
+                                    Assert(cutSet2coord.put(new IntArrayKey(cutSet), coords3) == null);
+                                    coord2cutSet.put(coords3, cutSet);
+                                }
+                            }
+                        }
+                    }
+                    // For each corner region, populate the extra fake cut in the prevNeighbor direction,
+                    // copied from the next corner's k direction.  This will allow us to
+                    // compute sticker centers more straightforwardly.
+                    for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
+                    {
+                        int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
+                        int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
+                        int iNextNextNeighborFace = neighborsThisFaceInOrder[(iCornerRegion+1) % gonality];
+                        for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
+                        {
+                            int iExtraCut = nStickerLayers + 1;
+                              int[] fakeCutSet = {
+                                  iFacet,
+                                  iCutThisFace,
+                                  iPrevNeighborFace,
+                                  iExtraCut,
+                                  iNextNeighborFace,
+                                  0,
+                              };
+                              quickDirtySortInPairs(fakeCutSet);  // so facets appear in canonical (increasing) order
+                              int[] sourceCutSet = {
+                                  iFacet,
+                                  iCutThisFace,
+                                  iNextNeighborFace,
+                                  0,
+                                  iNextNextNeighborFace,
+                                  iExtraCut-1,
+                              };
+                              quickDirtySortInPairs(sourceCutSet);  // so facets appear in canonical (increasing) order
+                              double[] coords3 = (double[])cutSet2coord.get(new IntArrayKey(sourceCutSet));  // TODO: should reuse a single scratch IntArrayKey
+                              if (verboseLevel >= 3) System.out.println("                  iFacet="+iFacet+" iPrevNeighborFace="+iPrevNeighborFace+" iNextNeighborFace="+iNextNeighborFace+" iNextNextNeighborFace="+iNextNextNeighborFace);
+                              if (verboseLevel >= 3) System.out.println("                  putting fakeCutSet="+VecMath.toString(fakeCutSet)+" <-> coords3="+VecMath.toString(coords3)+" which we got from sourceCutSet="+VecMath.toString(sourceCutSet));
+                              Assert(coords3 != null);
+                              Assert(cutSet2coord.put(new IntArrayKey(fakeCutSet), coords3) == null);
+                        }
                     }
                 }
 
