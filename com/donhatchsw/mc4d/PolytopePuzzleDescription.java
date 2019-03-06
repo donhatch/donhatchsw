@@ -2647,6 +2647,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
 
 
+                if (true)  // WORK IN PROGRESS - new more general way
+                {
+                    FuzzyPointHashTable coord2cutSet;
+                    java.util.HashMap cutSet2coord;
+                    for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
+                    {
+                    }
+                }
+
+
                 // ALTERNATIVE IDEA TO THINK ABOUT:
                 // compute an xform matrix for each corner region, and the bounds of that region,
                 // and just apply the xform matrix to the sticker coords; no need to figure out where they came from.
@@ -2724,16 +2734,15 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // CBB: this is all hard-coded for the first wave of shallow cuts, so can't do opposite layer of futtminx yet.  need smarter method
 
                 // XXX argh! this nStickerLayers assumption is completely bogus... it is *not* the same as the original intLengths when the object is symmetrical like the cube!
-                // TODO: call this indices2stickerCenterCoords
-                double stickerCenterCoords[][][][][] = new double[gonality][3][][][];
+                double indices2stickerCenterCoord[][][][][] = new double[gonality][3][][][];
                 int[][] cutIndices = new int[3][2];  // scratch for loop
                 for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion) {
-                    stickerCenterCoords[iCornerRegion][0] = new double[nStickerLayers+1][nStickerLayers][3]; // has extra
-                    stickerCenterCoords[iCornerRegion][1] = new double[nStickerLayers][nStickerLayers][3];  // no extra
-                    stickerCenterCoords[iCornerRegion][2] = new double[nStickerLayers][nStickerLayers+1][3];  // has extra
+                    indices2stickerCenterCoord[iCornerRegion][0] = new double[nStickerLayers+1][nStickerLayers][3]; // has extra
+                    indices2stickerCenterCoord[iCornerRegion][1] = new double[nStickerLayers][nStickerLayers][3];  // no extra
+                    indices2stickerCenterCoord[iCornerRegion][2] = new double[nStickerLayers][nStickerLayers+1][3];  // has extra
                     for (int i3 = 0; i3 < 3; ++i3)
-                    for (int j = 0; j < stickerCenterCoords[iCornerRegion][i3].length; ++j)
-                    for (int k = 0; k < stickerCenterCoords[iCornerRegion][i3][j].length; ++k)
+                    for (int j = 0; j < indices2stickerCenterCoord[iCornerRegion][i3].length; ++j)
+                    for (int k = 0; k < indices2stickerCenterCoord[iCornerRegion][i3][j].length; ++k)
                     {
                         // add up 8, just because it's easier.
                         // there's really only 4 distinct.
@@ -2743,7 +2752,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         cutIndices[(i3+1)%3][1] = j+1;
                         cutIndices[(i3+2)%3][0] = k;
                         cutIndices[(i3+2)%3][1] = k+1;
-                        double[] stickerCenterCoord = stickerCenterCoords[iCornerRegion][i3][j][k];  // still zeros, for starters
+                        double[] stickerCenterCoord = indices2stickerCenterCoord[iCornerRegion][i3][j][k];  // still zeros, for starters
                         for (int ii = 0; ii < 2; ++ii)
                         for (int jj = 0; jj < 2; ++jj)
                         for (int kk = 0; kk < 2; ++kk)
@@ -2753,24 +2762,24 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         VecMath.vxs(stickerCenterCoord, stickerCenterCoord, 1./8.);
                     }
                 }
-                //System.out.println("sticker center coords = "+VecMath.toString(stickerCenterCoords));
+                //System.out.println("sticker center coords = "+VecMath.toString(indices2stickerCenterCoord));
 
-                // Make a table that is the inverse of stickerCenterCoords array we just made.
+                // Make a table that is the inverse of indices2stickerCenterCoord array we just made.
                 // That is, a fuzzy hash table mapping sticker center coords to iCornerRegion,i3,j,k.
                 // Use that to make a lookup table from external sticker index to iCornerRegion,i3,j,k,
                 // and back.
                 // Then use that to make a lookup table from "from" external sticker index
                 // to "to" sticker index.
                 int[][] externalStickerIndex2indices = new int[stickerCentersD.length][];
-                int[][][][] indices2externalStickerIndex = (int[][][][])com.donhatchsw.util.Arrays.arrayLengths(stickerCenterCoords, 4, 0);  // just to get a multidim ragged array of same dimensions as stickerCenterCoords
+                int[][][][] indices2externalStickerIndex = (int[][][][])com.donhatchsw.util.Arrays.arrayLengths(indices2stickerCenterCoord, 4, 0);  // just to get a multidim ragged array of same dimensions as indices2stickerCenterCoord
                 {
                     FuzzyPointHashTable stickerCenterCoord2indices = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
                     for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
                     for (int i3 = 0; i3 < 3; ++i3)
-                    for (int j = 0; j < stickerCenterCoords[iCornerRegion][i3].length; ++j)
-                    for (int k = 0; k < stickerCenterCoords[iCornerRegion][i3][j].length; ++k)
+                    for (int j = 0; j < indices2stickerCenterCoord[iCornerRegion][i3].length; ++j)
+                    for (int k = 0; k < indices2stickerCenterCoord[iCornerRegion][i3][j].length; ++k)
                     {
-                        double[] coord3 = stickerCenterCoords[iCornerRegion][i3][j][k];
+                        double[] coord3 = indices2stickerCenterCoord[iCornerRegion][i3][j][k];
                         double[] coord4 = com.donhatchsw.util.Arrays.append(coord3, 0.);
                         stickerCenterCoord2indices.put(coord4, new int[] {iCornerRegion, i3, j, k});
                         if (verboseLevel >= 3) System.out.println("                  putting "+VecMath.toString(coord4)+" -> "+VecMath.toString((int[])stickerCenterCoord2indices.get(coord4)));
