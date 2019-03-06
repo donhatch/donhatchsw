@@ -816,7 +816,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             {
                 VecMath.vxs(oppositeNormalScratch, facetInwardNormals[iFacet], -1.);
                 CSG.Polytope opposite = (CSG.Polytope)table.get(oppositeNormalScratch);
-                facet2OppositeFacet[iFacet] = opposite==null ? -1 : ((Integer)opposite.getAux()).intValue();
+                facet2OppositeFacet[iFacet] = opposite==null ? -1 : (Integer)opposite.getAux();
                 //System.err.print("("+iFacet+":"+facet2OppositeFacet[iFacet]+")");
             }
         }
@@ -1160,7 +1160,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     float[][] oldStickerAltCentersF = this.stickerAltCentersF;
                     float[][] newStickerAltCentersF = new float[stickers.length][];
                     for (int iSticker = 0; iSticker < stickers.length; ++iSticker)
-                        newStickerAltCentersF[iSticker] = oldStickerAltCentersF[((Integer)stickers[iSticker].popAux()).intValue()];
+                        newStickerAltCentersF[iSticker] = oldStickerAltCentersF[(Integer)stickers[iSticker].popAux()];
                     this.stickerAltCentersF = newStickerAltCentersF;
                 }
             } // if doFurtherCuts
@@ -1193,7 +1193,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         this.sticker2face = new int[nStickers];
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                sticker2face[iSticker] = ((Integer)stickers[iSticker].getAux()).intValue();
+            {
+                sticker2face[iSticker] = (Integer)stickers[iSticker].getAux();
+            }
         }
         this.sticker2faceShadow = VecMath.copyvec(sticker2face);
 
@@ -1749,7 +1751,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 this.grip2face[iGrip] = iFacet;
                                 if (elt.getAux() != null && elt.getAux() instanceof Integer)  // XXX it's null sometimes, in 3d, not sure why yet.  in this case we won't be able to look up the grip ... ? but it doesn't matter I don't think, originalFacetElt2grip is used only in 4d
                                 {
-                                   int iEltGlobal = ((Integer)elt.getAux()).intValue();
+                                   int iEltGlobal = (Integer)elt.getAux();
                                    Assert(originalFacetElt2grip[iFacet][iDim][iElt] == -1);
                                    originalFacetElt2grip[iFacet][iDim][iElt] = iGrip;
                                 }
@@ -1864,7 +1866,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 int nFacetEltsOfDim = allElementsOfFacet[iDim].length;
                                 for (int iFacetEltOfDim = 0; iFacetEltOfDim < nFacetEltsOfDim; ++iFacetEltOfDim) {
                                     CSG.Polytope elt = allElementsOfFacet[iDim][iFacetEltOfDim];
-                                    int iElt = ((Integer)elt.getAux()).intValue();
+                                    int iElt = (Integer)elt.getAux();
                                     indexOfOriginalEltOnFacet[iFacet][iDim].put(iElt, iFacetEltOfDim);
                                 }
                             }
@@ -1900,7 +1902,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                         boolean eltIsFromOriginal = (aux instanceof Integer);
                                         if (eltIsFromOriginal)
                                         {
-                                            int iOriginalElt = ((Integer)aux).intValue();
+                                            int iOriginalElt = (Integer)aux;
                                             Assert(iOriginalElt != -1);
                                             Integer iOriginalEltOnThisFacet = (Integer)indexOfOriginalEltOnFacet[iFacet][iOriginalEltDim].get(iOriginalElt);
                                             Assert(iOriginalEltOnThisFacet != null);
@@ -2100,7 +2102,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             || theTwoStickersSharingThisRidge[1] == iSticker);
                         int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
                         CSG.Polytope otherSticker = stickers[iOtherSticker];
-                        iFacet = ((Integer)otherSticker.getAux()).intValue();
+                        iFacet = (Integer)otherSticker.getAux();
                         iCutThisFacet = 0;
                     }
                     double cutDepth = iCutThisFacet / doubleLengths[whichLengthToUseForFacet[iFacet]];
@@ -2155,7 +2157,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             || theTwoStickersSharingThisRidge[1] == iSticker);
                         int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
                         CSG.Polytope otherSticker = stickers[iOtherSticker];
-                        iFacet = ((Integer)otherSticker.getAux()).intValue();
+                        iFacet = (Integer)otherSticker.getAux();
                         iCutThisFacet = 0;
                     }
                     double cutDepth = iCutThisFacet / doubleLengths[whichLengthToUseForFacet[iFacet]];
@@ -2231,7 +2233,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             || theTwoStickersSharingThisRidge[1] == iSticker);
                         int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
                         CSG.Polytope otherSticker = stickers[iOtherSticker];
-                        iFacet = ((Integer)otherSticker.getAux()).intValue();
+                        iFacet = (Integer)otherSticker.getAux();
                         iCutThisFacet = 0;
                     }
 
