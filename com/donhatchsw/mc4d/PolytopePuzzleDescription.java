@@ -2688,7 +2688,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     if (verboseLevel >= 1) System.out.println("      vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
                     if (verboseLevel >= 1) System.out.println("      edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
                     if (verboseLevel >= 1) System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
-                }
+                }  // initialized neighborsThisFaceInOrder
 
                 int[] from2toStickerCenters;
                 {
@@ -2807,167 +2807,171 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }  // initialized from2toStickerCenters
 
-                // ALTERNATIVE IDEA TO THINK ABOUT:
-                // compute an xform matrix for each corner region, and the bounds of that region,
-                // and just apply the xform matrix to the sticker coords; no need to figure out where they came from.
-                // The tricky part of this will be that the xform to apply to the sticker center
-                // that's halfway between two corners should be a blend of two such xforms,
-                // and we need to find corner region bounds so we can detect where that happens.
-                double[][][][][] cutIntersectionCoords = new double[gonality][/*nCutsThisFace+1*/][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
-                for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
-                {
-                    if (verboseLevel >= 2) System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
-                    int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
-                    int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
-                    if (verboseLevel >= 2) System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
-
-                    // We are going to want to answer questions of the form:
-                    // "what is the intersection of the hyperplanes
-                    // at these three offsets from the three faces"?
-                    // I.e. "what is the point whose dot products with the three hyperplane normals
-                    // equals the three hyperplane offsets"?
-                    // The face normals stay constant (throughout this corner region)
-                    // but the offsets vary, so compute an inverse matrix so we can answer
-                    // the questions quickly.
-                    double[/*3*/][/*3*/] faceInwardNormalsMat = {
-                        (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iFacet], 0, 3),
-                        (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iPrevNeighborFace], 0, 3),
-                        (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iNextNeighborFace], 0, 3),
-                    };
-                    if (verboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(faceInwardNormalsMat));
-                    double[/*3*/][/*3*/] inverseOfFaceInwardNormalsMat = VecMath.invertmat(faceInwardNormalsMat);
-                    if (verboseLevel >= 2) System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
-
-
-                    cutIntersectionCoords[iCornerRegion] = new double[nStickerLayers+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
-                    for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
-                    {
-                        cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[nStickerLayers+1+1][/*nCutsNextNeighborFace+1*/][];  // one extra layer in this direction, but we don't populate it yet; we'll copy it from the next corner afterwards
-                        for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1+1; ++iCutPrevNeighborFace)
-                        {
-                            // Need coords only where at least one of the three cut indices is 0,
-                            // i.e. on the surface of the polyhedron.
-                            // This is an important optimization if number of cuts is large.
-                            cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace] = new double[
-                                iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : nStickerLayers+1][];
-                            if (iCutPrevNeighborFace == nStickerLayers+1) {
-                                continue;  // this is the extra layer we'll populate afterwards
-                            }
-                            for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace].length; ++iCutNextNeighborFace)
-                            {
-                                double[] desiredOffsets = {
-                                    iCutThisFace==0 ? this.facetOffsetsForFutt[iFacet] : facetCutOffsets[iFacet][iCutThisFace-1],
-                                    iCutPrevNeighborFace==0 ? this.facetOffsetsForFutt[iPrevNeighborFace] : facetCutOffsets[iPrevNeighborFace][iCutPrevNeighborFace-1],
-                                    iCutNextNeighborFace==0 ? this.facetOffsetsForFutt[iNextNeighborFace] : facetCutOffsets[iNextNeighborFace][iCutNextNeighborFace-1],
-                                };
-                                double[] coords3 = VecMath.mxv(inverseOfFaceInwardNormalsMat, desiredOffsets);
-                                //System.out.println("              desiredOffsets = "+VecMath.toString(desiredOffsets)+" -> coords3 = "+VecMath.toString(coords3));
-                                cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace][iCutNextNeighborFace] = coords3;
-                            }
-                        }
-                    }
-                }
-
-                // The usual params.
-                // bucket size is chosen by listening to the the implementation which throws if it's too small.
-                FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
-
-                for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
-                {
-                    // TODO: this sign computation makes no sense for edge grips
-                    int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
-                    // CBB: all these dimensions better be the same, so don't need to be looking at all different lengths.  same when creating them
-                    for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
-                    for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
-                    for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
-                        for (int wdir = -1; wdir <= 1; wdir += 2) {
-                            double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
-                            double w = wdir * pad;
-                            double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
-                            double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
-                            if (verboseLevel >= 3) System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                            finalMorphDestinations.put(from, to);
-                        }
-                    }
-                }
-
-                //System.out.println("      cutIntersectionCoords = "+VecMath.toString(cutIntersectionCoords));
-                //System.out.println("      cutIntersectionCoordsF = "+VecMath.toString((float[][][][][])VecMath.doubleToFloat(cutIntersectionCoords)));
-                // TODO: figure out why does VecMath.toString act lamely (just print addresses) if I don't cast to float[][][][][]?
-
                 double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
                 float[][] fullInvMatF = VecMath.doubleToFloat(fullInvMatD);
-                {
-                    float[] toF = new float[4];  // scratch for loop
-                    float[] toFinFromSpace = new float[4];  // scratch for loop
-                    float[] morphedFromF = new float[4];  // scratch for loop
-                    for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
-                    {
-                        if (whichVertsGetMoved[iVert])
-                        {
-                            double[] from = vertsDForFutt[iVert];
-                            double[] to = (double[])finalMorphDestinations.get(from);
-                            if (verboseLevel >= 3) System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                            Assert(to != null);
 
-                            // Ok, now what's the right thing to do?
-                            // Need to apply the inverse of the *full* (i.e. frac=1) twist mat to toF
-                            // to get its coords in from space,
-                            // then apply the morph,
-                            // then apply the partial twist mat.
-                            VecMath.doubleToFloat(toF, to);
-                            VecMath.vxm(toFinFromSpace, toF, fullInvMatF);
-                            float[] fromF = vertsF[iVert];
-                            VecMath.lerp(morphedFromF, fromF, toFinFromSpace, frac);
-                            VecMath.vxm(outVerts[iVert], morphedFromF, matF);
+                // populate outVerts
+                {
+                    // ALTERNATIVE IDEA TO THINK ABOUT:
+                    // compute an xform matrix for each corner region, and the bounds of that region,
+                    // and just apply the xform matrix to the sticker coords; no need to figure out where they came from.
+                    // The tricky part of this will be that the xform to apply to the sticker center
+                    // that's halfway between two corners should be a blend of two such xforms,
+                    // and we need to find corner region bounds so we can detect where that happens.
+                    double[][][][][] cutIntersectionCoords = new double[gonality][/*nCutsThisFace+1*/][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
+                    for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
+                    {
+                        if (verboseLevel >= 2) System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
+                        int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
+                        int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
+                        if (verboseLevel >= 2) System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
+
+                        // We are going to want to answer questions of the form:
+                        // "what is the intersection of the hyperplanes
+                        // at these three offsets from the three faces"?
+                        // I.e. "what is the point whose dot products with the three hyperplane normals
+                        // equals the three hyperplane offsets"?
+                        // The face normals stay constant (throughout this corner region)
+                        // but the offsets vary, so compute an inverse matrix so we can answer
+                        // the questions quickly.
+                        double[/*3*/][/*3*/] faceInwardNormalsMat = {
+                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iFacet], 0, 3),
+                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iPrevNeighborFace], 0, 3),
+                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iNextNeighborFace], 0, 3),
+                        };
+                        if (verboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(faceInwardNormalsMat));
+                        double[/*3*/][/*3*/] inverseOfFaceInwardNormalsMat = VecMath.invertmat(faceInwardNormalsMat);
+                        if (verboseLevel >= 2) System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
+
+
+                        cutIntersectionCoords[iCornerRegion] = new double[nStickerLayers+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
+                        for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
+                        {
+                            cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[nStickerLayers+1+1][/*nCutsNextNeighborFace+1*/][];  // one extra layer in this direction, but we don't populate it yet; we'll copy it from the next corner afterwards
+                            for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1+1; ++iCutPrevNeighborFace)
+                            {
+                                // Need coords only where at least one of the three cut indices is 0,
+                                // i.e. on the surface of the polyhedron.
+                                // This is an important optimization if number of cuts is large.
+                                cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace] = new double[
+                                    iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : nStickerLayers+1][];
+                                if (iCutPrevNeighborFace == nStickerLayers+1) {
+                                    continue;  // this is the extra layer we'll populate afterwards
+                                }
+                                for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace].length; ++iCutNextNeighborFace)
+                                {
+                                    double[] desiredOffsets = {
+                                        iCutThisFace==0 ? this.facetOffsetsForFutt[iFacet] : facetCutOffsets[iFacet][iCutThisFace-1],
+                                        iCutPrevNeighborFace==0 ? this.facetOffsetsForFutt[iPrevNeighborFace] : facetCutOffsets[iPrevNeighborFace][iCutPrevNeighborFace-1],
+                                        iCutNextNeighborFace==0 ? this.facetOffsetsForFutt[iNextNeighborFace] : facetCutOffsets[iNextNeighborFace][iCutNextNeighborFace-1],
+                                    };
+                                    double[] coords3 = VecMath.mxv(inverseOfFaceInwardNormalsMat, desiredOffsets);
+                                    //System.out.println("              desiredOffsets = "+VecMath.toString(desiredOffsets)+" -> coords3 = "+VecMath.toString(coords3));
+                                    cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace][iCutNextNeighborFace] = coords3;
+                                }
+                            }
                         }
-                        else
-                            VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
+                    }
+
+                    // The usual params.
+                    // bucket size is chosen by listening to the the implementation which throws if it's too small.
+                    FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
+
+                    for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
+                    {
+                        // TODO: this sign computation makes no sense for edge grips
+                        int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
+                        // CBB: all these dimensions better be the same, so don't need to be looking at all different lengths.  same when creating them
+                        for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
+                        for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
+                        for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
+                            for (int wdir = -1; wdir <= 1; wdir += 2) {
+                                double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
+                                double w = wdir * pad;
+                                double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
+                                double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
+                                if (verboseLevel >= 3) System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                                finalMorphDestinations.put(from, to);
+                            }
+                        }
+                    }
+
+                    //System.out.println("      cutIntersectionCoords = "+VecMath.toString(cutIntersectionCoords));
+                    //System.out.println("      cutIntersectionCoordsF = "+VecMath.toString((float[][][][][])VecMath.doubleToFloat(cutIntersectionCoords)));
+                    // TODO: figure out why does VecMath.toString act lamely (just print addresses) if I don't cast to float[][][][][]?
+
+                    {
+                        float[] toF = new float[4];  // scratch for loop
+                        float[] toFinFromSpace = new float[4];  // scratch for loop
+                        float[] morphedFromF = new float[4];  // scratch for loop
+                        for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
+                        {
+                            if (whichVertsGetMoved[iVert])
+                            {
+                                double[] from = vertsDForFutt[iVert];
+                                double[] to = (double[])finalMorphDestinations.get(from);
+                                if (verboseLevel >= 3) System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                                Assert(to != null);
+
+                                // Ok, now what's the right thing to do?
+                                // Need to apply the inverse of the *full* (i.e. frac=1) twist mat to toF
+                                // to get its coords in from space,
+                                // then apply the morph,
+                                // then apply the partial twist mat.
+                                VecMath.doubleToFloat(toF, to);
+                                VecMath.vxm(toFinFromSpace, toF, fullInvMatF);
+                                float[] fromF = vertsF[iVert];
+                                VecMath.lerp(morphedFromF, fromF, toFinFromSpace, frac);
+                                VecMath.vxm(outVerts[iVert], morphedFromF, matF);
+                            }
+                            else
+                                VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
+                        }
                     }
                 }
 
-
-
-
-                // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
-                // The others don't necessarily make any sense anyway.
-                int nFacets = originalElements[nDims-1].length;
-                float[][] rotatedMorphedFaceCenters = new float[nFacets][/*nDisplayDims=*/4];
-                for (int i = 0; i < gonality; ++i)
+                // Populate outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
                 {
-                    float[] fromF = facetCentersF[neighborsThisFaceInOrder[i]];
-                    float[] toF = facetCentersF[neighborsThisFaceInOrder[(i+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality]];
-                    float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
-                    float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
-                    VecMath.vxm(rotatedMorphedFaceCenters[neighborsThisFaceInOrder[i]], morphedFrom, matF);
-                }
-                VecMath.vxm(rotatedMorphedFaceCenters[iFacet], facetCentersF[iFacet], matF);
-
-                for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
-                {
-                    // CBB: we are testing these too many times!
-                    if (pointIsInSliceMask(stickerCentersD[iSticker],
-                                           slicemask,
-                                           thisFaceInwardNormal,
-                                           thisFaceCutOffsets))
+                    // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
+                    // The others don't necessarily make any sense anyway.
+                    int nFacets = originalElements[nDims-1].length;
+                    float[][] rotatedMorphedFaceCenters = new float[nFacets][/*nDisplayDims=*/4];
+                    for (int i = 0; i < gonality; ++i)
                     {
-                        int jSticker = from2toStickerCenters[iSticker];
-                        if (verboseLevel >= 3) System.out.println("sticker "+iSticker+" -> "+jSticker);
+                        float[] fromF = facetCentersF[neighborsThisFaceInOrder[i]];
+                        float[] toF = facetCentersF[neighborsThisFaceInOrder[(i+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality]];
+                        float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                        float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+                        VecMath.vxm(rotatedMorphedFaceCenters[neighborsThisFaceInOrder[i]], morphedFrom, matF);
+                    }
+                    VecMath.vxm(rotatedMorphedFaceCenters[iFacet], facetCentersF[iFacet], matF);
+
+                    for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
+                    {
+                        // CBB: we are testing these too many times!
+                        if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                               slicemask,
+                                               thisFaceInwardNormal,
+                                               thisFaceCutOffsets))
                         {
-                            float[] fromF = stickerCentersF[iSticker];
-                            float[] toF = stickerCentersF[jSticker];
-                            float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
-                            float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
-                            VecMath.vxm(outStickerCenters[iSticker], morphedFrom, matF);
+                            int jSticker = from2toStickerCenters[iSticker];
+                            if (verboseLevel >= 3) System.out.println("sticker "+iSticker+" -> "+jSticker);
+                            {
+                                float[] fromF = stickerCentersF[iSticker];
+                                float[] toF = stickerCentersF[jSticker];
+                                float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                                float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+                                VecMath.vxm(outStickerCenters[iSticker], morphedFrom, matF);
+                            }
+                            {
+                                float[] fromF = stickerAltCentersF[iSticker];
+                                float[] toF = stickerAltCentersF[jSticker];
+                                float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                                float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+                                VecMath.vxm(outStickerShrinkToPointsOnFaceBoundaries[iSticker], morphedFrom, matF);
+                            }
+                            VecMath.copyvec(outPerStickerFaceCenters[iSticker], rotatedMorphedFaceCenters[sticker2face[iSticker]]);
                         }
-                        {
-                            float[] fromF = stickerAltCentersF[iSticker];
-                            float[] toF = stickerAltCentersF[jSticker];
-                            float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
-                            float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
-                            VecMath.vxm(outStickerShrinkToPointsOnFaceBoundaries[iSticker], morphedFrom, matF);
-                        }
-                        VecMath.copyvec(outPerStickerFaceCenters[iSticker], rotatedMorphedFaceCenters[sticker2face[iSticker]]);
                     }
                 }
 
