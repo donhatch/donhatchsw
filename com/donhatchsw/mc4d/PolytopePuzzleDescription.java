@@ -2095,6 +2095,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     else // it's not from a cut, it's from an original face
                     {
+                        // DUP CODE ALERT (lots of times in this file)
                         // Which original facet?
                         // well, this ridge is on two stickers: iSticker
                         // and some other.  Find that other sticker,
@@ -2150,6 +2151,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     else // it's not from a cut, it's from an original face
                     {
+                        // DUP CODE ALERT (lots of times in this file)
                         // Which original facet?
                         // well, this ridge is on two stickers: iSticker
                         // and some other.  Find that other sticker,
@@ -2226,6 +2228,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     else // it's not from a cut, it's from an original face
                     {
+                        // DUP CODE ALERT (lots of times in this file)
                         // Which original facet?
                         // well, this ridge is on two stickers: iSticker
                         // and some other.  Find that other sticker,
@@ -2592,7 +2595,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
+                int verboseLevel = 1;  // set to something higher than 0 to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
@@ -2788,13 +2791,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
 
-                if (false)  // WORK IN PROGRESS - start to actually do it right.
+                int[] from2toStickerCenters;
+                if (true)  // WORK IN PROGRESS - start to actually do it right.
                 {
                     int nStickers = stickerCentersD.length;
-                    CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
+                    CSG.Polytope[][] allSlicedElements = slicedPolytope.p.getAllElements();
+                    int[][][][] allSlicedIncidences = slicedPolytope.p.getAllIncidences();
+                    CSG.Polytope[] stickers = allSlicedElements[nDims-1];
                     Assert(stickers.length == nStickers);
+                    CSG.Polytope[] ridges = allSlicedElements[nDims-2];
 
-                    int[] from2toStickerCenters = VecMath.identityperm(nStickers);  // except for...
                     {
                         CutInfo[][] sticker2cutInfos = new CutInfo[nStickers][];
                         java.util.HashMap cutInfos2sticker = new java.util.HashMap();  // CBB: initial capacity should be number of stickers in slicemask
@@ -2818,36 +2824,49 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                    thisFaceInwardNormal,
                                                    thisFaceCutOffsets))
                             {
-                                if (verboseLevel >= 1) System.out.println("      looking at sticker "+iSticker);
+                                if (verboseLevel >= 2) System.out.println("      looking at sticker "+iSticker);
                                 CSG.Polytope sticker = stickers[iSticker];
                                 int iFacetThatStickerIsPartOf = (Integer)sticker.getAux();
-                                if (verboseLevel >= 1) System.out.println("              facet that sticker is part of = "+iFacetThatStickerIsPartOf);
+                                if (verboseLevel >= 2) System.out.println("              facet that sticker is part of = "+iFacetThatStickerIsPartOf);
 
                                 CutInfo[] stickerCutInfos = new CutInfo[sticker.facets.length + 1];
-                                for (int iStickerFacet = 0; iStickerFacet < sticker.facets.length; ++iStickerFacet)  // iterating over nDims-2 dimensional elements here
+                                int[] ridgesThisSticker = allSlicedIncidences[nDims-1][iSticker][nDims-2];
+                                for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)  // iterating over nDims-2 dimensional elements here
                                 {
-                                    Object aux = sticker.facets[iStickerFacet].p.getAux();
+                                    int iRidge = ridgesThisSticker[iRidgeThisSticker];
+                                    CSG.Polytope ridge = ridges[iRidge];
+                                    Object aux = ridge.getAux();
                                     if (aux instanceof CutInfo)
                                     {
-                                        stickerCutInfos[iStickerFacet] = (CutInfo)aux;
+                                        stickerCutInfos[iRidgeThisSticker] = (CutInfo)aux;
                                     }
-                                    else
+                                    else // it's not from a cut, it's from an original face
                                     {
-                                        // It's not from a cut, but from an original facet,
-                                        // and that facet should be different from the facet the sticker is a part of.
-                                        stickerCutInfos[iStickerFacet] = new CutInfo((Integer)aux, -1);
+                                        // DUP CODE ALERT (lots of times in this file)
+                                        // Which original facet?
+                                        // well, this ridge is on two stickers: iSticker
+                                        // and some other.  Find that other sticker,
+                                        // and find which facet that other sticker
+                                        // was originally from.
+                                        int[] theTwoStickersSharingThisRidge = allSlicedIncidences[nDims-2][iRidge][nDims-1];
+                                        Assert(theTwoStickersSharingThisRidge.length == 2);
+                                        Assert(theTwoStickersSharingThisRidge[0] == iSticker
+                                            || theTwoStickersSharingThisRidge[1] == iSticker);
+                                        int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
+                                        CSG.Polytope otherSticker = stickers[iOtherSticker];
+                                        stickerCutInfos[iRidgeThisSticker] = new CutInfo((Integer)otherSticker.getAux(), -1);
                                     }
-                                    if (verboseLevel >= 1) System.out.println("                  one of this sticker's cut infos: "+stickerCutInfos[iStickerFacet]);
-                                    //Assert(stickerCutInfos[iStickerFacet].iFacet != iFacetThatStickerIsPartOf);  // XXX why is this failing??
+                                    if (verboseLevel >= 3) System.out.println("                  one of this sticker's cut infos: "+stickerCutInfos[iRidgeThisSticker]);
+                                    Assert(stickerCutInfos[iRidgeThisSticker].iFacet != iFacetThatStickerIsPartOf);  // XXX why is this failing??
                                 }
                                 // add one for the facet of which the sticker is a part; that's important too.  call it -2,
-                                // to make it distinct from the others.
-                                //stickerCutInfos[sticker.facets.length] = new CutInfo(iFacetThatStickerIsPartOf, -2);
+                                // to distinguish it from any of the others.
+                                stickerCutInfos[sticker.facets.length] = new CutInfo(iFacetThatStickerIsPartOf, -2);
 
                                 // Sort into canonical order
                                 SortStuff.sort(stickerCutInfos, 0, stickerCutInfos.length, cutInfoCompare);
                                 String stickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(stickerCutInfos);
-                                if (verboseLevel >= 1) System.out.println("              sticker cutInfosString = "+stickerCutInfosString);
+                                if (verboseLevel >= 2) System.out.println("              sticker cutInfosString = "+stickerCutInfosString);
                                 sticker2cutInfos[iSticker] = stickerCutInfos;
                                 Assert(cutInfos2sticker.put(stickerCutInfosString, iSticker) == null);
                             }
@@ -2859,28 +2878,32 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
                         }
 
-                        for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                        from2toStickerCenters = VecMath.identityperm(nStickers);  // except for...
+                        for (int fromSticker = 0; fromSticker < nStickers; ++fromSticker)
                         {
-                            CutInfo[] fromStickerCutInfos = sticker2cutInfos[iSticker];
+                            CutInfo[] fromStickerCutInfos = sticker2cutInfos[fromSticker];
                             if (fromStickerCutInfos != null)  // i.e. if we populated it, i.e. if sticker center is in slicemask
                             {
-                                if (verboseLevel >= 1) System.out.println("      looking again at sticker "+iSticker);
-                                if (verboseLevel >= 1) System.out.println("          recall iFacet="+iFacet+" and neighborsThisFaceInOrder = "+com.donhatchsw.util.Arrays.toStringCompact(neighborsThisFaceInOrder));
-                                if (verboseLevel >= 1) System.out.println("          fromStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(fromStickerCutInfos));
+                                // TODO: just get rid of these when more confident
+                                if (verboseLevel >= 10) System.out.println("      looking again at sticker "+fromSticker);
+                                if (verboseLevel >= 10) System.out.println("          recall iFacet="+iFacet+" and neighborsThisFaceInOrder = "+com.donhatchsw.util.Arrays.toStringCompact(neighborsThisFaceInOrder));
+                                if (verboseLevel >= 10) System.out.println("          fromStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(fromStickerCutInfos));
                                 CutInfo[] toStickerCutInfos = new CutInfo[fromStickerCutInfos.length];
                                 for (int i = 0; i < fromStickerCutInfos.length; ++i)
                                 {
                                     toStickerCutInfos[i] = new CutInfo(from2toFacet[fromStickerCutInfos[i].iFacet],
                                                                        fromStickerCutInfos[i].iCutThisFacet);
                                 }
-                                if (verboseLevel >= 1) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
+                                if (verboseLevel >= 10) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
                                 // Sort into canonical order
                                 SortStuff.sort(toStickerCutInfos, 0, toStickerCutInfos.length, cutInfoCompare);
-                                if (verboseLevel >= 1) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
+                                if (verboseLevel >= 10) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
                                 String toStickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos);
                                 Object got = cutInfos2sticker.get(toStickerCutInfosString);
                                 Assert(got != null);
                                 int toSticker = (Integer)got;
+                                Assert(from2toStickerCenters[fromSticker] == fromSticker);
+                                from2toStickerCenters[fromSticker] = toSticker;
                             }
                         }
                     }
@@ -3069,6 +3092,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 if (verboseLevel >= 1) System.out.println("numNulls = "+numNulls+"/"+from2to.length+"");
                 //Assert(numNulls == 1);  // enable this if we change the code above to iterate over only the ones of interest
+
+                Assert(VecMath.equals(from2to, from2toStickerCenters));
 
                 // The usual params.
                 // bucket size is chosen by listening to the the implementation which throws if it's too small.
