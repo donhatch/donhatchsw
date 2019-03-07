@@ -5145,7 +5145,7 @@ public final class CSG
         *        rotate e[n-2] towards e[n-1]
         *        take the canonical basis vectors back to the original rows
         * I.e. rotMat = VecMath.mxmxm(VecMath.transpose(mat),
-        *                             VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle,
+        *                             VecMath.makeRowRotMat(nDims,nDims-2,nDims-1, angle),
         *                             mat);
         * XXX isn't there a version of makeRowRotMat that does something like this?  check it out.  it looks overly complicated though, and assumes nDims==3 which is lame, should have a look at it
         */
@@ -5557,9 +5557,151 @@ public final class CSG
         public static SPolytope join(SPolytope A,
                                      SPolytope B)
         {
-            System.out.println("\n\nXXX WARNING: join stub implemented as cross! XXX\n");
-            return cross(A, B);
+            if (false) {
+              System.out.println("\n\nXXX WARNING: join stub implemented as cross! XXX\n");
+              return cross(A, B);
+            }
+            Polytope p = _join(A.p, B.p);
+            SPolytope sp = new SPolytope(A.initialDensity*B.initialDensity,  // probably meaningless
+                                         A.sign*B.sign,  // probably meaningless
+                                         p);
+            orientDeepFunctional(sp);
+            orientDeepCosmetic(sp);
+            System.out.println("join returning sp = "+sp);
+            return sp;
         }  // join
+
+        // recursive work function used by join().
+        // doesn't even try to get the signs right.
+        // XXX this is totally nuts!  can we just enumerate the verts, and take the convex hull??
+        private static Polytope _join(Polytope A, Polytope B)
+        {
+            System.out.println("        in _join");
+
+            Polytope[][] Aelements = A.getAllElements();
+            Polytope[][] Belements = B.getAllElements();
+            int[][][][] Aincidences = A.getAllIncidences();
+            int[][][][] Bincidences = B.getAllIncidences();
+
+            int dim = A.dim + B.dim + 1;
+            int fullDim = A.fullDim + B.fullDim + 1;
+            int[] elementCounts = new int[dim + 1];
+            for (int adim = 0; adim < Aelements.length; ++adim)
+                elementCounts[adim] += Aelements[adim].length;
+            for (int bdim = 0; bdim < Belements.length; ++bdim)
+                elementCounts[bdim] += Belements[bdim].length;
+            for (int adim = 0; adim < Aelements.length; ++adim)
+            for (int bdim = 0; bdim < Belements.length; ++bdim)
+                elementCounts[adim+bdim+1] += Aelements[adim].length * Belements[bdim].length;
+            PRINTARRAY(counts(A));
+            PRINTARRAY(counts(B));
+            PRINTARRAY(elementCounts);
+
+            // Make the elements, bottom up, omitting the hyperplanes
+            Polytope p;
+            {
+                Polytope[][] AcloneElements = new Polytope[Aelements.length][];
+                for (int iDim = 0; iDim < Aelements.length; ++iDim)
+                    AcloneElements[iDim] = new Polytope[Aelements[iDim].length];
+                Polytope[][] BcloneElements = new Polytope[Belements.length][];
+                for (int iDim = 0; iDim < Belements.length; ++iDim)
+                    BcloneElements[iDim] = new Polytope[Belements[iDim].length];
+                Polytope[][] ABcloneElements = new Polytope[dim+1][];
+                for (int iDim = 0; iDim < ABcloneElements.length; ++iDim)
+                {
+                    ABcloneElements[iDim] = new Polytope[elementCounts[iDim]
+                                                       - (iDim < AcloneElements.length ? AcloneElements[iDim].length : 0)
+                                                       - (iDim < BcloneElements.length ? BcloneElements[iDim].length : 0)];
+                }
+                for (int iDim = 0; iDim < dim+1; ++iDim) {
+                    assert((iDim<AcloneElements.length ? AcloneElements[iDim].length : 0)
+                         + (iDim<BcloneElements.length ? BcloneElements[iDim].length : 0)
+                         + ABcloneElements[iDim].length
+                        == elementCounts[iDim]);
+                }
+
+                // XXX I think actually maybe these two loops can be subsumed by the big loop?  maybe crossing by null?   think about it
+                for (int iDim = 0; iDim < Aelements.length; ++iDim)
+                for (int iElt = 0; iElt < Aelements[iDim].length; ++iElt)
+                {
+                    Polytope Aelt = Aelements[iDim][iElt];
+                    int nFacetsThisElt = Aelt.facets.length;
+                    assert(nFacetsThisElt == (iDim==0 ? 0 : Aincidences[iDim][iElt][iDim-1].length));
+                    SPolytope[] cloneFacets = new SPolytope[nFacetsThisElt];
+                    for (int iFacetThisElt = 0; iFacetThisElt < nFacetsThisElt; ++iFacetThisElt)
+                    {
+                        cloneFacets[iFacetThisElt] = new SPolytope(0,1, AcloneElements[iDim][Aincidences[iDim][iElt][iDim-1][iFacetThisElt]]);
+                    }
+                    Polytope AeltClone = new Polytope(iDim,
+                                                      fullDim,
+                                                      cloneFacets,
+                                                      /*contributingHyperplanes=*/null,
+                                                      null);  // loses aux
+                    AcloneElements[iDim][iElt] = AeltClone;
+                }
+                for (int iDim = 0; iDim < Belements.length; ++iDim)
+                for (int iElt = 0; iElt < Belements[iDim].length; ++iElt)
+                {
+                    Polytope Belt = Belements[iDim][iElt];
+                    int nFacetsThisElt = Belt.facets.length;
+                    assert(nFacetsThisElt == (iDim==0 ? 0 : Bincidences[iDim][iElt][iDim-1].length));
+                    SPolytope[] cloneFacets = new SPolytope[nFacetsThisElt];
+                    for (int iFacetThisElt = 0; iFacetThisElt < nFacetsThisElt; ++iFacetThisElt)
+                    {
+                        cloneFacets[iFacetThisElt] = new SPolytope(0,1, BcloneElements[iDim][Bincidences[iDim][iElt][iDim-1][iFacetThisElt]]);
+                    }
+                    Polytope BeltClone = new Polytope(iDim,
+                                                      fullDim,
+                                                      cloneFacets,
+                                                      /*contributingHyperplanes=*/null,
+                                                      null);  // loses aux
+                    BcloneElements[iDim][iElt] = BeltClone;
+                }
+
+                for (int iDim = 0; iDim < ABcloneElements.length; ++iDim) {
+                    int iThisDim = 0;
+                    int adimMin = 0;  // XXX FIX
+                    int adimMax = ABcloneElements.length;  // XXX FIX
+                    int bdimMin = 0;  // XXX FIX
+                    int bdimMax = ABcloneElements.length;  // XXX FIX
+                    for (int adim = adimMin; adim <= adimMax; ++adim) {
+                        if (adim >= AcloneElements.length) continue;
+                        int bdim = iDim - adim;
+                        if (bdim < 0 || bdim >= BcloneElements.length) continue;
+                        assert(bdim >= bdimMin);
+                        assert(bdim <= bdimMax);
+                        for (int aelt = 0; aelt < Aelements[adim].length; ++aelt)
+                        for (int belt = 0; belt < Belements[bdim].length; ++belt)
+                        {
+                            Polytope AeltClone = AcloneElements[adim][aelt];
+                            Polytope BeltClone = BcloneElements[bdim][belt];
+                            SPolytope[] cloneFacets = new SPolytope[0];  // XXX IMPLEMENT ME
+                            Polytope ABeltClone = new Polytope(adim+bdim+1,
+                                                               fullDim,
+                                                               cloneFacets,
+                                                               /*contributingHyperplanes=*/null,
+                                                               null);  // loses aux
+                            ABcloneElements[iDim][iThisDim++] = ABeltClone;
+                        }
+                    }
+                    assert(iThisDim == ABcloneElements[iDim].length);
+                }
+
+                assert(ABcloneElements[ABcloneElements.length-1].length == 1);
+                p = ABcloneElements[ABcloneElements.length-1][0];  // the last one
+            }
+
+            // Make the hyperplanes at top (facets) level,
+            // and then trickle them down to all elements.
+            // TODO: implement this
+
+
+            System.out.println("        out _join");
+            return p;
+        }  // _join
+
+
+
         public static SPolytope cross(SPolytope A,
                                       SPolytope B)
         {
