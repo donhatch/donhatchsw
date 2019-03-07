@@ -2485,23 +2485,208 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 Assert(pairs[i] <= pairs[i+2]);
             }
         }
-        // wrapper for int[] that can be used as a hash key.  CBB: surely this has been done?  note CSG.prejava has HashableSortedArray which is similar
-        private static class IntArrayKey {
-            public IntArrayKey(int[] intArray)
+
+        private int[] getFaceNeighborsInOrderForFutt(int iFacet)
+        {
+            int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
+            CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();  // argh, recomputing
+            int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();  // argh, recomputing
+            int gonality = originalIncidences[2][iFacet][1].length;
+
+            boolean[] edgeIsIncidentOnThisFace = new boolean[originalElements[1].length];  // false initially
+            for (int iEdgeThisFace = 0; iEdgeThisFace < originalIncidences[2][iFacet][1].length; ++iEdgeThisFace)
             {
-                this.intArray = intArray;
+                int iEdge = originalIncidences[2][iFacet][1][iEdgeThisFace];
+                edgeIsIncidentOnThisFace[iEdge] = true;
             }
-            public boolean equals(Object thatObject)
+
+            int[] vertsThisFaceInOrder = new int[gonality];
+            int[] edgesThisFaceInOrder = new int[gonality];
+            int iFirstEdge = originalIncidences[2][iFacet][1][0];
+            int iFirstVert = originalIncidences[1][iFirstEdge][0][0];
+            // We want to go ccw around the face,
+            // so first vertex should be before first edge
+            // in ccw order.
+            // That is, det(facetcenter, edgecenter, vertcenter) should be <0.
+            double det = VecMath.det(new double[/*3*/][/*3*/] {
+              CSG.cgOfVerts(originalElements[2][iFacet]),
+              CSG.cgOfVerts(originalElements[1][iFirstEdge]),
+              CSG.cgOfVerts(originalElements[0][iFirstVert]),
+            });
+            if (verboseLevel >= 1) System.out.println("      det = "+det);
+            if (det > 0)
             {
-                IntArrayKey thatIntArrayKey = (IntArrayKey)thatObject;
-                return java.util.Arrays.equals(this.intArray, thatIntArrayKey.intArray);
+                iFirstVert = originalIncidences[1][iFirstEdge][0][1];  // the other one
             }
-            public int hashCode()
+            vertsThisFaceInOrder[0] = iFirstVert;
+            edgesThisFaceInOrder[0] = iFirstEdge;
+            for (int i = 1; i < gonality; ++i) {  // skipping 0
+                // this vert is other vert on prev edge
+                int iPrevVert = vertsThisFaceInOrder[i-1];
+                int iPrevEdge = edgesThisFaceInOrder[i-1];
+                int iThisVert = originalIncidences[1][iPrevEdge][0][0];  // or the other one
+                if (iThisVert == iPrevVert) iThisVert = originalIncidences[1][iPrevEdge][0][1];
+                vertsThisFaceInOrder[i] = iThisVert;
+
+                // this edge is the other edge incident on this vert
+                // that's incident on this face.
+                int iThisEdge = -1;
+                for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iThisVert][1].length; ++iEdgeThisVert)
+                {
+                    int iEdge = originalIncidences[0][iThisVert][1][iEdgeThisVert];
+                    if (iEdge != iPrevEdge && edgeIsIncidentOnThisFace[iEdge])
+                    {
+                        // found it!
+                        Assert(iThisEdge == -1);
+                        iThisEdge = iEdge;
+                        break;
+                    }
+                }
+                Assert(iThisEdge != -1);
+                edgesThisFaceInOrder[i] = iThisEdge;
+            }
+            int[] neighborsThisFaceInOrder = new int[gonality];
+            for (int i = 0; i < gonality; ++i) {
+                // this neighbor face is the other face
+                // incident on this edge.
+                int iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][0];  // or the other one
+                if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][1];
+                neighborsThisFaceInOrder[i] = iThisNeighborFace;
+            }
+            if (verboseLevel >= 1) System.out.println("      vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
+            if (verboseLevel >= 1) System.out.println("      edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
+            if (verboseLevel >= 1) System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
+            return neighborsThisFaceInOrder;
+        }  // getFaceNeighborsInOrderForFutt
+
+        private int[] getFrom2toStickersForFutt(int gripIndex,
+                                                int dir,
+                                                int slicemask,
+                                                int[] neighborsThisFaceInOrder)
+        {
+            int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
+            int nDims = nDims();
+            int iFacet = grip2face[gripIndex];
+
+            CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();  // argh, recomputing
+            int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();  // argh, recomputing
+            CSG.Polytope[][] allSlicedElements = slicedPolytope.p.getAllElements();
+            int[][][][] allSlicedIncidences = slicedPolytope.p.getAllIncidences();
+
+            int gonality = originalIncidences[2][iFacet][1].length;
+            double[] thisFaceInwardNormal = facetInwardNormals[iFacet];
+            double[] thisFaceCutOffsets = facetCutOffsets[iFacet];
+            int nStickers = stickerCentersD.length;
+            CSG.Polytope[] stickers = allSlicedElements[nDims-1];
+            Assert(stickers.length == nStickers);
+            CSG.Polytope[] ridges = allSlicedElements[nDims-2];
+
+            CutInfo[][] sticker2cutInfos = new CutInfo[nStickers][];
+            java.util.HashMap cutInfos2sticker = new java.util.HashMap();  // CBB: initial capacity should be number of stickers in slicemask
+            SortStuff.Comparator cutInfoCompare = new SortStuff.Comparator() {
+                public int compare(Object aObject, Object bObject)
+                {
+                    CutInfo a = (CutInfo)aObject;
+                    CutInfo b = (CutInfo)bObject;
+                    if (a.iFacet < b.iFacet) return -1;
+                    if (a.iFacet > b.iFacet) return 1;
+                    if (a.iCutThisFacet < b.iCutThisFacet) return -1;
+                    if (a.iCutThisFacet > b.iCutThisFacet) return 1;
+                    return 0;
+                }
+            };
+            for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
-                return java.util.Arrays.hashCode(this.intArray);
+                // CBB: we are testing these too many times!
+                if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                       slicemask,
+                                       thisFaceInwardNormal,
+                                       thisFaceCutOffsets))
+                {
+                    if (verboseLevel >= 2) System.out.println("      looking at sticker "+iSticker);
+                    CSG.Polytope sticker = stickers[iSticker];
+                    int iFacetThatStickerIsPartOf = (Integer)sticker.getAux();
+                    if (verboseLevel >= 2) System.out.println("              facet that sticker is part of = "+iFacetThatStickerIsPartOf);
+
+                    CutInfo[] stickerCutInfos = new CutInfo[sticker.facets.length + 1];
+                    int[] ridgesThisSticker = allSlicedIncidences[nDims-1][iSticker][nDims-2];
+                    for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)  // iterating over nDims-2 dimensional elements here
+                    {
+                        int iRidge = ridgesThisSticker[iRidgeThisSticker];
+                        CSG.Polytope ridge = ridges[iRidge];
+                        Object aux = ridge.getAux();
+                        if (aux instanceof CutInfo)
+                        {
+                            stickerCutInfos[iRidgeThisSticker] = (CutInfo)aux;
+                        }
+                        else // it's not from a cut, it's from an original face
+                        {
+                            // DUP CODE ALERT (lots of times in this file)
+                            // Which original facet?
+                            // well, this ridge is on two stickers: iSticker
+                            // and some other.  Find that other sticker,
+                            // and find which facet that other sticker
+                            // was originally from.
+                            int[] theTwoStickersSharingThisRidge = allSlicedIncidences[nDims-2][iRidge][nDims-1];
+                            Assert(theTwoStickersSharingThisRidge.length == 2);
+                            Assert(theTwoStickersSharingThisRidge[0] == iSticker
+                                || theTwoStickersSharingThisRidge[1] == iSticker);
+                            int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
+                            CSG.Polytope otherSticker = stickers[iOtherSticker];
+                            stickerCutInfos[iRidgeThisSticker] = new CutInfo((Integer)otherSticker.getAux(), -1);
+                        }
+                        if (verboseLevel >= 3) System.out.println("                  one of this sticker's cut infos: "+stickerCutInfos[iRidgeThisSticker]);
+                        Assert(stickerCutInfos[iRidgeThisSticker].iFacet != iFacetThatStickerIsPartOf);  // XXX why is this failing??
+                    }
+                    // add one for the facet of which the sticker is a part; that's important too.  call it -2,
+                    // to distinguish it from any of the others.
+                    stickerCutInfos[sticker.facets.length] = new CutInfo(iFacetThatStickerIsPartOf, -2);
+
+                    // Sort into canonical order
+                    SortStuff.sort(stickerCutInfos, 0, stickerCutInfos.length, cutInfoCompare);
+                    String stickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(stickerCutInfos);
+                    if (verboseLevel >= 2) System.out.println("              sticker cutInfosString = "+stickerCutInfosString);
+                    sticker2cutInfos[iSticker] = stickerCutInfos;
+                    Assert(cutInfos2sticker.put(stickerCutInfosString, iSticker) == null);
+                }
             }
-            private int[] intArray;
-        };  // IntArrayKey
+            int nFacets = originalElements[nDims-1].length;
+            int[] from2toFacet = VecMath.identityperm(nFacets);  // except for...
+            for (int i = 0; i < gonality; ++i) {
+                int j = (i + (this.gripUsefulMats[gripIndex][1][3] < 0 ? -1 : 1)*dir + gonality) % gonality;
+                from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
+            }
+
+            int[] from2toStickerCenters = VecMath.identityperm(nStickers);  // except for...
+            for (int fromSticker = 0; fromSticker < nStickers; ++fromSticker)
+            {
+                CutInfo[] fromStickerCutInfos = sticker2cutInfos[fromSticker];
+                if (fromStickerCutInfos != null)  // i.e. if we populated it, i.e. if sticker center is in slicemask
+                {
+                    // TODO: just get rid of these when more confident
+                    if (verboseLevel >= 10) System.out.println("      looking again at sticker "+fromSticker);
+                    if (verboseLevel >= 10) System.out.println("          recall iFacet="+iFacet+" and neighborsThisFaceInOrder = "+com.donhatchsw.util.Arrays.toStringCompact(neighborsThisFaceInOrder));
+                    if (verboseLevel >= 10) System.out.println("          fromStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(fromStickerCutInfos));
+                    CutInfo[] toStickerCutInfos = new CutInfo[fromStickerCutInfos.length];
+                    for (int i = 0; i < fromStickerCutInfos.length; ++i)
+                    {
+                        toStickerCutInfos[i] = new CutInfo(from2toFacet[fromStickerCutInfos[i].iFacet],
+                                                           fromStickerCutInfos[i].iCutThisFacet);
+                    }
+                    if (verboseLevel >= 10) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
+                    // Sort into canonical order
+                    SortStuff.sort(toStickerCutInfos, 0, toStickerCutInfos.length, cutInfoCompare);
+                    if (verboseLevel >= 10) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
+                    String toStickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos);
+                    Object got = cutInfos2sticker.get(toStickerCutInfosString);
+                    Assert(got != null);
+                    int toSticker = (Integer)got;
+                    Assert(from2toStickerCenters[fromSticker] == fromSticker);
+                    from2toStickerCenters[fromSticker] = toSticker;
+                }
+            }
+            return from2toStickerCenters;
+        }  // getFrom2toStickersForFutt
 
         public void
             computeVertsAndShrinkToPointsPartiallyTwisted(
@@ -2625,188 +2810,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 int gonality = originalIncidences[2][iFacet][1].length;
 
-                int[] neighborsThisFaceInOrder = new int[gonality];
-                {
-                    boolean[] edgeIsIncidentOnThisFace = new boolean[originalElements[1].length];  // false initially
-                    for (int iEdgeThisFace = 0; iEdgeThisFace < originalIncidences[2][iFacet][1].length; ++iEdgeThisFace)
-                    {
-                        int iEdge = originalIncidences[2][iFacet][1][iEdgeThisFace];
-                        edgeIsIncidentOnThisFace[iEdge] = true;
-                    }
-
-                    int[] vertsThisFaceInOrder = new int[gonality];
-                    int[] edgesThisFaceInOrder = new int[gonality];
-                    int iFirstEdge = originalIncidences[2][iFacet][1][0];
-                    int iFirstVert = originalIncidences[1][iFirstEdge][0][0];
-                    // We want to go ccw around the face,
-                    // so first vertex should be before first edge
-                    // in ccw order.
-                    // That is, det(facetcenter, edgecenter, vertcenter) should be <0.
-                    double det = VecMath.det(new double[/*3*/][/*3*/] {
-                      CSG.cgOfVerts(originalElements[2][iFacet]),
-                      CSG.cgOfVerts(originalElements[1][iFirstEdge]),
-                      CSG.cgOfVerts(originalElements[0][iFirstVert]),
-                    });
-                    if (verboseLevel >= 1) System.out.println("      det = "+det);
-                    if (det > 0)
-                    {
-                        iFirstVert = originalIncidences[1][iFirstEdge][0][1];  // the other one
-                    }
-                    vertsThisFaceInOrder[0] = iFirstVert;
-                    edgesThisFaceInOrder[0] = iFirstEdge;
-                    for (int i = 1; i < gonality; ++i) {  // skipping 0
-                        // this vert is other vert on prev edge
-                        int iPrevVert = vertsThisFaceInOrder[i-1];
-                        int iPrevEdge = edgesThisFaceInOrder[i-1];
-                        int iThisVert = originalIncidences[1][iPrevEdge][0][0];  // or the other one
-                        if (iThisVert == iPrevVert) iThisVert = originalIncidences[1][iPrevEdge][0][1];
-                        vertsThisFaceInOrder[i] = iThisVert;
-
-                        // this edge is the other edge incident on this vert
-                        // that's incident on this face.
-                        int iThisEdge = -1;
-                        for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iThisVert][1].length; ++iEdgeThisVert)
-                        {
-                            int iEdge = originalIncidences[0][iThisVert][1][iEdgeThisVert];
-                            if (iEdge != iPrevEdge && edgeIsIncidentOnThisFace[iEdge])
-                            {
-                                // found it!
-                                Assert(iThisEdge == -1);
-                                iThisEdge = iEdge;
-                                break;
-                            }
-                        }
-                        Assert(iThisEdge != -1);
-                        edgesThisFaceInOrder[i] = iThisEdge;
-                    }
-                    for (int i = 0; i < gonality; ++i) {
-                        // this neighbor face is the other face
-                        // incident on this edge.
-                        int iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][0];  // or the other one
-                        if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][1];
-                        neighborsThisFaceInOrder[i] = iThisNeighborFace;
-                    }
-                    if (verboseLevel >= 1) System.out.println("      vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
-                    if (verboseLevel >= 1) System.out.println("      edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
-                    if (verboseLevel >= 1) System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
-                }  // initialized neighborsThisFaceInOrder
-
-                int[] from2toStickerCenters;
-                {
-                    int nStickers = stickerCentersD.length;
-                    CSG.Polytope[][] allSlicedElements = slicedPolytope.p.getAllElements();
-                    int[][][][] allSlicedIncidences = slicedPolytope.p.getAllIncidences();
-                    CSG.Polytope[] stickers = allSlicedElements[nDims-1];
-                    Assert(stickers.length == nStickers);
-                    CSG.Polytope[] ridges = allSlicedElements[nDims-2];
-
-                    {
-                        CutInfo[][] sticker2cutInfos = new CutInfo[nStickers][];
-                        java.util.HashMap cutInfos2sticker = new java.util.HashMap();  // CBB: initial capacity should be number of stickers in slicemask
-                        SortStuff.Comparator cutInfoCompare = new SortStuff.Comparator() {
-                            public int compare(Object aObject, Object bObject)
-                            {
-                                CutInfo a = (CutInfo)aObject;
-                                CutInfo b = (CutInfo)bObject;
-                                if (a.iFacet < b.iFacet) return -1;
-                                if (a.iFacet > b.iFacet) return 1;
-                                if (a.iCutThisFacet < b.iCutThisFacet) return -1;
-                                if (a.iCutThisFacet > b.iCutThisFacet) return 1;
-                                return 0;
-                            }
-                        };
-                        for (int iSticker = 0; iSticker < nStickers; ++iSticker)
-                        {
-                            // CBB: we are testing these too many times!
-                            if (pointIsInSliceMask(stickerCentersD[iSticker],
-                                                   slicemask,
-                                                   thisFaceInwardNormal,
-                                                   thisFaceCutOffsets))
-                            {
-                                if (verboseLevel >= 2) System.out.println("      looking at sticker "+iSticker);
-                                CSG.Polytope sticker = stickers[iSticker];
-                                int iFacetThatStickerIsPartOf = (Integer)sticker.getAux();
-                                if (verboseLevel >= 2) System.out.println("              facet that sticker is part of = "+iFacetThatStickerIsPartOf);
-
-                                CutInfo[] stickerCutInfos = new CutInfo[sticker.facets.length + 1];
-                                int[] ridgesThisSticker = allSlicedIncidences[nDims-1][iSticker][nDims-2];
-                                for (int iRidgeThisSticker = 0; iRidgeThisSticker < ridgesThisSticker.length; ++iRidgeThisSticker)  // iterating over nDims-2 dimensional elements here
-                                {
-                                    int iRidge = ridgesThisSticker[iRidgeThisSticker];
-                                    CSG.Polytope ridge = ridges[iRidge];
-                                    Object aux = ridge.getAux();
-                                    if (aux instanceof CutInfo)
-                                    {
-                                        stickerCutInfos[iRidgeThisSticker] = (CutInfo)aux;
-                                    }
-                                    else // it's not from a cut, it's from an original face
-                                    {
-                                        // DUP CODE ALERT (lots of times in this file)
-                                        // Which original facet?
-                                        // well, this ridge is on two stickers: iSticker
-                                        // and some other.  Find that other sticker,
-                                        // and find which facet that other sticker
-                                        // was originally from.
-                                        int[] theTwoStickersSharingThisRidge = allSlicedIncidences[nDims-2][iRidge][nDims-1];
-                                        Assert(theTwoStickersSharingThisRidge.length == 2);
-                                        Assert(theTwoStickersSharingThisRidge[0] == iSticker
-                                            || theTwoStickersSharingThisRidge[1] == iSticker);
-                                        int iOtherSticker = theTwoStickersSharingThisRidge[theTwoStickersSharingThisRidge[0]==iSticker ? 1 : 0];
-                                        CSG.Polytope otherSticker = stickers[iOtherSticker];
-                                        stickerCutInfos[iRidgeThisSticker] = new CutInfo((Integer)otherSticker.getAux(), -1);
-                                    }
-                                    if (verboseLevel >= 3) System.out.println("                  one of this sticker's cut infos: "+stickerCutInfos[iRidgeThisSticker]);
-                                    Assert(stickerCutInfos[iRidgeThisSticker].iFacet != iFacetThatStickerIsPartOf);  // XXX why is this failing??
-                                }
-                                // add one for the facet of which the sticker is a part; that's important too.  call it -2,
-                                // to distinguish it from any of the others.
-                                stickerCutInfos[sticker.facets.length] = new CutInfo(iFacetThatStickerIsPartOf, -2);
-
-                                // Sort into canonical order
-                                SortStuff.sort(stickerCutInfos, 0, stickerCutInfos.length, cutInfoCompare);
-                                String stickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(stickerCutInfos);
-                                if (verboseLevel >= 2) System.out.println("              sticker cutInfosString = "+stickerCutInfosString);
-                                sticker2cutInfos[iSticker] = stickerCutInfos;
-                                Assert(cutInfos2sticker.put(stickerCutInfosString, iSticker) == null);
-                            }
-                        }
-                        int nFacets = originalElements[nDims-1].length;
-                        int[] from2toFacet = VecMath.identityperm(nFacets);  // except for...
-                        for (int i = 0; i < gonality; ++i) {
-                            int j = (i + (this.gripUsefulMats[gripIndex][1][3] < 0 ? -1 : 1)*dir + gonality) % gonality;
-                            from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
-                        }
-
-                        from2toStickerCenters = VecMath.identityperm(nStickers);  // except for...
-                        for (int fromSticker = 0; fromSticker < nStickers; ++fromSticker)
-                        {
-                            CutInfo[] fromStickerCutInfos = sticker2cutInfos[fromSticker];
-                            if (fromStickerCutInfos != null)  // i.e. if we populated it, i.e. if sticker center is in slicemask
-                            {
-                                // TODO: just get rid of these when more confident
-                                if (verboseLevel >= 10) System.out.println("      looking again at sticker "+fromSticker);
-                                if (verboseLevel >= 10) System.out.println("          recall iFacet="+iFacet+" and neighborsThisFaceInOrder = "+com.donhatchsw.util.Arrays.toStringCompact(neighborsThisFaceInOrder));
-                                if (verboseLevel >= 10) System.out.println("          fromStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(fromStickerCutInfos));
-                                CutInfo[] toStickerCutInfos = new CutInfo[fromStickerCutInfos.length];
-                                for (int i = 0; i < fromStickerCutInfos.length; ++i)
-                                {
-                                    toStickerCutInfos[i] = new CutInfo(from2toFacet[fromStickerCutInfos[i].iFacet],
-                                                                       fromStickerCutInfos[i].iCutThisFacet);
-                                }
-                                if (verboseLevel >= 10) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
-                                // Sort into canonical order
-                                SortStuff.sort(toStickerCutInfos, 0, toStickerCutInfos.length, cutInfoCompare);
-                                if (verboseLevel >= 10) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
-                                String toStickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos);
-                                Object got = cutInfos2sticker.get(toStickerCutInfosString);
-                                Assert(got != null);
-                                int toSticker = (Integer)got;
-                                Assert(from2toStickerCenters[fromSticker] == fromSticker);
-                                from2toStickerCenters[fromSticker] = toSticker;
-                            }
-                        }
-                    }
-                }  // initialized from2toStickerCenters
+                int[] neighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
+                int[] from2toStickerCenters = getFrom2toStickersForFutt(gripIndex, dir, slicemask, neighborsThisFaceInOrder);
 
                 double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
                 float[][] fullInvMatF = VecMath.doubleToFloat(fullInvMatD);
