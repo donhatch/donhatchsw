@@ -771,7 +771,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.print("    Constructing polytope...");
             progressWriter.flush();
         }
-        this.originalPolytope = CSG.makeRegularStarPolytopeProductFromString(schlafliProduct);
+        this.originalPolytope = CSG.makeRegularStarPolytopeProductJoinFromString(schlafliProduct);
         if (progressWriter != null)
         {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
@@ -3135,7 +3135,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 VecMath.copyvec(state, newState);  // XXX same as below-- this can't be right, but callers might depend on it
                 return newState;
             }
-            else 
+            else
             {
                 for (int iSticker = 0; iSticker < state.length; ++iSticker)
                 {

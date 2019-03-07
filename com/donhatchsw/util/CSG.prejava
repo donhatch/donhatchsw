@@ -1042,6 +1042,17 @@ public final class CSG
     //
     // Some primitive SPolytopes...
     //
+        /** Makes a point in zero dimensions. */
+        public static SPolytope makePoint()
+        {
+            return new SPolytope(/*initialDensity=*/0,/*sign=*/1,
+                                 new Polytope(/*dim=*/0,
+                                              /*fullDim=*/0,
+                                              /*facets=*/new SPolytope[0],
+                                              /*contributingHyperplanes=*/new Hyperplane[0],
+                                              /*aux=*/null));
+        }  // makePoint
+
         /** Makes a polygon from the given vertices in n dimensions. */
         public static SPolytope makePolygon(double verts[][])
         {
@@ -1112,6 +1123,7 @@ public final class CSG
             return faceSPolytope;
         } // makePolygon
 
+
         /**
         * Makes a regular (n/d)-gon of edge length 2, centered at the origin,
         * with a side pointing in the -Y axis direction.
@@ -1129,21 +1141,21 @@ public final class CSG
                 verts[i][1] = R * Math.sin(ang);
             }
             return makePolygon(verts);
-        }
+        }  // makeRegularPolygon
 
         /** Makes an n-dimensional simplex with edge length 2, centered at the origin. */
         public static SPolytope makeSimplex(int nDims)
         {
-            assumpt(nDims >= 1); // should just return a vert I guess
+            assumpt(nDims >= 0);
+            if (nDims == 0) return makePoint();
             return makeRegularPolytope(VecMath.fillvec(nDims-1, 3));
         } // makeSimplex
-
-
 
         /** Makes an n-dimensional hypercube of in-radius 1, centered at the origin. */
         public static SPolytope makeHypercube(int nDims)
         {
-            assumpt(nDims >= 1); // should just return a vert I guess
+            assert(nDims >= 0);
+            if (nDims == 0) return makePoint();
             int schlafli[] = VecMath.fillvec(nDims-1, 3);
             if (nDims-1 > 0)
                 schlafli[0] = 4;
@@ -2195,6 +2207,37 @@ public final class CSG
         } // makeRegularStarPolytopeProduct
 
         /**
+        * Yet another layer, which allows us to make some pyramids and maybe other things.
+        * See discussion of joins in https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol#Prismatic_polytopes .
+        */
+        public static SPolytope makeRegularStarPolytopeProductJoinFromString(String s)
+        {
+            if (!s.contains("v"))
+            {
+                if (s.trim().equals("()"))
+                    return makeHypercube(0);  // a point
+                // punt, just so I don't have to think about what zero terms means here
+                return makeRegularStarPolytopeProductFromString(s);
+            }
+            String termStrings[] = regex.split(s.trim(), "v");
+            SPolytope join = null;
+            for (int i = 0; i < termStrings.length; ++i)
+            {
+                // We handle "()" (a point) here because:
+                // - it's too messy to do it inside makeRegularStarPolytopeProductFromString
+                // - products don't need it anyway (they can just throw away any "()"
+                //   that occurs as a factor).
+                SPolytope term = termStrings[i].trim().equals("()") ? makeHypercube(0)  // a point
+                                                                    : makeRegularStarPolytopeProductFromString(termStrings[i]);
+                if (join == null)
+                    join = term;
+                else
+                    join = join(join, term);
+            }
+            return join;
+        }  // makeRegularStarPolytopeProductJoinFromString
+
+        /**
         * Makes a product of regular (star) polytopes from a string specification,
         * for example <code>"{4,3}x{}x{5,3,3}xGrand_Antiprismx{3}x {3, 3,3,3,3 }x{} x {5/2,5} "</code>.
         * '*' can be used in place of 'x' as well.
@@ -2252,17 +2295,31 @@ public final class CSG
             s = regex.replaceAll(s, "[Ff]ruity", "{7,0,0}");
 
             String factors[] = regex.split(s.trim(), "[x*]");
+
+            // Discard any factors that are "()", since they are awkward
+            // and they don't contribute to the product.
+            // CBB: and what if nothing's left?  Pretty sure I'm not handling that right.
+            {
+                int nNontrivialFactors = 0;
+                for (int i = 0; i < factors.length; ++i)
+                {
+                    if (!factors[i].trim().equals("()"))
+                    {
+                        factors[nNontrivialFactors++] = factors[i];
+                    }
+                }
+                if (nNontrivialFactors != factors.length)
+                {
+                    factors = (String[])Arrays.subarray(factors, 0, nNontrivialFactors);
+                }
+            }
+
             int schlaflis[][] = new int[factors.length][];
             int schlafliDenomss[][] = new int[factors.length][];
             double wythoffs[][] = new double [factors.length][];
             FORI (iFactor, factors.length)
             {
                 String factor = factors[iFactor].trim();
-                /*
-                if (!factor.startsWith("{")
-                 || !factor.endsWith("}"))
-                    throw new IllegalArgumentException("makeRegularStartPolytopeProductFromString: bad schlafli symbol \""+s+"\"");
-                */
                 if (factor.startsWith("{")
                  && factor.endsWith("}"))
                 {
@@ -5497,6 +5554,12 @@ public final class CSG
             return result;
         } // cgOfVerts
 
+        public static SPolytope join(SPolytope A,
+                                     SPolytope B)
+        {
+            System.out.println("\n\nXXX WARNING: join stub implemented as cross! XXX\n");
+            return cross(A, B);
+        }  // join
         public static SPolytope cross(SPolytope A,
                                       SPolytope B)
         {
