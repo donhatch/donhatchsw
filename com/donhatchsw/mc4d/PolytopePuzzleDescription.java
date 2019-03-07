@@ -261,6 +261,7 @@
               - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
               - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around  (hmm, can't reproduce any more?)
               - edge twist state permutation is still flaky
+              - edge twist animation is wacked out
             - make more general implementation:
               - support other than 3d
               - support other than trivalent
@@ -2624,15 +2625,15 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 int gonality = originalIncidences[2][iFacet][1].length;
 
-                boolean[] edgeIsIncidentOnThisFace = new boolean[originalElements[1].length];  // false initially
-                for (int iEdgeThisFace = 0; iEdgeThisFace < originalIncidences[2][iFacet][1].length; ++iEdgeThisFace)
-                {
-                    int iEdge = originalIncidences[2][iFacet][1][iEdgeThisFace];
-                    edgeIsIncidentOnThisFace[iEdge] = true;
-                }
-
                 int[] neighborsThisFaceInOrder = new int[gonality];
                 {
+                    boolean[] edgeIsIncidentOnThisFace = new boolean[originalElements[1].length];  // false initially
+                    for (int iEdgeThisFace = 0; iEdgeThisFace < originalIncidences[2][iFacet][1].length; ++iEdgeThisFace)
+                    {
+                        int iEdge = originalIncidences[2][iFacet][1][iEdgeThisFace];
+                        edgeIsIncidentOnThisFace[iEdge] = true;
+                    }
+
                     int[] vertsThisFaceInOrder = new int[gonality];
                     int[] edgesThisFaceInOrder = new int[gonality];
                     int iFirstEdge = originalIncidences[2][iFacet][1][0];
