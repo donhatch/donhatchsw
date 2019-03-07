@@ -772,6 +772,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             progressWriter.flush();
         }
         this.originalPolytope = CSG.makeRegularStarPolytopeProductJoinFromString(schlafliProduct);
+
+        if (this.originalPolytope.p.dim < 2)
+        {
+            throw new IllegalArgumentException("PolytopePuzzleDescription can't do puzzles of dimension "+this.originalPolytope.p.dim+" (< 2)");
+        }
+
         if (progressWriter != null)
         {
             progressWriter.println(" done ("+originalPolytope.p.facets.length+" facets).");
