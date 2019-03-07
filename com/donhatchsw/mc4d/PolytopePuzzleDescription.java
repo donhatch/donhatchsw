@@ -148,6 +148,7 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - '{4,3} 3(4)' with nonzero stickers-shrink-to-face-boundaries is asymmetric (due to the one-of-opposite-pairs-doing-all-the-cuts-for-both-of-them thing, I think)
         - make && java -jar donhatchsw.jar puzzleDescription="Fruity 3(9)" shouldn't require such a shallow cut specification!  isn't it supposed to be using the edge that would give the shallowest cut?
         - `java -jar donhatchsw.jar puzzleDescription='{4,3} 2,3,4'`, twisting gives Assertion failure: "Assert(whereIstickerGoes != null);", 	at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:2402)
         - >=5 dimensional puzzles on command line non-gracefully excepts
@@ -256,7 +257,6 @@
     TODO:
     =====
         FUTT:
-            - BUG: doesn't work on triprism or cube any more; assert-fails!  are there redundant cuts???  yeah, I think maybe there are!  argh!
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
