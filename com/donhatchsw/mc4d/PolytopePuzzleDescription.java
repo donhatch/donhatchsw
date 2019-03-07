@@ -2595,7 +2595,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int verboseLevel = 1;  // set to something higher than 0 to debug futt stuff
+                int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
@@ -2690,109 +2690,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     if (verboseLevel >= 1) System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
                 }
 
-                if (true)  // WORK IN PROGRESS - new more general way.   actually, will probably kill this, and do it right-- that is, from the original CutInfos.
-                {
-                    FuzzyPointHashTable coord2cutSet = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);  // CBB: specify initial capacity (need to provide constructor)
-                    java.util.HashMap cutSet2coord = new java.util.HashMap();  // CBB: specify initial capacity
-                    for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
-                    {
-                        if (verboseLevel >= 2) System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
-                        int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
-                        int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
-                        if (verboseLevel >= 2) System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
-
-                        // We are going to want to answer questions of the form:
-                        // "what is the intersection of the hyperplanes
-                        // at these three offsets from the three faces"?
-                        // I.e. "what is the point whose dot products with the three hyperplane normals
-                        // equals the three hyperplane offsets"?
-                        // The face normals stay constant (throughout this corner region)
-                        // but the offsets vary, so compute an inverse matrix so we can answer
-                        // the questions quickly.
-                        double[/*3*/][/*3*/] faceInwardNormalsMat = {
-                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iFacet], 0, 3),
-                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iPrevNeighborFace], 0, 3),
-                            (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iNextNeighborFace], 0, 3),
-                        };
-                        if (verboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(faceInwardNormalsMat));
-                        double[/*3*/][/*3*/] inverseOfFaceInwardNormalsMat = VecMath.invertmat(faceInwardNormalsMat);
-                        if (verboseLevel >= 2) System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
-                        for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
-                        {
-                            int nCutsPrevNeighborFace = nStickerLayers+1;  // there'll be one more layer in this direction after this, but we don't populate it yet; we'll copy it from the next corner afterwards
-                            for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1; ++iCutPrevNeighborFace)
-                            {
-                                // Need coords only where at least one of the three cut indices is 0,
-                                // i.e. on the surface of the polyhedron.
-                                // This is an important optimization if number of cuts is large.
-                                int nCutsNextNeighborFace = iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : nStickerLayers+1;
-                                for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < nCutsNextNeighborFace; ++iCutNextNeighborFace)
-                                {
-                                    double[] desiredOffsets = {
-                                        iCutThisFace==0 ? this.facetOffsetsForFutt[iFacet] : facetCutOffsets[iFacet][iCutThisFace-1],
-                                        iCutPrevNeighborFace==0 ? this.facetOffsetsForFutt[iPrevNeighborFace] : facetCutOffsets[iPrevNeighborFace][iCutPrevNeighborFace-1],
-                                        iCutNextNeighborFace==0 ? this.facetOffsetsForFutt[iNextNeighborFace] : facetCutOffsets[iNextNeighborFace][iCutNextNeighborFace-1],
-                                    };
-                                    double[] coords3 = VecMath.mxv(inverseOfFaceInwardNormalsMat, desiredOffsets);
-                                    //System.out.println("              desiredOffsets = "+VecMath.toString(desiredOffsets)+" -> coords3 = "+VecMath.toString(coords3));
-
-                                    int[] cutSet = {
-                                        iFacet,
-                                        iCutThisFace,
-                                        iPrevNeighborFace,
-                                        iCutPrevNeighborFace,
-                                        iNextNeighborFace,
-                                        iCutNextNeighborFace,
-                                    };
-                                    quickDirtySortInPairs(cutSet);  // so facets appear in canonical (increasing) order
-                                    if (verboseLevel >= 3) System.out.println("                  putting cutSet="+VecMath.toString(cutSet)+" <-> coords3="+VecMath.toString(coords3));
-                                    Assert(cutSet2coord.put(new IntArrayKey(cutSet), coords3) == null);
-                                    coord2cutSet.put(coords3, cutSet);
-                                }
-                            }
-                        }
-                    }
-                    // For each corner region, populate the extra fake cut in the prevNeighbor direction,
-                    // copied from the next corner's k direction.  This will allow us to
-                    // compute sticker centers more straightforwardly.
-                    // XXX definitely won't need this by the time I get from2to simpler
-                    for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
-                    {
-                        int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
-                        int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
-                        int iNextNextNeighborFace = neighborsThisFaceInOrder[(iCornerRegion+1) % gonality];
-                        for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
-                        {
-                            int iExtraCut = nStickerLayers + 1;
-                              int[] fakeCutSet = {
-                                  iFacet,
-                                  iCutThisFace,
-                                  iPrevNeighborFace,
-                                  iExtraCut,
-                                  iNextNeighborFace,
-                                  0,
-                              };
-                              quickDirtySortInPairs(fakeCutSet);  // so facets appear in canonical (increasing) order
-                              int[] sourceCutSet = {
-                                  iFacet,
-                                  iCutThisFace,
-                                  iNextNeighborFace,
-                                  0,
-                                  iNextNextNeighborFace,
-                                  iExtraCut-1,
-                              };
-                              quickDirtySortInPairs(sourceCutSet);  // so facets appear in canonical (increasing) order
-                              double[] coords3 = (double[])cutSet2coord.get(new IntArrayKey(sourceCutSet));  // TODO: should reuse a single scratch IntArrayKey
-                              if (verboseLevel >= 3) System.out.println("                  iFacet="+iFacet+" iPrevNeighborFace="+iPrevNeighborFace+" iNextNeighborFace="+iNextNeighborFace+" iNextNextNeighborFace="+iNextNextNeighborFace);
-                              if (verboseLevel >= 3) System.out.println("                  putting fakeCutSet="+VecMath.toString(fakeCutSet)+" <-> coords3="+VecMath.toString(coords3)+" which we got from sourceCutSet="+VecMath.toString(sourceCutSet));
-                              Assert(coords3 != null);
-                              Assert(cutSet2coord.put(new IntArrayKey(fakeCutSet), coords3) == null);
-                        }
-                    }
-                }
-
                 int[] from2toStickerCenters;
-                if (true)  // WORK IN PROGRESS - start to actually do it right.
                 {
                     int nStickers = stickerCentersD.length;
                     CSG.Polytope[][] allSlicedElements = slicedPolytope.p.getAllElements();
@@ -2907,7 +2805,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             }
                         }
                     }
-                }
+                }  // initialized from2toStickerCenters
 
                 // ALTERNATIVE IDEA TO THINK ABOUT:
                 // compute an xform matrix for each corner region, and the bounds of that region,
@@ -2969,131 +2867,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         }
                     }
                 }
-                // For each corner region, populate the extra fake cut in the j direction,
-                // copied from the next corner's k direction.  This will allow us to
-                // compute sticker centers more straightforwardly.
-                int jExtra = cutIntersectionCoords[0][0].length - 1;
-                for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
-                {
-                    for (int i = 0; i < cutIntersectionCoords[iCornerRegion].length; ++i) {
-                      for (int k = 0; k < cutIntersectionCoords[iCornerRegion][i][jExtra].length; ++k) {
-                          cutIntersectionCoords[iCornerRegion][i][jExtra][k] = cutIntersectionCoords[(iCornerRegion+1)%gonality][i][k][jExtra-1];
-                      }
-                    }
-                }
-
-
-                // Sticker center coords are indexed differently.
-                // CBB: this is all hard-coded for the first wave of shallow cuts, so can't do opposite layer of futtminx yet.  need smarter method
-
-                // XXX argh! this nStickerLayers assumption is completely bogus... it is *not* the same as the original intLengths when the object is symmetrical like the cube!
-                double indices2stickerCenterCoord[][][][][] = new double[gonality][3][][][];
-                int[][] cutIndices = new int[3][2];  // scratch for loop
-                for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion) {
-                    indices2stickerCenterCoord[iCornerRegion][0] = new double[nStickerLayers+1][nStickerLayers][3]; // has extra
-                    indices2stickerCenterCoord[iCornerRegion][1] = new double[nStickerLayers][nStickerLayers][3];  // no extra
-                    indices2stickerCenterCoord[iCornerRegion][2] = new double[nStickerLayers][nStickerLayers+1][3];  // has extra
-                    for (int i3 = 0; i3 < 3; ++i3)
-                    for (int j = 0; j < indices2stickerCenterCoord[iCornerRegion][i3].length; ++j)
-                    for (int k = 0; k < indices2stickerCenterCoord[iCornerRegion][i3][j].length; ++k)
-                    {
-                        // add up 8, just because it's easier.
-                        // there's really only 4 distinct.
-                        cutIndices[i3][0] = 0;
-                        cutIndices[i3][1] = 0;
-                        cutIndices[(i3+1)%3][0] = j;
-                        cutIndices[(i3+1)%3][1] = j+1;
-                        cutIndices[(i3+2)%3][0] = k;
-                        cutIndices[(i3+2)%3][1] = k+1;
-                        double[] stickerCenterCoord = indices2stickerCenterCoord[iCornerRegion][i3][j][k];  // still zeros, for starters
-                        for (int ii = 0; ii < 2; ++ii)
-                        for (int jj = 0; jj < 2; ++jj)
-                        for (int kk = 0; kk < 2; ++kk)
-                        {
-                            VecMath.vpv(stickerCenterCoord, stickerCenterCoord, cutIntersectionCoords[iCornerRegion][cutIndices[0][ii]][cutIndices[1][jj]][cutIndices[2][kk]]);
-                        }
-                        VecMath.vxs(stickerCenterCoord, stickerCenterCoord, 1./8.);
-                    }
-                }
-                //System.out.println("sticker center coords = "+VecMath.toString(indices2stickerCenterCoord));
-
-                // Make a table that is the inverse of indices2stickerCenterCoord array we just made.
-                // That is, a fuzzy hash table mapping sticker center coords to iCornerRegion,i3,j,k.
-                // Use that to make a lookup table from external sticker index to iCornerRegion,i3,j,k,
-                // and back.
-                // Then use that to make a lookup table from "from" external sticker index
-                // to "to" sticker index.
-                int[][] externalStickerIndex2indices = new int[stickerCentersD.length][];
-                int[][][][] indices2externalStickerIndex = (int[][][][])com.donhatchsw.util.Arrays.arrayLengths(indices2stickerCenterCoord, 4, 0);  // just to get a multidim ragged array of same dimensions as indices2stickerCenterCoord
-                {
-                    FuzzyPointHashTable stickerCenterCoord2indices = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
-                    for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
-                    for (int i3 = 0; i3 < 3; ++i3)
-                    for (int j = 0; j < indices2stickerCenterCoord[iCornerRegion][i3].length; ++j)
-                    for (int k = 0; k < indices2stickerCenterCoord[iCornerRegion][i3][j].length; ++k)
-                    {
-                        double[] coord3 = indices2stickerCenterCoord[iCornerRegion][i3][j][k];
-                        double[] coord4 = com.donhatchsw.util.Arrays.append(coord3, 0.);
-                        stickerCenterCoord2indices.put(coord4, new int[] {iCornerRegion, i3, j, k});
-                        if (verboseLevel >= 3) System.out.println("                  putting "+VecMath.toString(coord4)+" -> "+VecMath.toString((int[])stickerCenterCoord2indices.get(coord4)));
-                    }
-                    int numNulls = 0;  // and counting
-                    int numNonNulls = 0;  // and counting
-                    for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
-                    {
-                        // CBB: we are testing these too many times!
-                        if (pointIsInSliceMask(stickerCentersD[iSticker],
-                                               slicemask,
-                                               thisFaceInwardNormal,
-                                               thisFaceCutOffsets))
-                        {
-                            double[] coord = stickerCentersD[iSticker];
-                            int[] indices = (int[])stickerCenterCoord2indices.get(coord);
-                            if (verboseLevel >= 3) System.out.println("                  got "+VecMath.toString(coord)+" -> "+VecMath.toString(indices));
-                            // Note, may be null, in which case it must be the face center, which doesn't move.
-                            externalStickerIndex2indices[iSticker] = indices;
-                            if (indices != null)
-                            {
-                                indices2externalStickerIndex[indices[0]][indices[1]][indices[2]][indices[3]] = iSticker;
-                                numNonNulls++;
-                            }
-                            else
-                            {
-                                numNulls++;
-                            }
-                        }
-                    }
-                    if (verboseLevel >= 3) System.out.println("              externalStickerIndex2indices = "+com.donhatchsw.util.Arrays.toStringCompact(externalStickerIndex2indices));
-                    if (verboseLevel >= 3) System.out.println("              indices2externalStickerIndex = "+com.donhatchsw.util.Arrays.toStringCompact(indices2externalStickerIndex));
-                    if (verboseLevel >= 1 || numNulls > 1) System.out.println("numNulls = "+numNulls+"/"+(numNulls+numNonNulls));
-                    Assert(numNulls <= 1);  // it'll be 0 if slicmask doesn't include first slice
-                }
-                int[] from2to = VecMath.fillvec(stickerCentersD.length, -1);
-                int numNulls = 0;
-                for (int fromIndex = 0; fromIndex < from2to.length; ++fromIndex)  // CBB: if we make a list of sticker inds of interest, to avoid testing over and over, then should iterate over that instead of the entire list
-                {
-                    int[] fromIndices = externalStickerIndex2indices[fromIndex];
-                    int toIndex;
-                    if (fromIndices == null)
-                    {
-                        toIndex = fromIndex;
-                        numNulls++;
-                    }
-                    else
-                    {
-                        int fromCornerRegion = fromIndices[0];
-                        int i3 = fromIndices[1];
-                        int j = fromIndices[2];
-                        int k = fromIndices[3];
-                        int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
-                        toIndex = indices2externalStickerIndex[toCornerRegion][i3][j][k];
-                    }
-                    from2to[fromIndex] = toIndex;
-                }
-                if (verboseLevel >= 1) System.out.println("numNulls = "+numNulls+"/"+from2to.length+"");
-                //Assert(numNulls == 1);  // enable this if we change the code above to iterate over only the ones of interest
-
-                Assert(VecMath.equals(from2to, from2toStickerCenters));
 
                 // The usual params.
                 // bucket size is chosen by listening to the the implementation which throws if it's too small.
@@ -3153,6 +2926,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
 
+
+
+
                 // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
                 // The others don't necessarily make any sense anyway.
                 int nFacets = originalElements[nDims-1].length;
@@ -3175,7 +2951,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                            thisFaceInwardNormal,
                                            thisFaceCutOffsets))
                     {
-                        int jSticker = from2to[iSticker];
+                        int jSticker = from2toStickerCenters[iSticker];
                         if (verboseLevel >= 3) System.out.println("sticker "+iSticker+" -> "+jSticker);
                         {
                             float[] fromF = stickerCentersF[iSticker];
