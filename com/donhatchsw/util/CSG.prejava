@@ -193,6 +193,7 @@ public final class CSG
             public Hyperplane contributingHyperplanes[]; // the hyperplanes whose intersection is the space of this Polytope, in sorted order. // XXX sigh, should probably be a HashableSortedArray so we don't have to keep creating and destorying them every time we want to look it up... but that means this definition is getting more and more obscured
             private Object aux; // user data; creator can set this if desired. access is through getAux/setAux/pushAux/popAux; this member is actually the top of the aux stack.
             private PushedAuxNext pushedAuxNext;  // rest of aux stack (other than aux itself which is the top element)
+            private static boolean XXXuseNewPushPopAux = false;  // XXX true seems to be causing a bug: exception in mc4d "{4,3,3} 2":  Assertion failed at com/donhatchsw/util/CSG.prejava(349): this.pushedAuxNext != null
             private double _coords[];      // if vertex, null otherwise.  XXX should probably calculate only on demand, but then need a way to differentiate between dirty and nonexistent (for example, this is needed in getBBox below). XXX ctually not currently calculated at all.
             private double _bbox[/*2*/][]; // bounding box of all vertices, so it can be finite even if the polytope is infinite (co-finite).  calculated Lazily via getBBox().
             private Polytope[/*dim+1*/][] _allElements; // sorted lists of vertices, edges, ..., ridges, facets, calculated lazily via getAllElements()
@@ -313,36 +314,80 @@ public final class CSG
             {
                 public Object thisAux;
                 public PushedAuxNext next;
+                public Object XXXsavedAux;  // XXX GET RID OF THIS when debugged
                 public PushedAuxNext(Object thisAux, PushedAuxNext next)
                 {
                     this.thisAux = thisAux;
                     this.next = next;
+                    this.XXXsavedAux = null;
+                }
+                public PushedAuxNext(Object thisAux, Object savedAux)
+                {
+                    this.thisAux = thisAux;
+                    this.next = null;
+                    this.XXXsavedAux = savedAux;
                 }
             }
             /** Pushes the new aux value onto a stack of aux values; popAux can be used to pop it back off later. */
             public void pushAux(Object newAux)
             {
-                this.pushedAuxNext = new PushedAuxNext(this.aux, this.pushedAuxNext);
-                this.aux = newAux;
+                if (XXXuseNewPushPopAux)
+                {
+                    this.pushedAuxNext = new PushedAuxNext(this.aux, this.pushedAuxNext);
+                    this.aux = newAux;
+                }
+                else
+                {
+                    aux = new PushedAuxNext(newAux, aux);
+                }
             }
             /** Pops the top aux value off the stack and returns it. */
             public Object popAux()
             {
-                assert(this.pushedAuxNext != null); // CBB: could throw something useful
-                Object answer = this.aux;
-                this.aux = this.pushedAuxNext.thisAux;
-                this.pushedAuxNext = this.pushedAuxNext.next;
-                return answer;
+                if (XXXuseNewPushPopAux)
+                {
+                    assert(this.pushedAuxNext != null); // CBB: could throw something useful
+                    Object answer = this.aux;
+                    this.aux = this.pushedAuxNext.thisAux;
+                    this.pushedAuxNext = this.pushedAuxNext.next;
+                    return answer;
+                }
+                else
+                {
+                    assert(aux instanceof PushedAuxNext); // XXX throw something useful
+                    PushedAuxNext pushedAuxNext = (PushedAuxNext)aux;
+                    aux = pushedAuxNext.XXXsavedAux;
+                    return pushedAuxNext.thisAux;
+                }
             }
             /** Returns the value at the top of the aux stack. */
             public Object getAux()
             {
-                return this.aux;
+                if (XXXuseNewPushPopAux)
+                    return this.aux;
+                else
+                {
+		    // CBB: this instanceof is probably slow.  Would be more efficient to have aux and auxStack be two separate variables.
+		    if (aux instanceof PushedAuxNext)
+			return  ((PushedAuxNext)aux).thisAux;
+		    else
+			return aux;
+                }
             }
             /** Replaces the value at the top of the aux stack with the new value. */
             public void setAux(Object newAux)
             {
-                this.aux = newAux;
+                if (XXXuseNewPushPopAux)
+                {
+                    this.aux = newAux;
+                }
+                else
+                {
+		    if (aux instanceof PushedAuxNext)
+			((PushedAuxNext)aux).thisAux = newAux;
+		    else
+			aux = newAux;
+                }
             }
 
             /**
