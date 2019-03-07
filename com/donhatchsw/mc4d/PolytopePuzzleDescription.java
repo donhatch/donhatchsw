@@ -256,6 +256,7 @@
     TODO:
     =====
         FUTT:
+            - BUG: doesn't work on triprism or cube any more; assert-fails!  are there redundant cuts???  yeah, I think maybe there are!  argh!
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
@@ -265,8 +266,34 @@
               - support other than 3d
               - support other than trivalent
               - allow slicesmask to express more layers than just first wave
+              - do the right thing when waves interact
               - do the right thing for length=2 in various cases (cube, triprism, ...)
               - interact properly with heterogeneous intLengths
+            - Canonical examples:
+              - 3d:
+                - frucht: all faces futtable
+                  - "frucht 3(4)"
+                  - "frucht 9(20)"
+                  - frucht such that different waves interact
+                - frucht: the square is futtable
+                  - tet prism "3x{} 3(4)"
+                  - tet prism "3x{} 9(20)"
+                  - tet prism such that different waves interact
+                - trunc ico: the hexagon is futtable
+                  - trunc ico "3(1)5 3(4)"
+                  - trunc ico "3(1)5 9(20)"
+                  - tet prism such that different waves interact
+              - 4d:
+                - Fruity
+                - tet prism: the 3 cubes are futtable
+                  - tet prism prism "3x4 3(5)"
+                  - tet prism prism "3x4 9(20)"
+                  - tet prism prism such that different waves interact
+              TODO: example of 4d 4-valent where a triprism needs futt for every one of its nontrivial local symmetries.
+              TODO: example of 4d 4-valent where a triprism needs futt for some but not all of its nontrivial local symmetries.
+              TODO: example of 4d 4-valent where a triprism needs futt for a twist on its tri, but some of its twists on squares don't need futt
+              TODO: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
+              TODO: more subtle localities?
 
         SPECIFICATION:
             - be able to specify initial orientation
@@ -935,6 +962,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // Note the opposite facet may have a different
             // offset from the origin, and different slice thickness
             // (e.g. the truncated simplex in 3 or 4 dimensions).
+            // CBB: maybe should add these *after* we slice?  Originally I did all the actual slicing from one end, but that messes up the alt shrink to points and futt, so now we do half from one end and half from the other  (or should, anyway, I think?)
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
                 int iOppositeFacet = facet2OppositeFacet[iFacet];
@@ -2564,6 +2592,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                 int[] neighborsThisFaceInOrder)
         {
             int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
+            if (verboseLevel >= 1) System.out.println("        in getFrom2toStickersForFutt");
             int nDims = nDims();
             int iFacet = grip2face[gripIndex];
 
@@ -2602,10 +2631,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                        thisFaceInwardNormal,
                                        thisFaceCutOffsets))
                 {
-                    if (verboseLevel >= 2) System.out.println("      looking at sticker "+iSticker);
+                    if (verboseLevel >= 2) System.out.println("          looking at sticker "+iSticker);
                     CSG.Polytope sticker = stickers[iSticker];
                     int iFacetThatStickerIsPartOf = (Integer)sticker.getAux();
-                    if (verboseLevel >= 2) System.out.println("              facet that sticker is part of = "+iFacetThatStickerIsPartOf);
+                    if (verboseLevel >= 2) System.out.println("                  facet that sticker is part of = "+iFacetThatStickerIsPartOf);
 
                     CutInfo[] stickerCutInfos = new CutInfo[sticker.facets.length + 1];
                     int[] ridgesThisSticker = allSlicedIncidences[nDims-1][iSticker][nDims-2];
@@ -2634,17 +2663,38 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             CSG.Polytope otherSticker = stickers[iOtherSticker];
                             stickerCutInfos[iRidgeThisSticker] = new CutInfo((Integer)otherSticker.getAux(), -1);
                         }
-                        if (verboseLevel >= 3) System.out.println("                  one of this sticker's cut infos: "+stickerCutInfos[iRidgeThisSticker]);
+                        if (verboseLevel >= 3) System.out.println("                      one of this sticker's cut infos: "+stickerCutInfos[iRidgeThisSticker]);
                         Assert(stickerCutInfos[iRidgeThisSticker].iFacet != iFacetThatStickerIsPartOf);  // XXX why is this failing??
                     }
                     // add one for the facet of which the sticker is a part; that's important too.  call it -2,
                     // to distinguish it from any of the others.
                     stickerCutInfos[sticker.facets.length] = new CutInfo(iFacetThatStickerIsPartOf, -2);
 
+                    // Fix up: currently, when there is a pair of opposite facets,
+                    // all the cuts are labeled with the lower-numbered of them,
+                    // with up to twice as many cuts.
+                    // That would mess us up here, so fix it:
+                    // associate the cut with the face it's nearest to.
+                    // (This will still assert-fail if an even number of cuts, I'm sure... but currently we mark those unfuttable anyway)
+                    for (int i = 0; i < stickerCutInfos.length; ++i)
+                    {
+                        CutInfo stickerCutInfo = stickerCutInfos[i];
+                        if (stickerCutInfo.iCutThisFacet >= 0
+                         && this.facet2OppositeFacet[stickerCutInfo.iFacet] != -1
+                         && (facetCutOffsets[stickerCutInfo.iFacet].length-1-stickerCutInfo.iCutThisFacet < stickerCutInfo.iCutThisFacet
+                          || (facetCutOffsets[stickerCutInfo.iFacet].length-1-stickerCutInfo.iCutThisFacet == stickerCutInfo.iCutThisFacet && this.facet2OppositeFacet[stickerCutInfo.iFacet] < stickerCutInfo.iFacet)))  // this clause is relevant only if there's a cut exactly in the middle, which can happen only if even number of cuts, which we currently mark unfuttable, so it's a no-op currently
+                        {
+                            stickerCutInfo = new CutInfo(this.facet2OppositeFacet[stickerCutInfo.iFacet],
+                                                         facetCutOffsets[stickerCutInfo.iFacet].length-1-stickerCutInfo.iCutThisFacet);
+                            if (verboseLevel >= 3) System.out.println("                      CORRECTING "+stickerCutInfos[i]+" to "+stickerCutInfo+"");
+                            stickerCutInfos[i] = stickerCutInfo;
+                        }
+                    }
+
                     // Sort into canonical order
                     SortStuff.sort(stickerCutInfos, 0, stickerCutInfos.length, cutInfoCompare);
                     String stickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(stickerCutInfos);
-                    if (verboseLevel >= 2) System.out.println("              sticker cutInfosString = "+stickerCutInfosString);
+                    if (verboseLevel >= 2) System.out.println("                  sticker cutInfosString = "+stickerCutInfosString);
                     sticker2cutInfos[iSticker] = stickerCutInfos;
                     Assert(cutInfos2sticker.put(stickerCutInfosString, iSticker) == null);
                 }
@@ -2662,21 +2712,22 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 CutInfo[] fromStickerCutInfos = sticker2cutInfos[fromSticker];
                 if (fromStickerCutInfos != null)  // i.e. if we populated it, i.e. if sticker center is in slicemask
                 {
-                    // TODO: just get rid of these when more confident
-                    if (verboseLevel >= 10) System.out.println("      looking again at sticker "+fromSticker);
-                    if (verboseLevel >= 10) System.out.println("          recall iFacet="+iFacet+" and neighborsThisFaceInOrder = "+com.donhatchsw.util.Arrays.toStringCompact(neighborsThisFaceInOrder));
-                    if (verboseLevel >= 10) System.out.println("          fromStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(fromStickerCutInfos));
+                    if (verboseLevel >= 3) System.out.println("          looking again at sticker "+fromSticker);
+                    if (verboseLevel >= 3) System.out.println("              recall iFacet="+iFacet+" and neighborsThisFaceInOrder = "+com.donhatchsw.util.Arrays.toStringCompact(neighborsThisFaceInOrder));
+                    if (verboseLevel >= 3) System.out.println("              fromStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(fromStickerCutInfos));
                     CutInfo[] toStickerCutInfos = new CutInfo[fromStickerCutInfos.length];
                     for (int i = 0; i < fromStickerCutInfos.length; ++i)
                     {
                         toStickerCutInfos[i] = new CutInfo(from2toFacet[fromStickerCutInfos[i].iFacet],
                                                            fromStickerCutInfos[i].iCutThisFacet);
                     }
-                    if (verboseLevel >= 10) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
+                    if (verboseLevel >= 3) System.out.println("              toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos)+" (before sorting)");
+
                     // Sort into canonical order
                     SortStuff.sort(toStickerCutInfos, 0, toStickerCutInfos.length, cutInfoCompare);
-                    if (verboseLevel >= 10) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
+                    if (verboseLevel >= 3) System.out.println("              toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos)+" (after sorting)");
                     String toStickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos);
+                    if (verboseLevel >= 3) System.out.println("              toStickerCutInfosString = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfosString));
                     Object got = cutInfos2sticker.get(toStickerCutInfosString);
                     Assert(got != null);
                     int toSticker = (Integer)got;
@@ -2684,6 +2735,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     from2toStickerCenters[fromSticker] = toSticker;
                 }
             }
+            if (verboseLevel >= 1) System.out.println("        out getFrom2toStickersForFutt");
             return from2toStickerCenters;
         }  // getFrom2toStickersForFutt
 
