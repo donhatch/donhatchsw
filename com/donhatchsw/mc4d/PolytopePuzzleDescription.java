@@ -2013,6 +2013,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.iFacet = iFacet;
                 this.iCutThisFacet = iCutThisFacet;
             }
+            public String toString()
+            {
+                return "("+iFacet+":"+iCutThisFacet+")";
+            }
         }
 
         //
@@ -2683,8 +2687,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     if (verboseLevel >= 1) System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
                 }
 
-
-                if (true)  // WORK IN PROGRESS - new more general way
+                if (true)  // WORK IN PROGRESS - new more general way.   actually, will probably kill this, and do it right-- that is, from the original CutInfos.
                 {
                     FuzzyPointHashTable coord2cutSet = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);  // CBB: specify initial capacity (need to provide constructor)
                     java.util.HashMap cutSet2coord = new java.util.HashMap();  // CBB: specify initial capacity
@@ -2749,6 +2752,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     // For each corner region, populate the extra fake cut in the prevNeighbor direction,
                     // copied from the next corner's k direction.  This will allow us to
                     // compute sticker centers more straightforwardly.
+                    // XXX definitely won't need this by the time I get from2to simpler
                     for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
                     {
                         int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
@@ -2784,6 +2788,103 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
 
+                if (false)  // WORK IN PROGRESS - start to actually do it right.
+                {
+                    int nStickers = stickerCentersD.length;
+                    CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
+                    Assert(stickers.length == nStickers);
+
+                    int[] from2toStickerCenters = VecMath.identityperm(nStickers);  // except for...
+                    {
+                        CutInfo[][] sticker2cutInfos = new CutInfo[nStickers][];
+                        java.util.HashMap cutInfos2sticker = new java.util.HashMap();  // CBB: initial capacity should be number of stickers in slicemask
+                        SortStuff.Comparator cutInfoCompare = new SortStuff.Comparator() {
+                            public int compare(Object aObject, Object bObject)
+                            {
+                                CutInfo a = (CutInfo)aObject;
+                                CutInfo b = (CutInfo)bObject;
+                                if (a.iFacet < b.iFacet) return -1;
+                                if (a.iFacet > b.iFacet) return 1;
+                                if (a.iCutThisFacet < b.iCutThisFacet) return -1;
+                                if (a.iCutThisFacet > b.iCutThisFacet) return 1;
+                                return 0;
+                            }
+                        };
+                        for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                        {
+                            // CBB: we are testing these too many times!
+                            if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                                   slicemask,
+                                                   thisFaceInwardNormal,
+                                                   thisFaceCutOffsets))
+                            {
+                                if (verboseLevel >= 1) System.out.println("      looking at sticker "+iSticker);
+                                CSG.Polytope sticker = stickers[iSticker];
+                                int iFacetThatStickerIsPartOf = (Integer)sticker.getAux();
+                                if (verboseLevel >= 1) System.out.println("              facet that sticker is part of = "+iFacetThatStickerIsPartOf);
+
+                                CutInfo[] stickerCutInfos = new CutInfo[sticker.facets.length + 1];
+                                for (int iStickerFacet = 0; iStickerFacet < sticker.facets.length; ++iStickerFacet)  // iterating over nDims-2 dimensional elements here
+                                {
+                                    Object aux = sticker.facets[iStickerFacet].p.getAux();
+                                    if (aux instanceof CutInfo)
+                                    {
+                                        stickerCutInfos[iStickerFacet] = (CutInfo)aux;
+                                    }
+                                    else
+                                    {
+                                        // It's not from a cut, but from an original facet,
+                                        // and that facet should be different from the facet the sticker is a part of.
+                                        stickerCutInfos[iStickerFacet] = new CutInfo((Integer)aux, -1);
+                                    }
+                                    if (verboseLevel >= 1) System.out.println("                  one of this sticker's cut infos: "+stickerCutInfos[iStickerFacet]);
+                                    //Assert(stickerCutInfos[iStickerFacet].iFacet != iFacetThatStickerIsPartOf);  // XXX why is this failing??
+                                }
+                                // add one for the facet of which the sticker is a part; that's important too.  call it -2,
+                                // to make it distinct from the others.
+                                //stickerCutInfos[sticker.facets.length] = new CutInfo(iFacetThatStickerIsPartOf, -2);
+
+                                // Sort into canonical order
+                                SortStuff.sort(stickerCutInfos, 0, stickerCutInfos.length, cutInfoCompare);
+                                String stickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(stickerCutInfos);
+                                if (verboseLevel >= 1) System.out.println("              sticker cutInfosString = "+stickerCutInfosString);
+                                sticker2cutInfos[iSticker] = stickerCutInfos;
+                                Assert(cutInfos2sticker.put(stickerCutInfosString, iSticker) == null);
+                            }
+                        }
+                        int nFacets = originalElements[nDims-1].length;
+                        int[] from2toFacet = VecMath.identityperm(nFacets);  // except for...
+                        for (int i = 0; i < gonality; ++i) {
+                            int j = (i + (this.gripUsefulMats[gripIndex][1][3] < 0 ? -1 : 1)*dir + gonality) % gonality;
+                            from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
+                        }
+
+                        for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+                        {
+                            CutInfo[] fromStickerCutInfos = sticker2cutInfos[iSticker];
+                            if (fromStickerCutInfos != null)  // i.e. if we populated it, i.e. if sticker center is in slicemask
+                            {
+                                if (verboseLevel >= 1) System.out.println("      looking again at sticker "+iSticker);
+                                if (verboseLevel >= 1) System.out.println("          recall iFacet="+iFacet+" and neighborsThisFaceInOrder = "+com.donhatchsw.util.Arrays.toStringCompact(neighborsThisFaceInOrder));
+                                if (verboseLevel >= 1) System.out.println("          fromStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(fromStickerCutInfos));
+                                CutInfo[] toStickerCutInfos = new CutInfo[fromStickerCutInfos.length];
+                                for (int i = 0; i < fromStickerCutInfos.length; ++i)
+                                {
+                                    toStickerCutInfos[i] = new CutInfo(from2toFacet[fromStickerCutInfos[i].iFacet],
+                                                                       fromStickerCutInfos[i].iCutThisFacet);
+                                }
+                                if (verboseLevel >= 1) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
+                                // Sort into canonical order
+                                SortStuff.sort(toStickerCutInfos, 0, toStickerCutInfos.length, cutInfoCompare);
+                                if (verboseLevel >= 1) System.out.println("          toStickerCutInfos = "+com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos));
+                                String toStickerCutInfosString = com.donhatchsw.util.Arrays.toStringCompact(toStickerCutInfos);
+                                Object got = cutInfos2sticker.get(toStickerCutInfosString);
+                                Assert(got != null);
+                                int toSticker = (Integer)got;
+                            }
+                        }
+                    }
+                }
 
                 // ALTERNATIVE IDEA TO THINK ABOUT:
                 // compute an xform matrix for each corner region, and the bounds of that region,
@@ -2857,6 +2958,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                       }
                     }
                 }
+
 
                 // Sticker center coords are indexed differently.
                 // CBB: this is all hard-coded for the first wave of shallow cuts, so can't do opposite layer of futtminx yet.  need smarter method
