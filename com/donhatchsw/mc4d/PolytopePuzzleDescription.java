@@ -260,7 +260,6 @@
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
               - when I have verbose on, after doing a twist, it's doing the expensive FUTT code when just moving mouse pointer around  (hmm, can't reproduce any more?)
-              - edge twist state permutation is still flaky
               - edge twist animation is wacked out
             - make more general implementation:
               - support other than 3d
@@ -3052,15 +3051,17 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                // 1. partition relevant stickers according to signed distance from cut facet plane;
-                //    the permutation will respect those partitions.
-                // 2. within each such partition, partition into onion peels (successive convex hulls).
-                // 3. for each of those onion peels:
-                //      a. sort it into cyclic order
-                //      b. see which permutation of the dihedral group
-                //         is most closely approximated by the transform matrix.
-                int[] affectedStickerInds = new int[state.length];
-                int nAffectedStickerInds = 0;
+                int[] neighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
+                int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, neighborsThisFaceInOrder);
+                for (int iSticker = 0; iSticker < state.length; ++iSticker)
+                {
+                    newState[from2toStickers[iSticker]] = state[iSticker];
+                }
+                VecMath.copyvec(state, newState);  // XXX same as below-- this can't be right, but callers might depend on it
+                return newState;
+            }
+            else 
+            {
                 for (int iSticker = 0; iSticker < state.length; ++iSticker)
                 {
                     if (pointIsInSliceMask(stickerCentersD[iSticker],
@@ -3068,267 +3069,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                            thisFaceInwardNormal,
                                            thisFaceCutOffsets))
                     {
-                        affectedStickerInds[nAffectedStickerInds++] = iSticker;
+                        VecMath.vxm(scratchVert, stickerCentersD[iSticker], matD);
+                        Integer whereIstickerGoes = (Integer)stickerCentersHashTable.get(scratchVert);
+                        Assert(whereIstickerGoes != null);
+                        newState[whereIstickerGoes.intValue()] = state[iSticker];
                     }
+                    else
+                        newState[iSticker] = state[iSticker];
                 }
-
-                double[] offsets = new double[state.length];  // sparse
-                for (int iAffected = 0; iAffected < nAffectedStickerInds; ++iAffected)
-                {
-                    int iSticker = affectedStickerInds[iAffected];
-                    offsets[iSticker] = VecMath.dot(stickerCentersD[iSticker], thisFaceInwardNormal);
-                }
-
-                SortStuff.sort(affectedStickerInds, 0, nAffectedStickerInds, new SortStuff.IntComparator() {
-                    public int compare(int iSticker, int jSticker)
-                    {
-                        double iOff = offsets[iSticker];
-                        double jOff = offsets[jSticker];
-                        return iOff < jOff ? -1 :
-                               iOff > jOff ? 1 : 0;
-                    }
-                });
-
-                // CBB: computing the dot products, again?  should do that only once
-                int[][] partitions = new int[0][];
-                for (int iAffected = 0; iAffected < nAffectedStickerInds; ++iAffected)
-                {
-                    int iSticker = affectedStickerInds[iAffected];
-                    if (iAffected == 0 || Math.abs(offsets[affectedStickerInds[iAffected]]
-                                                 - offsets[affectedStickerInds[iAffected-1]]) > 1e-9) {
-
-                        partitions = (int[][])com.donhatchsw.util.Arrays.append(partitions, new int[0]);
-                    }
-                    partitions[partitions.length-1] = (int[])com.donhatchsw.util.Arrays.append(partitions[partitions.length-1], iSticker);
-                }
-
-                int n = originalPolytope.p.facets[grip2face[gripIndex]].p.facets.length; // gonality
-                double[][] scratchForSortingIntoCycle = new double[3][3];
-                VecMath.copyvec(scratchForSortingIntoCycle[0], thisFaceInwardNormal);
-                VecMath.extendAndGramSchmidt(1,3, scratchForSortingIntoCycle, scratchForSortingIntoCycle);
-
-                // Now, within each partition, make the onion, and sort each shell into a cycle.
-                // Can't use standard convex hull for this, since (1) it's not robust :-(
-                // (2) we want each shell to include all points on that shell surface, even
-                // when not an extreme point of the shell.
-                // How do we do it?
-                // Well, let's just assume 3d for now.
-                // If slicesmask is 1 (i.e. just the shallowest cut),
-                // then the partition sizes for an n-gonal face are:
-                //   2*n+1  (the partition consisting of stickers on this facet, or maybe opposite)
-                //   3*n (any other partition).
-                // In general, if k shallow cuts per face:
-                //   k*(k+1)*n + 1 (the partition consisting of stickers on this facet)
-                //   (2*k+1)*n (any other partition
-                {
-                  int[][] subpartitions = new int[0][];
-                  for (int iPartition = 0; iPartition < partitions.length; ++iPartition) {
-                    int[] partition = partitions[iPartition];
-                    double[] partitionCenter = new double[nDims()];  // zeros
-                    for (int i = 0; i < partition.length; ++i) {
-                      VecMath.vpv(partitionCenter, partitionCenter, stickerCentersD[partition[i]]);
-                    }
-                    VecMath.vxs(partitionCenter, partitionCenter, 1./partition.length);
-                    // Subpartition it into shells, maybe leaving one vertex
-                    // at the end.
-                    Assert(nDims() == 3);
-                    double[] ijCenterNormal = new double[3];
-                    double[] ijknormal = new double[3];  // scratch for loop
-                    int nVertsLeft = partition.length;
-                    while (nVertsLeft > 1) {
-                      // Find all vertices on the next shell.
-                      // Do this by iterating over each pair i,j;
-                      // if the line through i,j (non-strictly) bound the rest of the partition,
-                      // then i,j are both on the shell of the (remaining) partition.
-                      boolean[] isOnShell = new boolean[nVertsLeft];  // all false
-                      for (int i = 0; i < nVertsLeft; ++i) {
-                        for (int j = i+1; j < nVertsLeft; ++j) {
-                          // find normal of the triangle formed by i,j,center
-                          VecMath.crossprod(ijCenterNormal,
-                                            new double[][] {
-                                              VecMath.vmv(stickerCentersD[partition[i]], partitionCenter),
-                                              VecMath.vmv(stickerCentersD[partition[j]], partitionCenter),
-                                            });
-                          if (VecMath.normsqrd(ijCenterNormal) <= 1e-6*1e-6) {
-                            // i or j actually is the center.  Not sure which one,
-                            // but we can say for sure that i,j don't bound.
-                            continue;
-                          }
-                          boolean ijBounds = true;  // until proven otherwise
-                          for (int k = 0; k < nVertsLeft; ++k) {
-                            if (k == i || k == j) continue;
-                            VecMath.crossprod(ijknormal,
-                                              new double[][] {
-                                                VecMath.vmv(stickerCentersD[partition[i]], stickerCentersD[partition[k]]),
-                                                VecMath.vmv(stickerCentersD[partition[j]], stickerCentersD[partition[k]]),
-                                              });
-                            double dot = VecMath.dot(ijCenterNormal, ijknormal);
-                            if (dot < -1e-9) {
-                              ijBounds = false;
-                              break;
-                            }
-                          }
-                          if (ijBounds) {
-                            isOnShell[i] = true;
-                            isOnShell[j] = true;
-                          }
-                        }
-                      }
-                      int shellSize = 0;
-                      for (int i = 0; i < nVertsLeft; ++i) {
-                        if (isOnShell[i]) shellSize++;
-                      }
-                      Assert(shellSize % n == 0);  // CBB: fails if we don't make doubleLengths large enough.  should fail more gracefully here, probably just don't allow the futt twist if we run into trouble
-                      int[] subpartition = new int[shellSize];
-                      int iShell = 0;
-                      for (int i = 0; i < nVertsLeft; ++i) {
-                        if (isOnShell[i]) subpartition[iShell++] = partition[i];
-                      }
-                      Assert(iShell == shellSize);
-                      subpartitions = (int[][])com.donhatchsw.util.Arrays.append(subpartitions, subpartition);
-                      int iNonShell = 0;
-                      for (int i = 0; i < nVertsLeft; ++i) {
-                        if (!isOnShell[i]) partition[iNonShell++] = partition[i];
-                      }
-                      nVertsLeft = iNonShell;
-                    }
-                  }
-                  partitions = subpartitions;
-                }
-
-                // Each partition is now a single shell.
-                // Put it in cyclic order,
-                // with an extremal vertex last.
-                for (int iPartition = 0; iPartition < partitions.length; ++iPartition) {
-                  int[] partition = partitions[iPartition];
-                  double[] partitionCenter = new double[3];  // zeros
-                  for (int i = 0; i < partition.length; ++i) {
-                    VecMath.vpv(partitionCenter, partitionCenter, stickerCentersD[partition[i]]);
-                  }
-                  VecMath.vxs(partitionCenter, partitionCenter, 1./partition.length);
-                  SortStuff.sort(partition, 0, partition.length, new SortStuff.IntComparator() {
-                    public int compare(int iSticker, int jSticker) {
-                      double iAngle = Math.atan2(VecMath.dot(scratchForSortingIntoCycle[2], VecMath.vmv(stickerCentersD[iSticker], partitionCenter)),
-                                                 VecMath.dot(scratchForSortingIntoCycle[1], VecMath.vmv(stickerCentersD[iSticker], partitionCenter)));
-                      double jAngle = Math.atan2(VecMath.dot(scratchForSortingIntoCycle[2], VecMath.vmv(stickerCentersD[jSticker], partitionCenter)),
-                                                 VecMath.dot(scratchForSortingIntoCycle[1], VecMath.vmv(stickerCentersD[jSticker], partitionCenter)));
-                      return iAngle<jAngle ? -1 : iAngle>jAngle ? 1 : 0;
-                    }
-                  });
-
-
-
-
-                  if (false) {  // ARGH!  just plain wrong.  extremal doesn't even help at all, for stickers that aren't on the primary facet plane.
-
-                    double farthestDist2 = Double.NEGATIVE_INFINITY;
-                    int farthestI = -1;
-                    for (int i = 0; i < partition.length; ++i) {
-                      double thisDist2 = VecMath.distsqrd(partitionCenter, stickerCentersD[partition[i]]);
-                      if (thisDist2 > farthestDist2) {
-                        farthestI = i;
-                        farthestDist2 = thisDist2;
-                      }
-                    }
-                    // Woops!  We don't want to fix-in-place the sticker farthest away at all--
-                    // we actually want to do the opposite, sort of... that is,
-                    // fix an edge rather than a vertex.
-                    // So, now that we have in hand an extremal sticker on this partition,
-                    // just walk 1/(2*n) of the way around.
-                    // (argh, this works only for the shells of the primary facet; it doesn't
-                    // work at all for the others)
-
-                    Assert(partition.length % (2*n) == 0);
-                    farthestI = (farthestI + partition.length/(2*n)) % partition.length;
-
-                    // Cyclically permute farthestI to the end.
-                    // CBB: this is silly, should provide a shift-by mechanism for it
-                    VecMath.copyvec(partition, (int[])com.donhatchsw.util.Arrays.concat(com.donhatchsw.util.Arrays.subarray(partition, farthestI+1, partition.length-(farthestI+1)),
-                                                                         com.donhatchsw.util.Arrays.subarray(partition, 0, farthestI+1)));
-                  }
-                }
-
-                VecMath.copyvec(newState, state);  // everything in its original place, for starters
-
-                // For each shell, find the permutation in the dihedral group
-                // that is most closely approximated by the transform matrix.
-                // That's the permutation we apply to this partition.
-                for (int iPartition = 0; iPartition < partitions.length; ++iPartition) {
-                  int[] partition = partitions[iPartition];
-                  double[][] xformedPartition = new double[partition.length][nDims()];
-                  for (int i = 0; i < partition.length; ++i) {
-                    VecMath.vxm(xformedPartition[i], stickerCentersD[partition[i]], matD);
-                  }
-
-                  double[] badnesses = new double[2*n];  // size of dihedral group
-                  int perm[] = new int[partition.length];
-                  int bestPerm[] = new int[partition.length];
-                  double bestCost = Double.POSITIVE_INFINITY;
-                  int nBests = 0;
-
-                  //int nPerms = 2*n;  // we're not smart enough to do this yet-- we don't know how to restrict the flips to the correct offset
-                  //int nPerms = 2*partition.length;
-                  int nPerms = this.gripSymmetryOrdersFutted[gripIndex]==2 ? 2*partition.length : 2*n;
-
-                  for (int iPerm = 0; iPerm < nPerms; ++iPerm) {
-                    for (int i = 0; i < partition.length; ++i) {
-                      if (nPerms == 2*n) {
-                        perm[i] = (i + (iPerm%n) * (partition.length/n)) % partition.length;
-                      } else if (nPerms == 2*partition.length) {
-                        perm[i] = (i + (iPerm%partition.length)) % partition.length;
-                      } else {
-                        Assert(false);
-                      }
-                    }
-                    if (iPerm >= nPerms/2) com.donhatchsw.util.Arrays.reverse(perm, perm, perm.length-1); // so the last element stays fixed (not that it matters, currently)
-
-                    double thisCost = 0.;
-                    for (int i = 0; i < partition.length; ++i) {
-                      thisCost += VecMath.distsqrd(xformedPartition[perm[i]],
-                                                   stickerCentersD[partition[i]]);
-                    }
-                    // Note that even though the best at the end will be strictly best,
-                    // we can't assert that thisCost!=bestCost here,
-                    // because there might be a tie in best-so-far.
-                    // So, instead, keep track of how many times we've seen current best,
-                    // and assert at the end that the final winner is strictly the winner.
-                    if (thisCost == bestCost) {
-                      nBests++;
-                    }
-                    if (thisCost < bestCost) {
-                      nBests = 1;
-                      bestCost = thisCost;
-                      VecMath.copyvec(bestPerm, perm);
-                    }
-                  }
-                  Assert(nBests == 1);
-                  Assert(bestCost < Double.POSITIVE_INFINITY);
-                  for (int i = 0; i < partition.length; ++i) {
-                    // Just uncommented the one of the following that's right,
-                    // without thinking about it too hard
-                    //newState[partition[bestPerm[i]]] = state[partition[i]];
-                    newState[partition[i]] = state[partition[bestPerm[i]]];
-                  }
-                }
-
-                VecMath.copyvec(state, newState);  // XXX same as below-- this can't be right, but callers might depend on it
-                return newState;
-            }
-
-            for (int iSticker = 0; iSticker < state.length; ++iSticker)
-            {
-                if (pointIsInSliceMask(stickerCentersD[iSticker],
-                                       slicemask,
-                                       thisFaceInwardNormal,
-                                       thisFaceCutOffsets))
-                {
-                    VecMath.vxm(scratchVert, stickerCentersD[iSticker], matD);
-                    Integer whereIstickerGoes = (Integer)stickerCentersHashTable.get(scratchVert);
-                    Assert(whereIstickerGoes != null);
-                    newState[whereIstickerGoes.intValue()] = state[iSticker];
-                }
-                else
-                    newState[iSticker] = state[iSticker];
             }
             VecMath.copyvec(state, newState);
             // XXX we both modify state, and return a different array?  This can't be right, but callers might depend on it
