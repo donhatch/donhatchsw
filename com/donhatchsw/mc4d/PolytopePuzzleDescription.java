@@ -148,6 +148,17 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - "{4,3} 2,3,4" strangely asymmetric now?  and throws on click
+        - "{4,3,3} 2,3,3" and in fact "{4,3,3} 2" assert-fails now?  (oh, something about further cuts)
+	      Exception in thread "main" java.lang.Error: Assertion failed at com/donhatchsw/util/CSG.prejava(331): this.pushedAuxNext != null
+		      at com.donhatchsw.util.CSG$Polytope.popAux(com/donhatchsw/util/CSG.prejava:331)
+		      at com.donhatchsw.mc4d.PolytopePuzzleDescription.init(PolytopePuzzleDescription.java:1191)
+		      at com.donhatchsw.mc4d.PolytopePuzzleDescription.<init>(PolytopePuzzleDescription.java:642)
+		      at com.donhatchsw.mc4d.MC4DModel.<init>(MC4DModel.java:192)
+		      at com.donhatchsw.mc4d.MC4DApplet.init(MC4DApplet.java:1055)
+		      at com.donhatchsw.applet.AppletViewer.main(com/donhatchsw/applet/AppletViewer.prejava:242)
+		      at com.donhatchsw.mc4d.MC4DApplet.main(MC4DApplet.java:1316)
+
         - '{4,3} 3(4)' with nonzero stickers-shrink-to-face-boundaries is asymmetric (due to the one-of-opposite-pairs-doing-all-the-cuts-for-both-of-them thing, I think)
         - make && java -jar donhatchsw.jar puzzleDescription="Fruity 3(9)" shouldn't require such a shallow cut specification!  isn't it supposed to be using the edge that would give the shallowest cut?
         - `java -jar donhatchsw.jar puzzleDescription='{4,3} 2,3,4'`, twisting gives Assertion failure: "Assert(whereIstickerGoes != null);", 	at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:2402)
@@ -1131,7 +1142,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     // afterwards.
                     CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
                     for (int iSticker = 0; iSticker < stickers.length; ++iSticker)
+                    {
                         stickers[iSticker].pushAux(new Integer(iSticker));
+                    }
+                }
+
+                {  // DEBUGGING
+                    CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
+                    for (int iSticker = 0; iSticker < stickers.length; ++iSticker) {
+                      stickers[iSticker].pushAux(stickers[iSticker].popAux());
+                    }
                 }
 
                 if (progressWriter != null)
@@ -1188,7 +1208,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     float[][] oldStickerAltCentersF = this.stickerAltCentersF;
                     float[][] newStickerAltCentersF = new float[stickers.length][];
                     for (int iSticker = 0; iSticker < stickers.length; ++iSticker)
+                    {
                         newStickerAltCentersF[iSticker] = oldStickerAltCentersF[(Integer)stickers[iSticker].popAux()];
+                    }
                     this.stickerAltCentersF = newStickerAltCentersF;
                 }
             } // if doFurtherCuts
