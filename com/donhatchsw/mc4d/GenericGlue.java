@@ -283,6 +283,16 @@ public class GenericGlue
           {"        {10}x{} Decagonal prism",    "1,2,3,4,5"},
           {"        {11}x{} Hendecagonal prism", "1,2,3,4,5"},
           {"        {12}x{} Dodecagonal prism",  "1,2,3,4,5"},
+          {"    -"},
+          {"    3d nonuniform boxes"},  // note, the parser treats \(\d+\)(x\(\d+\))* as a special case, in which it doesn't split the lengths spec
+          {"        (1)x(1)x(2)", "1,1,2"},
+          {"        (2)x(2)x(1)", "2,2,1"},
+          {"        (3)x(2)x(1)", "3,2,1"},
+          {"        (3)x(3)x(1)", "3,3,1"},
+          {"        -"},
+          {"        (2)x(2)x(3)", "2,2,3"},
+          {"        (3)x(3)x(2)", "3,3,2"},
+          {"        (4)x(3)x(2)", "4,3,2"},
           {"    3d highly irregular"},
           {"        Frucht",    "1,3(4.0),5(7.0),7(10.0),9(13.0)"},
           {"        Not-Frucht (other minimal asymmetric trivalant)",    "1,3(4.0),5(7.0),7(10.0),9(13.0)"},
@@ -421,6 +431,16 @@ public class GenericGlue
           {"        {5}x{10}",                                  "1,3(2.5),3"},
           {"        {10}x{5}",                                  "1,3(2.5),3"},
           {"        {10}x{10}",                                 "1,3(2.5),3"},
+          {"    -"},
+          {"    4d nonuniform boxes"},  // note, the parser treats \(\d+\)(x\(\d+\))* as a special case, in which it doesn't split the lengths spec
+          {"        (1)x(1)x(1)x(2)", "1,1,1,2"},
+          {"        (2)x(2)x(2)x(1)", "2,2,2,1"},
+          {"        (3)x(3)x(3)x(1)", "2,2,2,1"},
+          {"        (4)x(3)x(2)x(1)", "4,3,2,1"},
+          {"        -"},
+          {"        (2)x(2)x(2)x(3)", "2,2,2,3"},
+          {"        (3)x(3)x(3)x(2)", "3,3,3,2"},
+          {"        (5)x(4)x(3)x(2)", "5,4,3,2"},
           {"    4d highly irregular"},
           {"        Fruity (work in progress)",    "1,3(9.0)"},
           {"5d puzzles"},
@@ -448,6 +468,8 @@ public class GenericGlue
             Assert(nLeadingSpaces % 4 == 0);
             int depth = nLeadingSpaces/4 + 1; // our whole scheme is at depth 1 already
             item0 = item0.substring(nLeadingSpaces);
+            int nLeadingSpacesInNext = i+1==menuScheme.length ? 0 : menuScheme[i+1][0].length()-menuScheme[i+1][0].trim().length();
+            boolean isSubmenu = nLeadingSpacesInNext > nLeadingSpaces || item1 != null;
 
             //System.out.println("item0 = "+item0);
             //System.out.println("    depth = "+depth);
@@ -460,7 +482,14 @@ public class GenericGlue
             Assert(depth == menuStack.size());
             if (item0.equals("-"))
             {
+                Assert(!isSubmenu);
                 ((Menu)menuStack.peek()).add(new MenuItem("-")); // separator
+            }
+            else if (!isSubmenu)
+            {
+                // Note, this isn't very useful yet.
+                // Need some more notation for it to take the role of a subcategory within a menu, or something.
+                ((Menu)menuStack.peek()).add(new MenuItem(item0));
             }
             else
             {
@@ -472,7 +501,8 @@ public class GenericGlue
                 {
                     final String finalName = item0; // including the schlafli symbol
                     final String finalSchlafli = (item0.equalsIgnoreCase("Grand Antiprism") ? item0 : regex.split(item0, " ")[0]);
-                    String lengthStrings[] = regex.split(item1, ",");
+                    // Special case: if finalSchlafli is a nonuniform (or not) box such as (4)x(3)x(2), then don't split up item1, just treat it as one length specification
+                    String lengthStrings[] = regex.matches(finalSchlafli, "\\(\\d+\\)(x\\(\\d+\\))*") ? new String[] {item1} : regex.split(item1, ",");
 
                     boolean sanityCheckMenuScheme = false; // XXX make option for this?  hardcoding for now
                     if (sanityCheckMenuScheme)
@@ -668,7 +698,7 @@ public class GenericGlue
                                         String schlafliAndLength[] = regex.split(reply.trim(), "\\s+");
                                         if (schlafliAndLength.length != 2)
                                         {
-                                            prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again! (during sanity check)";
+                                            prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length (or comma-separated list of lengths, with optional overrides, one for each dimension). Try again! (during sanity check)";
                                             initialInput = reply;
                                             continue;
                                         }
@@ -678,48 +708,11 @@ public class GenericGlue
                                         break; // got it
                                     }
                                 }
-                                int intLength = 0;
-                                double doubleLength = 0.;
-                                {
-                                    lengthString = lengthString.trim();
-
-                                    try {
-                                        //System.out.println("lengthString = "+lengthString);
-
-                                        com.donhatchsw.compat.regex.Matcher matcher =
-                                        com.donhatchsw.compat.regex.Pattern.compile(
-                                            "(\\d+)\\((.*)\\)"
-                                        ).matcher(lengthString);
-                                        if (matcher.matches())
-                                        {
-                                            String intPart = matcher.group(1);
-                                            String doublePart = matcher.group(2);
-                                            //System.out.println("intPart = "+intPart);
-                                            //System.out.println("doublePart = "+doublePart);
-
-                                            intLength = Integer.parseInt(intPart);
-                                            doubleLength = Double.parseDouble(doublePart);
-                                        }
-                                        else
-                                        {
-                                            doubleLength = Double.parseDouble(lengthString);
-                                            intLength = (int)Math.ceil(doubleLength);
-                                        }
-                                    }
-                                    catch (java.lang.NumberFormatException e)
-                                    {
-                                        System.err.println("Your invention sucks! \""+lengthString+"\" is not a number! (or comma-separated list of numbers, with optional overrides, one for each dimension)");
-                                        initPuzzleCallback.call(); // XXX really just want a repaint I think
-                                        return;
-                                    }
-                                    //System.out.println("intLength = "+intLength);
-                                    //System.out.println("doubleLength = "+doubleLength);
-                                }
-
                                 GenericPuzzleDescription newPuzzle = null;
                                 try
                                 {
-                                    newPuzzle = new PolytopePuzzleDescription(schlafli+" "+intLength+"("+doubleLength+")", progressWriter);
+                                    //newPuzzle = new PolytopePuzzleDescription(schlafli+" "+intLength+"("+doubleLength+")", progressWriter);
+                                    newPuzzle = new PolytopePuzzleDescription(schlafli+" "+lengthString, progressWriter);
                                 }
                                 catch (Throwable t)
                                 {
@@ -856,7 +849,7 @@ public class GenericGlue
                                     String schlafliAndLength[] = regex.split(reply.trim(), "\\s+");
                                     if (schlafliAndLength.length != 2)
                                     {
-                                        prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length. Try again!";
+                                        prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length (or comma-separated list of lengths, with optional overrides, one for each dimension). Try again!";
                                         initialInput = reply;
                                         continue;
                                     }

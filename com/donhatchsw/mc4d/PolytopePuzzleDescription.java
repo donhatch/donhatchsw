@@ -148,8 +148,8 @@
 
     BUGS / URGENT TODOS:
     ===================
-        - "{4,3} 2,3,4" strangely asymmetric now?  and throws on click
-        - "{4,3,3} 2,3,3" and in fact "{4,3,3} 2" assert-fails now?  (oh, something about further cuts)
+        - can't fling on laptop (neither macboox nor glinux box)
+        - "{4,3,3} 2,3,3" and in fact "{4,3,3} 2" assert-fails now?  (oh, something about further cuts together with new push/pop logic).  currently XXXuseNewPushPopAux is set to false in CSG.prejava because it's not ready yet
 	      Exception in thread "main" java.lang.Error: Assertion failed at com/donhatchsw/util/CSG.prejava(331): this.pushedAuxNext != null
 		      at com.donhatchsw.util.CSG$Polytope.popAux(com/donhatchsw/util/CSG.prejava:331)
 		      at com.donhatchsw.mc4d.PolytopePuzzleDescription.init(PolytopePuzzleDescription.java:1191)
@@ -158,14 +158,12 @@
 		      at com.donhatchsw.mc4d.MC4DApplet.init(MC4DApplet.java:1055)
 		      at com.donhatchsw.applet.AppletViewer.main(com/donhatchsw/applet/AppletViewer.prejava:242)
 		      at com.donhatchsw.mc4d.MC4DApplet.main(MC4DApplet.java:1316)
-
         - '{4,3} 3(4)' with nonzero stickers-shrink-to-face-boundaries is asymmetric (due to the one-of-opposite-pairs-doing-all-the-cuts-for-both-of-them thing, I think)
         - make && java -jar donhatchsw.jar puzzleDescription="Fruity 3(9)" shouldn't require such a shallow cut specification!  isn't it supposed to be using the edge that would give the shallowest cut?
         - `java -jar donhatchsw.jar puzzleDescription='{4,3} 2,3,4'`, twisting gives Assertion failure: "Assert(whereIstickerGoes != null);", 	at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:2402)
         - >=5 dimensional puzzles on command line non-gracefully excepts
         - ctrl-alt-space for debugging... doesn't stop things any more?? (does for rotates, not for twists)
         - with multiple windows, animation doesn't go by itself any more
-        - {4,4,4} 2 (and probably other 2's) won't rotate edge to center
         - doFurtherCuts issues:
           - in '4,3,3 2', rotate-element-to-center not working right when element is an edge-- it rotates a vert to center instead. (both with old and new poly-to-grip code). ah, I think it's getting confused and assuming stickers, grips, and elements-rotatable-to-center are all the same.
           - the following seem to have pieces with ambiguous inside-outness (maybe just same as the flicker issue already mentioned)
@@ -305,6 +303,9 @@
               TODO: example of 4d 4-valent where a triprism needs futt for a twist on its tri, but some of its twists on squares don't need futt
               TODO: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
               TODO: more subtle localities?
+
+        NONUNIFORM BOXES:
+            - "{4,3} 2,3,4" strangely asymmetric now?  and throws on click.  (oh, that was never the way to do a nonuniform box.  it was "(2)x(3)x(4) 2,3,4"
 
         SPECIFICATION:
             - be able to specify initial orientation
