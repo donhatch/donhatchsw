@@ -659,20 +659,37 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private boolean decideWhetherFuttable(int[] intLengths)
     {
+        int verboseLevel = 1;
         int nDims = this.originalPolytope.p.dim;
-        if (nDims != 3) return false;
+        if (nDims != 3)
+        {
+            if (verboseLevel >= 1) System.out.println("deciding not futtable because nDims="+nDims+" is not 3");
+            return false;
+        }
 
         // If intLengths are not all the same, we can't handle it.
         int intLength = intLengths[0];
         for (int i = 0; i < intLengths.length; ++i) {
-            if (intLengths[i] != intLength) return false;
+            if (intLengths[i] != intLength)
+            {
+                if (verboseLevel >= 1) System.out.println("deciding not futtable because intLengths are not all the same");
+                return false;
+            }
         }
 
         // If intLength<3, we can't handle it.
-        if (intLength < 3) return false;
+        if (intLength < 3)
+        {
+            if (verboseLevel >= 1) System.out.println("deciding not futtable because intLength="+intLength+" < 3");
+            return false;
+        }
 
         // If intLength isn't odd, we can't handle it.
-        if (intLength % 2 == 0) return false;
+        if (intLength % 2 == 0)
+        {
+            if (verboseLevel >= 1) System.out.println("deciding not futtable because intLength="+intLength+" isn't odd");
+            return false;
+        }
 
         int nCutsPerFace = (intLength-1)/2;
 
@@ -683,7 +700,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // we can't handle it.
         int nVerts = originalElements[0].length;
         for (int iVert = 0; iVert < nVerts; ++iVert) {
-            if (originalIncidences[0][iVert][1].length != nDims) return false;
+            if (originalIncidences[0][iVert][1].length != nDims)
+            {
+                if (verboseLevel >= 1) System.out.println("deciding not futtable because at least one vertex figure is not a simplex");
+                return false;
+            }
         }
 
         int nFacets = originalElements[2].length;
@@ -708,7 +729,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             System.out.println("expectedNumStickers = "+expectedNumStickers);
             System.out.println("actual num stickers = "+stickerElementCounts[nDims-1]);
-            if (nStickers != expectedNumStickers) return false;
+            if (nStickers != expectedNumStickers)
+            {
+                if (verboseLevel >= 1) System.out.println("deciding not futtable because num stickers is not as expected");
+                return false;
+            }
         }
         {
             int expectedNumStickerVerts = 0;  // and counting
@@ -717,9 +742,17 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             expectedNumStickerVerts += nEdges * 2 * nCutsPerFace*nCutsPerFace;
             System.out.println("expectedNumStickerVerts = "+expectedNumStickerVerts);
             System.out.println("actual num stickerVerts = "+nStickerVerts);
-            if (nStickerVerts != expectedNumStickerVerts) return false;
+            if (nStickerVerts != expectedNumStickerVerts)
+            {
+                if (verboseLevel >= 1) System.out.println("deciding not futtable because num sticker verts is not as expected");
+                return false;
+            }
         }
 
+        // CBB: this actually kinda sucks because it prevents legitimate futting on things
+        // whose topology is regular but whose geometry isn't; for example, "{3}v()"  (if that comes out stretched,
+        // which it does at the time of this writing.
+        // TODO: I think, when I get edge futting working, just remove this check so that topological regulars will be futtable too
         if (true)  // can set this to false if I want to debug futt behavior on, say, a cube.
         {
             // If original polytope is regular, then don't *need* to futt.
@@ -741,7 +774,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 if (!isRegular) break;
             }
             System.out.println("isRegular = "+isRegular);
-            if (isRegular) return false;  // don't need to futt, so declare it non-futtable
+            if (isRegular)
+            {
+                if (verboseLevel >= 1) System.out.println("deciding not futtable because topoligy is regular");
+                return false;  // don't need to futt, so declare it non-futtable
+            }
         }
 
         // XXX TODO: still no good!  we need to declare "frucht 3(2.5)" non-futtable, but haven't figured out how to detect that yet, since incident counts are masquerading as the futtable case!  Well at least it rejects "fruct 3".
