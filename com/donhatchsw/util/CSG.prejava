@@ -5554,6 +5554,7 @@ public final class CSG
             return result;
         } // cgOfVerts
 
+        /** See discussion of joins in https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol#Prismatic_polytopes .  */
         public static SPolytope join(SPolytope A,
                                      SPolytope B)
         {
@@ -5561,145 +5562,235 @@ public final class CSG
               System.out.println("\n\nXXX WARNING: join stub implemented as cross! XXX\n");
               return cross(A, B);
             }
-            Polytope p = _join(A.p, B.p);
+
+            // Choose y (middle axis) positions for A and B
+            // according to their numbers of vertices,
+            // so the join will have its cg-of-verts at y=0.
+            // TODO: think about whether to make special cases so that the triangle {}x()
+            // and the pyramids 3x(), 4x(), 5x() come out with regular triangles...
+            // and also so that, in general, simplices will come out regular.
+            int nA = A.p.getAllElements()[0].length;
+            int nB = B.p.getAllElements()[0].length;
+            assert_gt(nA, 0);
+            assert_gt(nB, 0);
+            double y0 = -2.*nB/(nA+nB);
+            double y1 = 2.*nA/(nA+nB);
+
+            Polytope p = _join(A.p, A.p.fullDim, y0,
+                               B.p, B.p.fullDim, y1,
+                               /*ocean=*/new java.util.Hashtable(),
+                               /*indentString=*/"        ");
+            // The vertices of p should now be:
+            //     - the vertices of A at y=y0
+            //     - the vertices of B at y=y1
+            // CBB: could check that
+            // As a simple sanity check, we just check that the bounding box is right.
+            {
+                double[][] bboxA = A.p.getBBox();
+                double[][] bboxB = B.p.getBBox();
+                double[][] bbox = p.getBBox();
+                int yIndex = A.p.fullDim;
+                for (int i = 0; i < A.p.fullDim; ++i)
+                {
+                    assert_almost_eq(bbox[0][i], bboxA[0][i], 1e-6);
+                    assert_almost_eq(bbox[1][i], bboxA[1][i], 1e-6);
+                }
+                assert_eq(bbox[0][yIndex], MIN(y0, y1));
+                assert_eq(bbox[1][yIndex], MAX(y0, y1));
+                for (int i = 0; i < B.p.fullDim; ++i)
+                {
+                    assert_almost_eq(bbox[0][yIndex+1+i], bboxB[0][i], 1e-6);
+                    assert_almost_eq(bbox[1][yIndex+1+i], bboxB[1][i], 1e-6);
+                }
+            }
+
             SPolytope sp = new SPolytope(A.initialDensity*B.initialDensity,  // probably meaningless
                                          A.sign*B.sign,  // probably meaningless
                                          p);
             orientDeepFunctional(sp);
             orientDeepCosmetic(sp);
-            System.out.println("join returning sp = "+sp);
+            //System.out.println("join returning sp =\n"+sp);
             return sp;
         }  // join
 
         // recursive work function used by join().
         // doesn't even try to get the signs right.
-        // XXX this is totally nuts!  can we just enumerate the verts, and take the convex hull??
-        private static Polytope _join(Polytope A, Polytope B)
+        // Simple recursive definition:
+        //   AvB.facets = [avB for a in A.facets] union [Avb for b in B.facets]
+        // where a point is taken to have one null facet, null has no facets,
+        // and the following base cases:
+        //   (point A in AfullDim) v (null polytope in BfullDim)  is A's coords padded on the right with <y0,0,...,0> (BfullDim 0's)
+        //   (null polytope in AfullDim) v (point B in BfullDim)  is B's coords padded on the left with <0,...,0,y1> (AfullDim 0's)
+        // Hyperplanes are padded out intelligently, whatever that means.
+        // TODO: reexamine this description as soon as I fumble through to success
+        private static Polytope _join(Polytope A, int AfullDim, double y0,
+                                      Polytope B, int BfullDim, double y1,
+                                      java.util.Hashtable ocean, // hashtable of crossings already done
+                                      String indentString) // for debugging
         {
-            System.out.println("        in _join");
-
-            Polytope[][] Aelements = A.getAllElements();
-            Polytope[][] Belements = B.getAllElements();
-            int[][][][] Aincidences = A.getAllIncidences();
-            int[][][][] Bincidences = B.getAllIncidences();
-
-            int dim = A.dim + B.dim + 1;
-            int fullDim = A.fullDim + B.fullDim + 1;
-            int[] elementCounts = new int[dim + 1];
-            for (int adim = 0; adim < Aelements.length; ++adim)
-                elementCounts[adim] += Aelements[adim].length;
-            for (int bdim = 0; bdim < Belements.length; ++bdim)
-                elementCounts[bdim] += Belements[bdim].length;
-            for (int adim = 0; adim < Aelements.length; ++adim)
-            for (int bdim = 0; bdim < Belements.length; ++bdim)
-                elementCounts[adim+bdim+1] += Aelements[adim].length * Belements[bdim].length;
-            PRINTARRAY(counts(A));
-            PRINTARRAY(counts(B));
-            PRINTARRAY(elementCounts);
-
-            // Make the elements, bottom up, omitting the hyperplanes
-            Polytope p;
+            int verboseLevel = 0;
+            String subIndentString = null;
+            if (verboseLevel >= 1)
             {
-                Polytope[][] AcloneElements = new Polytope[Aelements.length][];
-                for (int iDim = 0; iDim < Aelements.length; ++iDim)
-                    AcloneElements[iDim] = new Polytope[Aelements[iDim].length];
-                Polytope[][] BcloneElements = new Polytope[Belements.length][];
-                for (int iDim = 0; iDim < Belements.length; ++iDim)
-                    BcloneElements[iDim] = new Polytope[Belements[iDim].length];
-                Polytope[][] ABcloneElements = new Polytope[dim+1][];
-                for (int iDim = 0; iDim < ABcloneElements.length; ++iDim)
-                {
-                    ABcloneElements[iDim] = new Polytope[elementCounts[iDim]
-                                                       - (iDim < AcloneElements.length ? AcloneElements[iDim].length : 0)
-                                                       - (iDim < BcloneElements.length ? BcloneElements[iDim].length : 0)];
-                }
-                for (int iDim = 0; iDim < dim+1; ++iDim) {
-                    assert((iDim<AcloneElements.length ? AcloneElements[iDim].length : 0)
-                         + (iDim<BcloneElements.length ? BcloneElements[iDim].length : 0)
-                         + ABcloneElements[iDim].length
-                        == elementCounts[iDim]);
-                }
+                System.out.println(indentString+"in CSG._join("+(A==null?-1:A.dim)+"/"+AfullDim+" x "+(B==null?-1:B.dim)+"/"+BfullDim+")");
+                subIndentString = indentString + "        ";
+            }
+            if (verboseLevel >= 1) if (A==null||A.dim==0) System.out.println(indentString+"  A="+A);
+            if (verboseLevel >= 1) if (B==null||B.dim==0) System.out.println(indentString+"  B="+B);
 
-                // XXX I think actually maybe these two loops can be subsumed by the big loop?  maybe crossing by null?   think about it
-                for (int iDim = 0; iDim < Aelements.length; ++iDim)
-                for (int iElt = 0; iElt < Aelements[iDim].length; ++iElt)
+            assert(A!=null || B!=null);
+            HashablePair key = new HashablePair(A, B);
+            Polytope AvB = (Polytope)ocean.get(key);
+            if (AvB == null)
+            {
+                int fullDim = AfullDim + BfullDim + 1;
+                int dim = (A==null?-1:A.dim) + (B==null?-1:B.dim)+1;
+                int nFacetsA = A==null ? 0 : A.dim==0 ? 1 : A.facets.length;
+                int nFacetsB = B==null ? 0 : B.dim==0 ? 1 : B.facets.length;
+                int nFacets = nFacetsA + nFacetsB;
+                if (dim == 0)
                 {
-                    Polytope Aelt = Aelements[iDim][iElt];
-                    int nFacetsThisElt = Aelt.facets.length;
-                    assert(nFacetsThisElt == (iDim==0 ? 0 : Aincidences[iDim][iElt][iDim-1].length));
-                    SPolytope[] cloneFacets = new SPolytope[nFacetsThisElt];
-                    for (int iFacetThisElt = 0; iFacetThisElt < nFacetsThisElt; ++iFacetThisElt)
-                    {
-                        cloneFacets[iFacetThisElt] = new SPolytope(0,1, AcloneElements[iDim][Aincidences[iDim][iElt][iDim-1][iFacetThisElt]]);
-                    }
-                    Polytope AeltClone = new Polytope(iDim,
-                                                      fullDim,
-                                                      cloneFacets,
-                                                      /*contributingHyperplanes=*/null,
-                                                      null);  // loses aux
-                    AcloneElements[iDim][iElt] = AeltClone;
+                    // a vertex logically has one facet-- the null polytope, of dimension -1,
+                    // but our convention is to give it no facets.
+                    assert_eq(nFacets, 1);
+                    nFacets = 0;
                 }
-                for (int iDim = 0; iDim < Belements.length; ++iDim)
-                for (int iElt = 0; iElt < Belements[iDim].length; ++iElt)
+                SPolytope[] facets = new SPolytope[nFacets];
+                if (nFacets > 0)  // need this because of the special case for dim==0
                 {
-                    Polytope Belt = Belements[iDim][iElt];
-                    int nFacetsThisElt = Belt.facets.length;
-                    assert(nFacetsThisElt == (iDim==0 ? 0 : Bincidences[iDim][iElt][iDim-1].length));
-                    SPolytope[] cloneFacets = new SPolytope[nFacetsThisElt];
-                    for (int iFacetThisElt = 0; iFacetThisElt < nFacetsThisElt; ++iFacetThisElt)
+                    if (verboseLevel >= 1) System.out.println(indentString+"  computing facets avB for each facet a of A...");
+                    for (int iFacetA = 0; iFacetA < nFacetsA; ++iFacetA)
                     {
-                        cloneFacets[iFacetThisElt] = new SPolytope(0,1, BcloneElements[iDim][Bincidences[iDim][iElt][iDim-1][iFacetThisElt]]);
+                        Polytope a = A.dim==0 ? null : A.facets[iFacetA].p;
+                        // append avB to facets
+                        facets[iFacetA] = new SPolytope(0,1, _join(a, AfullDim, y0, B, BfullDim, y1, ocean, subIndentString));
                     }
-                    Polytope BeltClone = new Polytope(iDim,
-                                                      fullDim,
-                                                      cloneFacets,
-                                                      /*contributingHyperplanes=*/null,
-                                                      null);  // loses aux
-                    BcloneElements[iDim][iElt] = BeltClone;
+                    if (verboseLevel >= 1) System.out.println(indentString+"  computing facets Avb for each facet b of B...");
+                    for (int iFacetB = 0; iFacetB < nFacetsB; ++iFacetB)
+                    {
+                        Polytope b = B.dim==0 ? null : B.facets[iFacetB].p;
+                        // append Avb to facets
+                        facets[nFacetsA+iFacetB] = new SPolytope(0,1, _join(A, AfullDim, y0, b, BfullDim, y1, ocean, subIndentString));
+                    }
                 }
+                Hyperplane[] contributingHyperplanes = new Hyperplane[fullDim - dim];
+                {
+                    if (verboseLevel >= 1) System.out.println(indentString+"  computing hyperplanes...");
+                    assert_ne(y0, y1);
 
-                for (int iDim = 0; iDim < ABcloneElements.length; ++iDim) {
-                    int iThisDim = 0;
-                    int adimMin = 0;  // XXX FIX
-                    int adimMax = ABcloneElements.length;  // XXX FIX
-                    int bdimMin = 0;  // XXX FIX
-                    int bdimMax = ABcloneElements.length;  // XXX FIX
-                    for (int adim = adimMin; adim <= adimMax; ++adim) {
-                        if (adim >= AcloneElements.length) continue;
-                        int bdim = iDim - adim;
-                        if (bdim < 0 || bdim >= BcloneElements.length) continue;
-                        assert(bdim >= bdimMin);
-                        assert(bdim <= bdimMax);
-                        for (int aelt = 0; aelt < Aelements[adim].length; ++aelt)
-                        for (int belt = 0; belt < Belements[bdim].length; ++belt)
+                    // For each of A's hyperplanes, lean it against the entire BfullDim space at y=y1.
+                    // For each of B's hyperplanes, lean it against the entire AfullDim space at y=y0.
+
+                    int iPlane = 0;
+                    if (A == null)
+                    {
+                        if (verboseLevel >= 1) System.out.println(indentString+"      the A==null case: adding AfullDim+1="+(AfullDim+1)+" hyperplanes");
+                        // Add hyperplanes to express the entire BfullDim space at y=y1.
+                        // That is, hyperplanes that say that each of the first AfullDim coords are 0, and y=y1.
+                        int yIndex = AfullDim;
+                        for (int i = 0; i < yIndex+1; ++i)
                         {
-                            Polytope AeltClone = AcloneElements[adim][aelt];
-                            Polytope BeltClone = BcloneElements[bdim][belt];
-                            SPolytope[] cloneFacets = new SPolytope[0];  // XXX IMPLEMENT ME
-                            Polytope ABeltClone = new Polytope(adim+bdim+1,
-                                                               fullDim,
-                                                               cloneFacets,
-                                                               /*contributingHyperplanes=*/null,
-                                                               null);  // loses aux
-                            ABcloneElements[iDim][iThisDim++] = ABeltClone;
+                            double[] normal = new double[fullDim];
+                            normal[i] = 1.;
+                            double offset = (i==yIndex ? y1 : 0.);
+                            // CBB: for some reason PolytopePuzzleDescription likes all offsets to be positive, bleah
+                            if (offset < 0.)
+                            {
+                                normal[i] *= -1.;
+                                offset *= -1.;
+                            }
+                            contributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
                         }
                     }
-                    assert(iThisDim == ABcloneElements[iDim].length);
+                    else
+                    {
+                        if (verboseLevel >= 1) System.out.println(indentString+"      the A!=null case: adding A.contributingHyperplanes.length="+A.contributingHyperplanes.length+" hyperplanes");
+                        FORI (iPlaneA, A.contributingHyperplanes.length)
+                        {
+                            Hyperplane a = A.contributingHyperplanes[iPlaneA];
+                            // Lean a at y=y0 against the entire BfullDimSpace at y=y1.
+                            // hyperplane.normal will be (a.normal, Y, 0,...,0) for some scalar Y,
+                            // and the hyperplane.offset will be some scalar C such that:
+                            //     (a.normal, Y, 0,...,0) dot (A, y0, 0,...,0) == C
+                            //     (a.normal, Y, 0,...,0) dot (0, y1, 0,...,0) == C
+                            // so we want to solve:
+                            //     (a.normal dot A) + Y*y0 == C
+                            //                        Y*y1 == C
+                            // We know a.normal dot A == a.offset, call that c. So we want:
+                            //     c + Y*y0 == C
+                            //         Y*y1 == C
+                            // so:
+                            //     Y = c/(y1-y0)
+                            //     C = Y*y1;
+                            double c = a.offset;
+                            double Y = c/(y1-y0);
+                            double C = Y*y1;
+                            if (verboseLevel >= 1) PRINT(Y);
+                            if (verboseLevel >= 1) PRINT(C);
+                            double[] normal = new double[fullDim];  // zeros initially
+                            System.arraycopy(a.normal, 0, normal, 0, AfullDim);
+                            normal[AfullDim] = Y;
+                            double offset = C;
+                            // XXX need to look up a_padded in the ocean to see if it already exists! although it's probably not a functional problem if hyperplane lists get duplicated... maybe
+                            contributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
+                        }
+                    }
+                    if (B == null)
+                    {
+                        if (verboseLevel >= 1) System.out.println(indentString+"      the B==null case: adding BfullDim+1="+(BfullDim+1)+" hyperplanes");
+                        // Add hyperplanes to express the entire AfullDim space at y=y0.
+                        // That is, hyperplanes that say that y=y0 and each of the last BfullDim coords are 0.
+                        int yIndex = AfullDim;
+                        for (int i = yIndex; i < fullDim; ++i)
+                        {
+                            double[] normal = new double[fullDim];
+                            normal[i] = 1.;
+                            double offset = (i==yIndex ? y0 : 0.);
+                            // CBB: for some reason PolytopePuzzleDescription likes all offsets to be positive, bleah
+                            if (offset < 0.)
+                            {
+                                normal[i] *= -1.;
+                                offset *= -1.;
+                            }
+                            contributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
+                        }
+                    }
+                    else
+                    {
+                        if (verboseLevel >= 1) System.out.println(indentString+"      the B!=null case: adding B.contributingHyperplanes.length="+B.contributingHyperplanes.length+" hyperplanes");
+                        FORI (iPlaneB, B.contributingHyperplanes.length)
+                        {
+                            // Same logic as above for A's contributing hyperplanes, just reverse everything
+                            Hyperplane b = B.contributingHyperplanes[iPlaneB];
+                            double c = b.offset;
+                            double Y = c/(y0-y1);
+                            double C = Y*y0;
+                            PRINT(Y);
+                            PRINT(C);
+                            double[] normal = new double[fullDim];  // zeros initially
+                            normal[AfullDim] = Y;
+                            double offset = C;
+                            System.arraycopy(b.normal, 0, normal, AfullDim+1, BfullDim);
+                            // XXX need to look up padded_b in the ocean to see if it already exists! although it's probably not a functional problem if hyperplane lists get duplicated... maybe
+                            contributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
+                        }
+                    }
+                    assert_eq(iPlane, contributingHyperplanes.length);
                 }
-
-                assert(ABcloneElements[ABcloneElements.length-1].length == 1);
-                p = ABcloneElements[ABcloneElements.length-1][0];  // the last one
+                AvB = new Polytope(dim,
+                                   fullDim,
+                                   facets,
+                                   contributingHyperplanes,
+                                   null);  // loses aux
+                ocean.put(key, AvB);
             }
-
-            // Make the hyperplanes at top (facets) level,
-            // and then trickle them down to all elements.
-            // TODO: implement this
-
-
-            System.out.println("        out _join");
-            return p;
+            else
+            {
+                if (verboseLevel >= 1) System.out.println(indentString+"  (cache hit)");
+            }
+            if (verboseLevel >= 1) System.out.println(indentString+"out CSG._join("+(A==null?-1:A.dim)+"/"+AfullDim+" x "+(B==null?-1:B.dim)+"/"+BfullDim+")");
+            return AvB;
         }  // _join
-
 
 
         public static SPolytope cross(SPolytope A,
@@ -7773,10 +7864,16 @@ public final class CSG
             int nHyperplanes = hyperplanes.length;
             if (nHyperplanes == 0)
                 return new double[0];
+            for (int i = 0; i < hyperplanes.length; ++i)
+            {
+                assert_eq(hyperplanes[i].normal.length, nHyperplanes);
+            }
             int iHyperplane;
             FOR (iHyperplane, nHyperplanes)
+            {
                 if (hyperplanes[iHyperplane].spanningPoints == null)
                     break; // this hyperplane is not defined by spanning points
+            }
             if (iHyperplane == nHyperplanes)
             {
                 //
@@ -7884,13 +7981,14 @@ public final class CSG
             }
             public int hashCode()
             {
-                return 3*first.hashCode() + second.hashCode();
+                return 3*(this.first==null ? 41 : this.first.hashCode())
+                       + (this.second==null ? 103 : this.second.hashCode());
             }
             public boolean equals(Object _that)
             {
                 HashablePair that = (HashablePair)_that;
-                return this.first.equals(that.first)
-                    && this.second.equals(that.second);
+                return (this.first==null ? that.first==null : this.first.equals(that.first))
+                    && (this.second==null ? that.second==null : this.second.equals(that.second));
             }
         } // class HashablePair
 
