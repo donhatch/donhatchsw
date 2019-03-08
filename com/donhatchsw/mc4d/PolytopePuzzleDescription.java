@@ -657,13 +657,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private int intpow(int a, int b) { return b==0 ? 1 : intpow(a,b-1) * a; }  // simple, slow
 
-    private boolean decideWhetherFuttable(int[] intLengths)
+    private boolean decideWhetherFuttable(int[] intLengths, java.io.PrintWriter progressWriter)
     {
-        int verboseLevel = 1;
+        if (progressWriter != null) progressWriter.println("        is it futtable?");
         int nDims = this.originalPolytope.p.dim;
         if (nDims != 3)
         {
-            if (verboseLevel >= 1) System.out.println("deciding not futtable because nDims="+nDims+" is not 3");
+            if (progressWriter != null) progressWriter.println("        deciding not futtable because nDims="+nDims+" is not 3");
             return false;
         }
 
@@ -672,7 +672,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         for (int i = 0; i < intLengths.length; ++i) {
             if (intLengths[i] != intLength)
             {
-                if (verboseLevel >= 1) System.out.println("deciding not futtable because intLengths are not all the same");
+                if (progressWriter != null) progressWriter.println("        deciding not futtable because intLengths are not all the same");
                 return false;
             }
         }
@@ -680,14 +680,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // If intLength<3, we can't handle it.
         if (intLength < 3)
         {
-            if (verboseLevel >= 1) System.out.println("deciding not futtable because intLength="+intLength+" < 3");
+            if (progressWriter != null) progressWriter.println("        deciding not futtable because intLength="+intLength+" < 3");
             return false;
         }
 
         // If intLength isn't odd, we can't handle it.
         if (intLength % 2 == 0)
         {
-            if (verboseLevel >= 1) System.out.println("deciding not futtable because intLength="+intLength+" isn't odd");
+            if (progressWriter != null) progressWriter.println("        deciding not futtable because intLength="+intLength+" isn't odd");
             return false;
         }
 
@@ -702,7 +702,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         for (int iVert = 0; iVert < nVerts; ++iVert) {
             if (originalIncidences[0][iVert][1].length != nDims)
             {
-                if (verboseLevel >= 1) System.out.println("deciding not futtable because at least one vertex figure is not a simplex");
+                if (progressWriter != null) progressWriter.println("        deciding not futtable because at least one vertex figure is not a simplex");
                 return false;
             }
         }
@@ -720,18 +720,18 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int nStickerEdges = stickerElementCounts[1];
         int nStickers = stickerElementCounts[2];
         Assert(nStickerVerts + nStickers == nStickerEdges + 2);  // Euler's formula
-        System.out.println("sticker element counts = "+VecMath.toString(stickerElementCounts));
+        if (progressWriter != null) progressWriter.println("            sticker element counts = "+VecMath.toString(stickerElementCounts));
         {
             int expectedNumStickers = 0;  // and counting
             for (int iDim = 0; iDim <= nDims-1; ++iDim) {
                 int contributionPerElement = intpow(nCutsPerFace, nDims-1 - iDim) * (nDims-iDim);
                 expectedNumStickers += originalElements[iDim].length * contributionPerElement;
             }
-            System.out.println("expectedNumStickers = "+expectedNumStickers);
-            System.out.println("actual num stickers = "+stickerElementCounts[nDims-1]);
+            if (progressWriter != null) progressWriter.println("            expectedNumStickers = "+expectedNumStickers);
+            if (progressWriter != null) progressWriter.println("            actual num stickers = "+stickerElementCounts[nDims-1]);
             if (nStickers != expectedNumStickers)
             {
-                if (verboseLevel >= 1) System.out.println("deciding not futtable because num stickers is not as expected");
+                if (progressWriter != null) progressWriter.println("        deciding not futtable because num stickers is not as expected");
                 return false;
             }
         }
@@ -740,11 +740,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             expectedNumStickerVerts += nVerts;
             expectedNumStickerVerts += nEdges * (2 * nCutsPerFace);
             expectedNumStickerVerts += nEdges * 2 * nCutsPerFace*nCutsPerFace;
-            System.out.println("expectedNumStickerVerts = "+expectedNumStickerVerts);
-            System.out.println("actual num stickerVerts = "+nStickerVerts);
+            if (progressWriter != null) progressWriter.println("            expectedNumStickerVerts = "+expectedNumStickerVerts);
+            if (progressWriter != null) progressWriter.println("            actual num stickerVerts = "+nStickerVerts);
             if (nStickerVerts != expectedNumStickerVerts)
             {
-                if (verboseLevel >= 1) System.out.println("deciding not futtable because num sticker verts is not as expected");
+                if (progressWriter != null) progressWriter.println("        deciding not futtable because num sticker verts is not as expected");
                 return false;
             }
         }
@@ -759,7 +759,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // I think regular means the incidences look as symmetrical as possible.
             // (Though I'm not completely sure of this.
             Assert(originalIncidences.length == nDims+1);
-            boolean isRegular = true;   // until proven otherwise
+            boolean topologyIsRegular = true;   // until proven otherwise
             for (int iDim = 0; iDim < originalIncidences.length; ++iDim)
             for (int jDim = 0; jDim < originalIncidences.length; ++jDim)
             {
@@ -767,16 +767,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     if (originalIncidences[iDim][ii][jDim].length != originalIncidences[iDim][0][jDim].length)
                     {
-                        isRegular = false;
+                        topologyIsRegular = false;
                         break;
                     }
                 }
-                if (!isRegular) break;
+                if (!topologyIsRegular) break;
             }
-            System.out.println("isRegular = "+isRegular);
-            if (isRegular)
+            if (progressWriter != null) progressWriter.println("            topologyIsRegular = "+topologyIsRegular);
+            if (topologyIsRegular)
             {
-                if (verboseLevel >= 1) System.out.println("deciding not futtable because topoligy is regular");
+                if (progressWriter != null) progressWriter.println("        deciding not futtable because topology is regular");
                 return false;  // don't need to futt, so declare it non-futtable
             }
         }
@@ -1654,7 +1654,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         this.vertsF = VecMath.doubleToFloat(restVerts);
 
-        this.futtable = decideWhetherFuttable(intLengths);
+        this.futtable = decideWhetherFuttable(intLengths, progressWriter);
         if (progressWriter != null)
         {
             progressWriter.println("    Polytope is "+(this.futtable ? "futtable! (but need to enable futting in UI as well in order to futt)." : "not futtable."));

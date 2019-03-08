@@ -5765,8 +5765,8 @@ public final class CSG
                             double c = b.offset;
                             double Y = c/(y0-y1);
                             double C = Y*y0;
-                            PRINT(Y);
-                            PRINT(C);
+                            if (verboseLevel >= 1) PRINT(Y);
+                            if (verboseLevel >= 1) PRINT(C);
                             double[] normal = new double[fullDim];  // zeros initially
                             normal[AfullDim] = Y;
                             double offset = C;
