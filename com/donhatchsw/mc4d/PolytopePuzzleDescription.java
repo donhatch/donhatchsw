@@ -148,6 +148,7 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)
         - can't fling on laptop (neither macboox nor glinux box)
         - "{4,3,3} 2,3,3" and in fact "{4,3,3} 2" assert-fails now?  (oh, something about further cuts together with new push/pop logic).  currently XXXuseNewPushPopAux is set to false in CSG.prejava because it's not ready yet
 	      Exception in thread "main" java.lang.Error: Assertion failed at com/donhatchsw/util/CSG.prejava(331): this.pushedAuxNext != null
