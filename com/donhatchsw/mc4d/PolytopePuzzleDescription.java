@@ -268,23 +268,17 @@
     =====
         JOIN:
             - TODONE (mostly: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
-            - fails:
+            - fails:   Assertion failed at com/donhatchsw/util/CSG.prejava(5672): (yscale)==(1.)+-1e-6 (NaN vs. 1.0 +- 1.0E-6) (error = NaN)
+
                 ()v{}
                 {}v{}
                 {}v3
                 3v{}
                 3v3
-                3,4v()  oh woops!  3,4 fails on its own!
-                3,5v()  oh woops!  3,5 fails on its own!
-                        and in fact a bunch of things fail with: 
-                        make && java -classpath donhatchsw.jar com/donhatchsw/mc4d/GenericGlue
-                        oh I see, it started failing in 40a54fc41ebd24af403f041181d068a15ecfac5b,
-                        because of the assert I added to intersectHyperplanes:
-			    for (int i = 0; i < hyperplanes.length; ++i)
-			    {
-				assert_eq(hyperplanes[i].normal.length, nHyperplanes);
-			    }
-                        commented that out, for now.
+                ()v3
+                ()v3,4
+                3,4v()  ArrayIndexOutOfBoundsExeption in recursive _join
+                3,5v()  ArrayIndexOutOfBoundsExeption in recursive _join
             - succeeds:
                 ()v()
                 ()v()v()
@@ -297,6 +291,7 @@
                 etc.
                 4,3v()
                 5,3v()
+            oh hmm, maybe the pattern is that it succeeds if exactly a point on the RHS, fails otherwise.
 
         FUTT:
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
