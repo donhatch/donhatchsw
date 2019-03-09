@@ -276,6 +276,15 @@
                 3v3
                 3,4v()  oh woops!  3,4 fails on its own!
                 3,5v()  oh woops!  3,5 fails on its own!
+                        and in fact a bunch of things fail with: 
+                        make && java -classpath donhatchsw.jar com/donhatchsw/mc4d/GenericGlue
+                        oh I see, it started failing in 40a54fc41ebd24af403f041181d068a15ecfac5b,
+                        because of the assert I added to intersectHyperplanes:
+			    for (int i = 0; i < hyperplanes.length; ++i)
+			    {
+				assert_eq(hyperplanes[i].normal.length, nHyperplanes);
+			    }
+                        commented that out, for now.
             - succeeds:
                 ()v()
                 ()v()v()

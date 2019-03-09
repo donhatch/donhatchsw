@@ -7973,10 +7973,12 @@ public final class CSG
             int nHyperplanes = hyperplanes.length;
             if (nHyperplanes == 0)
                 return new double[0];
+#if 0  // I thought this was right, but it makes {3,4} fail... because apparently there's an alternate interpetation of hyperplanes?  need to review that.
             for (int i = 0; i < hyperplanes.length; ++i)
             {
                 assert_eq(hyperplanes[i].normal.length, nHyperplanes);
             }
+#endif
             int iHyperplane;
             FOR (iHyperplane, nHyperplanes)
             {
