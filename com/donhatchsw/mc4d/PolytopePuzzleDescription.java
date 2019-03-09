@@ -268,16 +268,16 @@
     =====
         JOIN:
             - TODONE (mostly: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
-            - fails:   Assertion failed at com/donhatchsw/util/CSG.prejava(5672): (yscale)==(1.)+-1e-6 (NaN vs. 1.0 +- 1.0E-6) (error = NaN)
+            - fails:
+                3,4v() ArrayIndexOutOfBoundsException: 4 deep in _join, on the second of these: ContributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
+                ()v3,4 ArrayIndexOutOfBoundsException: 4 deep in _join, same I'm sure
 
+            - succeeds:
                 ()v{}
                 {}v{}
                 {}v3
                 3v{}
-                3v3
                 ()v3
-                ()v3,4
-            - succeeds:
                 ()v()
                 ()v()v()
                 ()v()v()v()
@@ -289,6 +289,7 @@
                 etc.
                 4,3v()
                 5,3v()
+                3v3 (gets different ArrayIndexOutOfBoundsException 0 just because it's 5 dimensional, but that's a different bug)
             oh hmm, maybe the pattern is that it succeeds if exactly a point on the RHS, fails otherwise.
 
         FUTT:

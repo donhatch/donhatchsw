@@ -5600,7 +5600,9 @@ public final class CSG
         public static SPolytope join(SPolytope A,
                                      SPolytope B)
         {
-            // Choose y (middle axis) positions for A and B
+            int verboseLevel = 0;
+            if (verboseLevel >= 1) System.out.println("in join");
+            // Choose y (joining axis) positions for A and B
             // according to their numbers of vertices,
             // so the join will have its cg-of-verts at y=0.
             // TODO: think about whether to make special cases so that the triangle {}x()
@@ -5612,8 +5614,8 @@ public final class CSG
             assert_gt(nB, 0);
             double y0 = -2.*nB/(nA+nB);
             double y1 = 2.*nA/(nA+nB);
-            //PRINT(y0);
-            //PRINT(y1);
+            if (verboseLevel >= 1) PRINT(y0);
+            if (verboseLevel >= 1) PRINT(y1);
 
             // Choose y scale so that final covariance
             // will be as uniform as possible.
@@ -5625,7 +5627,7 @@ public final class CSG
                 Polytope BvertPolytopes[] = B.p.getAllElements()[0];
                 int yIndex = AfullDim;
 
-                double[][] expectedVerts = new double[nA + nB][A.p.fullDim + B.p.fullDim + 1];  // all zeros initially
+                double[][] expectedVerts = new double[nA + nB][AfullDim + 1 + BfullDim];  // all zeros initially
                 for (int iA = 0; iA < nA; ++iA)
                 {
                     System.arraycopy(AvertPolytopes[iA].getCoords(), 0,
@@ -5641,34 +5643,34 @@ public final class CSG
                                      BfullDim);
                 }
                 double[][] covariance = VecMath.mxm(VecMath.transpose(expectedVerts), expectedVerts);
-                //PRINTARRAY(covariance);
+                if (verboseLevel >= 1) PRINTARRAY(covariance);
                 double det = VecMath.det(covariance);
-                //PRINTARRAY(det);
-                double yvariance = covariance[covariance.length-1][covariance.length-1];
-                //PRINT(yvariance);
+                if (verboseLevel >= 1) PRINTARRAY(det);
+                double yvariance = covariance[yIndex][yIndex];
+                if (verboseLevel >= 1) PRINT(yvariance);
                 double productOfOtherVariances = det / yvariance;
-                //PRINT(productOfOtherVariances);
+                if (verboseLevel >= 1) PRINT(productOfOtherVariances);
                 double yvarianceTarget = Math.pow(productOfOtherVariances, 1./(covariance.length-1));   // this is where we'd fail if fullDim is only 1
-                //PRINT(yvarianceTarget);
+                if (verboseLevel >= 1) PRINT(yvarianceTarget);
                 double yscale = Math.sqrt(yvarianceTarget / yvariance);
-                //PRINT(yscale);
+                if (verboseLevel >= 1) PRINT(yscale);
                 y0 *= yscale;
                 y1 *= yscale;
                 double[][] yscaleMat = VecMath.identitymat(covariance.length);
                 for (int i = 0; i < expectedVerts.length; ++i) expectedVerts[i][yIndex] *= yscale;
                 // now do it again, corrected
                 covariance = VecMath.mxm(VecMath.transpose(expectedVerts), expectedVerts);
-                //PRINTARRAY(covariance);
+                if (verboseLevel >= 1) PRINTARRAY(covariance);
                 det = VecMath.det(covariance);
-                //PRINTARRAY(det);
-                yvariance = covariance[covariance.length-1][covariance.length-1];
-                //PRINT(yvariance);
+                if (verboseLevel >= 1) PRINTARRAY(det);
+                yvariance = covariance[yIndex][yIndex];
+                if (verboseLevel >= 1) PRINT(yvariance);
                 productOfOtherVariances = det / yvariance;
-                //PRINT(productOfOtherVariances);
+                if (verboseLevel >= 1) PRINT(productOfOtherVariances);
                 yvarianceTarget = Math.pow(productOfOtherVariances, 1./(covariance.length-1));   // this is where we'd fail if fullDim is only 1
-                //PRINT(yvarianceTarget);
+                if (verboseLevel >= 1) PRINT(yvarianceTarget);
                 yscale = Math.sqrt(yvarianceTarget / yvariance);
-                //PRINT(yscale);
+                if (verboseLevel >= 1) PRINT(yscale);
                 assert_almost_eq(yscale, 1., 1e-6);
             }
             PRINT(y0);
@@ -5719,6 +5721,7 @@ public final class CSG
             orientDeepFunctional(sp);
             orientDeepCosmetic(sp);
             //System.out.println("join returning sp =\n"+sp);
+            if (verboseLevel >= 1) System.out.println("out join");
             return sp;
         }  // join
 
@@ -5861,7 +5864,7 @@ public final class CSG
                                 normal[i] *= -1.;
                                 offset *= -1.;
                             }
-                            contributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
+                            contributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);   // XXX currently fails on "{3,4}v()"
                         }
                     }
                     else
