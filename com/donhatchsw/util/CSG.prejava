@@ -5554,15 +5554,52 @@ public final class CSG
             return result;
         } // cgOfVerts
 
+        public static double[][] covarianceOfVerts(Polytope p, double[] origin)
+        {
+            Polytope vertPolytopes[] = p.getAllElements()[0];
+            // TODO: which method do I like here?
+            if (true)
+            {
+                double[][] answer = new double[p.fullDim][p.fullDim];  // zeros initially
+                if (origin == null)
+                {
+                    FORI (i, vertPolytopes.length)
+                    {
+                        double[] vertCoords = vertPolytopes[i].getCoords();
+                        VecMath.mpouterProduct(answer, answer, vertCoords, vertCoords);
+                    }
+                }
+                else
+                {
+                    double[] vertCoords_minus_origin = new double[p.fullDim];
+                    FORI (i, vertPolytopes.length)
+                    {
+                        VecMath.vmv(vertCoords_minus_origin, vertPolytopes[i].getCoords(), origin);
+                        VecMath.mpouterProduct(answer, answer, vertCoords_minus_origin, vertCoords_minus_origin);
+                    }
+                }
+                return answer;
+            }
+            else
+            {
+                // alternatively, could take the sum of the outer product of each vertex with itself
+                double[][] verts = new double[vertPolytopes.length][p.fullDim];
+                FORI (i, vertPolytopes.length)
+                    VecMath.copyvec(verts[i], vertPolytopes[i].getCoords());
+                if (origin != null) VecMath.mmv(verts, verts, origin);
+                return VecMath.mxm(VecMath.transpose(verts), verts);
+            }
+        }  // covarianceOfVerts
+
+        public static double[][] covarianceOfVertsAboutCG(Polytope p)
+        {
+            return covarianceOfVerts(p, cgOfVerts(p));
+        }  // covarianceOfVertsAboutCG
+
         /** See discussion of joins in https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol#Prismatic_polytopes .  */
         public static SPolytope join(SPolytope A,
                                      SPolytope B)
         {
-            if (false) {
-              System.out.println("\n\nXXX WARNING: join stub implemented as cross! XXX\n");
-              return cross(A, B);
-            }
-
             // Choose y (middle axis) positions for A and B
             // according to their numbers of vertices,
             // so the join will have its cg-of-verts at y=0.
@@ -5575,16 +5612,77 @@ public final class CSG
             assert_gt(nB, 0);
             double y0 = -2.*nB/(nA+nB);
             double y1 = 2.*nA/(nA+nB);
+            //PRINT(y0);
+            //PRINT(y1);
+
+            // Choose y scale so that final covariance
+            // will be as uniform as possible.
+            if (A.p.fullDim + B.p.fullDim + 1 > 1)  // otherwise there's nothing to scale it to; just leave it
+            {
+                int AfullDim = A.p.fullDim;
+                int BfullDim = B.p.fullDim;
+                Polytope AvertPolytopes[] = A.p.getAllElements()[0];
+                Polytope BvertPolytopes[] = B.p.getAllElements()[0];
+                int yIndex = A.p.fullDim;
+
+                double[][] expectedVerts = new double[nA + nB][A.p.fullDim + B.p.fullDim + 1];  // all zeros initially
+                for (int iA = 0; iA < nA; ++iA)
+                {
+                    System.arraycopy(AvertPolytopes[iA].getCoords(), 0,
+                                     expectedVerts[iA], 0,
+                                     AfullDim);
+                    expectedVerts[iA][yIndex] = y0;
+                }
+                for (int iB = 0; iB < nB; ++iB)
+                {
+                    expectedVerts[nA+iB][yIndex] = y1;
+                    System.arraycopy(BvertPolytopes[iB].getCoords(), 0,
+                                     expectedVerts[nA+iB], 0,
+                                     BfullDim);
+                }
+                double[][] covariance = VecMath.mxm(VecMath.transpose(expectedVerts), expectedVerts);
+                //PRINTARRAY(covariance);
+                double det = VecMath.det(covariance);
+                //PRINTARRAY(det);
+                double yvariance = covariance[covariance.length-1][covariance.length-1];
+                //PRINT(yvariance);
+                double productOfOtherVariances = det / yvariance;
+                //PRINT(productOfOtherVariances);
+                double yvarianceTarget = Math.pow(productOfOtherVariances, 1./(covariance.length-1));   // this is where we'd fail if fullDim is only 1
+                //PRINT(yvarianceTarget);
+                double yscale = Math.sqrt(yvarianceTarget / yvariance);
+                //PRINT(yscale);
+                y0 *= yscale;
+                y1 *= yscale;
+                double[][] yscaleMat = VecMath.identitymat(covariance.length);
+                for (int i = 0; i < expectedVerts.length; ++i) expectedVerts[i][yIndex] *= yscale;
+                // now do it again, corrected
+                covariance = VecMath.mxm(VecMath.transpose(expectedVerts), expectedVerts);
+                //PRINTARRAY(covariance);
+                det = VecMath.det(covariance);
+                //PRINTARRAY(det);
+                yvariance = covariance[covariance.length-1][covariance.length-1];
+                //PRINT(yvariance);
+                productOfOtherVariances = det / yvariance;
+                //PRINT(productOfOtherVariances);
+                yvarianceTarget = Math.pow(productOfOtherVariances, 1./(covariance.length-1));   // this is where we'd fail if fullDim is only 1
+                //PRINT(yvarianceTarget);
+                yscale = Math.sqrt(yvarianceTarget / yvariance);
+                //PRINT(yscale);
+                assert_almost_eq(yscale, 1., 1e-6);
+            }
+            PRINT(y0);
+            PRINT(y1);
 
             Polytope p = _join(A.p, A.p.fullDim, y0,
                                B.p, B.p.fullDim, y1,
                                /*ocean=*/new java.util.Hashtable(),
                                /*indentString=*/"        ");
             // The vertices of p should now be:
-            //     - the vertices of A at y=y0
-            //     - the vertices of B at y=y1
-            // CBB: could check that
+            //     - for each vertex a of A: (   a,    y0, 0,...,0)
+            //     - for each vertex b of B: (0,...,0, y1,    b   )
             // As a simple sanity check, we just check that the bounding box is right.
+            // CBB: could do full check of all vertices
             {
                 double[][] bboxA = A.p.getBBox();
                 double[][] bboxB = B.p.getBBox();
@@ -5602,6 +5700,17 @@ public final class CSG
                     assert_almost_eq(bbox[0][yIndex+1+i], bboxB[0][i], 1e-6);
                     assert_almost_eq(bbox[1][yIndex+1+i], bboxB[1][i], 1e-6);
                 }
+            }
+
+            if (true)
+            {
+                // I'm interested in the covariance ellipse of the result.
+                double[][] Acovariance = covarianceOfVertsAboutCG(A.p);
+                double[][] Bcovariance = covarianceOfVertsAboutCG(B.p);
+                double[][] covariance = covarianceOfVertsAboutCG(p);
+                PRINTARRAY(Acovariance);
+                PRINTARRAY(Bcovariance);
+                PRINTARRAY(covariance);
             }
 
             SPolytope sp = new SPolytope(A.initialDensity*B.initialDensity,  // probably meaningless
@@ -6471,7 +6580,7 @@ public final class CSG
                         //
                         // Sort the boundaries, and combine SPolytopes
                         // that have the same Polytope.
-                        // 
+                        //
                         nBoundaryRidgesBelow = sortAndCombineSPolytopes(nBoundaryRidgesBelow, boundaryRidgesBelow);
                         nBoundaryRidgesAbove = sortAndCombineSPolytopes(nBoundaryRidgesAbove, boundaryRidgesAbove);
 

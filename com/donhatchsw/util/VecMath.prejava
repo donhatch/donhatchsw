@@ -206,6 +206,14 @@ public final class VecMath
             sxv(result[i], v0[i], v1);
     }
 
+    /** m + outerProduct(v0, v1) */
+    public static void mpouterProduct(double result[][], double m[][], double v0[], double v1[])
+    {
+        FORIDOWN (i, result.length)
+            vpsxv(result[i], m[i], v0[i], v1);
+    }
+
+
     /** perp dot */
     public static void xv2(double result[/*2*/], double v[/*2*/])
     {
