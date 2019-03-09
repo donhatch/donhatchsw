@@ -266,6 +266,29 @@
 
     TODO:
     =====
+        JOIN:
+            - TODONE (mostly: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
+            - fails:
+                ()v{}
+                {}v{}
+                {}v3
+                3v{}
+                3v3
+                3,4v()  oh woops!  3,4 fails on its own!
+                3,5v()  oh woops!  3,5 fails on its own!
+            - succeeds:
+                ()v()
+                ()v()v()
+                ()v()v()v()
+                ()v()v()v()v()
+                etc.
+                {}v()
+                3v()
+                4v()
+                etc.
+                4,3v()
+                5,3v()
+
         FUTT:
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
             - current limited implementation:
@@ -302,7 +325,6 @@
               TODO: example of 4d 4-valent where a triprism needs futt for every one of its nontrivial local symmetries.
               TODO: example of 4d 4-valent where a triprism needs futt for some but not all of its nontrivial local symmetries.
               TODO: example of 4d 4-valent where a triprism needs futt for a twist on its tri, but some of its twists on squares don't need futt
-              TODO: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
               TODO: more subtle localities?
 
         NONUNIFORM BOXES:
