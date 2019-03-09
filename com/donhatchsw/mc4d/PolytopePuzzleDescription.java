@@ -277,8 +277,6 @@
                 3v3
                 ()v3
                 ()v3,4
-                3,4v()  ArrayIndexOutOfBoundsExeption in recursive _join
-                3,5v()  ArrayIndexOutOfBoundsExeption in recursive _join
             - succeeds:
                 ()v()
                 ()v()v()

@@ -5623,7 +5623,7 @@ public final class CSG
                 int BfullDim = B.p.fullDim;
                 Polytope AvertPolytopes[] = A.p.getAllElements()[0];
                 Polytope BvertPolytopes[] = B.p.getAllElements()[0];
-                int yIndex = A.p.fullDim;
+                int yIndex = AfullDim;
 
                 double[][] expectedVerts = new double[nA + nB][A.p.fullDim + B.p.fullDim + 1];  // all zeros initially
                 for (int iA = 0; iA < nA; ++iA)
@@ -5637,7 +5637,7 @@ public final class CSG
                 {
                     expectedVerts[nA+iB][yIndex] = y1;
                     System.arraycopy(BvertPolytopes[iB].getCoords(), 0,
-                                     expectedVerts[nA+iB], 0,
+                                     expectedVerts[nA+iB], yIndex+1,
                                      BfullDim);
                 }
                 double[][] covariance = VecMath.mxm(VecMath.transpose(expectedVerts), expectedVerts);
