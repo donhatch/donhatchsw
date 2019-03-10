@@ -5695,8 +5695,8 @@ public final class CSG
                     assert_almost_eq(bbox[0][i], bboxA[0][i], 1e-6);
                     assert_almost_eq(bbox[1][i], bboxA[1][i], 1e-6);
                 }
-                assert_eq(bbox[0][yIndex], MIN(y0, y1));
-                assert_eq(bbox[1][yIndex], MAX(y0, y1));
+                assert_almost_eq(bbox[0][yIndex], MIN(y0, y1), 1e-6);
+                assert_almost_eq(bbox[1][yIndex], MAX(y0, y1), 1e-6);
                 for (int i = 0; i < B.p.fullDim; ++i)
                 {
                     assert_almost_eq(bbox[0][yIndex+1+i], bboxB[0][i], 1e-6);
@@ -5785,7 +5785,9 @@ public final class CSG
                         facets[nFacetsA+iFacetB] = new SPolytope(0,1, _join(A, AfullDim, y0, b, BfullDim, y1, ocean, subIndentString));
                     }
                 }
-                Hyperplane[] contributingHyperplanes = new Hyperplane[fullDim - dim];
+                //Hyperplane[] contributingHyperplanes = new Hyperplane[fullDim - dim];  // doesn't work for {3,4}v(). TODO: get clear on why.  a vertex in 3 dimensions with 4 contributing hyperplanes? maybe.
+                Hyperplane[] contributingHyperplanes = new Hyperplane[(A==null ? AfullDim+1 : A.contributingHyperplanes.length)
+                                                                    + (B==null ? BfullDim+1 : B.contributingHyperplanes.length)];
                 {
                     if (verboseLevel >= 1) System.out.println(indentString+"  computing hyperplanes...");
                     assert_ne(y0, y1);

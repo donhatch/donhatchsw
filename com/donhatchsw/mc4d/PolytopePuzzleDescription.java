@@ -269,10 +269,10 @@
         JOIN:
             - TODONE (mostly: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
             - fails:
-                3,4v() ArrayIndexOutOfBoundsException: 4 deep in _join, on the second of these: ContributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
-                ()v3,4 ArrayIndexOutOfBoundsException: 4 deep in _join, same I'm sure
 
             - succeeds:
+                3,4v() (see TODO to get clarity on why number of contributing hyperplanes is weird)
+                ()v3,4 (see TODO to get clarity on why number of contributing hyperplanes is weird)
                 ()v{}
                 {}v{}
                 {}v3
