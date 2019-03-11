@@ -73,6 +73,7 @@
 #define PRINTMAT(x) System.out.println("        " + #x + " =\n" + VecMath.toString(x))
 #define PRINTARRAY(x) System.out.println("        " + #x + " = " + Arrays.toStringCompact(x))
 #define PRINTARRAY_NONCOMPACT(x) System.out.println("        " + #x + " =\n" + Arrays.toStringNonCompact(x, "        ", "        "))
+#define STRINGIFY(x) Arrays.toStringCompact(x)
 
 #define ABS(x) ((x) < 0 ? -(x) : (x))
 #define SIGN(x) ((x) < 0 ? -1 : 1)
