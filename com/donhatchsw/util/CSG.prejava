@@ -261,13 +261,14 @@ public final class CSG
             }
 
             // Returns a pointer to coords.
+            // this must be 0-dimensional (a vertex) in some number of dimensions.
             // It is illegal to modify the contents
             // (should return const double[]).
             public double[] getCoords()
             {
+                assert_eq(dim, 0); // must be a vertex
                 if (_coords == null)
                 {
-                    assert_eq(dim, 0); // must be a vertex
                     _coords = intersectHyperplanes(contributingHyperplanes);
                 }
                 assert(_coords != null); // XXX not sure if I'm preventing this
@@ -1834,7 +1835,6 @@ public final class CSG
             if (verbose) System.out.println("      schlafli="+STRINGIFY(schlafli));
             if (verbose) System.out.println("      schlafliDenoms="+STRINGIFY(schlafliDenoms));
             if (verbose) System.out.println("      wythoffCoeffs="+STRINGIFY(wythoffCoeffs));
-            assert(false);
 
             if (schlafliDenoms == null)
                 schlafliDenoms = VecMath.fillvec(schlafli.length, 1);
@@ -5798,11 +5798,11 @@ public final class CSG
                                                                     + (B==null ? BfullDim+1 : B.contributingHyperplanes.length)];
                 {
                     if (contributingHyperplanes.length != fullDim - dim) {
-                        // try to understand.
-                        if (verboseLevel >= 0) {
+                        if (verboseLevel >= 1) {
+                            // Ah, I get it now.
+                            System.out.println("  Hey! number of contributing hyperplanes is a bit surprising! (some vertex figure must not be a simplex)");
                             int AcontributingHyperplanesLength = A==null ? AfullDim+1 : A.contributingHyperplanes.length;
                             int BcontributingHyperplanesLength = B==null ? BfullDim+1 : B.contributingHyperplanes.length;
-                            System.out.println("  Hey! number of contributing hyperplanes is a bit surprising!");
                             System.out.println("      AfullDim="+AfullDim+" - Adim="+Adim+" = "+(AfullDim-Adim)+" "+(AfullDim-Adim==AcontributingHyperplanesLength ? "==" : "!=")+" "+AcontributingHyperplanesLength+"=AcontributingHyperplanesLength");
                             System.out.println("      BfullDim="+BfullDim+" - Bdim="+Bdim+" = "+(BfullDim-Bdim)+" "+(BfullDim-Bdim==BcontributingHyperplanesLength ? "==" : "!=")+" "+BcontributingHyperplanesLength+"=BcontributingHyperplanesLength");
                             System.out.println("    => fullDim="+ fullDim+" -  dim="+ dim+" = "+( fullDim- dim)+" "+(fullDim-dim==contributingHyperplanes.length ? "==" : "!=")+" "+contributingHyperplanes.length+"=contributingHyperplanes.length");
@@ -7997,12 +7997,16 @@ public final class CSG
             int nHyperplanes = hyperplanes.length;
             if (nHyperplanes == 0)
                 return new double[0];
-#if 0  // I thought this was right, but it makes {3,4} fail... because apparently there's an alternate interpetation of hyperplanes?  need to review that.
             for (int i = 0; i < hyperplanes.length; ++i)
             {
-                assert_eq(hyperplanes[i].normal.length, nHyperplanes);
+                // Note, it is *not* necessarily true that the number of hyperplanes
+                // is equal to the dimension of the space.
+                // E.g. for octahedron {3,4}, we store 4 hyperplanes (not 3) at each vertex;
+                // and a vertex coord can be found by intersecting the 4 hyperplanes,
+                // (which is an overconstrained system, for which we return the least-squares solution).
+                assert_eq(hyperplanes[i].normal.length, hyperplanes[0].normal.length);
+                assert_ge(nHyperplanes, hyperplanes[i].normal.length);
             }
-#endif
             int iHyperplane;
             FOR (iHyperplane, nHyperplanes)
             {
@@ -8046,6 +8050,7 @@ public final class CSG
             // It's okay if there are more equations (planes)
             // than unknowns (dimensions);
             // in that case the solver will find the least-squares solution.
+            // This is a nice thing to do, e.g. in the case of an octahedron.
             //
             int nRows = hyperplanes.length;
             int nCols = hyperplanes[0].normal.length;
