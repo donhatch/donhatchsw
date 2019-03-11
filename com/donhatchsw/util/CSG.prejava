@@ -1830,6 +1830,11 @@ public final class CSG
                                                         double wythoffCoeffs[/*nDims*/])
         {
             boolean verbose = false; // can set to true to debug
+            if (verbose) System.out.println("    in makeRegularStarPolytope");
+            if (verbose) System.out.println("      schlafli="+STRINGIFY(schlafli));
+            if (verbose) System.out.println("      schlafliDenoms="+STRINGIFY(schlafliDenoms));
+            if (verbose) System.out.println("      wythoffCoeffs="+STRINGIFY(wythoffCoeffs));
+            assert(false);
 
             if (schlafliDenoms == null)
                 schlafliDenoms = VecMath.fillvec(schlafli.length, 1);
@@ -2114,6 +2119,7 @@ public final class CSG
             }
             else
                 bootstrapHyperplanes(sWholeThing);
+            if (verbose) System.out.println("    out makeRegularStarPolytope");
             return sWholeThing;
         } // makeRegularStarPolytope
 
@@ -2188,7 +2194,7 @@ public final class CSG
             int nFactors = schlaflis.length;
             assert(schlafliDenomss == null
                 || schlafliDenomss.length == nFactors);
-            SPolytope product = null;
+            SPolytope product = null;  // placeholder representing a vertex in 0 dimensions
             FORI (iFactor, nFactors)
             {
                 SPolytope factor = makeRegularStarPolytope(schlaflis[iFactor],
@@ -2199,7 +2205,7 @@ public final class CSG
                 else
                     product = cross(product, factor);
             }
-            // could actually initialize product to the following,
+            // could actually initialize product to the following (a vertex) instead of null,
             // but that would just waste some time on the first cross product
             if (product == null)
                 return new SPolytope(0,1,new Polytope(0,0,new SPolytope[0],new Hyperplane[0],null));
@@ -5756,9 +5762,11 @@ public final class CSG
             if (AvB == null)
             {
                 int fullDim = AfullDim + BfullDim + 1;
-                int dim = (A==null?-1:A.dim) + (B==null?-1:B.dim)+1;
-                int nFacetsA = A==null ? 0 : A.dim==0 ? 1 : A.facets.length;
-                int nFacetsB = B==null ? 0 : B.dim==0 ? 1 : B.facets.length;
+                int Adim = A==null ? -1 : A.dim;
+                int Bdim = B==null ? -1 : B.dim;
+                int dim = Adim + Bdim + 1;
+                int nFacetsA = A==null ? 0 : A.dim==0 ? 1 : A.facets.length;  // override when dim=0 to have 1 facet instead of 0
+                int nFacetsB = B==null ? 0 : B.dim==0 ? 1 : B.facets.length;  // override when dim=0 to have 1 facet instead of 0
                 int nFacets = nFacetsA + nFacetsB;
                 if (dim == 0)
                 {
@@ -5789,6 +5797,17 @@ public final class CSG
                 Hyperplane[] contributingHyperplanes = new Hyperplane[(A==null ? AfullDim+1 : A.contributingHyperplanes.length)
                                                                     + (B==null ? BfullDim+1 : B.contributingHyperplanes.length)];
                 {
+                    if (contributingHyperplanes.length != fullDim - dim) {
+                        // try to understand.
+                        if (verboseLevel >= 0) {
+                            int AcontributingHyperplanesLength = A==null ? AfullDim+1 : A.contributingHyperplanes.length;
+                            int BcontributingHyperplanesLength = B==null ? BfullDim+1 : B.contributingHyperplanes.length;
+                            System.out.println("  Hey! number of contributing hyperplanes is a bit surprising!");
+                            System.out.println("      AfullDim="+AfullDim+" - Adim="+Adim+" = "+(AfullDim-Adim)+" "+(AfullDim-Adim==AcontributingHyperplanesLength ? "==" : "!=")+" "+AcontributingHyperplanesLength+"=AcontributingHyperplanesLength");
+                            System.out.println("      BfullDim="+BfullDim+" - Bdim="+Bdim+" = "+(BfullDim-Bdim)+" "+(BfullDim-Bdim==BcontributingHyperplanesLength ? "==" : "!=")+" "+BcontributingHyperplanesLength+"=BcontributingHyperplanesLength");
+                            System.out.println("    => fullDim="+ fullDim+" -  dim="+ dim+" = "+( fullDim- dim)+" "+(fullDim-dim==contributingHyperplanes.length ? "==" : "!=")+" "+contributingHyperplanes.length+"=contributingHyperplanes.length");
+                        }
+                    }
                     if (verboseLevel >= 1) System.out.println(indentString+"  computing hyperplanes...");
                     assert_ne(y0, y1);
 
