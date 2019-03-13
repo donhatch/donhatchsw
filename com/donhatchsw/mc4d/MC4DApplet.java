@@ -24,6 +24,7 @@ public class MC4DApplet
     public int w = 300, h = 300; // for spawned viewers
     public boolean doDoubleBuffer = true; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean futtIfPossible = false; // XXX get this from viewing params? currently this must match viewing params' default value
+    public boolean forceFuttableXXX = false;
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
         {"x", "integer", "x position for spawned viewers"},  // XXX does this work?
@@ -32,6 +33,7 @@ public class MC4DApplet
         {"h", "integer", "height of spawned viewers"},  // XXX does this work?
         {"doDoubleBuffer", "boolean", "whether to double buffer"},
         {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
+        {"forceFuttableXXX", "boolean", "whether to force puzzle to think it's futtable.  for development."},
     };
     public String[][] getParameterInfo()
     {
@@ -1051,6 +1053,10 @@ public class MC4DApplet
 
         com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, 0);
 
+        if (forceFuttableXXX)  // must do this before constructing any polytope puzzles, since it affects construction
+        {
+            PolytopePuzzleDescription.forceFuttableXXX = true;
+        }
         mainViewGuts = new MC4DViewGuts();
         mainViewGuts.setModel(new MC4DModel(puzzleDescription));
         mainViewGuts.viewParams.futtIfPossible.set(futtIfPossible);

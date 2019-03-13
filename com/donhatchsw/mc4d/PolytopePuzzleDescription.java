@@ -482,6 +482,8 @@ import com.donhatchsw.util.VecMath;
 
 public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
+    public static boolean forceFuttableXXX = false;  // temporary
+
     private String prescription; // what was originally passed to the constructor. we are an immutable object that is completely a function of this string, so an identical clone of ourself can be constructed using this string in any future lifetime.
 
     private CSG.SPolytope originalPolytope;
@@ -688,7 +690,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     {
         if (progressWriter != null) progressWriter.println("        is it futtable?");
 
-        if (false)  // this should be false, unless we want to override for debugging
+        if (forceFuttableXXX)
         {
             if (progressWriter != null) progressWriter.println("        deciding futtable because override");
             return true;
@@ -2703,10 +2705,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         private int[] getFrom2toFacetsForFutt(int gripIndex,
                                               int dir,
-                                              int[] edgesThisFaceInOrder,
-                                              int[] neighborsThisFaceInOrder)
+                                              int[] edgesThisFaceInOrder,  // used only in 3d. will eventually be removed
+                                              int[] neighborsThisFaceInOrder)  // used only in 3d.  will eventually be removed
         {
-            int futtVerboseLevel = 0;
+            int futtVerboseLevel = 1;
+            if (futtVerboseLevel >= 1) System.out.println("            in getFrom2toFacetsForFutt");
             int nDims = this.nDims();
             int iFacet = grip2face[gripIndex];
             CSG.Polytope[][] originalElements = this.originalPolytope.p.getAllElements();
@@ -2716,9 +2719,61 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             int[] from2toFacet = VecMath.identityperm(nFacets);  // except for...
             if (nDims == 4)
             {
-                // Find grip in originalFacetElt2grip.
                 int eltDim = this.grip2facetEltForFutt[gripIndex][0];
                 int iFacetElt = this.grip2facetEltForFutt[gripIndex][1];
+                if (futtVerboseLevel >= 1) System.out.println("              iFacet = "+iFacet);
+                if (futtVerboseLevel >= 1) System.out.println("              eltDim = "+eltDim);
+                if (futtVerboseLevel >= 1) System.out.println("              iFacetElt = "+iFacetElt);
+                // TODO: can't just use element size, need to use chosen symmetry order depending on what succeeds
+                int iEltGlobal = originalIncidences[nDims-1][iFacet][eltDim][iFacetElt];
+                int symmetryOrder = eltDim==2 ? originalIncidences[eltDim][iEltGlobal][1].length :
+                                    eltDim==1 ? 2 :
+                                    eltDim==0 ? -1 : // we'll correct this below
+                                    -1;
+                if (eltDim == 0)
+                {
+                    // What's the valence of the vertex *in the facet* (rather than
+                    // in the whole polytope).
+                    // We could get this easily by querying facet.getAllIncidences(),
+                    // but we don't want to go accumulating those for every facet,
+                    // so do a more lightweight search.
+                    // Any of the following would work:
+                    // - [edge for edge incident on vertex if edge incident on facet]
+                    // - [edge for edge incident on facet if edge incident on vertex]
+                    // - [edge for edge incident on vertex if facet incident on edge]
+                    // - [edge for edge incident on facet if vertex incident on edge]
+                    // Ah, the latter is the least amount of searching.
+                    int vertexValenceThisFacet = 0;
+                    for (int iEdgeThisFacet = 0; iEdgeThisFacet < originalIncidences[3][iFacet][1].length; ++iEdgeThisFacet)
+                    {
+                        int iEdge = originalIncidences[3][iFacet][1][iEdgeThisFacet];
+                        CHECK(originalIncidences[1][iEdge][0].length == 2);
+                        if (originalIncidences[1][iEdge][0][0] == iEltGlobal
+                         || originalIncidences[1][iEdge][0][1] == iEltGlobal)
+                        {
+                            vertexValenceThisFacet++;
+                        }
+                    }
+                    symmetryOrder = vertexValenceThisFacet;
+                }
+                if (futtVerboseLevel >= 1) System.out.println("              symmetryOrder = "+symmetryOrder);
+                // To get started, figure out three fromFacet,toFacet pairs.
+                // The first will always be iFacet,iFacet, since that's fixed.
+                // Case vertex:
+                //   find three neighbor facets, in ccw order around the vertex on the facet;
+                //   map the first to the second, and the second to the third.
+                // Case edge:
+                //   find the two neighbor facets at this edge.
+                //   map them to each other.
+                // Case 2face:
+                //   either:
+                //     - map the corresponding neighbor facet to itself,
+                //       and find two neighbor facets in ccw order around the 2face, map first to second
+                //   or:
+                //     - find three neighbor facets, in ccw order around the 2face on the facet;
+                //       map the first to the second, and the second to the third.
+                // Idea: would it be simpler to mix dims?  That is, specify that the facet and elt
+                // stay fixed, then need only one other corrrespondence?  (or two, if we don't want to have to think about the sign afterwards)
             }
             else if (nDims == 3)
             {
@@ -2762,6 +2817,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
             }
+            if (futtVerboseLevel >= 1) System.out.println("            out getFrom2toFacetsForFutt, returning "+VecMath.toString(from2toFacet));
             return from2toFacet;
         }  // getFrom2toFacetsForFutt
 
@@ -3008,7 +3064,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int futtVerboseLevel = 0;  // set to something higher than 0 to debug futt stuff
+                int futtVerboseLevel = 1;  // set to something higher than 0 to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
@@ -3030,6 +3086,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 if (nDims == 4)
                 {
                     if (futtVerboseLevel >= 1) System.out.println("      (nDims==4 so not doing much yet)");
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, /*edgesThisFaceInOrder=*/null, /*neighborsThisFaceInOrder=*/null);
+                    if (futtVerboseLevel >= 1) System.out.println("          from2toFacet = "+VecMath.toString(from2toFacet));
                 }
                 else if (nDims == 3)
                 {
