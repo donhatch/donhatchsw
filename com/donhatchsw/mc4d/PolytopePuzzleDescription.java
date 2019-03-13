@@ -148,6 +148,7 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)
         - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)
         - can't fling on laptop (neither macboox nor glinux box)
         - "{4,3,3} 2,3,3" and in fact "{4,3,3} 2" assert-fails now?  (oh, something about further cuts together with new push/pop logic).  currently XXXuseNewPushPopAux is set to false in CSG.prejava because it's not ready yet
@@ -1821,13 +1822,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                     VecMath.extendAndGramSchmidt(2,4,
                                                                  gripUsefulMats[iGrip],
                                                                  gripUsefulMats[iGrip]);
-
-                                    int maxOrder = (nDims==4 ? iDim==0 ? allIncidencesThisFacet[0][iElt][1].length : // arity (i.e. number of incident edges) of this vertex on this hyperface
+                                    boolean isEdgeFlipIn3d = nDims==3 && Math.abs(gripUsefulMats[iGrip][1][3]) < 1e-6;  // i.e. gripUsefulMats[iGrip] has w=0, i.e. it lies in the xyz space
+                                    int maxOrder = (nDims==4 ? (iDim==0 ? allIncidencesThisFacet[0][iElt][1].length : // arity (i.e. number of incident edges) of this vertex on this hyperface
                                                                iDim==1 ? 2 :
                                                                iDim==2 ? elt.facets.length :
-                                                               iDim==3 ? 0 : -1 :
-                                                    nDims==3 ? originalFacets[iFacet].facets.length%2==0 ? originalFacets[iFacet].facets.length : 2*originalFacets[iFacet].facets.length : // not the proxy facet!  it will be either the facet gonality or 2... would be more efficient to use lcm for maxOrder, but this is 3d so whatever, the whole thing is small
-                                                    nDims==2 ? 4 : -1);
+                                                               iDim==3 ? 0 : -1) :
+                                                    nDims==3 ? (isEdgeFlipIn3d ? 2 : originalFacets[iFacet].facets.length) :  // not the proxy facet!  (XXX what did I mean? elt.facets.length?  I think that would work too, actually could take the gcd of the two)
+                                                    nDims==2 ? 4 :
+                                                    -1);
 
                                     //System.out.println("maxOrder = "+maxOrder);
                                     this.gripSymmetryOrders[iGrip] = CSG.calcRotationGroupOrder(
@@ -1837,22 +1839,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                     if (this.futtable) {
                                       CHECK(nDims == 3);
                                       CHECK(iDim == 2);
-                                      // Since it's 3d, grips are 2d polygons.
-                                      // There are two cases: it's a rotational grip,
-                                      // in which case the rotation order is elt.facets.length (the gonality),
-                                      // or it's a reflectional grip, in which case elt.facets.length is 4 (a quad)
-                                      // but we want rotation order 2.
-                                      // How to tell the difference?
-                                      // Answer: look at usefulMat[1], which by definition
-                                      // points from the facet center to the grip center.
-                                      // It will point at +-1 for the rotational case,
-                                      // and it will lie in the xyz space for the reflectional case.
                                       if (intLengths.length == 1 && intLengths[0] == 1) {  // no cuts
                                         this.gripSymmetryOrdersFutted[iGrip] = 1;
-                                      } else if (VecMath.normsqrd(3, gripUsefulMats[iGrip][1]) < 1e-6*1e-6) {
-                                        this.gripSymmetryOrdersFutted[iGrip] = elt.facets.length;
-                                      } else {
+                                      } else if (isEdgeFlipIn3d) {
                                         this.gripSymmetryOrdersFutted[iGrip] = 2;
+                                      } else {
+                                        this.gripSymmetryOrdersFutted[iGrip] = elt.facets.length;  // or originalFacets[iFacet].facets.length?  actually could take the gcd of the two
                                       }
                                     }
 
@@ -2298,6 +2290,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             cutDepth < avgStickerDepth ? 1. - cutDepth / (1. - stickerSize)
                                                        : (cutDepth-stickerSize) / (1. - stickerSize);
                     }
+                    if (!(cutWeight >= -1e-9 && cutWeight <= 1.))
+                        System.out.println("uh oh, cutWeight = "+cutWeight);  // fails on "(.25)4(2)3 3(1.4)" : cutWeight is -.75  . note that it's in 3d, and
                     CHECK(cutWeight >= -1e-9 && cutWeight <= 1.); // I've seen 1e-16 on "{4,3} 7" due to floating point roundoff error
                     if (cutWeight < 0.)
                         cutWeight = 0.;
