@@ -89,7 +89,7 @@ public class GenericPipelineUtils
         GenericPuzzleDescription puzzleDescription; // puzzle description used when filling it, to be used later for picking
     } // class Frame
 
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     public interface Callback { public void call(); }
 
@@ -702,7 +702,7 @@ public class GenericPipelineUtils
                         sum += verts[poly[j]][2];
                     nVertsThisSticker += poly.length;
                 }
-                Assert(nVertsThisSticker != 0);
+                CHECK(nVertsThisSticker != 0);
                 stickerCentersZ[iSticker] = sum / nVertsThisSticker;
             }
 
@@ -762,7 +762,7 @@ public class GenericPipelineUtils
                     float sum = 0.f;
                     for (int j = 0; j < poly.length; ++j)
                         sum += verts[poly[j]][2];
-                    Assert(poly.length != 0);
+                    CHECK(poly.length != 0);
                     polyCentersZ[i0][i1] = sum / poly.length;
                 }
 
@@ -908,7 +908,7 @@ public class GenericPipelineUtils
         }
 
         // XXXTODO: get clear on when this is called.  I think it's when it's "non-generic" puzzle that's not further cut, in which case the naive logic is good enough
-        //Assert(false);
+        //CHECK(false);
 
         float polyAndStickerAndFaceCenter[][] = pickPolyAndStickerAndFaceCenter(x, y, frame);
         if (polyAndStickerAndFaceCenter == null)
@@ -1065,7 +1065,7 @@ public class GenericPipelineUtils
                     for (int iPred = 0; iPred < predecessors[iNode].length; ++iPred)
                     {
                         int jSticker = predecessors[iNode][iPred];
-                        Assert(jSticker < nStickers);
+                        CHECK(jSticker < nStickers);
                         if (VecMath.normsqrd(partialOrderNodeCenters2d[jSticker]) != 0.)
                         {
                             VecMath.vpv(partialOrderNodeCenters2d[iNode],
@@ -1493,7 +1493,7 @@ public class GenericPipelineUtils
                         // This would mean the two stickers are adjacent
                         // but the two different groups they are in are not.
                         // This can't happen.
-                        Assert(false);
+                        CHECK(false);
                     }
                 }
             }
@@ -1569,8 +1569,8 @@ public class GenericPipelineUtils
 
                                         //System.out.println("stickerVisibilities[i="+i+"] = "+stickerVisibilities[i]);
                                         //System.out.println("stickerVisibilities[j="+j+"] = "+stickerVisibilities[j]);
-                                        Assert(stickerVisibilities[i]);
-                                        Assert(stickerVisibilities[j]);
+                                        CHECK(stickerVisibilities[i]);
+                                        CHECK(stickerVisibilities[j]);
 
                                         float iZ = stickerCentersZ[i];
                                         float jZ = stickerCentersZ[j];
@@ -1618,7 +1618,7 @@ public class GenericPipelineUtils
                                         jNode = successors[iNode0][iSucc];
                                         break;
                                     }
-                                Assert(jNode != -1);
+                                CHECK(jNode != -1);
                                 iNode0 = jNode;
                             }
                             System.out.print("        "+iNode0+"");
@@ -1632,7 +1632,7 @@ public class GenericPipelineUtils
                                         jNode = successors[iNode][iSucc];
                                         break;
                                     }
-                                Assert(jNode != -1);
+                                CHECK(jNode != -1);
                                 justTheCycles[justTheCyclesSize++] = new int[]{iNode,jNode};
                                 System.out.print(" -> "+jNode+"");
 

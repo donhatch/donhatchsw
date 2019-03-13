@@ -21,7 +21,7 @@ package com.donhatchsw.mc4d;
 
 public class MC4DModel
 {
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     /**
     * Anyone can set this at any time to debug the model's activity;
@@ -227,13 +227,13 @@ public class MC4DModel
         /** Adds a listener that will be notified when the puzzle animation progresses. */
         public synchronized void addListener(Listener listener)
         {
-            Assert(listeners.indexOf(listener) == -1);  // it wasn't there
+            CHECK(listeners.indexOf(listener) == -1);  // it wasn't there
             listeners.add(listener);
         }
         /** Removes a listener. */
         public synchronized void removeListener(Listener listener)
         {
-            Assert(listeners.indexOf(listener) != -1);  // it was there
+            CHECK(listeners.indexOf(listener) != -1);  // it was there
             listeners.remove(listener);
 
             // Hack: if we don't do anything special,
@@ -370,8 +370,8 @@ public class MC4DModel
                     public double length(Object item)
                     {
                         Twist twist = (Twist)item;
-                        Assert(twist != null);
-                        Assert(twist.grip != -1);
+                        CHECK(twist != null);
+                        CHECK(twist.grip != -1);
                         int order = genericPuzzleDescription.getGripSymmetryOrders(twist.futtIfPossible)[twist.grip];
                         if (order <= 0)
                             return 1.; // XXX can this happen, and why?
@@ -511,7 +511,7 @@ public class MC4DModel
             com.donhatchsw.compat.regex.Pattern.compile(pattern).matcher(s);
             if (!matcher.matches())
                 throw new IllegalArgumentException("MC4DModel.fromString called on a bad string of length "+s.length()+": "+com.donhatchsw.util.Arrays.toStringCompact(s)+"");
-            Assert(matcher.groupCount() == 3);
+            CHECK(matcher.groupCount() == 3);
             String genericPuzzleDescriptionString = matcher.group(1);
             String genericPuzzleStateString = matcher.group(2);
             String historyString = matcher.group(3);

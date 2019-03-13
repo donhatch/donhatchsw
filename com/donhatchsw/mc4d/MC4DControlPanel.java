@@ -9,7 +9,7 @@ import com.donhatchsw.util.Listenable;
 public class MC4DControlPanel
     extends Panel
 {
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
 
     // a label in the default font, except bold and one point size larger.
@@ -310,7 +310,7 @@ public class MC4DControlPanel
                     for (int i = 0; i < listenables.length; ++i)
                         if (listenables[i] != null)
                             listenables[i].resetToDefault();
-                    Assert(nNonDefault == 0); // due to our valueChanged getting called
+                    CHECK(nNonDefault == 0); // due to our valueChanged getting called
                 }
             });
             keepalive = new Listenable.Listener[listenables.length];
@@ -336,7 +336,7 @@ public class MC4DControlPanel
                         {
                             if (--nNonDefault == 0)
                                 setEnabled(false);
-                            Assert(nNonDefault >= 0);
+                            CHECK(nNonDefault >= 0);
                         }
                         wasDefault[i] = isDefault;
                     }

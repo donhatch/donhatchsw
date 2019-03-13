@@ -7,12 +7,12 @@
 #define FORDOWN(i,n) for (i = (n)-1; (i) >= 0; --i) // only evaluates n once
 #define FORIDOWN(i,n) for (int i = (n)-1; (i) >= 0; --i) // only evaluates n once
 
-#define CHECK(expr) do { if (!(expr)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #expr + ""); } while (false)
+#define CHECK(expr) do { if (!(expr)) throw new Error("CHECK failed at "+__FILE__+"("+__LINE__+"): " + #expr + ""); } while (false)
 #define assumpt(expr) do { if (!(expr)) throw new Error("Assumption failed at "+__FILE__+"("+__LINE__+"): " + #expr + ""); } while (false)
 #define unimplemented() do {if (true) throw new Error("Unimplemented at "+__FILE__+"("+__LINE__+")"); } while (false)
 
 // NOTE: this causes a,b to be evaluated twice on failure, so is not ideal. might be better to do a block... ?
-#define CHECK_OP(a,op,b) do { if (!((a)op(b))) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")" + #op + "(" + #b + ") ("+(a)+" vs. "+(b)+")"); } while (false)
+#define CHECK_OP(a,op,b) do { if (!((a)op(b))) throw new Error("CHECK failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")" + #op + "(" + #b + ") ("+(a)+" vs. "+(b)+")"); } while (false)
 #define CHECK_EQ(a,b) CHECK_OP(a,==,b)
 #define CHECK_LE(a,b) CHECK_OP(a,<=,b)
 #define CHECK_GE(a,b) CHECK_OP(a,>=,b)
@@ -20,19 +20,19 @@
 #define CHECK_GT(a,b) CHECK_OP(a,>,b)
 #define CHECK_NE(a,b) CHECK_OP(a,!=,b)  // note, not very useful if either a or b is a literal
 
-#define CHECK_OP_OP(a,op_ab,b,op_bc,c) do { if (!(((a)op_ab(b))&&((b)op_bc(c)))) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")" + #op_ab + "(" + #b + ")" + #op_bc + "(" + #c + ") ("+(a)+" vs. "+(b)+" vs. "+(c)+")"); } while (false)
+#define CHECK_OP_OP(a,op_ab,b,op_bc,c) do { if (!(((a)op_ab(b))&&((b)op_bc(c)))) throw new Error("CHECK failed at "+__FILE__+"("+__LINE__+"): (" + #a + ")" + #op_ab + "(" + #b + ")" + #op_bc + "(" + #c + ") ("+(a)+" vs. "+(b)+" vs. "+(c)+")"); } while (false)
 #define CHECK_LE_LE(a,b,c) CHECK_OP_OP(a,<=,b,<=,c)
 #define CHECK_LE_LT(a,b,c) CHECK_OP_OP(a,<=,b,<,c)
 #define CHECK_LT_LE(a,b,c) CHECK_OP_OP(a,<,b,<=,c)
 #define CHECK_LT_LT(a,b,c) CHECK_OP_OP(a,<,b,<,c)
 
-#define CHECK_NAN(x) do { if (!Double.isNaN(x)) throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " + #x + " is "+(x)+", expected NaN"); } while (false)
+#define CHECK_NAN(x) do { if (!Double.isNaN(x)) throw new Error("CHECK failed at "+__FILE__+"("+__LINE__+"): " + #x + " is "+(x)+", expected NaN"); } while (false)
 // Note: the additional "(a)==(b)||" is to make it work correctly for infinities...
 // and causes the args to be evaluated twice.
 #define CHECK_ALMOST_EQ(a,b,tol) \
     do { \
         if (!((a)==(b)||Math.abs((a)-(b))<=tol)) \
-            throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " \
+            throw new Error("CHECK failed at "+__FILE__+"("+__LINE__+"): " \
                            +"(" + #a + ")==(" + #b + ")+-" + #tol + "" \
                            +" ("+(a)+" vs. "+(b)+" +- "+(tol)+")" \
                            +" (error = "+((a)-(b))+")" \
@@ -41,7 +41,7 @@
 #define CHECK_ALMOST_INORDER(a,b,c,tol) \
     do { \
         if (!((a)-(b)<=(tol)) || !((b)-(c)<=(tol))) \
-            throw new Error("Assertion failed at "+__FILE__+"("+__LINE__+"): " \
+            throw new Error("CHECK failed at "+__FILE__+"("+__LINE__+"): " \
                            +"(" + #a + ")<=(" + #b + ")<=(" + #c + ")+-" + #tol + "" \
                            +" ("+(a)+" vs. "+(b)+" vs. "+(c)+" +- "+(tol)+")" \
                            +" (error = "+((a)-(b))+", "+((b)-(c))+")" \

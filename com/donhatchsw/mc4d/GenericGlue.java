@@ -166,7 +166,7 @@ public class GenericGlue
         public int frozenPartialOrderForDebugging[][] = null;
 
 
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     public interface Callback { public void call(); }
 
@@ -459,13 +459,13 @@ public class GenericGlue
         menuStack.push(puzzlemenu);
         for (int i = 0; i < menuScheme.length; ++i)
         {
-            Assert(menuScheme[i].length <= 2);
+            CHECK(menuScheme[i].length <= 2);
             String item0 = menuScheme[i][0];
             String item1 = (menuScheme[i].length==1 ? null : menuScheme[i][1]);
 
             String item0Trimmed = item0.trim();
             int nLeadingSpaces = item0.length() - item0Trimmed.length();
-            Assert(nLeadingSpaces % 4 == 0);
+            CHECK(nLeadingSpaces % 4 == 0);
             int depth = nLeadingSpaces/4 + 1; // our whole scheme is at depth 1 already
             item0 = item0.substring(nLeadingSpaces);
             int nLeadingSpacesInNext = i+1==menuScheme.length ? 0 : menuScheme[i+1][0].length()-menuScheme[i+1][0].trim().length();
@@ -479,10 +479,10 @@ public class GenericGlue
                 //System.out.println("    popping");
                 menuStack.pop();
             }
-            Assert(depth == menuStack.size());
+            CHECK(depth == menuStack.size());
             if (item0.equals("-"))
             {
-                Assert(!isSubmenu);
+                CHECK(!isSubmenu);
                 ((Menu)menuStack.peek()).add(new MenuItem("-")); // separator
             }
             else if (!isSubmenu)
@@ -520,15 +520,15 @@ public class GenericGlue
                         int schlaflis[][] = (int[][])schlaflisAndWythoffs[0];
                         int schlaflisDenoms[][] = (int[][])schlaflisAndWythoffs[1];
                         double wythoffs[][] = (double[][])schlaflisAndWythoffs[2];
-                        Assert(schlaflis.length == schlaflisDenoms.length);
-                        Assert(schlaflis.length == wythoffs.length);
+                        CHECK(schlaflis.length == schlaflisDenoms.length);
+                        CHECK(schlaflis.length == wythoffs.length);
                         for (int iFactor = 0; iFactor < schlaflis.length; ++iFactor)
                         {
                             int schlafli[] = schlaflis[iFactor];
                             int schlafliDenoms[] = schlaflisDenoms[iFactor];
                             double wythoff[] = wythoffs[iFactor];
-                            Assert(schlafli.length == schlafliDenoms.length);
-                            Assert(schlafli.length == wythoff.length-1);
+                            CHECK(schlafli.length == schlafliDenoms.length);
+                            CHECK(schlafli.length == wythoff.length-1);
                             for (int iSchlafli = 0; iSchlafli < schlafli.length; ++iSchlafli)
                             {
                                 if (schlafli[iSchlafli] == 5 && schlafliDenoms[iSchlafli] == 1
@@ -586,18 +586,18 @@ public class GenericGlue
                                     //System.err.println("Your invention sucks! \""+lengthString+"\" is not a number! (or comma-separated list of numbers, with optional overrides, one for each dimension)");
                                     //initPuzzleCallback.call(); // XXX really just want a repaint I think
                                     //return;
-                                    Assert(false);
+                                    CHECK(false);
                                 }
                                 //System.out.println("intLength = "+intLength);
                                 //System.out.println("doubleLength = "+doubleLength);
                             }
                             if (intLength % 2 == 0)
                             {
-                                Assert(doubleLength == (double)intLength);
+                                CHECK(doubleLength == (double)intLength);
                                 intLength++;
                                 doubleLength += .01;  // make a very thin slice in the middle, just to avoid degeneracies during this sanity check.  we're not actually making anything here.
                             }
-                            Assert(intLength % 2 == 1);
+                            CHECK(intLength % 2 == 1);
                             for (int iDim = 2; iDim < allElts.length-1; ++iDim) // triangle, tetrahedron, up to but not including the whole polytope
                             {
                                 // XXX huh? what's the logic here? revisit this, it fails!  On "{3,4} with edge length 2"
@@ -622,7 +622,7 @@ public class GenericGlue
                                                                +" with length "+intLength+"("+doubleLength+")");
                                         progressWriter.flush();
                                     }
-                                    Assert(doubleLength > ((iDim+1)*intLength-(iDim-1))/2 - 1);
+                                    CHECK(doubleLength > ((iDim+1)*intLength-(iDim-1))/2 - 1);
                                 }
                             }
                         } // for each lengthString
@@ -637,7 +637,7 @@ public class GenericGlue
                             {
                                 // allIncidences[0][iVert][1] is the list of all edges incident
                                 // on this vertex
-                                Assert(allIncidences[0][iVert][1].length
+                                CHECK(allIncidences[0][iVert][1].length
                                     == allIncidences[0][0][1].length);
                             }
                             vertexFigureIsSimplex = (allIncidences[0][0][1].length == proxy.p.dim);
@@ -645,12 +645,12 @@ public class GenericGlue
 
                         if (!vertexFigureIsSimplex)
                         {
-                            Assert(lengthStrings.length == 1);
-                            Assert(lengthStrings[0].equals("1"));
+                            CHECK(lengthStrings.length == 1);
+                            CHECK(lengthStrings[0].equals("1"));
                         }
                         else
                         {
-                            Assert(lengthStrings.length > 1);
+                            CHECK(lengthStrings.length > 1);
                             // TODO: if doesn't have a tet, there should be a 3(4)
                             // TODO: if doesn't have a triangle, there should be a 3(3)
                             // TODO: if has a penta, should be a 3(2.5) (if other conditions allow it)
@@ -720,7 +720,7 @@ public class GenericGlue
                                     String explanation = t.toString();
                                     // yes, this is lame... AND the user
                                     // can't even cut and paste it to mail it to me
-                                    if (explanation.equals("java.lang.Error: Assertion failed"))
+                                    if (explanation.equals("java.lang.Error: CHECK failed"))
                                     {
                                         java.io.StringWriter sw = new java.io.StringWriter();
                                         t.printStackTrace(new java.io.PrintWriter(sw));
@@ -871,7 +871,7 @@ public class GenericGlue
                                 String explanation = t.toString();
                                 // yes, this is lame... AND the user
                                 // can't even cut and paste it to mail it to me
-                                if (explanation.equals("java.lang.Error: Assertion failed"))
+                                if (explanation.equals("java.lang.Error: CHECK failed"))
                                 {
                                     java.io.StringWriter sw = new java.io.StringWriter();
                                     t.printStackTrace(new java.io.PrintWriter(sw));
@@ -1192,7 +1192,7 @@ public class GenericGlue
                         float polyAndStickerAndFaceCenter[][] = GenericPipelineUtils.pickPolyAndStickerAndFaceCenter(
                              e.getX(), e.getY(),
                              genericGlue.untwistedFrame);
-                        Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
+                        CHECK(polyAndStickerAndFaceCenter != null); // hit once, should hit again
                         float polyCenter[] = polyAndStickerAndFaceCenter[0];
 
                         // Interested in only the w component
@@ -1619,7 +1619,7 @@ public class GenericGlue
                                                         closestPointOnPositiveYZSector);
                 }
             }
-            Assert(bestIFace != -1);
+            CHECK(bestIFace != -1);
             com.donhatchsw.util.VecMath.normalize(bestClosestPointOnPositiveYZSector,
                                                   bestClosestPointOnPositiveYZSector);
             com.donhatchsw.util.VecMath.copyvec(3, returnPointOnYZArc,
@@ -1699,7 +1699,7 @@ public class GenericGlue
             if (zeroOutTiltToo)
                 tiltDeltaAngle = 0.f; // before clamping-- we do let the clamp do a tilt if it wants
 
-            Assert(zeroRollPoleAfterRot3d != null); // initiateZeroRoll must have been called previously
+            CHECK(zeroRollPoleAfterRot3d != null); // initiateZeroRoll must have been called previously
             zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.copyvec(3, zeroRollPoleAfterRot3d); // XXX sigh... because vxm and other stuff freaks if I don't
             // Clamp tilt to [0..pi/2]...
             double currentTilt = Math.atan2(zeroRollPoleAfterRot3d[2],
@@ -1823,7 +1823,7 @@ public class GenericGlue
 
                 for (int i = 0; i < level; ++i) System.out.print("    ");
                 System.out.println("    "+listeners.length+" action listener");
-                Assert(listeners.length <= 1);
+                CHECK(listeners.length <= 1);
                 for (int iListener = 0; iListener < listeners.length; ++iListener)
                 {
                     if (nDone >= skip)

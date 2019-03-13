@@ -21,7 +21,7 @@
             -dim=1: A-A arrayIndexOutOfBounds, same
             -dim=1: A|A arrayIndexOutOfBounds, same
 
-            -dim=2: A&A Assertion failed at CSG.prejava(1240): Arrays.indexOf(slicee.p.contributingHyperplanes, hyperplane) == -1
+            -dim=2: A&A CHECK failed at CSG.prejava(1240): Arrays.indexOf(slicee.p.contributingHyperplanes, hyperplane) == -1
             -dim=2: A-A same assertion failure
             -dim=2: A|A same assertion failure
         Now:
@@ -193,7 +193,7 @@ public final class CSG
             public Hyperplane contributingHyperplanes[]; // the hyperplanes whose intersection is the space of this Polytope, in sorted order. // XXX sigh, should probably be a HashableSortedArray so we don't have to keep creating and destorying them every time we want to look it up... but that means this definition is getting more and more obscured
             private Object aux; // user data; creator can set this if desired. access is through getAux/setAux/pushAux/popAux; this member is actually the top of the aux stack.
             private PushedAuxNext pushedAuxNext;  // rest of aux stack (other than aux itself which is the top element)
-            private static boolean XXXuseNewPushPopAux = false;  // XXX true seems to be causing a bug: exception in mc4d "{4,3,3} 2":  Assertion failed at com/donhatchsw/util/CSG.prejava(349): this.pushedAuxNext != null
+            private static boolean XXXuseNewPushPopAux = false;  // XXX true seems to be causing a bug: exception in mc4d "{4,3,3} 2":  CHECK failed at com/donhatchsw/util/CSG.prejava(349): this.pushedAuxNext != null
             private double _coords[];      // if vertex, null otherwise.  XXX should probably calculate only on demand, but then need a way to differentiate between dirty and nonexistent (for example, this is needed in getBBox below). XXX ctually not currently calculated at all.
             private double _bbox[/*2*/][]; // bounding box of all vertices, so it can be finite even if the polytope is infinite (co-finite).  calculated Lazily via getBBox().
             private Polytope[/*dim+1*/][] _allElements; // sorted lists of vertices, edges, ..., ridges, facets, calculated lazily via getAllElements()

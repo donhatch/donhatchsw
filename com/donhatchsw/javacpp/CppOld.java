@@ -72,7 +72,7 @@ package com.donhatchsw.javacpp;
 public class CppOld
 {
     // Logical assertions, always compiled in. Ungracefully bail if violated.
-    private static void AssertAlways(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     // From com.donhatchsw.util.Arrays...
         private static String escapify(char c, char quoteChar)
@@ -135,7 +135,7 @@ public class CppOld
         public LineAndColumnNumberReaderWithLookahead(java.io.Reader reader)
         {
             this.newlineSimplifyingReader = new java.io.LineNumberReader(reader);
-            AssertAlways(this.newlineSimplifyingReader.getLineNumber() == 0);
+            CHECK(this.newlineSimplifyingReader.getLineNumber() == 0);
         }
 
         public int read()
@@ -187,7 +187,7 @@ public class CppOld
                     lookaheadBuffer = newLookaheadBuffer;
                 }
                 if (nLookedAhead >= 1)
-                    AssertAlways(lookaheadBuffer[nLookedAhead-1] != -1); // no peeking past eof!
+                    CHECK(lookaheadBuffer[nLookedAhead-1] != -1); // no peeking past eof!
                 lookaheadBuffer[nLookedAhead++] = newlineSimplifyingReader.read();
                 // peeking doesn't do anything to lineNumber and columnNumber
             }
@@ -264,7 +264,7 @@ public class CppOld
         private static String typeToNameCache[] = null;
         public static String typeToName(int type)
         {
-            AssertAlways(type >= 0 && type < NUMTYPES);
+            CHECK(type >= 0 && type < NUMTYPES);
 
             if (typeToNameCache == null)
             {
@@ -309,7 +309,7 @@ public class CppOld
                 }
             }
 
-            AssertAlways(typeToNameCache[type] != null);
+            CHECK(typeToNameCache[type] != null);
             return typeToNameCache[type];
         } // typeToName
         // For debug printing
@@ -483,7 +483,7 @@ public class CppOld
                 {
                     scratch.append((char)c);
                     c = reader.read();
-                    AssertAlways(c != -1); // by guard above
+                    CHECK(c != -1); // by guard above
                 }
 
                 if (Character.isDigit((char)c))
@@ -503,7 +503,7 @@ public class CppOld
                 }
                 else // c is '.'
                 {
-                    AssertAlways(c == '.'); // by guard above
+                    CHECK(c == '.'); // by guard above
                     scratch.append((char)c);
                     if (reader.peek() == -1)
                     {
@@ -881,7 +881,7 @@ public class CppOld
                 }
             }
             //System.err.println("readTokenWithMacroSubstitution (possibly recursive) returning "+token);
-            AssertAlways(token.type != Token.TOKEN_PASTE); // those never make it out of this function
+            CHECK(token.type != Token.TOKEN_PASTE); // those never make it out of this function
             return token;
         }
     } // readTokenWithMacroSubstitution
@@ -1082,7 +1082,7 @@ public class CppOld
                         if (resultsVector.size() > resultsVectorSizeBefore
                          && ((Token)resultsVector.get(resultsVector.size()-1)).type == Token.SPACES)
                             resultsVector.removeElementAt(resultsVector.size()-1);
-                        AssertAlways(!(resultsVector.size() > resultsVectorSizeBefore && ((Token)resultsVector.get(resultsVector.size()-1)).type == Token.SPACES));
+                        CHECK(!(resultsVector.size() > resultsVectorSizeBefore && ((Token)resultsVector.get(resultsVector.size()-1)).type == Token.SPACES));
 
                         if (contentToken.type == Token.MACRO_ARG_QUOTED)
                         {
@@ -1219,8 +1219,8 @@ public class CppOld
             // so we don't need to increment lineNumber again here.
             // Just assert that the caller hasn't embedded anything
             // that will mess us up.
-            AssertAlways(s.indexOf('\n') == -1);
-            AssertAlways(s.indexOf('\r') == -1);
+            CHECK(s.indexOf('\n') == -1);
+            CHECK(s.indexOf('\r') == -1);
         }
 
         public int getLineNumber()
@@ -1294,7 +1294,7 @@ public class CppOld
                                                            || token.text.equals("#else")
             ))
             {
-                AssertAlways(token.text.startsWith("#"));
+                CHECK(token.text.startsWith("#"));
 
                 if (false) ;
                 // ones that take an integer expression
@@ -1393,7 +1393,7 @@ public class CppOld
                         in.pushBackToken(nextToken);
                         continue;
                     }
-                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    CHECK(nextToken.type == Token.NEWLINE_UNESCAPED);
                     // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 // ones that take no args...
@@ -1440,7 +1440,7 @@ public class CppOld
                         in.pushBackToken(nextToken);
                         continue;
                     }
-                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    CHECK(nextToken.type == Token.NEWLINE_UNESCAPED);
                     // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 // ones that take one macro name arg and that's all
@@ -1516,7 +1516,7 @@ public class CppOld
                         in.pushBackToken(nextToken);
                         continue;
                     }
-                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    CHECK(nextToken.type == Token.NEWLINE_UNESCAPED);
                     // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 else if (token.text.equals("#define"))
@@ -1614,7 +1614,7 @@ public class CppOld
                                 throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
                             }
                         }
-                        AssertAlways(nextToken.type == Token.SYMBOL
+                        CHECK(nextToken.type == Token.SYMBOL
                                   && nextToken.text.equals(")"));
                         nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
@@ -1718,7 +1718,7 @@ public class CppOld
                         if (nOut > 0
                          && contents[nOut-1].type == Token.SPACES)
                             nOut--;
-                        AssertAlways(!(nOut > 0
+                        CHECK(!(nOut > 0
                                     && contents[nOut-1].type == Token.SPACES));
 
                         if (nOut != contents.length)
@@ -1759,7 +1759,7 @@ public class CppOld
                         in.pushBackToken(nextToken);
                         continue;
                     }
-                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    CHECK(nextToken.type == Token.NEWLINE_UNESCAPED);
                     // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 else if (token.text.equals("#include"))
@@ -1852,7 +1852,7 @@ public class CppOld
                     // Have to get output newlines in sync,
                     // I guess so anyone reading the output
                     // will know which line the included file was included from.
-                    AssertAlways(lineNumber == token.lineNumber); // do we even need the lineNumber variable??
+                    CHECK(lineNumber == token.lineNumber); // do we even need the lineNumber variable??
                     int desiredOutputLineNumber = token.lineNumber;
                     {
                         if (outputTokenColumnNumber > 0)
@@ -1936,7 +1936,7 @@ public class CppOld
                             {
                                 if (!in.extraCrap.startsWith(" 3"))
                                 {
-                                    AssertAlways(in.extraCrap.equals(""));
+                                    CHECK(in.extraCrap.equals(""));
                                     // apparently gcc doesn't add the 4 even if it's a .h file
                                     //if (in.inFileName.endsWith(".h"))
                                     //    in.extraCrap = " 3 4";
@@ -2041,7 +2041,7 @@ public class CppOld
                     outputLineNumber = oneBasedLineNumber-1;
                     outputTokenColumnNumber = 0;
 
-                    AssertAlways(nextToken.type == Token.NEWLINE_UNESCAPED);
+                    CHECK(nextToken.type == Token.NEWLINE_UNESCAPED);
                     // don't bother outputting it, we'll output it lazily on next non-newline
                 }
                 else
@@ -2080,7 +2080,7 @@ public class CppOld
                                 linenumber 19 : next comment
 
                         */
-                        AssertAlways(lineNumber == token.lineNumber);
+                        CHECK(lineNumber == token.lineNumber);
                         int desiredOutputLineNumber = token.lineNumber;
                         //out.print("(outputLineNumber="+outputLineNumber+")(lineNumber="+lineNumber+")(desired="+desiredOutputLineNumber+"-0)(token.lineNumber="+token.lineNumber+")");
                         //out.print(token);
@@ -2128,7 +2128,7 @@ public class CppOld
                                 outputTokenColumnNumber = 0;
                                 i0 = i1+1;
                             }
-                            AssertAlways(token.text.substring(0) == token.text);
+                            CHECK(token.text.substring(0) == token.text);
                             out.print(token.text.substring(i0));
                             outputTokenColumnNumber++;
                         }
@@ -2136,7 +2136,7 @@ public class CppOld
                         {
                             // I don't think any other token types can contain embedded newlines. make sure...
                             // XXX TODO: argh, I can trip this with my not-quite-right token pasting, which gets the type of the LHS but the RHS might be a comment:   "#define CAT(a,b) a##b  \n  CAT(x,/*\n\n*/)" argh!
-                            AssertAlways(token.text.indexOf('\n') == -1);
+                            CHECK(token.text.indexOf('\n') == -1);
 
                             out.print(token.text);
                             outputTokenColumnNumber++;
@@ -2166,7 +2166,7 @@ public class CppOld
             Token unterminatedIfToken = (Token)ifStack.peek();
             throw new Error(unterminatedIfToken.fileName+":"+(unterminatedIfToken.lineNumber+1)+":"+(unterminatedIfToken.columnNumber+1)+": unterminated "+unterminatedIfToken.text);
         }
-        AssertAlways(endifMultiplierStack.empty()); // always in sync with ifStack
+        CHECK(endifMultiplierStack.empty()); // always in sync with ifStack
 
         if (verboseLevel >= 1)
             System.err.println("    out filter");
@@ -2298,10 +2298,10 @@ public class CppOld
             "assertTest.prejava", ""
                  +"hello from assertTest.prejava\n"
                 +"    file __FILE__ line __LINE__\n"
-                +"#define assert(expr) do { if (!(expr)) throw new Error(\"Assertion failed at \"+__FILE__+\"(\"+__LINE__+\"): \" + #expr + \"\"); } while (false)\n"
+                +"#define CHECK(expr) do { if (!(expr)) throw new Error(\"CHECK failed at \"+__FILE__+\"(\"+__LINE__+\"): \" + #expr + \"\"); } while (false)\n"
                 +"    file __FILE__ line __LINE__\n"
-                +"    assert(1+1 == 2);\n"
-                +"    assert(1+1 == 1);\n"
+                +"    CHECK(1+1 == 2);\n"
+                +"    CHECK(1+1 == 1);\n"
                 +"    file __FILE__ line __LINE__\n"
                  +"goodbye from assertTest.prejava\n"
         },
@@ -3580,8 +3580,8 @@ public class CppOld
                 String contents = testFileNamesAndContents[iTestFile][1];
                 if (fileName.startsWith("/"))
                 {
-                    AssertAlways(fileName.equals("/dev/null"));
-                    AssertAlways(contents.equals(""));
+                    CHECK(fileName.equals("/dev/null"));
+                    CHECK(contents.equals(""));
                     continue;
                 }
                 String filePath = tmpDirName+'/'+fileName;

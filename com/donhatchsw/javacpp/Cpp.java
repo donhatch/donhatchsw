@@ -25,7 +25,7 @@ public class Cpp
 
 
     // Logical assertions, always compiled in. Ungracefully bail if violated.
-    private static void AssertAlways(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     private static void warning(String message,
                                 String fileName, int lineNumber, int columnNumber)
@@ -175,7 +175,7 @@ public class Cpp
         }
         public void pushBackEOF()
         {
-            AssertAlways(lookedAheadChar == -2);
+            CHECK(lookedAheadChar == -2);
             lookedAheadChar = -1;
         }
     } // class LineAndColumnNumberReader
@@ -226,7 +226,7 @@ public class Cpp
         }
         public void deleteRange(int i0, int i1)
         {
-            AssertAlways(i0 <= i1);
+            CHECK(i0 <= i1);
             while (i1 < length)
             {
                 chars[i0] = chars[i1];
@@ -252,7 +252,7 @@ public class Cpp
         if (inputDebugLevel >= DEBUG_PER_LINE)
             System.err.println("    in getNextLogicalLine");
 
-        AssertAlways(lineBuffer.nTokensReferringToMe == 0); // otherwise not safe to clear!
+        CHECK(lineBuffer.nTokensReferringToMe == 0); // otherwise not safe to clear!
 
         boolean correctedEOF = false;
         int lastBackslashLineNumber = -1;
@@ -292,8 +292,8 @@ public class Cpp
                     break;
             }
 
-            AssertAlways(lineBuffer.length > physicalLineStart);
-            AssertAlways(lineBuffer.chars[lineBuffer.length-1] == '\n');
+            CHECK(lineBuffer.length > physicalLineStart);
+            CHECK(lineBuffer.chars[lineBuffer.length-1] == '\n');
             if (inputDebugLevel >= DEBUG_PER_LINE)
             {
                 System.err.println("            physical line = \""+escapify(new String(lineBuffer.chars, physicalLineStart, lineBuffer.length - physicalLineStart))+"\"");
@@ -340,7 +340,7 @@ public class Cpp
                 break;
             }
 
-            AssertAlways(!correctedEOF);
+            CHECK(!correctedEOF);
         }
 
         // well that was way more frickin complicated than it should have been
@@ -497,7 +497,7 @@ public class Cpp
         private static String typeToNameCache[] = null;
         public static String typeToName(int type)
         {
-            AssertAlways(type >= 0 && type < NUMTYPES);
+            CHECK(type >= 0 && type < NUMTYPES);
 
             if (typeToNameCache == null)
             {
@@ -542,7 +542,7 @@ public class Cpp
                 }
             }
 
-            AssertAlways(typeToNameCache[type] != null);
+            CHECK(typeToNameCache[type] != null);
             return typeToNameCache[type];
         } // typeToName
         // For debug printing
@@ -653,7 +653,7 @@ public class Cpp
                                    int i0, int i1,
                                    String inFileName, int inLineNumber, int inColumnNumber)
         {
-            AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
+            CHECK(nInUse + nFree == nPhysicalAllocations); // logical invariant
 
             Token token;
             if (useTokenPool && freeListHead != null)
@@ -676,12 +676,12 @@ public class Cpp
                        inFileName,
                        inLineNumber,
                        inColumnNumber);
-            AssertAlways(token.refCount == 0);
+            CHECK(token.refCount == 0);
             token.refCount = 1;
 
             nInUse++;
 
-            AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
+            CHECK(nInUse + nFree == nPhysicalAllocations); // logical invariant
             //System.err.println("TOKEN LOGICAL ALLOCATION: "+token);
             nLogicalAllocations++;
 
@@ -696,7 +696,7 @@ public class Cpp
             Token token = newRefedToken(type,
                                         lineBuffer.chars,
                                         i0, i1, inFileName, inLineNumber, inColumnNumber);
-            AssertAlways(token.lineBufferOwningTextUnderlyingString == null);
+            CHECK(token.lineBufferOwningTextUnderlyingString == null);
             token.lineBufferOwningTextUnderlyingString = lineBuffer;
             lineBuffer.nTokensReferringToMe++;
             return token;
@@ -733,7 +733,7 @@ public class Cpp
 
         public Token refToken(Token token)
         {
-            AssertAlways(token.refCount > 0); // tokens can't exist out in the world with ref count 0
+            CHECK(token.refCount > 0); // tokens can't exist out in the world with ref count 0
             //System.err.println("TOKEN REF COUNT "+token.refCount+" -> "+(token.refCount+1)+" : "+token);
             token.refCount++;
             return token;
@@ -744,12 +744,12 @@ public class Cpp
         public void unrefToken(Token token)
         {
             //System.err.println("TOKEN REF COUNT "+token.refCount+" -> "+(token.refCount-1)+" : "+token);
-            AssertAlways(token.refCount > 0);
+            CHECK(token.refCount > 0);
             if (--token.refCount <= 0)
             {
-                AssertAlways(token.nextInStack == null);
-                AssertAlways(token.refCount == 0);
-                AssertAlways(nInUse > 0);
+                CHECK(token.nextInStack == null);
+                CHECK(token.refCount == 0);
+                CHECK(nInUse > 0);
                 --nInUse;
 
                 if (token.parentInMacroExpansion != null)
@@ -779,7 +779,7 @@ public class Cpp
                 }
                 nFree++;
 
-                AssertAlways(nInUse + nFree == nPhysicalAllocations); // logical invariant
+                CHECK(nInUse + nFree == nPhysicalAllocations); // logical invariant
             }
         } // unrefToken
 
@@ -803,12 +803,12 @@ public class Cpp
         // nInUse should be zero at the end.
         public int nInUse()
         {
-            AssertAlways(nInUse + nFree == nPhysicalAllocations);
+            CHECK(nInUse + nFree == nPhysicalAllocations);
             return nInUse;
         }
         public int nFree()
         {
-            AssertAlways(nInUse + nFree == nPhysicalAllocations);
+            CHECK(nInUse + nFree == nPhysicalAllocations);
             return nFree;
         }
     } // class TokenAllocator
@@ -826,7 +826,7 @@ public class Cpp
         }
         public void pushAndKeepRef(Token token)
         {
-            AssertAlways(token.nextInStack == null);
+            CHECK(token.nextInStack == null);
             token.nextInStack = first;
             first = token;
             if (last == null)
@@ -845,10 +845,10 @@ public class Cpp
         // TODO: not sure we want this... not sure we want to keep track of last either
         public void addOnBottomAndRef(Token token)
         {
-            AssertAlways(token.nextInStack == null);
+            CHECK(token.nextInStack == null);
             if (last != null)
             {
-                AssertAlways(last.nextInStack == null);
+                CHECK(last.nextInStack == null);
                 last.nextInStack = token;
             }
             else
@@ -913,10 +913,10 @@ public class Cpp
         {
             if (tokenDebugLevel >= DEBUG_PER_TOKEN)
                 System.err.println("            in tokenStream.readToken");
-            AssertAlways(!returnedEOF);
+            CHECK(!returnedEOF);
 
             char chars[] = lineBuffer.chars;
-            AssertAlways(chars[endIndex-1] == '\n'); // so don't need to check endIndex all the time, can just use '\n' as a terminator
+            CHECK(chars[endIndex-1] == '\n'); // so don't need to check endIndex all the time, can just use '\n' as a terminator
 
             int spacesEndIndex = currentIndex;
             while (spacesEndIndex < endIndex // XXX TODO: can remove this if caller stops calling us after newline
@@ -1085,7 +1085,7 @@ public class Cpp
                         // followed by a newline at this point,
                         // because the line-getting would have joined
                         // such a line to the next line.
-                        AssertAlways(chars[tokenEndIndex] != '\n');
+                        CHECK(chars[tokenEndIndex] != '\n');
                         tokenEndIndex++; // no matter what it is.
                         // backslash can be followed by up to 3 digits,
                         // or various other things, but we don't have to worry
@@ -1141,7 +1141,7 @@ public class Cpp
         public void init(LineBuffer lineBuffer, int startIndex, int endIndex,
                          TokenAllocator tokenAllocator)
         {
-            AssertAlways(stack.isEmpty());
+            CHECK(stack.isEmpty());
             super.init(lineBuffer, startIndex, endIndex, tokenAllocator);
         }
 
@@ -1154,7 +1154,7 @@ public class Cpp
         // it's an error to push back the terminating null
         public void pushBackToken(Token token)
         {
-            AssertAlways(token != null);
+            CHECK(token != null);
             stack.pushAndRef(token);
         }
         public boolean isEmpty()
@@ -1197,7 +1197,7 @@ public class Cpp
                 return true; // success
             }
 
-            AssertAlways(columnNumber == 0); // TODO: do we want this?
+            CHECK(columnNumber == 0); // TODO: do we want this?
             // TODO: remove this if we decide on the assert
             if (columnNumber > 0)
             {
@@ -1237,7 +1237,7 @@ public class Cpp
         // XXX I think this is only called from hardSync, it can maybe just be removed
         public void setInLineNumber(int inLineNumber)
         {
-            AssertAlways(columnNumber == 0);
+            CHECK(columnNumber == 0);
             this.inLineNumber = inLineNumber;
         }
 
@@ -1275,7 +1275,7 @@ public class Cpp
                         {
                             throw new Error("INTERNAL ERROR: delivered line number "+outLineNumberDelivered+", promised line number "+outLineNumberPromised+"");
                         }
-                        AssertAlways(outLineNumberDelivered == outLineNumberPromised);
+                        CHECK(outLineNumberDelivered == outLineNumberPromised);
                     }
                     super.print(c);
                     columnNumber++;
@@ -1387,7 +1387,7 @@ public class Cpp
                 break; // end of file
 
             // TODO: also assert it's the only one
-            AssertAlways(lineBuffer.chars[lineBuffer.length-1] == '\n');
+            CHECK(lineBuffer.chars[lineBuffer.length-1] == '\n');
 
             tokenStream.init(lineBuffer, 0, lineBuffer.length, tokenAllocator);
 
@@ -1445,7 +1445,7 @@ public class Cpp
                 }
                 else if (token.type == Token.PREPROCESSOR_DIRECTIVE)
                 {
-                    AssertAlways(!inComment);
+                    CHECK(!inComment);
 
                     // When inside a false #if,
                     // the only preprocessor directives we recognize are:
@@ -1529,7 +1529,7 @@ public class Cpp
                                 // pop til we pop an #if*
                                 for (boolean gotIf = false; !gotIf;)
                                 {
-                                    AssertAlways(!ifStack.isEmpty()); // stack was nonempty before, so there's got to be an actual #if* at the bottom of the stack
+                                    CHECK(!ifStack.isEmpty()); // stack was nonempty before, so there's got to be an actual #if* at the bottom of the stack
                                     Token poppedToken = ifStack.popAndKeepRef();
                                     gotIf = poppedToken.textStartsWith("if");
                                     tokenAllocator.unrefToken(poppedToken);
@@ -1576,7 +1576,7 @@ public class Cpp
                                 int verboseLevel = 0; // XXX turn this into one of the debug things
                                 if (verboseLevel >= 2)
                                     System.err.println("        filter: found #define");
-                                AssertAlways(!inFalseIf); // we checked above
+                                CHECK(!inFalseIf); // we checked above
 
                                 // must be either whitespace or left paren after macro name... it makes a difference
 
@@ -1659,7 +1659,7 @@ public class Cpp
                                             throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": malformed parameter list for macro "+macroName+""); // cpp gives lots of different kind of errors but whatever
                                         }
                                     }
-                                    AssertAlways(nextToken.type == Token.SYMBOL
+                                    CHECK(nextToken.type == Token.SYMBOL
                                               && nextToken.textEquals(")"));
                                     tokenAllocator.unrefToken(nextToken);
                                     nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
@@ -1759,7 +1759,7 @@ public class Cpp
                                              && contents[nOut-1].type != Token.SPACES
                                              && !contents[nOut-1].textEquals("##")) // spaces after '##' disappear
                                             {
-                                                AssertAlways(contents[nOut] == null);
+                                                CHECK(contents[nOut] == null);
                                                 contents[nOut++] = tokenAllocator.newRefedToken(Token.SPACES, new char[]{' '}, 0,1, tokenIn.inFileName, tokenIn.inLineNumber, tokenIn.inColumnNumber);
                                             }
                                         }
@@ -1774,7 +1774,7 @@ public class Cpp
                                                 nOut--; // spaces before '##' disappear
                                             }
 
-                                            AssertAlways(contents[nOut] == null);
+                                            CHECK(contents[nOut] == null);
                                             contents[nOut++] = tokenAllocator.refToken(tokenIn);
                                         }
                                         tokenAllocator.unrefToken(tokenIn);
@@ -1787,7 +1787,7 @@ public class Cpp
                                         contents[nOut-1] = null;
                                         nOut--;
                                     }
-                                    AssertAlways(!(nOut > 0
+                                    CHECK(!(nOut > 0
                                                 && contents[nOut-1].type == Token.SPACES));
 
                                     if (nOut != contents.length)
@@ -1833,7 +1833,7 @@ public class Cpp
                                     continue;
                                 }
                                 */
-                                AssertAlways(nextToken.type == Token.NEWLINE);
+                                CHECK(nextToken.type == Token.NEWLINE);
                                 // don't bother outputting it, we'll output it lazily on next non-newline
                             }
                             else
@@ -1849,7 +1849,7 @@ public class Cpp
                                 {
                                     if (nextToken.type == Token.COMMENT_START)
                                     {
-                                        AssertAlways(inComment == false);
+                                        CHECK(inComment == false);
                                         // have to print it so we don't end up outputting the end without the start.
                                         // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it.
                                         out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
@@ -1869,7 +1869,7 @@ public class Cpp
 
                                 if (token.textEquals("undef")) // #undef
                                 {
-                                    AssertAlways(!inFalseIf); // we checked above
+                                    CHECK(!inFalseIf); // we checked above
                                     if (macroName == "__LINE__"
                                      || macroName == "__FILE__")
                                         throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": can't undefine \""+macroName+"\""); // gcc just gives a warning
@@ -1908,11 +1908,11 @@ public class Cpp
                             {
                                 if (nextToken.type == Token.COMMENT_START)
                                 {
-                                    AssertAlways(inComment == false);
+                                    CHECK(inComment == false);
                                     // have to print it so we don't end up outputting the end without the start.
                                     // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
                                     out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
-                                    AssertAlways(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
+                                    CHECK(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
                                     inComment = true;
                                     out.keepSynced = !inComment;
                                     // next token is guaranteed to be a NEWLINE
@@ -2067,7 +2067,7 @@ public class Cpp
 
                         else if (token.textEquals("include")) // #include
                         {
-                            AssertAlways(!inFalseIf); // we checked above
+                            CHECK(!inFalseIf); // we checked above
                             /*
                             get the file name and stuff, including end of line
                             output any newlines and/or line directives needed to get in sync
@@ -2079,11 +2079,11 @@ public class Cpp
                             {
                                 if (nextToken.type == Token.COMMENT_START)
                                 {
-                                    AssertAlways(inComment == false);
+                                    CHECK(inComment == false);
                                     // have to print it so we don't end up outputting the end without the start.
                                     // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
                                     out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
-                                    AssertAlways(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
+                                    CHECK(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
                                     inComment = true;
                                     out.keepSynced = !inComment;
                                     // next token is guaranteed to be a NEWLINE
@@ -2100,12 +2100,12 @@ public class Cpp
                             if (theInt == -1)
                                 throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": \""+token.textToString()+"\" after # is not a positive integer"); // really should say "not a non-negative integer" but we imitate cpp's misnomer
                             //set the input file and line number 
-                            AssertAlways(false); // IMPLEMENT ME
+                            CHECK(false); // IMPLEMENT ME
                         }
                         else if (token.textIsEmpty())
                         {
                             // nothing!
-                            AssertAlways(nextToken.type == Token.NEWLINE);
+                            CHECK(nextToken.type == Token.NEWLINE);
                         }
                         else
                         {
@@ -2113,7 +2113,7 @@ public class Cpp
                         }
                         // in all of the above cases,
                         // we processed the whole line til NEWLINE
-                        AssertAlways(nextToken.type == Token.NEWLINE);
+                        CHECK(nextToken.type == Token.NEWLINE);
                         tokenAllocator.unrefToken(nextToken);
                         nextToken = null;
                         out.println(); // XXX why is this necessary?
@@ -2133,7 +2133,7 @@ public class Cpp
                                 // have to print it so we don't end up outputting the end without the start.
                                 // gcc just doesn't output such comments at all, but we aren't in a position to be able to imitate it since we don't have much coherency between lines.
                                 out.print(nextToken.textUnderlyingString, nextToken.i0, nextToken.i1);
-                                AssertAlways(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
+                                CHECK(!inComment); // we can't get PREPROCESSOR_DIRECTIVE tokens when in comment
                                 inComment = true;
                                 out.keepSynced = !inComment;
                                 // next token is guaranteed to be a NEWLINE
@@ -2169,8 +2169,8 @@ public class Cpp
                                                                token.inFileName,
                                                                commentOutLineDirectives,
                                                                in.extraCrap);
-                                AssertAlways(out.inLineNumber == token.inLineNumber);
-                                AssertAlways(out.outLineNumberDelivered == out.outLineNumberPromised);
+                                CHECK(out.inLineNumber == token.inLineNumber);
+                                CHECK(out.outLineNumberDelivered == out.outLineNumberPromised);
                             }
                             if (outputDebugLevel >= DEBUG_PER_TOKEN)
                                 System.err.println("        (passing through token)");
@@ -2202,7 +2202,7 @@ public class Cpp
             // including the newline.
         }
 
-        AssertAlways(tokenStream.isEmpty());
+        CHECK(tokenStream.isEmpty());
 
         if (!ifStack.isEmpty())
         {
@@ -2693,8 +2693,8 @@ public class Cpp
             System.err.println("    "+millisToSecsString(t1Millis-t0Millis)+" seconds");
         }
 
-        AssertAlways(lineBufferScratch.nTokensReferringToMe == 0);
-        AssertAlways(tokenAllocator.nInUse == 0);
+        CHECK(lineBufferScratch.nTokensReferringToMe == 0);
+        CHECK(tokenAllocator.nInUse == 0);
 
         if (inputDebugLevel >= DEBUG_OVERALL)
             System.err.println("out Cpp.main");

@@ -2,7 +2,7 @@ package com.donhatchsw.javacpp;
 
 public class javacpp
 {
-    private static void AssertAlways(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     public static void main(String args[])
     {
@@ -27,7 +27,7 @@ public class javacpp
         for (int i = 0; i < parsedArgs.inFileNames.length; ++i)
         {
             String prejavaFileName = parsedArgs.inFileNames[i];
-            AssertAlways(prejavaFileName.endsWith(".prejava"));
+            CHECK(prejavaFileName.endsWith(".prejava"));
             String javaFileName = prejavaFileName.substring(0, prejavaFileName.length()-".prejava".length())+".java";
             System.err.println("    prejavaFileName = \""+prejavaFileName+"\"");
             System.err.println("       javaFileName = \""+javaFileName+"\"");

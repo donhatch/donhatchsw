@@ -8,7 +8,7 @@ package com.donhatchsw.mc4d;
 public class GenericPuzzleFactory
 {
     private GenericPuzzleFactory() {} // uninstantiatable
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     /**
     * Sample string:
@@ -27,7 +27,7 @@ public class GenericPuzzleFactory
 
         System.out.println("matcher.groupCount() = "+matcher.groupCount());
 
-        Assert(matcher.groupCount() == 3);
+        CHECK(matcher.groupCount() == 3);
         String className = matcher.group(1);
         String argWithEscapes = matcher.group(2);
 

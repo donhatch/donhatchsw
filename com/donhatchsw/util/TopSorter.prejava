@@ -33,7 +33,7 @@ package com.donhatchsw.util;
 public class TopSorter
 {
     // always-compiled-in assertion
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    static private void Assert(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     private static class LinkedListOfInts
     {

@@ -58,7 +58,7 @@ import com.donhatchsw.util.Listenable;
 
 public class MC4DViewGuts
 {
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     //
     // Classes...
@@ -244,7 +244,7 @@ public class MC4DViewGuts
                         sb.append(field.getName()+"="+fieldValue.toString());
                         sb.append(',');
                     } catch (IllegalAccessException e) {
-                        Assert(false);
+                        CHECK(false);
                     }
                 }
             }
@@ -590,7 +590,7 @@ public class MC4DViewGuts
                                     float polyAndStickerAndFaceCenter[][] = GenericPipelineUtils.pickPolyAndStickerAndFaceCenter(
                                          me.getX(), me.getY(),
                                          viewState.untwistedFrame);
-                                    Assert(polyAndStickerAndFaceCenter != null); // hit once, should hit again
+                                    CHECK(polyAndStickerAndFaceCenter != null); // hit once, should hit again
                                     float polyCenter[] = polyAndStickerAndFaceCenter[0];
 
                                     // Interested in only the w component
@@ -1125,7 +1125,7 @@ public class MC4DViewGuts
                                                         closestPointOnPositiveYZSector);
                 }
             }
-            Assert(bestIFace != -1);
+            CHECK(bestIFace != -1);
             com.donhatchsw.util.VecMath.normalize(bestClosestPointOnPositiveYZSector,
                                                   bestClosestPointOnPositiveYZSector);
             com.donhatchsw.util.VecMath.copyvec(3, returnPointOnYZArc,
@@ -1207,7 +1207,7 @@ public class MC4DViewGuts
             if (zeroOutTiltToo)
                 tiltDeltaAngle = 0.f; // before clamping-- we do let the clamp do a tilt if it wants
 
-            Assert(viewState.zeroRollPoleAfterRot3d != null); // initiateZeroRoll must have been called previously
+            CHECK(viewState.zeroRollPoleAfterRot3d != null); // initiateZeroRoll must have been called previously
             viewState.zeroRollPoleAfterRot3d = com.donhatchsw.util.VecMath.copyvec(3, viewState.zeroRollPoleAfterRot3d); // XXX sigh... because vxm and other stuff freaks if I don't
             // Clamp tilt to [0..pi/2]...
             double currentTilt = Math.atan2(viewState.zeroRollPoleAfterRot3d[2],
@@ -1390,7 +1390,7 @@ public class MC4DViewGuts
         private static void autoGenerateHueAndSat(int iFace,
                                                   double hueAndSat[/*2*/])
         {
-            Assert(iFace >= 0);
+            CHECK(iFace >= 0);
 
             double hue = iFace/8.;
             double sat = 1.;
@@ -1646,8 +1646,8 @@ public class MC4DViewGuts
                 public double length(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
-                    Assert(twist != null);
-                    Assert(twist.grip != -1);
+                    CHECK(twist != null);
+                    CHECK(twist.grip != -1);
                     int order = model.genericPuzzleDescription.getGripSymmetryOrders(twist.futtIfPossible)[twist.grip];
                     if (order <= 0)
                         return 1.; // XXX can this happen, and why?
@@ -1661,7 +1661,7 @@ public class MC4DViewGuts
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
-                    Assert(grip != -1);
+                    CHECK(grip != -1);
                     int face = model.genericPuzzleDescription.getGrip2Face()[grip];
                     return faceColor[face % faceColor.length];
                 }

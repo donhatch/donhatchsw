@@ -12,7 +12,7 @@ import com.donhatchsw.awt.RowLayout;
 public class MC4DApplet
     extends Applet
 {
-    static private void Assert(boolean condition) { if (!condition) throw new Error("Assertion failed"); }
+    static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     //
     // Note, all public fields are settable as params
@@ -428,7 +428,7 @@ public class MC4DApplet
                                         System.out.println("model = "+s1);
                                         MC4DModel m2 = MC4DModel.fromString(s1);
                                         String s3 = m2.toString();
-                                        Assert(s3.equals(s1));
+                                        CHECK(s3.equals(s1));
                                         System.out.println("Good!");
                                         viewGuts.setModel(m2);
                                     }
@@ -799,13 +799,13 @@ public class MC4DApplet
             private java.util.Hashtable hashTable = new java.util.Hashtable();
             public void add(Object key, Object value)
             {
-                Assert(hashTable.get(key) == null); // XXX throw something more legit
+                CHECK(hashTable.get(key) == null); // XXX throw something more legit
                 orderedKeys.add(key);
                 hashTable.put(key, value);
             }
             public void remove(Object key)
             {
-                Assert(hashTable.get(key) != null); // XXX throw something more legit
+                CHECK(hashTable.get(key) != null); // XXX throw something more legit
                 orderedKeys.remove(key); // takes O(n) time
                 hashTable.remove(key);
             }
@@ -871,7 +871,7 @@ public class MC4DApplet
             int n = undoTreeSquirrelPanels.size();
             for (int i = 0; i < n; ++i)
             {
-                Assert(false); // XXX do me
+                CHECK(false); // XXX do me
             }
             return null;
         } // findUndoTreeSquirrelPanelOfSquirrel
@@ -1038,8 +1038,8 @@ public class MC4DApplet
                 comp = parent;
         }
         //System.out.println("out getTopLevelFrameOrApplet ("+comp.getClass()+")");
-        Assert(comp instanceof Frame
-            || comp instanceof Applet);
+        CHECK(comp instanceof Frame
+           || comp instanceof Applet);
         return comp;
     } // getTopLevelFrameOrApplet
 
@@ -1186,8 +1186,8 @@ public class MC4DApplet
                 public double length(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
-                    Assert(twist != null);
-                    Assert(twist.grip != -1);
+                    CHECK(twist != null);
+                    CHECK(twist.grip != -1);
                     int order = viewGuts.model.genericPuzzleDescription.getGripSymmetryOrders(twist.futtIfPossible)[twist.grip];
                     if (order <= 0)
                         return 1.; // XXX can this happen, and why?
@@ -1201,7 +1201,7 @@ public class MC4DApplet
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
-                    Assert(grip != -1);
+                    CHECK(grip != -1);
                     int face = viewGuts.model.genericPuzzleDescription.getGrip2Face()[grip];
                     return faceColor[face % faceColor.length];
                 }

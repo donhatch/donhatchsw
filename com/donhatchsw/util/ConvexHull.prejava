@@ -1114,7 +1114,7 @@ public class ConvexHull
         //catch (Exception e)
         catch (Error e)
         {
-            System.out.println("Oh no!!!!!!!!!!!!!! Assertion happening in sanity check; here's the verts");
+            System.out.println("Oh no!!!!!!!!!!!!!! CHECK happening in sanity check; here's the verts");
             PRINTARRAY(verts);
             throw e;
         }
