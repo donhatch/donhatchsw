@@ -27,10 +27,10 @@ public class MC4DApplet
     public boolean forceFuttableXXX = false;
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
-        {"x", "integer", "x position for spawned viewers"},  // XXX does this work?
-        {"y", "integer", "y position for spawned viewers"},  // XXX does this work?
-        {"w", "integer", "width of spawned viewers"},  // XXX does this work?
-        {"h", "integer", "height of spawned viewers"},  // XXX does this work?
+        {"x", "integer", "x position for initial and spawned viewers"},  // XXX does this work for spawned?
+        {"y", "integer", "y position for initial and spawned viewers"},  // XXX does this work for spawned?
+        {"w", "integer", "width of initial and spawned viewers"},  // XXX does this work for spawned?
+        {"h", "integer", "height of initial and spawned viewers"},  // XXX does this work for spawned?
         {"doDoubleBuffer", "boolean", "whether to double buffer"},
         {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
         {"forceFuttableXXX", "boolean", "whether to force puzzle to think it's futtable.  for development."},
