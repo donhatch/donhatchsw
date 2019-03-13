@@ -269,11 +269,9 @@
     =====
         JOIN:
             - TODONE (mostly: would be nice to be able to express Johnson solids.  Currently can't even express a square pyramid, I don't think? (could allow pyramid to be expressed? maybe join operator, see https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol) Maybe allow general intersections of half-spaces?
-            - fails:
-
             - succeeds:
-                3,4v() (see TODO to get clarity on why number of contributing hyperplanes is weird)
-                ()v3,4 (see TODO to get clarity on why number of contributing hyperplanes is weird)
+                3,4v()
+                ()v3,4
                 ()v{}
                 {}v{}
                 {}v3
@@ -291,7 +289,6 @@
                 4,3v()
                 5,3v()
                 3v3 (gets different ArrayIndexOutOfBoundsException 0 just because it's 5 dimensional, but that's a different bug)
-            oh hmm, maybe the pattern is that it succeeds if exactly a point on the RHS, fails otherwise.
 
         FUTT:
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
@@ -329,6 +326,9 @@
               TODO: example of 4d 4-valent where a triprism needs futt for some but not all of its nontrivial local symmetries.
               TODO: example of 4d 4-valent where a triprism needs futt for a twist on its tri, but some of its twists on squares don't need futt
               TODO: more subtle localities?
+
+        FRUCHT/FRUITY
+            - 4d fruity isn't right yet, need to work on it
 
         NONUNIFORM BOXES:
             - "{4,3} 2,3,4" strangely asymmetric now?  and throws on click.  (oh, that was never the way to do a nonuniform box.  it was "(2)x(3)x(4) 2,3,4"
@@ -686,6 +686,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private boolean decideWhetherFuttable(int[] intLengths, java.io.PrintWriter progressWriter)
     {
         if (progressWriter != null) progressWriter.println("        is it futtable?");
+
+        if (false)  // this should be false, unless debugging
+        {
+            if (progressWriter != null) progressWriter.println("        deciding futtable because override");
+            return true;
+        }
+
         int nDims = this.originalPolytope.p.dim;
         if (nDims != 3)
         {
@@ -1783,7 +1790,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 // on the affine subspace containing the face to twist.
                                 if (false)
                                 {
-                                  // Naive-- use facet center.
+                                  // Naive-- use facet center.  (actually cg of verts of facet, currently, I think)
                                   // This works for uniform polytopes, but not in general
                                   // (e.g. it's wrong for frucht).
                                   VecMath.copyvec(gripUsefulMats[iGrip][0], facetCentersD[iFacet]);
@@ -2958,12 +2965,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 // populate outVerts
                 {
-                    // ALTERNATIVE IDEA TO THINK ABOUT:
-                    // compute an xform matrix for each corner region, and the bounds of that region,
-                    // and just apply the xform matrix to the sticker coords; no need to figure out where they came from.
-                    // The tricky part of this will be that the xform to apply to the sticker center
-                    // that's halfway between two corners should be a blend of two such xforms,
-                    // and we need to find corner region bounds so we can detect where that happens.
                     double[][][][][] cutIntersectionCoords = new double[gonality][/*nCutsThisFace+1*/][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
                     for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
                     {
@@ -3020,7 +3021,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
 
                     // The usual params.
-                    // bucket size is chosen by listening to the the implementation which throws if it's too small.
+                    // bucket size is chosen by listening to the implementation, which throws if it's too small.
                     FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
 
                     for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
@@ -3079,7 +3080,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // Populate outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
                 {
                     // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
-                    // The others don't necessarily make any sense anyway.
+                    // The others wouldn't necessarily make any sense anyway.
                     int nFacets = originalElements[nDims-1].length;
                     float[][] rotatedMorphedFaceCenters = new float[nFacets][/*nDisplayDims=*/4];
                     for (int i = 0; i < gonality; ++i)
