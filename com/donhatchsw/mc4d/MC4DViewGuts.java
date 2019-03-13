@@ -924,6 +924,7 @@ public class MC4DViewGuts
                                                                 puzzleState, // fills this
                                                                 twist);      // fills this
         //System.out.println("fraction of way through twist = "+fractionOfWayThroughTwist);
+        //System.out.println("twist = "+twist);
 
 
         if (viewState.iRotation < viewState.nRotation)

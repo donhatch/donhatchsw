@@ -207,7 +207,9 @@ public class GenericPipelineUtils
         // Get the non-shrunk 4d verts and shrink-to points
         // from the puzzle description.
         //
-        if (iGripOfTwist == -1)
+        if (iGripOfTwist == -1
+         || fracIntoTwist == 0.  // If we don't add this, we'll do extra work doing the partially twisted thing when a twist is over, in which case the model reports it's still twisting but frac is 0 (not sure that should be happening, but it does)
+         )
         {
             puzzleDescription.computeVertsAndShrinkToPointsAtRest(
                 verts,
