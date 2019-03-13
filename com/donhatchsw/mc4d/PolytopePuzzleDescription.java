@@ -2757,14 +2757,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     symmetryOrder = vertexValenceThisFacet;
                 }
                 if (futtVerboseLevel >= 1) System.out.println("              symmetryOrder = "+symmetryOrder);
-                // To get started, figure out three fromFacet,toFacet pairs.
+                // To get started, figure out three (or four, if we want to nail down sign initially) fromFacet,toFacet pairs.
                 // The first will always be iFacet,iFacet, since that's fixed.
                 // Case vertex:
                 //   find three neighbor facets, in ccw order around the vertex on the facet;
                 //   map the first to the second, and the second to the third.
                 // Case edge:
                 //   find the two neighbor facets at this edge.
-                //   map them to each other.
+                //   map them to each other.  (this is only three, but in this case either choice of sign gives the same answer)
                 // Case 2face:
                 //   either:
                 //     - map the corresponding neighbor facet to itself,
