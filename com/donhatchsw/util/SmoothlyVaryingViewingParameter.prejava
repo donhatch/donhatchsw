@@ -396,7 +396,7 @@ public class SmoothlyVaryingViewingParameter
                             if (VecMath.normsqrd(scales) == 0.)
                             {
                                 System.out.println("SURPRISE: SmoothlyVaryingViewingParameter strategy=separable: scales unexpectedly zero after "+(iPreflight+1)+"/"+nPreflights+" preflights: position="+VecMath.toString(position)+" targetPosition="+VecMath.toString(targetPosition)+" position-targetPosition="+VecMath.toString(VecMath.vmv(position,targetPosition))+" velocity="+VecMath.toString(velocity));
-                                CHECK(VecMath.normsqrd(scales) == 0.);
+                                CHECK_EQ(VecMath.normsqrd(scales), 0.);
                             }
                             VecMath.normalize(scales, scales);
                             if (verboseLevel >= 2) PRINTVEC(scales); // XXX bleah, if using settleTime^2, when I print these out, they oscillate sometimes, e.g.
@@ -1592,8 +1592,8 @@ public class SmoothlyVaryingViewingParameter
         final int verboseLevel = 0;
         if (verboseLevel >= 1) System.out.println("            in computeSeparableWeights(p="+VecMath.toString(p)+", v="+VecMath.toString(v)+", aMag="+aMag+", bounce="+bounce+", bounceAware="+bounceAware);
         final int n = p.length;
-        CHECK(v.length == n); // precondition
-        CHECK(answerWeights.length == n); // precondition
+        CHECK_EQ(v.length, n); // precondition
+        CHECK_EQ(answerWeights.length, n); // precondition
         if (n == 0) return;
         if (n == 1) {answerWeights[0] = 1.; return;}
         CHECK(n >= 2); // logical assertion
@@ -1802,8 +1802,8 @@ public class SmoothlyVaryingViewingParameter
                       CHECK_ALMOST_EQ(vs[i][j][1], 0., tol);
                       if (false) // XXX not ready for this yet, but eventually... the slop can actually be useful since it tests tolerance for it, but should be systematic about it
                       {
-                          CHECK(ps[i][j][1] == 0.);
-                          CHECK(vs[i][j][1] == 0.);
+                          CHECK_EQ(ps[i][j][1], 0.);
+                          CHECK_EQ(vs[i][j][1], 0.);
                       }
                     }
                 }

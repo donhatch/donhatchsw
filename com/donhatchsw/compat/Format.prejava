@@ -13,8 +13,6 @@ package com.donhatchsw.compat;
 */
 public class Format
 {
-    private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
-
     /**
     * 0: nothing
     * 1: prints some stuff

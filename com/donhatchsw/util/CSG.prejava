@@ -2560,15 +2560,15 @@ public final class CSG
                 Polytope[][] allElements = answer.p.getAllElements();
                 int[/*4*/][][/*4*/][] allIncidences = answer.p.getAllIncidences();
                 int[] counts = counts(answer.p);
-                CHECK(counts.length == 4);
+                CHECK_EQ(counts.length, 4);
                 int nVerts = counts[0];
                 int nEdges = counts[1];
                 int nFaces = counts[2];
                 int nCells = counts[3];
-                CHECK(nVerts == 12);
-                CHECK(nEdges == 18);
-                CHECK(nFaces == 8);
-                CHECK(nCells == 1);
+                CHECK_EQ(nVerts, 12);
+                CHECK_EQ(nEdges, 18);
+                CHECK_EQ(nFaces, 8);
+                CHECK_EQ(nCells, 1);
                 Polytope[] verts = allElements[0];
 
                 double[][] scratchVertCoords = new double[nVerts][3];
@@ -2583,7 +2583,7 @@ public final class CSG
                 for (int iFace = 0; iFace < nFaces; ++iFace) {
                   //System.out.println("iFace = "+iFace);
                   //System.out.println("    verts on this face are "+Arrays.toStringCompact(allIncidences[2][iFace][0]));
-                  CHECK(allIncidences[2][iFace][0].length == allIncidences[2][iFace][1].length);
+                  CHECK_EQ(allIncidences[2][iFace][0].length, allIncidences[2][iFace][1].length);
                   f2v[iFace] = new int[allIncidences[2][iFace][0].length];
                   int iFirstEdgeThisFace = allIncidences[2][iFace][1][0];
                   f2v[iFace][0] = allIncidences[1][iFirstEdgeThisFace][0][0];
@@ -2668,9 +2668,9 @@ public final class CSG
                   OUT("================================");
                   OUT("ATTEMPTING TO ANSWER OSKAR'S QUESTION");
                   int edges[][] = new int[18][2];
-                  CHECK(allIncidences[1].length == 18);
+                  CHECK_EQ(allIncidences[1].length, 18);
                   for (int iEdge = 0; iEdge < allIncidences[1].length; ++iEdge) {
-                    CHECK(allIncidences[1][iEdge][0].length == 2);
+                    CHECK_EQ(allIncidences[1][iEdge][0].length, 2);
                     int iVert = allIncidences[1][iEdge][0][0];
                     int jVert = allIncidences[1][iEdge][0][1];
                     edges[iEdge][0] = iVert;
@@ -2688,12 +2688,12 @@ public final class CSG
                       theQuadFaceIndices = Arrays.append(theQuadFaceIndices, iFace);
                     }
                   }
-                  CHECK(theQuadFaceIndices.length == (notFruchtFlag ? 3 : 1));
+                  CHECK_EQ(theQuadFaceIndices.length, (notFruchtFlag ? 3 : 1));
                   for (int iQuadFaceIndex = 0; iQuadFaceIndex < theQuadFaceIndices.length; ++iQuadFaceIndex) {
                     int theQuadFaceIndex = theQuadFaceIndices[iQuadFaceIndex];
                     // Find the quad face vertices in order...
                     int quadVerts[] = VecMath.copyvec(allIncidences[2][theQuadFaceIndex][0]);
-                    CHECK(quadVerts.length == 4);
+                    CHECK_EQ(quadVerts.length, 4);
                     // Which quad face vert is *not* incident on its vert 0?
                     int vert0 = quadVerts[0];
                     int oppositeVert0Index = -1;
@@ -2709,7 +2709,7 @@ public final class CSG
                         }
                       }
                       if (!theEdgeExists) {
-                        CHECK(oppositeVert0Index == -1);
+                        CHECK_EQ(oppositeVert0Index, -1);
                         oppositeVert0Index = i;
                       }
                     }
@@ -2731,7 +2731,7 @@ public final class CSG
                     // Move each vert to the average of where its edge springs want to go...
                     VecMath.zeromat(newScratchVertCoords);
                     VecMath.zerovec(weights);
-                    CHECK(edges.length == 18+2*(notFruchtFlag?3:1));
+                    CHECK_EQ(edges.length, 18+2*(notFruchtFlag?3:1));
                     int nEdgesToEnforce = edges.length;
                     //int nEdgesToEnforce = 18;  // all but the square diagonals
                     for (int iEdge = 0; iEdge < nEdgesToEnforce; ++iEdge)

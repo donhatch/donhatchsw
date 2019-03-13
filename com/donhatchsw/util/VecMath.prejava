@@ -788,7 +788,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         int d = answer.length;
         CHECK(d >= 2); // doesn't make sense otherwise
         int n = points.length;
-        CHECK(n == weights.length);
+        CHECK_EQ(n, weights.length);
 
         double weightsSum = sum(weights);
         CHECK(weightsSum > 0.);
@@ -3371,8 +3371,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
       int n = A.length;
       int dim = A[0].length;
-      CHECK(n == B.length);
-      CHECK(dim == B[0].length);
+      CHECK_EQ(n, B.length);
+      CHECK_EQ(dim, B[0].length);
       double[] Acentroid = VecMath.average(A);
       double[] Bcentroid = VecMath.average(B);
       double[][] crossCovarianceMatrix = new double[dim][dim];
@@ -3416,8 +3416,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         int n = A.length;
         int dim = A[0].length;
-        CHECK(n == B.length);
-        CHECK(dim == B[0].length);
+        CHECK_EQ(n, B.length);
+        CHECK_EQ(dim, B[0].length);
         double[][] columnOrientedRotationAndTranslation = findColumnOrientedProcrustesRotationAndTranslation(A, B);
         double[][] answer = new double[n][dim];
         for (int i = 0; i < n; ++i) {
@@ -3472,14 +3472,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static void svdcmpPolish(double[][] U, int m, int n, double d[], double V[][], boolean force_positive_rotations)
     {
         // TODO: can we relax some of these?  or maybe just get rid of m and n?
-        CHECK(U.length == m);
+        CHECK_EQ(U.length, m);
         CHECK(m==0 || U[0].length == n);
-        CHECK(m >= n);
-        CHECK(d.length == n);
-        CHECK(V.length == n);
+        CHECK_GE(m, n);
+        CHECK_EQ(d.length, n);
+        CHECK_EQ(V.length, n);
         CHECK(n==0 || V[0].length == n);
 
-        CHECK(m == n);  // TODO: haven't thought about non-square case, yet.
+        CHECK_EQ(m, n);  // TODO: haven't thought about non-square case, yet.
 
         {
             int[] order = identityperm(d.length);
@@ -5877,7 +5877,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         // If not force_positive_rotations, then:
                         //   the sv's should be all non-negative, and det of U or V (but not both) is allowed to be -1 (unless some answer sv was 0,
                         //   in which case the implementation is expected to fix it, since it can do that without violating non-negativeness of svs)
-                        CHECK(shouldBeDvector.length == D.length);
+                        CHECK_EQ(shouldBeDvector.length, D.length);
                         for (int i = 0; i < D.length; ++i) {
                             if (force_positive_rotations || shouldBeDvector[dim-1] == 0.) {
                                 // when conflict, it forced positive rotation at the expense of possibly negating an sv...

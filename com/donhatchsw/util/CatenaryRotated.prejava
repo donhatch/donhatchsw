@@ -25,7 +25,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     {
         super.assertValid();
         double error = MyMath.hypot(cosRotation, sinRotation) - 1.;
-        CHECK(SQR(error) + 1. - 1. == 0.); // implicit tolerance
+        CHECK_EQ(SQR(error) + 1. - 1., 0.); // implicit tolerance
     }
 
     // Unit-length derivative at time t.
