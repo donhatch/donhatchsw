@@ -687,7 +687,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     {
         if (progressWriter != null) progressWriter.println("        is it futtable?");
 
-        if (false)  // this should be false, unless debugging
+        if (false)  // this should be false, unless we want to override for debugging
         {
             if (progressWriter != null) progressWriter.println("        deciding futtable because override");
             return true;
@@ -2847,6 +2847,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 boolean futtIfPossible,
                 float frac)
         {
+            int verboseLevel = 1;
+            if (verboseLevel >= 1) System.out.println("in computeVertsAndShrinkToPointsPartiallyTwisted(gripIndex="+gripIndex+", dir="+dir+", slicemask="+slicemask+", futtIfPossible="+futtIfPossible+", frac="+frac+")");
             // XXX dup code
             boolean weWillFutt = futtIfPossible
                               && this.futtable
@@ -2928,24 +2930,24 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
+                int futtVerboseLevel = 0;  // set to something higher than 0 to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
                 // in that corner region get transformed by that transform.
-                if (verboseLevel >= 1) System.out.println("  ==========================");
-                if (verboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN GOIN ON");
-                if (verboseLevel >= 1) System.out.println("      gripIndex = "+gripIndex);
-                if (verboseLevel >= 1) System.out.println("      dir = "+dir);
-                if (verboseLevel >= 1) System.out.println("      slicemask = "+slicemask);
-                if (verboseLevel >= 1) System.out.println("      frac = "+frac);
-                if (verboseLevel >= 1) System.out.println("      iFacet = "+iFacet);
-                if (verboseLevel >= 1) System.out.println("      symmetry order = "+this.gripSymmetryOrdersFutted[gripIndex]);
+                if (futtVerboseLevel >= 1) System.out.println("  ==========================");
+                if (futtVerboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN GOIN ON");
+                if (futtVerboseLevel >= 1) System.out.println("      gripIndex = "+gripIndex);
+                if (futtVerboseLevel >= 1) System.out.println("      dir = "+dir);
+                if (futtVerboseLevel >= 1) System.out.println("      slicemask = "+slicemask);
+                if (futtVerboseLevel >= 1) System.out.println("      frac = "+frac);
+                if (futtVerboseLevel >= 1) System.out.println("      iFacet = "+iFacet);
+                if (futtVerboseLevel >= 1) System.out.println("      symmetry order = "+this.gripSymmetryOrdersFutted[gripIndex]);
 
                 int nDims = nDims();
 
                 int nStickerLayers = this.intLengthsForFutt[0]/2;  // round down. assumes all intLengths are same.
-                if (verboseLevel >= 1) System.out.println("      nStickerLayers = "+nStickerLayers);
+                if (futtVerboseLevel >= 1) System.out.println("      nStickerLayers = "+nStickerLayers);
 
                 // Find the incident verts and edges, in cyclic order.
                 // This assumes nDims==3.
@@ -2968,10 +2970,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     double[][][][][] cutIntersectionCoords = new double[gonality][/*nCutsThisFace+1*/][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
                     for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
                     {
-                        if (verboseLevel >= 2) System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
+                        if (futtVerboseLevel >= 2) System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
                         int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
                         int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
-                        if (verboseLevel >= 2) System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
+                        if (futtVerboseLevel >= 2) System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
 
                         // We are going to want to answer questions of the form:
                         // "what is the intersection of the hyperplanes
@@ -2986,9 +2988,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iPrevNeighborFace], 0, 3),
                             (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iNextNeighborFace], 0, 3),
                         };
-                        if (verboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(faceInwardNormalsMat));
+                        if (futtVerboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(faceInwardNormalsMat));
                         double[/*3*/][/*3*/] inverseOfFaceInwardNormalsMat = VecMath.invertmat(faceInwardNormalsMat);
-                        if (verboseLevel >= 2) System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
+                        if (futtVerboseLevel >= 2) System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
 
 
                         cutIntersectionCoords[iCornerRegion] = new double[nStickerLayers+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
@@ -3037,7 +3039,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 double w = wdir * pad;
                                 double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
                                 double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
-                                if (verboseLevel >= 3) System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                                if (futtVerboseLevel >= 3) System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                                 finalMorphDestinations.put(from, to);
                             }
                         }
@@ -3057,7 +3059,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             {
                                 double[] from = vertsDForFutt[iVert];
                                 double[] to = (double[])finalMorphDestinations.get(from);
-                                if (verboseLevel >= 3) System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                                if (futtVerboseLevel >= 3) System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                                 CHECK(to != null);
 
                                 // Ok, now what's the right thing to do?
@@ -3102,7 +3104,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                thisFaceCutOffsets))
                         {
                             int jSticker = from2toStickerCenters[iSticker];
-                            if (verboseLevel >= 3) System.out.println("sticker "+iSticker+" -> "+jSticker);
+                            if (futtVerboseLevel >= 3) System.out.println("sticker "+iSticker+" -> "+jSticker);
                             {
                                 float[] fromF = stickerCentersF[iSticker];
                                 float[] toF = stickerCentersF[jSticker];
@@ -3122,9 +3124,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
 
-                if (verboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN WENT ON");
-                if (verboseLevel >= 1) System.out.println("  ==========================");
+                if (futtVerboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN WENT ON");
+                if (futtVerboseLevel >= 1) System.out.println("  ==========================");
             }
+            if (verboseLevel >= 1) System.out.println("out computeVertsAndShrinkToPointsPartiallyTwisted(gripIndex="+gripIndex+", dir="+dir+", slicemask="+slicemask+", futtIfPossible="+futtIfPossible+", frac="+frac+")");
         } // computeVertsAndShrinkToPointsPartiallyTwisted
 
 
