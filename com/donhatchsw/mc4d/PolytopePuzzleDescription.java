@@ -722,20 +722,23 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
         int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
-
-        // If any vertex figure is not a simplex (i.e. has valence other than nDims),
-        // we can't handle it.
         int nVerts = originalElements[0].length;
-        for (int iVert = 0; iVert < nVerts; ++iVert) {
-            if (originalIncidences[0][iVert][1].length != nDims)
-            {
-                if (progressWriter != null) progressWriter.println("        deciding not futtable because at least one vertex figure is not a simplex");
-                return false;
+        int nFacets = originalElements[2].length;
+        int nEdges = originalElements[1].length;
+
+        if (true)
+        {
+            // If any vertex figure is not a simplex (i.e. has valence other than nDims),
+            // we can't handle it.
+            for (int iVert = 0; iVert < nVerts; ++iVert) {
+                if (originalIncidences[0][iVert][1].length != nDims)
+                {
+                    if (progressWriter != null) progressWriter.println("        deciding not futtable because at least one vertex figure is not a simplex");
+                    return false;
+                }
             }
         }
 
-        int nFacets = originalElements[2].length;
-        int nEdges = originalElements[1].length;
 
         // If any non-incident cut sets interact, we can't handle it.
 
@@ -748,6 +751,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int nStickers = stickerElementCounts[nDims-1];
         CHECK(nStickerVerts + nStickers == nStickerEdges + 2);  // Euler's formula
         if (progressWriter != null) progressWriter.println("            sticker element counts = "+VecMath.toString(stickerElementCounts));
+        if (true)
         {
             int expectedNumStickers = 0;  // and counting
             for (int iDim = 0; iDim <= nDims-1; ++iDim) {
@@ -761,6 +765,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 return false;
             }
         }
+        if (true)
         {
             int expectedNumStickerVerts = 0;  // and counting
             expectedNumStickerVerts += nVerts;
@@ -776,7 +781,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         // CBB: this actually kinda sucks because it prevents legitimate futting on things
         // whose topology is regular but whose geometry isn't; for example, "{3}v()"  (if that comes out stretched,
-        // which it does at the time of this writing.
+        // which it does at the time of this writing).
         // TODO: I think, when I get edge futting working, just remove this check so that topological regulars will be futtable too
         if (true)  // can set this to false if I want to debug futt behavior on, say, a cube.
         {
@@ -806,7 +811,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         }
 
-        // XXX TODO: still no good!  we need to declare "frucht 3(2.5)" non-futtable, but haven't figured out how to detect that yet, since incident counts are masquerading as the futtable case!  Well at least it rejects "fruct 3".
+        // XXX TODO: still no good!  we need to declare "frucht 3(2.5)" non-futtable, but haven't figured out how to detect that yet, since incidence counts are masquerading as the futtable case!  Well at least it rejects "fruct 3".
         if (progressWriter != null) progressWriter.println("        deciding futtable!");
 
         return true;
@@ -2601,8 +2606,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         private int[] getFaceNeighborsInOrderForFutt(int iFacet)
         {
             int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
-            CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();  // argh, recomputing
-            int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();  // argh, recomputing
+            CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
+            int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
             int gonality = originalIncidences[2][iFacet][1].length;
 
             boolean[] edgeIsIncidentOnThisFace = new boolean[originalElements[1].length];  // false initially
@@ -2681,8 +2686,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             int nDims = nDims();
             int iFacet = grip2face[gripIndex];
 
-            CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();  // argh, recomputing
-            int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();  // argh, recomputing
+            CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
+            int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
             CSG.Polytope[][] allSlicedElements = slicedPolytope.p.getAllElements();
             int[][][][] allSlicedIncidences = slicedPolytope.p.getAllIncidences();
 
@@ -2941,8 +2946,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 CHECK(nDims == 3);
                 // So, facet=face, ridge=edge, peak=vertex.
 
-                CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();  // argh, recomputing
-                int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();  // argh, recomputing
+                CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
+                int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
 
                 int gonality = originalIncidences[2][iFacet][1].length;
 
