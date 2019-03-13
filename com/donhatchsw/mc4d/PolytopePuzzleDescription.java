@@ -293,8 +293,7 @@
         FUTT:
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
             - current limited implementation:
-              - make decideWhetherFuttable more reliable (it passes "frucht 3(2.5)" but shouldn't)
-              - edge twist animation is wacked out
+              - make decideWhetherFuttable more reliable (it allows "frucht 3(2.5)" because numbers of incidences match, but it shouldn't)
             - make more general implementation:
               - support other than 3d
               - support other than trivalent
@@ -443,6 +442,7 @@
                 In general this will make the symmetry of a twist
                 be dependent on the symmetry of the face,
                 which can be more than the symmetry of the whole puzzle.
+                (TODO: this is in progress, it's called Futt.  works for 3d so far)
             - (maybe done?) what should be highlighted is not the sticker, but everything
                 that maps to the same grip as what the mouse is over.
                 So for the 3x it should be the sticker like it is now,
@@ -710,18 +710,21 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         }
 
-        // If intLength<3, we can't handle it.
-        if (intLength < 3)
+        if (true)
         {
-            if (progressWriter != null) progressWriter.println("        deciding not futtable because intLength="+intLength+" < 3");
-            return false;
-        }
+            // If intLength<3, we can't handle it.
+            if (intLength < 3)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding not futtable because intLength="+intLength+" < 3");
+                return false;
+            }
 
-        // If intLength isn't odd, we can't handle it.
-        if (intLength % 2 == 0)
-        {
-            if (progressWriter != null) progressWriter.println("        deciding not futtable because intLength="+intLength+" isn't odd");
-            return false;
+            // If intLength isn't odd, we can't handle it.
+            if (intLength % 2 == 0)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding not futtable because intLength="+intLength+" isn't odd");
+                return false;
+            }
         }
 
         int nCutsPerFace = (intLength-1)/2;
@@ -1459,7 +1462,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         // This is the thickness in the w direction
                         double padRadius = .1;
                         //double padRadius = .2;
-                        //double padRadius = .25;
+                        //double padRadius = .25;  // good for debugging
+                        //double padRadius = .75;  // even better for debugging
                         sticker4d = CSG.cross(new CSG.SPolytope(0,1,sticker),
                                               CSG.makeHypercube(new double[_nDisplayDims-nDims], padRadius)).p;
                         CSG.Polytope[] stickerVerts4d = sticker4d.getAllElements()[0];
@@ -2609,7 +2613,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         }
 
-        private int[] getFaceNeighborsInOrderForFutt(int iFacet)
+        // Returns pair [edgesThisFaceInOrder, neighborsThisFaceInOrder]
+        private int[][] getFaceNeighborsInOrderForFutt(int iFacet)
         {
             int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
             CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
@@ -2676,16 +2681,71 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][1];
                 neighborsThisFaceInOrder[i] = iThisNeighborFace;
             }
-            if (verboseLevel >= 1) System.out.println("      vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
-            if (verboseLevel >= 1) System.out.println("      edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
-            if (verboseLevel >= 1) System.out.println("      neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
-            return neighborsThisFaceInOrder;
+            if (verboseLevel >= 1) System.out.println("          vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
+            if (verboseLevel >= 1) System.out.println("          edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
+            if (verboseLevel >= 1) System.out.println("          neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
+            return new int[][] {edgesThisFaceInOrder, neighborsThisFaceInOrder};
         }  // getFaceNeighborsInOrderForFutt
+
+        private int[] getFrom2toFacetsForFutt(int gripIndex,
+                                              int dir,
+                                              int[] edgesThisFaceInOrder,
+                                              int[] neighborsThisFaceInOrder)
+        {
+            int futtVerboseLevel = 0;
+            int nDims = this.nDims();
+            int iFacet = grip2face[gripIndex];
+            CSG.Polytope[][] originalElements = this.originalPolytope.p.getAllElements();
+            int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
+            int nFacets = originalElements[nDims-1].length;
+            int gonality = originalIncidences[2][iFacet][1].length;
+            int[] from2toFacet = VecMath.identityperm(nFacets);  // except for...
+            boolean isEdgeFlipIn3d = Math.abs(this.gripUsefulMats[gripIndex][1][3]) < 1e-6;
+            if (isEdgeFlipIn3d)
+            {
+                // CBB: DUP CODE
+                // Figure out which edge of the facet we're going to flip.
+                // It's the one whose facet-to-the-edge is closest to gripUsefulMats[gripIndex][1].
+                // CBB: this isn't reliable, and may change when I make the frucht useful mat more properly orthogonalized.
+                int bestIndex = -1;
+                double bestDot = -1.;
+                for (int i = 0; i < gonality; ++i)
+                {
+                    CSG.Polytope ridge = originalElements[nDims-2][edgesThisFaceInOrder[i]];
+                    double[] facetToRidge = VecMath.vmv(3, CSG.cgOfVerts(ridge), VecMath.floatToDouble(facetCentersF[iFacet]));  // CBB: floatToDouble is not great.  but this is temporary code anyway, I think
+                    double thisDot = VecMath.dot(3, gripUsefulMats[gripIndex][1], facetToRidge);
+                    if (futtVerboseLevel >= 1) System.out.println("          looking at i="+i+" -> ridge="+edgesThisFaceInOrder[i]+", neighbor="+neighborsThisFaceInOrder[i]+": thisDot="+thisDot);
+                    if (futtVerboseLevel >= 1) System.out.println("              facetToRidge = "+VecMath.toString(facetToRidge));
+                    if (futtVerboseLevel >= 1) System.out.println("              gripUsefulMats[gripIndex][1] = "+VecMath.toString(gripUsefulMats[gripIndex][1]));
+                    if (thisDot > bestDot) {
+                        bestIndex = i;
+                        bestDot = thisDot;
+                    }
+                }
+                int neighborIndexToFlip = bestIndex;
+                if (futtVerboseLevel >= 1) System.out.println("      neighborIndexToFlip = "+neighborIndexToFlip+" (face "+neighborsThisFaceInOrder[neighborIndexToFlip]+")");
+                for (int i = 0; i < gonality; ++i)
+                {
+                    int j = (2*neighborIndexToFlip-i + gonality) % gonality; // so neighborIndex stays fixed, and direction is reversed
+                    from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
+                }
+            }
+            else
+            {
+                for (int i = 0; i < gonality; ++i) {
+                    // This calculation would make no sense for edge flips, since the vector in question would be zero in w direction
+                    int j = (i + (this.gripUsefulMats[gripIndex][1][3] < 0 ? -1 : 1)*dir + gonality) % gonality;
+                    from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
+                }
+            }
+            return from2toFacet;
+        }  // getFrom2toFacetsForFutt
 
         private int[] getFrom2toStickersForFutt(int gripIndex,
                                                 int dir,
                                                 int slicemask,
-                                                int[] neighborsThisFaceInOrder)
+                                                int[] edgesThisFaceInOrder,  // CBB: not really needed except for passing to getFrom2toFacetsForFutt, which caller should be doing, not us
+                                                int[] neighborsThisFaceInOrder)  // CBB: not really needed except for passing to getFrom2toFacetsForFutt, which caller should be doing, not us
         {
             int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
             if (verboseLevel >= 1) System.out.println("        in getFrom2toStickersForFutt");
@@ -2795,13 +2855,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     CHECK(cutInfos2sticker.put(stickerCutInfosString, iSticker) == null);
                 }
             }
-            int nFacets = originalElements[nDims-1].length;
-            int[] from2toFacet = VecMath.identityperm(nFacets);  // except for...
-            for (int i = 0; i < gonality; ++i) {
-                int j = (i + (this.gripUsefulMats[gripIndex][1][3] < 0 ? -1 : 1)*dir + gonality) % gonality;
-                from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
-            }
 
+            int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, edgesThisFaceInOrder, neighborsThisFaceInOrder);
             int[] from2toStickerCenters = VecMath.identityperm(nStickers);  // except for...
             for (int fromSticker = 0; fromSticker < nStickers; ++fromSticker)
             {
@@ -2847,7 +2902,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 boolean futtIfPossible,
                 float frac)
         {
-            int verboseLevel = 1;
+            int verboseLevel = 0;
             if (verboseLevel >= 1) System.out.println("in computeVertsAndShrinkToPointsPartiallyTwisted(gripIndex="+gripIndex+", dir="+dir+", slicemask="+slicemask+", futtIfPossible="+futtIfPossible+", frac="+frac+")");
             // XXX dup code
             boolean weWillFutt = futtIfPossible
@@ -2880,6 +2935,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             double[][] matD = getTwistMat(gripIndex, dir, weWillFutt, frac);
             float[][] matF = VecMath.doubleToFloat(matD);
+            if (verboseLevel >= 1) System.out.println("  matD = "+VecMath.toString(matD));
+            if (verboseLevel >= 1) System.out.println("  matF = "+VecMath.toString(matF));
 
             boolean[] whichVertsGetMoved = new boolean[vertsF.length]; // false initially
             int iFacet = grip2face[gripIndex];
@@ -2959,11 +3016,15 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 int gonality = originalIncidences[2][iFacet][1].length;
 
-                int[] neighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
-                int[] from2toStickerCenters = getFrom2toStickersForFutt(gripIndex, dir, slicemask, neighborsThisFaceInOrder);
+                int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
+                int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
+                int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
+                int[] from2toStickerCenters = getFrom2toStickersForFutt(gripIndex, dir, slicemask, edgesThisFaceInOrder, neighborsThisFaceInOrder);
 
                 double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
                 float[][] fullInvMatF = VecMath.doubleToFloat(fullInvMatD);
+
+                boolean isEdgeFlipIn3d = Math.abs(this.gripUsefulMats[gripIndex][1][3]) < 1e-6;
 
                 // populate outVerts
                 {
@@ -2996,7 +3057,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         cutIntersectionCoords[iCornerRegion] = new double[nStickerLayers+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
                         for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
                         {
-                            cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[nStickerLayers+1+1][/*nCutsNextNeighborFace+1*/][];  // one extra layer in this direction, but we don't populate it yet; we'll copy it from the next corner afterwards
+                            cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[nStickerLayers+1+1][/*nCutsNextNeighborFace+1*/][];  // one extra layer in this direction, but we don't populate it yet; we'll copy it from the next corner afterwards    TODO: do we even do that any more?  I don't think so; get rid of that
                             for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1+1; ++iCutPrevNeighborFace)
                             {
                                 // Need coords only where at least one of the three cut indices is 0,
@@ -3026,21 +3087,76 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     // bucket size is chosen by listening to the implementation, which throws if it's too small.
                     FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
 
-                    for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
+                    if (isEdgeFlipIn3d)
                     {
-                        // TODO: this sign computation makes no sense for edge grips
-                        int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
-                        // CBB: all these dimensions better be the same, so don't need to be looking at all different lengths.  same when creating them
-                        for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
-                        for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
-                        for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
-                            for (int wdir = -1; wdir <= 1; wdir += 2) {
-                                double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
-                                double w = wdir * pad;
-                                double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
-                                double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
-                                if (futtVerboseLevel >= 3) System.out.println("setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                                finalMorphDestinations.put(from, to);
+                        if (futtVerboseLevel >= 1) System.out.println("      oh no! it's an edge flip!");
+                        // CBB: DUP CODE
+                        // Figure out which edge of the facet we're going to flip.
+                        // It's the one whose facet-to-the-edge is closest to gripUsefulMats[gripIndex][1].
+                        // CBB: this isn't reliable, and may change when I make the frucht useful mat more properly orthogonalized.
+                        int bestIndex = -1;
+                        double bestDot = -1.;
+                        for (int i = 0; i < gonality; ++i)
+                        {
+                            CSG.Polytope ridge = originalElements[nDims-2][edgesThisFaceInOrder[i]];
+                            double[] facetToRidge = VecMath.vmv(3, CSG.cgOfVerts(ridge), VecMath.floatToDouble(facetCentersF[iFacet]));  // CBB: floatToDouble is not great.  but this is temporary code anyway, I think
+                            double thisDot = VecMath.dot(3, gripUsefulMats[gripIndex][1], facetToRidge);
+                            if (futtVerboseLevel >= 1) System.out.println("          looking at i="+i+" -> ridge="+edgesThisFaceInOrder[i]+", neighbor="+neighborsThisFaceInOrder[i]+": thisDot="+thisDot);
+                            if (futtVerboseLevel >= 1) System.out.println("              facetToRidge = "+VecMath.toString(facetToRidge));
+                            if (futtVerboseLevel >= 1) System.out.println("              gripUsefulMats[gripIndex][1] = "+VecMath.toString(gripUsefulMats[gripIndex][1]));
+                            if (thisDot > bestDot) {
+                                bestIndex = i;
+                                bestDot = thisDot;
+                            }
+                        }
+                        int neighborIndexToFlip = bestIndex;
+                        if (futtVerboseLevel >= 1) System.out.println("      neighborIndexToFlip = "+neighborIndexToFlip+" (face "+neighborsThisFaceInOrder[neighborIndexToFlip]+")");
+
+                        for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
+                        {
+                            // Given fromCornerRegion, we want toCornerRegion such that:
+                            //   fromCornerRegion=neighborIndexToFlip -> toCornerRegion=neighborIndexToFlip+1
+                            //   fromCornerRegion=neighborIndexToFlip+1 -> toCornerRegion=neighborIndexToFlip
+                            // the formula for that is:
+                            //   toCornerRegion = 2*neighborIndexToFlip - fromCornerRegion + 1  (modulo gonality).
+                            int toCornerRegion = ((2*neighborIndexToFlip - fromCornerRegion + 1) + gonality) % gonality;
+                            if (futtVerboseLevel >= 1) System.out.println("          fromCornerRegion="+fromCornerRegion+" -> toCornerRegion="+toCornerRegion);
+
+                            for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
+                            for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
+                            for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
+                                for (int wdir = -1; wdir <= 1; wdir += 2) {
+                                    double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
+                                    double w = wdir * pad;
+                                    double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
+
+                                    double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][k][j], -w);  // interchange k and j because flipping, and negate w
+
+                                    if (futtVerboseLevel >= 3) System.out.println("              setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                                    finalMorphDestinations.put(from, to);
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // not an edge flip in 3d
+                        for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
+                        {
+                            // Note, this is the part of the calculation that would make no sense if it's an edge flip.
+                            int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
+                            // CBB: all these dimensions better be the same, so don't need to be looking at all different lengths.  same when creating them
+                            for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
+                            for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
+                            for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
+                                for (int wdir = -1; wdir <= 1; wdir += 2) {
+                                    double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
+                                    double w = wdir * pad;
+                                    double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
+                                    double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
+                                    if (futtVerboseLevel >= 3) System.out.println("              setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                                    finalMorphDestinations.put(from, to);
+                                }
                             }
                         }
                     }
@@ -3049,6 +3165,17 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     //System.out.println("      cutIntersectionCoordsF = "+VecMath.toString((float[][][][][])VecMath.doubleToFloat(cutIntersectionCoords)));
                     // TODO: figure out why does VecMath.toString act lamely (just print addresses) if I don't cast to float[][][][][]?
 
+                    if (false)  // set to true for debugging, to avoid morph altogether and just do the rotate
+                    {
+                        for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
+                        {
+                            if (whichVertsGetMoved[iVert])
+                                VecMath.vxm(outVerts[iVert], vertsF[iVert], matF);
+                            else
+                                VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
+                        }
+                    }
+                    else
                     {
                         float[] toF = new float[4];  // scratch for loop
                         float[] toFinFromSpace = new float[4];  // scratch for loop
@@ -3059,7 +3186,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             {
                                 double[] from = vertsDForFutt[iVert];
                                 double[] to = (double[])finalMorphDestinations.get(from);
-                                if (futtVerboseLevel >= 3) System.out.println("found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                                if (futtVerboseLevel >= 3) System.out.println("          found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                                 CHECK(to != null);
 
                                 // Ok, now what's the right thing to do?
@@ -3083,12 +3210,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
                     // The others wouldn't necessarily make any sense anyway.
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, edgesThisFaceInOrder, neighborsThisFaceInOrder);
                     int nFacets = originalElements[nDims-1].length;
                     float[][] rotatedMorphedFaceCenters = new float[nFacets][/*nDisplayDims=*/4];
                     for (int i = 0; i < gonality; ++i)
                     {
                         float[] fromF = facetCentersF[neighborsThisFaceInOrder[i]];
-                        float[] toF = facetCentersF[neighborsThisFaceInOrder[(i+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality]];
+                        float[] toF = facetCentersF[from2toFacet[neighborsThisFaceInOrder[i]]];
+
                         float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
                         float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
                         VecMath.vxm(rotatedMorphedFaceCenters[neighborsThisFaceInOrder[i]], morphedFrom, matF);
@@ -3104,7 +3233,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                thisFaceCutOffsets))
                         {
                             int jSticker = from2toStickerCenters[iSticker];
-                            if (futtVerboseLevel >= 3) System.out.println("sticker "+iSticker+" -> "+jSticker);
+                            if (futtVerboseLevel >= 3) System.out.println("          sticker "+iSticker+" -> "+jSticker);
                             {
                                 float[] fromF = stickerCentersF[iSticker];
                                 float[] toF = stickerCentersF[jSticker];
@@ -3196,8 +3325,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int[] neighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
-                int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, neighborsThisFaceInOrder);
+                int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
+                int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
+                int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
+                int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, edgesThisFaceInOrder, neighborsThisFaceInOrder);
                 for (int iSticker = 0; iSticker < state.length; ++iSticker)
                 {
                     newState[from2toStickers[iSticker]] = state[iSticker];

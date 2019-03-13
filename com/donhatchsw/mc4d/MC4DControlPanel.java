@@ -651,6 +651,7 @@ public class MC4DControlPanel
                  "    - any truncated regular",
                  "    - any omnitruncated regular",
                  "    - frucht and not-frucht",
+                 // TODO: when I get it working in 4d, mention "any 2d x 2d duoprism" ... and lots more
                  "Cuts have to be shallow enough so that",
                  "cut sets of non-incident faces don't interact with each other.",
             });
