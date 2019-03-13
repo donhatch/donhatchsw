@@ -33,7 +33,7 @@ package com.donhatchsw.util;
 public class TopSorter
 {
     // always-compiled-in assertion
-    static private void Assert(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
+    static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     private static class LinkedListOfInts
     {
@@ -110,7 +110,7 @@ public class TopSorter
                 successors[i].first = j;
                 predecessors[j].first = i;
             }
-            Assert(iLink == 2*partialOrderSize);
+            CHECK(iLink == 2*partialOrderSize);
         }
 
         //System.out.println("forward...");
@@ -125,7 +125,7 @@ public class TopSorter
                                     finishingArray, // append to this on post
                                     arraySize);
             }
-            Assert(arraySize == n);
+            CHECK(arraySize == n);
         }
         //PRINTARRAY(finishingArray);
         //System.out.println("backward...");
@@ -152,7 +152,7 @@ public class TopSorter
             }
             if (connectedComponentStarts != null)
                 connectedComponentStarts[nConnectedComponents] = arraySize;
-            Assert(arraySize == n);
+            CHECK(arraySize == n);
         }
         return nConnectedComponents;
     } // non-static topsort
@@ -168,7 +168,7 @@ public class TopSorter
                            int arraySize)
     {
         //System.out.println("in dfs(i="+i+")");
-        Assert(!visited[i]);
+        CHECK(!visited[i]);
         visited[i] = true;
         if (preArrayToAppendTo != null)
             preArrayToAppendTo[arraySize++] = i;
@@ -296,7 +296,7 @@ In python:
                 System.out.print(" "+result[i]);
             System.out.println();
             System.out.println(""+nComponents+" components ("+(n-nComponents)+" cycles).");
-            Assert(nComponents == n);
+            CHECK(nComponents == n);
         }
         if (false)
         {
@@ -316,7 +316,7 @@ In python:
                 System.out.print(" "+result[i]);
             System.out.println();
             System.out.println(""+nComponents+" components ("+(n-nComponents)+" cycles).");
-            Assert(nComponents == n-2);
+            CHECK(nComponents == n-2);
         }
         if (true)
         {
@@ -332,7 +332,7 @@ In python:
                 System.out.print(" "+result[i]);
             System.out.println();
             System.out.println(""+nComponents+" components ("+(n-nComponents)+" cycles).");
-            Assert(n-nComponents == 1);
+            CHECK(n-nComponents == 1);
         }
 
     } // main

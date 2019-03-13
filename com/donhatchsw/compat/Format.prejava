@@ -13,7 +13,7 @@ package com.donhatchsw.compat;
 */
 public class Format
 {
-    private static void Assert(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
+    private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
     /**
     * 0: nothing
@@ -44,7 +44,7 @@ public class Format
         int indexIntoFormat = 0;
         while (matcher.find())
         {
-            Assert(matcher.start(0) == indexIntoFormat); // always matches at the beginning
+            CHECK(matcher.start(0) == indexIntoFormat); // always matches at the beginning
             indexIntoFormat = matcher.end();
             if (verboseLevel >= 1)
             {
@@ -115,7 +115,7 @@ public class Format
                 else
                     precision = 6; // XXX wait, this is the default for %g, not everything else in the universe!!
 
-                Assert(formatCharString != null
+                CHECK(formatCharString != null
                     && formatCharString.length() == 1);
                 char formatChar = formatCharString.charAt(0);
                 String thisConversionResult;
@@ -335,7 +335,7 @@ public class Format
                                               +"d]",
                                            precisions[iPrecision],
                                            vals[iVal]);
-                Assert(result01.equals(result00));
+                CHECK(result01.equals(result00));
                 String result02 = sprintf("[%"+leftJustifies[iLeftJustify]
                                               +"*"
                                               +"."
@@ -343,7 +343,7 @@ public class Format
                                               +"d]",
                                            widths[iWidth],
                                            vals[iVal]);
-                Assert(result02.equals(result00));
+                CHECK(result02.equals(result00));
                 String result03 = sprintf("[%"+leftJustifies[iLeftJustify]
                                               +"*"
                                               +"."
@@ -352,7 +352,7 @@ public class Format
                                            widths[iWidth],
                                            precisions[iPrecision],
                                            vals[iVal]);
-                Assert(result03.equals(result00));
+                CHECK(result03.equals(result00));
             }
         }
         if (false)
