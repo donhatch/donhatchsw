@@ -215,9 +215,9 @@ public class Triangulator
                     break; // start another ear search
                 }
             }
-            assert(i >= 0); // found an ear
+            CHECK(i >= 0); // found an ear
         }
-        assert_eq(contourLength, 2);
+        CHECK_EQ(contourLength, 2);
         if (verboseLevel >= 2)
             System.out.println(indentString + "    Done clipping ears.");
 
@@ -429,7 +429,7 @@ public class Triangulator
                         outerI = iVertOnBigContour; // visible!
                         break;
                     }
-                    assert(outerI != -1);
+                    CHECK(outerI != -1);
                 }
 
                 if (verboseLevel >= 4)
@@ -449,7 +449,7 @@ public class Triangulator
                 System.out.println(indentString + "            bigContour = " + Arrays.toStringCompact(Arrays.subarray(bigContour,0,bigContourLength)));
             }
         }
-        assert_eq(bigContourLength, bigContourMax); // would be less if we removed dups, but we don't (we leave that to triangulate). XXX but we probably should, now that this function can be used standalone!
+        CHECK_EQ(bigContourLength, bigContourMax); // would be less if we removed dups, but we don't (we leave that to triangulate). XXX but we probably should, now that this function can be used standalone!
         if (verboseLevel >= 2)
             System.out.println(indentString + "    Done merging.");
 
@@ -753,13 +753,13 @@ public class Triangulator
                         assumpt(iVertOnContour < nVertsOnContour); // the boundary of one contour cannot completely include the boundary of another
                     }
 
-                    assert_eq((density & 1), 0); // solidly in or out
+                    CHECK_EQ((density & 1), 0); // solidly in or out
                     // 0 means outside
                     // 2 means inside CCW (outer) contour
                     // -2 means inside CW (inner) contour
-                    assert(density == 0
-                        || density == 2
-                        || density == -2);
+                    CHECK(density == 0
+                       || density == 2
+                       || density == -2);
 
                     boolean isEnclosedByNode = ((density&2) != 0);
                     if (isEnclosedByNode)
@@ -797,7 +797,7 @@ public class Triangulator
             FORI (iContour, nContours)
             {
                 int dir = contourDirections[iContour];
-                assert(dir != 0);
+                CHECK(dir != 0);
                 if (firstChild[iContour] != -1)
                     contourDirections[firstChild[iContour]] = -dir;
                 if (nextSibling[iContour] != -1)
@@ -833,7 +833,7 @@ public class Triangulator
                     connectedComponents[iConnectedComponent++] = (int[][])Arrays.subarray(group, 0, groupSize);
                 }
             }
-            assert_eq(iConnectedComponent, nConnectedComponents);
+            CHECK_EQ(iConnectedComponent, nConnectedComponents);
         }
 
         if (verboseLevel >= 2)
@@ -986,7 +986,7 @@ public class Triangulator
         // largest, with the two axes ordered so that the polygon
         // area is positive.
         int nAxes = (verts.length == 0 ? 2 : verts[0].length);
-        assert(nAxes >= 2);
+        CHECK(nAxes >= 2);
 
         double bestArea = Double.NaN;
         double absBestArea = -1.; // initialize to impossibly low
@@ -1005,7 +1005,7 @@ public class Triangulator
                     bestYAxis = yAxis;
                 }
             }
-        assert(absBestArea >= 0.);
+        CHECK(absBestArea >= 0.);
         if (bestArea < 0.)
         {
             int temp;
@@ -1193,8 +1193,8 @@ public class Triangulator
                                          int con0[], int len0, int i0,
                                          int con1[], int len1, int i1)
         {
-            assert(result != con0
-                && result != con1);
+            CHECK(result != con0
+               && result != con1);
             System.arraycopy(con0, i0,
                              result, 0,
                              len0-i0);

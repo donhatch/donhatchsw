@@ -132,10 +132,10 @@ public class regex
             {
                 if (verboseLevel >= 1) System.out.println("    theirs = "+Arrays.toStringCompact(theirs));
                 if (verboseLevel >= 1) System.out.println("    mine = "+Arrays.toStringCompact(mine));
-                assert(theirs != null && mine != null);
-                assert_eq(theirs.length, mine.length);
+                CHECK(theirs != null && mine != null);
+                CHECK_EQ(theirs.length, mine.length);
                 for (int i = 0; i < theirs.length; ++i)
-                    assert(theirs[i].equals(mine[i]));
+                    CHECK(theirs[i].equals(mine[i]));
             }
             return useStandardVersion ? theirs : mine;
         } // split
@@ -203,17 +203,17 @@ public class regex
                     if (myGroups != null) PRINT(myGroups.length);
                     PRINTARRAY(myGroups);
                 }
-                assert_eq(theirs, mine);
+                CHECK_EQ(theirs, mine);
                 if (theirs)
                 {
-                    assert(theirGroups != null && myGroups != null);
-                    assert_eq(theirGroups.length, myGroups.length);
+                    CHECK(theirGroups != null && myGroups != null);
+                    CHECK_EQ(theirGroups.length, myGroups.length);
                     for (int iGroup = 0; iGroup < theirGroups.length; ++iGroup)
                     {
-                        assert_eq(theirGroups[iGroup].length, 2);
-                        assert_eq(myGroups[iGroup].length, 2);
-                        assert_eq(theirGroups[iGroup][0], myGroups[iGroup][0]);
-                        assert_eq(theirGroups[iGroup][1], myGroups[iGroup][1]);
+                        CHECK_EQ(theirGroups[iGroup].length, 2);
+                        CHECK_EQ(myGroups[iGroup].length, 2);
+                        CHECK_EQ(theirGroups[iGroup][0], myGroups[iGroup][0]);
+                        CHECK_EQ(theirGroups[iGroup][1], myGroups[iGroup][1]);
                     }
                 }
             }
@@ -245,7 +245,7 @@ public class regex
                 mine = myMatcher.groupCount();
             if (checkAgainstStandardVersion)
             {
-                assert_eq(theirs, mine);
+                CHECK_EQ(theirs, mine);
             }
             return useStandardVersion ? theirs : mine;
         }
@@ -256,25 +256,25 @@ public class regex
             {
                 theirs = theirMatcher.group(iGroup);
                 /* XXX argh, we didn't save input
-                assert(theirs.equals(input.substring(theirMatcher.start(iGroup),
-                                                     theirMatcher.end(iGroup))));
+                CHECK(theirs.equals(input.substring(theirMatcher.start(iGroup),
+                                                    theirMatcher.end(iGroup))));
                 */
             }
             if (!useStandardVersion || checkAgainstStandardVersion)
             {
                 mine = myMatcher.group(iGroup);
                 /* XXX argh, we didn't save input
-                assert(mine.equals(input.substring(myMatcher.start(iGroup),
-                                                   myMatcher.end(iGroup))));
+                CHECK(mine.equals(input.substring(myMatcher.start(iGroup),
+                                                  myMatcher.end(iGroup))));
                 */
             }
             if (checkAgainstStandardVersion)
             {
                 //PRINT(theirs);
                 //PRINT(mine);
-                assert_eq((theirs != null), (mine != null));
+                CHECK_EQ((theirs != null), (mine != null));
                 if (theirs != null)
-                    assert(theirs.equals(mine));
+                    CHECK(theirs.equals(mine));
             }
             return useStandardVersion ? theirs : mine;
         }
@@ -291,7 +291,7 @@ public class regex
             //PRINT(myMatcher.myGroups.length);
             //PRINTARRAY(myMatcher.myGroups);
             if (checkAgainstStandardVersion)
-                assert_eq(theirs, mine);
+                CHECK_EQ(theirs, mine);
             return useStandardVersion ? theirs : mine;
         }
         public int end(int iGroup)
@@ -302,7 +302,7 @@ public class regex
             if (!useStandardVersion || checkAgainstStandardVersion)
                 mine = myMatcher.end(iGroup);
             if (checkAgainstStandardVersion)
-                assert_eq(theirs, mine);
+                CHECK_EQ(theirs, mine);
             return useStandardVersion ? theirs : mine;
         }
         public int end()
@@ -313,7 +313,7 @@ public class regex
             if (!useStandardVersion || checkAgainstStandardVersion)
                 mine = myMatcher.end();
             if (checkAgainstStandardVersion)
-                assert_eq(theirs, mine);
+                CHECK_EQ(theirs, mine);
             return useStandardVersion ? theirs : mine;
         }
         public String replaceAll(String replacement)
@@ -327,8 +327,8 @@ public class regex
             {
                 if (verboseLevel >= 1) System.out.println("    theirs = "+Arrays.toStringCompact(theirs));
                 if (verboseLevel >= 1) System.out.println("    mine = "+Arrays.toStringCompact(mine));
-                assert(theirs != null && mine != null);
-                assert(theirs.equals(mine));
+                CHECK(theirs != null && mine != null);
+                CHECK(theirs.equals(mine));
             }
             return useStandardVersion ? theirs : mine;
         }
@@ -651,7 +651,7 @@ public class regex
 
                     if (transition != null)
                     {
-                        assert_eq(states[iState].transitions.length, 0);
+                        CHECK_EQ(states[iState].transitions.length, 0);
                         states[iState].transitions = (Transition[])Arrays.append(states[iState].transitions, transition);
                     }
                 }
@@ -1249,7 +1249,7 @@ public class regex
 
             } catch (NoSuchMethodException e) {
                 System.err.println("java_util_regex.Pattern: something went dreadfully wrong: "+e);
-                assert(false);
+                CHECK(false);
             }
         } // java_util_regex.getMethods
 
@@ -1277,11 +1277,11 @@ public class regex
                     return new Pattern(nativePattern);
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Pattern.compile!?");
-                    assert(false); // XXX should rethrow? maybe not if only checking?  get straight on this
+                    CHECK(false); // XXX should rethrow? maybe not if only checking?  get straight on this
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Pattern.compile: "+e.getTargetException());
-                    assert(false); // XXX should rethrow? maybe not if only checking?  get straight on this
+                    CHECK(false); // XXX should rethrow? maybe not if only checking?  get straight on this
                     return null;
                 }
             }
@@ -1293,11 +1293,11 @@ public class regex
                     return new Matcher(nativeMatcher);
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Pattern.matcher!?");
-                    assert(false);
+                    CHECK(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Pattern.matcher: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return null;
                 }
             }
@@ -1308,11 +1308,11 @@ public class regex
                     return (String[])patternSplitMethod.invoke(nativePattern, new Object[]{input, new Integer(limit)});
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Pattern.split!?");
-                    assert(false);
+                    CHECK(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Pattern.split: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return null;
                 }
             }
@@ -1337,11 +1337,11 @@ public class regex
                     return this;
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.reset!?");
-                    assert(false);
+                    CHECK(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.reset: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return null;
                 }
             }
@@ -1353,11 +1353,11 @@ public class regex
                     return ((Boolean)matcherFind1Method.invoke(nativeMatcher, new Object[]{new Integer(inputStart)})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.find!?");
-                    assert(false);
+                    CHECK(false);
                     return false;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.find: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return false;
                 }
             }
@@ -1368,11 +1368,11 @@ public class regex
                     return ((Boolean)matcherFind0Method.invoke(nativeMatcher, new Object[]{})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.find!?");
-                    assert(false);
+                    CHECK(false);
                     return false;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.find: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return false;
                 }
             }
@@ -1383,11 +1383,11 @@ public class regex
                     return ((Boolean)matcherMatchesMethod.invoke(nativeMatcher, new Object[]{})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.matches!?");
-                    assert(false);
+                    CHECK(false);
                     return false;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.matches: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return false;
                 }
             }
@@ -1398,11 +1398,11 @@ public class regex
                     return ((Integer)matcherGroupCountMethod.invoke(nativeMatcher, new Object[]{})).intValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.groupCount!?");
-                    assert(false);
+                    CHECK(false);
                     return -1;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.groupCount: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return -1;
                 }
             }
@@ -1413,11 +1413,11 @@ public class regex
                     return ((Integer)matcherStartMethod.invoke(nativeMatcher, new Object[]{new Integer(iGroup)})).intValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.start!?");
-                    assert(false);
+                    CHECK(false);
                     return -1;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.start: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return -1;
                 }
             }
@@ -1428,11 +1428,11 @@ public class regex
                     return ((Integer)matcherEnd1Method.invoke(nativeMatcher, new Object[]{new Integer(iGroup)})).intValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.end!?");
-                    assert(false);
+                    CHECK(false);
                     return -1;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.end: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return -1;
                 }
             }
@@ -1443,11 +1443,11 @@ public class regex
                     return ((Integer)matcherEnd0Method.invoke(nativeMatcher, new Object[]{})).intValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.end!?");
-                    assert(false);
+                    CHECK(false);
                     return -1;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.end: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return -1;
                 }
             }
@@ -1458,11 +1458,11 @@ public class regex
                     return (String)matcherGroupMethod.invoke(nativeMatcher, new Object[]{new Integer(iGroup)}); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.group!?");
-                    assert(false);
+                    CHECK(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.group: "+e.getTargetException());
-                    //assert(false);
+                    //CHECK(false);
                     return null;
                 }
             }
@@ -1473,11 +1473,11 @@ public class regex
                     return (String)matcherReplaceAllMethod.invoke(nativeMatcher, new Object[]{replacement}); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.replaceAll!?");
-                    assert(false);
+                    CHECK(false);
                     return null;
                 } catch (java.lang.reflect.InvocationTargetException e) {
                     System.err.println("InvocationTargetException trying to invoke Matcher.replaceAll: "+e.getTargetException());
-                    assert(false);
+                    CHECK(false);
                     return null;
                 }
             }

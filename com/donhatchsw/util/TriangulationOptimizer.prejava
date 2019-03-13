@@ -152,25 +152,25 @@ public class TriangulationOptimizer
                     FORI (iEdgeOnTri, 3)
                     {
                         DirectedEdge e = edges[iTri][iEdgeOnTri];
-                        assert_eq(e.iTri, iTri);
-                        assert_eq(e.iEdgeOnTri, iEdgeOnTri);
-                        assert_eq(e.initialVertex, tris[iTri][iEdgeOnTri]);
-                        assert_eq(e.finalVertex, tris[iTri][(iEdgeOnTri+1)%3]);
+                        CHECK_EQ(e.iTri, iTri);
+                        CHECK_EQ(e.iEdgeOnTri, iEdgeOnTri);
+                        CHECK_EQ(e.initialVertex, tris[iTri][iEdgeOnTri]);
+                        CHECK_EQ(e.finalVertex, tris[iTri][(iEdgeOnTri+1)%3]);
                         if (e.opposite != null)
                         {
-                            assert_eq(e.opposite.opposite, e);
-                            assert_eq(e.opposite.initialVertex, e.finalVertex);
-                            assert_eq(e.opposite.finalVertex, e.initialVertex);
+                            CHECK_EQ(e.opposite.opposite, e);
+                            CHECK_EQ(e.opposite.initialVertex, e.finalVertex);
+                            CHECK_EQ(e.opposite.finalVertex, e.initialVertex);
                         }
                     }
                 }
                 FORI (iHeap, heap.n)
                 {
                     DirectedEdge e = (DirectedEdge)heap.heap[iHeap];
-                    assert_eq(edges[e.iTri][e.iEdgeOnTri], e);
-                    assert(e.opposite != null);
+                    CHECK_EQ(edges[e.iTri][e.iEdgeOnTri], e);
+                    CHECK(e.opposite != null);
                     if (HEAP_PARENT(iHeap) >= 0)
-                        assert(heap.heap[HEAP_PARENT(iHeap)].getVal()
+                        CHECK(heap.heap[HEAP_PARENT(iHeap)].getVal()
                             <= e.getVal());
                 }
             }
@@ -271,7 +271,7 @@ public class TriangulationOptimizer
             if (verboseLevel >= 4)
                 System.out.println(indentString + "    tris = " + Arrays.toStringCompact(Arrays.subarray(tris, 0, nTris)));
         }
-        assert(iIter < maxIters);
+        CHECK(iIter < maxIters);
 
         if (verboseLevel >= 2)
         {
@@ -368,7 +368,7 @@ public class TriangulationOptimizer
                         edgesThisContour[iVertThisContour] = edge;
                     }
                 }
-                assert_eq(iEdge, nEdges);
+                CHECK_EQ(iEdge, nEdges);
             }
             SortStuff.Comparator edgeComparator = new SortStuff.Comparator() {
                 OVERRIDE public int compare(Object _a, Object _b)
@@ -497,7 +497,7 @@ public class TriangulationOptimizer
 
             public Item min()
             {
-                assert(n > 0);
+                CHECK(n > 0);
                 return heap[0];
             }
             public void add(Item item, double val)

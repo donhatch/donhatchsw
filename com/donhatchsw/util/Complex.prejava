@@ -1,5 +1,7 @@
 package com.donhatchsw.util;
 
+#include "macros.h"  // TODO: get rid of this after I get rid of the CHECKs at untested code
+
 /**
 * Complex number class.
 * I looked at org.apache.commons.math3.complex.Complex
@@ -162,7 +164,7 @@ public class Complex
         double answerp1Magnitude = E + 1;
         double xAnswer = E - answerp1Magnitude * C;
         double yAnswer = answerp1Magnitude * Math.sin(y);
-        assert(false); // XXX untested!
+        CHECK(false); // XXX untested!  (is *anything* in this file tested??)
         return set(xAnswer, yAnswer);
     }
     public Complex equalsLog1p(double x, double y)
@@ -175,7 +177,7 @@ public class Complex
         //         = log1p((2x+x^2+y^2)/(sqrt((x+1)^2+y^2)+1))
         double xAnswer = MyMath.log1p((x*(2+x)+y*y)/(MyMath.hypot(x+1,y)+1));
         double yAnswer = arg(1.+x, y);
-        assert(false); // XXX untested!
+        CHECK(false); // XXX untested!  (is *anything* in this file tested??)
         return set(xAnswer, yAnswer);
     }
     //---------------------------------------------------------------------------
@@ -193,6 +195,7 @@ public class Complex
     public Complex perpDotEquals()    { return this.equalsPerpDot   (this.x, this.y); }
     public Complex expEquals()        { return this.equalsExp       (this.x, this.y); }
     public Complex logEquals()        { return this.equalsLog       (this.x, this.y); }
+    // TODO: expm1Equals(), log1pEquals()
     //---------------------------------------------------------------------------
 
     //---------------------------------------------------------------------------

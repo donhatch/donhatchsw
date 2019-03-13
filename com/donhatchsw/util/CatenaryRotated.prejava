@@ -25,7 +25,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     {
         super.assertValid();
         double error = MyMath.hypot(cosRotation, sinRotation) - 1.;
-        assert(SQR(error) + 1. - 1. == 0.); // implicit tolerance
+        CHECK(SQR(error) + 1. - 1. == 0.); // implicit tolerance
     }
 
     // Unit-length derivative at time t.
@@ -85,7 +85,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                maxIterations,
                                false, // returnNullOnMaxCallsReached
                                paramNames);
-            assert(answer != null);
+            CHECK(answer != null);
             VecMath.copyvec(x, answer);
         } // solveUsingMinimizer
 
@@ -99,11 +99,11 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     {
         int fitVerboseLevel = 0; // XXX should be a param? not sure, often it is separate
 
-        assert(x1 >= 0.);
-        assert(x1 <= 1.);
+        CHECK(x1 >= 0.);
+        CHECK(x1 <= 1.);
         assumpt(x1 == 1.); // XXX IMPLEMENT OTHER!
 
-        assert(yMoment >= 0.);
+        CHECK(yMoment >= 0.);
 
         double tol = 1e-6; // XXX ?
         //double tol = 1e-5; // XXX ? I'd really like to be able to use something really small
@@ -138,8 +138,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         double angleLo = 0.;
         double angleHi = Math.PI;
 
-        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(angleLo, angleKnownSolution, angleHi, tol);
 
         double gotMoment[] = new double[2];
         double gotMomentOther[] = new double[2];
@@ -150,7 +150,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         if (isObviouslyInSecondQuadrant)
         {
             if (verboseLevel >= 2) System.out.println("                  easy to see it's in second quadrant.");
-            //assert(false); // coverage
+            //CHECK(false); // coverage
             angleLo = Math.PI/2.;
         }
         // TODO: actually there's some magic constant angle we can use... figure it out
@@ -159,17 +159,17 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         if (isObviouslyInFirstQuadrant)
         {
             if (verboseLevel >= 2) System.out.println("                  easy to see it's in first quadrant.");
-            //assert(false); // coverage
+            //CHECK(false); // coverage
             angleHi = Math.PI/2.;
         }
 
-        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(angleLo, angleKnownSolution, angleHi, tol);
 
         if (!isObviouslyInFirstQuadrant && !isObviouslyInSecondQuadrant)
         {
             if (verboseLevel >= 2) System.out.println("                  figuring out which quadrant since it wasn't obvious...");
-            //assert(false); // coverage
+            //CHECK(false); // coverage
             double slackPlus1 = xMoment / xMomentIfTaut; // XXX I think this assumes dist is 1?
             double X = Catenary.asinhc(slackPlus1);
             double Y = MyMath.cosh(X);
@@ -183,19 +183,19 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             if (yMoment <= yMomentOfXMoment)
             {
                 if (verboseLevel >= 2) System.out.println("                    first quadrant.");
-                //assert(false); // coverage
+                //CHECK(false); // coverage
                 angleHi = Math.PI/2.;
             }
             if (yMoment >= yMomentOfXMoment)
             {
                 if (verboseLevel >= 2) System.out.println("                    second quadrant.");
-                //assert(false); // coverage
+                //CHECK(false); // coverage
                 angleLo = Math.PI/2.;
             }
             if (angleLo == Math.PI/2. && angleHi == Math.PI/2.)
             {
                 // actually we have the answer in this case
-                //assert(false); // coverage
+                //CHECK(false); // coverage
                 rLo = rHi = slackPlus1 - 1.;
             }
         }
@@ -216,13 +216,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             }
         }
 
-        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(angleLo, angleKnownSolution, angleHi, tol);
 
         if (angleHi <= Math.PI/2.)
         {
             // First quadrant-- easy
-            //assert(false); // coverage
+            //CHECK(false); // coverage
             if (verboseLevel >= 3) System.out.println("                    first quadrant loop:");
             if (verboseLevel == 2) System.out.print("                    ");
             while (true)
@@ -234,8 +234,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 if (verboseLevel >= 3) System.out.println("                          angleLo="+RTOD(angleLo)+"deg");
                 if (verboseLevel >= 3) System.out.println("                          angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
                 if (verboseLevel >= 3) System.out.println("                          angleHi="+RTOD(angleHi)+"deg");
-                if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+                if (solutionIsKnown) CHECK_ALMOST_INORDER(rLo, rKnownSolution, rHi, tol);
+                if (solutionIsKnown) CHECK_ALMOST_INORDER(angleLo, angleKnownSolution, angleHi, tol);
                 double r = (rLo + rHi) * .5;
                 double angle = (angleLo + angleHi) * .5;
                 double c = Math.cos(angle);
@@ -311,20 +311,20 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     }
                     // don't need to test the NE case; we already did that and more above
                 }
-                assert(categorized);
+                CHECK(categorized);
                 if (!madeProgress)
                     break;
             }
             if (verboseLevel >= 2) System.out.println("!");
         } // first quadrant
 
-        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(angleLo, angleKnownSolution, angleHi, tol);
 
         if (angleLo >= Math.PI/2.)
         {
             // Second quadrant-- harder (unless in the "obviously in second quadrant" part of it)
-            //assert(false); // coverage
+            //CHECK(false); // coverage
             if (verboseLevel >= 3) System.out.println("                    second quadrant loop:");
             if (verboseLevel == 2) System.out.print("                    ");
             while (true)
@@ -336,8 +336,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 if (verboseLevel >= 3) System.out.println("                          angleLo="+RTOD(angleLo)+"deg");
                 if (verboseLevel >= 3) System.out.println("                          angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
                 if (verboseLevel >= 3) System.out.println("                          angleHi="+RTOD(angleHi)+"deg");
-                if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+                if (solutionIsKnown) CHECK_ALMOST_INORDER(rLo, rKnownSolution, rHi, tol);
+                if (solutionIsKnown) CHECK_ALMOST_INORDER(angleLo, angleKnownSolution, angleHi, tol);
                 double r = (rLo + rHi) * .5;
                 double angle = (angleLo + angleHi) * .5;
                 double c = Math.cos(angle);
@@ -436,14 +436,14 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     // This is the tricky case.  It's definitely strictly SW;
                     // otherwise it would have already been categorized...
                     if (verboseLevel == 2) System.out.print(" ouch");
-                    assert(!isObviouslyInSecondQuadrant);
+                    CHECK(!isObviouslyInSecondQuadrant);
 
                     // Logically it's *strictly* in SW quadrant,
                     // but that can fail, e.g. if angle is 89.9999999999999999 degrees or so,
                     // so make the test inexact
-                    //assert(xDir < 0. && yDir < 0.);
-                    assert(LT(xDir, 0., 1e-12));
-                    assert(LT(yDir, 0., 1e-12));
+                    //CHECK(xDir < 0. && yDir < 0.);
+                    CHECK(LT(xDir, 0., 1e-12));
+                    CHECK(LT(yDir, 0., 1e-12));
 
                     boolean tryLastDitchAttemptFlag = false; // XXX TODO: should be able to do this I think!  but there's some logic error
                     if (tryLastDitchAttemptFlag)
@@ -487,8 +487,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                             if (verboseLevel >= 3) System.out.println("                              vantageAngleLo="+RTOD(vantageAngleLo)+"deg");
                             if (verboseLevel >= 3) System.out.println("                              angleKnownSolution="+RTOD(angleKnownSolution)+"deg");
                             if (verboseLevel >= 3) System.out.println("                              vantageAngleHi="+RTOD(vantageAngleHi)+"deg");
-                            if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-                            if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+                            if (solutionIsKnown) CHECK_ALMOST_INORDER(rLo, rKnownSolution, rHi, tol);
+                            if (solutionIsKnown) CHECK_ALMOST_INORDER(angleLo, angleKnownSolution, angleHi, tol);
 
                             double vantageAngle = (vantageAngleLo+vantageAngleHi) * .5;
                             double cVantageAngle = Math.cos(vantageAngle);
@@ -529,7 +529,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     categorizedVantage = true;
                                     if (rLo != r)
                                     {
-                                        //assert(false); // coverage
+                                        //CHECK(false); // coverage
                                         madeProgress = true; // not just local!
                                         rLo = r;
                                         break; // out of the local try-extra-hard loop
@@ -547,7 +547,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     categorizedVantage = true;
                                     if (rHi != r)
                                     {
-                                        //assert(false); // coverage
+                                        //CHECK(false); // coverage
                                         madeProgress = true; // not just local!
                                         rHi = r;
                                         break; // out of the local try-extra-hard loop
@@ -566,7 +566,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                     }
                                 }
                             }
-                            assert(categorizedVantage);
+                            CHECK(categorizedVantage);
                             if (!madeProgressVantage)
                             {
                                 // prevent endless loop.
@@ -610,8 +610,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 System.out.println("                      angleKnownSolution="+angleKnownSolution);
             }
         }
-        if (solutionIsKnown) assert_almost_inorder(rLo, rKnownSolution, rHi, tol);
-        if (solutionIsKnown) assert_almost_inorder(angleLo, angleKnownSolution, angleHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(rLo, rKnownSolution, rHi, tol);
+        if (solutionIsKnown) CHECK_ALMOST_INORDER(angleLo, angleKnownSolution, angleHi, tol);
     } // fitFromMomentByBinarySearchCanonicalCase
 
     // experimental at the moment
@@ -669,10 +669,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             if (verboseLevel >= 1) System.out.println("                  desiredMoment="+VecMath.toString(desiredMoment));
             if (verboseLevel >= 1) System.out.println("                  gotMoment="+VecMath.toString(gotMoment));
 
-            assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
-            //assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-5); // TODO: make this relative to problem scale? not sure
-            //assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-4); // TODO: make this relative to problem scale? not sure
-            //assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-1); // TODO: ok this is ridiculous
+            CHECK_LE(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
+            //CHECK_LE(VecMath.dist(desiredMoment,gotMoment), 1e-5); // TODO: make this relative to problem scale? not sure
+            //CHECK_LE(VecMath.dist(desiredMoment,gotMoment), 1e-4); // TODO: make this relative to problem scale? not sure
+            //CHECK_LE(VecMath.dist(desiredMoment,gotMoment), 1e-1); // TODO: ok this is ridiculous
             if (goodAndBadOut != null || verboseLevel >= 1)
             {
                 String message = "    INTERNAL GOOD: CatenaryRotated.fitFromMomentByBinarySearch(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+(Double.isNaN(xKnownSolution)?"":", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution)+") succeeded: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment);
@@ -857,7 +857,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
         try
         {
-            assert_le(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
+            CHECK_LE(VecMath.dist(desiredMoment,gotMoment), 1e-6); // TODO: make this relative to problem scale? not sure
             if (goodAndBadOut != null || verboseLevel >= 1)
             {
                 String message = "    INTERNAL GOOD: CatenaryRotated.fitFromMoment(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+") succeeded: got moment "+VecMath.toString(gotMoment)+", error="+VecMath.dist(desiredMoment,gotMoment);
@@ -898,7 +898,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
     {
         if (verboseLevel >= 1) System.out.println("                in CatenaryRotated.fitFromRectangularCoords(x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", x="+x+" y="+y+")");
         double slack = MyMath.hypot(x, y);
-        assert(slack >= 0.); // XXX I've seen this fail, in demo3, but I guess that must mean there's nans coming in? at least I think it's here that is failing
+        CHECK(slack >= 0.); // XXX I've seen this fail, in demo3, but I guess that must mean there's nans coming in? at least I think it's here that is failing
         double downAngle = Math.atan2(y, x);
         double cosDownAngle = Math.cos(downAngle);
         double sinDownAngle = Math.sin(downAngle);
@@ -1158,10 +1158,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     double arcLength = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integral, null, null, scratchCatenaryRotated, 0);
                     if (testVerboseLevel >= 1) PRINT(arcLength);
                     if (testVerboseLevel >= 1) PRINT(expectedArcLength);
-                    assert_almost_eq(arcLength, expectedArcLength, 1e-6);
+                    CHECK_ALMOST_EQ(arcLength, expectedArcLength, 1e-6);
                     if (testVerboseLevel >= 1) PRINTVEC(integral);
                     if (testVerboseLevel >= 1) PRINTVEC(expectedIntegral);
-                    assert(VecMath.dist(integral, expectedIntegral) < 1e-6);
+                    CHECK(VecMath.dist(integral, expectedIntegral) < 1e-6);
                 }
 
 
@@ -1188,10 +1188,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     double arcLengthOfSegment = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfSegment, null, null, scratchCatenaryRotated, 0);
                     if (testVerboseLevel >= 1) PRINT(arcLengthOfSegment);
                     if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfSegment);
-                    assert_almost_eq(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6);
+                    CHECK_ALMOST_EQ(arcLengthOfSegment, expectedArcLengthOfSegment, 1e-6);
                     if (testVerboseLevel >= 1) PRINTVEC(integralOfSegment);
                     if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfSegment);
-                    assert(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
+                    CHECK(VecMath.dist(integralOfSegment, expectedIntegralOfSegment) < 1e-6);
                 }
 
                 if (true)
@@ -1207,10 +1207,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     double arcLengthOfDegenerate = integralOfCatenaryWithEndpointsRectangular(v0, v1, x, y, Double.POSITIVE_INFINITY, integralOfDegenerate, null, null, scratchCatenaryRotated, 0);
                     if (testVerboseLevel >= 1) PRINT(arcLengthOfDegenerate);
                     if (testVerboseLevel >= 1) PRINT(expectedArcLengthOfDegenerate);
-                    assert_almost_eq(arcLengthOfDegenerate, expectedArcLengthOfDegenerate, 1e-6);
+                    CHECK_ALMOST_EQ(arcLengthOfDegenerate, expectedArcLengthOfDegenerate, 1e-6);
                     if (testVerboseLevel >= 1) PRINTVEC(integralOfDegenerate);
                     if (testVerboseLevel >= 1) PRINTVEC(expectedIntegralOfDegenerate);
-                    assert(VecMath.dist(integralOfDegenerate, expectedIntegralOfDegenerate) < 1e-6);
+                    CHECK(VecMath.dist(integralOfDegenerate, expectedIntegralOfDegenerate) < 1e-6);
                 }
 
                 if (testVerboseLevel == 2) System.out.print("        "); // indent for dots
@@ -1272,10 +1272,10 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                         double arcLengthTransformed = integralOfCatenaryWithEndpointsRectangular(v0Transformed, v1Transformed, x, y, Double.POSITIVE_INFINITY, integralTransformed, null, null, scratchCatenaryRotated, 0);
                         if (testVerboseLevel >= 3) System.out.println("                arcLengthTransformed = "+arcLengthTransformed);
                         if (testVerboseLevel >= 3) System.out.println("                expectedArcLengthTransformed = "+expectedArcLengthTransformed);
-                        assert_almost_eq(arcLengthTransformed, expectedArcLengthTransformed, 1e-6);
+                        CHECK_ALMOST_EQ(arcLengthTransformed, expectedArcLengthTransformed, 1e-6);
                         if (testVerboseLevel >= 3) System.out.println("                integralTransformed = "+VecMath.toString(integralTransformed));
                         if (testVerboseLevel >= 3) System.out.println("                expectedIntegralTransformed = "+VecMath.toString(expectedIntegralTransformed));
-                        assert(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
+                        CHECK(VecMath.dist(integralTransformed, expectedIntegralTransformed) < 1e-6);
                     }
 
                     if (testVerboseLevel == 2) System.out.print(".");
@@ -1415,7 +1415,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 }
 
                 String tokens[] = testCase.split(", "); // since java 1.4; okay whatever
-                assert(tokens.length == 6 || tokens.length == 8);
+                CHECK(tokens.length == 6 || tokens.length == 8);
                 double x0 = Double.parseDouble(tokens[0].substring(3));
                 double y0 = Double.parseDouble(tokens[1].substring(3));
                 double x1 = Double.parseDouble(tokens[2].substring(3));
@@ -1428,13 +1428,13 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 {
                     //System.out.println(testCases[iTestCase]);
                     //System.out.println("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment);
-                    assert(("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment).equals(testCases[iTestCase]));
+                    CHECK(("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment).equals(testCases[iTestCase]));
                 }
                 else
                 {
                     xKnownSolution = Double.parseDouble(tokens[6].substring(15));
                     yKnownSolution = Double.parseDouble(tokens[7].substring(15));
-                    assert(("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution).equals(testCases[iTestCase]));
+                    CHECK(("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", xMoment="+xMoment+", yMoment="+yMoment+", xKnownSolution="+xKnownSolution+", yKnownSolution="+yKnownSolution).equals(testCases[iTestCase]));
                 }
 
                 PRINT(x0);
@@ -1487,14 +1487,14 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 //double tol = 1e-4; // lets ByBinarySearch succeed most of the time currently, but maybe should make it better instead
                 //double tol = 1e-3; // lets ByBinarySearch succeed currently, but maybe should make it better instead
                 //double tol = 1e-1; // ok this is ridiculous
-                assert_almost_eq(momentActual[0], xMoment, tol);
-                assert_almost_eq(momentActual[1], yMoment, tol);
-                assert_almost_eq(x0y0Actual[0], x0, tol);
-                assert_almost_eq(x0y0Actual[1], y0, tol);
-                assert_almost_eq(x1y1Actual[0], x1, tol);
-                assert_almost_eq(x1y1Actual[1], y1, tol);
-                assert_almost_eq(VecMath.norm(a0Actual), 1., tol);
-                assert_almost_eq(VecMath.norm(a1Actual), 1., tol);
+                CHECK_ALMOST_EQ(momentActual[0], xMoment, tol);
+                CHECK_ALMOST_EQ(momentActual[1], yMoment, tol);
+                CHECK_ALMOST_EQ(x0y0Actual[0], x0, tol);
+                CHECK_ALMOST_EQ(x0y0Actual[1], y0, tol);
+                CHECK_ALMOST_EQ(x1y1Actual[0], x1, tol);
+                CHECK_ALMOST_EQ(x1y1Actual[1], y1, tol);
+                CHECK_ALMOST_EQ(VecMath.norm(a0Actual), 1., tol);
+                CHECK_ALMOST_EQ(VecMath.norm(a1Actual), 1., tol);
                 System.out.println("        seems good!");
             }
             if (false)
@@ -1587,7 +1587,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                //System.out.println("got line: "+line);
                                com.donhatchsw.compat.regex.Matcher matcher = pattern.matcher(line);
                                //PRINT(matcher.matches());
-                               assert(matcher.matches());
+                               CHECK(matcher.matches());
                                /*
                                PRINT(matcher.group(1));
                                PRINT(matcher.group(2));
@@ -1612,20 +1612,20 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                //PRINT(y1);
                                //PRINT(xMoment);
                                //PRINT(yMoment);
-                               assert(EQ(x1,0.,1e-12));
-                               assert(EQ(y1,0.,1e-12));
-                               assert(EQ(y0,0.,1e-12));
-                               assert(INRANGE(-1.0001 <=, x0, <= 0.));
+                               CHECK(EQ(x1,0.,1e-12));
+                               CHECK(EQ(y1,0.,1e-12));
+                               CHECK(EQ(y0,0.,1e-12));
+                               CHECK(INRANGE(-1.0001 <=, x0, <= 0.));
                                if (x0 == 0.)
                                {
                                    // can't normalize-- but we don't get errors on this case anyway
-                                   assert(goodOrError.equals("GOOD"));
+                                   CHECK(goodOrError.equals("GOOD"));
                                    continue;
                                }
-                               assert(x0 < 0.);
+                               CHECK(x0 < 0.);
                                // normize to space in which x0,y0 = 0,0  x1,y1=1,0
                                double size = -x0;
-                               assert(size > 0.);
+                               CHECK(size > 0.);
                                double xMomentNormalized = -xMoment / SQR(size);
                                double yMomentNormalized = yMoment / SQR(size);
                                /*
@@ -2349,7 +2349,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                                 pointSize = 2;
                             if (sample.byBinarySearch)
                             {
-                                //assert(false); // coverage
+                                //CHECK(false); // coverage
                                 //pointSize += 4;
                                 mg.setColor(sample.bad ? java.awt.Color.YELLOW : java.awt.Color.CYAN);
                                 if (sample.bad)

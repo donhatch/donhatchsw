@@ -281,7 +281,7 @@ public final class VecMath
         int dim = result.length;
         if (dim == 0)
             return; // not a lot of options here, don't think too hard about it
-        assert(vectors.length >= dim-1);
+        CHECK(vectors.length >= dim-1);
 
         if (true)
         {
@@ -507,7 +507,7 @@ public final class VecMath
         else if (resultFlat instanceof int[][])
             vpm((int[][])resultFlat, v, (int[][])mFlat);
         else
-            assert(false);
+            CHECK(false);
     }
 
     /** subtract v from every row of M */
@@ -786,12 +786,12 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         if (verboseLevel >= 1) System.out.println("                in sphericalAverage");
         // Algorithm A1 from the paper; the linearly converging one.
         int d = answer.length;
-        assert(d >= 2); // doesn't make sense otherwise
+        CHECK(d >= 2); // doesn't make sense otherwise
         int n = points.length;
-        assert(n == weights.length);
+        CHECK(n == weights.length);
 
         double weightsSum = sum(weights);
-        assert(weightsSum > 0.);
+        CHECK(weightsSum > 0.);
 
         double q[] = answer; // work in answer, but call it q
         vxm(q, weights, points);
@@ -839,7 +839,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         // Project the points onto tangent plane at q,
         // and then find the barycentric coordinates.
         int d = answer.length;
-        assert(d >= 2); // doesn't make sense otherwise
+        CHECK(d >= 2); // doesn't make sense otherwise
         int n = points.length;
         double projectedPoints[][] = new double[n][d];
         FORI (i, n)
@@ -1101,10 +1101,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** vector times transpose of matrix */
     public static void vxtransposem(double result[], double v[], double m[][])
     {
-        assert_eq(result.length, m.length);
+        CHECK_EQ(result.length, m.length);
         FORIDOWN(iCol, result.length)
         {
-            assert_eq(v.length, m[iCol].length);
+            CHECK_EQ(v.length, m[iCol].length);
             result[iCol] = dot(v, m[iCol]);
         }
     }
@@ -1112,8 +1112,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** matrix times transpose of matrix */
     public static void mxtransposem(double result[][], double m0[][], double m1[][])
     {
-        assert(result != m0 && result != m1);
-        assert_eq(result.length, m0.length);
+        CHECK(result != m0 && result != m1);
+        CHECK_EQ(result.length, m0.length);
         FORIDOWN(iRow, result.length)
             vxtransposem(result[iRow], m0[iRow], m1);
     }
@@ -1265,7 +1265,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         if (nRows == 0)
             return;
         int nCols = m[0].length;
-        assert(v.length <= nCols);
+        CHECK(v.length <= nCols);
         int i, j;
         FOR (i, result.length)
         {
@@ -1292,7 +1292,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         if (nRows == 0)
             return;
         int nCols = m[0].length;
-        assert(v.length <= nCols);
+        CHECK(v.length <= nCols);
         int i, j;
         FOR (i, nRows)
         {
@@ -1319,7 +1319,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         if (nRows == 0)
             return;
         int nCols = m[0].length;
-        assert(v.length <= nCols);
+        CHECK(v.length <= nCols);
         int i, j;
         FOR (i, nRows)
         {
@@ -1893,7 +1893,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             int nDims = coords[0].length;
             Class indsClass = inds.getClass();
             Class componentType = indsClass.getComponentType();
-            assert(componentType != null); // inds must be an array
+            CHECK(componentType != null); // inds must be an array
             if (componentType.isArray())
             {
                 int n = java.lang.reflect.Array.getLength(inds);
@@ -2098,7 +2098,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 System.out.println("uh oh...");
                 PRINTMAT(A);
             }
-            assert(imax != -1); // XXX this can happen, if NaNs in the matrix
+            CHECK(imax != -1); // XXX this can happen, if NaNs in the matrix
             if (j != imax) // Do we need to interchange rows?
             {
                 // Yes, do so...
@@ -2272,8 +2272,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         int nRows = M.length;
         int nCols = ROWLENGTH(M);
-        assert_eq(nRows, result.length);
-        assert_eq(nCols, ROWLENGTH(result));
+        CHECK_EQ(nRows, result.length);
+        CHECK_EQ(nCols, ROWLENGTH(result));
         if (nRows == nCols)
         {
 #ifdef DEFUNCT
@@ -2350,7 +2350,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** compute the (k-1)-dimensional content of k points in n dimensions. */
     public static double relativeOrthotopeContent(int nPoints, int dim, double points[][], boolean destructive)
     {
-        assert(nPoints >= 1);
+        CHECK(nPoints >= 1);
         double relativeTo[] = points[nPoints-1];
         if (!destructive)
             points = (double[][])copymat(nPoints-1, dim, points); // can omit relativeTo
@@ -2364,7 +2364,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         if (!destructive)
             M = copymat(M);
         int n = M.length;
-        assert_eq(n, ROWLENGTH(M));
+        CHECK_EQ(n, ROWLENGTH(M));
         try
         {
             int indx[] = new int[n];
@@ -2383,7 +2383,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static double det(double M[][], boolean destructive)
     {
         int n = M.length;
-        assert_eq(n, ROWLENGTH(M));
+        CHECK_EQ(n, ROWLENGTH(M));
 
         if (true)
         {
@@ -2450,9 +2450,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         }
 
         int n = b.length;
-        assert_eq(n, A.length);
+        CHECK_EQ(n, A.length);
         int rowlength = ROWLENGTH(A);
-        assert_eq(rowlength, result.length);
+        CHECK_EQ(rowlength, result.length);
         if (rowlength < n)
         {
             // Linear least squares
@@ -2462,7 +2462,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             invmxv(result, AA, bb); // recurse on the normal equation
             return;
         }
-        assert_eq(rowlength, n); // A is square
+        CHECK_EQ(rowlength, n); // A is square
                 // XXX note, we get a different assertion above if A is 0x1, should make that more clear
 
         double temp[][] = copymat(A);
@@ -2491,7 +2491,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
             FORI (i, n)
             {
-                //assert_eq(1. + SQR(bb[i] - b[i]), 1.);
+                //CHECK_EQ(1. + SQR(bb[i] - b[i]), 1.);
                 /*
                 if (1. + SQR(bb[i] - b[i]) != 1.)
                 {
@@ -2503,9 +2503,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 }
                 */
                 if (ABS(b[i]) > 1. && ABS(bb[i]) > 1.)
-                    assert_eq((float)(bb[i]/b[i]), (float)1.);
+                    CHECK_EQ((float)(bb[i]/b[i]), (float)1.);
                 else
-                    assert_eq((float)(1. + SQR(bb[i] - b[i])), (float)1.);
+                    CHECK_EQ((float)(1. + SQR(bb[i] - b[i])), (float)1.);
             }
         }
     } // invmxv
@@ -2517,11 +2517,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             return; // avoid dangerous assertions
 
         int n = B.length;
-        assert_eq(n, A.length);
+        CHECK_EQ(n, A.length);
         int rowlength = ROWLENGTH(A);
-        assert_eq(rowlength, result.length);
+        CHECK_EQ(rowlength, result.length);
         int nCols = ROWLENGTH(result);
-        assert_eq(nCols, ROWLENGTH(B));
+        CHECK_EQ(nCols, ROWLENGTH(B));
         if (rowlength < n)
         {
             // Linear least squares
@@ -2531,7 +2531,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             invmxm(result, AA, BB); // recurse on the normal equation, of size rowlength
             return;
         }
-        assert_eq(rowlength, n); // A is square
+        CHECK_EQ(rowlength, n); // A is square
 
         double temp[][] = copymat(A);
         int indx[] = new int[n];
@@ -2611,7 +2611,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** Finds the matrix that rotates radians in the direction from fromAxis to toAxis, when applied to a vector by multiplying the matrix on the right by the row vector on the left. */
     public static void makeRowRotMat(double M[][], int fromAxis, int toAxis, double radians)
     {
-        assert(fromAxis != toAxis); // which means dim must be >= 2
+        CHECK(fromAxis != toAxis); // which means dim must be >= 2
         identitymat(M);
         double s = Math.sin(radians);
         double c = Math.cos(radians);
@@ -2623,7 +2623,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** Finds the matrix that rotates radians in the direction from fromAxis to toAxis, when applied to a vector by multiplying the matrix on the right by the row vector on the left. */
     public static void makeRowRotMat(float M[][], int fromAxis, int toAxis, float radians)
     {
-        assert(fromAxis != toAxis); // which means dim must be >= 2
+        CHECK(fromAxis != toAxis); // which means dim must be >= 2
         identitymat(M);
         float s = (float)Math.sin(radians);
         float c = (float)Math.cos(radians);
@@ -3016,7 +3016,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         if (answer != 0) return answer;
         if (a.length < b.length) return -1;
         if (a.length > b.length) return 1;
-        assert(false); // can't happen
+        CHECK(false); // can't happen
         return 0;
     }
 
@@ -3216,7 +3216,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         for (i=n-1;i>=0;i--) { /* Accumulation of right-hand transformations. */
             if (i < n) {
                 if (g != 0.) {
-                    assert(l != -1);
+                    CHECK(l != -1);
                     for (j=l;j<n;j++) /* Double division to avoid possible underflow. */
                         v[j][i]=(a[i][j]/a[i][l])/g;
                     for (j=l;j<n;j++) {
@@ -3224,7 +3224,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         for (k=l;k<n;k++) v[k][j] += s*v[k][i];
                     }
                 }
-                assert(l != -1);
+                CHECK(l != -1);
                 for (j=l;j<n;j++) v[i][j]=v[j][i]=0.0;
             }
             v[i][i]=1.0;
@@ -3271,7 +3271,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         c=g*h;
                         s = -f*h;
                         for (j=0;j<m;j++) {
-                            assert(nm != -1);
+                            CHECK(nm != -1);
                             y=a[j][nm];
                             z=a[j][i];
                             a[j][nm]=y*c+z*s;
@@ -3290,7 +3290,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 if (its == 60)
                 {
                     System.err.println("VecMath.svdcmp: no convergence in 60 svdcmp iterations");
-                    assert(false);  // not sure what to do here... throw?
+                    CHECK(false);  // not sure what to do here... throw?
                 }
                 x=w[l]; /* Shift from bottom 2-by-2 minor. */
                 nm=k-1;
@@ -3353,9 +3353,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                            double[][] V,  // output (may equal M, but not U)
                            boolean force_positive_rotations)
     {
-      assert(U != M);
-      assert(V != M);
-      assert(V != U);
+      CHECK(U != M);
+      CHECK(V != M);
+      CHECK(V != U);
       copymat(U, M);  // since svdcmp operates in place
       svdcmp(U, m, n, d, V);
       svdcmpPolish(U, m, n, d, V, force_positive_rotations);
@@ -3371,8 +3371,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
       int n = A.length;
       int dim = A[0].length;
-      assert(n == B.length);
-      assert(dim == B[0].length);
+      CHECK(n == B.length);
+      CHECK(dim == B[0].length);
       double[] Acentroid = VecMath.average(A);
       double[] Bcentroid = VecMath.average(B);
       double[][] crossCovarianceMatrix = new double[dim][dim];
@@ -3416,8 +3416,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     {
         int n = A.length;
         int dim = A[0].length;
-        assert(n == B.length);
-        assert(dim == B[0].length);
+        CHECK(n == B.length);
+        CHECK(dim == B[0].length);
         double[][] columnOrientedRotationAndTranslation = findColumnOrientedProcrustesRotationAndTranslation(A, B);
         double[][] answer = new double[n][dim];
         for (int i = 0; i < n; ++i) {
@@ -3458,7 +3458,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         PRINTMAT(xform);
         double[][] Axformed = bestFitRotatedAndTranslated(A, B);
         PRINTMAT(Axformed);
-        assert(VecMath.equals(Axformed, B, 1e-12));
+        CHECK(VecMath.equals(Axformed, B, 1e-12));
         System.out.println("    out testProcrustes");
     } // testProcrustes
 
@@ -3472,14 +3472,14 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static void svdcmpPolish(double[][] U, int m, int n, double d[], double V[][], boolean force_positive_rotations)
     {
         // TODO: can we relax some of these?  or maybe just get rid of m and n?
-        assert(U.length == m);
-        assert(m==0 || U[0].length == n);
-        assert(m >= n);
-        assert(d.length == n);
-        assert(V.length == n);
-        assert(n==0 || V[0].length == n);
+        CHECK(U.length == m);
+        CHECK(m==0 || U[0].length == n);
+        CHECK(m >= n);
+        CHECK(d.length == n);
+        CHECK(V.length == n);
+        CHECK(n==0 || V[0].length == n);
 
-        assert(m == n);  // TODO: haven't thought about non-square case, yet.
+        CHECK(m == n);  // TODO: haven't thought about non-square case, yet.
 
         {
             int[] order = identityperm(d.length);
@@ -3519,8 +3519,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             double detU = det(U);
             double detV = det(V);
-            assert(EQ(Math.abs(detU), 1., 1e-12));
-            assert(EQ(Math.abs(detV), 1., 1e-12));
+            CHECK(EQ(Math.abs(detU), 1., 1e-12));
+            CHECK(EQ(Math.abs(detV), 1., 1e-12));
             if (detU < 0. || detV < 0.) {
                 if (detU < 0. && detV < 0.) {
                     // Both U and V are reflections.
@@ -3557,10 +3557,10 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             }
             detU = det(U);
             detV = det(V);
-            assert(detU > 0. || detV > 0.);  // not both negative, or we would have fixed
+            CHECK(detU > 0. || detV > 0.);  // not both negative, or we would have fixed
             if (force_positive_rotations || (d.length >= 1 && d[d.length-1] == 0.)) {
-                assert(EQ(detU, 1., 1e-12));
-                assert(EQ(detV, 1., 1e-12));
+                CHECK(EQ(detU, 1., 1e-12));
+                CHECK(EQ(detV, 1., 1e-12));
             }
         }
     }  // svdcmpPolish
@@ -3588,7 +3588,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static int leftSqrtOfSymmetricMatrix(double result[][], boolean whichColumnsOfResultAreImaginary[], double C[][])
     {
         int n = C.length; // == C[0].length
-        assert_eq(n, result.length);
+        CHECK_EQ(n, result.length);
         double eigenValues[] = new double[n];
         double eigenVectors[][] = new double[n][n]; // columns
         double temp[][] = copymat(C); // since jacobi is destructive
@@ -3620,7 +3620,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
             int j;
             FOR (i, n)
             FOR (j, n)
-                assert_eq(1. + SQR(A[i][j]-B[i][j]), 1.);
+                CHECK_EQ(1. + SQR(A[i][j]-B[i][j]), 1.);
         }
 
         // XXX if result is null, shouldn't do the sqrts and stuff in the
@@ -4058,7 +4058,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         //System.out.println("    in extendAndOrthogonalize(k="+k+", n="+n+", dim="+(result.length==0 ? -1 : result[0].length)+"");
         if (n < 1)
             return; // we have no idea what dimension is and don't care
-        assert(0 <= k && k <= n && n <= result[0].length);
+        CHECK(0 <= k && k <= n && n <= result[0].length);
         double scratch[][] = new double[k][result[0].length];
         copymat(k, scratch, vecs);
         double betas[] = new double[k];
@@ -5305,7 +5305,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         {
             int nFixedAxes = fixedAxes.length;
             int n = (nFixedAxes == 0 ? 2 : fixedAxes[0].length);
-            assert_eq(nFixedAxes, n-2);
+            CHECK_EQ(nFixedAxes, n-2);
             double rotXtoFixedAxes[][] = new double[n][n];
             extendAndGramSchmidt(nFixedAxes, n, rotXtoFixedAxes, fixedAxes);
             return mxmxm(transpose(rotXtoFixedAxes),
@@ -5327,8 +5327,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         public static double[][] makeRowRotMatThatSlerps(double from[], double to[], double t)
         {
             int n = from.length;
-            assert_eq(n, to.length);
-            assert(n >= 2);
+            CHECK_EQ(n, to.length);
+            CHECK(n >= 2);
             from = normalize(from);
             to = normalize(to);
             if (n == 2)
@@ -5337,7 +5337,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 return vxv2(from,to) < 0 ? makeRowRotMat(2, 0,1, angle)
                                          : makeRowRotMat(2, 1,0, angle);
             }
-            assert(n >= 3);
+            CHECK(n >= 3);
             if (1. + distsqrd(from, to) == 1.) // XXX I'm suspicious of this test.  I think this is the right threshold for when to switch between the trig formula and linear interpolation when slerping vectors themselves, but does that mean it makes sense here?
             {
                 return identitymat(n);
@@ -5598,7 +5598,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         /** invert permutation, returning newly allocated result */
         public static int[] invertperm(int perm[], int n)
         {
-            assert(n <= perm.length);
+            CHECK(n <= perm.length);
             int result[] = new int[n];
             invertperm(result, perm, n);
             return result;
@@ -5619,7 +5619,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                                        int lut1[])
         {
             int n = lut1.length;
-            assert_eq(n, result.length);
+            CHECK_EQ(n, result.length);
             FORI (i, n)
                 result[i] = lut0[lut1[i]];
         } // composeluts
@@ -5680,9 +5680,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 FORI (iCol, nCols)
                 {
                     if (iCol == iRow)
-                        assert(L[iRow][iCol] >= 0.);
+                        CHECK(L[iRow][iCol] >= 0.);
                     if (iCol > iRow)
-                        assert_eq(L[iRow][iCol], 0.);
+                        CHECK_EQ(L[iRow][iCol], 0.);
                 }
                 if (nRowsInQ != -1)
                 {
@@ -5692,8 +5692,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     {
                         double shouldBeA[][] = mxm(L, Q);
                         PRINTMAT(shouldBeA);
-                        assert(equals(shouldBeIdentity, identitymat(nRowsInQ), 1e-6));
-                        assert(equals(shouldBeA, A, 1e-6));
+                        CHECK(equals(shouldBeIdentity, identitymat(nRowsInQ), 1e-6));
+                        CHECK(equals(shouldBeA, A, 1e-6));
                     }
                     else
                     {
@@ -5711,7 +5711,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     PRINTMAT(mxm(transpose(L),L));
                     PRINT(AcontentSquared);
                     PRINT(LcontentSquared);
-                    assert(EQ(AcontentSquared, 0., 1e-6)
+                    CHECK(EQ(AcontentSquared, 0., 1e-6)
                         == EQ(LcontentSquared, 0., 1e-6));
                     // testing L is safer than testing A here,
                     // since the algorithm looks at L to decide whether
@@ -5725,15 +5725,15 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         // by negating one of the axes if necessary.
                         // The algorithm should have done that,
                         // so detQ should be 1.
-                        assert(EQ(detQ, 1., 1e-6));
+                        CHECK(EQ(detQ, 1., 1e-6));
                     }
                     else
                     {
                         // detQ should be +-1.
-                        assert(EQ(ABS(detQ), 1., 1e-6));
+                        CHECK(EQ(ABS(detQ), 1., 1e-6));
 
                         PRINT(det(mxm(transpose(L),L)));
-                        assert(nRows == nCols
+                        CHECK(nRows == nCols
                             || nRows == 0); // transpose wasn't necessarily the right size in that case but whatever
                     }
                 }
@@ -5806,8 +5806,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 double detV = det(V);
                 PRINT(detU);
                 PRINT(detV);
-                assert(EQ(detU, 1., 1e-12));
-                assert(EQ(detV, 1., 1e-12));
+                CHECK(EQ(detU, 1., 1e-12));
+                CHECK(EQ(detV, 1., 1e-12));
 
                 for (int iForcePositiveRotations = 0; iForcePositiveRotations < 2; ++iForcePositiveRotations)
                 {
@@ -5836,11 +5836,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         double[][] shouldBeD = new double[dim][dim];
                         for (int i = 0; i < dim; ++i) shouldBeD[i][i] = shouldBeDvector[i];
                         double[][] shouldBeM = mxtransposem(mxm(shouldBeU, shouldBeD), shouldBeV);
-                        assert(equals(shouldBeM, M, 1e-12));
+                        CHECK(equals(shouldBeM, M, 1e-12));
                         double detShouldBeU = det(shouldBeU);
                         double detShouldBeV = det(shouldBeV);
-                        assert(EQ(ABS(detShouldBeU), 1., 1e-12));
-                        assert(EQ(ABS(detShouldBeV), 1., 1e-12));
+                        CHECK(EQ(ABS(detShouldBeU), 1., 1e-12));
+                        CHECK(EQ(ABS(detShouldBeV), 1., 1e-12));
                         // XXX TODO: should actually test them both for orthonormality
                     }
 
@@ -5860,11 +5860,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                             double[][] shouldBeD = new double[dim][dim];
                             for (int i = 0; i < dim; ++i) shouldBeD[i][i] = shouldBeDvector[i];
                             double[][] shouldBeM = mxtransposem(mxm(shouldBeU, shouldBeD), shouldBeV);
-                            assert(equals(shouldBeM, M, 1e-12));
+                            CHECK(equals(shouldBeM, M, 1e-12));
                             double detShouldBeU = det(shouldBeU);
                             double detShouldBeV = det(shouldBeV);
-                            assert(EQ(ABS(detShouldBeU), 1., 1e-12));
-                            assert(EQ(ABS(detShouldBeV), 1., 1e-12));
+                            CHECK(EQ(ABS(detShouldBeU), 1., 1e-12));
+                            CHECK(EQ(ABS(detShouldBeV), 1., 1e-12));
                             // XXX TODO: should actually test them both for orthonormality
                         }
 
@@ -5877,22 +5877,22 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                         // If not force_positive_rotations, then:
                         //   the sv's should be all non-negative, and det of U or V (but not both) is allowed to be -1 (unless some answer sv was 0,
                         //   in which case the implementation is expected to fix it, since it can do that without violating non-negativeness of svs)
-                        assert(shouldBeDvector.length == D.length);
+                        CHECK(shouldBeDvector.length == D.length);
                         for (int i = 0; i < D.length; ++i) {
                             if (force_positive_rotations || shouldBeDvector[dim-1] == 0.) {
                                 // when conflict, it forced positive rotation at the expense of possibly negating an sv...
                                 // which is how we set up the problem originally, so the sv's will match ours exactly.
                                 // which means it'll agree with our original sv.
-                                assert(EQ(shouldBeDvector[i], D[i][i], 1e-12));
+                                CHECK(EQ(shouldBeDvector[i], D[i][i], 1e-12));
                             } else {
                                 // when conflict, it left a rotation negative (i.e. a reflection), leaving all sv's nonnegative.
-                                assert(EQ(shouldBeDvector[i], ABS(D[i][i]), 1e-12));
+                                CHECK(EQ(shouldBeDvector[i], ABS(D[i][i]), 1e-12));
                             }
                         }
 
                         if (force_positive_rotations || (dim >= 1 && shouldBeDvector[dim-1] == 0.)) {  // have to test shouldBeDvector, *not* D, since the implementation refrains when it doesn't realize it's exactly 0
-                            assert(det(shouldBeU) > 0.);  // i.e. it's 1
-                            assert(det(shouldBeV) > 0.);  // i.e. it's 1
+                            CHECK(det(shouldBeU) > 0.);  // i.e. it's 1
+                            CHECK(det(shouldBeV) > 0.);  // i.e. it's 1
                         }
                     }
 
@@ -6021,7 +6021,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
 
         if (min(weights) >= 0.) // TODO: why is it failing otherwise?
         {
-            assert(equals(shouldBeQ, q, 1e-12)); // not entirely principled
+            CHECK(equals(shouldBeQ, q, 1e-12)); // not entirely principled
         }
         System.out.println("        out sphericalAverageTestOnePointsAndPoint");
     }
@@ -6043,7 +6043,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         System.out.println("              returned from getSphericalAverageWeights");
         System.out.println("          shouldBeWeights = "+toString(shouldBeWeights));
         PRINT(dist(shouldBeWeights, weights));
-        assert(equals(shouldBeWeights, weights, 1e-12)); // not entirely principled
+        CHECK(equals(shouldBeWeights, weights, 1e-12)); // not entirely principled
         System.out.println("        out sphericalAverageTestOnePointsAndWeights");
     }
     public static void sphericalAverageTestOnePoints(java.util.Random generator, int nRandomTries, double points[][])
@@ -6166,7 +6166,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     PRINT(Math.sqrt(sqrdTwiceTriangleArea(M[0],M[1],M[2]))
                         - Math.sqrt(normsqrd(vxv3(vmv(M[1],M[0]),vmv(M[2],M[0])))));
                 }
-                assert(EQ(Math.sqrt(sqrdTwiceTriangleArea(M[0],M[1],M[2]))
+                CHECK(EQ(Math.sqrt(sqrdTwiceTriangleArea(M[0],M[1],M[2]))
                          - Math.sqrt(normsqrd(vxv3(vmv(M[1],M[0]),vmv(M[2],M[0])))), 0., 1e-15));
             }
             System.out.println("    done testing sqrdTwiceTriangleArea.");
@@ -6211,9 +6211,9 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 PRINT(det(M));
                 PRINT(detUsingLU(M, false));
                 PRINT(detUsingLQ(M, false));
-                assert(equalsExactly(M, origM));
-                assert(EQ(det(M), detUsingLU(M,false), 1e-6));
-                assert(EQ(det(M), detUsingLQ(M,false), 1e-6));
+                CHECK(equalsExactly(M, origM));
+                CHECK(EQ(det(M), detUsingLU(M,false), 1e-6));
+                CHECK(EQ(det(M), detUsingLQ(M,false), 1e-6));
             }
 
             if (dim >= 1)

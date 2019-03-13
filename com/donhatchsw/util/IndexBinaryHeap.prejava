@@ -15,8 +15,8 @@ public class IndexBinaryHeap
     /** Constructs a heap whose indices are in the range 0,...,max-1. */
     public IndexBinaryHeap(int max, SortStuff.IntComparator cmp)
     {
-        assert_ge(max, 0);
-        assert_ne(cmp, null);
+        CHECK_GE(max, 0);
+        CHECK_NE(cmp, null);
         this.heap = VecMath.fillvec(max, -1);
         this.indexToHeapIndex = VecMath.fillvec(max, -1);
         this.size = 0;
@@ -25,7 +25,7 @@ public class IndexBinaryHeap
     /** Adds the given index to the heap.  It is an error to call this on an index that is already in the heap. */
     public void add(int index)
     {
-        assert_eq(indexToHeapIndex[index], -1);
+        CHECK_EQ(indexToHeapIndex[index], -1);
         indexToHeapIndex[index] = size;
         heap[size] = index;
         size++;
@@ -34,9 +34,9 @@ public class IndexBinaryHeap
     /** Remove the given index from the heap.  It is an error to call this on an index that is not in the heap. */
     public void remove(int index)
     {
-        assert(size >= 1);
+        CHECK(size >= 1);
         int heapIndex = indexToHeapIndex[index];
-        assert_ne(heapIndex, -1);
+        CHECK_NE(heapIndex, -1);
 
         indexToHeapIndex[index] = -1;
         size--;
@@ -57,14 +57,14 @@ public class IndexBinaryHeap
     }
     public boolean contains(int i)
     {
-        assert_le_lt(0, i, heap.length);
+        CHECK_LE_LT(0, i, heap.length);
         return indexToHeapIndex[i] != -1;
     }
 
     /** Returns the index with minimum value, without removing it.  It is an error to call this if the heap is empty. */
     public int min()
     {
-        assert(size >= 1);
+        CHECK(size >= 1);
         return heap[0];
     }
     
@@ -85,7 +85,7 @@ public class IndexBinaryHeap
     {
         //System.out.println("in adjust(index="+index+")");
         int heapIndex = indexToHeapIndex[index];
-        assert_ne(heapIndex, -1);
+        CHECK_NE(heapIndex, -1);
 
         #define HEAP_PARENT(i) (((i)-1)>>1)
         #define HEAP_CHILD0(i) (((i)<<1)+1)
@@ -152,8 +152,8 @@ public class IndexBinaryHeap
         }
 
         int max = heap.length;
-        assert_eq(max, indexToHeapIndex.length);
-        assert_le_le(0, size, max);
+        CHECK_EQ(max, indexToHeapIndex.length);
+        CHECK_LE_LE(0, size, max);
 
         int nValid = 0;
         int nInvalid = 0;
@@ -161,28 +161,28 @@ public class IndexBinaryHeap
         {
             if (indexToHeapIndex[i] != -1)
             {
-                //assert(!Double.isNaN(values[i])); // hmm, can't assert this... should I add API for determining if value in heap?
-                assert_le_lt(0, indexToHeapIndex[i], size);
-                assert_eq(heap[indexToHeapIndex[i]], i);
+                //CHECK(!Double.isNaN(values[i])); // hmm, can't assert this... should I add API for determining if value in heap?
+                CHECK_LE_LT(0, indexToHeapIndex[i], size);
+                CHECK_EQ(heap[indexToHeapIndex[i]], i);
                 nValid++;
             }
             else
             {
-                //assert(Double.isNaN(values[i])); // hmm, can't assert this... should I add API for determining if value in heap?
+                //CHECK(Double.isNaN(values[i])); // hmm, can't assert this... should I add API for determining if value in heap?
                 nInvalid++;
             }
         }
-        assert_eq(nValid, size);
-        assert_eq(nValid+nInvalid, max);
+        CHECK_EQ(nValid, size);
+        CHECK_EQ(nValid+nInvalid, max);
 
         FORI (i, size)
         {
-            assert_le_lt(0, heap[i], max);
-            assert_eq(indexToHeapIndex[heap[i]], i);
+            CHECK_LE_LT(0, heap[i], max);
+            CHECK_EQ(indexToHeapIndex[heap[i]], i);
         }
         for (int i = size; i < max; ++i)
         {
-            assert_eq(heap[i], -1);
+            CHECK_EQ(heap[i], -1);
         }
 
         for (int i = 1; i < size; ++i) // all but [0]
@@ -191,11 +191,11 @@ public class IndexBinaryHeap
             {
                 // can assert strictly less, since nothing's exactly equal
                 // due to tiebreaking by index.
-                assert_lt(cmp.compare(heap[HEAP_PARENT(i)], heap[i]), 0);
+                CHECK_LT(cmp.compare(heap[HEAP_PARENT(i)], heap[i]), 0);
             }
             else
             {
-                assert_le(cmp.compare(heap[HEAP_PARENT(i)], heap[i]), 0);
+                CHECK_LE(cmp.compare(heap[HEAP_PARENT(i)], heap[i]), 0);
             }
         }
     } // sanityCheck

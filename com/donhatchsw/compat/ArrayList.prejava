@@ -105,7 +105,7 @@ public class ArrayList
         if (size == array.length)
         {
             int newCapacity = array.length/2*3+2; // funny arithmetic to postpone overflow a little longer
-            assert(newCapacity > size);
+            CHECK(newCapacity > size);
             Object newArray[] = new Object[newCapacity];
             System.arraycopy(array, 0, newArray, 0, array.length);
             array = newArray;
@@ -158,19 +158,19 @@ public class ArrayList
     public static void main(String args[])
     {
         ArrayList a = new ArrayList();
-        assert_eq(a.size(), 0);
+        CHECK_EQ(a.size(), 0);
         a.add("foo");
-        assert_eq(a.size(), 1);
+        CHECK_EQ(a.size(), 1);
         a.add("bar");
-        assert_eq(a.size(), 2);
+        CHECK_EQ(a.size(), 2);
         a.add(null);
-        assert_eq(a.size(), 3);
+        CHECK_EQ(a.size(), 3);
         a.remove(a.size()-1);
-        assert_eq(a.size(), 2);
+        CHECK_EQ(a.size(), 2);
         a.add("baz");
-        assert_eq(a.size(), 3);
+        CHECK_EQ(a.size(), 3);
         a.clear();
-        assert_eq(a.size(), 0);
+        CHECK_EQ(a.size(), 0);
         System.out.println("All good!");
     }
 } // class ArrayList

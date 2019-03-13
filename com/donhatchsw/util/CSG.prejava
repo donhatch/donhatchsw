@@ -160,7 +160,7 @@ public final class CSG
                 }
                 this.spanningPoints = spanningPoints;
 
-                assert(false); // XXX implement me! normal should be cross product of points vectors
+                CHECK(false); // XXX implement me! normal should be cross product of points vectors
                 this.offset = VecMath.dot(this.normal,
                                           this.spanningPoints[0]);
             } // Hyperplane from spanning points
@@ -243,8 +243,8 @@ public final class CSG
                     FORI (iFacet, nFacets)
                     {
                         Polytope facet = facets[iFacet].p;
-                        assert_eq(facet.fullDim, fullDim);
-                        assert_eq(facet.dim, dim-1);
+                        CHECK_EQ(facet.fullDim, fullDim);
+                        CHECK_EQ(facet.dim, dim-1);
                     }
                 }
 
@@ -266,12 +266,12 @@ public final class CSG
             // (should return const double[]).
             public double[] getCoords()
             {
-                assert_eq(dim, 0); // must be a vertex
+                CHECK_EQ(dim, 0); // must be a vertex
                 if (_coords == null)
                 {
                     _coords = intersectHyperplanes(contributingHyperplanes);
                 }
-                assert(_coords != null); // XXX not sure if I'm preventing this
+                CHECK(_coords != null); // XXX not sure if I'm preventing this
                 return _coords;
             } // getCoords
 
@@ -347,7 +347,7 @@ public final class CSG
             {
                 if (XXXuseNewPushPopAux)
                 {
-                    assert(this.pushedAuxNext != null); // CBB: could throw something useful
+                    CHECK(this.pushedAuxNext != null); // CBB: could throw something useful
                     Object answer = this.aux;
                     this.aux = this.pushedAuxNext.thisAux;
                     this.pushedAuxNext = this.pushedAuxNext.next;
@@ -355,7 +355,7 @@ public final class CSG
                 }
                 else
                 {
-                    assert(aux instanceof PushedAuxNext); // XXX throw something useful
+                    CHECK(aux instanceof PushedAuxNext); // XXX throw something useful
                     PushedAuxNext pushedAuxNext = (PushedAuxNext)aux;
                     aux = pushedAuxNext.XXXsavedAux;
                     return pushedAuxNext.thisAux;
@@ -712,7 +712,7 @@ public final class CSG
                         FORI (iFacet, facets.length)
                         {
                             sb.append(nl + indentString + "    ");
-                            assert(facets[iFacet] != null);
+                            CHECK(facets[iFacet] != null);
                             sb.append(facets[iFacet].toString(indentString+"    ", showAux, false, printedAlready));
                             if (iFacet+1 < facets.length)
                                 sb.append(" ");
@@ -1059,7 +1059,7 @@ public final class CSG
         {
             int dim = 2;
             int fullDim = verts[0].length;
-            assert_eq(fullDim, 2); // XXX could try to do it in higher dimensions; would require getting a hyperplane basis for the othogonal complement space, I think
+            CHECK_EQ(fullDim, 2); // XXX could try to do it in higher dimensions; would require getting a hyperplane basis for the othogonal complement space, I think
             int nVerts = verts.length;
 
             //
@@ -1155,7 +1155,7 @@ public final class CSG
         /** Makes an n-dimensional hypercube of in-radius 1, centered at the origin. */
         public static SPolytope makeHypercube(int nDims)
         {
-            assert(nDims >= 0);
+            CHECK(nDims >= 0);
             if (nDims == 0) return makePoint();
             int schlafli[] = VecMath.fillvec(nDims-1, 3);
             if (nDims-1 > 0)
@@ -1182,9 +1182,9 @@ public final class CSG
             FORI (iFacet, answer.p.facets.length)
             {
                 Hyperplane contributingHyperplanes[] = answer.p.facets[iFacet].p.contributingHyperplanes;
-                assert_eq(contributingHyperplanes.length, 1);
+                CHECK_EQ(contributingHyperplanes.length, 1);
                 Hyperplane hyperplane = contributingHyperplanes[0];
-                assert_eq(hyperplane.offset, 1);
+                CHECK_EQ(hyperplane.offset, 1);
                 hyperplane.offset = VecMath.dot(hyperplane.normal, center) + inRadius;
             }
             return answer;
@@ -1234,7 +1234,7 @@ public final class CSG
                 lengthsSquared[nDims-1]= cotSquaredPiTimes(schlafliDenoms[nDims-2],schlafli[nDims-2]);
                 return;
             }
-            assert(nDims >= 3);
+            CHECK(nDims >= 3);
 
             // We want x[n] such that,
             // if consider the hypersphere centered at {x[0]..x[n]}
@@ -1326,7 +1326,7 @@ public final class CSG
         // sin(pi*n/d) squared, but do it without trig if it's a nice angle
         private static double sinSquaredPiTimes(int n, int d)
         {
-            assert(d != 0);
+            CHECK(d != 0);
             int sign = 1;
             if (n < 0)
             {
@@ -1357,7 +1357,7 @@ public final class CSG
             if (4*n > d)
                 return sign*(1 - cosSquaredPiTimes(n, d));
             // so now 0 <= n/d <= 1/4, i.e. in [0..45] degrees
-            assert(0 <= n && 4*n <= d);
+            CHECK(0 <= n && 4*n <= d);
             //System.out.println("    "+n+"/"+d+"");
             if (true)
             {
@@ -1447,8 +1447,8 @@ public final class CSG
             //System.out.println("in makeWythoffPolytope");
             //PRINTARRAY(wythoff);
             Polytope p = sp.p;
-            assert(wythoff != null);
-            assert_eq(wythoff.length, p.dim);
+            CHECK(wythoff != null);
+            CHECK_EQ(wythoff.length, p.dim);
 
             //
             // The vertices of the omni correspond to the flags of p.
@@ -1509,7 +1509,7 @@ public final class CSG
             double weights[] = new double[p.dim];
             {
                 int nDims = p.dim;
-                assert_eq(p.fullDim, nDims);
+                CHECK_EQ(p.fullDim, nDims);
                 double flagMat[][] = new double[nDims][nDims];
                 Polytope[] flag = (Polytope[])flags.get(0); // some flag
                 FORI (iDim, nDims)
@@ -1611,7 +1611,7 @@ public final class CSG
                             // remove the edge and merge the two
                             // vertices.
                             //
-                            assert_eq(elt.facets.length, 2);
+                            CHECK_EQ(elt.facets.length, 2);
                             //PRINTVEC(elt.facets[0].p.getCoords());
                             //PRINTVEC(elt.facets[1].p.getCoords());
                             if (VecMath.distsqrd(elt.facets[0].p.getCoords(),
@@ -1649,9 +1649,9 @@ public final class CSG
                                 if (deadList.get(elt.facets[kFacet].p) == null)
                                     elt.facets[nLivingFacets++] = elt.facets[kFacet];
                             }
-                            assert(nLivingFacets == 0
-                                || nLivingFacets == 2
-                                || nLivingFacets >= 3);
+                            CHECK(nLivingFacets == 0
+                               || nLivingFacets == 2
+                               || nLivingFacets >= 3);
                             if (nLivingFacets == 2)
                             {
                                 mergedSomething = true;
@@ -1730,8 +1730,8 @@ public final class CSG
         private static boolean isLegalSchlafli(int schlafli[/*nDims-1*/],
                                                int schlafliDenoms[/*nDims-1*/])
         {
-            assert(schlafliDenoms != null);
-            assert_eq(schlafli.length, schlafliDenoms.length);
+            CHECK(schlafliDenoms != null);
+            CHECK_EQ(schlafli.length, schlafliDenoms.length);
             if (schlafliDenoms == null)
                 schlafliDenoms = VecMath.fillvec(schlafli.length, 1);
             // copy them so we can canonicalize them...
@@ -2010,8 +2010,8 @@ public final class CSG
                             scratchFlagFlattened = new double[nDims*nDims];
                         }
                     }
-                    //assert(flagList.size() < 1000*1000); // XXX not right, but for now
-                    //assert(flagList.size() < 100); // XXX not right, but for now
+                    //CHECK(flagList.size() < 1000*1000); // XXX not right, but for now
+                    //CHECK(flagList.size() < 100); // XXX not right, but for now
                 }
             }
             if (verbose) PRINT(flagList.size());
@@ -2192,8 +2192,8 @@ public final class CSG
                                                                double wythoffs[][])
         {
             int nFactors = schlaflis.length;
-            assert(schlafliDenomss == null
-                || schlafliDenomss.length == nFactors);
+            CHECK(schlafliDenomss == null
+               || schlafliDenomss.length == nFactors);
             SPolytope product = null;  // placeholder representing a vertex in 0 dimensions
             FORI (iFactor, nFactors)
             {
@@ -2560,15 +2560,15 @@ public final class CSG
                 Polytope[][] allElements = answer.p.getAllElements();
                 int[/*4*/][][/*4*/][] allIncidences = answer.p.getAllIncidences();
                 int[] counts = counts(answer.p);
-                assert(counts.length == 4);
+                CHECK(counts.length == 4);
                 int nVerts = counts[0];
                 int nEdges = counts[1];
                 int nFaces = counts[2];
                 int nCells = counts[3];
-                assert(nVerts == 12);
-                assert(nEdges == 18);
-                assert(nFaces == 8);
-                assert(nCells == 1);
+                CHECK(nVerts == 12);
+                CHECK(nEdges == 18);
+                CHECK(nFaces == 8);
+                CHECK(nCells == 1);
                 Polytope[] verts = allElements[0];
 
                 double[][] scratchVertCoords = new double[nVerts][3];
@@ -2583,7 +2583,7 @@ public final class CSG
                 for (int iFace = 0; iFace < nFaces; ++iFace) {
                   //System.out.println("iFace = "+iFace);
                   //System.out.println("    verts on this face are "+Arrays.toStringCompact(allIncidences[2][iFace][0]));
-                  assert(allIncidences[2][iFace][0].length == allIncidences[2][iFace][1].length);
+                  CHECK(allIncidences[2][iFace][0].length == allIncidences[2][iFace][1].length);
                   f2v[iFace] = new int[allIncidences[2][iFace][0].length];
                   int iFirstEdgeThisFace = allIncidences[2][iFace][1][0];
                   f2v[iFace][0] = allIncidences[1][iFirstEdgeThisFace][0][0];
@@ -2612,7 +2612,7 @@ public final class CSG
                         break;
                       }
                     }
-                    assert(nextVertexOnFace != -1);
+                    CHECK(nextVertexOnFace != -1);
                     f2v[iFace][iVertThisFace] = nextVertexOnFace;
                   }
                   //System.out.println("    f2v[iFace="+iFace+"] = "+Arrays.toStringCompact(f2v[iFace]));
@@ -2668,9 +2668,9 @@ public final class CSG
                   OUT("================================");
                   OUT("ATTEMPTING TO ANSWER OSKAR'S QUESTION");
                   int edges[][] = new int[18][2];
-                  assert(allIncidences[1].length == 18);
+                  CHECK(allIncidences[1].length == 18);
                   for (int iEdge = 0; iEdge < allIncidences[1].length; ++iEdge) {
-                    assert(allIncidences[1][iEdge][0].length == 2);
+                    CHECK(allIncidences[1][iEdge][0].length == 2);
                     int iVert = allIncidences[1][iEdge][0][0];
                     int jVert = allIncidences[1][iEdge][0][1];
                     edges[iEdge][0] = iVert;
@@ -2688,12 +2688,12 @@ public final class CSG
                       theQuadFaceIndices = Arrays.append(theQuadFaceIndices, iFace);
                     }
                   }
-                  assert(theQuadFaceIndices.length == (notFruchtFlag ? 3 : 1));
+                  CHECK(theQuadFaceIndices.length == (notFruchtFlag ? 3 : 1));
                   for (int iQuadFaceIndex = 0; iQuadFaceIndex < theQuadFaceIndices.length; ++iQuadFaceIndex) {
                     int theQuadFaceIndex = theQuadFaceIndices[iQuadFaceIndex];
                     // Find the quad face vertices in order...
                     int quadVerts[] = VecMath.copyvec(allIncidences[2][theQuadFaceIndex][0]);
-                    assert(quadVerts.length == 4);
+                    CHECK(quadVerts.length == 4);
                     // Which quad face vert is *not* incident on its vert 0?
                     int vert0 = quadVerts[0];
                     int oppositeVert0Index = -1;
@@ -2709,11 +2709,11 @@ public final class CSG
                         }
                       }
                       if (!theEdgeExists) {
-                        assert(oppositeVert0Index == -1);
+                        CHECK(oppositeVert0Index == -1);
                         oppositeVert0Index = i;
                       }
                     }
-                    assert(oppositeVert0Index != -1);
+                    CHECK(oppositeVert0Index != -1);
                     int temp;
                     PRINTARRAY(quadVerts);
                     SWAP(quadVerts[2], quadVerts[oppositeVert0Index], temp);
@@ -2731,7 +2731,7 @@ public final class CSG
                     // Move each vert to the average of where its edge springs want to go...
                     VecMath.zeromat(newScratchVertCoords);
                     VecMath.zerovec(weights);
-                    assert(edges.length == 18+2*(notFruchtFlag?3:1));
+                    CHECK(edges.length == 18+2*(notFruchtFlag?3:1));
                     int nEdgesToEnforce = edges.length;
                     //int nEdgesToEnforce = 18;  // all but the square diagonals
                     for (int iEdge = 0; iEdge < nEdgesToEnforce; ++iEdge)
@@ -2741,7 +2741,7 @@ public final class CSG
                       double desiredEdgeLength = (iEdge<18 ? 1. : Math.sqrt(2.));
                       double currentEdgeLength = VecMath.dist(scratchVertCoords[i0], scratchVertCoords[i1]);
                       double[] edgeCenter = VecMath.lerp(scratchVertCoords[i0], scratchVertCoords[i1], .5);
-                      assert(currentEdgeLength != 0.);
+                      CHECK(currentEdgeLength != 0.);
                       double target0[] = VecMath.lerp(edgeCenter, scratchVertCoords[i0], desiredEdgeLength/currentEdgeLength);
                       double target1[] = VecMath.lerp(edgeCenter, scratchVertCoords[i1], desiredEdgeLength/currentEdgeLength);
                       VecMath.vpv(newScratchVertCoords[i0], newScratchVertCoords[i0], target0);
@@ -3247,7 +3247,7 @@ public final class CSG
             FORI (i, 10)
                 FORI (j, 5)
                 {
-                    assert(nverts < verts.length);
+                    CHECK(nverts < verts.length);
                     verts[nverts][0] = Math.cos(2*Math.PI * i / 10) * R0_decagon
                                                 * antiprism_height;
                     verts[nverts][2] = Math.sin(2*Math.PI * i / 10) * R0_decagon
@@ -3261,7 +3261,7 @@ public final class CSG
             FORI (i, 10)
                 FORI (j, 5)
                 {
-                    assert(nverts < verts.length);
+                    CHECK(nverts < verts.length);
                     verts[nverts][0] = Math.cos(2*Math.PI * (j+.5*(i+1)) / 5) * R0_pentagon;
                     verts[nverts][2] = Math.sin(2*Math.PI * (j+.5*(i+1)) / 5) * R0_pentagon;
                     verts[nverts][1] = Math.sin(2*Math.PI * (i+.5) / 10) * R0_decagon
@@ -3270,7 +3270,7 @@ public final class CSG
                                                 * antiprism_height;
                     nverts++;
                 }
-            assert_eq(nverts, verts.length);
+            CHECK_EQ(nverts, verts.length);
 
             // Now if we had a convex hull function,
             // we'd just use it on the vertices and be done.
@@ -5237,7 +5237,7 @@ public final class CSG
             // Actually we could have just returned 1 if all larger orders failed,
             // but we tested it anyway as a sanity check-- it better have succeeded.
             PRINT(maxPossibleOrder);
-            assert(false);
+            CHECK(false);
             return 1;
         } // calcRotationGroupOrder
 
@@ -5270,7 +5270,7 @@ public final class CSG
             {
                 int nContributingHyperplanes = p.contributingHyperplanes.length;
                 int fullDim = sp.p.fullDim;
-                assert(nContributingHyperplanes < fullDim);
+                CHECK(nContributingHyperplanes < fullDim);
                 double M[][] = new double[fullDim-1][fullDim];
                 int iRow;
                 FOR (iRow, nContributingHyperplanes)
@@ -5483,10 +5483,10 @@ public final class CSG
             int k = simplices[0].length-1;  // dimension of each simplex
             int n = simplices[0][0].length; // full dimension of space
 
-            assert_eq(sp.p.dim, k);
-            assert_eq(sp.p.fullDim, n);
+            CHECK_EQ(sp.p.dim, k);
+            CHECK_EQ(sp.p.fullDim, n);
             int nNonRedundantNormals = n-k;
-            assert(nNonRedundantNormals <= nNormals);
+            CHECK(nNonRedundantNormals <= nNormals);
             double sum = 0.;
             double M[][] = new double[n][n];
             FORI (iSimplex, nSimplices)
@@ -5518,10 +5518,10 @@ public final class CSG
                 return;
             int k = simplices[0].length-1; // dimension of each simplex
             int n = simplices[0][0].length; // full dimension of space
-            assert_eq(k, sp.p.dim);
+            CHECK_EQ(k, sp.p.dim);
 
-            assert_eq(k, n-1);
-            assert_eq(result.length, n); // make sure they passed in the right dimension result
+            CHECK_EQ(k, n-1);
+            CHECK_EQ(result.length, n); // make sure they passed in the right dimension result
             double M[][] = new double[k][n];
             double simplexNormal[] = new double[n];
             FORI (iSimplex, nSimplices)
@@ -5545,7 +5545,7 @@ public final class CSG
             VecMath.zerovec(result);
             FORI (i, vertPolytopes.length)
                 VecMath.vpv(result, result, vertPolytopes[i].getCoords());
-            assert(vertPolytopes.length != 0);
+            CHECK(vertPolytopes.length != 0);
             VecMath.vxs(result, result, 1./vertPolytopes.length);
         } // cgOfVerts
 
@@ -5616,8 +5616,8 @@ public final class CSG
             // and also so that, in general, simplices will come out regular.
             int nA = A.p.getAllElements()[0].length;
             int nB = B.p.getAllElements()[0].length;
-            assert_gt(nA, 0);
-            assert_gt(nB, 0);
+            CHECK_GT(nA, 0);
+            CHECK_GT(nB, 0);
             double y0 = -2.*nB/(nA+nB);
             double y1 = 2.*nA/(nA+nB);
             if (verboseLevel >= 1) PRINT(y0);
@@ -5677,7 +5677,7 @@ public final class CSG
                 if (verboseLevel >= 1) PRINT(yvarianceTarget);
                 yscale = Math.sqrt(yvarianceTarget / yvariance);
                 if (verboseLevel >= 1) PRINT(yscale);
-                assert_almost_eq(yscale, 1., 1e-6);
+                CHECK_ALMOST_EQ(yscale, 1., 1e-6);
             }
             PRINT(y0);
             PRINT(y1);
@@ -5698,15 +5698,15 @@ public final class CSG
                 int yIndex = A.p.fullDim;
                 for (int i = 0; i < A.p.fullDim; ++i)
                 {
-                    assert_almost_eq(bbox[0][i], bboxA[0][i], 1e-6);
-                    assert_almost_eq(bbox[1][i], bboxA[1][i], 1e-6);
+                    CHECK_ALMOST_EQ(bbox[0][i], bboxA[0][i], 1e-6);
+                    CHECK_ALMOST_EQ(bbox[1][i], bboxA[1][i], 1e-6);
                 }
-                assert_almost_eq(bbox[0][yIndex], MIN(y0, y1), 1e-6);
-                assert_almost_eq(bbox[1][yIndex], MAX(y0, y1), 1e-6);
+                CHECK_ALMOST_EQ(bbox[0][yIndex], MIN(y0, y1), 1e-6);
+                CHECK_ALMOST_EQ(bbox[1][yIndex], MAX(y0, y1), 1e-6);
                 for (int i = 0; i < B.p.fullDim; ++i)
                 {
-                    assert_almost_eq(bbox[0][yIndex+1+i], bboxB[0][i], 1e-6);
-                    assert_almost_eq(bbox[1][yIndex+1+i], bboxB[1][i], 1e-6);
+                    CHECK_ALMOST_EQ(bbox[0][yIndex+1+i], bboxB[0][i], 1e-6);
+                    CHECK_ALMOST_EQ(bbox[1][yIndex+1+i], bboxB[1][i], 1e-6);
                 }
             }
 
@@ -5756,7 +5756,7 @@ public final class CSG
             if (verboseLevel >= 1) if (A==null||A.dim==0) System.out.println(indentString+"  A="+A);
             if (verboseLevel >= 1) if (B==null||B.dim==0) System.out.println(indentString+"  B="+B);
 
-            assert(A!=null || B!=null);
+            CHECK(A!=null || B!=null);
             HashablePair key = new HashablePair(A, B);
             Polytope AvB = (Polytope)ocean.get(key);
             if (AvB == null)
@@ -5772,7 +5772,7 @@ public final class CSG
                 {
                     // a vertex logically has one facet-- the null polytope, of dimension -1,
                     // but our convention is to give it no facets.
-                    assert_eq(nFacets, 1);
+                    CHECK_EQ(nFacets, 1);
                     nFacets = 0;
                 }
                 SPolytope[] facets = new SPolytope[nFacets];
@@ -5809,7 +5809,7 @@ public final class CSG
                         }
                     }
                     if (verboseLevel >= 1) System.out.println(indentString+"  computing hyperplanes...");
-                    assert_ne(y0, y1);
+                    CHECK_NE(y0, y1);
 
                     // For each of A's hyperplanes, lean it against the entire BfullDim space at y=y1.
                     // For each of B's hyperplanes, lean it against the entire AfullDim space at y=y0.
@@ -5908,7 +5908,7 @@ public final class CSG
                             contributingHyperplanes[iPlane++] = new Hyperplane(normal, offset);
                         }
                     }
-                    assert_eq(iPlane, contributingHyperplanes.length);
+                    CHECK_EQ(iPlane, contributingHyperplanes.length);
                 }
                 AvB = new Polytope(dim,
                                    fullDim,
@@ -5984,7 +5984,7 @@ public final class CSG
                         Polytope Ab = _cross(A, b, ocean, subIndentString);
                         facets[iFacet++] = new SPolytope(0,1,Ab); // sign arbitrary, will be fixed later
                     }
-                    assert_eq(iFacet, facets.length);
+                    CHECK_EQ(iFacet, facets.length);
                 }
 
                 Hyperplane contributingHyperplanes[] = new Hyperplane[A.contributingHyperplanes.length + B.contributingHyperplanes.length];
@@ -6013,7 +6013,7 @@ public final class CSG
                         // XXX need to look up zero_b in the ocean to see if it already exists! although it's probably not a functional problem if hyperplane lists get duplicated... maybe
                         contributingHyperplanes[iPlane++] = zero_b;
                     }
-                    assert_eq(iPlane, contributingHyperplanes.length);
+                    CHECK_EQ(iPlane, contributingHyperplanes.length);
                 }
 
                 AB = new Polytope(A.dim+B.dim,
@@ -6106,7 +6106,7 @@ public final class CSG
                 subIndentString = indentString + "        ";
                 System.out.println(indentString+"");
             }
-            assert(eltDim < slicee.p.dim); // otherwise answer could have more than one SPolytope... caller should just use slice directly in that case
+            CHECK(eltDim < slicee.p.dim); // otherwise answer could have more than one SPolytope... caller should just use slice directly in that case
             SPolytope newFacets[] = null;
 
             if (eltDim == slicee.p.dim-1)
@@ -6318,14 +6318,14 @@ public final class CSG
                         PRINT(totalSignOn);
                         PRINT(totalSignAbove);
                     }
-                    assert_eq(totalSignBelow + totalSignOn + totalSignAbove, 0);
+                    CHECK_EQ(totalSignBelow + totalSignOn + totalSignAbove, 0);
 
                     if (nVertsAbove > 0 && nVertsBelow == 0)
                     {
                         above = slicee.p;
                         if (nVertsOn > 0)
                         {
-                            assert_eq(nVertsOn, 1);
+                            CHECK_EQ(nVertsOn, 1);
                             aboveCapFacet = someVertexOnHyperplane;
                         }
                     }
@@ -6334,7 +6334,7 @@ public final class CSG
                         below = slicee.p;
                         if (nVertsOn > 0)
                         {
-                            assert_eq(nVertsOn, 1);
+                            CHECK_EQ(nVertsOn, 1);
                             belowCapFacet = someVertexOnHyperplane;
                         }
                     }
@@ -6418,7 +6418,7 @@ public final class CSG
                 }
                 else // slicee.p.dim >= 2
                 {
-                    assert(slicee.p.dim >= 2);
+                    CHECK(slicee.p.dim >= 2);
 
 
                     // The following is a huge time savings--
@@ -6573,7 +6573,7 @@ public final class CSG
 
                     if (nFacetsOn == 1)
                     {
-                        assert(nFacetsAbove==0 || nFacetsBelow==0);
+                        CHECK(nFacetsAbove==0 || nFacetsBelow==0);
                         if (nFacetsAbove == 0)
                         {
                             below = slicee.p;
@@ -6705,8 +6705,8 @@ public final class CSG
                     else
                     {
                         // All zero-- return nothing
-                        assert_eq(nBoundaryRidgesBelow, 0);
-                        assert_eq(nBoundaryRidgesAbove, 0);
+                        CHECK_EQ(nBoundaryRidgesBelow, 0);
+                        CHECK_EQ(nBoundaryRidgesAbove, 0);
                     }
                 } // slicee.p.dim >= 2
 
@@ -6816,7 +6816,7 @@ public final class CSG
                 System.out.println();
 
             int fullDim = A.p.fullDim;
-            assert_eq(fullDim, B.p.fullDim);
+            CHECK_EQ(fullDim, B.p.fullDim);
 
             if (true)
             {
@@ -6977,7 +6977,7 @@ public final class CSG
                                 PRINT(densityMinMax[0]);
                                 PRINT(densityMinMax[1]);
                             }
-                            //assert(false);
+                            //CHECK(false);
                         }
                         inA = ((density&1) == 1); // XXX even-odd rule for now
                     }
@@ -7001,7 +7001,7 @@ public final class CSG
                                 PRINT(densityMinMax[0]);
                                 PRINT(densityMinMax[1]);
                             }
-                            //assert(false);
+                            //CHECK(false);
                         }
                         inB = ((density&1) == 1); // XXX even-odd rule for now
                     }
@@ -7182,7 +7182,7 @@ public final class CSG
             if (result == null)
             {
                 int fullDim = A.p.fullDim;
-                assert_eq(fullDim, B.p.fullDim);
+                CHECK_EQ(fullDim, B.p.fullDim);
                 int dim = fullDim - ((fullDim-A.p.dim)
                                    + (fullDim-B.p.dim));
                 result = new SPolytope(0,1,
@@ -7453,9 +7453,9 @@ public final class CSG
                         {
                             SPolytope sedgeI = edges[iEdge];
                             Polytope edgeI = sedgeI.p;
-                            assert_eq(edgeI.facets.length, 2);
-                            assert_eq(edgeI.facets[0].sign, -1);
-                            assert_eq(edgeI.facets[1].sign, 1);
+                            CHECK_EQ(edgeI.facets.length, 2);
+                            CHECK_EQ(edgeI.facets[0].sign, -1);
+                            CHECK_EQ(edgeI.facets[1].sign, 1);
                             Polytope finalVertexOnEdgeI = edgeI.facets[FINAL(sedgeI.sign)].p;
                             if (finalVertexOnEdgeI
                              == initialVertexOnContour)
@@ -7481,7 +7481,7 @@ public final class CSG
                                     if (initialVertexOnEdgeJ == finalVertexOnEdgeI)
                                         break; // found next
                                 }
-                                assert(jEdge < nEdges); // found next
+                                CHECK(jEdge < nEdges); // found next
                                 if (jEdge > iEdge+1)
                                 {
                                     SPolytope temp;
@@ -7559,7 +7559,7 @@ public final class CSG
                                     farthestDistSqrd = thisDistSqrd;
                                 }
                             }
-                            assert(farthest != null);
+                            CHECK(farthest != null);
                         }
                         b = farthest;
                         from = b;
@@ -7575,7 +7575,7 @@ public final class CSG
                                     farthestDistSqrd = thisDistSqrd;
                                 }
                             }
-                            assert(farthest != null);
+                            CHECK(farthest != null);
                         }
                         a = farthest;
                     }
@@ -7645,7 +7645,7 @@ public final class CSG
                         }
                     }
                 }
-                assert_eq(firstFacetContainingRidge.size(), 0); // everything matched XXX change this assert to failure I think
+                CHECK_EQ(firstFacetContainingRidge.size(), 0); // everything matched XXX change this assert to failure I think
             } // facetNeighbors
 
             int signOfFirstFacet = 1; // arbitrarily XXX is there a better choice?
@@ -7715,7 +7715,7 @@ public final class CSG
                 }
             } // for contourStart
             FORI (iFacet, nFacets)
-                assert(isSigned[iFacet]);
+                CHECK(isSigned[iFacet]);
 
             //
             // Make temporary SPolytopes out of the contours...
@@ -7950,7 +7950,7 @@ public final class CSG
                 if (iB == nB) // A[iA] was not in B
                     return A[iA];
             }
-            assert(false);
+            CHECK(false);
             return null;
         } // itemOfAThatsNotInB
 
@@ -8004,8 +8004,8 @@ public final class CSG
                 // E.g. for octahedron {3,4}, we store 4 hyperplanes (not 3) at each vertex;
                 // and a vertex coord can be found by intersecting the 4 hyperplanes,
                 // (which is an overconstrained system, for which we return the least-squares solution).
-                assert_eq(hyperplanes[i].normal.length, hyperplanes[0].normal.length);
-                assert_ge(nHyperplanes, hyperplanes[i].normal.length);
+                CHECK_EQ(hyperplanes[i].normal.length, hyperplanes[0].normal.length);
+                CHECK_GE(nHyperplanes, hyperplanes[i].normal.length);
             }
             int iHyperplane;
             FOR (iHyperplane, nHyperplanes)
@@ -8021,7 +8021,7 @@ public final class CSG
                 // We just need to find the one point
                 // that is in the spanning set of all of them.
                 //
-                assert(nHyperplanes > 0); // we would have returned early above
+                CHECK(nHyperplanes > 0); // we would have returned early above
                 int iSpanningPoint, nSpanningPoints = hyperplanes[0].spanningPoints.length;
                 FOR (iSpanningPoint, nSpanningPoints)
                 {
@@ -8035,7 +8035,7 @@ public final class CSG
                         return point;
                     }
                 }
-                assert(false); // XXX not sure if this can happen or not, so flag it for now and think about it if it goes off
+                CHECK(false); // XXX not sure if this can happen or not, so flag it for now and think about it if it goes off
             }
 
             //
@@ -8501,7 +8501,7 @@ public final class CSG
                 // Make a cross polytope {3,3,...,3,4}
                 // and slice it on the equator.
                 // This is a minimal test of when vertices lie on the cutting plane.
-                assert(dim >= 2);
+                CHECK(dim >= 2);
                 String schlafli = "{";
                 FORI (i, dim-2)
                     schlafli += "3,";
@@ -8522,7 +8522,7 @@ public final class CSG
             if (true)
             {
                 // Make a hypercube {4,3,3,...,3}
-                assert(dim >= 2);
+                CHECK(dim >= 2);
                 SPolytope sp = makeHypercube(dim);
                 if (true)
                 {
@@ -8615,7 +8615,7 @@ public final class CSG
                     PRINT(sliced.p.getAllElements().length);
                     FORI (i, sliced.p.getAllElements().length)
                         System.out.println("    sliced.p.getAllElements()["+i+"] = "+sliced.p.getAllElements()[i].length);
-                    assert(isOrientedDeep(sliced.p));
+                    CHECK(isOrientedDeep(sliced.p));
                     if (true) // XXX probably no longer needed
                     {
                         System.out.println("calling orientDeep...");
@@ -8623,7 +8623,7 @@ public final class CSG
                         orientDeepCosmetic(sliced);
                         PRINT(sliced);
                     }
-                    assert(isOrientedDeep(sliced.p));
+                    CHECK(isOrientedDeep(sliced.p));
                 }
                 System.out.println("=============================================");
                 System.out.println("finished: "+description);
@@ -8653,7 +8653,7 @@ public final class CSG
             PRINT(A);
             PRINT(B);
             PRINT(AiB);
-            assert(isOrientedDeep(AiB.p));
+            CHECK(isOrientedDeep(AiB.p));
         }
         if (false)
         {
@@ -8661,7 +8661,7 @@ public final class CSG
             PRINT(A);
             PRINT(B);
             PRINT(AuB);
-            assert(isOrientedDeep(AuB.p));
+            CHECK(isOrientedDeep(AuB.p));
         }
         if (false)
         {
@@ -8669,7 +8669,7 @@ public final class CSG
             PRINT(A);
             PRINT(B);
             PRINT(AmB);
-            assert(isOrientedDeep(AmB.p));
+            CHECK(isOrientedDeep(AmB.p));
         }
 
         // Make a polytope with a cavity
@@ -8682,7 +8682,7 @@ public final class CSG
             PRINT(C);
             PRINT(AiB);
             PRINT(Cm_AiB);
-            assert(isOrientedDeep(Cm_AiB.p));
+            CHECK(isOrientedDeep(Cm_AiB.p));
         }
 #endif // DEFUNCT_BUT_NOTE
 

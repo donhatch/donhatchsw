@@ -84,28 +84,28 @@ public class Catenary
     {
         try
         {
-            assert_ge(sNumerator, 0.);
-            assert_ge(sDenominator, 0.);
-            assert_eq(Math.max(sNumerator, sDenominator), 1.);
+            CHECK_GE(sNumerator, 0.);
+            CHECK_GE(sDenominator, 0.);
+            CHECK_EQ(Math.max(sNumerator, sDenominator), 1.);
 
-            assert_ge(xFocusDirection, 0); // no restriction on sign of y
+            CHECK_GE(xFocusDirection, 0); // no restriction on sign of y
             //PRINT(xFocusDirection);
             //PRINT(yFocusDirection);
             //PRINT(MyMath.hypot(xFocusDirection, yFocusDirection));
             double focusDirectionLengthError = MyMath.hypot(xFocusDirection, yFocusDirection) - 1.;
-            assert_eq(SQR(focusDirectionLengthError) + 1. - 1., 0.); // implicit tolerance
+            CHECK_EQ(SQR(focusDirectionLengthError) + 1. - 1., 0.); // implicit tolerance
 
-            assert_le(t0, t1);
-            assert_le(t0, 0.);
-            assert_ge(t1, 0.);
+            CHECK_LE(t0, t1);
+            CHECK_LE(t0, 0.);
+            CHECK_GE(t1, 0.);
 
             // If focus is not one of the two sample points,
             // then it must be the catenary vertex
             // (which is strictly between the two sample points).
             if (t0 != 0. && t1 != 0.)
             {
-                assert_eq(xFocusDirection, 1.);
-                assert_eq(yFocusDirection, 0.);
+                CHECK_EQ(xFocusDirection, 1.);
+                CHECK_EQ(yFocusDirection, 0.);
             }
         }
         catch (Error e)
@@ -128,8 +128,8 @@ public class Catenary
 
         try
         {
-            assert(slack >= 0.); // precondition
-            assert(x0 <= x1); // precondition
+            CHECK(slack >= 0.); // precondition
+            CHECK(x0 <= x1); // precondition
             double dx = x1 - x0;
             double dy = y1 - y0;
             double dist = MyMath.hypot(dx, dy);
@@ -139,7 +139,7 @@ public class Catenary
             {
                 if (verboseLevel >= 1) System.out.println("                          slack=0 s=infinity case"+(slack!=0.?" (CLOSE ENOUGH)":""));
                 // s is infinity
-                //assert(false); // coverage; remove when hit
+                //CHECK(false); // coverage; remove when hit
                 this.sNumerator = 1.;
                 this.sDenominator = 0.;
 
@@ -176,7 +176,7 @@ public class Catenary
             {
                 if (verboseLevel >= 1) System.out.println("                          dx=0 s=0 case"+(dx!=0.?" (CLOSE ENOUGH)":""));
                 // s is zero
-                //assert(false); // coverage; remove when hit
+                //CHECK(false); // coverage; remove when hit
                 this.sNumerator = 0.;
                 this.sDenominator = 1.;
                 this.xFocusInWorld = (x0+x1)*.5;
@@ -189,7 +189,7 @@ public class Catenary
             else
             {
                 if (verboseLevel >= 1) System.out.println("                          s finite and nonzero case");
-                //assert(false); // coverage; remove when hit
+                //CHECK(false); // coverage; remove when hit
 
                 double L = dist + slack;
 
@@ -215,9 +215,9 @@ public class Catenary
                 //                   = sqrt(1 + 2*slack*hypot(1,dy/dx)/dx + (slack/dx)^2)
                 // XXX TODO: make completely bulletproof; I think dy/dx can still overflow if dy>1 and dx very small?
                 double L2_minus_dy2 = SQR(dx) + slack*(2*dist + slack);
-                assert_almost_eq(L2_minus_dy2, L*L - dy*dy, 1e-6);
+                CHECK_ALMOST_EQ(L2_minus_dy2, L*L - dy*dy, 1e-6);
                 double sqrt_L2minusdy2 = Math.sqrt(L2_minus_dy2); // not used immediately, used farther down
-                assert_ge(sqrt_L2minusdy2, dx);
+                CHECK_GE(sqrt_L2minusdy2, dx);
 
                 /*
                 PRINT(dy);
@@ -251,13 +251,13 @@ public class Catenary
                     if (sqrt_L2minusdy2__over_dx___naive < 1.)
                     {
                         // absolute tolerance
-                        assert_almost_eq(sqrt_L2minusdy2__over_dx, sqrt_L2minusdy2__over_dx___naive, 1e-3);
+                        CHECK_ALMOST_EQ(sqrt_L2minusdy2__over_dx, sqrt_L2minusdy2__over_dx___naive, 1e-3);
                     }
                     else
                     {
                         // relative tolerance
                         // (XXX SVVP demo3 gets values on order of 3e13 here-- maybe that's a problem?)
-                        assert_almost_eq(sqrt_L2minusdy2__over_dx/sqrt_L2minusdy2__over_dx___naive, 1., 1e-3);
+                        CHECK_ALMOST_EQ(sqrt_L2minusdy2__over_dx/sqrt_L2minusdy2__over_dx___naive, 1., 1e-3);
                     }
                 }
 
@@ -283,7 +283,7 @@ public class Catenary
                     // don't descend into further complication;
                     // do the same thing we did with slack=0.
                     // TODO: this is really a cop-out; should be using math that doesn't degenerate and doesn't make this a special case.
-                    assert_ne(dist, 0.); // dist=0 should have been covered by dx=0 case
+                    CHECK_NE(dist, 0.); // dist=0 should have been covered by dx=0 case
                     this.xFocusDirection = dx / dist;
                     this.yFocusDirection = dy / dist;
 
@@ -335,7 +335,7 @@ public class Catenary
                             // Entire interval is to right of the catenary vertex.
                             // Make x0,y0 the focus.
                             if (verboseLevel >= 1) System.out.println("                          clamping focus to x0,y0");
-                            //assert(false); // coverage
+                            //CHECK(false); // coverage
                             tFocusWithRespectToVertex = this.t0;
                             this.t0 = 0.;
                             this.t1 = L;
@@ -347,7 +347,7 @@ public class Catenary
                             // Entire interval is to left of the catenary vertex.
                             // Make x1,y1 the focus.
                             if (verboseLevel >= 1) System.out.println("                          clamping focus to x1,y1");
-                            //assert(false); // coverage
+                            //CHECK(false); // coverage
                             tFocusWithRespectToVertex = this.t1; // before changing this.t1
                             this.t0 = -L;
                             this.t1 = 0.;
@@ -359,7 +359,7 @@ public class Catenary
                         this.xFocusDirection = this.sNumerator; // we'll normalize below
                         this.yFocusDirection = this.sDenominator * tFocusWithRespectToVertex; // we'll normalize below
                         double temp = MyMath.hypot(this.xFocusDirection, this.yFocusDirection);
-                        assert_ne(temp, 0.);
+                        CHECK_NE(temp, 0.);
                         this.xFocusDirection /= temp;
                         this.yFocusDirection /= temp;
                     }
@@ -421,12 +421,12 @@ public class Catenary
             // In this case the answer has some freedom,
             // but should not be progressing leftward.
             // We somewhat-arbitrarily choose it to be rightward-pointing.
-            assert(false); // coverage; remove when hit.  (it is hit once in a blue moon in SmoothlyVaryingViewingParameter demo3, currently)
+            CHECK(false); // coverage; remove when hit.  (it is hit once in a blue moon in SmoothlyVaryingViewingParameter demo3, currently)
             answer[0] = 1.;
         }
         VecMath.normalize(answer, answer);
 
-        assert(answer[0] >= 0.);
+        CHECK(answer[0] >= 0.);
         if (verboseLevel >= 1) System.out.println("                        out Catenary.differentiate(t="+t+"), returning answer="+VecMath.toString(answer));
     } // differentiate
 
@@ -442,7 +442,7 @@ public class Catenary
         {
             // s is infinity
             if (verboseLevel >= 1) System.out.println("                          slack=0 s=infinity case");
-            //assert(false); // coverage; remove when hit.
+            //CHECK(false); // coverage; remove when hit.
             answer[0] = xFocusInWorld + t * xFocusDirection;
             answer[1] = yFocusInWorld + t * yFocusDirection;
         }
@@ -450,7 +450,7 @@ public class Catenary
         {
             // s is 0
             if (verboseLevel >= 1) System.out.println("                          dx=0 s=0 case");
-            //assert(false); // coverage; remove when hit.
+            //CHECK(false); // coverage; remove when hit.
             answer[0] = xFocusInWorld;
             answer[1] = yFocusInWorld + Math.abs(t);
         }
@@ -462,7 +462,7 @@ public class Catenary
             // i.e. it never happens that s<1 and Tfocus!=0.
 
             // 0 < s < infinity
-            //assert(false); // coverage; remove when hit
+            //CHECK(false); // coverage; remove when hit
 
             //     x(t) = xFocusInWorld + s*(asinh(TFocus + t/s) - asinh(TFocus))
             //     y(t) = yFocusInWorld + s*(sqrt((TFocus + t/s)^2 + 1) - sqrt(TFocus^2 + 1))
@@ -495,7 +495,7 @@ public class Catenary
                 // mostly horizontal; Tfocus relatively small (or zero),
                 // so we're not subtracting huge numbers.
                 // (XXX assuming s not huge... need to think about case s huge)
-                //assert(false); // coverage; remove when hit
+                //CHECK(false); // coverage; remove when hit
                 double TFocus = TFocusNumerator / TFocusDenominator; // stable XXX?
                 double TFocus_times_s = TFocus_times_s_numerator / TFocus_times_s_denominator; // stable XXX?
                 answer[1] = yFocusInWorld
@@ -520,7 +520,7 @@ public class Catenary
                 //   = (2*t + t^2/s/TF) / (...) * SIGN(TF)
                 //   = t*(2 + t/s/TF) / (...) * SIGN(TF)
                 // XXX redo this using the second version of y(t) throughout, maybe
-                //assert(false); // coverage; remove when hit
+                //CHECK(false); // coverage; remove when hit
                 double invTFocus = TFocusDenominator / TFocusNumerator; // stable XXX?
                 double TFocus_times_s_inverse = TFocus_times_s_denominator / TFocus_times_s_numerator; // stable XXX?
                 answer[1] = yFocusInWorld
@@ -544,7 +544,7 @@ public class Catenary
         {
             if (verboseLevel >= 1) System.out.println("                                    slack=0 s=infinity case");
             // s is infinity
-            //assert(false); // coverage; remove when hit
+            //CHECK(false); // coverage; remove when hit
             answer[0] = t * (xFocusInWorld + .5*t*xFocusDirection);
             answer[1] = t * (yFocusInWorld + .5*t*yFocusDirection);
         }
@@ -552,16 +552,16 @@ public class Catenary
         {
             if (verboseLevel >= 1) System.out.println("                                    dx=0 s=0 case");
             // s is 0
-            //assert(false); // coverage; remove when hit
+            //CHECK(false); // coverage; remove when hit
             answer[0] = t * xFocusInWorld;
             answer[1] = t * (yFocusInWorld + .5*Math.abs(t));
         }
         else
         {
             if (verboseLevel >= 1) System.out.println("                                    s finite and nonzero case");
-            //assert(false); // coverage; remove when hit
+            //CHECK(false); // coverage; remove when hit
             double s = sNumerator / sDenominator; // XXX obviously not robust
-            assert(xFocusDirection != 0.);
+            CHECK(xFocusDirection != 0.);
             double TFocus = yFocusDirection / xFocusDirection; // XXX obviously not robust
             // Recall:
             //     x(t) = xFocusInWorld + s*(asinh(TFocus + t/s) - asinh(TFocus))
@@ -882,7 +882,7 @@ EOF
                 double x1 = Double.parseDouble(tokens[2].substring(3));
                 double y1 = Double.parseDouble(tokens[3].substring(3));
                 double slack = Double.parseDouble(tokens[4].substring(6));
-                assert(("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack).equals(inputs[iInput]));
+                CHECK(("x0="+x0+", y0="+y0+", x1="+x1+", y1="+y1+", slack="+slack).equals(inputs[iInput]));
                 Catenary catenary = new Catenary();
                 int fitVerboseLevel = 1;
                 XXX_USE_SIMPLE_PROTECTION = false; // so we really exercise this case
@@ -1024,18 +1024,18 @@ EOF
 
                                 catenary.evaluate(catenary.t0, evaluated);
                                 //PRINTVEC(evaluated);
-                                assert_almost_eq(evaluated[0], x0, tol);
-                                assert_almost_eq(evaluated[1], y0, tol);
+                                CHECK_ALMOST_EQ(evaluated[0], x0, tol);
+                                CHECK_ALMOST_EQ(evaluated[1], y0, tol);
 
                                 catenary.evaluate(catenary.t1, evaluated);
                                 //PRINTVEC(evaluated);
-                                assert_almost_eq(evaluated[0], x1, tol);
-                                assert_almost_eq(evaluated[1], y1, tol);
+                                CHECK_ALMOST_EQ(evaluated[0], x1, tol);
+                                CHECK_ALMOST_EQ(evaluated[1], y1, tol);
 
                                 catenary.evaluate(t, evaluated);
                                 //PRINTVEC(evaluated);
-                                assert_almost_eq(evaluated[0], x, tol);
-                                assert_almost_eq(evaluated[1], y, tol);
+                                CHECK_ALMOST_EQ(evaluated[0], x, tol);
+                                CHECK_ALMOST_EQ(evaluated[1], y, tol);
                             }
 
                             if (true)
@@ -1051,19 +1051,19 @@ EOF
                                 double derivative[] = new double[2];
 
                                 catenary.differentiate(catenary.t0, derivative);
-                                assert_almost_eq(VecMath.norm(derivative), 1., tol);
-                                assert_almost_eq(derivative[0], 1./Y0, tol);
-                                assert_almost_eq(derivative[1], T0/Y0, tol);
+                                CHECK_ALMOST_EQ(VecMath.norm(derivative), 1., tol);
+                                CHECK_ALMOST_EQ(derivative[0], 1./Y0, tol);
+                                CHECK_ALMOST_EQ(derivative[1], T0/Y0, tol);
 
                                 catenary.differentiate(catenary.t1, derivative);
-                                assert_almost_eq(VecMath.norm(derivative), 1., tol);
-                                assert_almost_eq(derivative[0], 1./Y1, tol);
-                                assert_almost_eq(derivative[1], T1/Y1, tol);
+                                CHECK_ALMOST_EQ(VecMath.norm(derivative), 1., tol);
+                                CHECK_ALMOST_EQ(derivative[0], 1./Y1, tol);
+                                CHECK_ALMOST_EQ(derivative[1], T1/Y1, tol);
 
                                 catenary.differentiate(t, derivative);
-                                assert_almost_eq(VecMath.norm(derivative), 1., tol);
-                                assert_almost_eq(derivative[0], 1./Y, tol);
-                                assert_almost_eq(derivative[1], T/Y, tol);
+                                CHECK_ALMOST_EQ(VecMath.norm(derivative), 1., tol);
+                                CHECK_ALMOST_EQ(derivative[0], 1./Y, tol);
+                                CHECK_ALMOST_EQ(derivative[1], T/Y, tol);
                             }
 
                             if (true)
@@ -1084,24 +1084,24 @@ EOF
 
                                 catenary.integrate(catenary.t0, catenary.t0, integral);
                                 PRINTVEC(integral);
-                                assert_eq(integral[0], 0.);
-                                assert_eq(integral[1], 0.);
+                                CHECK_EQ(integral[0], 0.);
+                                CHECK_EQ(integral[1], 0.);
 
                                 catenary.integrate(catenary.t0, catenary.t1, integral);
                                 PRINTVEC(integral);
-                                assert_almost_eq(integral[0], s*(s*T1*X1 - s*Y1)
-                                                            - s*(s*T0*X0 - s*Y0)
-                                                            + (catenary.t1-catenary.t0)*xDelta, tol);
-                                assert_almost_eq(integral[1], .5*(s*T1*s*Y1 + s*s*Math.log(s*Y1+s*T1))
-                                                            - .5*(s*T0*s*Y0 + s*s*Math.log(s*Y0+s*T0))
-                                                            + (catenary.t1-catenary.t0)*yDelta, tol);
+                                CHECK_ALMOST_EQ(integral[0], s*(s*T1*X1 - s*Y1)
+                                                           - s*(s*T0*X0 - s*Y0)
+                                                           + (catenary.t1-catenary.t0)*xDelta, tol);
+                                CHECK_ALMOST_EQ(integral[1], .5*(s*T1*s*Y1 + s*s*Math.log(s*Y1+s*T1))
+                                                           - .5*(s*T0*s*Y0 + s*s*Math.log(s*Y0+s*T0))
+                                                           + (catenary.t1-catenary.t0)*yDelta, tol);
 
                                 catenary.integrate(catenary.t0, t, integral);
                                 PRINTVEC(integral);
-                                assert_almost_eq(integral[0], s*(s*T*X - s*Y)
-                                                            - s*(s*T0*X0 - s*Y0)
-                                                            + (t-catenary.t0)*xDelta, tol);
-                                assert_almost_eq(integral[1], .5*(s*T*s*Y + s*s*Math.log(s*Y+s*T))
+                                CHECK_ALMOST_EQ(integral[0], s*(s*T*X - s*Y)
+                                                           - s*(s*T0*X0 - s*Y0)
+                                                           + (t-catenary.t0)*xDelta, tol);
+                                CHECK_ALMOST_EQ(integral[1], .5*(s*T*s*Y + s*s*Math.log(s*Y+s*T))
                                                             - .5*(s*T0*s*Y0 + s*s*Math.log(s*Y0+s*T0))
                                                             + (t-catenary.t0)*yDelta, tol);
                             }

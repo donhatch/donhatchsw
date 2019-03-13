@@ -98,7 +98,7 @@ public class ConvexHull
             return new int[3][0][d]; // not enough vertices to make a facet out of
         }
 
-        assert(nVerts >= d && d >= 2);
+        CHECK(nVerts >= d && d >= 2);
 
         if (debugLevel >= 2) System.out.println("        choosing a non-degenerate (d-1)-dimensional simplex");
 
@@ -134,14 +134,14 @@ public class ConvexHull
                                                                                 firstHullFacet,
                                                                                 i+1);
                     //PRINT(thisContentSquared);
-                    assert(thisContentSquared >= 0.);
+                    CHECK(thisContentSquared >= 0.);
                     if (thisContentSquared > biggestContentSquared)
                     {
                         biggestContentSquared = thisContentSquared;
                         bestVert = iVert;
                     }
                 }
-                assert(bestVert != -1);
+                CHECK(bestVert != -1);
                 firstHullFacet[i] = bestVert;
             }
             if (debugLevel >= 3)
@@ -233,7 +233,7 @@ public class ConvexHull
                     }
 
                     perturbedHeight = VecMath.dot(d, firstFacetUnitNormal, symbolicPerturbation);
-                    assert(!EQ(perturbedHeight, 0., tol));
+                    CHECK(!EQ(perturbedHeight, 0., tol));
                 }
             }
 
@@ -250,7 +250,7 @@ public class ConvexHull
                 hoveringVertToFacet[iVert] = secondHullFacetStruct;
                 if (debugLevel >= 3) System.out.println("                vertex "+iVert+" is hovering at height "+height+" over secondHullFacet "+Arrays.toStringCompact(secondHullFacet));
             }
-            assert(GEQ(height, 0., tol));
+            CHECK(GEQ(height, 0., tol));
             if (debugLevel >= 3) System.out.println("                adding vert "+iVert+" to heap at priority "+(-height));
             queue.add(iVert, -height); // reverse sense so we can extract max height item as min item
         }
@@ -306,7 +306,7 @@ public class ConvexHull
                 Facet facet = (Facet)facetSearchList.get(iFacetInSearchList);
                 if (debugLevel >= 3)
                     System.out.println("                    got to facet "+Arrays.toStringCompact(facet.vertInds)+" ("+(facet.isVisible==1?"visible":facet.isVisible==0?"invisible":"???")+")");
-                assert(facet.isVisible != -1);
+                CHECK(facet.isVisible != -1);
                 if (facet.isVisible == 1)
                 {
                     FORI (iNeighbor, d)
@@ -338,7 +338,7 @@ public class ConvexHull
                                     }
 
                                     perturbedHeight = VecMath.dot(d, neighbor.unitNormal, symbolicPerturbation);
-                                    assert(!EQ(perturbedHeight, 0., tol));
+                                    CHECK(!EQ(perturbedHeight, 0., tol));
                                 }
                             }
                             if (debugLevel >= 3)
@@ -390,7 +390,7 @@ public class ConvexHull
                 newFacet.neighbors[iNeighbor] = invisibleNeighbor; // only one known so far
                 newFacet.neighborsIndexOfMe[iNeighbor] = invisibleNeighborsIndexOfMe;
                 invisibleNeighbor.neighbors[invisibleNeighborsIndexOfMe] = newFacet;
-                assert_eq(invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe], iNeighbor);
+                CHECK_EQ(invisibleNeighbor.neighborsIndexOfMe[invisibleNeighborsIndexOfMe], iNeighbor);
                 hullFacets.add(newFacet);
             }
 
@@ -407,7 +407,7 @@ public class ConvexHull
                     System.out.println("                sewing up cone the trivial way");
                     PRINT(visibleBoundaryFacets.size());
                 }
-                assert_eq(visibleBoundaryFacets.size(), 2);
+                CHECK_EQ(visibleBoundaryFacets.size(), 2);
                 Facet oldFacet0 = (Facet)visibleBoundaryFacets.get(0);
                 Facet oldFacet1 = (Facet)visibleBoundaryFacets.get(1);
                 int iInvisibleNeighbor0 = visibleBoundaryNeighborIndex.get(0);
@@ -423,18 +423,18 @@ public class ConvexHull
                     System.out.println("                    looking at oldFacet0="+Arrays.toStringCompact(oldFacet0.vertInds)+", newFacet0="+Arrays.toStringCompact(newFacet0.vertInds)+", invisibleNeighbor0 = "+Arrays.toStringCompact(invisibleNeighbor0.vertInds));
                     System.out.println("                    looking at oldFacet1="+Arrays.toStringCompact(oldFacet1.vertInds)+", newFacet1="+Arrays.toStringCompact(newFacet1.vertInds)+", invisibleNeighbor1 = "+Arrays.toStringCompact(invisibleNeighbor1.vertInds));
                 }
-                assert(newFacet0 != oldFacet0);
-                assert(newFacet1 != oldFacet1);
+                CHECK(newFacet0 != oldFacet0);
+                CHECK(newFacet1 != oldFacet1);
 
-                assert_eq(newFacet0.neighbors[1-iInvisibleNeighbor0], null);
-                assert_eq(newFacet1.neighbors[1-iInvisibleNeighbor1], null);
+                CHECK_EQ(newFacet0.neighbors[1-iInvisibleNeighbor0], null);
+                CHECK_EQ(newFacet1.neighbors[1-iInvisibleNeighbor1], null);
                 newFacet0.neighbors[1-iInvisibleNeighbor0] = newFacet1;
                 newFacet1.neighbors[1-iInvisibleNeighbor1] = newFacet0;
                 newFacet0.neighborsIndexOfMe[1-iInvisibleNeighbor0] = 1-iInvisibleNeighbor1;
                 newFacet1.neighborsIndexOfMe[1-iInvisibleNeighbor1] = 1-iInvisibleNeighbor0;
 
-                assert_eq(newFacet0.isVisible, 2); // i.e. "new"
-                assert_eq(newFacet1.isVisible, 2); // i.e. "new"
+                CHECK_EQ(newFacet0.isVisible, 2); // i.e. "new"
+                CHECK_EQ(newFacet1.isVisible, 2); // i.e. "new"
                 newFacet0.isVisible = -1;
                 newFacet1.isVisible = -1;
             }
@@ -455,7 +455,7 @@ public class ConvexHull
                         System.out.println("                    looking at oldFacet="+Arrays.toStringCompact(oldFacet.vertInds)+", newFacet="+Arrays.toStringCompact(newFacet.vertInds)+", invisibleNeighbor = "+Arrays.toStringCompact(invisibleNeighbor.vertInds));
                     // oldFacet still points at the neighbor,
                     // but the neighbor doesn't point back!
-                    assert(newFacet != oldFacet);
+                    CHECK(newFacet != oldFacet);
 
                     FORI (iRidgeThisNewFacet, d)
                     {
@@ -484,7 +484,7 @@ public class ConvexHull
                             Facet thisFacet = oldFacet; // next facet will be invisibleNeighbor
                             int i0 = iInvisibleNeighbor;
                             int i1 = iRidgeThisNewFacet;
-                            assert_eq(thisFacet.isVisible, 1);
+                            CHECK_EQ(thisFacet.isVisible, 1);
 
                             if (debugLevel >= 3)
                             {
@@ -542,7 +542,7 @@ public class ConvexHull
                                     System.out.println("                            thisFacet[i1="+i1+"] = "+thisFacet.vertInds[i1]);
                                 }
 
-                                assert(thisFacet.isVisible == -1  /* was not traversed; implicitly invisible */
+                                CHECK(thisFacet.isVisible == -1  /* was not traversed; implicitly invisible */
                                     || thisFacet.isVisible == 0   /* was marked invisible */
                                     || thisFacet.isVisible == 2); /* new */
                                 if (thisFacet.isVisible == 2) // it's the desired new one!
@@ -561,7 +561,7 @@ public class ConvexHull
                     // and no other new facet will need this one any more,
                     // so we can clear the "new" flag,
                     // and also disconnect it from the invisible neighbor. (XXX not doing that, probably doesn't matter)
-                    assert_eq(newFacet.isVisible, 2); // i.e. "new"
+                    CHECK_EQ(newFacet.isVisible, 2); // i.e. "new"
                     newFacet.isVisible = -1;
 
                 } // for iVisibleBoundary
@@ -582,17 +582,17 @@ public class ConvexHull
                 // and that the "new" flag is cleared.
                 FORI (iNeighbor, d)
                 {
-                    assert(newFacet.neighbors[iNeighbor] != null);
-                    assert(newFacet.neighborsIndexOfMe[iNeighbor] != -1);
-                    assert_eq(newFacet.neighbors[iNeighbor].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[iNeighbor]], iNeighbor);
-                    assert_eq(newFacet.isVisible, -1);
+                    CHECK(newFacet.neighbors[iNeighbor] != null);
+                    CHECK(newFacet.neighborsIndexOfMe[iNeighbor] != -1);
+                    CHECK_EQ(newFacet.neighbors[iNeighbor].neighborsIndexOfMe[newFacet.neighborsIndexOfMe[iNeighbor]], iNeighbor);
+                    CHECK_EQ(newFacet.isVisible, -1);
                 }
             }
 
 
 
             int nVisibleFacets = visibleFacets.size();
-            assert(nVisibleFacets >= 1); // the facet that iVert was hovering over, at least
+            CHECK(nVisibleFacets >= 1); // the facet that iVert was hovering over, at least
 
             int nFacetsAfterAdding = hullFacets.size();
             if (debugLevel >= 3)
@@ -600,7 +600,7 @@ public class ConvexHull
                 PRINT(nFacetsBefore);
                 PRINT(nFacetsAfterAdding);
             }
-            assert(nFacetsAfterAdding > nFacetsBefore); // added at least one, and didn't delete any yet
+            CHECK(nFacetsAfterAdding > nFacetsBefore); // added at least one, and didn't delete any yet
 
             // Transfer the hovering vertices
             // from the visible facets (which are about to be deleted)
@@ -641,7 +641,7 @@ public class ConvexHull
                                     System.out.println("                        symbolically perturbing new vert out of initial plane");
 
                                 perturbedHeight = VecMath.dot(d, symbolicPerturbation, facetUnitNormal);
-                                assert(!EQ(perturbedHeight, 0., tol));
+                                CHECK(!EQ(perturbedHeight, 0., tol));
                             }
                         }
 
@@ -710,8 +710,8 @@ public class ConvexHull
                 hullFacets.fastRemove(facet);
                 hullFacetsReordered.add(facet);
             }
-            assert_eq(hullFacets.size(), 0);
-            assert_eq(hullFacetsReordered.size(), nFacets);
+            CHECK_EQ(hullFacets.size(), 0);
+            CHECK_EQ(hullFacetsReordered.size(), nFacets);
             hullFacets = hullFacetsReordered;
         }
 
@@ -777,7 +777,7 @@ public class ConvexHull
         public Facet get(int i)
         {
             Facet facet = (Facet)facetArrayList.get(i);
-            assert_eq(facet.myIndex, i);
+            CHECK_EQ(facet.myIndex, i);
             return facet;
         }
         public void add(Facet facet)
@@ -909,7 +909,7 @@ public class ConvexHull
                 }
             }
             FORI (i, n-1)
-                assert(order[i] < order[i+1]);
+                CHECK(order[i] < order[i+1]);
             return nSwaps % 2;
         }
 
@@ -918,7 +918,7 @@ public class ConvexHull
     {
         if (verts.length < d)
         {
-            assert_eq(hull.length, 0);
+            CHECK_EQ(hull.length, 0);
         }
         else
         {
@@ -941,14 +941,14 @@ public class ConvexHull
                 FORI (iFacet, hull.length)
                 {
                     int facet[] = hull[iFacet];
-                    assert_eq(facet.length, d);
+                    CHECK_EQ(facet.length, d);
 
                     // assert all verts on facet are distinct
                     {
                         int sortedFacet[] = VecMath.copyvec(facet);
                         SortStuff.sort(sortedFacet);
                         FORI (i, d-1)
-                            assert(sortedFacet[i+1] != sortedFacet[i]);
+                            CHECK(sortedFacet[i+1] != sortedFacet[i]);
                     }
 
                     FORI (iRidgeThisFacet, d)
@@ -981,7 +981,7 @@ public class ConvexHull
                 {
                     IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
                     int value[][] = (int[][])ridgeParityToFacets.get(ridgeKey);
-                    assert_eq(value.length, 3);
+                    CHECK_EQ(value.length, 3);
                     int ridge[] = value[2];
                     if (value[0].length != 1
                      || value[1].length != 1)
@@ -1002,7 +1002,7 @@ public class ConvexHull
                         okSoFar = false;
                     }
                 }
-                assert(okSoFar);
+                CHECK(okSoFar);
             }
 
             //
@@ -1035,7 +1035,7 @@ public class ConvexHull
                         facetNormal[0] = facetVerts[0][0] - vertsCenter[0];
                     VecMath.normalize(facetNormal, facetNormal);
                     // XXX need to deal with degeneracy here maybe
-                    assert(EQ(VecMath.normsqrd(facetNormal), 1., 2*tol));
+                    CHECK(EQ(VecMath.normsqrd(facetNormal), 1., 2*tol));
                     VecMath.average(facetCenter, facetVerts);
 
 
@@ -1058,14 +1058,14 @@ public class ConvexHull
                             PRINT(thisSign);
                             PRINT(sign);
                         }
-                        assert(sign * thisSign >= 0);
+                        CHECK(sign * thisSign >= 0);
                     }
                 }
                 // TODO: can't we assert something about the sign, for god's sake?? argh! this is insane!
                 if (d == 3)
-                    assert(sign <= 0);
+                    CHECK(sign <= 0);
                 if (d == 4)
-                    assert(sign >= 0);
+                    CHECK(sign >= 0);
             }
         }
     } // sanityCheckConvexHull
@@ -1076,7 +1076,7 @@ public class ConvexHull
         PRINT(d);
         PRINTARRAY(verts);
         FORI (iVert, verts.length)
-            assert_eq(verts[iVert].length, d);
+            CHECK_EQ(verts[iVert].length, d);
 
         long t0 = System.currentTimeMillis();
 
@@ -1094,12 +1094,12 @@ public class ConvexHull
 
         int answer[][][] = convexHull(verts, hullTol);
         long t1 = System.currentTimeMillis();
-        assert(answer != null);
-        assert_eq(answer.length, 3);
+        CHECK(answer != null);
+        CHECK_EQ(answer.length, 3);
         int hull[][] = answer[0];
         int adjs[][] = answer[1];
         int back[][] = answer[2];
-        assert_eq(hull.length, adjs.length);
+        CHECK_EQ(hull.length, adjs.length);
         System.err.println("convex hull of "+verts.length+" verts in "+d+"d returned "+hull.length+" simplices in "+(t1-t0)/1000.+" secs.");
 
         PRINTARRAY(hull);
@@ -1235,7 +1235,7 @@ public class ConvexHull
                     verts[iVert][1] = Math.sin(angle);
                 }
                 int hull[][] = testTheseVerts(d, verts);
-                assert_eq(hull.length, nVerts);
+                CHECK_EQ(hull.length, nVerts);
             }
         }
         if (true)
@@ -1249,7 +1249,7 @@ public class ConvexHull
                 {1,1,1},
             };
             int hull[][] = testTheseVerts(3, verts);
-            assert_eq(hull.length, 4);
+            CHECK_EQ(hull.length, 4);
         }
         if (true)
         {
@@ -1270,7 +1270,7 @@ public class ConvexHull
                     //verts[iVert][2] = Math.random();
                 }
                 int hull[][] = testTheseVerts(d, verts);
-                assert_eq(hull.length, (nVerts-2)*2);
+                CHECK_EQ(hull.length, (nVerts-2)*2);
             }
         }
         if (true)

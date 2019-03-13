@@ -51,7 +51,7 @@ public class BlueNoise
             iBaseGrid[i] = IBaseGrid % nBaseGrid;
             IBaseGrid /= nBaseGrid;
         }
-        assert_eq(IBaseGrid, 0);
+        CHECK_EQ(IBaseGrid, 0);
     }
     static int contractIndex(int nBaseGrid, int iBaseGrid[])
     {
@@ -73,7 +73,7 @@ public class BlueNoise
                 dist -= 1.;
             else if (dist < -.5)
                 dist += 1.;
-            assert(INRANGE(-.5 <=, dist, <= .5));
+            CHECK(INRANGE(-.5 <=, dist, <= .5));
             answer += dist*dist;
         }
         return answer;
@@ -359,7 +359,7 @@ public class BlueNoise
                         //System.err.println("              dart: "+VecMath.toString(dart));
                         if (!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, dart, cell.baseGridIndex, template))
                         {
-                            //assert (!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, dart, -1, template));
+                            //CHECK(!isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, dart, -1, template));
                             // promote dart to sample by adding it to the base grid and answer
                             //System.err.println("                  promoting to sample!");
                             baseGridExpanded[cell.baseGridIndex][0] = dart;
@@ -386,7 +386,7 @@ public class BlueNoise
                     Cell cell = activeCells[iCell];
                     if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, cell.min, cell.max, cell.baseGridIndex, template))
                     {
-                        //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, cell.min, cell.max, -1, template));
+                        //CHECK(!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, cell.min, cell.max, -1, template));
                         FORI (iSub, 1<<d)
                         {
                             FORI (i, d)
@@ -406,7 +406,7 @@ public class BlueNoise
                             // If we can't easily prove that the subcell is covered, then retain it
                             if (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, min, max, cell.baseGridIndex, template))
                             {
-                                //assert (!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, min, max, -1, template));
+                                //CHECK(!isCompletelyCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, min, max, -1, template));
                                 subcells[nSubCells++] = new Cell(min, max, cell.baseGridIndex);
                                 // that acquired ownership of min,max, so reallocate
                                 min = new double[d];
@@ -431,7 +431,7 @@ public class BlueNoise
                     if (iSample != jSample)
                     {
                         double dist = VecMath.dist(answer[iSample], answer[jSample]);
-                        assert_ge(dist, 2*nonOverlappingDiskRadius);
+                        CHECK_GE(dist, 2*nonOverlappingDiskRadius);
                     }
                 }
             }
@@ -469,12 +469,12 @@ public class BlueNoise
                         }
                     }
                     int baseGridIndex = -1; // -1 means check all base grid cells
-                    assert_eq(isCovered, isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, checkPoint, baseGridIndex, template));
+                    CHECK_EQ(isCovered, isCoveredByADisk(nonOverlappingDiskRadius, maxIndexDifferenceOfInterest, nBaseGrid, baseGridExpanded, checkPoint, baseGridIndex, template));
                     if (!isCovered)
                     {
                         System.err.println("checkPoint = "+VecMath.toString(checkPoint));
                     }
-                    assert(isCovered);
+                    CHECK(isCovered);
                 }
                 System.err.println("  done.");
             }
@@ -549,9 +549,9 @@ public class BlueNoise
     {
         if (true)
         {
-            assert(EQ(absSphericalTriangleArea(new double[]{1,0,0},
-                                               new double[]{0,1,0},
-                                               new double[]{0,0,1}), Math.PI/2, 1e-12));
+            CHECK(EQ(absSphericalTriangleArea(new double[]{1,0,0},
+                                              new double[]{0,1,0},
+                                              new double[]{0,0,1}), Math.PI/2, 1e-12));
         }
 
         if (args.length == 1 && args[0].equals("E"))
@@ -582,7 +582,7 @@ public class BlueNoise
                     double X = x+2;
                     double blueNoise[][] = blueNoiseInUnitBox(1, .5/X, rng);
                     int N = blueNoise.length;
-                    assert(N >= 1);
+                    CHECK(N >= 1);
                     int n = N - 1;
                     sum += n;
                 }

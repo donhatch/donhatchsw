@@ -154,7 +154,7 @@ public class Poly
         }
         if (indsType == null)
             return null; // all null XXX this is kind of ad-hoc
-        assert(vertType != null);
+        CHECK(vertType != null);
         int nAux = 0;
         int nVerts, nInds;
         {
@@ -166,12 +166,12 @@ public class Poly
                 if (poly != null)
                 {
                     nVerts += poly.verts.length;
-                    assert_eq(poly.inds.getClass(), indsType);
+                    CHECK_EQ(poly.inds.getClass(), indsType);
                     nInds += java.lang.reflect.Array.getLength(poly.inds);
-                    assert_eq((poly.aux != null), (auxType != null));
+                    CHECK_EQ((poly.aux != null), (auxType != null));
                     if (auxType != null)
                     {
-                        assert_eq(poly.aux.getClass(), auxType);
+                        CHECK_EQ(poly.aux.getClass(), auxType);
                         nAux += java.lang.reflect.Array.getLength(poly.aux);
                     }
                 }
@@ -218,9 +218,9 @@ public class Poly
                     }
                 }
             }
-            assert_eq(vertsOffset, nVerts);
-            assert_eq(indsOffset, nInds);
-            assert_eq(auxOffset, nAux);
+            CHECK_EQ(vertsOffset, nVerts);
+            CHECK_EQ(indsOffset, nInds);
+            CHECK_EQ(auxOffset, nAux);
         }
 
         return new Poly(verts, inds, aux,
@@ -251,7 +251,7 @@ public class Poly
         Object inds0 = p0.inds;
         int nInds0 = java.lang.reflect.Array.getLength(inds0);
         Class indsComponentType = inds0.getClass().getComponentType();
-        assert(indsComponentType != null); // must be a list
+        CHECK(indsComponentType != null); // must be a list
         Object aux0 = p0.aux;
         int nAux0 = (aux0 == null ? 0 : java.lang.reflect.Array.getLength(aux0));
 
@@ -290,9 +290,9 @@ public class Poly
                 M = VecMath.mxm(M, incM);
         }
 
-        assert_eq(vertsOffset, nVerts);
-        assert_eq(facesOffset, nInds);
-        assert_eq(auxOffset, nAux);
+        CHECK_EQ(vertsOffset, nVerts);
+        CHECK_EQ(facesOffset, nInds);
+        CHECK_EQ(auxOffset, nAux);
 
         return new Poly(verts, inds, aux, p0.repeatVectors);
     } // repeat
@@ -392,7 +392,7 @@ public class Poly
                                           int n,
                                           boolean doGroup)
     {
-        assert(n >= 1);
+        CHECK(n >= 1);
         int pIndsDim = Arrays.getDim(p.inds);
         Object inds = Arrays.flatten(Arrays.copy(p.inds,pIndsDim),
                                      pIndsDim-1,
@@ -425,7 +425,7 @@ public class Poly
             FORI (iGroup, nGroups)
             {
                 int group[][] = groupGroup[iGroup];
-                assert_eq(group.length, 1);
+                CHECK_EQ(group.length, 1);
                 int tri[] = group[0];
                 FORI (i, tri.length)
                     if (oldToNewVerts[tri[i]] == -1)
@@ -508,7 +508,7 @@ public class Poly
                             indInGroup++;
                         }
                     }
-                    assert_eq(indInGroup, n*n);
+                    CHECK_EQ(indInGroup, n*n);
                 }
                 else
                 {
@@ -732,7 +732,7 @@ public class Poly
                             }
                         }
                     }
-                    assert_eq(iDerivationParent, nDerivationParents);
+                    CHECK_EQ(iDerivationParent, nDerivationParents);
                     // now tempVertexWeights is all zeros again
 
                     double cellCenter[] = workVerts[nVerts+iCell];
@@ -854,7 +854,7 @@ public class Poly
         double finalTesselatedVerts[][] = new double[nTesselatedVerts][]; // don't allocate the individual entries yet, so at each point we can determine if it's already been done
         {
             int tesselatedCells[][][][] = tesselatedP.getInds4();
-            assert_eq(tesselatedCells.length, nCells);
+            CHECK_EQ(tesselatedCells.length, nCells);
             // XXX very similar to what we did above-- maybe should combine code
 
             double interiornesses[] = new double[nTesselatedVerts];
@@ -866,7 +866,7 @@ public class Poly
                 int polys[][][] = cells[iCell];
                 int nPolys = polys.length;
                 int tesselatedPolys[][][] = tesselatedCells[iCell];
-                assert_eq(nPolys, tesselatedPolys.length);
+                CHECK_EQ(nPolys, tesselatedPolys.length);
                 double cellCenter[] = workVerts[nVerts+iCell];
 
                 FORI (iPoly, nPolys)
@@ -1105,7 +1105,7 @@ public class Poly
                         nextNeighbor[neighbor] = -1;
                         neighbor = temp;
                     }
-                    assert_eq(neighbor, neighborPairs[0][0]); // full circle
+                    CHECK_EQ(neighbor, neighborPairs[0][0]); // full circle
                 }
             }
         }
@@ -1251,7 +1251,7 @@ public class Poly
         // result can be the same as inds,
         // but there must be no multiple instancing
         int n = java.lang.reflect.Array.getLength(outInds);
-        assert_eq(n, java.lang.reflect.Array.getLength(inInds));
+        CHECK_EQ(n, java.lang.reflect.Array.getLength(inInds));
         if (inInds instanceof int[])
         {
             int outInts[] = (int[])outInds;

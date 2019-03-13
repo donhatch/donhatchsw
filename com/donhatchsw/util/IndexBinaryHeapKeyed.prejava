@@ -31,15 +31,15 @@ public class IndexBinaryHeapKeyed
     /** Adds the given index to the heap, with the given value.  It is an error to call this on an index that is already in the heap. */
     public void add(int index, double val)
     {
-        assert(!Double.isNaN(val));
-        assert(Double.isNaN(values[index]));
+        CHECK(!Double.isNaN(val));
+        CHECK(Double.isNaN(values[index]));
         values[index] = val;
         heapGeneral.add(index);
     }
     /** Remove the given index from the heap.  It is an error to call this on an index that is not in the heap. */
     public void remove(int index)
     {
-        assert(!Double.isNaN(values[index]));
+        CHECK(!Double.isNaN(values[index]));
         values[index] = Double.NaN;
         heapGeneral.remove(index);
     }
@@ -65,7 +65,7 @@ public class IndexBinaryHeapKeyed
     /** Equivalent to remove(index); add(index,val); but more efficient. */
     public void adjust(int index, double val)
     {
-        assert(!Double.isNaN(values[index]));
+        CHECK(!Double.isNaN(values[index]));
         values[index] = val;
         heapGeneral.adjust(index);
     } // adjust
@@ -85,7 +85,7 @@ public class IndexBinaryHeapKeyed
         int max = values.length;
         FORI (i, max)
         {
-            assert_eq(heapGeneral.contains(i), !Double.isNaN(values[i]));
+            CHECK_EQ(heapGeneral.contains(i), !Double.isNaN(values[i]));
         }
 
         heapGeneral.sanityCheck(true);
@@ -114,11 +114,11 @@ public class IndexBinaryHeapKeyed
         }
         FORI (i, sortedInds.length)
         {
-            assert(!heap.isEmpty());
+            CHECK(!heap.isEmpty());
             sortedInds[i] = heap.extractMin();
             heap.sanityCheck();
         }
-        assert(heap.isEmpty());
+        CHECK(heap.isEmpty());
         return sortedInds;
     } // heapSortWithSanityChecks
 
@@ -145,16 +145,16 @@ public class IndexBinaryHeapKeyed
                 int sortedInds[] = heapSortWithSanityChecks(vals, rng);
                 PRINTARRAY(sortedInds);
                 System.out.println("============");
-                assert_eq(sortedInds.length, max);
+                CHECK_EQ(sortedInds.length, max);
                 FORI (i, max-1)
                 {
-                    assert(vals[sortedInds[i]] <= vals[sortedInds[i+1]]);
+                    CHECK(vals[sortedInds[i]] <= vals[sortedInds[i+1]]);
                     // Nothing's exactly "equal" due to tiebreaking by index.
                     int I = sortedInds[i];
                     int J = sortedInds[i+1];
-                    assert(vals[I] < vals[J] || (vals[I]==vals[J] && I<J));
+                    CHECK(vals[I] < vals[J] || (vals[I]==vals[J] && I<J));
                 }
-                assert_eq(VecMath.sum(sortedInds), max*(max-1)/2); // if this is right then we probably got all the indices
+                CHECK_EQ(VecMath.sum(sortedInds), max*(max-1)/2); // if this is right then we probably got all the indices
             }
         }
         System.out.println("ALL GOOD!");

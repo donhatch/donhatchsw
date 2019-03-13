@@ -124,7 +124,7 @@ public class NewtonSolver
             for (int i = 0; i < Jx.length; ++i)
             for (int j = 0; j < Jx[i].length; ++j)
             {
-                assert(!Double.isNaN(Jx[i][j]));
+                CHECK(!Double.isNaN(Jx[i][j]));
             }
 
             // TODO: get rid of memory allocations!!
@@ -144,7 +144,7 @@ public class NewtonSolver
                 double maxStepScale = 1.; // can set this to something less to force it to be gentle and slow for debugging
                 for (double stepScale = maxStepScale; ; stepScale *= .5)
                 {
-                    assert(stepScale > 0.);
+                    CHECK(stepScale > 0.);
                     double xNewMaybe[] = VecMath.vpsxv(x,
                                                        stepScale,
                                                        fullCorrection);

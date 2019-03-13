@@ -141,7 +141,7 @@ public abstract class Listenable
                 else if (lastCaught instanceof Error)
                     throw (Error)lastCaught;
                 else
-                    assert(false); // all unchecked exceptions are RuntimeError or Error, this shouldn't happen
+                    CHECK(false); // all unchecked exceptions are RuntimeError or Error, this shouldn't happen
             }
         }
     } // notifyListenersThatValueChanged

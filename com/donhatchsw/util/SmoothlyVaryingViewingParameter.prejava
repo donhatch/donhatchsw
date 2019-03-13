@@ -313,10 +313,10 @@ public class SmoothlyVaryingViewingParameter
         else
         {
             if (verboseLevel >= 2) System.out.println("      moving");
-            //assert(false); // XXX coverage-- remove when hit
+            //CHECK(false); // XXX coverage-- remove when hit
             if (referenceTripTime == 0.)
             {
-                //assert(false); // XXX coverage-- remove when hit
+                //CHECK(false); // XXX coverage-- remove when hit
                 if (referenceTripDistance == 0.)
                     throw new IllegalArgumentException("SmoothlyVaryingViewingParameter.evolve: referenceTripDistance/referenceTripTime is 0/0 !?");
                 // Infinite power-- bonk it there.
@@ -328,7 +328,7 @@ public class SmoothlyVaryingViewingParameter
                 if (verboseLevel >= 1) System.out.println("    out evolve (referenceTripTime is 0)");
                 return;
             }
-            //assert(false); // XXX coverage-- remove when hit
+            //CHECK(false); // XXX coverage-- remove when hit
 
             // Save initial velocity in observedAcceleration...
             VecMath.copyvec(this.observedAcceleration, this.velocity);
@@ -337,7 +337,7 @@ public class SmoothlyVaryingViewingParameter
             {
                 if (verboseLevel >= 2) System.out.println("      SEPARABLE");
 
-                //assert(false); // XXX coverage-- remove when hit
+                //CHECK(false); // XXX coverage-- remove when hit
                 double p_and_v_and_a[] = new double[3]; // scratch
 
                 double scales[] = null;
@@ -396,7 +396,7 @@ public class SmoothlyVaryingViewingParameter
                             if (VecMath.normsqrd(scales) == 0.)
                             {
                                 System.out.println("SURPRISE: SmoothlyVaryingViewingParameter strategy=separable: scales unexpectedly zero after "+(iPreflight+1)+"/"+nPreflights+" preflights: position="+VecMath.toString(position)+" targetPosition="+VecMath.toString(targetPosition)+" position-targetPosition="+VecMath.toString(VecMath.vmv(position,targetPosition))+" velocity="+VecMath.toString(velocity));
-                                assert(VecMath.normsqrd(scales) == 0.);
+                                CHECK(VecMath.normsqrd(scales) == 0.);
                             }
                             VecMath.normalize(scales, scales);
                             if (verboseLevel >= 2) PRINTVEC(scales); // XXX bleah, if using settleTime^2, when I print these out, they oscillate sometimes, e.g.
@@ -437,7 +437,7 @@ public class SmoothlyVaryingViewingParameter
 
                 for (int i = 0; i < position.length; ++i)
                 {
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     p_and_v_and_a[0] = this.position[i] - this.targetPosition[i];
                     p_and_v_and_a[1] = this.velocity[i];
                     p_and_v_and_a[2] = Double.NaN;
@@ -449,7 +449,7 @@ public class SmoothlyVaryingViewingParameter
                     this.position[i] = p_and_v_and_a[0] + this.targetPosition[i];
                     this.velocity[i] = p_and_v_and_a[1];
                     this.acceleration[i] = p_and_v_and_a[2];
-                    assert(!Double.isNaN(this.acceleration[i]));
+                    CHECK(!Double.isNaN(this.acceleration[i]));
                 }
             }
             else if (strategy == STRATEGY_TRY_TO_DO_IT_RIGHT
@@ -497,7 +497,7 @@ public class SmoothlyVaryingViewingParameter
                     {
                         VecMath.vxs(velocityScaled, velocityScaled, 1./problemSize);
                         VecMath.vxs(positionDisplacementScaled, positionDisplacementScaled, 1./problemSizeSqrd);
-                        assert_almost_eq(Math.max(VecMath.norm(velocityScaled), VecMath.norm(positionDisplacementScaled)), 1., 1e-12);
+                        CHECK_ALMOST_EQ(Math.max(VecMath.norm(velocityScaled), VecMath.norm(positionDisplacementScaled)), 1., 1e-12);
                     }
 
                     // We want to work in 2 dimensions.
@@ -519,7 +519,7 @@ public class SmoothlyVaryingViewingParameter
                     if (verboseLevel >= 3) PRINTMAT(basis);
                     if (verboseLevel >= 3) PRINT(VecMath.dot(velocityScaled, basis[0]));
                     if (verboseLevel >= 3) PRINT(VecMath.dot(positionDisplacementScaled, basis[1]));
-                    assert(VecMath.dot(velocityScaled, basis[0]) <= 0.);
+                    CHECK(VecMath.dot(velocityScaled, basis[0]) <= 0.);
 
                     double tol = 1e-12;
                     // XXX TODO: actually the following isn't quite the right condition...
@@ -541,7 +541,7 @@ public class SmoothlyVaryingViewingParameter
                     //     http://ac.els-cdn.com/0024379583901301/1-s2.0-0024379583901301-main.pdf?_tid=52fc7168-2bf6-11e5-8d32-00000aacb35f&acdnat=1437077446_c65e944cfa64748fcd6662cefaa66868
                     //     "Estimating matrix condition numbers" (suggestions based on LU)
                     //     http://www.cs.umd.edu/~oleary/reprints/j07.pdf
-                    assert(VecMath.dot(positionDisplacementScaled, basis[1])
+                    CHECK(VecMath.dot(positionDisplacementScaled, basis[1])
                         <= tol);
 
                     double v[/*2*/] = VecMath.mxv(basis, velocityScaled); // from nd to 2d space
@@ -550,14 +550,14 @@ public class SmoothlyVaryingViewingParameter
                     // p should be in the 3rd or 4th quadrant
                     if (verboseLevel >= 2) PRINTVEC(v);
                     if (verboseLevel >= 2) PRINTVEC(p);
-                    assert(v[0] <= 0.); // ok to make this one exact
-                    assert(EQ(v[1], 0., tol));
+                    CHECK(v[0] <= 0.); // ok to make this one exact
+                    CHECK(EQ(v[1], 0., tol));
                     if (!(p[1] <= tol))
                     {
                         PRINTVEC(v);
                         PRINTVEC(p);
                     }
-                    assert(p[1] <= tol);
+                    CHECK(p[1] <= tol);
 
                     // We want to find the catenary with end points v,(0,0)
                     // and integral p.
@@ -580,30 +580,30 @@ public class SmoothlyVaryingViewingParameter
                         catenaryRotated.evaluate(catenaryRotated.t0, vel);
                         PRINTVEC(vel);
                         PRINTVEC(v);
-                        assert(VecMath.distsqrd(vel, v) <= SQR(tol));
+                        CHECK(VecMath.distsqrd(vel, v) <= SQR(tol));
                         OUT("---");
                         // velocity at t1 should be 0
                         catenaryRotated.evaluate(catenaryRotated.t1, vel);
                         PRINTVEC(vel);
                         PRINTVEC(VecMath.zerovec(2));
-                        assert(VecMath.normsqrd(vel) <= SQR(tol));
+                        CHECK(VecMath.normsqrd(vel) <= SQR(tol));
                         OUT("---");
                         // integral from t0 to t1 should be p
                         catenaryRotated.integrate(catenaryRotated.t0, catenaryRotated.t1, pos);
                         PRINTVEC(pos);
                         PRINTVEC(p);
-                        assert(VecMath.distsqrd(pos, p) <= SQR(tol));
+                        CHECK(VecMath.distsqrd(pos, p) <= SQR(tol));
                         OUT("---");
                         // acceleration at t0 and t1 should have magnitude 1
                         catenaryRotated.differentiate(catenaryRotated.t0, acc);
                         PRINT(VecMath.norm(acc));
                         PRINT(1.);
-                        assert(Math.abs(VecMath.norm(acc) - 1.) <= tol);
+                        CHECK(Math.abs(VecMath.norm(acc) - 1.) <= tol);
                         OUT("---");
                         catenaryRotated.differentiate(catenaryRotated.t1, acc);
                         PRINT(VecMath.norm(acc));
                         PRINT(1.);
-                        assert(Math.abs(VecMath.norm(acc) - 1.) <= tol);
+                        CHECK(Math.abs(VecMath.norm(acc) - 1.) <= tol);
                         OUT("---");
 
                         OUT("=============");
@@ -750,14 +750,14 @@ public class SmoothlyVaryingViewingParameter
                 // position is two-piece quadratic,
                 //
 
-                //assert(false); // XXX coverage-- remove when hit
+                //CHECK(false); // XXX coverage-- remove when hit
                 double a = 4 * referenceTripDistance
                              / SQR(referenceTripTime);
                 distanceBasedBounce = MIN(distanceBasedBounce, 1-1e-6); // XXX should try to do something real in that case intead-- always pull directly towards the target.  what's the resulting path?  I don't know
                 double vKnee[] = new double[velocity.length];
                 if (distanceBasedBounce < 1.)
                 {
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     // A is the overoptimistic acceleration
                     // such that, if we plan using it,
                     // we will overshoot by exactly distanceBasedBounce.
@@ -769,9 +769,9 @@ public class SmoothlyVaryingViewingParameter
                 }
                 else
                 {
-                    assert(false); // XXX coverage-- remove when hit
+                    CHECK(false); // XXX coverage-- remove when hit
                     // A = infinity, vKnee should have infinite magnitude in the direction of the desired position change, I think
-                    assert(false);
+                    CHECK(false);
                 }
 
                 double beforeKneeVelocityDirection[] = VecMath.vmv(vKnee, velocity); 
@@ -779,7 +779,7 @@ public class SmoothlyVaryingViewingParameter
                                                           beforeKneeVelocityDirection) / a;
                 if (dt <= timeBeforeKnee)
                 {
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     VecMath.vpsxvpsxv(position,
                                       position,
                                       dt, velocity,
@@ -793,13 +793,13 @@ public class SmoothlyVaryingViewingParameter
                 }
                 else // dt > timeBeforeKnee
                 {
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     double afterKneeVelocityDirection[] = VecMath.sxv(-1., vKnee);
                     double timeAfterKnee = VecMath.normalize(afterKneeVelocityDirection,
                                                              afterKneeVelocityDirection) / a;
                     if (dt >= timeBeforeKnee + timeAfterKnee)
                     {
-                        //assert(false); // XXX coverage-- remove when hit
+                        //CHECK(false); // XXX coverage-- remove when hit
                         // done   XXX wait, no!  not necessarily done if there was bounce, because in that case when we integrate, we won't get p=0
                         VecMath.copyvec(position, targetPosition);
                         VecMath.zerovec(velocity);
@@ -829,12 +829,12 @@ public class SmoothlyVaryingViewingParameter
                                 afterKneeVelocityDirection,
                                 a);
                 }
-                //assert(false); // XXX coverage-- remove when hit
+                //CHECK(false); // XXX coverage-- remove when hit
             } // if strategy == STRATEGY_TWO_PIECE_QUADRATIC
             else
             {
                 // strategy isn't one of the possible strategies
-                assert(false);
+                CHECK(false);
             }
 
             VecMath.vmv(this.observedAcceleration,
@@ -867,7 +867,7 @@ public class SmoothlyVaryingViewingParameter
                                             double p[], double v[], double a)
     {
         if (verboseLevel >= 1) System.out.println("        in computeVelocityKnee(p="+Arrays.toStringCompact(p)+", v="+Arrays.toStringCompact(v)+", a="+a+")");
-        //assert(false); // XXX coverage-- remove when hit
+        //CHECK(false); // XXX coverage-- remove when hit
         //
         // Want knee k such that
         // the integral from v to k to 0 takes p to 0,
@@ -882,7 +882,7 @@ public class SmoothlyVaryingViewingParameter
         double vLength = VecMath.norm(v);
         if (vLength == 0.)
         {
-            //assert(false); // XXX coverage-- remove when hit
+            //CHECK(false); // XXX coverage-- remove when hit
             // Starting and ending velocities are zero.
             //      ||k-v|| (k+v)/2 + ||0-k|| (0+k)/2 == -p*a
             //      ||k|| k/2 + ||k|| k/2 == -p*a
@@ -897,7 +897,7 @@ public class SmoothlyVaryingViewingParameter
             double lengthsqrd = VecMath.normsqrd(velocityKnee); // ||p/a||^2
             if (lengthsqrd != 0.)
             {
-                //assert(false); // XXX coverage-- remove when hit
+                //CHECK(false); // XXX coverage-- remove when hit
                 double length = Math.sqrt(lengthsqrd);
                 VecMath.vxs(velocityKnee,
                             velocityKnee, 1./Math.sqrt(length));
@@ -905,7 +905,7 @@ public class SmoothlyVaryingViewingParameter
             //System.out.println("        out computeVelocityKnee (vLength was 0), returning velocityKnee = "+Arrays.toStringCompact(velocityKnee));
             return;
         }
-        //assert(false); // XXX coverage-- remove when hit
+        //CHECK(false); // XXX coverage-- remove when hit
 
         double vDir[] = VecMath.vxs(v,
                                     1./vLength);
@@ -947,7 +947,7 @@ public class SmoothlyVaryingViewingParameter
                     break;
             }
         }
-        assert(Math.abs(VecMath.dot(uDir,vDir)) < 1e-15);
+        CHECK(Math.abs(VecMath.dot(uDir,vDir)) < 1e-15);
 
         //
         // In the work plane, p and v have these coordinates...
@@ -1039,7 +1039,7 @@ public class SmoothlyVaryingViewingParameter
                      || L >= LupperBound)
                     {
                         //System.out.println("        ellipse is pretty damn good on iteration "+iIteration);
-                        //assert(false); // XXX coverage-- remove when hit
+                        //CHECK(false); // XXX coverage-- remove when hit
                         slack = L-1.;
                         break;
                     }
@@ -1050,21 +1050,21 @@ public class SmoothlyVaryingViewingParameter
                 if (f < 0.)
                 {
                     //System.out.println("        ellipse is too small");
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     // ellipse is too small, raise lower bound up to estimate
                     LlowerBound = L;
                 }
                 else if (f > 0.)
                 {
                     //System.out.println("        ellipse is too big");
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     // shrink upper bound to estimate
                     LupperBound = L;
                 }
                 else
                 {
                     //System.out.println("        ellipse is just right on iteration "+iIteration);
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     slack = L-1.;
                     break;
                 }
@@ -1080,7 +1080,7 @@ public class SmoothlyVaryingViewingParameter
             int iIteration = 0;
             for (;; iIteration++)
             {
-                //assert(false); // XXX coverage-- remove when hit
+                //CHECK(false); // XXX coverage-- remove when hit
                 // Try 0, 1, 2, 4, ... keep doubling estimate
                 // until it's an upper bound,
                 // then do binary search between 0 and that upper bound
@@ -1106,7 +1106,7 @@ public class SmoothlyVaryingViewingParameter
                     if (slackEstimate <= slackLowerBound
                      || slackEstimate >= slackUpperBound)
                     {
-                        //assert(false); // XXX coverage-- remove when hit
+                        //CHECK(false); // XXX coverage-- remove when hit
                         //System.out.println("        ellipse is pretty damn good on iteration "+iIteration);
                         slack = slackEstimate;
                         break;
@@ -1130,28 +1130,28 @@ public class SmoothlyVaryingViewingParameter
                                                  : SQR(x*R) + SQR(y*r) - SQR(r*R);
                 if (signedDistanceFromEllipse > 0.)
                 {
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     // ellipse is too small, raise lower bound up to estimate
                     slackLowerBound = slackEstimate;
                     //System.out.println("        ellipse is too small");
                 }
                 else if (signedDistanceFromEllipse < 0.)
                 {
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     // shrink upper bound to estimate
                     slackUpperBound = slackEstimate;
                     //System.out.println("        ellipse is too big");
                 }
                 else
                 {
-                    //assert(false); // XXX coverage-- remove when hit
+                    //CHECK(false); // XXX coverage-- remove when hit
                     //System.out.println("        ellipse is just right on iteration "+iIteration);
                     slack = slackEstimate;
                     break;
                 }
             }
         }
-        //assert(false); // XXX coverage-- remove when hit
+        //CHECK(false); // XXX coverage-- remove when hit
 
         //
         // Okay now we have slack (assuming vLength=1, a=1).
@@ -1196,7 +1196,7 @@ public class SmoothlyVaryingViewingParameter
 
                 double xRadius = (1+slack) * .5;
                 double yRadius = Math.sqrt(slack*(slack+2)) * .5;
-                assert(yRadius != 0.); // since slack != 0.
+                CHECK(yRadius != 0.); // since slack != 0.
                 double temp = (yKnee / yRadius);
                 temp = 1 - SQR(temp);
                 temp = MAX(0, temp);
@@ -1234,7 +1234,7 @@ public class SmoothlyVaryingViewingParameter
             //PRINT(error);
             //double tol = 4.214684646977385E-8; // that's the largest actually encountered in the confidence test
             double tol = 1e-6;
-            assert(error <= tol); // XXX should be relative
+            CHECK(error <= tol); // XXX should be relative
         }
 
     } // computeVelocityKnee
@@ -1256,7 +1256,7 @@ public class SmoothlyVaryingViewingParameter
     {
         boolean debug = false;
         if (debug) System.out.println("in update_p_and_v");
-        assert(distanceBasedBounce >= 0); // XXX make this a bad param exception or something
+        CHECK(distanceBasedBounce >= 0); // XXX make this a bad param exception or something
 
         if (referenceTripDistance == 0.)
         {
@@ -1369,7 +1369,7 @@ public class SmoothlyVaryingViewingParameter
     {
         boolean debug = false;
         if (debug) System.out.println("in update_p_and_v_and_a_1d");
-        assert(distanceBasedBounce >= 0); // XXX make this a bad param exception or something
+        CHECK(distanceBasedBounce >= 0); // XXX make this a bad param exception or something
 
         if (referenceTripDistance == 0.)
         {
@@ -1505,7 +1505,7 @@ public class SmoothlyVaryingViewingParameter
                     // Ridiculous number of iterations.
                     // We are probably very close to the settling point,
                     // and stuck due to floating point roundoff error.
-                    assert(false); // coverage
+                    CHECK(false); // coverage
                     p_and_v_and_a[0] = 0.;
                     p_and_v_and_a[1] = 0.;
                     p_and_v_and_a[2] = 0.;
@@ -1576,7 +1576,7 @@ public class SmoothlyVaryingViewingParameter
         }
         else
         {
-            assert(false); // XXX implement me!
+            CHECK(false); // XXX implement me!
         }
         return answer;
     } // settleTime
@@ -1592,11 +1592,11 @@ public class SmoothlyVaryingViewingParameter
         final int verboseLevel = 0;
         if (verboseLevel >= 1) System.out.println("            in computeSeparableWeights(p="+VecMath.toString(p)+", v="+VecMath.toString(v)+", aMag="+aMag+", bounce="+bounce+", bounceAware="+bounceAware);
         final int n = p.length;
-        assert(v.length == n); // precondition
-        assert(answerWeights.length == n); // precondition
+        CHECK(v.length == n); // precondition
+        CHECK(answerWeights.length == n); // precondition
         if (n == 0) return;
         if (n == 1) {answerWeights[0] = 1.; return;}
-        assert(n >= 2); // logical assertion
+        CHECK(n >= 2); // logical assertion
 
         // Solve for barycentric weights for squares of the components.
         final double pTargetFinal[] = pTarget;
@@ -1615,7 +1615,7 @@ public class SmoothlyVaryingViewingParameter
                 {
                     double bary = i==n-1 ? lastBary : barys[i];
                     if (bary < 0.) PRINT(bary);
-                    assert(bary >= 0.);
+                    CHECK(bary >= 0.);
                     double settleTime = settleTime1d(pFinal[i]-pTargetFinal[i], vFinal[i], aMagFinal*Math.sqrt(bary), bounceFinal, bounceAwareFinal);
                     if (i == n-1)
                         lastSettleTime = settleTime;
@@ -1794,16 +1794,16 @@ public class SmoothlyVaryingViewingParameter
                     //double tol = 1e-12;
                     //double tol = 1e-6; // XXX too coarse!
                     double tol = 1e-4; // XXX too coarse!
-                    assert_almost_eq(ps[i][j][0], ps[0][0][0], tol);
-                    assert_almost_eq(vs[i][j][0], vs[0][0][0], tol);
+                    CHECK_ALMOST_EQ(ps[i][j][0], ps[0][0][0], tol);
+                    CHECK_ALMOST_EQ(vs[i][j][0], vs[0][0][0], tol);
                     if (i == 1)
                     {
-                      assert_almost_eq(ps[i][j][1], 0., tol);
-                      assert_almost_eq(vs[i][j][1], 0., tol);
+                      CHECK_ALMOST_EQ(ps[i][j][1], 0., tol);
+                      CHECK_ALMOST_EQ(vs[i][j][1], 0., tol);
                       if (false) // XXX not ready for this yet, but eventually... the slop can actually be useful since it tests tolerance for it, but should be systematic about it
                       {
-                          assert(ps[i][j][1] == 0.);
-                          assert(vs[i][j][1] == 0.);
+                          CHECK(ps[i][j][1] == 0.);
+                          CHECK(vs[i][j][1] == 0.);
                       }
                     }
                 }
@@ -1963,24 +1963,24 @@ public class SmoothlyVaryingViewingParameter
                     x2.snap(p);
                     double scratch[] = new double[2];
                     x2.get(scratch);
-                    assert(VecMath.equalsExactly(scratch, p));
+                    CHECK(VecMath.equalsExactly(scratch, p));
                     x2.getVelocity(scratch);
-                    assert(VecMath.equalsExactly(scratch, VecMath.zerovec(p.length)));
-                    assert(!x2.isMoving());
+                    CHECK(VecMath.equalsExactly(scratch, VecMath.zerovec(p.length)));
+                    CHECK(!x2.isMoving());
 
                     x2.setTargetPosition(pTarget);
                     x2.get(scratch);
-                    assert(VecMath.equalsExactly(scratch, p));
+                    CHECK(VecMath.equalsExactly(scratch, p));
                     x2.getVelocity(scratch);
-                    assert(VecMath.equalsExactly(scratch, VecMath.zerovec(p.length)));
-                    assert_eq(x2.isMoving(), (VecMath.distsqrd(p,pTarget) != 0.));
+                    CHECK(VecMath.equalsExactly(scratch, VecMath.zerovec(p.length)));
+                    CHECK_EQ(x2.isMoving(), (VecMath.distsqrd(p,pTarget) != 0.));
 
                     x2.setVelocity(v);
                     x2.get(scratch);
-                    assert(VecMath.equalsExactly(scratch, p));
+                    CHECK(VecMath.equalsExactly(scratch, p));
                     x2.getVelocity(scratch);
-                    assert(VecMath.equalsExactly(scratch, v));
-                    assert_eq(x2.isMoving(), (!VecMath.equalsExactly(p,pTarget)
+                    CHECK(VecMath.equalsExactly(scratch, v));
+                    CHECK_EQ(x2.isMoving(), (!VecMath.equalsExactly(p,pTarget)
                                           || VecMath.normsqrd(v) != 0.));
 
 
@@ -2007,14 +2007,14 @@ public class SmoothlyVaryingViewingParameter
                         PRINTARRAY(v1);
 
                         if (LT(t, expectedTotalTime, tol))
-                            assert(x2.isMoving());
+                            CHECK(x2.isMoving());
                         else if (GT(t, expectedTotalTime, tol))
-                            assert(!x2.isMoving());
+                            CHECK(!x2.isMoving());
                         else
                         {
                             // should be pretty damn close to stopped
-                            assert(VecMath.norm(v1) <= 1e-6);
-                            assert(VecMath.dist(p1, pTarget) <= 1e-6);
+                            CHECK(VecMath.norm(v1) <= 1e-6);
+                            CHECK(VecMath.dist(p1, pTarget) <= 1e-6);
                         }
 
                         {
@@ -2033,8 +2033,8 @@ public class SmoothlyVaryingViewingParameter
                             PRINTARRAY(v1);
                             PRINTARRAY(v1AllAtOnce);
 
-                            assert(VecMath.dist(p1, p1AllAtOnce) <= 1e-6);
-                            assert(VecMath.dist(v1, v1AllAtOnce) <= 1e-6);
+                            CHECK(VecMath.dist(p1, p1AllAtOnce) <= 1e-6);
+                            CHECK(VecMath.dist(v1, v1AllAtOnce) <= 1e-6);
                         }
 
                         System.out.println();
@@ -2047,7 +2047,7 @@ public class SmoothlyVaryingViewingParameter
                 //
                 if (false)
                 {
-                    assert(false); // XXX DO ME
+                    CHECK(false); // XXX DO ME
                 }
             }
 
@@ -2105,13 +2105,13 @@ public class SmoothlyVaryingViewingParameter
                         com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
                                             t, p1, v1));
                     if (LT(t,1.,tol))
-                        assert(LT(x.get(), 1., tol));
+                        CHECK(LT(x.get(), 1., tol));
                     else
-                        assert_eq(x.get(), 1.);
+                        CHECK_EQ(x.get(), 1.);
                     System.out.println();
                 }
-                assert_eq(x.get(), 1.);
-                assert_eq(x.getVelocity(), 0.);
+                CHECK_EQ(x.get(), 1.);
+                CHECK_EQ(x.getVelocity(), 0.);
             }
             System.out.println("================================================");
         }
@@ -2146,17 +2146,17 @@ public class SmoothlyVaryingViewingParameter
                     com.donhatchsw.compat.Format.sprintf("t = %20.17g p = %20.17g  v = %20.17g",
                                         t, p1, v1));
                 if (LEQ(t,2.5,tol))
-                    assert(p1 > p0);
+                    CHECK(p1 > p0);
                 else if (LEQ(t, 5.,tol))
-                    assert(p1 < p0);
+                    CHECK(p1 < p0);
                 else
                 {
-                    assert_eq(p0, 1.);
-                    assert_eq(p1, 1.);
+                    CHECK_EQ(p0, 1.);
+                    CHECK_EQ(p1, 1.);
                 }
                 System.out.println();
             }
-            assert_eq(x.get(), 1.);
+            CHECK_EQ(x.get(), 1.);
         }
 
 
@@ -2199,9 +2199,9 @@ public class SmoothlyVaryingViewingParameter
                 x.snap(start);
                 PRINT(x.get());
                 PRINT(x.getVelocity());
-                assert_eq(x.get(), start);
-                assert_eq(x.getVelocity(), 0.);
-                assert(!x.isMoving());
+                CHECK_EQ(x.get(), start);
+                CHECK_EQ(x.getVelocity(), 0.);
+                CHECK(!x.isMoving());
 
                 x.setTargetPosition(target);
 
@@ -2228,11 +2228,11 @@ public class SmoothlyVaryingViewingParameter
                     PRINT(p0);
                     PRINT(p1);
                     if (overallDir > 0)
-                        assert(GEQ(p1,p0,tol));
+                        CHECK(GEQ(p1,p0,tol));
                     else if (overallDir < 0)
-                        assert(LEQ(p1,p0,tol));
+                        CHECK(LEQ(p1,p0,tol));
                     else
-                        assert(EQ(p1,p0,tol));
+                        CHECK(EQ(p1,p0,tol));
 
                     System.out.println();
                 }
@@ -2250,8 +2250,8 @@ public class SmoothlyVaryingViewingParameter
             private static double[] List(double a, double b, double c, double d) {return new double[]{a,b,c,d};}
             private static double[] List(double a, double b, double c, double d, double e) {return new double[]{a,b,c,d,e};}
             private static double[][] List(double a[], double b[], double c[], double d[]) {return new double[][]{a,b,c,d};}
-            private static final double Power(double x, int y) {assert_eq(y,2); return x*x;}
-            private static final double Power3(double x, int y) {assert_eq(y,3); return x*x*x;}
+            private static final double Power(double x, int y) {CHECK_EQ(y,2); return x*x;}
+            private static final double Power3(double x, int y) {CHECK_EQ(y,3); return x*x*x;}
             private static final double Power(double x, double y) {return Math.pow(x,y);}
             private static double Sqrt(double x) {return Math.sqrt(x);}
             private static double Log(double x) {return Math.log(x);}
@@ -2584,8 +2584,8 @@ Print["J = ",CForm[J]]
                 double answer[][] = VecMath.mxm(dvp_over_dA0A1T, dA0A1T_over_dA0At1);
                 PRINT(answer.length);
                 PRINT(answer[0].length);
-                assert_eq(answer.length, 4);
-                assert_eq(answer[0].length, 4);
+                CHECK_EQ(answer.length, 4);
+                CHECK_EQ(answer[0].length, 4);
                 return answer;
             } // calcVelocityAndPositionJacobianWithRespectToA0At1
             private static double[][] calcVelocityAndPositionJacobianWithRespectToA0A1T(
@@ -4960,7 +4960,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
 
                         );
-                assert_eq(answer.length, 5);
+                CHECK_EQ(answer.length, 5);
                 return answer;
             } // calcVelocity0Gradient
             private static double[] calcVelocity1Gradient(double v0[], // constant; doesn't take part in derivatives calculation
@@ -7336,7 +7336,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
 
 
 );
-                assert_eq(answer.length, 5);
+                CHECK_EQ(answer.length, 5);
                 return answer;
             } // calcVelocity1Gradient
             private static double[] calcPosition0Gradient(double p0[], double v0[], // constant, doesn't take part in derivatives
@@ -9706,7 +9706,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         
                         
                         );
-                assert_eq(answer.length, 5);
+                CHECK_EQ(answer.length, 5);
                 return answer;
             } // calcPosition0Gradient
             private static double[] calcPosition1Gradient(double p0[], double v0[], // constant; doesn't take part in derivatives
@@ -12073,7 +12073,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 Power(Power(x0, 2) - 2*x0*x1 + Power(x1, 2) + 
                   Power(y0 - y1, 2), 1.5))/2.)
                 );
-                assert_eq(answer.length, 5);
+                CHECK_EQ(answer.length, 5);
                 return answer;
             } // calcPosition1Gradient
 
@@ -12127,7 +12127,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     double vt1[] = calcVelocity(v0, A0, A1, t1, twoQuadraticsMode);
                     double pt1[] = calcPosition(p0,v0, A0, A1, t1, twoQuadraticsMode);
                     VecMath.copymat(answer, calcVelocityAndPositionJacobianWithRespectToA0At1(p0,v0,A0,At1,sign_t1, twoQuadraticsMode)); // XXX memory allocation
-                    assert(false); // coverage  XXX currently never called
+                    CHECK(false); // coverage  XXX currently never called
                 }
             } // class MyFunTryingToBeSmart
 
@@ -12272,8 +12272,8 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 PRINT(VecMath.dist(pExpected, pActual__));
                 PRINT(VecMath.dist(vExpected, vActual__));
                 double tol = 1e-12;
-                assert(VecMath.dist(pExpected, pActual__) <= tol);
-                assert(VecMath.dist(vExpected, vActual__) <= tol);
+                CHECK(VecMath.dist(pExpected, pActual__) <= tol);
+                CHECK(VecMath.dist(vExpected, vActual__) <= tol);
 
                 if (i == interestingIndex && j == interestingIndex+1) break;
             }
@@ -13431,7 +13431,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         }
                         else
                         {
-                            assert_eq(controller.indexOfThingBeingDragged, -1);
+                            CHECK_EQ(controller.indexOfThingBeingDragged, -1);
                             // XXX drag the universe around?
                         }
                         if (controller.target_vt1 != null && controller.target_pt1 != null)
@@ -13670,7 +13670,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     // Draw the forward trip
                     if (x1 != x0)
                     {
-                        assert(x1 > x0);
+                        CHECK(x1 > x0);
                         double v = (y1-y0)/(x1-x0);
                         SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(y1);
                         param.setTargetPosition(0.); // target
@@ -13690,7 +13690,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                     // Draw the backward trip
                     if (x1 != x0)
                     {
-                        assert(x1 > x0);
+                        CHECK(x1 > x0);
                         double v = -(y1-y0)/(x1-x0);
                         SmoothlyVaryingViewingParameter param = new SmoothlyVaryingViewingParameter(y0);
                         param.setTargetPosition(0.); // target
@@ -14132,7 +14132,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                         // Note that we could accomplish that by just normalizing to that
                         // length... but the existing method is kind of a sanity check.
 
-                        assert(Double.isNaN(acceleration[0])
+                        CHECK(Double.isNaN(acceleration[0])
                             == Double.isNaN(acceleration[1]));
                         if (!Double.isNaN(acceleration[0])
                          && VecMath.normsqrd(acceleration) != 0.)

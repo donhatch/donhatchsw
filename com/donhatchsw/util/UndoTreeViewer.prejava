@@ -549,7 +549,7 @@ public class UndoTreeViewer
             private void requestUndo(double amount)        // 8 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request undo");
-                assert(amount >= 0);
+                CHECK(amount >= 0);
 
                 double originalFraction = undoTreeSquirrel.getCurrentNodeFraction();
                 double targetFraction = originalFraction-amount;
@@ -667,7 +667,7 @@ public class UndoTreeViewer
             private void requestRedo(double amount)        // 8 key on numeric keypad
             {
                 if (eventVerboseLevel >= 1) System.out.println("request redo");
-                assert(amount >= 0);
+                CHECK(amount >= 0);
 
                 //
                 // If it would go from strictly before a node
@@ -1123,7 +1123,7 @@ public class UndoTreeViewer
                     System.out.println(s1);
                     System.out.println(s3);
                     System.out.println("WARNING: they aren't equal!"); // XXX currently goes off because I had to comment out something in the other file, can put this back soon
-                    //assert(false);
+                    //CHECK(false);
                 }
             }
             System.out.println("===================================");

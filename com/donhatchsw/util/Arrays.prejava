@@ -116,7 +116,7 @@ public final class Arrays
             java.lang.reflect.Array.set(subarray, iNew++,
                 java.lang.reflect.Array.get(array, start+iOld));
         }
-        assert_eq(iNew, subarrayLength);
+        CHECK_EQ(iNew, subarrayLength);
         return subarray;
     } // subarray with which
 
@@ -256,10 +256,10 @@ public final class Arrays
 
     public static void copy(Object to, Object from, int depth)
     {
-        assert(depth >= 1); // XXX should be param check throwing exception
+        CHECK(depth >= 1); // XXX should be param check throwing exception
         {
             int n = java.lang.reflect.Array.getLength(from);
-            assert_eq(n, java.lang.reflect.Array.getLength(to));
+            CHECK_EQ(n, java.lang.reflect.Array.getLength(to));
             if (depth == 1)
                 System.arraycopy(from, 0,
                                  to, 0,
@@ -275,7 +275,7 @@ public final class Arrays
     {
         if (depth == 0)
             return from;
-        assert(depth >= 1); // XXX should be param check throwing exception
+        CHECK(depth >= 1); // XXX should be param check throwing exception
         {
             int n = java.lang.reflect.Array.getLength(from);
             Object to = java.lang.reflect.Array.newInstance(
@@ -492,7 +492,7 @@ public final class Arrays
                                      int depth,
                                      boolean which[]) // XXX should take an arbitrary array, use if it's the right level, otherwise index into it when recursing
     {
-        assert(depth >= 1); // XXX should be param check throwing exception
+        CHECK(depth >= 1); // XXX should be param check throwing exception
         {
             if (depth == 1)
             {
@@ -593,7 +593,7 @@ public final class Arrays
                 return c;
         }
 
-        assert(depth > 0);
+        CHECK(depth > 0);
         int n = java.lang.reflect.Array.getLength(array);
         FORI (i, n)
         {
@@ -667,11 +667,11 @@ public final class Arrays
             }
             else
             {
-                assert(depth > 1); // XXX should be param check throwing exception
+                CHECK(depth > 1); // XXX should be param check throwing exception
                 Object inds[] = (Object[])java.lang.reflect.Array.newInstance(
                                     Arrays.getClassOfArrayOf(int[].class, depth-1),
                                     arrayLength);
-                assert_eq(getDim(inds), depth+1);
+                CHECK_EQ(getDim(inds), depth+1);
                 FORI (i, arrayLength)
                 {
                     currentIndex[indexIntoCurrentIndex] = i;
@@ -733,11 +733,11 @@ public final class Arrays
         if (startDepth == 0)
         {
             int pos = _flatten(flatArray, 0, array, furtherDepth);
-            assert_eq(pos, nFlat);
+            CHECK_EQ(pos, nFlat);
         }
         else
         {
-            assert(startDepth >= 1); // XXX should be params check
+            CHECK(startDepth >= 1); // XXX should be params check
             FORI (i, nFlat)
                 java.lang.reflect.Array.set(flatArray,i,
                             flatten(java.lang.reflect.Array.get(array,i),
@@ -768,7 +768,7 @@ public final class Arrays
             }
             else
             {
-                assert(nDimsToFlattenIntoOne >= 2); // XXX should be params check
+                CHECK(nDimsToFlattenIntoOne >= 2); // XXX should be params check
                 int n = java.lang.reflect.Array.getLength(array);
                 FORI (i, n)
                     pos = _flatten(dest, pos,
@@ -830,7 +830,7 @@ public final class Arrays
     public static void reverse(int to[], int from[])
     {
         int n = from.length;
-        assert_eq(n, to.length);
+        CHECK_EQ(n, to.length);
         reverse(to, from, n);
     } // reverse, int
     public static void reverse(Object to, Object from, int n)
@@ -851,7 +851,7 @@ public final class Arrays
     public static void reverse(Object to, Object from)
     {
         int n = java.lang.reflect.Array.getLength(from);
-        assert_eq(n, java.lang.reflect.Array.getLength(to));
+        CHECK_EQ(n, java.lang.reflect.Array.getLength(to));
         reverse(to, from, n);
     } // reverse, general
     public static Object reverse(Object from)
@@ -1006,7 +1006,7 @@ public final class Arrays
         }
         else
         {
-            assert(false); // XXX implement me better! need to convert all numbers to double, I think.   this really sucks
+            CHECK(false); // XXX implement me better! need to convert all numbers to double, I think.   this really sucks
             return false;
         }
     } // subEqualsSymbol
@@ -1363,9 +1363,9 @@ public final class Arrays
                 {
                     // XXX should really parse it! why is there no Character.valueOf? (I only checked 1.1; maybe they added one afterwards)
                     int i = pos.getIndex();
-                    assert(end-i >= 3
-                        && s.charAt(i+0) == '\''
-                        && s.charAt(i+2) == '\'');
+                    CHECK(end-i >= 3
+                       && s.charAt(i+0) == '\''
+                       && s.charAt(i+2) == '\'');
                     obj = new Character(s.charAt(i+1));
                     i += 3;
                     pos.setIndex(i);
@@ -1541,7 +1541,7 @@ public final class Arrays
                     throw new java.text.ParseException(e.getMessage(),
                                                        startPos + e.getErrorOffset());
                 }
-                assert(false); // should never get here
+                CHECK(false); // should never get here
                 return null;
             } // parseObjectTakingParsePositionAndThrowingParseException
             private static Number parseTakingParsePositionAndThrowingParseException(java.text.NumberFormat numberFormat, String s, java.text.ParsePosition pos)
@@ -1734,7 +1734,7 @@ public final class Arrays
                 {
                     int n = randomIndex(i, rng);
                     System.out.print(" " + randomIndex(i, rng));
-                    assert(INRANGE(0 <=, n, < i));
+                    CHECK(INRANGE(0 <=, n, < i));
                 }
                 System.out.println();
             }

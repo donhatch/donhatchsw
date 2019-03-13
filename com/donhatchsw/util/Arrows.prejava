@@ -180,7 +180,7 @@ public class Arrows
                                                  arrowHeadLength,
                                                  -Math.PI*5/6);
             }
-            assert_eq(iCurve, nCurves);
+            CHECK_EQ(iCurve, nCurves);
             return curves;
         }
         else if (nDsts == 1 && nSrcs == 0)
@@ -210,7 +210,7 @@ public class Arrows
                                              dst[0], dst[1],
                                              arrowHeadLength,
                                              -Math.PI*5/6);
-            assert_eq(iCurve, nCurves);
+            CHECK_EQ(iCurve, nCurves);
             return curves;
         }
         else if (nSrcs == 2 && nDsts == 0)
@@ -239,7 +239,7 @@ public class Arrows
                                                 A[0], A[1],
                                                 B[0], B[1],
                                                 B[0], B[1]);
-            assert_eq(iCurve, nCurves);
+            CHECK_EQ(iCurve, nCurves);
             return curves;
         }
         else if (nDsts == 0)
@@ -260,7 +260,7 @@ public class Arrows
                                             srcCenter[0], srcCenter[1],
                                             srcCenter[0], srcCenter[1]);
             }
-            assert_eq(iCurve, nCurves);
+            CHECK_EQ(iCurve, nCurves);
             return curves;
         }
         else if (nDsts == 2 && nSrcs == 0)
@@ -302,7 +302,7 @@ public class Arrows
                                                  arrowHeadLength,
                                                  -Math.PI*5/6);
             }
-            assert_eq(iCurve, nCurves);
+            CHECK_EQ(iCurve, nCurves);
             return curves;
         }
         else if (nSrcs == 0)
@@ -336,7 +336,7 @@ public class Arrows
                                                  arrowHeadLength,
                                                  -Math.PI*5/6);
             }
-            assert_eq(iCurve, nCurves);
+            CHECK_EQ(iCurve, nCurves);
             return curves;
         }
         else // nSrcs > 0 && nDsts > 0
@@ -406,7 +406,7 @@ public class Arrows
                 A[0], A[1],
                 B[0], B[1],
                 B[0], B[1]);
-            assert_eq(iCurve, nCurves);
+            CHECK_EQ(iCurve, nCurves);
             return curves;
         }
     } // getCurves
@@ -434,7 +434,7 @@ public class Arrows
             for (int i = 0; i < n; ++i)
             {
                 double point[] = points[inds != null ? inds[i] : i];
-                assert_eq(point.length, dim);
+                CHECK_EQ(point.length, dim);
                 for (int j = 0; j < dim; ++j)
                     result[j] += point[j];
             }
@@ -593,7 +593,7 @@ public class Arrows
         if (leftResult)
         {
             double newTooFarSqrd = distSqrd(x, y, leftPoint.x, leftPoint.y);
-            assert(newTooFarSqrd < tooFar*tooFar); // it shouldn't have succeeded otherwise
+            CHECK(newTooFarSqrd < tooFar*tooFar); // it shouldn't have succeeded otherwise
             tooFar = Math.sqrt(newTooFarSqrd);
         }
         boolean rightResult = _getClosestPointOnCubicCurve(x, y, right,
@@ -660,7 +660,7 @@ public class Arrows
                     bestY = closestPoint.y;
                     bestRSqrd = closestPoint.rSqrd;
                     double newTooFarSqrd = distSqrd(x, y, bestX, bestY);
-                    assert(newTooFarSqrd < tooFar*tooFar); // it shouldn't have succeeded otherwise
+                    CHECK(newTooFarSqrd < tooFar*tooFar); // it shouldn't have succeeded otherwise
                     tooFar = Math.sqrt(newTooFarSqrd);
                 }
             }
@@ -727,7 +727,7 @@ public class Arrows
         private static double[] lerp(double a[], double b[], double t)
         {
             int n = a.length;
-            assert_eq(n, b.length);
+            CHECK_EQ(n, b.length);
             double result[] = new double[n];
             for (int i = 0; i < n; ++i)
                 result[i] = (1.-t)*a[i] + t*b[i];
@@ -858,14 +858,14 @@ public class Arrows
             {
                 // Sanity check: g2d.draw will infinite loop on NaN,
                 // so make sure we throw an exception instead.
-                assert(!Double.isNaN(curve.getX1()));
-                assert(!Double.isNaN(curve.getY1()));
-                assert(!Double.isNaN(curve.getCtrlX1()));
-                assert(!Double.isNaN(curve.getCtrlY1()));
-                assert(!Double.isNaN(curve.getCtrlX2()));
-                assert(!Double.isNaN(curve.getCtrlY2()));
-                assert(!Double.isNaN(curve.getX2()));
-                assert(!Double.isNaN(curve.getY2()));
+                CHECK(!Double.isNaN(curve.getX1()));
+                CHECK(!Double.isNaN(curve.getY1()));
+                CHECK(!Double.isNaN(curve.getCtrlX1()));
+                CHECK(!Double.isNaN(curve.getCtrlY1()));
+                CHECK(!Double.isNaN(curve.getCtrlX2()));
+                CHECK(!Double.isNaN(curve.getCtrlY2()));
+                CHECK(!Double.isNaN(curve.getX2()));
+                CHECK(!Double.isNaN(curve.getY2()));
                 g2d.draw(curve);
             }
         } // drawCurveSubdivided
@@ -2376,7 +2376,7 @@ public class Arrows
             }
             else
             {
-                assert(curves != null);
+                CHECK(curves != null);
                 closestCurveIndices = getClosestPointOnCubicCurves(
                                             curX, curY,
                                             curves,
@@ -2494,7 +2494,7 @@ public class Arrows
                                 average(assets,null),
                                 arrowLengthForSingle,
                                 doArrowHeadOnSingleSrc);
-                assert(connectionCurves[i] != null);
+                CHECK(connectionCurves[i] != null);
             }
         } // calculateCurves
 

@@ -84,7 +84,7 @@ public class MiniBall
             return false;
         if (dim == 0)
         {
-            assert_eq(nOn, nPoints);
+            CHECK_EQ(nOn, nPoints);
             if (verboseLevel >= 1)
                 System.out.println("out IsMiniBall(nPoints="+nPoints+"), returning true trivially because dim==0");
             // XXX wait a minute, should make sure radiusSquared is 0!
@@ -92,7 +92,7 @@ public class MiniBall
         }
         else
         {
-            assert(nOn > 0);
+            CHECK(nOn > 0);
 
             {
                 // reduce nOn to a set of dim+1 support points
@@ -122,7 +122,7 @@ public class MiniBall
                     if (bestContent <= 1e-12*radius)
                         break;
 
-                    assert(bestJ != -1);
+                    CHECK(bestJ != -1);
                     supportInds[i] = on[bestJ];
                     supportPoints[i] = points[supportInds[i]];
                     //PRINT(i);
@@ -131,14 +131,14 @@ public class MiniBall
                     // TODO: if zero, need to truncate to what we've seen so far...
                 }
                 // i is now the number of independent points we've seen, at most dim+1
-                assert(i > 0);
+                CHECK(i > 0);
                 nOn = i;
                 on = supportInds;
                 if (verboseLevel >= 1)
                     System.out.println("nOn reduced to "+nOn+" affinely independent");
             }
 
-            assert(nOn <= dim+1);
+            CHECK(nOn <= dim+1);
 
             // make sure center is in the interior or boundary
             // of the simplex formed by the "on" points,
@@ -206,7 +206,7 @@ public class MiniBall
                                               0);
         if (checkEveryMiniBall)
         {
-            assert(IsMiniBall(resultCenter, radiusSquared, points.length, points));
+            CHECK(IsMiniBall(resultCenter, radiusSquared, points.length, points));
         }
         if (verboseLevel >= 1)
             System.out.println("                out MiniBall("+dim+" dims, "+points.length+" points)");
@@ -306,11 +306,11 @@ public class MiniBall
                         if (firstInOrder == iL)
                         {
                             // it's already in front
-                            assert_eq(iLprev, -1);
+                            CHECK_EQ(iLprev, -1);
                         }
                         else
                         {
-                            assert_eq(nextInOrder[iLprev], iL);
+                            CHECK_EQ(nextInOrder[iLprev], iL);
                             nextInOrder[iLprev] = nextInOrder[iL];
                             nextInOrder[iL] = firstInOrder;
                             firstInOrder = iL;
@@ -361,7 +361,7 @@ public class MiniBall
     {
         if (verboseLevel >= 3) System.out.println("    in CircumBall ("+nInds+" points)");
         int dim = resultCenter.length;
-        assert(nInds <= dim+1);
+        CHECK(nInds <= dim+1);
         if (nInds == 0)
         {
             VecMath.zerovec(resultCenter);
@@ -591,7 +591,7 @@ public class MiniBall
         }
         else // we don't have a case for this number of points.
         {
-            assert(false);
+            CHECK(false);
             return 0.;
         }
     } // CircumBall
@@ -639,8 +639,8 @@ public class MiniBall
                     while (a*a + b*b > l2 && b >= 0) --b;
                     if (a*a + b*b == l2)
                     {
-                        assert(0 < a);
-                        assert(a < b);
+                        CHECK(0 < a);
+                        CHECK(a < b);
                         System.out.println("    "+(long)a+" "+(long)b+"");
                         points[nFound++] = new double[] {a,b};
                         points[nFound++] = new double[] {a,-b};
@@ -653,8 +653,8 @@ public class MiniBall
                     }
                 }
                 PRINT(nFound);
-                assert_eq(nFound, nExpected);
-                assert_eq(nFound, points.length);
+                CHECK_EQ(nFound, nExpected);
+                CHECK_EQ(nFound, points.length);
 
 
                 int intPoints[][] = new int[points.length][points[0].length];
@@ -663,8 +663,8 @@ public class MiniBall
                     {
                         int x = (int)points[iPoint][0];
                         int y = (int)points[iPoint][1];
-                        assert_eq((double)x, points[iPoint][0]);
-                        assert_eq((double)y, points[iPoint][1]);
+                        CHECK_EQ((double)x, points[iPoint][0]);
+                        CHECK_EQ((double)y, points[iPoint][1]);
                         intPoints[iPoint][0] = x;
                         intPoints[iPoint][1] = y;
                     }
@@ -687,7 +687,7 @@ public class MiniBall
                 catch (java.io.IOException e)
                 {
                     System.err.println("Fooey, something went wrong reading file \""+cacheFileName+"\": "+e);
-                    assert(false);
+                    CHECK(false);
                 }
                 if (false)
                 {
@@ -697,7 +697,7 @@ public class MiniBall
                     catch (java.text.ParseException e)
                     {
                         System.err.println("Fooey, something went wrong parsing file \""+cacheFileName+"\": "+e);
-                        assert(false);
+                        CHECK(false);
                     }
                 }
                 else
@@ -709,9 +709,9 @@ public class MiniBall
                     // XXX huh? how come there's an empty string at the beginning but not at the end?? this is completely retarded
                     PRINTARRAY(tokens[0]);
                     PRINTARRAY(tokens[tokens.length-1]);
-                    assert_eq(tokens.length % 2, 1);
-                    assert(tokens[0].equals(""));
-                    assert(tokens[tokens.length-1] != "");
+                    CHECK_EQ(tokens.length % 2, 1);
+                    CHECK(tokens[0].equals(""));
+                    CHECK(tokens[tokens.length-1] != "");
                     int nPoints = (tokens.length-1)/2;
                     points = new double[nPoints][2];
                     FORI (iPoint, nPoints)
@@ -1116,11 +1116,11 @@ public class MiniBall
                         }
                         else
                         {
-                            assert(VecMath.equals(resultCenter, expectedResultCenter, 1e-6));
-                            assert(EQ(Math.sqrt(resultRadiusSquared),
-                                      Math.sqrt(expectedRadiusSquared), 1e-6));
+                            CHECK(VecMath.equals(resultCenter, expectedResultCenter, 1e-6));
+                            CHECK(EQ(Math.sqrt(resultRadiusSquared),
+                                     Math.sqrt(expectedRadiusSquared), 1e-6));
                         }
-                        assert(IsMiniBall(resultCenter, resultRadiusSquared, points.length, points));
+                        CHECK(IsMiniBall(resultCenter, resultRadiusSquared, points.length, points));
 
                         if (false)
                         {

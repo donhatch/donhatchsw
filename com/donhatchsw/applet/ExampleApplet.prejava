@@ -355,7 +355,7 @@ public class ExampleApplet
         catch (IllegalAccessException e) {}
         catch (java.lang.reflect.InvocationTargetException e) {}
 #endif
-        assert(parent.getLayout() instanceof java.awt.GridBagLayout);
+        CHECK(parent.getLayout() instanceof java.awt.GridBagLayout);
         parent.add(scrollpane, new java.awt.GridBagConstraints() {
             {
                 // stretch or shrink child scrollpane to fit parent
