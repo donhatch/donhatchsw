@@ -745,7 +745,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int[] stickerElementCounts = CSG.counts(this.slicedPolytope.p);
         int nStickerVerts = stickerElementCounts[0];
         int nStickerEdges = stickerElementCounts[1];
-        int nStickers = stickerElementCounts[2];
+        int nStickers = stickerElementCounts[nDims-1];
         CHECK(nStickerVerts + nStickers == nStickerEdges + 2);  // Euler's formula
         if (progressWriter != null) progressWriter.println("            sticker element counts = "+VecMath.toString(stickerElementCounts));
         {
@@ -754,8 +754,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int contributionPerElement = intpow(nCutsPerFace, nDims-1 - iDim) * (nDims-iDim);
                 expectedNumStickers += originalElements[iDim].length * contributionPerElement;
             }
-            if (progressWriter != null) progressWriter.println("            expectedNumStickers = "+expectedNumStickers);
-            if (progressWriter != null) progressWriter.println("            actual num stickers = "+stickerElementCounts[nDims-1]);
+            if (progressWriter != null) progressWriter.println("            num stickers = "+nStickers+" "+(nStickers==expectedNumStickers?"==":"!=")+" "+expectedNumStickers+" = expected num stickers");
             if (nStickers != expectedNumStickers)
             {
                 if (progressWriter != null) progressWriter.println("        deciding not futtable because num stickers is not as expected");
@@ -767,8 +766,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             expectedNumStickerVerts += nVerts;
             expectedNumStickerVerts += nEdges * (2 * nCutsPerFace);
             expectedNumStickerVerts += nEdges * 2 * nCutsPerFace*nCutsPerFace;
-            if (progressWriter != null) progressWriter.println("            expectedNumStickerVerts = "+expectedNumStickerVerts);
-            if (progressWriter != null) progressWriter.println("            actual num stickerVerts = "+nStickerVerts);
+            if (progressWriter != null) progressWriter.println("            num sticker verts = "+nStickerVerts+" "+(nStickerVerts==expectedNumStickerVerts?"==":"!=")+" "+expectedNumStickerVerts+" = expected num sticker verts");
             if (nStickerVerts != expectedNumStickerVerts)
             {
                 if (progressWriter != null) progressWriter.println("        deciding not futtable because num sticker verts is not as expected");
@@ -809,6 +807,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
         // XXX TODO: still no good!  we need to declare "frucht 3(2.5)" non-futtable, but haven't figured out how to detect that yet, since incident counts are masquerading as the futtable case!  Well at least it rejects "fruct 3".
+        if (progressWriter != null) progressWriter.println("        deciding futtable!");
 
         return true;
     }  // decideWhetherFuttable
