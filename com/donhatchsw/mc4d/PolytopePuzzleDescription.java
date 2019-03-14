@@ -296,7 +296,6 @@
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it allows "frucht 3(2.5)" because numbers of incidences match, but it shouldn't)
             - make more general implementation:
-              - support other than 3d
               - support other than trivalent
               - allow slicesmask to express more layers than just first wave
               - do the right thing when waves interact
@@ -3032,6 +3031,22 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return from2toFacet;
         }  // getFrom2toFacetsForFutt
 
+        private static SortStuff.Comparator cutInfoCompare = new SortStuff.Comparator() {
+            public int compare(Object aObject, Object bObject)
+            {
+                CutInfo a = (CutInfo)aObject;
+                CutInfo b = (CutInfo)bObject;
+                if (a.iFacet < b.iFacet) return -1;
+                if (a.iFacet > b.iFacet) return 1;
+                if (a.iCutThisFacet < b.iCutThisFacet) return -1;
+                if (a.iCutThisFacet > b.iCutThisFacet) return 1;
+                return 0;
+            }
+        };  // cutInfoCompare
+
+        // Each sticker can be identified by the facet cuts (i.e. facet number and cut number)
+        // that bound it.  Therefore a permutation of the facets
+        // induces a permutation of the stickers.
         private int[] getFrom2toStickersForFutt(int gripIndex,
                                                 int dir,
                                                 int slicemask,
@@ -3057,18 +3072,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             CutInfo[][] sticker2cutInfos = new CutInfo[nStickers][];
             java.util.HashMap cutInfos2sticker = new java.util.HashMap();  // CBB: initial capacity should be number of stickers in slicemask
-            SortStuff.Comparator cutInfoCompare = new SortStuff.Comparator() {
-                public int compare(Object aObject, Object bObject)
-                {
-                    CutInfo a = (CutInfo)aObject;
-                    CutInfo b = (CutInfo)bObject;
-                    if (a.iFacet < b.iFacet) return -1;
-                    if (a.iFacet > b.iFacet) return 1;
-                    if (a.iCutThisFacet < b.iCutThisFacet) return -1;
-                    if (a.iCutThisFacet > b.iCutThisFacet) return 1;
-                    return 0;
-                }
-            };
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
                 // CBB: we are testing these too many times!
@@ -3177,6 +3180,19 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (verboseLevel >= 1) System.out.println("        out getFrom2toStickersForFutt");
             return from2toStickerCenters;
         }  // getFrom2toStickersForFutt
+
+        // TODO: implement or kill
+        private int[] getFrom2toVertsForFutt(int gripIndex,
+                                             int dir,
+                                             int slicemask,
+                                             int[] from2toFacet,
+                                             int[] from2toSticker)
+        {
+            CHECK(false);
+            return null;
+        }  // getFrom2toVertsForFutt
+
+
 
         public void
             computeVertsAndShrinkToPointsPartiallyTwisted(
@@ -3304,198 +3320,141 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 // populate outVerts
                 {
-                    if (nDims == 4)
+                    FuzzyPointHashTable from2toVertCoords = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
                     {
-                        if (futtVerboseLevel >= 1) System.out.println("      (nDims==4 so not doing much yet for outVerts)");
-                        if (futtVerboseLevel >= 1) System.out.println("          from2toFacet = "+VecMath.toString(from2toFacet));
-                    }
-                    else if (nDims == 3)
-                    {
-                        // nDim==3, so, facet=face, ridge=edge, peak=vertex.
-                        // Find the incident verts and edges, in cyclic order.
+                        // make a map from coords to symbolic, then symbolic to symbolic is easy, then symbolic to coordso
 
-                        boolean isEdgeFlipIn3d = Math.abs(this.gripUsefulMats[gripIndex][1][3]) < 1e-6;
+                        java.util.HashMap cutInfos2coords = new java.util.HashMap();  // CBB: initial capacity
 
-                        int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
-                        int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
-                        int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
+                        int[] vertsThisFacet = originalIncidences[nDims-1][iFacet][0];
+                        int nCoordsPerCorner = 1; for (int i = 0; i < nDims; ++i) nCoordsPerCorner *= nStickerLayers+1;  // nCoordsPerCorner = intpow(nStickerLayers+1, nDims);
+                        CutInfo[][] allCutInfoListsWeAreMaking = new CutInfo[vertsThisFacet.length * nCoordsPerCorner][nDims];
 
-                        int gonality = originalIncidences[2][iFacet][1].length;
-                        double[][][][][] cutIntersectionCoords = new double[gonality][/*nCutsThisFace+1*/][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
-                        for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
+                        double[] desiredOffsets = new double[nDims];  // scratch for loop
+                        for (int iVertThisFacet = 0; iVertThisFacet < vertsThisFacet.length; ++iVertThisFacet)
                         {
-                            if (futtVerboseLevel >= 2) System.out.println("          iCornerRegion = "+iCornerRegion+"/"+gonality);
-                            int iPrevNeighborFace = neighborsThisFaceInOrder[(iCornerRegion-1 + gonality) % gonality];
-                            int iNextNeighborFace = neighborsThisFaceInOrder[iCornerRegion];
-                            if (futtVerboseLevel >= 2) System.out.println("              iFacet,iPrevNeighborFace,iNextNeighborFace = "+iFacet+","+iPrevNeighborFace+","+iNextNeighborFace);
+                            int iVert = vertsThisFacet[iVertThisFacet];
+                            int[] facetsThisVert = originalIncidences[0][iVert][nDims-1];
+                            CHECK(facetsThisVert.length == nDims);
+
+                            int[] sortedFacetsThisVert = VecMath.copyvec(facetsThisVert);
+                            SortStuff.sort(sortedFacetsThisVert);
 
                             // We are going to want to answer questions of the form:
                             // "what is the intersection of the hyperplanes
-                            // at these three offsets from the three faces"?
-                            // I.e. "what is the point whose dot products with the three hyperplane normals
-                            // equals the three hyperplane offsets"?
-                            // The face normals stay constant (throughout this corner region)
+                            // at these nDims offsets from the nDims facets"?
+                            // I.e. "what is the point whose dot products with the nDims hyperplane normals
+                            // equals the nDims hyperplane offsets"?
+                            // The facet normals stay constant (throughout this corner region)
                             // but the offsets vary, so compute an inverse matrix so we can answer
                             // the questions quickly.
-                            double[/*3*/][/*3*/] faceInwardNormalsMat = {
-                                (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iFacet], 0, 3),
-                                (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iPrevNeighborFace], 0, 3),
-                                (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[iNextNeighborFace], 0, 3),
-                            };
-                            if (futtVerboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(faceInwardNormalsMat));
-                            double[/*3*/][/*3*/] inverseOfFaceInwardNormalsMat = VecMath.invertmat(faceInwardNormalsMat);
-                            if (futtVerboseLevel >= 2) System.out.println("              inverseOfFaceInwardNormalsMat = "+VecMath.toString(inverseOfFaceInwardNormalsMat));
-
-
-                            cutIntersectionCoords[iCornerRegion] = new double[nStickerLayers+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
-                            for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
+                            double[][] facetInwardNormalsMat = new double[nDims][];
+                            for (int iDim = 0; iDim < nDims; ++iDim)
                             {
-                                cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[nStickerLayers+1][/*nCutsNextNeighborFace+1*/][];  // one extra layer in this direction, but we don't populate it yet; we'll copy it from the next corner afterwards    TODO: do we even do that any more?  I don't think so; get rid of that
-                                for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1; ++iCutPrevNeighborFace)
+                                int jFacet = sortedFacetsThisVert[iDim];
+                                facetInwardNormalsMat[iDim] = (double[])com.donhatchsw.util.Arrays.subarray(facetInwardNormals[jFacet], 0, nDims);
+                            }
+                            if (futtVerboseLevel >= 2) System.out.println("              facetInwardNormalsMat = "+VecMath.toString(facetInwardNormalsMat));
+                            double[/*3*/][/*3*/] inverseOfFacetInwardNormalsMat = VecMath.invertmat(facetInwardNormalsMat);
+                            if (futtVerboseLevel >= 2) System.out.println("              inverseOfFacetInwardNormalsMat = "+VecMath.toString(inverseOfFacetInwardNormalsMat));
+
+                            int nCoordsThisCorner = 1; for (int i = 0; i < nDims; ++i) nCoordsThisCorner *= nStickerLayers+1;  // nCoordsThisCorner = intpow(nStickerLayers+1, nDims);
+                            for (int iCoordThisCorner = 0; iCoordThisCorner < nCoordsThisCorner; ++iCoordThisCorner)
+                            {
+                                int scratch = iCoordThisCorner;
+                                CutInfo[] cutInfos = allCutInfoListsWeAreMaking[iVertThisFacet*nCoordsPerCorner + iCoordThisCorner];
+                                for (int iDim = 0; iDim < nDims; ++iDim)
                                 {
-                                    // Need coords only where at least one of the three cut indices is 0,
-                                    // i.e. on the surface of the polyhedron.
-                                    // This is an important optimization if number of cuts is large.
-                                    cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace] = new double[
-                                        iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : nStickerLayers+1][];
-                                    for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace].length; ++iCutNextNeighborFace)
-                                    {
-                                        double[] desiredOffsets = {
-                                            iCutThisFace==0 ? this.facetOffsetsForFutt[iFacet] : facetCutOffsets[iFacet][iCutThisFace-1],
-                                            iCutPrevNeighborFace==0 ? this.facetOffsetsForFutt[iPrevNeighborFace] : facetCutOffsets[iPrevNeighborFace][iCutPrevNeighborFace-1],
-                                            iCutNextNeighborFace==0 ? this.facetOffsetsForFutt[iNextNeighborFace] : facetCutOffsets[iNextNeighborFace][iCutNextNeighborFace-1],
-                                        };
-                                        double[] coords3 = VecMath.mxv(inverseOfFaceInwardNormalsMat, desiredOffsets);
-                                        //System.out.println("              desiredOffsets = "+VecMath.toString(desiredOffsets)+" -> coords3 = "+VecMath.toString(coords3));
-                                        cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace][iCutNextNeighborFace] = coords3;
-                                    }
+                                    int jFacet = sortedFacetsThisVert[iDim];
+                                    int jCutThisFacet = scratch % (nStickerLayers+1);
+                                    cutInfos[iDim] = new CutInfo(jFacet, jCutThisFacet);
+                                    desiredOffsets[iDim] = jCutThisFacet==0 ? this.facetOffsetsForFutt[jFacet] : facetCutOffsets[jFacet][jCutThisFacet-1];
+                                    scratch /= nStickerLayers+1;
                                 }
+                                double[] coords = VecMath.mxv(inverseOfFacetInwardNormalsMat, desiredOffsets);
+                                //System.out.println("              desiredOffsets = "+VecMath.toString(desiredOffsets)+" -> coords3 = "+VecMath.toString(coords3));
+                                String cutInfosString = java.util.Arrays.toString(cutInfos);
+                                cutInfos2coords.put(cutInfosString, coords);
                             }
                         }
 
-                        // The usual params.
-                        // bucket size is chosen by listening to the implementation, which throws if it's too small.
-                        FuzzyPointHashTable finalMorphDestinations = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
-
-                        if (isEdgeFlipIn3d)
+                        CutInfo[] toCutInfos = new CutInfo[nDims];  // scratch for loop
+                        for (int iDim = 0; iDim < nDims; ++iDim)
+                            toCutInfos[iDim] = new CutInfo(/*iFacet=*/-1, /*iCutThisFacet=*/-1);
+                        boolean isEdgeFlipIn3d = Math.abs(this.gripUsefulMats[gripIndex][1][3]) < 1e-6;
+                        for (int i = 0; i < allCutInfoListsWeAreMaking.length; ++i)
                         {
-                            if (futtVerboseLevel >= 1) System.out.println("      oh no! it's an edge flip!");
-                            // CBB: DUP CODE
-                            // Figure out which edge of the facet we're going to flip.
-                            // It's the one whose facet-to-the-edge is closest to gripUsefulMats[gripIndex][1].
-                            // CBB: this isn't reliable, and may change when I make the frucht useful mat more properly orthogonalized.
-                            int bestIndex = -1;
-                            double bestDot = -1.;
-                            for (int i = 0; i < gonality; ++i)
+                            CutInfo[] fromCutInfos = allCutInfoListsWeAreMaking[i];
+                            for (int iDim = 0; iDim < nDims; ++iDim)
                             {
-                                CSG.Polytope ridge = originalElements[nDims-2][edgesThisFaceInOrder[i]];
-                                double[] facetToRidge = VecMath.vmv(3, CSG.cgOfVerts(ridge), VecMath.floatToDouble(facetCentersF[iFacet]));  // CBB: floatToDouble is not great.  but this is temporary code anyway, I think
-                                double thisDot = VecMath.dot(3, gripUsefulMats[gripIndex][1], facetToRidge);
-                                if (futtVerboseLevel >= 1) System.out.println("          looking at i="+i+" -> ridge="+edgesThisFaceInOrder[i]+", neighbor="+neighborsThisFaceInOrder[i]+": thisDot="+thisDot);
-                                if (futtVerboseLevel >= 1) System.out.println("              facetToRidge = "+VecMath.toString(facetToRidge));
-                                if (futtVerboseLevel >= 1) System.out.println("              gripUsefulMats[gripIndex][1] = "+VecMath.toString(gripUsefulMats[gripIndex][1]));
-                                if (thisDot > bestDot) {
-                                    bestIndex = i;
-                                    bestDot = thisDot;
-                                }
+                                toCutInfos[iDim].iFacet = from2toFacet[fromCutInfos[iDim].iFacet];
+                                toCutInfos[iDim].iCutThisFacet = fromCutInfos[iDim].iCutThisFacet;
                             }
-                            int neighborIndexToFlip = bestIndex;
-                            if (futtVerboseLevel >= 1) System.out.println("      chose neighborIndexToFlip = "+neighborIndexToFlip+" (face "+neighborsThisFaceInOrder[neighborIndexToFlip]+")");
+                            SortStuff.sort(toCutInfos, 0, toCutInfos.length, cutInfoCompare);
 
-                            for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
+                            String fromCutInfosString = java.util.Arrays.toString(fromCutInfos);
+                            String toCutInfosString = java.util.Arrays.toString(toCutInfos);
+
+                            double[] fromCoords = (double[])cutInfos2coords.get(fromCutInfosString);
+                            double[] toCoords = (double[])cutInfos2coords.get(toCutInfosString);
+                            CHECK(fromCoords != null);
+                            CHECK(toCoords != null);
+                            if (nDims == 4)
                             {
-                                // Given fromCornerRegion, we want toCornerRegion such that:
-                                //   fromCornerRegion=neighborIndexToFlip -> toCornerRegion=neighborIndexToFlip+1
-                                //   fromCornerRegion=neighborIndexToFlip+1 -> toCornerRegion=neighborIndexToFlip
-                                // the formula for that is:
-                                //   toCornerRegion = 2*neighborIndexToFlip - fromCornerRegion + 1  (modulo gonality).
-                                int toCornerRegion = ((2*neighborIndexToFlip - fromCornerRegion + 1) + gonality) % gonality;
-                                if (futtVerboseLevel >= 1) System.out.println("          fromCornerRegion="+fromCornerRegion+" -> toCornerRegion="+toCornerRegion);
-
-                                for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
-                                for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length; ++j)
-                                for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
-                                    for (int wdir = -1; wdir <= 1; wdir += 2) {
-                                        double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
-                                        double w = wdir * pad;
-                                        double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
-
-                                        double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][k][j], -w);  // interchange k and j because flipping, and negate w
-
-                                        if (futtVerboseLevel >= 3) System.out.println("              setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                                        finalMorphDestinations.put(from, to);
-                                    }
-                                }
+                                from2toVertCoords.put(fromCoords, toCoords);
                             }
-                        }
-                        else
-                        {
-                            // not an edge flip in 3d
-                            for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
+                            else if (nDims == 3)
                             {
-                                // Note, this is the part of the calculation that would make no sense if it's an edge flip.
-                                int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
-                                // CBB: all these dimensions better be the same, so don't need to be looking at all different lengths.  same when creating them
-                                for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
-                                for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length; ++j)  // don't include the extra layer here; it would be redundant
-                                for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
-                                    for (int wdir = -1; wdir <= 1; wdir += 2) {
-                                        double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
-                                        double w = wdir * pad;
-                                        double[] from = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[fromCornerRegion][i][j][k], w);
-                                        double[] to = com.donhatchsw.util.Arrays.append(cutIntersectionCoords[toCornerRegion][i][j][k], w);
-                                        if (futtVerboseLevel >= 3) System.out.println("              setting vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                                        finalMorphDestinations.put(from, to);
-                                    }
-                                }
-                            }
-                        }
-
-                        //System.out.println("      cutIntersectionCoords = "+VecMath.toString(cutIntersectionCoords));
-                        //System.out.println("      cutIntersectionCoordsF = "+VecMath.toString((float[][][][][])VecMath.doubleToFloat(cutIntersectionCoords)));
-                        // TODO: figure out why does VecMath.toString act lamely (just print addresses) if I don't cast to float[][][][][]?
-
-                        if (false)  // set to true for debugging, to avoid morph altogether and just do the rotate
-                        {
-                            System.out.println("SKIPPING MORPH AND JUST ROTATING");
-                            for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
-                            {
-                                if (whichVertsGetMoved[iVert])
-                                    VecMath.vxm(outVerts[iVert], vertsF[iVert], matF);
-                                else
-                                    VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
-                            }
-                        }
-                        else
-                        {
-                            float[] toF = new float[4];  // scratch for loop
-                            float[] toFinFromSpace = new float[4];  // scratch for loop
-                            float[] morphedFromF = new float[4];  // scratch for loop
-                            for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
-                            {
-                                if (whichVertsGetMoved[iVert])
+                                double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
+                                if (isEdgeFlipIn3d)
                                 {
-                                    double[] from = vertsDForFutt[iVert];
-                                    double[] to = (double[])finalMorphDestinations.get(from);
-                                    if (futtVerboseLevel >= 3) System.out.println("          found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
-                                    CHECK(to != null);
-
-                                    // Ok, now what's the right thing to do?
-                                    // Need to apply the inverse of the *full* (i.e. frac=1) twist mat to toF
-                                    // to get its coords in from space,
-                                    // then apply the morph,
-                                    // then apply the partial twist mat.
-                                    VecMath.doubleToFloat(toF, to);
-                                    VecMath.vxm(toFinFromSpace, toF, fullInvMatF);
-                                    float[] fromF = vertsF[iVert];
-                                    VecMath.lerp(morphedFromF, fromF, toFinFromSpace, frac);
-                                    VecMath.vxm(outVerts[iVert], morphedFromF, matF);
+                                    from2toVertCoords.put(com.donhatchsw.util.Arrays.append(fromCoords, pad),
+                                                          com.donhatchsw.util.Arrays.append(toCoords, -pad));
+                                    from2toVertCoords.put(com.donhatchsw.util.Arrays.append(fromCoords, -pad),
+                                                          com.donhatchsw.util.Arrays.append(toCoords, pad));
                                 }
                                 else
-                                    VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
+                                {
+                                    from2toVertCoords.put(com.donhatchsw.util.Arrays.append(fromCoords, pad),
+                                                          com.donhatchsw.util.Arrays.append(toCoords, pad));
+                                    from2toVertCoords.put(com.donhatchsw.util.Arrays.append(fromCoords, -pad),
+                                                          com.donhatchsw.util.Arrays.append(toCoords, -pad));
+                                }
                             }
                         }
-                    }  // nDims==3
+                    }  // initialized from2toVertCoords
+
+                    float[] toF = new float[4];  // scratch for loop
+                    float[] toFinFromSpace = new float[4];  // scratch for loop
+                    float[] morphedFromF = new float[4];  // scratch for loop
+                    for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
+                    {
+                        if (whichVertsGetMoved[iVert])
+                        {
+                            double[] from = vertsDForFutt[iVert];
+                            //double[] to = (double[])finalMorphDestinations.get(from);
+                            double[] to = (double[])from2toVertCoords.get(from);
+                            if (futtVerboseLevel >= 3) System.out.println("          found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
+                            if (to == null)
+                            {
+                                throw new AssertionError("Didn't find vertex from="+VecMath.toString(from));
+                            }
+                            //CHECK(to != null);
+
+                            // Ok, now what's the right thing to do?
+                            // Need to apply the inverse of the *full* (i.e. frac=1) twist mat to toF
+                            // to get its coords in from space,
+                            // then apply the morph,
+                            // then apply the partial twist mat.
+                            VecMath.doubleToFloat(toF, to);
+                            VecMath.vxm(toFinFromSpace, toF, fullInvMatF);
+                            float[] fromF = vertsF[iVert];
+                            VecMath.lerp(morphedFromF, fromF, toFinFromSpace, frac);
+                            VecMath.vxm(outVerts[iVert], morphedFromF, matF);
+                        }
+                        else
+                            VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
+                    }
                 }  // populated outVerts
 
                 // Populate outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
