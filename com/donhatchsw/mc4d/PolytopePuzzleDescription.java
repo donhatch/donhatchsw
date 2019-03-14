@@ -2717,10 +2717,34 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             int nFacets = originalElements[nDims-1].length;
             int gonality = originalIncidences[2][iFacet][1].length;
             int[] from2toFacet = VecMath.identityperm(nFacets);  // except for...
-            if (nDims == 4)
             {
-                int eltDim = this.grip2facetEltForFutt[gripIndex][0];
-                int iFacetElt = this.grip2facetEltForFutt[gripIndex][1];
+                int eltDim = -1;
+                int iFacetElt = -1;
+                if (nDims == 4)
+                {
+                    eltDim = this.grip2facetEltForFutt[gripIndex][0];
+                    iFacetElt = this.grip2facetEltForFutt[gripIndex][1];
+                }
+                else if (nDims == 3)
+                {
+                    // CBB: not sure why this.grip2facetEltForFutt[gripIndex] is sometimes null.  Do lame search for correct element.
+                    boolean isEdgeFlipIn3d = Math.abs(this.gripUsefulMats[gripIndex][1][3]) < 1e-6;
+                    if (isEdgeFlipIn3d)
+                    {
+                        eltDim = 1;
+                        iFacetElt = 0;  // TODO: do it right!
+                    }
+                    else
+                    {
+                        eltDim = 2;
+                        iFacetElt = 0;  // the facet itself
+                    }
+                }
+                else
+                {
+                    CHECK(false);
+                }
+
                 if (futtVerboseLevel >= 1) System.out.println("              iFacet = "+iFacet);
                 if (futtVerboseLevel >= 1) System.out.println("              eltDim = "+eltDim);
                 if (futtVerboseLevel >= 1) System.out.println("              iFacetElt = "+iFacetElt);
@@ -2765,17 +2789,28 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     for (int iPass = 0; iPass < 2; ++iPass)  // first pass, just count
                     {
                         int nFlagsOfInterest = 0;
-                        for (int iVertThisFacet = 0; iVertThisFacet < originalIncidences[3][iFacet][0].length; ++iVertThisFacet) {
-                            int iVert = originalIncidences[3][iFacet][0][iVertThisFacet];
+                        for (int iVertThisFacet = 0; iVertThisFacet < originalIncidences[nDims-1][iFacet][0].length; ++iVertThisFacet) {
+                            int iVert = originalIncidences[nDims-1][iFacet][0][iVertThisFacet];
                             for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iVert][1].length; ++iEdgeThisVert) {
                                 int iEdge = originalIncidences[0][iVert][1][iEdgeThisVert];
                                 for (int iFaceThisEdge = 0; iFaceThisEdge < originalIncidences[1][iEdge][2].length; ++iFaceThisEdge) {
                                     int iFace = originalIncidences[1][iEdge][2][iFaceThisEdge];
-                                    for (int iCellThisFace = 0; iCellThisFace < originalIncidences[2][iFace][3].length; ++iCellThisFace) {
-                                        int iCell = originalIncidences[2][iFace][3][iCellThisFace];
-
-                                        if (iPass == 1) flagsOfInterest[nFlagsOfInterest] = new int[] {iVert, iEdge, iFace, iCell};
+                                    if (nDims == 3)
+                                    {
+                                        if (iPass == 1) flagsOfInterest[nFlagsOfInterest] = new int[] {iVert, iEdge, iFace};
                                         nFlagsOfInterest++;
+                                    }
+                                    else if (nDims == 4)
+                                    {
+                                        for (int iCellThisFace = 0; iCellThisFace < originalIncidences[2][iFace][3].length; ++iCellThisFace) {
+                                            int iCell = originalIncidences[2][iFace][3][iCellThisFace];
+                                            if (iPass == 1) flagsOfInterest[nFlagsOfInterest] = new int[] {iVert, iEdge, iFace, iCell};
+                                            nFlagsOfInterest++;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        CHECK(false);
                                     }
                                 }
                             }
@@ -2829,12 +2864,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     int seedToFlagIndex = -1;
                     {
                         // fromSeedFlag will be any flag containing facet iFacet and the given elt, with the appropriate sign.
+                        // (actually don't worry about sign, if we get it backwards will correct it at the end).
                         // toSeedFlag will be formed by reflecting the flag in the other two element dimensions,
-                        // in some order (which matters!)
+                        // in some order (which will affect the sign, but we're not worrying about that til the end).
                         for (int i = 0; i < flagsOfInterest.length; ++i)
                         {
                             int[] flag = flagsOfInterest[i];
-                            if (flag[eltDim] == iEltGlobal && flag[3] == iFacet)  // TODO: should be && determinant has correct sign
+                            if (flag[eltDim] == iEltGlobal && flag[nDims-1] == iFacet)  // don't worry about sign
                             {
                                 seedFromFlagIndex = i;
                                 break;
@@ -2843,7 +2879,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         CHECK(seedFromFlagIndex != -1);
                         seedToFlagIndex = seedFromFlagIndex;  // for starters; we'll reflect it twice
                         CHECK(eltDim==0 || eltDim==1 || eltDim==2);
-                        int[] reflectDirections = new int[] {(eltDim+1)%3, (eltDim+2)%3};  // TODO: these may be in wrong order
+                        int[] reflectDirections = new int[] {(eltDim+1)%3, (eltDim+2)%3};  // may be in wrong order which will affect sign, who cares
                         for (int iReflectDirection = 0; iReflectDirection < reflectDirections.length; ++iReflectDirection)
                         {
                             int reflectDirection = reflectDirections[iReflectDirection];
@@ -2904,8 +2940,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }  // initialized from2toFlag and to2fromFlag
                 for (int i = 0; i < flagsOfInterest.length; ++i)
                 {
-                    int fromFacet = flagsOfInterest[i][3];
-                    int toFacet = flagsOfInterest[from2toFlag[i]][3];
+                    int fromFacet = flagsOfInterest[i][nDims-1];
+                    int toFacet = flagsOfInterest[from2toFlag[i]][nDims-1];
                     CHECK(from2toFacet[fromFacet] == fromFacet  // if it hasn't been moved yet
                        || from2toFacet[fromFacet] == toFacet);  // if it has been moved yet
                     from2toFacet[fromFacet] = toFacet;
@@ -2913,52 +2949,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 // Make sure we got everything...
                 for (int i = 0; i < flagsOfInterest.length; ++i)
                 {
-                    int fromFacet = flagsOfInterest[i][3];
-                    int toFacet = flagsOfInterest[from2toFlag[i]][3];
+                    int fromFacet = flagsOfInterest[i][nDims-1];
+                    int toFacet = flagsOfInterest[from2toFlag[i]][nDims-1];
                     CHECK(from2toFacet[fromFacet] == toFacet);
-                }
-
-            }
-            else if (nDims == 3)
-            {
-                boolean isEdgeFlipIn3d = Math.abs(this.gripUsefulMats[gripIndex][1][3]) < 1e-6;
-                if (isEdgeFlipIn3d)
-                {
-                    // CBB: DUP CODE
-                    // Figure out which edge of the facet we're going to flip.
-                    // It's the one whose facet-to-the-edge is closest to gripUsefulMats[gripIndex][1].
-                    // CBB: this isn't reliable, and may change when I make the frucht useful mat more properly orthogonalized.
-                    // CBB: can't we use originalFacetElt2grip?
-                    int bestIndex = -1;
-                    double bestDot = -1.;
-                    for (int i = 0; i < gonality; ++i)
-                    {
-                        CSG.Polytope ridge = originalElements[nDims-2][edgesThisFaceInOrder[i]];
-                        double[] facetToRidge = VecMath.vmv(3, CSG.cgOfVerts(ridge), VecMath.floatToDouble(facetCentersF[iFacet]));  // CBB: floatToDouble is not great.  but this is temporary code anyway, I think
-                        double thisDot = VecMath.dot(3, gripUsefulMats[gripIndex][1], facetToRidge);
-                        if (futtVerboseLevel >= 1) System.out.println("          looking at i="+i+" -> ridge="+edgesThisFaceInOrder[i]+", neighbor="+neighborsThisFaceInOrder[i]+": thisDot="+thisDot);
-                        if (futtVerboseLevel >= 1) System.out.println("              facetToRidge = "+VecMath.toString(facetToRidge));
-                        if (futtVerboseLevel >= 1) System.out.println("              gripUsefulMats[gripIndex][1] = "+VecMath.toString(gripUsefulMats[gripIndex][1]));
-                        if (thisDot > bestDot) {
-                            bestIndex = i;
-                            bestDot = thisDot;
-                        }
-                    }
-                    int neighborIndexToFlip = bestIndex;
-                    if (futtVerboseLevel >= 1) System.out.println("      neighborIndexToFlip = "+neighborIndexToFlip+" (face "+neighborsThisFaceInOrder[neighborIndexToFlip]+")");
-                    for (int i = 0; i < gonality; ++i)
-                    {
-                        int j = (2*neighborIndexToFlip-i + gonality) % gonality; // so neighborIndex stays fixed, and direction is reversed
-                        from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
-                    }
-                }
-                else
-                {
-                    for (int i = 0; i < gonality; ++i) {
-                        // This calculation would make no sense for edge flips, since the vector in question would be zero in w direction
-                        int j = (i + (this.gripUsefulMats[gripIndex][1][3] < 0 ? -1 : 1)*dir + gonality) % gonality;
-                        from2toFacet[neighborsThisFaceInOrder[i]] = neighborsThisFaceInOrder[j];
-                    }
                 }
             }
 
