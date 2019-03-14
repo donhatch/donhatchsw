@@ -2703,10 +2703,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return new int[][] {edgesThisFaceInOrder, neighborsThisFaceInOrder};
         }  // getFaceNeighborsInOrderForFutt
 
-        private int[] getFrom2toFacetsForFutt(int gripIndex,
-                                              int dir,
-                                              int[] edgesThisFaceInOrder,  // used only in 3d. will eventually be removed
-                                              int[] neighborsThisFaceInOrder)  // used only in 3d.  will eventually be removed
+        private int[] getFrom2toFacetsForFutt(int gripIndex, int dir)
         {
             int futtVerboseLevel = 1;
             if (futtVerboseLevel >= 1) System.out.println("            in getFrom2toFacetsForFutt");
@@ -3269,7 +3266,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 if (nDims == 4)
                 {
                     if (futtVerboseLevel >= 1) System.out.println("      (nDims==4 so not doing much yet)");
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, /*edgesThisFaceInOrder=*/null, /*neighborsThisFaceInOrder=*/null);
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir);
                     if (futtVerboseLevel >= 1) System.out.println("          from2toFacet = "+VecMath.toString(from2toFacet));
                 }
                 else if (nDims == 3)
@@ -3287,7 +3284,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
                     int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
                     int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, edgesThisFaceInOrder, neighborsThisFaceInOrder);
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir);
                     int[] from2toStickerCenters = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
 
                     double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
@@ -3596,7 +3593,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int nDims = nDims();
                 if (nDims == 4)
                 {
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, null, null);
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir);
                     int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
                     for (int iSticker = 0; iSticker < state.length; ++iSticker)
                     {
@@ -3605,10 +3602,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 else if (nDims == 3)
                 {
-                    int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
-                    int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
-                    int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, edgesThisFaceInOrder, neighborsThisFaceInOrder);
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir);
                     int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
                     for (int iSticker = 0; iSticker < state.length; ++iSticker)
                     {
