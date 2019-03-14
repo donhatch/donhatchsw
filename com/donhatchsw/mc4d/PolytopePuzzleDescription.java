@@ -293,7 +293,6 @@
         FUTT:
             - it's picking the wrong edge sometimes, in frucht, some of the 7-gon edges
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
-            - make decideWhetherFuttable more reliable (it allows "frucht 3(2.5)" because numbers of incidences match, but it shouldn't)
             - decideWhetherFuttable decides topological regulars aren't futtable... but it really should only do that if it's *geometrically* regular.  or maybe don't do that check at all (but would have to get futt working properly with arbitrary slicemask first)
             - make more general implementation:
               - support other than trivalent
@@ -762,6 +761,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int[] stickerElementCounts = CSG.counts(this.slicedPolytope.p);
         int nStickerVerts = stickerElementCounts[0];
         int nStickerEdges = stickerElementCounts[1];
+        int nStickerPolys = stickerElementCounts[2];
         int nStickers = stickerElementCounts[nDims-1];
         if (nDims==3) CHECK(nStickerVerts + nStickers == nStickerEdges + 2);  // Euler's formula
         if (progressWriter != null) progressWriter.println("            sticker element counts = "+VecMath.toString(stickerElementCounts));
@@ -819,6 +819,55 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (nStickerEdges != expectedNumStickerEdges)
             {
                 if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker edges is not as expected");
+                return false;
+            }
+        }
+
+        int[][][][] slicedIncidences = this.slicedPolytope.p.getAllIncidences();
+
+        if (nDims == 3)
+        {
+            // In 3d, num sticker tris should be num tris in original.
+            int expectedNumStickerTris = 0; // and counting
+            for (int iPoly = 0; iPoly < nPolys; ++iPoly)
+            {
+                int gonality = originalIncidences[2][iPoly][0].length;
+                if (gonality == 3) expectedNumStickerTris++;
+            }
+            int nStickerTris = 0;
+            for (int iStickerPoly = 0; iStickerPoly < nStickerPolys; ++iStickerPoly)
+            {
+                int gonality = slicedIncidences[2][iStickerPoly][0].length;
+                if (gonality == 3) nStickerTris++;
+            }
+            if (progressWriter != null) progressWriter.println("            num sticker tris = "+nStickerTris+" "+(nStickerTris==expectedNumStickerTris?"==":"!=")+" "+expectedNumStickerTris+" = expected num sticker tris");
+            if (nStickerTris != expectedNumStickerTris)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker tris is not as expected");
+                return false;
+            }
+        }
+        if (nDims == 4)
+        {
+            // In 4d, what's the expected num sticker tris?
+            // Well, it's the num tris in original, plus, for each of those, 2*nCutsPerFacet more.
+            // I.e. each tri in original contributes 2*nCutsPerFacet+1 tris to sliced.
+            int expectedNumStickerTris = 0; // and counting
+            for (int iPoly = 0; iPoly < nPolys; ++iPoly)
+            {
+                int gonality = originalIncidences[2][iPoly][0].length;
+                if (gonality == 3) expectedNumStickerTris += (2*nCutsPerFacet+1);   // <-- this is the only difference from the 3d case.  maybe it generalizes?  hmm.
+            }
+            int nStickerTris = 0;
+            for (int iStickerPoly = 0; iStickerPoly < nStickerPolys; ++iStickerPoly)
+            {
+                int gonality = slicedIncidences[2][iStickerPoly][0].length;
+                if (gonality == 3) nStickerTris++;
+            }
+            if (progressWriter != null) progressWriter.println("            num sticker tris = "+nStickerTris+" "+(nStickerTris==expectedNumStickerTris?"==":"!=")+" "+expectedNumStickerTris+" = expected num sticker tris");
+            if (nStickerTris != expectedNumStickerTris)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker tris is not as expected");
                 return false;
             }
         }
