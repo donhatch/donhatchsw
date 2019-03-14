@@ -308,7 +308,7 @@
                   - "frucht 3(4)"
                   - "frucht 9(20)"
                   - frucht such that different waves interact
-                - frucht: the square is futtable
+                - prisms: the square is futtable
                   - tet prism "3x{} 3(4)"
                   - tet prism "3x{} 9(20)"
                   - tet prism such that different waves interact
@@ -317,11 +317,12 @@
                   - trunc ico "3(1)5 9(20)"
                   - tet prism such that different waves interact
               - 4d:
+                - "4x3 3(4)": the cube is futtable
                 - Fruity
                 - tet prism: the 3 cubes are futtable
-                  - tet prism prism "3x4 3(5)"
-                  - tet prism prism "3x4 9(20)"
-                  - tet prism prism such that different waves interact
+                  - tri prism prism "3x4 3(5)"
+                  - tri prism prism "3x4 9(20)"
+                  - tri prism prism such that different waves interact
               TODO: example of 4d 4-valent where a triprism needs futt for every one of its nontrivial local symmetries.
               TODO: example of 4d 4-valent where a triprism needs futt for some but not all of its nontrivial local symmetries.
               TODO: example of 4d 4-valent where a triprism needs futt for a twist on its tri, but some of its twists on squares don't need futt
@@ -331,7 +332,7 @@
             - 4d fruity isn't right yet, need to work on it
 
         NONUNIFORM BOXES:
-            - "{4,3} 2,3,4" strangely asymmetric now?  and throws on click.  (oh, that was never the way to do a nonuniform box.  it was "(2)x(3)x(4) 2,3,4"
+            - "{4,3} 2,3,4" strangely asymmetric now?  and throws on click.  (oh, that was never the way to do a nonuniform box.  it was "(2)x(3)x(4) 2,3,4".  but, should fix the throw)
 
         SPECIFICATION:
             - be able to specify initial orientation
@@ -3353,17 +3354,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             cutIntersectionCoords[iCornerRegion] = new double[nStickerLayers+1][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
                             for (int iCutThisFace = 0; iCutThisFace < nStickerLayers+1; ++iCutThisFace)
                             {
-                                cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[nStickerLayers+1+1][/*nCutsNextNeighborFace+1*/][];  // one extra layer in this direction, but we don't populate it yet; we'll copy it from the next corner afterwards    TODO: do we even do that any more?  I don't think so; get rid of that
-                                for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1+1; ++iCutPrevNeighborFace)
+                                cutIntersectionCoords[iCornerRegion][iCutThisFace] = new double[nStickerLayers+1][/*nCutsNextNeighborFace+1*/][];  // one extra layer in this direction, but we don't populate it yet; we'll copy it from the next corner afterwards    TODO: do we even do that any more?  I don't think so; get rid of that
+                                for (int iCutPrevNeighborFace = 0; iCutPrevNeighborFace < nStickerLayers+1; ++iCutPrevNeighborFace)
                                 {
                                     // Need coords only where at least one of the three cut indices is 0,
                                     // i.e. on the surface of the polyhedron.
                                     // This is an important optimization if number of cuts is large.
                                     cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace] = new double[
                                         iCutThisFace!=0&&iCutPrevNeighborFace!=0 ? 1 : nStickerLayers+1][];
-                                    if (iCutPrevNeighborFace == nStickerLayers+1) {
-                                        continue;  // this is the extra layer we'll populate afterwards
-                                    }
                                     for (int iCutNextNeighborFace = 0; iCutNextNeighborFace < cutIntersectionCoords[iCornerRegion][iCutThisFace][iCutPrevNeighborFace].length; ++iCutNextNeighborFace)
                                     {
                                         double[] desiredOffsets = {
@@ -3419,7 +3417,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 if (futtVerboseLevel >= 1) System.out.println("          fromCornerRegion="+fromCornerRegion+" -> toCornerRegion="+toCornerRegion);
 
                                 for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
-                                for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
+                                for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length; ++j)
                                 for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
                                     for (int wdir = -1; wdir <= 1; wdir += 2) {
                                         double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
@@ -3443,7 +3441,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 int toCornerRegion = (fromCornerRegion+(this.gripUsefulMats[gripIndex][1][3]<0?-1:1)*dir + gonality)%gonality;
                                 // CBB: all these dimensions better be the same, so don't need to be looking at all different lengths.  same when creating them
                                 for (int i = 0; i < cutIntersectionCoords[fromCornerRegion].length; ++i)
-                                for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length-1; ++j)  // don't include the extra layer here; it would be redundant
+                                for (int j = 0; j < cutIntersectionCoords[fromCornerRegion][i].length; ++j)  // don't include the extra layer here; it would be redundant
                                 for (int k = 0; k < cutIntersectionCoords[fromCornerRegion][i][j].length; ++k) {
                                     for (int wdir = -1; wdir <= 1; wdir += 2) {
                                         double pad = Math.abs(vertsDForFutt[0][3]); // hacky way to retrieve what was used for thickness in w direction
