@@ -643,7 +643,11 @@ public class MC4DControlPanel
                  "    https://www.youtube.com/watch?v=9rbs5xxHdRg for more info.",
                  "",
                  "NOTE: Currently this is implemented in only a subset of puzzles:",
-                 "  3d trivalent puzzles:",
+                 "3d trivalent puzzles and 4d tetravalent puzzles,",
+                 "and, furthermore, cuts have to be shallow enough so that",
+                 "cut sets of non-incident faces don't interact with each other.",
+                 "",
+                 "  Examples of 3d trivalent puzzles:",
                  "      - prisms (Futt allows turning the squares 90 degrees,",
                  "        which was previously impossible)",
                  "      - truncated icosahedron, which is the Futtminx",
@@ -652,7 +656,8 @@ public class MC4DControlPanel
                  "        (Futt allows twisting the 2p-gons to all 2p positions instead of only p of them)",
                  "      - any omnitruncated regular",
                  "      - frucht and not-frucht",
-                 "  4d tetravalent puzzles:",
+                 "",
+                 "  Examples of 4d tetravalent puzzles:",
                  "      - duoprisms {p}x{4} or {4}x{p}",
                  "        (Futt allows the cubes to be twisted more freely than previously)",
                  "          e.g. \"{3}x{4} 3\" (triangular-prism prism)",
@@ -687,8 +692,6 @@ public class MC4DControlPanel
                  "          e.g. \"frucht*{} 3(4)\"  (frucht prism)",
                  "          e.g. \"notfrucht*{} 3(4)\"  (not-frucht prism)",
                  "",
-                 "NOTE: Currently, cuts have to be shallow enough so that",
-                 "cut sets of non-incident faces don't interact with each other.",
             });
         addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
         addSingleLabelRow(new BigBoldLabel("Appearance"));
