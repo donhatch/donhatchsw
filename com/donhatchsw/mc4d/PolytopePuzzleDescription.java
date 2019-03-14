@@ -3294,32 +3294,28 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int nStickerLayers = this.intLengthsForFutt[0]/2;  // round down. assumes all intLengths are same.
                 if (futtVerboseLevel >= 1) System.out.println("      nStickerLayers = "+nStickerLayers);
 
-                if (nDims == 4)
+                CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
+                int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
+
+                int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
+                int[] from2toStickerCenters = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
+                double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
+                float[][] fullInvMatF = VecMath.doubleToFloat(fullInvMatD);
+
+                // populate outVerts
                 {
-                    if (futtVerboseLevel >= 1) System.out.println("      (nDims==4 so not doing much yet)");
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
-                    if (futtVerboseLevel >= 1) System.out.println("          from2toFacet = "+VecMath.toString(from2toFacet));
-                }
-                else if (nDims == 3)
-                {
-                    // Find the incident verts and edges, in cyclic order.
-                    // This assumes nDims==3.
-                    CHECK(nDims == 3);
-                    // So, facet=face, ridge=edge, peak=vertex.
-
-                    CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
-                    int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
-
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
-                    int[] from2toStickerCenters = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
-
-                    double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
-                    float[][] fullInvMatF = VecMath.doubleToFloat(fullInvMatD);
-
-                    boolean isEdgeFlipIn3d = Math.abs(this.gripUsefulMats[gripIndex][1][3]) < 1e-6;
-
-                    // populate outVerts
+                    if (nDims == 4)
                     {
+                        if (futtVerboseLevel >= 1) System.out.println("      (nDims==4 so not doing much yet for outVerts)");
+                        if (futtVerboseLevel >= 1) System.out.println("          from2toFacet = "+VecMath.toString(from2toFacet));
+                    }
+                    else if (nDims == 3)
+                    {
+                        // nDim==3, so, facet=face, ridge=edge, peak=vertex.
+                        // Find the incident verts and edges, in cyclic order.
+
+                        boolean isEdgeFlipIn3d = Math.abs(this.gripUsefulMats[gripIndex][1][3]) < 1e-6;
+
                         int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
                         int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
                         int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
@@ -3499,61 +3495,61 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                     VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
                             }
                         }
-                    }  // populated outVerts
+                    }  // nDims==3
+                }  // populated outVerts
 
-                    // Populate outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
+                // Populate outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
+                {
+                    // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
+                    // The others wouldn't necessarily make any sense anyway.
+                    // However, a sticker can be moving *without* its facet moving to a different facet, so from2toFacet[fromFacet]==fromFacet is *not* a valid criterion for skipping.
+                    int nFacets = originalElements[nDims-1].length;
+                    float[][] rotatedMorphedFaceCenters = new float[nFacets][/*nDisplayDims=*/4];
                     {
-                        // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
-                        // The others wouldn't necessarily make any sense anyway.
-                        // However, a sticker can be moving *without* its facet moving to a different facet, so from2toFacet[fromFacet]==fromFacet is *not* a valid criterion for skipping.
-                        int nFacets = originalElements[nDims-1].length;
-                        float[][] rotatedMorphedFaceCenters = new float[nFacets][/*nDisplayDims=*/4];
+                        for (int fromFacet = 0; fromFacet < from2toFacet.length; ++fromFacet)
                         {
-                            for (int fromFacet = 0; fromFacet < from2toFacet.length; ++fromFacet)
+                            int toFacet = from2toFacet[fromFacet];
+                            //if (toFacet == fromFacet) continue; // NOT a valid criterion, see above.
+
+                            float[] fromF = facetCentersF[fromFacet];
+                            float[] toF = facetCentersF[toFacet];
+
+                            float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                            float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+
+                            VecMath.vxm(rotatedMorphedFaceCenters[fromFacet], morphedFrom, matF);
+                        }
+                        VecMath.vxm(rotatedMorphedFaceCenters[iFacet], facetCentersF[iFacet], matF);
+                    }
+
+                    for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
+                    {
+                        // CBB: we are testing these too many times!
+                        if (pointIsInSliceMask(stickerCentersD[iSticker],
+                                               slicemask,
+                                               thisFaceInwardNormal,
+                                               thisFaceCutOffsets))
+                        {
+                            int jSticker = from2toStickerCenters[iSticker];
+                            if (futtVerboseLevel >= 3) System.out.println("          sticker "+iSticker+" -> "+jSticker);
                             {
-                                int toFacet = from2toFacet[fromFacet];
-                                //if (toFacet == fromFacet) continue; // NOT a valid criterion, see above.
-
-                                float[] fromF = facetCentersF[fromFacet];
-                                float[] toF = facetCentersF[toFacet];
-
+                                float[] fromF = stickerCentersF[iSticker];
+                                float[] toF = stickerCentersF[jSticker];
                                 float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
                                 float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
-
-                                VecMath.vxm(rotatedMorphedFaceCenters[fromFacet], morphedFrom, matF);
+                                VecMath.vxm(outStickerCenters[iSticker], morphedFrom, matF);
                             }
-                            VecMath.vxm(rotatedMorphedFaceCenters[iFacet], facetCentersF[iFacet], matF);
-                        }
-
-                        for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
-                        {
-                            // CBB: we are testing these too many times!
-                            if (pointIsInSliceMask(stickerCentersD[iSticker],
-                                                   slicemask,
-                                                   thisFaceInwardNormal,
-                                                   thisFaceCutOffsets))
                             {
-                                int jSticker = from2toStickerCenters[iSticker];
-                                if (futtVerboseLevel >= 3) System.out.println("          sticker "+iSticker+" -> "+jSticker);
-                                {
-                                    float[] fromF = stickerCentersF[iSticker];
-                                    float[] toF = stickerCentersF[jSticker];
-                                    float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
-                                    float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
-                                    VecMath.vxm(outStickerCenters[iSticker], morphedFrom, matF);
-                                }
-                                {
-                                    float[] fromF = stickerAltCentersF[iSticker];
-                                    float[] toF = stickerAltCentersF[jSticker];
-                                    float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
-                                    float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
-                                    VecMath.vxm(outStickerShrinkToPointsOnFaceBoundaries[iSticker], morphedFrom, matF);
-                                }
-                                VecMath.copyvec(outPerStickerFaceCenters[iSticker], rotatedMorphedFaceCenters[sticker2face[iSticker]]);
+                                float[] fromF = stickerAltCentersF[iSticker];
+                                float[] toF = stickerAltCentersF[jSticker];
+                                float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                                float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+                                VecMath.vxm(outStickerShrinkToPointsOnFaceBoundaries[iSticker], morphedFrom, matF);
                             }
+                            VecMath.copyvec(outPerStickerFaceCenters[iSticker], rotatedMorphedFaceCenters[sticker2face[iSticker]]);
                         }
-                    }  // populated outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
-                }  // nDims==3
+                    }
+                }  // populated outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
 
                 if (futtVerboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN WENT ON");
                 if (futtVerboseLevel >= 1) System.out.println("  ==========================");
