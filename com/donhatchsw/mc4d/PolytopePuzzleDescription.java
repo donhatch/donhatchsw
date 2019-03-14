@@ -3603,7 +3603,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int nDims = nDims();
                 if (nDims == 4)
                 {
-                    VecMath.copyvec(newState, state);  // TODO: remove this when I have something better
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, null, null);
+                    int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
+                    for (int iSticker = 0; iSticker < state.length; ++iSticker)
+                    {
+                        newState[from2toStickers[iSticker]] = state[iSticker];
+                    }
                 }
                 else if (nDims == 3)
                 {
