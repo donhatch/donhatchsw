@@ -2854,8 +2854,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         CHECK(eltDim==0 || eltDim==1 || eltDim==2);
                         int[] reflectDirections = nDims==3 ? (eltDim==0 ? new int[] {1} :
                                                               eltDim==1 ? new int[] {0} :
-                                                              eltDim==2 ?  new int[] {0, 1} : null)
-                                                           : new int[] {(eltDim+1)%3, (eltDim+2)%3};  // may be in wrong order which will affect sign, who cares
+                                                              eltDim==2 ?  new int[] {0, 1} : null) :
+                                                  nDims==4 ? new int[] {(eltDim+1)%3, (eltDim+2)%3} :   // may be in wrong order which will affect sign, who cares
+                                                  null;
 
                         // First, see what the full local symmetry order actually is here.
                         // I.e. how many double-reflections to get from seedFromFlagIndex back to itself?
