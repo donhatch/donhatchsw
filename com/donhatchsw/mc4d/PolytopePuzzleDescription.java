@@ -802,6 +802,49 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 return false;
             }
         }
+        if (nDims == 3)
+        {
+            int expectedNumStickerEdges = 0;  // and counting
+            expectedNumStickerEdges += nEdges * (2*nCutsPerFacet+1);
+            System.out.println("Expecting "+(nEdges * (2*nCutsPerFacet+1))+" along actual edges");
+            String fooString = "";
+            int foo = 0;
+            for (int iPoly = 0; iPoly < originalIncidences[2].length; ++iPoly)
+            {
+                int nEdgesThisPoly = originalIncidences[2][iPoly][1].length;
+                expectedNumStickerEdges += nEdgesThisPoly * (2*nCutsPerFacet+1)*nCutsPerFacet;  // if no cuts per facet, this correctly comes out 0 despite the negative intermediate term
+                foo += nEdgesThisPoly * (2*nCutsPerFacet+1)*nCutsPerFacet;
+                fooString += "+"+nEdgesThisPoly * (2*nCutsPerFacet+1)*nCutsPerFacet;
+            }
+            System.out.println("Expecting "+fooString+" = "+foo+" on faces");
+            if (progressWriter != null) progressWriter.println("            (3d) num sticker edges = "+nStickerEdges+" "+(nStickerEdges==expectedNumStickerEdges?"==":"!=")+" "+expectedNumStickerEdges+" = expected num sticker edges");
+            if (nStickerEdges != expectedNumStickerEdges)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker edges is not as expected");
+                return false;
+            }
+        }
+        if (nDims == 4)
+        {
+            int expectedNumStickerEdges = 0;  // and counting
+            expectedNumStickerEdges += nEdges * (2*nCutsPerFacet+1);
+            for (int iPoly = 0; iPoly < originalIncidences[2].length; ++iPoly)
+            {
+                int nEdgesThisPoly = originalIncidences[2][iPoly][1].length;
+                expectedNumStickerEdges += nEdgesThisPoly * (2*nCutsPerFacet+1)*nCutsPerFacet;  // if no cuts per facet, this correctly comes out 0 despite the negative intermediate term
+            }
+            for (int iFacet = 0; iFacet < originalIncidences[3].length; ++iFacet)
+            {
+                int nEdgesThisFacet = originalIncidences[3][iFacet][1].length;
+                expectedNumStickerEdges += nEdgesThisFacet * (2*nCutsPerFacet+1)*nCutsPerFacet*nCutsPerFacet;
+            }
+            if (progressWriter != null) progressWriter.println("            (4d) num sticker edges = "+nStickerEdges+" "+(nStickerEdges==expectedNumStickerEdges?"==":"!=")+" "+expectedNumStickerEdges+" = expected num sticker edges");
+            if (nStickerEdges != expectedNumStickerEdges)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker edges is not as expected");
+                return false;
+            }
+        }
 
         // CBB: this actually kinda sucks because it prevents legitimate futting on things
         // whose topology is regular but whose geometry isn't; for example, "{3}v()"  (if that comes out stretched,
