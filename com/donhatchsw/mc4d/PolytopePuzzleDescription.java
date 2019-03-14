@@ -767,21 +767,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         if (progressWriter != null) progressWriter.println("            sticker element counts = "+VecMath.toString(stickerElementCounts));
         if (true)
         {
-            int expectedNumStickers = 0;  // and counting
-            for (int iDim = 0; iDim <= nDims-1; ++iDim)
-            {
-                int contributionPerElement = intpow(nCutsPerFacet, nDims-1 - iDim) * (nDims-iDim);
-                expectedNumStickers += originalElements[iDim].length * contributionPerElement;
-            }
-            if (progressWriter != null) progressWriter.println("            num stickers = "+nStickers+" "+(nStickers==expectedNumStickers?"==":"!=")+" "+expectedNumStickers+" = expected num stickers");
-            if (nStickers != expectedNumStickers)
-            {
-                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num stickers is not as expected");
-                return false;
-            }
-        }
-        if (true)
-        {
             // Recall this is counting sticker verts *before* separation.
             // E.g. each original vertex contributes only one sticker vert.
             // If I was smart, I'd do this using inclusion-exclusion.
@@ -802,7 +787,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 return false;
             }
         }
-
         if (true)
         {
             int expectedNumStickerEdges = 0;  // and counting
@@ -819,6 +803,44 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (nStickerEdges != expectedNumStickerEdges)
             {
                 if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker edges is not as expected");
+                return false;
+            }
+        }
+        if (true)
+        {
+            int expectedNumStickerPolys = 0;  // and counting
+            for (int iDim = 2; iDim <= nDims-1; ++iDim) // start at 2
+            {
+                for (int iElt = 0; iElt < originalIncidences[iDim].length; ++iElt)
+                {
+                    int nPolysThisElt = originalIncidences[iDim][iElt][2].length;
+                    for (int iPolyThisElt = 0; iPolyThisElt < nPolysThisElt; ++iPolyThisElt)
+                    {
+                        int iPoly = originalIncidences[iDim][iElt][2][iPolyThisElt];
+                        int gonality = originalIncidences[2][iPoly][0].length;
+                        expectedNumStickerPolys += (1 + gonality*(nCutsPerFacet+1)*nCutsPerFacet) * intpow(nCutsPerFacet, iDim-2);
+                    }
+                }
+            }
+            if (progressWriter != null) progressWriter.println("            num sticker polys = "+nStickerPolys+" "+(nStickerPolys==expectedNumStickerPolys?"==":"!=")+" "+expectedNumStickerPolys+" = expected num sticker polys");
+            if (nStickerPolys != expectedNumStickerPolys)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker polys is not as expected");
+                return false;
+            }
+        }
+        if (true)
+        {
+            int expectedNumStickers = 0;  // and counting
+            for (int iDim = 0; iDim <= nDims-1; ++iDim)
+            {
+                int contributionPerElement = intpow(nCutsPerFacet, nDims-1 - iDim) * (nDims-iDim);
+                expectedNumStickers += originalElements[iDim].length * contributionPerElement;
+            }
+            if (progressWriter != null) progressWriter.println("            num stickers = "+nStickers+" "+(nStickers==expectedNumStickers?"==":"!=")+" "+expectedNumStickers+" = expected num stickers");
+            if (nStickers != expectedNumStickers)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num stickers is not as expected");
                 return false;
             }
         }
