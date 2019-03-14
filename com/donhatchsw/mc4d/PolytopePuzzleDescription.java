@@ -291,6 +291,7 @@
                 3v3 (gets different ArrayIndexOutOfBoundsException 0 just because it's 5 dimensional, but that's a different bug)
 
         FUTT:
+            - it's picking the wrong edge sometimes, in frucht, some of the 7-gon edges
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it allows "frucht 3(2.5)" because numbers of incidences match, but it shouldn't)
@@ -1871,14 +1872,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                         {
                                             if (maxOrder % maybeSymmetryOrder != 0) continue;
                                             CHECK(maybeSymmetryOrder >= 1);  // 1 has to succeed
-                                            System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" trying symmetry order "+maybeSymmetryOrder+"/"+maxOrder);
+                                            //System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" trying symmetry order "+maybeSymmetryOrder+"/"+maxOrder);
                                             if (getFrom2toFacetsForFutt(iGrip, /*dir=*/1, maybeSymmetryOrder) != null)
                                             {
-                                                System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" symmetry order "+maybeSymmetryOrder+"/"+maxOrder+" succeeded!");
+                                                //System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" symmetry order "+maybeSymmetryOrder+"/"+maxOrder+" succeeded!");
                                                 this.gripSymmetryOrdersFutted[iGrip] = maybeSymmetryOrder;
                                                 break;
                                             }
-                                            System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" symmetry order "+maybeSymmetryOrder+"/"+maxOrder+" failed");
+                                            //System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" symmetry order "+maybeSymmetryOrder+"/"+maxOrder+" failed");
                                         }
                                     }
 
@@ -2707,7 +2708,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // If this symmetry doesn't work out, returns null.
         private int[] getFrom2toFacetsForFutt(int gripIndex, int dir, int symmetryOrder)
         {
-            int futtVerboseLevel = 2;  // 0: nothing, 1: constant size, 2: big but compactly printed arrays, 3: gory detail
+            int futtVerboseLevel = 0;  // 0: nothing, 1: constant size, 2: big but compactly printed arrays, 3: gory detail
             if (futtVerboseLevel >= 1) System.out.println("            in getFrom2toFacetsForFutt");
             int nDims = this.nDims();
             int iFacet = grip2face[gripIndex];
@@ -2731,7 +2732,22 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     if (isEdgeFlipIn3d)
                     {
                         eltDim = 1;
-                        iFacetElt = 0;  // TODO: do it right!
+
+                        double bestDot = -1.;
+                        int bestFacetElt = -1;
+                        for (int iEdgeThisFace = 0; iEdgeThisFace < originalIncidences[nDims-1][iFacet][eltDim].length; ++iEdgeThisFace)
+                        {
+                            int iEdge = originalIncidences[nDims-1][iFacet][eltDim][iEdgeThisFace];
+                            CSG.Polytope edge = originalElements[eltDim][iEdge];
+                            double[] faceToEdge = VecMath.vmv(3, CSG.cgOfVerts(edge), VecMath.floatToDouble(facetCentersF[iFacet]));  // CBB: floatToDouble is not great.  but this is temporary code anyway, I think
+                            double thisDot = VecMath.dot(3, gripUsefulMats[gripIndex][1], faceToEdge);
+                            if (thisDot > bestDot)
+                            {
+                                bestDot = thisDot;
+                                bestFacetElt = iEdgeThisFace;
+                            }
+                        }
+                        iFacetElt = bestFacetElt;
                     }
                     else
                     {
@@ -2798,8 +2814,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         }
                     }
                 }  // initialized flagsOfInterest
-                if (futtVerboseLevel >= 2) System.out.println("          flagsOfInterest = "+com.donhatchsw.util.Arrays.toStringCompact(flagsOfInterest));
-                System.out.println("          flagsOfInterest.length = "+flagsOfInterest.length);
+                if (futtVerboseLevel >= 2) System.out.println("              flagsOfInterest = "+com.donhatchsw.util.Arrays.toStringCompact(flagsOfInterest));
+                if (futtVerboseLevel >= 1) System.out.println("              flagsOfInterest.length = "+flagsOfInterest.length);
 
                 int[/*nFlags*/][/*nDims*/] flagIndex2reflectedFlagIndex = VecMath.fillmat(flagsOfInterest.length, nDims, -1);
                 {
@@ -2827,7 +2843,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             }
                         }
                     }
-                    if (futtVerboseLevel >= 2) System.out.println("          flagIndex2reflectedFlagIndex = "+com.donhatchsw.util.Arrays.toStringCompact(flagIndex2reflectedFlagIndex));
+                    if (futtVerboseLevel >= 2) System.out.println("              flagIndex2reflectedFlagIndex = "+com.donhatchsw.util.Arrays.toStringCompact(flagIndex2reflectedFlagIndex));
                 }  // initialized flagIndex2reflectedFlagIndex
 
                 int[] from2toFlag = VecMath.fillvec(flagsOfInterest.length, -1);
@@ -2859,7 +2875,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                   null;
 
                         // First, see what the full local symmetry order actually is here.
-                        // I.e. how many double-reflections to get from seedFromFlagIndex back to itself?
+                        // I.e. how many double-(or whatever)-reflections to get from seedFromFlagIndex back to itself?
                         int fullSymmetryOrder = -1;
                         {
                             int flagIndex = seedFromFlagIndex;
@@ -2876,7 +2892,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 }
                             }
                         }
-                        System.out.println("          fullSymmetryOrder = "+fullSymmetryOrder);
+                        if (futtVerboseLevel >= 1) System.out.println("              fullSymmetryOrder = "+fullSymmetryOrder);
                         CHECK(fullSymmetryOrder != -1);
                         for (int iReflectionPair = 0; iReflectionPair < fullSymmetryOrder / symmetryOrder; ++iReflectionPair)
                         {
@@ -2889,8 +2905,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                     CHECK(seedFromFlagIndex != -1);
                     CHECK(seedToFlagIndex != -1);
-                    System.out.println("          seed from flag = "+VecMath.toString(flagsOfInterest[seedFromFlagIndex]));
-                    System.out.println("          seed to flag =   "+VecMath.toString(flagsOfInterest[seedToFlagIndex]));
+                    if (futtVerboseLevel >= 1) System.out.println("              seed from flag = "+VecMath.toString(flagsOfInterest[seedFromFlagIndex]));
+                    if (futtVerboseLevel >= 1) System.out.println("              seed to flag =   "+VecMath.toString(flagsOfInterest[seedToFlagIndex]));
 
                     int[] searched = VecMath.fillvec(flagsOfInterest.length, -1);
                     int nSearched = 0;
@@ -2908,7 +2924,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         {
                             int jFromFlag = flagIndex2reflectedFlagIndex[iFromFlag][iDim];
                             int jToFlag = flagIndex2reflectedFlagIndex[iToFlag][iDim];
-                            //CHECK((jFromFlag==-1) == (jToFlag==-1));  // TODO: actually this is almost certainly bogus; failure just means the matching failed
                             if ((jFromFlag==-1) != (jToFlag==-1))
                             {
                                 // fail.
@@ -2919,7 +2934,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             if (futtVerboseLevel >= 3) System.out.println("                      iDim="+iDim+": reflected to "+VecMath.toString(flagsOfInterest[jFromFlag])+" -> "+VecMath.toString(flagsOfInterest[jToFlag])+"");
                             if (from2toFlag[jFromFlag] == -1)
                             {
-                                //CHECK(to2fromFlag[jToFlag] == -1);  // TODO: actually this is almost certainly bogus; failure just means the matching failed
                                 if (to2fromFlag[jToFlag] != -1)
                                 {
                                     // fail.
@@ -3260,7 +3274,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int futtVerboseLevel = 1;  // set to something higher than 0 to debug futt stuff
+                int futtVerboseLevel = 0;  // set to something higher than 0 to debug futt stuff
                 // Whole lotta fudgin goin on.
                 // Each "corner region" of the puzzle
                 // gets a different actual transform; the verts
@@ -3392,7 +3406,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 }
                             }
                             int neighborIndexToFlip = bestIndex;
-                            if (futtVerboseLevel >= 1) System.out.println("      neighborIndexToFlip = "+neighborIndexToFlip+" (face "+neighborsThisFaceInOrder[neighborIndexToFlip]+")");
+                            if (futtVerboseLevel >= 1) System.out.println("      chose neighborIndexToFlip = "+neighborIndexToFlip+" (face "+neighborsThisFaceInOrder[neighborIndexToFlip]+")");
 
                             for (int fromCornerRegion = 0; fromCornerRegion < cutIntersectionCoords.length; ++fromCornerRegion)
                             {
@@ -3449,6 +3463,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                         if (false)  // set to true for debugging, to avoid morph altogether and just do the rotate
                         {
+                            System.out.println("SKIPPING MORPH AND JUST ROTATING");
                             for (int iVert = 0; iVert < vertsDForFutt.length; ++iVert)
                             {
                                 if (whichVertsGetMoved[iVert])
