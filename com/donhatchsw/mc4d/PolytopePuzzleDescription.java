@@ -2757,23 +2757,166 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     symmetryOrder = vertexValenceThisFacet;
                 }
                 if (futtVerboseLevel >= 1) System.out.println("              symmetryOrder = "+symmetryOrder);
-                // To get started, figure out three (or four, if we want to nail down sign initially) fromFacet,toFacet pairs.
-                // The first will always be iFacet,iFacet, since that's fixed.
-                // Case vertex:
-                //   find three neighbor facets, in ccw order around the vertex on the facet;
-                //   map the first to the second, and the second to the third.
-                // Case edge:
-                //   find the two neighbor facets at this edge.
-                //   map them to each other.  (this is only three, but in this case either choice of sign gives the same answer)
-                // Case 2face:
-                //   either:
-                //     - map the corresponding neighbor facet to itself,
-                //       and find two neighbor facets in ccw order around the 2face, map first to second
-                //   or:
-                //     - find three neighbor facets, in ccw order around the 2face on the facet;
-                //       map the first to the second, and the second to the third.
-                // Idea: would it be simpler to mix dims?  That is, specify that the facet and elt
-                // stay fixed, then need only one other corrrespondence?  (or two, if we don't want to have to think about the sign afterwards)
+                // To figure out facet mapping, we first figure out flag mapping.
+                // The flags of interest are all flags containing a vertex incident on this facet.
+                int[][] flagsOfInterest;
+                {
+                    flagsOfInterest = null;
+                    for (int iPass = 0; iPass < 2; ++iPass)  // first pass, just count
+                    {
+                        int nFlagsOfInterest = 0;
+                        for (int iVertThisFacet = 0; iVertThisFacet < originalIncidences[3][iFacet][0].length; ++iVertThisFacet) {
+                            int iVert = originalIncidences[3][iFacet][0][iVertThisFacet];
+                            for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iVert][1].length; ++iEdgeThisVert) {
+                                int iEdge = originalIncidences[0][iVert][1][iEdgeThisVert];
+                                for (int iFaceThisEdge = 0; iFaceThisEdge < originalIncidences[1][iEdge][2].length; ++iFaceThisEdge) {
+                                    int iFace = originalIncidences[1][iEdge][2][iFaceThisEdge];
+                                    for (int iCellThisFace = 0; iCellThisFace < originalIncidences[2][iFace][3].length; ++iCellThisFace) {
+                                        int iCell = originalIncidences[2][iFace][3][iCellThisFace];
+
+                                        if (iPass == 1) flagsOfInterest[nFlagsOfInterest] = new int[] {iVert, iEdge, iFace, iCell};
+                                        nFlagsOfInterest++;
+                                    }
+                                }
+                            }
+                        }
+                        if (iPass == 0)
+                        {
+                            flagsOfInterest = new int[nFlagsOfInterest][];
+                        }
+                        else
+                        {
+                            CHECK(nFlagsOfInterest == flagsOfInterest.length);
+                        }
+                    }
+                }  // initialized flagsOfInterest
+                if (futtVerboseLevel >= 2) System.out.println("          flagsOfInterest = "+com.donhatchsw.util.Arrays.toStringCompact(flagsOfInterest));
+                System.out.println("          flagsOfInterest.length = "+flagsOfInterest.length);
+
+                int[/*nFlags*/][/*nDims*/] flagIndex2reflectedFlagIndex = VecMath.fillmat(flagsOfInterest.length, nDims, -1);
+                {
+                    java.util.HashMap unmatchedPartialFlag2Index = new java.util.HashMap();  // CBB: set initial capacity
+                    for (int iFlag = 0; iFlag < flagsOfInterest.length; ++iFlag)
+                    {
+                        int[] key = new int[4];  // scratch for loop
+                        for (int iDim = 0; iDim < nDims; ++iDim)  // not including nDims
+                        {
+                            VecMath.copyvec(key, flagsOfInterest[iFlag]);
+                            key[iDim] = -1;
+                            String keyString = java.util.Arrays.toString(key);
+                            Integer neighbor = (Integer)unmatchedPartialFlag2Index.get(keyString);
+                            if (neighbor == null)
+                            {
+                                unmatchedPartialFlag2Index.put(keyString, iFlag);
+                            }
+                            else
+                            {
+                                CHECK(neighbor != iFlag);
+                                CHECK(flagIndex2reflectedFlagIndex[iFlag][iDim] == -1);
+                                CHECK(flagIndex2reflectedFlagIndex[neighbor][iDim] == -1);
+                                flagIndex2reflectedFlagIndex[iFlag][iDim] = neighbor;
+                                flagIndex2reflectedFlagIndex[neighbor][iDim] = iFlag;
+                            }
+                        }
+                    }
+                    if (futtVerboseLevel >= 2) System.out.println("          flagIndex2reflectedFlagIndex = "+VecMath.toString(flagIndex2reflectedFlagIndex));
+                }  // initialized flagIndex2reflectedFlagIndex
+
+                int[] from2toFlag = VecMath.fillvec(flagsOfInterest.length, -1);
+                int[] to2fromFlag = VecMath.fillvec(flagsOfInterest.length, -1);
+                {
+                    int seedFromFlagIndex = -1;
+                    int seedToFlagIndex = -1;
+                    {
+                        // fromSeedFlag will be any flag containing facet iFacet and the given elt, with the appropriate sign.
+                        // toSeedFlag will be formed by reflecting the flag in the other two element dimensions,
+                        // in some order (which matters!)
+                        for (int i = 0; i < flagsOfInterest.length; ++i)
+                        {
+                            int[] flag = flagsOfInterest[i];
+                            if (flag[eltDim] == iEltGlobal && flag[3] == iFacet)  // TODO: should be && determinant has correct sign
+                            {
+                                seedFromFlagIndex = i;
+                                break;
+                            }
+                        }
+                        CHECK(seedFromFlagIndex != -1);
+                        seedToFlagIndex = seedFromFlagIndex;  // for starters; we'll reflect it twice
+                        CHECK(eltDim==0 || eltDim==1 || eltDim==2);
+                        int[] reflectDirections = new int[] {(eltDim+1)%3, (eltDim+2)%3};  // TODO: these may be in wrong order
+                        for (int iReflectDirection = 0; iReflectDirection < reflectDirections.length; ++iReflectDirection)
+                        {
+                            int reflectDirection = reflectDirections[iReflectDirection];
+                            seedToFlagIndex = flagIndex2reflectedFlagIndex[seedToFlagIndex][reflectDirection];
+                        }
+                    }
+                    CHECK(seedFromFlagIndex != -1);
+                    CHECK(seedToFlagIndex != -1);
+                    System.out.println("          seed from flag = "+VecMath.toString(flagsOfInterest[seedFromFlagIndex]));
+                    System.out.println("          seed to flag =   "+VecMath.toString(flagsOfInterest[seedToFlagIndex]));
+
+                    int[] searched = VecMath.fillvec(flagsOfInterest.length, -1);
+                    int nSearched = 0;
+                    from2toFlag[seedFromFlagIndex] = seedToFlagIndex;
+                    to2fromFlag[seedToFlagIndex] = seedFromFlagIndex;
+                    searched[nSearched++] = seedFromFlagIndex;
+                    for (int iSearched = 0; iSearched < nSearched; ++iSearched)  // while growing
+                    {
+                        if (futtVerboseLevel >= 3) System.out.println("              top of loop");
+                        int iFromFlag = searched[iSearched];
+                        int iToFlag = from2toFlag[iFromFlag];
+                        if (futtVerboseLevel >= 3) System.out.println("                  searching at "+VecMath.toString(flagsOfInterest[iFromFlag])+" -> "+VecMath.toString(flagsOfInterest[iToFlag])+"");
+                        CHECK(to2fromFlag[iToFlag] == iFromFlag);
+                        for (int iDim = 0; iDim < nDims; ++iDim)  // not including nDims
+                        {
+                            int jFromFlag = flagIndex2reflectedFlagIndex[iFromFlag][iDim];
+                            int jToFlag = flagIndex2reflectedFlagIndex[iToFlag][iDim];
+                            CHECK((jFromFlag==-1) == (jToFlag==-1));  // TODO: actually this is almost certainly bogus; failure just means the matching failed
+                            if (jFromFlag == -1) continue;
+                            if (futtVerboseLevel >= 3) System.out.println("                      iDim="+iDim+": reflected to "+VecMath.toString(flagsOfInterest[jFromFlag])+" -> "+VecMath.toString(flagsOfInterest[jToFlag])+"");
+                            if (from2toFlag[jFromFlag] == -1)
+                            {
+                                CHECK(to2fromFlag[jToFlag] == -1);  // TODO: actually this is almost certainly bogus; failure just means the matching failed
+                                from2toFlag[jFromFlag] = jToFlag;
+                                to2fromFlag[jToFlag] = jFromFlag;
+                                searched[nSearched++] = jFromFlag;
+                            }
+                            else
+                            {
+                                if (from2toFlag[jFromFlag] != jToFlag)
+                                {
+                                    // fail.
+                                    if (futtVerboseLevel >= 1) System.out.println("            out getFrom2toFacetsForFutt, failed!");
+                                    return null;
+                                }
+                                CHECK(to2fromFlag[jToFlag] == jFromFlag);
+                            }
+                        }
+                    }
+                    CHECK(nSearched == searched.length);
+                    for (int i = 0; i < flagsOfInterest.length; ++i)
+                    {
+                        CHECK(from2toFlag[i] != -1);
+                        CHECK(to2fromFlag[i] != -1);
+                        CHECK(from2toFlag[to2fromFlag[i]] == i);
+                        CHECK(to2fromFlag[from2toFlag[i]] == i);
+                    }
+                }  // initialized from2toFlag and to2fromFlag
+                for (int i = 0; i < flagsOfInterest.length; ++i)
+                {
+                    int fromFacet = flagsOfInterest[i][3];
+                    int toFacet = flagsOfInterest[from2toFlag[i]][3];
+                    CHECK(from2toFacet[fromFacet] == fromFacet  // if it hasn't been moved yet
+                       || from2toFacet[fromFacet] == toFacet);  // if it has been moved yet
+                    from2toFacet[fromFacet] = toFacet;
+                }
+                // Make sure we got everything...
+                for (int i = 0; i < flagsOfInterest.length; ++i)
+                {
+                    int fromFacet = flagsOfInterest[i][3];
+                    int toFacet = flagsOfInterest[from2toFlag[i]][3];
+                    CHECK(from2toFacet[fromFacet] == toFacet);
+                }
             }
             else if (nDims == 3)
             {
