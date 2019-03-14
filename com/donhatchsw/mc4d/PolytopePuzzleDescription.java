@@ -825,53 +825,41 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         int[][][][] slicedIncidences = this.slicedPolytope.p.getAllIncidences();
 
-        if (nDims == 3)
+        int maxGonality = 0;
+        for (int iPoly = 0; iPoly < nPolys; ++iPoly)
         {
-            // In 3d, num sticker tris should be num tris in original.
-            int expectedNumStickerTris = 0; // and counting
-            for (int iPoly = 0; iPoly < nPolys; ++iPoly)
-            {
-                int gonality = originalIncidences[2][iPoly][0].length;
-                if (gonality == 3) expectedNumStickerTris++;
-            }
-            int nStickerTris = 0;
-            for (int iStickerPoly = 0; iStickerPoly < nStickerPolys; ++iStickerPoly)
-            {
-                int gonality = slicedIncidences[2][iStickerPoly][0].length;
-                if (gonality == 3) nStickerTris++;
-            }
-            if (progressWriter != null) progressWriter.println("            num sticker tris = "+nStickerTris+" "+(nStickerTris==expectedNumStickerTris?"==":"!=")+" "+expectedNumStickerTris+" = expected num sticker tris");
-            if (nStickerTris != expectedNumStickerTris)
-            {
-                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker tris is not as expected");
-                return false;
-            }
+            int gonality = originalIncidences[2][iPoly][0].length;
+            maxGonality = Math.max(maxGonality, gonality);
         }
-        if (nDims == 4)
-        {
-            // In 4d, what's the expected num sticker tris?
-            // Well, it's the num tris in original, plus, for each of those, 2*nCutsPerFacet more.
-            // I.e. each tri in original contributes 2*nCutsPerFacet+1 tris to sliced.
-            int expectedNumStickerTris = 0; // and counting
-            for (int iPoly = 0; iPoly < nPolys; ++iPoly)
-            {
-                int gonality = originalIncidences[2][iPoly][0].length;
-                if (gonality == 3) expectedNumStickerTris += (2*nCutsPerFacet+1);   // <-- this is the only difference from the 3d case.  maybe it generalizes?  hmm.
-            }
-            int nStickerTris = 0;
-            for (int iStickerPoly = 0; iStickerPoly < nStickerPolys; ++iStickerPoly)
-            {
-                int gonality = slicedIncidences[2][iStickerPoly][0].length;
-                if (gonality == 3) nStickerTris++;
-            }
-            if (progressWriter != null) progressWriter.println("            num sticker tris = "+nStickerTris+" "+(nStickerTris==expectedNumStickerTris?"==":"!=")+" "+expectedNumStickerTris+" = expected num sticker tris");
-            if (nStickerTris != expectedNumStickerTris)
-            {
-                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker tris is not as expected");
-                return false;
-            }
-        }
+        if (progressWriter != null) progressWriter.println("            maxGonality = "+maxGonality);
 
+        for (int p = 3; p <= maxGonality; ++p)
+        {
+            if (p == 4) continue;  // squares are special
+            // In 3d, num sticker p-gons should be num p-gons in original.
+            // In 4d, num sticker p-gons should be num p-gons in original, times 2*nCutsPerFacet+1.
+            // Not sure what the general formula is.  Whatever.
+            int expectedNumStickerPgons = 0; // and counting
+            for (int iPoly = 0; iPoly < nPolys; ++iPoly)
+            {
+                int gonality = originalIncidences[2][iPoly][0].length;
+                if (gonality == p) expectedNumStickerPgons += (nDims==3 ? 1 :
+                                                               nDims==4 ? 2*nCutsPerFacet+1 :
+                                                               -1000);  // not sure what it should be in general
+            }
+            int nStickerPgons = 0;
+            for (int iStickerPoly = 0; iStickerPoly < nStickerPolys; ++iStickerPoly)
+            {
+                int gonality = slicedIncidences[2][iStickerPoly][0].length;
+                if (gonality == p) nStickerPgons++;
+            }
+            if (progressWriter != null) progressWriter.println("            num sticker "+p+"-gons = "+nStickerPgons+" "+(nStickerPgons==expectedNumStickerPgons?"==":"!=")+" "+expectedNumStickerPgons+" = expected num sticker "+p+"-gons");
+            if (nStickerPgons != expectedNumStickerPgons)
+            {
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker "+p+"-gons is not as expected");
+                return false;
+            }
+        }
 
         // CBB: this actually kinda sucks because it prevents legitimate futting on things
         // whose topology is regular but whose geometry isn't; for example, "{3}v()"  (if that comes out stretched,
