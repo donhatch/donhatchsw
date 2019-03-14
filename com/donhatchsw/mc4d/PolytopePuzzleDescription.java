@@ -1825,6 +1825,18 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                             gripUsefulMats[iGrip][1],
                                             facetCentersD[iFacet]);
 
+                                this.grip2face[iGrip] = iFacet;
+                                if (elt.getAux() != null && elt.getAux() instanceof Integer)  // XXX it's null sometimes, in 3d, not sure why yet.  in this case we won't be able to look up the grip ... ? but it doesn't matter I don't think, originalFacetElt2grip is used only in 4d
+                                {
+                                   int iEltGlobal = (Integer)elt.getAux();  // what? we don't use this?  actually I think that's correct
+                                   CHECK(originalFacetElt2grip[iFacet][iDim][iElt] == -1);
+                                   originalFacetElt2grip[iFacet][iDim][iElt] = iGrip;
+                                   if (futtable)
+                                   {
+                                       grip2facetEltForFutt[iGrip] = new int[] {iDim, iElt};
+                                   }
+                                }
+
                                 this.gripDirsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][0]);
                                 this.gripOffsF[iGrip] = VecMath.doubleToFloat(gripUsefulMats[iGrip][1]);
                                 if (VecMath.normsqrd(this.gripOffsF[iGrip]) <= 1e-4*1e-4)
@@ -1855,21 +1867,18 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                                                            gripUsefulMats[iGrip]);
                                     if (this.futtable)
                                     {
-                                        if (nDims == 4)
+                                        for (int maybeSymmetryOrder = maxOrder; ; --maybeSymmetryOrder)
                                         {
-                                            // TODO: this isn't right yet-- actually need to analyze to figure it out
-                                            this.gripSymmetryOrdersFutted[iGrip] = maxOrder;
-                                        }
-                                        else if (nDims == 3)
-                                        {
-                                            CHECK(iDim == 2);
-                                            if (intLengths.length == 1 && intLengths[0] == 1) {  // no cuts
-                                              this.gripSymmetryOrdersFutted[iGrip] = 1;
-                                            } else if (isEdgeFlipIn3d) {
-                                              this.gripSymmetryOrdersFutted[iGrip] = 2;
-                                            } else {
-                                              this.gripSymmetryOrdersFutted[iGrip] = elt.facets.length;  // or originalFacets[iFacet].facets.length?  actually could take the gcd of the two
+                                            if (maxOrder % maybeSymmetryOrder != 0) continue;
+                                            CHECK(maybeSymmetryOrder >= 1);  // 1 has to succeed
+                                            System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" trying symmetry order "+maybeSymmetryOrder+"/"+maxOrder);
+                                            if (getFrom2toFacetsForFutt(iGrip, /*dir=*/1, maybeSymmetryOrder) != null)
+                                            {
+                                                System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" symmetry order "+maybeSymmetryOrder+"/"+maxOrder+" succeeded!");
+                                                this.gripSymmetryOrdersFutted[iGrip] = maybeSymmetryOrder;
+                                                break;
                                             }
+                                            System.out.println("iFacet="+iFacet+" iGrip="+iGrip+" symmetry order "+maybeSymmetryOrder+"/"+maxOrder+" failed");
                                         }
                                     }
 
@@ -1885,17 +1894,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 this.gripDirsF[iGrip] = VecMath.normalize(this.gripDirsF[iGrip]);
                                 if (this.gripSymmetryOrders[iGrip] != 0)
                                     this.gripOffsF[iGrip] = VecMath.normalize(this.gripOffsF[iGrip]);
-                                this.grip2face[iGrip] = iFacet;
-                                if (elt.getAux() != null && elt.getAux() instanceof Integer)  // XXX it's null sometimes, in 3d, not sure why yet.  in this case we won't be able to look up the grip ... ? but it doesn't matter I don't think, originalFacetElt2grip is used only in 4d
-                                {
-                                   int iEltGlobal = (Integer)elt.getAux();  // what? we don't use this?  actually I think that's correct
-                                   CHECK(originalFacetElt2grip[iFacet][iDim][iElt] == -1);
-                                   originalFacetElt2grip[iFacet][iDim][iElt] = iGrip;
-                                   if (futtable)
-                                   {
-                                       grip2facetEltForFutt[iGrip] = new int[] {iDim, iElt};
-                                   }
-                                }
+
 
                                 iGrip++;
                                 if (doTheOddFaceIn3dThing)
@@ -2629,6 +2628,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         }
 
+        // TODO: this is for 3d only; kill it when I get the generic stuff working
         // Returns pair [edgesThisFaceInOrder, neighborsThisFaceInOrder]
         private int[][] getFaceNeighborsInOrderForFutt(int iFacet)
         {
@@ -2703,9 +2703,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return new int[][] {edgesThisFaceInOrder, neighborsThisFaceInOrder};
         }  // getFaceNeighborsInOrderForFutt
 
-        private int[] getFrom2toFacetsForFutt(int gripIndex, int dir)
+        // Attempt to get it with the given symmetryOrder.
+        // If this symmetry doesn't work out, returns null.
+        private int[] getFrom2toFacetsForFutt(int gripIndex, int dir, int symmetryOrder)
         {
-            int futtVerboseLevel = 1;
+            int futtVerboseLevel = 3;
             if (futtVerboseLevel >= 1) System.out.println("            in getFrom2toFacetsForFutt");
             int nDims = this.nDims();
             int iFacet = grip2face[gripIndex];
@@ -2742,42 +2744,16 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     CHECK(false);
                 }
 
+                if (futtVerboseLevel >= 1) System.out.println("              gripIndex = "+gripIndex);
+                if (futtVerboseLevel >= 1) System.out.println("              dir = "+dir);
+                if (futtVerboseLevel >= 1) System.out.println("              symmetryOrder = "+symmetryOrder);
                 if (futtVerboseLevel >= 1) System.out.println("              iFacet = "+iFacet);
                 if (futtVerboseLevel >= 1) System.out.println("              eltDim = "+eltDim);
                 if (futtVerboseLevel >= 1) System.out.println("              iFacetElt = "+iFacetElt);
-                // TODO: can't just use element size, need to use chosen symmetry order depending on what succeeds
                 int iEltGlobal = originalIncidences[nDims-1][iFacet][eltDim][iFacetElt];
-                int symmetryOrder = eltDim==2 ? originalIncidences[eltDim][iEltGlobal][1].length :
-                                    eltDim==1 ? 2 :
-                                    eltDim==0 ? -1 : // we'll correct this below
-                                    -1;
-                if (eltDim == 0)
-                {
-                    // What's the valence of the vertex *in the facet* (rather than
-                    // in the whole polytope).
-                    // We could get this easily by querying facet.getAllIncidences(),
-                    // but we don't want to go accumulating those for every facet,
-                    // so do a more lightweight search.
-                    // Any of the following would work:
-                    // - [edge for edge incident on vertex if edge incident on facet]
-                    // - [edge for edge incident on facet if edge incident on vertex]
-                    // - [edge for edge incident on vertex if facet incident on edge]
-                    // - [edge for edge incident on facet if vertex incident on edge]
-                    // Ah, the latter is the least amount of searching.
-                    int vertexValenceThisFacet = 0;
-                    for (int iEdgeThisFacet = 0; iEdgeThisFacet < originalIncidences[3][iFacet][1].length; ++iEdgeThisFacet)
-                    {
-                        int iEdge = originalIncidences[3][iFacet][1][iEdgeThisFacet];
-                        CHECK(originalIncidences[1][iEdge][0].length == 2);
-                        if (originalIncidences[1][iEdge][0][0] == iEltGlobal
-                         || originalIncidences[1][iEdge][0][1] == iEltGlobal)
-                        {
-                            vertexValenceThisFacet++;
-                        }
-                    }
-                    symmetryOrder = vertexValenceThisFacet;
-                }
-                if (futtVerboseLevel >= 1) System.out.println("              symmetryOrder = "+symmetryOrder);
+                if (futtVerboseLevel >= 1) System.out.println("              iEltGlobal = "+iEltGlobal);
+
+
                 // To figure out facet mapping, we first figure out flag mapping.
                 // The flags of interest are all flags containing a vertex incident on this facet.
                 int[][] flagsOfInterest;
@@ -2876,11 +2852,36 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         CHECK(seedFromFlagIndex != -1);
                         seedToFlagIndex = seedFromFlagIndex;  // for starters; we'll reflect it twice
                         CHECK(eltDim==0 || eltDim==1 || eltDim==2);
-                        int[] reflectDirections = new int[] {(eltDim+1)%3, (eltDim+2)%3};  // may be in wrong order which will affect sign, who cares
-                        for (int iReflectDirection = 0; iReflectDirection < reflectDirections.length; ++iReflectDirection)
+                        int[] reflectDirections = nDims==3 ? new int[] {(eltDim+1)%2}
+                                                           : new int[] {(eltDim+1)%3, (eltDim+2)%3};  // may be in wrong order which will affect sign, who cares
+
+                        // First, see what the full local symmetry order actually is here.
+                        // I.e. how many double-reflections to get from seedFromFlagIndex back to itself?
+                        int fullSymmetryOrder = -1;
                         {
-                            int reflectDirection = reflectDirections[iReflectDirection];
-                            seedToFlagIndex = flagIndex2reflectedFlagIndex[seedToFlagIndex][reflectDirection];
+                            int flagIndex = seedFromFlagIndex;
+                            for (int i = 0; ; i++)
+                            {
+                                if (i != 0 && flagIndex == seedFromFlagIndex) {
+                                    fullSymmetryOrder = i;
+                                    break;
+                                }
+                                for (int iReflectDirection = 0; iReflectDirection < reflectDirections.length; ++iReflectDirection)
+                                {
+                                    int reflectDirection = reflectDirections[iReflectDirection];
+                                    flagIndex = flagIndex2reflectedFlagIndex[flagIndex][reflectDirection];
+                                }
+                            }
+                        }
+                        System.out.println("          fullSymmetryOrder = "+fullSymmetryOrder);
+                        CHECK(fullSymmetryOrder != -1);
+                        for (int iReflectionPair = 0; iReflectionPair < fullSymmetryOrder / symmetryOrder; ++iReflectionPair)
+                        {
+                            for (int iReflectDirection = 0; iReflectDirection < reflectDirections.length; ++iReflectDirection)
+                            {
+                                int reflectDirection = reflectDirections[iReflectDirection];
+                                seedToFlagIndex = flagIndex2reflectedFlagIndex[seedToFlagIndex][reflectDirection];
+                            }
                         }
                     }
                     CHECK(seedFromFlagIndex != -1);
@@ -2904,12 +2905,24 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         {
                             int jFromFlag = flagIndex2reflectedFlagIndex[iFromFlag][iDim];
                             int jToFlag = flagIndex2reflectedFlagIndex[iToFlag][iDim];
-                            CHECK((jFromFlag==-1) == (jToFlag==-1));  // TODO: actually this is almost certainly bogus; failure just means the matching failed
+                            //CHECK((jFromFlag==-1) == (jToFlag==-1));  // TODO: actually this is almost certainly bogus; failure just means the matching failed
+                            if ((jFromFlag==-1) != (jToFlag==-1))
+                            {
+                                // fail.
+                                if (futtVerboseLevel >= 1) System.out.println("            out getFrom2toFacetsForFutt, failed! (first case, (jFromFlag==-1) != (jToFlag==-1))");
+                                return null;
+                            }
                             if (jFromFlag == -1) continue;
                             if (futtVerboseLevel >= 3) System.out.println("                      iDim="+iDim+": reflected to "+VecMath.toString(flagsOfInterest[jFromFlag])+" -> "+VecMath.toString(flagsOfInterest[jToFlag])+"");
                             if (from2toFlag[jFromFlag] == -1)
                             {
-                                CHECK(to2fromFlag[jToFlag] == -1);  // TODO: actually this is almost certainly bogus; failure just means the matching failed
+                                //CHECK(to2fromFlag[jToFlag] == -1);  // TODO: actually this is almost certainly bogus; failure just means the matching failed
+                                if (to2fromFlag[jToFlag] != -1)
+                                {
+                                    // fail.
+                                    if (futtVerboseLevel >= 1) System.out.println("            out getFrom2toFacetsForFutt, failed! (second case, to2fromFlag[jToFlag] != -1)");
+                                    return null;
+                                }
                                 from2toFlag[jFromFlag] = jToFlag;
                                 to2fromFlag[jToFlag] = jFromFlag;
                                 searched[nSearched++] = jFromFlag;
@@ -2919,7 +2932,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 if (from2toFlag[jFromFlag] != jToFlag)
                                 {
                                     // fail.
-                                    if (futtVerboseLevel >= 1) System.out.println("            out getFrom2toFacetsForFutt, failed!");
+                                    if (futtVerboseLevel >= 1) System.out.println("            out getFrom2toFacetsForFutt, failed! (third case, from2toFlag[jFromFlag] != jToFlag)");
                                     return null;
                                 }
                                 CHECK(to2fromFlag[jToFlag] == jFromFlag);
@@ -3266,7 +3279,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 if (nDims == 4)
                 {
                     if (futtVerboseLevel >= 1) System.out.println("      (nDims==4 so not doing much yet)");
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir);
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
                     if (futtVerboseLevel >= 1) System.out.println("          from2toFacet = "+VecMath.toString(from2toFacet));
                 }
                 else if (nDims == 3)
@@ -3284,7 +3297,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
                     int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
                     int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir);
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
                     int[] from2toStickerCenters = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
 
                     double[][] fullInvMatD = getTwistMat(gripIndex, -dir, weWillFutt, 1.);  // -dir instead of dir, 1. instead of frac
@@ -3593,7 +3606,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int nDims = nDims();
                 if (nDims == 4)
                 {
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir);
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
                     int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
                     for (int iSticker = 0; iSticker < state.length; ++iSticker)
                     {
@@ -3602,7 +3615,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 else if (nDims == 3)
                 {
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir);
+                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
                     int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
                     for (int iSticker = 0; iSticker < state.length; ++iSticker)
                     {

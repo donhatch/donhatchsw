@@ -4257,7 +4257,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         String result = "<";
         FOR (i, n)
         {
-            result += v[i].toString();
+            result += v[i]==null ? "(null)" : v[i].toString();
             if (i < n-1)
                 result += ",";
         }
