@@ -3310,11 +3310,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
                     int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
 
-                    int gonality = originalIncidences[2][iFacet][1].length;
-
-                    int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
-                    int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
-                    int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
                     int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
                     int[] from2toStickerCenters = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
 
@@ -3325,6 +3320,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                     // populate outVerts
                     {
+                        int[][] edgesAndNeighborsThisFaceInOrder = getFaceNeighborsInOrderForFutt(iFacet);
+                        int[] edgesThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[0];
+                        int[] neighborsThisFaceInOrder = edgesAndNeighborsThisFaceInOrder[1];
+
+                        int gonality = originalIncidences[2][iFacet][1].length;
                         double[][][][][] cutIntersectionCoords = new double[gonality][/*nCutsThisFace+1*/][/*nCutsPrevNeighborFace+1*/][/*nCutsNextNeighborFace+1*/][];
                         for (int iCornerRegion = 0; iCornerRegion < gonality; ++iCornerRegion)
                         {
@@ -3499,24 +3499,31 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                     VecMath.copyvec(outVerts[iVert], vertsF[iVert]);
                             }
                         }
-                    }
+                    }  // populated outVerts
 
                     // Populate outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
                     {
                         // I think the only entries we need to change in outPerStickerFaceCenters are the ones that contribute to the stickers that are moving.
                         // The others wouldn't necessarily make any sense anyway.
+                        // However, a sticker can be moving *without* its facet moving to a different facet, so from2toFacet[fromFacet]==fromFacet is *not* a valid criterion for skipping.
                         int nFacets = originalElements[nDims-1].length;
                         float[][] rotatedMorphedFaceCenters = new float[nFacets][/*nDisplayDims=*/4];
-                        for (int i = 0; i < gonality; ++i)
                         {
-                            float[] fromF = facetCentersF[neighborsThisFaceInOrder[i]];
-                            float[] toF = facetCentersF[from2toFacet[neighborsThisFaceInOrder[i]]];
+                            for (int fromFacet = 0; fromFacet < from2toFacet.length; ++fromFacet)
+                            {
+                                int toFacet = from2toFacet[fromFacet];
+                                //if (toFacet == fromFacet) continue; // NOT a valid criterion, see above.
 
-                            float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
-                            float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
-                            VecMath.vxm(rotatedMorphedFaceCenters[neighborsThisFaceInOrder[i]], morphedFrom, matF);
+                                float[] fromF = facetCentersF[fromFacet];
+                                float[] toF = facetCentersF[toFacet];
+
+                                float[] toFinFromSpace = VecMath.vxm(toF, fullInvMatF);
+                                float[] morphedFrom = VecMath.lerp(fromF, toFinFromSpace, frac);
+
+                                VecMath.vxm(rotatedMorphedFaceCenters[fromFacet], morphedFrom, matF);
+                            }
+                            VecMath.vxm(rotatedMorphedFaceCenters[iFacet], facetCentersF[iFacet], matF);
                         }
-                        VecMath.vxm(rotatedMorphedFaceCenters[iFacet], facetCentersF[iFacet], matF);
 
                         for (int iSticker = 0; iSticker < stickerCentersD.length; ++iSticker)
                         {
@@ -3545,7 +3552,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                 VecMath.copyvec(outPerStickerFaceCenters[iSticker], rotatedMorphedFaceCenters[sticker2face[iSticker]]);
                             }
                         }
-                    }
+                    }  // populated outStickerCenters, outStickerShrinkToPointsOnFaceBoundaries, and outPerStickerFaceCenters.
                 }  // nDims==3
 
                 if (futtVerboseLevel >= 1) System.out.println("  WHOLE LOTTA FUTTIN WENT ON");
