@@ -293,12 +293,11 @@
         FUTT:
             - it's picking the wrong edge sometimes, in frucht, some of the 7-gon edges
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
-            - current limited implementation:
-              - make decideWhetherFuttable more reliable (it allows "frucht 3(2.5)" because numbers of incidences match, but it shouldn't)
-              - in decideWhetherFuttable, implement the sticker count condition in 4d analogous to the one in 3d
+            - make decideWhetherFuttable more reliable (it allows "frucht 3(2.5)" because numbers of incidences match, but it shouldn't)
+            - decideWhetherFuttable decides topological regulars aren't futtable... but it really should only do that if it's *geometrically* regular.  or maybe don't do that check at all (but would have to get futt working properly with arbitrary slicemask first)
             - make more general implementation:
               - support other than trivalent
-              - allow slicesmask to express more layers than just first wave
+              - allow slicesmask to express more layers than just first wave  (maybe just make sure exotic slicemask disables futting?  think about it)
               - do the right thing when waves interact
               - do the right thing for length=2 in various cases (cube, triprism, ...)
               - interact properly with heterogeneous intLengths
@@ -732,13 +731,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         }
 
-        int nCutsPerFace = (intLength-1)/2;
+        int nCutsPerFacet = (intLength-1)/2;
 
         CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
         int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
         int nVerts = originalElements[0].length;
-        int nFacets = originalElements[2].length;
         int nEdges = originalElements[1].length;
+        int nPolys = originalElements[2].length;
+        int nFacets = originalElements[nDims-1].length;
 
         if (true)
         {
@@ -768,8 +768,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         if (true)
         {
             int expectedNumStickers = 0;  // and counting
-            for (int iDim = 0; iDim <= nDims-1; ++iDim) {
-                int contributionPerElement = intpow(nCutsPerFace, nDims-1 - iDim) * (nDims-iDim);
+            for (int iDim = 0; iDim <= nDims-1; ++iDim)
+            {
+                int contributionPerElement = intpow(nCutsPerFacet, nDims-1 - iDim) * (nDims-iDim);
                 expectedNumStickers += originalElements[iDim].length * contributionPerElement;
             }
             if (progressWriter != null) progressWriter.println("            num stickers = "+nStickers+" "+(nStickers==expectedNumStickers?"==":"!=")+" "+expectedNumStickers+" = expected num stickers");
@@ -779,12 +780,21 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 return false;
             }
         }
-        if (nDims == 3)  // TODO: find analogous condition for nDims==4
+        if (true)
         {
+            // Recall this is counting sticker verts *before* separation.
+            // E.g. each original vertex contributes only one sticker vert.
+            // If I was smart, I'd do this using inclusion-exclusion.
             int expectedNumStickerVerts = 0;  // and counting
-            expectedNumStickerVerts += nVerts;
-            expectedNumStickerVerts += nEdges * (2 * nCutsPerFace);
-            expectedNumStickerVerts += nEdges * 2 * nCutsPerFace*nCutsPerFace;
+            for (int iDim = 0; iDim <= nDims-1; ++iDim)
+            {
+                int contributionPerElementVertex = intpow(nCutsPerFacet, iDim);
+                for (int iElt = 0; iElt < originalIncidences[iDim].length; ++iElt)
+                {
+                    int nVertsThisElt = originalIncidences[iDim][iElt][0].length;
+                    expectedNumStickerVerts += nVertsThisElt * contributionPerElementVertex;
+                }
+            }
             if (progressWriter != null) progressWriter.println("            num sticker verts = "+nStickerVerts+" "+(nStickerVerts==expectedNumStickerVerts?"==":"!=")+" "+expectedNumStickerVerts+" = expected num sticker verts");
             if (nStickerVerts != expectedNumStickerVerts)
             {
@@ -795,8 +805,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         // CBB: this actually kinda sucks because it prevents legitimate futting on things
         // whose topology is regular but whose geometry isn't; for example, "{3}v()"  (if that comes out stretched,
-        // which it does at the time of this writing).
-        // TODO: I think, when I get edge futting working, just remove this check so that topological regulars will be futtable too
+        // which it does at the time of this writing) (but not at the time of *this* writing).
+        // TODO: I think, when I get edge futting working, just remove this check so that topological regulars will be futtable too.  Actually first need to think about whether futtable loses other stuff... e.g. it reduces number of things you can do with slicemask.  Maybe just make exotic slicemask disable futtability for that move?
         if (true)  // can set this to false if I want to debug futt behavior on, say, a cube.
         {
             // If original polytope is regular, then don't *need* to futt.
