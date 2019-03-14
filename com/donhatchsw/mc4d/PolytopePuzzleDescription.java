@@ -2917,6 +2917,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     int toFacet = flagsOfInterest[from2toFlag[i]][3];
                     CHECK(from2toFacet[fromFacet] == toFacet);
                 }
+
             }
             else if (nDims == 3)
             {
@@ -2960,6 +2961,53 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     }
                 }
             }
+
+            // Rather than try to fix any of the logic above that was not even
+            // trying to choose the correct sign, we choose it now.
+            // We came up with a permutation that is rotating facets around the axis;
+            // if it's in the wrong direction, just reverse the permutation.
+            if (true)
+            {
+                CHECK(VecMath.det(this.gripUsefulMats[gripIndex]) > 0.);
+
+                int fromFacet = -1;
+                int toFacet = -1;
+                for (int i = 0; i < from2toFacet.length; ++i)
+                {
+                    if (from2toFacet[i] != i)
+                    {
+                        fromFacet = i;
+                        toFacet = from2toFacet[i];
+                        break;
+                    }
+                }
+                if (fromFacet != -1  // something moved
+                 && from2toFacet[toFacet] != fromFacet)  // and it's not a 180 degree rotation  (in which case inverting the permutation would be a no-op)
+                {
+                    double[][] m = {
+                        this.gripUsefulMats[gripIndex][0],
+                        this.gripUsefulMats[gripIndex][1],
+                        CSG.cgOfVerts(originalElements[nDims-1][fromFacet]),
+                        CSG.cgOfVerts(originalElements[nDims-1][toFacet]),
+                    };
+                    if (nDims == 3)
+                    {
+                        CHECK(m[2].length == 3);
+                        CHECK(m[3].length == 3);
+                        m[2] = com.donhatchsw.util.Arrays.append(m[2], 0.);
+                        m[3] = com.donhatchsw.util.Arrays.append(m[3], 0.);
+                    }
+
+                    System.out.println("              m = "+VecMath.toString(m));
+                    double det = VecMath.det(m);
+                    System.out.println("              det = "+det);
+                    if (det*dir < 0.)
+                    {
+                        from2toFacet = VecMath.invertperm(from2toFacet);
+                    }
+                }
+            }
+
             if (futtVerboseLevel >= 1) System.out.println("            out getFrom2toFacetsForFutt, returning "+VecMath.toString(from2toFacet));
             return from2toFacet;
         }  // getFrom2toFacetsForFutt
