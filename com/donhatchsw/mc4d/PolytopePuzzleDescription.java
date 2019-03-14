@@ -295,6 +295,7 @@
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
             - current limited implementation:
               - make decideWhetherFuttable more reliable (it allows "frucht 3(2.5)" because numbers of incidences match, but it shouldn't)
+              - in decideWhetherFuttable, implement the sticker count condition in 4d analogous to the one in 3d
             - make more general implementation:
               - support other than trivalent
               - allow slicesmask to express more layers than just first wave
@@ -693,14 +694,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         if (forceFuttableXXX)
         {
-            if (progressWriter != null) progressWriter.println("        deciding futtable because override");
+            if (progressWriter != null) progressWriter.println("        deciding it's futtable because override");
             return true;
         }
 
         int nDims = this.originalPolytope.p.dim;
-        if (nDims != 3)
+        if (nDims != 3 && nDims != 4)
         {
-            if (progressWriter != null) progressWriter.println("        deciding not futtable because nDims="+nDims+" is not 3");
+            if (progressWriter != null) progressWriter.println("        deciding it's not futtable because nDims="+nDims+" is not 3 or 4");
             return false;
         }
 
@@ -709,7 +710,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         for (int i = 0; i < intLengths.length; ++i) {
             if (intLengths[i] != intLength)
             {
-                if (progressWriter != null) progressWriter.println("        deciding not futtable because intLengths are not all the same");
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because intLengths are not all the same");
                 return false;
             }
         }
@@ -719,14 +720,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             // If intLength<3, we can't handle it.
             if (intLength < 3)
             {
-                if (progressWriter != null) progressWriter.println("        deciding not futtable because intLength="+intLength+" < 3");
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because intLength="+intLength+" < 3");
                 return false;
             }
 
             // If intLength isn't odd, we can't handle it.
             if (intLength % 2 == 0)
             {
-                if (progressWriter != null) progressWriter.println("        deciding not futtable because intLength="+intLength+" isn't odd");
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because intLength="+intLength+" isn't odd");
                 return false;
             }
         }
@@ -746,7 +747,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iVert = 0; iVert < nVerts; ++iVert) {
                 if (originalIncidences[0][iVert][1].length != nDims)
                 {
-                    if (progressWriter != null) progressWriter.println("        deciding not futtable because at least one vertex figure is not a simplex");
+                    if (progressWriter != null) progressWriter.println("        deciding it's not futtable because at least one vertex figure is not a simplex");
                     return false;
                 }
             }
@@ -762,7 +763,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         int nStickerVerts = stickerElementCounts[0];
         int nStickerEdges = stickerElementCounts[1];
         int nStickers = stickerElementCounts[nDims-1];
-        CHECK(nStickerVerts + nStickers == nStickerEdges + 2);  // Euler's formula
+        if (nDims==3) CHECK(nStickerVerts + nStickers == nStickerEdges + 2);  // Euler's formula
         if (progressWriter != null) progressWriter.println("            sticker element counts = "+VecMath.toString(stickerElementCounts));
         if (true)
         {
@@ -774,11 +775,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (progressWriter != null) progressWriter.println("            num stickers = "+nStickers+" "+(nStickers==expectedNumStickers?"==":"!=")+" "+expectedNumStickers+" = expected num stickers");
             if (nStickers != expectedNumStickers)
             {
-                if (progressWriter != null) progressWriter.println("        deciding not futtable because num stickers is not as expected");
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num stickers is not as expected");
                 return false;
             }
         }
-        if (true)
+        if (nDims == 3)  // TODO: find analogous condition for nDims==4
         {
             int expectedNumStickerVerts = 0;  // and counting
             expectedNumStickerVerts += nVerts;
@@ -787,7 +788,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (progressWriter != null) progressWriter.println("            num sticker verts = "+nStickerVerts+" "+(nStickerVerts==expectedNumStickerVerts?"==":"!=")+" "+expectedNumStickerVerts+" = expected num sticker verts");
             if (nStickerVerts != expectedNumStickerVerts)
             {
-                if (progressWriter != null) progressWriter.println("        deciding not futtable because num sticker verts is not as expected");
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because num sticker verts is not as expected");
                 return false;
             }
         }
@@ -819,13 +820,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (progressWriter != null) progressWriter.println("            topologyIsRegular = "+topologyIsRegular);
             if (topologyIsRegular)
             {
-                if (progressWriter != null) progressWriter.println("        deciding not futtable because topology is regular");
+                if (progressWriter != null) progressWriter.println("        deciding it's not futtable because topology is regular");
                 return false;  // don't need to futt, so declare it non-futtable
             }
         }
 
         // XXX TODO: still no good!  we need to declare "frucht 3(2.5)" non-futtable, but haven't figured out how to detect that yet, since incidence counts are masquerading as the futtable case!  Well at least it rejects "fruct 3".
-        if (progressWriter != null) progressWriter.println("        deciding futtable!");
+        if (progressWriter != null) progressWriter.println("        deciding it's futtable!");
 
         return true;
     }  // decideWhetherFuttable
