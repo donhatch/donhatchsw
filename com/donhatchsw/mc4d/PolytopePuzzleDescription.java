@@ -2707,7 +2707,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // If this symmetry doesn't work out, returns null.
         private int[] getFrom2toFacetsForFutt(int gripIndex, int dir, int symmetryOrder)
         {
-            int futtVerboseLevel = 3;
+            int futtVerboseLevel = 2;  // 0: nothing, 1: constant size, 2: big but compactly printed arrays, 3: gory detail
             if (futtVerboseLevel >= 1) System.out.println("            in getFrom2toFacetsForFutt");
             int nDims = this.nDims();
             int iFacet = grip2face[gripIndex];
@@ -2827,7 +2827,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             }
                         }
                     }
-                    if (futtVerboseLevel >= 2) System.out.println("          flagIndex2reflectedFlagIndex = "+VecMath.toString(flagIndex2reflectedFlagIndex));
+                    if (futtVerboseLevel >= 2) System.out.println("          flagIndex2reflectedFlagIndex = "+com.donhatchsw.util.Arrays.toStringCompact(flagIndex2reflectedFlagIndex));
                 }  // initialized flagIndex2reflectedFlagIndex
 
                 int[] from2toFlag = VecMath.fillvec(flagsOfInterest.length, -1);
@@ -2852,7 +2852,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         CHECK(seedFromFlagIndex != -1);
                         seedToFlagIndex = seedFromFlagIndex;  // for starters; we'll reflect it twice
                         CHECK(eltDim==0 || eltDim==1 || eltDim==2);
-                        int[] reflectDirections = nDims==3 ? new int[] {(eltDim+1)%2}
+                        int[] reflectDirections = nDims==3 ? (eltDim==0 ? new int[] {1} :
+                                                              eltDim==1 ? new int[] {0} :
+                                                              eltDim==2 ?  new int[] {0, 1} : null)
                                                            : new int[] {(eltDim+1)%3, (eltDim+2)%3};  // may be in wrong order which will affect sign, who cares
 
                         // First, see what the full local symmetry order actually is here.
@@ -3603,24 +3605,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
             if (weWillFutt)
             {
-                int nDims = nDims();
-                if (nDims == 4)
+                int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
+                int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
+                for (int iSticker = 0; iSticker < state.length; ++iSticker)
                 {
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
-                    int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
-                    for (int iSticker = 0; iSticker < state.length; ++iSticker)
-                    {
-                        newState[from2toStickers[iSticker]] = state[iSticker];
-                    }
-                }
-                else if (nDims == 3)
-                {
-                    int[] from2toFacet = getFrom2toFacetsForFutt(gripIndex, dir, this.gripSymmetryOrdersFutted[gripIndex]);
-                    int[] from2toStickers = getFrom2toStickersForFutt(gripIndex, dir, slicemask, from2toFacet);
-                    for (int iSticker = 0; iSticker < state.length; ++iSticker)
-                    {
-                        newState[from2toStickers[iSticker]] = state[iSticker];
-                    }
+                    newState[from2toStickers[iSticker]] = state[iSticker];
                 }
             }
             else
