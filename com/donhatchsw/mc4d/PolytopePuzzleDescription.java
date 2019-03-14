@@ -2608,102 +2608,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
         } // computeVertsAndShrinkToPointsAtRest
 
-        // sort an even-length array so that pairs[0]<=pairs[2]<=...pairs[n-2].
-        private void quickDirtySortInPairs(int[] pairs) {
-            //System.out.println("  old: pairs="+VecMath.toString(pairs));
-            for (int i = 0; i <= pairs.length-4; i += 2) {
-                // indices <i are now correct.
-                // move the smallest remaining pair into position i.
-                for (int j = pairs.length-4; j >= i; j -= 2) {
-                    if (pairs[j] > pairs[j+2]) {
-                        com.donhatchsw.util.Arrays.swap(pairs, j, pairs, j+2);
-                        com.donhatchsw.util.Arrays.swap(pairs, j+1, pairs, j+3);
-                    }
-                }
-                // indices <=i are now correct
-            }
-            //System.out.println("  new: pairs="+VecMath.toString(pairs));
-            for (int i = 0; i+2 < pairs.length; i += 2) {
-                //System.out.println("    i="+i+": comparing "+pairs[i]+" with "+pairs[i+2]);
-                CHECK(pairs[i] <= pairs[i+2]);
-            }
-        }
-
-        // TODO: this is for 3d only; kill it when I get the generic stuff working
-        // Returns pair [edgesThisFaceInOrder, neighborsThisFaceInOrder]
-        private int[][] getFaceNeighborsInOrderForFutt(int iFacet)
-        {
-            int verboseLevel = 0;  // set to something higher than 0 to debug futt stuff
-            CSG.Polytope[][] originalElements = originalPolytope.p.getAllElements();
-            int[][][][] originalIncidences = originalPolytope.p.getAllIncidences();
-            int gonality = originalIncidences[2][iFacet][1].length;
-
-            boolean[] edgeIsIncidentOnThisFace = new boolean[originalElements[1].length];  // false initially
-            for (int iEdgeThisFace = 0; iEdgeThisFace < originalIncidences[2][iFacet][1].length; ++iEdgeThisFace)
-            {
-                int iEdge = originalIncidences[2][iFacet][1][iEdgeThisFace];
-                edgeIsIncidentOnThisFace[iEdge] = true;
-            }
-
-            int[] vertsThisFaceInOrder = new int[gonality];
-            int[] edgesThisFaceInOrder = new int[gonality];
-            int iFirstEdge = originalIncidences[2][iFacet][1][0];
-            int iFirstVert = originalIncidences[1][iFirstEdge][0][0];
-            // We want to go ccw around the face,
-            // so first vertex should be before first edge
-            // in ccw order.
-            // That is, det(facetcenter, edgecenter, vertcenter) should be <0.
-            double det = VecMath.det(new double[/*3*/][/*3*/] {
-              CSG.cgOfVerts(originalElements[2][iFacet]),
-              CSG.cgOfVerts(originalElements[1][iFirstEdge]),
-              CSG.cgOfVerts(originalElements[0][iFirstVert]),
-            });
-            if (verboseLevel >= 1) System.out.println("      det = "+det);
-            if (det > 0)
-            {
-                iFirstVert = originalIncidences[1][iFirstEdge][0][1];  // the other one
-            }
-            vertsThisFaceInOrder[0] = iFirstVert;
-            edgesThisFaceInOrder[0] = iFirstEdge;
-            for (int i = 1; i < gonality; ++i) {  // skipping 0
-                // this vert is other vert on prev edge
-                int iPrevVert = vertsThisFaceInOrder[i-1];
-                int iPrevEdge = edgesThisFaceInOrder[i-1];
-                int iThisVert = originalIncidences[1][iPrevEdge][0][0];  // or the other one
-                if (iThisVert == iPrevVert) iThisVert = originalIncidences[1][iPrevEdge][0][1];
-                vertsThisFaceInOrder[i] = iThisVert;
-
-                // this edge is the other edge incident on this vert
-                // that's incident on this face.
-                int iThisEdge = -1;
-                for (int iEdgeThisVert = 0; iEdgeThisVert < originalIncidences[0][iThisVert][1].length; ++iEdgeThisVert)
-                {
-                    int iEdge = originalIncidences[0][iThisVert][1][iEdgeThisVert];
-                    if (iEdge != iPrevEdge && edgeIsIncidentOnThisFace[iEdge])
-                    {
-                        // found it!
-                        CHECK(iThisEdge == -1);
-                        iThisEdge = iEdge;
-                        break;
-                    }
-                }
-                CHECK(iThisEdge != -1);
-                edgesThisFaceInOrder[i] = iThisEdge;
-            }
-            int[] neighborsThisFaceInOrder = new int[gonality];
-            for (int i = 0; i < gonality; ++i) {
-                // this neighbor face is the other face
-                // incident on this edge.
-                int iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][0];  // or the other one
-                if (iThisNeighborFace == iFacet) iThisNeighborFace = originalIncidences[1][edgesThisFaceInOrder[i]][2][1];
-                neighborsThisFaceInOrder[i] = iThisNeighborFace;
-            }
-            if (verboseLevel >= 1) System.out.println("          vertsThisFaceInOrder = "+VecMath.toString(vertsThisFaceInOrder));
-            if (verboseLevel >= 1) System.out.println("          edgesThisFaceInOrder = "+VecMath.toString(edgesThisFaceInOrder));
-            if (verboseLevel >= 1) System.out.println("          neighborsThisFaceInOrder = "+VecMath.toString(neighborsThisFaceInOrder));
-            return new int[][] {edgesThisFaceInOrder, neighborsThisFaceInOrder};
-        }  // getFaceNeighborsInOrderForFutt
-
         // Attempt to get it with the given symmetryOrder.
         // If this symmetry doesn't work out, returns null.
         private int[] getFrom2toFacetsForFutt(int gripIndex, int dir, int symmetryOrder)
@@ -3180,19 +3084,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             if (verboseLevel >= 1) System.out.println("        out getFrom2toStickersForFutt");
             return from2toStickerCenters;
         }  // getFrom2toStickersForFutt
-
-        // TODO: implement or kill
-        private int[] getFrom2toVertsForFutt(int gripIndex,
-                                             int dir,
-                                             int slicemask,
-                                             int[] from2toFacet,
-                                             int[] from2toSticker)
-        {
-            CHECK(false);
-            return null;
-        }  // getFrom2toVertsForFutt
-
-
 
         public void
             computeVertsAndShrinkToPointsPartiallyTwisted(
