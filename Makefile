@@ -161,6 +161,7 @@ donhatchsw.jar: \
     com/donhatchsw/util/LinearProgramming.class \
     com/donhatchsw/compat/regex.class \
     com/donhatchsw/compat/Format.class \
+    com/donhatchsw/util/SpecializedHashMap.class \
     com/donhatchsw/util/Minimizer.class \
     com/donhatchsw/util/FuzzyPointHashTable.class \
     com/donhatchsw/util/FuzzyPointHashSet.class \

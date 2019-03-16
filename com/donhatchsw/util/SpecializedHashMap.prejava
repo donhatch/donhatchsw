@@ -1,0 +1,177 @@
+/* vim: set filetype=java: */
+/*
+* Copyright (c) 2019 Don Hatch Software
+*/
+
+package com.donhatchsw.util;
+
+#include "macros.h"
+
+/**
+*  HashMap with custom equals and hashCode.
+*  Screwy that every get() and put() have an extra memory allocation :-(
+*/
+public class SpecializedHashMap
+{
+    public interface Equals {
+        boolean equals(Object a, Object b);
+    };
+    public interface HashCode {
+        int hashCode(Object object);
+    };
+    SpecializedHashMap(Equals equals, HashCode hashCode)
+    {
+        this.equals = equals;
+        this.hashCode = hashCode;
+        this.hashMap = new java.util.HashMap();  // CBB: allow specifying initial capacity
+    };
+
+    private Equals equals;
+    private HashCode hashCode;
+    private java.util.HashMap hashMap;  // has-a, not is-a, to prevent mistakes
+
+    private class KeyWrapper {  // not static!  so it has access to our equals and hashCode
+        private Object key;
+        public KeyWrapper(Object key)
+        {
+            this.key = key;
+        }
+        public boolean equals(Object that)
+        {
+            return equals.equals(this.key, ((KeyWrapper)that).key);
+        }
+        public int hashCode()
+        {
+            return hashCode.hashCode(this.key);
+        }
+    };  // KeyWrapper
+
+    // Use a scratch KeyWrapper to avoid any allocations
+    // for operations other than put().
+    private KeyWrapper scratchKeyWrapper = new KeyWrapper(null);
+
+    /**
+    * Returns the value to which the specified key is mapped,
+    * or null if there is none.
+    **/
+    public Object get(Object key)
+    {
+        scratchKeyWrapper.key = key;
+        return this.hashMap.get(scratchKeyWrapper);
+    }
+
+    /**
+    * Puts the value into the table with given key (assumed immutable),
+    * returning the previous value (or null if there was none)
+    */
+    public Object put(Object key,
+                      Object value)
+    {
+        // Note that we can't use scratchKeyWrapper for this.
+        return this.hashMap.put(new KeyWrapper(key), value);
+    }
+
+    /**
+    * Removes the mapping for the specified key from this map if present.
+    */
+    public Object remove(Object key)
+    {
+        scratchKeyWrapper.key = key;
+        return this.hashMap.remove(scratchKeyWrapper);
+    }
+
+    /** Returns true if this map contains a mapping for the specified key. */
+    public boolean containsKey(Object key)
+    {
+        scratchKeyWrapper.key = key;
+        return this.hashMap.containsKey(scratchKeyWrapper);
+    }
+
+    /** Returns true if this map maps one or more keys to the specific value. */
+    public boolean containsValue(Object value)
+    {
+        return this.hashMap.containsValue(value);
+    }
+
+
+    /**
+    * Little test program.
+    */
+    public static void main(String args[])
+    {
+        System.out.println("in SpecializedHashMap main");
+        SpecializedHashMap map = new SpecializedHashMap(
+            new SpecializedHashMap.Equals() {
+                public boolean equals(Object a, Object b)
+                {
+                    return java.util.Arrays.equals((int[])a, (int[])b);
+                }
+            },
+            new SpecializedHashMap.HashCode() {
+                public int hashCode(Object object)
+                {
+                    return java.util.Arrays.hashCode((int[])object);
+                }
+            }
+        );
+
+        int[] a = {};
+        int[] b = {0};
+        int[] c = {1};
+        int[] d = {0,1};
+        int[] e = {1,0};
+
+        CHECK(map.get(a) == null);
+        map.put(a, "A");
+        CHECK(map.get(a).equals("A"));
+        CHECK(!map.get(a).equals("B"));
+        CHECK(map.get(b) == null);
+        map.put(b, "B");
+        map.put(c, "C");
+        map.put(d, "D");
+        map.put(e, "E");
+        CHECK(map.get(a).equals("A"));
+        CHECK(map.get(b).equals("B"));
+        CHECK(map.get(c).equals("C"));
+        CHECK(map.get(d).equals("D"));
+        CHECK(map.get(e).equals("E"));
+        map.remove(c);
+        CHECK(map.get(a).equals("A"));
+        CHECK(map.get(b).equals("B"));
+        CHECK(map.get(c) == null);
+        CHECK(map.get(d).equals("D"));
+        CHECK(map.get(e).equals("E"));
+
+        CHECK(map.get(null) == null);
+        map.remove(null);
+        CHECK(map.get(null) == null);
+        map.put(null, "NULL");
+        CHECK(map.get(null).equals("NULL"));
+
+        // Note that, just as for a regular hashMap,
+        // put(key,null) is not quite the same as remove(key),
+        // as can be detected using containsKey().
+        CHECK(map.containsKey(d));
+        CHECK(map.containsKey(e));
+        CHECK(!map.containsValue(null));
+        map.put(e, null);
+        CHECK(map.containsKey(d));
+        CHECK(map.containsKey(e));
+        CHECK(map.containsValue(null));
+        map.put(d, null);
+        CHECK(map.containsKey(d));
+        CHECK(map.containsKey(e));
+        CHECK(map.containsValue(null));
+        map.remove(e);
+        CHECK(map.containsKey(d));
+        CHECK(!map.containsKey(e));
+        CHECK(map.containsValue(null));
+        map.remove(d);
+        CHECK(!map.containsKey(d));
+        CHECK(!map.containsKey(e));
+        CHECK(!map.containsValue(null));
+
+        System.out.println("out SpecializedHashMap main");
+    }
+
+}  // class SpecializedHashMap
