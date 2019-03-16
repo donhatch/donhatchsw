@@ -2814,7 +2814,19 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 int[/*nFlags*/][/*nDims*/] flagIndex2reflectedFlagIndex = VecMath.fillmat(flagsOfInterest.length, nDims, -1);
                 {
-                    java.util.HashMap unmatchedPartialFlag2Index = new java.util.HashMap();  // CBB: set initial capacity
+                    // TODO: add ability to set initial capacity
+                    // TODO: make a more specialized class for this
+                    com.donhatchsw.util.SpecializedHashMap unmatchedPartialFlag2Index = new com.donhatchsw.util.SpecializedHashMap() {
+                        public boolean equals(Object a, Object b)
+                        {
+                            return java.util.Arrays.equals((int[])a, (int[])b);
+                        }
+                        public int hashCode(Object object)
+                        {
+                            return java.util.Arrays.hashCode((int[])object);
+                        }
+                    };
+
                     for (int iFlag = 0; iFlag < flagsOfInterest.length; ++iFlag)
                     {
                         int[] key = new int[4];  // scratch for loop
@@ -2822,11 +2834,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         {
                             VecMath.copyvec(key, flagsOfInterest[iFlag]);
                             key[iDim] = -1;
-                            String keyString = java.util.Arrays.toString(key);
-                            Integer neighbor = (Integer)unmatchedPartialFlag2Index.get(keyString);
+                            Integer neighbor = (Integer)unmatchedPartialFlag2Index.get(key);
                             if (neighbor == null)
                             {
-                                unmatchedPartialFlag2Index.put(keyString, iFlag);
+                                // put requires a more permanent copy of the scratch key
+                                unmatchedPartialFlag2Index.put(VecMath.copyvec(key), iFlag);
                             }
                             else
                             {

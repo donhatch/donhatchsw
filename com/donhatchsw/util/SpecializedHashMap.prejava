@@ -11,23 +11,17 @@ package com.donhatchsw.util;
 *  HashMap with custom equals and hashCode.
 *  Screwy that every get() and put() have an extra memory allocation :-(
 */
-public class SpecializedHashMap
+public abstract class SpecializedHashMap
 {
-    public interface Equals {
-        boolean equals(Object a, Object b);
-    };
-    public interface HashCode {
-        int hashCode(Object object);
-    };
-    SpecializedHashMap(Equals equals, HashCode hashCode)
+    // These must be provided by concrete subclass
+    public abstract boolean equals(Object a, Object b);
+    public abstract int hashCode(Object object);
+
+    public SpecializedHashMap()
     {
-        this.equals = equals;
-        this.hashCode = hashCode;
         this.hashMap = new java.util.HashMap();  // CBB: allow specifying initial capacity
     };
 
-    private Equals equals;
-    private HashCode hashCode;
     private java.util.HashMap hashMap;  // has-a, not is-a, to prevent mistakes
 
     private class KeyWrapper {  // not static!  so it has access to our equals and hashCode
@@ -38,11 +32,11 @@ public class SpecializedHashMap
         }
         public boolean equals(Object that)
         {
-            return equals.equals(this.key, ((KeyWrapper)that).key);
+            return SpecializedHashMap.this.equals(this.key, ((KeyWrapper)that).key);
         }
         public int hashCode()
         {
-            return hashCode.hashCode(this.key);
+            return SpecializedHashMap.this.hashCode(this.key);
         }
     };  // KeyWrapper
 
@@ -100,20 +94,16 @@ public class SpecializedHashMap
     public static void main(String args[])
     {
         System.out.println("in SpecializedHashMap main");
-        SpecializedHashMap map = new SpecializedHashMap(
-            new SpecializedHashMap.Equals() {
-                public boolean equals(Object a, Object b)
-                {
-                    return java.util.Arrays.equals((int[])a, (int[])b);
-                }
-            },
-            new SpecializedHashMap.HashCode() {
-                public int hashCode(Object object)
-                {
-                    return java.util.Arrays.hashCode((int[])object);
-                }
+        SpecializedHashMap map = new SpecializedHashMap() {
+            public boolean equals(Object a, Object b)
+            {
+                return java.util.Arrays.equals((int[])a, (int[])b);
             }
-        );
+            public int hashCode(Object object)
+            {
+                return java.util.Arrays.hashCode((int[])object);
+            }
+        };
 
         int[] a = {};
         int[] b = {0};
@@ -172,6 +162,6 @@ public class SpecializedHashMap
         CHECK(!map.containsValue(null));
 
         System.out.println("out SpecializedHashMap main");
-    }
+    }  // main
 
 }  // class SpecializedHashMap
