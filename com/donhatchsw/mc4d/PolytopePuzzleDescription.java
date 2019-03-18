@@ -2817,11 +2817,11 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     // TODO: add ability to set initial capacity
                     // TODO: make a more specialized class for this
                     com.donhatchsw.util.SpecializedHashMap unmatchedPartialFlag2Index = new com.donhatchsw.util.SpecializedHashMap() {
-                        public boolean equals(Object a, Object b)
+                        public boolean keyEquals(Object a, Object b)
                         {
                             return java.util.Arrays.equals((int[])a, (int[])b);
                         }
-                        public int hashCode(Object object)
+                        public int keyHashCode(Object object)
                         {
                             return java.util.Arrays.hashCode((int[])object);
                         }

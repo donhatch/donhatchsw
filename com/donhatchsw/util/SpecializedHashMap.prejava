@@ -8,14 +8,14 @@ package com.donhatchsw.util;
 #include "macros.h"
 
 /**
-*  HashMap with custom equals and hashCode.
+*  HashMap with custom keyEquals and keyHashCode.
 *  Screwy that every get() and put() have an extra memory allocation :-(
 */
 public abstract class SpecializedHashMap
 {
     // These must be provided by concrete subclass
-    public abstract boolean equals(Object a, Object b);
-    public abstract int hashCode(Object object);
+    public abstract boolean keyEquals(Object a, Object b);
+    public abstract int keyHashCode(Object object);
 
     public SpecializedHashMap()
     {
@@ -24,7 +24,7 @@ public abstract class SpecializedHashMap
 
     private java.util.HashMap hashMap;  // has-a, not is-a, to prevent mistakes
 
-    private class KeyWrapper {  // not static!  so it has access to our equals and hashCode
+    private class KeyWrapper {  // not static!  so it has access to our keyEquals and keyHashCode
         private Object key;
         public KeyWrapper(Object key)
         {
@@ -32,11 +32,11 @@ public abstract class SpecializedHashMap
         }
         public boolean equals(Object that)
         {
-            return SpecializedHashMap.this.equals(this.key, ((KeyWrapper)that).key);
+            return keyEquals(this.key, ((KeyWrapper)that).key);
         }
         public int hashCode()
         {
-            return SpecializedHashMap.this.hashCode(this.key);
+            return keyHashCode(this.key);
         }
     };  // KeyWrapper
 
@@ -95,11 +95,11 @@ public abstract class SpecializedHashMap
     {
         System.out.println("in SpecializedHashMap main");
         SpecializedHashMap map = new SpecializedHashMap() {
-            public boolean equals(Object a, Object b)
+            public boolean keyEquals(Object a, Object b)
             {
                 return java.util.Arrays.equals((int[])a, (int[])b);
             }
-            public int hashCode(Object object)
+            public int keyHashCode(Object object)
             {
                 return java.util.Arrays.hashCode((int[])object);
             }
