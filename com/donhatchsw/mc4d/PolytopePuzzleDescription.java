@@ -2815,17 +2815,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 int[/*nFlags*/][/*nDims*/] flagIndex2reflectedFlagIndex = VecMath.fillmat(flagsOfInterest.length, nDims, -1);
                 {
                     // TODO: add ability to set initial capacity
-                    // TODO: make a more specialized class for this
-                    com.donhatchsw.util.SpecializedHashMap unmatchedPartialFlag2Index = new com.donhatchsw.util.SpecializedHashMap() {
-                        public boolean keyEquals(Object a, Object b)
-                        {
-                            return java.util.Arrays.equals((int[])a, (int[])b);
-                        }
-                        public int keyHashCode(Object object)
-                        {
-                            return java.util.Arrays.hashCode((int[])object);
-                        }
-                    };
+                    com.donhatchsw.util.SpecializedHashMap unmatchedPartialFlag2Index = new com.donhatchsw.util.SpecializedHashMap.IntArrayHashMap(flagsOfInterest.length);
 
                     for (int iFlag = 0; iFlag < flagsOfInterest.length; ++iFlag)
                     {

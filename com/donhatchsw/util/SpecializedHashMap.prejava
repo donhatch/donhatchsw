@@ -17,10 +17,26 @@ public abstract class SpecializedHashMap
     public abstract boolean keyEquals(Object a, Object b);
     public abstract int keyHashCode(Object object);
 
-    public SpecializedHashMap()
+    public SpecializedHashMap(int initialCapacity)
     {
-        this.hashMap = new java.util.HashMap();  // CBB: allow specifying initial capacity
+        this.hashMap = new java.util.HashMap(initialCapacity);
     };
+
+    public static class IntArrayHashMap extends SpecializedHashMap
+    {
+        public IntArrayHashMap(int initialCapacity)
+        {
+            super(initialCapacity);
+        }
+        public boolean keyEquals(Object a, Object b)
+        {
+            return java.util.Arrays.equals((int[])a, (int[])b);
+        }
+        public int keyHashCode(Object object)
+        {
+            return java.util.Arrays.hashCode((int[])object);
+        }
+    }  // IntArrayHashMap
 
     private java.util.HashMap hashMap;  // has-a, not is-a, to prevent mistakes
 
@@ -94,7 +110,7 @@ public abstract class SpecializedHashMap
     public static void main(String args[])
     {
         System.out.println("in SpecializedHashMap main");
-        SpecializedHashMap map = new SpecializedHashMap() {
+        SpecializedHashMap map = new SpecializedHashMap(0) {
             public boolean keyEquals(Object a, Object b)
             {
                 return java.util.Arrays.equals((int[])a, (int[])b);
