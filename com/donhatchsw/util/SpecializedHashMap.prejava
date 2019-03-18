@@ -56,7 +56,7 @@ public abstract class SpecializedHashMap
         }
     };  // KeyWrapper
 
-    // Use a scratch KeyWrapper to avoid any allocations
+    // Use a scratch KeyWrapper, to avoid any allocations
     // for operations other than put().
     private KeyWrapper scratchKeyWrapper = new KeyWrapper(null);
 
@@ -77,7 +77,8 @@ public abstract class SpecializedHashMap
     public Object put(Object key,
                       Object value)
     {
-        // Note that we can't use scratchKeyWrapper for this.
+        // Note that this is the only one of the basic
+        // operations that can't use scratchKeyWrapper.
         return this.hashMap.put(new KeyWrapper(key), value);
     }
 
