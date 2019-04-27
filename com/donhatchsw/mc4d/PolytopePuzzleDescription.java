@@ -291,7 +291,7 @@
                 3v3 (gets different ArrayIndexOutOfBoundsException 0 just because it's 5 dimensional, but that's a different bug)
 
         FUTT:
-            - it's picking the wrong edge sometimes, in frucht, some of the 7-gon edges
+            - it's picking the wrong edge sometimes, in frucht, some of the 7-gon edges  (that is, clicking on some 2faces of vert pieces choose some wacky axis)
             - scrambling a small number of scrambles isn't well behaved-- it sometimes does an order=1 move, i.e. nothing (because it allows no-op moves, I think? wait, isn't the code supposed to prevent that?)
             - decideWhetherFuttable decides topological regulars aren't futtable... but it really should only do that if it's *geometrically* regular.  or maybe don't do that check at all (but would have to get futt working properly with arbitrary slicemask first)
             - make more general implementation:
