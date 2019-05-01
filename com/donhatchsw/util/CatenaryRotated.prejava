@@ -1716,7 +1716,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
 
-                java.awt.Dimension size = size();
+                java.awt.Dimension size = this.getSize();
                 int w = size.width, h = size.height;
                 if (backBuffer == null
                  || !size.equals(backBufferSize))
@@ -1746,7 +1746,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 double xMaxCull = view.focus[0] + view.radius*w/minSize * view.debugCullFrustumShrink;
                 double yMinCull = view.focus[1] -view.radius*h/minSize * view.debugCullFrustumShrink;
                 double yMaxCull = view.focus[1] + view.radius*h/minSize * view.debugCullFrustumShrink;
-                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, this.getSize(),
                                                xMinView, xMaxView,
                                                yMinView, yMaxView);
 
@@ -2600,7 +2600,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
         frame.setBackground(java.awt.Color.BLACK);
         frame.add(canvas);
         frame.pack();
-        frame.show();
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
     } // interactiveDemo1
 
     public static void main(String args[])

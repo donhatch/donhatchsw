@@ -12444,7 +12444,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
 
-                java.awt.Dimension size = size();
+                java.awt.Dimension size = this.getSize();
                 int w = size.width, h = size.height;
                 if (backBuffer == null
                  || !size.equals(backBufferSize))
@@ -12459,7 +12459,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 // We actually change the graphics scale depending on the acceleration magnitude,
                 // and change the size of the unit circle to compensate!  Argh!
                 // So are we actually not using accelerationMagnitude in the computation at all?  Argh!!
-                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, this.getSize(),
                                               view.focus[0] + -1.*w/minSize/(view.scale*model.accelerationMagnitude),
                                               view.focus[0] +  1.*w/minSize/(view.scale*model.accelerationMagnitude),
                                               view.focus[1] + -1.*h/minSize/(view.scale*model.accelerationMagnitude),
@@ -13501,7 +13501,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         frame.setBackground(java.awt.Color.BLACK);
         frame.add(canvas);
         frame.pack();
-        frame.show();
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
     } // interactiveDemo2
 
     private static void interactiveDemo1()
@@ -13582,7 +13582,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
 
-                java.awt.Dimension size = size();
+                java.awt.Dimension size = getSize();
                 int w = size.width, h = size.height;
                 if (backBuffer == null
                  || !size.equals(backBufferSize))
@@ -13593,7 +13593,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                 }
                 java.awt.Graphics g = backBuffer.getGraphics();
 
-                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, this.getSize(),
                                                -1.,1.,-1.,1.);
 
                 // Clear to black
@@ -13807,7 +13807,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         frame.setBackground(java.awt.Color.BLACK);
         frame.add(canvas);
         frame.pack();
-        frame.show();
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
     } // interactiveDemo1
 
         public static void HSVtoRGB(float h, float s, float v, float rgb[/*3*/])
@@ -14009,7 +14009,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
             {
                 if (eventVerbose >= 2) System.out.println("    in paint");
 
-                java.awt.Dimension size = size();
+                java.awt.Dimension size = getSize();
                 int w = size.width, h = size.height;
                 if (backBuffer == null
                  || !size.equals(backBufferSize))
@@ -14051,7 +14051,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
                                                               java.awt.RenderingHints.VALUE_ANTIALIAS_OFF);
 
                 int minSize = Math.min(w,h);
-                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, size(),
+                com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, this.getSize(),
                                                .5,w-.5,
                                                .5,h-.5);
 
@@ -14555,7 +14555,7 @@ List(((2*x0 - 2*x1)*(-x0 + x1)*
         frame.setBackground(java.awt.Color.BLACK);
         frame.add(canvas);
         frame.pack();
-        frame.show();
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
         CatenaryRotated.XXX_ALLOW_FITFROMMOMENT_FAILURE = true; // hack so we can run with manageable amount of noise (1 line per failure), for now
     } // interactiveDemo3
 

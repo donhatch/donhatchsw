@@ -1122,7 +1122,7 @@ public class MC4DControlPanel
 
             frame.add(new MC4DControlPanel("Settings", viewParams, viewState));
             frame.pack();
-            frame.show();
+            frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
         }
         // release the main token
         com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();

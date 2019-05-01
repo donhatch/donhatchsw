@@ -1595,9 +1595,9 @@ public class MC4DViewGuts
 
         frame.add(myCanvas);
         frame.pack();
-        frame.resize(w, h); // set size top down
-        frame.move(x,y);
-        frame.show();
+        frame.setSize(w, h); // set size top down
+        frame.setLocation(x,y);
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
 
         // Make it so ctrl-n spawns another view of the same model,
         // and ctrl-shift-N spawns the opposite kind of view of the same model.

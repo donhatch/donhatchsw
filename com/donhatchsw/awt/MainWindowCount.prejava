@@ -187,7 +187,7 @@ public class MainWindowCount
                     addActionListener(new java.awt.event.ActionListener() {
                         OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            new MyWindow(true).show();
+                            new MyWindow(true).setVisible(true);  // available in java 1.5, replaces deprecated show()
                         }
                     });
                 }});
@@ -195,7 +195,7 @@ public class MainWindowCount
                     addActionListener(new java.awt.event.ActionListener() {
                         OVERRIDE public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            new MyWindow(false).show();
+                            new MyWindow(false).setVisible(true);  // available in java 1.5, replaces deprecated show()
                         }
                     });
                 }});
@@ -203,7 +203,7 @@ public class MainWindowCount
             }
         } // class MyWindow
 
-        new MyWindow(true).show();
+        new MyWindow(true).setVisible(true);  // available in java 1.5, replaces deprecated show()
 
         // release the main token
         MainWindowCount.decrementAndExitIfImTheLastOne();

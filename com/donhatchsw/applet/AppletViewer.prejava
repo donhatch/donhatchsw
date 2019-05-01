@@ -263,10 +263,10 @@ public class AppletViewer
         }
 
         //frame.pack();  // apparently not necessary?  TODO: get clear on this
-        frame.move(x, y);
-        frame.resize(w, h);
+        frame.setLocation(x, y);
+        frame.setSize(w, h);
 
-        frame.show();
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
 
         com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
 

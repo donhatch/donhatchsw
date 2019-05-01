@@ -126,7 +126,7 @@ public class TableLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUsefu
             add(new Button("gridwidth=2"), new GridBagConstraints(){{fill=HORIZONTAL;gridwidth=2;}});
             add(new Button("666666"));
             pack();
-            show();
+            setVisible(true);  // available in java 1.5, replaces deprecated show()
         }};
 
         System.out.println("out main");

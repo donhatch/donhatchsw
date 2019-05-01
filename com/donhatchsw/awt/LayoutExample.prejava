@@ -142,7 +142,7 @@ public class LayoutExample
                     }
                 });
 
-                show();
+                setVisible(true);  // available in java 1.5, replaces deprecated show()
             }};
         }
 
@@ -181,7 +181,7 @@ public class LayoutExample
                     }
                 });
 
-                show();
+                setVisible(true);  // available in java 1.5, replaces deprecated show()
             }};
         }
     } // main

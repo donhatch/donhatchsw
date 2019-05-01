@@ -110,7 +110,7 @@
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.8 which requires -target >= 1.8
 JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=javac -source 1.8 -target 1.8
+JAVAC=javac -source 1.8 -target 1.8 -deprecation
 JAR=jar
 JAVADOC=javadoc
 

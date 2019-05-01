@@ -101,7 +101,7 @@ public class MC4DApplet
             public void paint(Graphics frontBufferGraphics)
             {
                 //System.out.println("in canvas paint");
-                Dimension size = size();
+                Dimension size = this.getSize();
                 int w = size.width, h = size.height;
 
                 if (doDoubleBuffer)
@@ -698,7 +698,7 @@ public class MC4DApplet
         }}; // new Frame
 
         frame.setTitle("MC4D "+viewName);
-        frame.show();
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
     } // makeNewViewWindow
 
     //
@@ -1127,7 +1127,7 @@ public class MC4DApplet
                 Frame controlPanelFrame = (Frame)getTopLevelFrameOrApplet(controlPanel);
                 controlPanelFrame.pack(); // XXX should I?
                 controlPanelFrame.setState(Frame.NORMAL);
-                controlPanelFrame.show();
+                controlPanelFrame.setVisible(true);  // available in java 1.5, replaces deprecated show()
                 return;
             }
 
@@ -1146,7 +1146,7 @@ public class MC4DApplet
             controlPanelFrame.addWindowListener(new WindowAdapter() {
                 public void windowClosing(WindowEvent we) {
                     //controlPanelFrame.dispose();
-                    controlPanelFrame.hide();
+                    controlPanelFrame.setVisible(false);
                     // no exit, this isn't a main window
                 }
             });
@@ -1170,7 +1170,7 @@ public class MC4DApplet
                 controlPanelFrame.pack();
             }
             System.out.println("Showing the window...");
-            controlPanelFrame.show();
+            controlPanelFrame.setVisible(true);  // available in java 1.5, replaces deprecated show()
             System.out.println("Done.");
         } // openOrMakeNewControlPanelWindow
 

@@ -114,17 +114,6 @@ public class ExampleApplet
                 paint(g);
                 if (eventVerbose >= 4) System.out.println("out update");
             }
-            // XXX get rid of the following when through fucking around
-            OVERRIDE public void setBounds(int a, int b, int c, int d)
-            {
-                PRINT4(a, b, c, d);
-                super.setBounds(a, b, c, d);
-            }
-            OVERRIDE public void reshape(int a, int b, int c, int d)
-            {
-                PRINT4(a, b, c, d);
-                super.reshape(a, b, c, d);
-            }
             // PAINT
             java.awt.Dimension requestedSize = null;
             OVERRIDE public void paint(java.awt.Graphics frontBufferGraphics)
@@ -145,15 +134,15 @@ public class ExampleApplet
                     {
                         OUT("=========================");
                         PRINT(getClass().getSuperclass());
-                        PRINT(size());
+                        PRINT(getSize());
                         PRINT(getParent().getClass().getSuperclass());
-                        PRINT(getParent().size());
+                        PRINT(getParent().getSize());
                         PRINT(getParent().getParent().getClass().getSuperclass());
-                        PRINT(getParent().getParent().size());
+                        PRINT(getParent().getParent().getSize());
                         if (getParent().getParent().getParent() != null)
                         {
                             PRINT(getParent().getParent().getParent().getClass().getSuperclass());
-                            PRINT(getParent().getParent().getParent().size());
+                            PRINT(getParent().getParent().getParent().getSize());
                         }
                         OUT("=========================");
                     }
@@ -640,15 +629,15 @@ public class ExampleApplet
         applet.start();
 
         //frame.pack();
-        //frame.move(20,20);
-        frame.move(400,20);
+        //frame.setLocation(20,20);
+        frame.setLocation(400,20);
 
         // XXX needs to be a command line param
-        //frame.resize(512, 512);
-        frame.resize(800, 800);
-        //frame.resize(1100, 1100);
+        //frame.setSize(512, 512);
+        frame.setSize(800, 800);
+        //frame.setSize(1100, 1100);
 
-        frame.show();
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
 
         System.out.println("out main");
     } // main
