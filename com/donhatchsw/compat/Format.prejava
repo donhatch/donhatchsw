@@ -1,6 +1,8 @@
 /* vim: set filetype=java: */
 package com.donhatchsw.compat;
 
+import com.donhatchsw.util.Arrays; // for toStringCompact, used by STRINGIFY
+
 #include "macros.h"
 
 /**
@@ -23,6 +25,7 @@ public class Format
     /** the real mccoy */
     public static String sprintf(String format, Object args[])
     {
+        if (verboseLevel >= 1) System.out.println("in sprintf(format="+STRINGIFY(format)+", args="+STRINGIFY(args)+")");
         // XXX could make this pattern static, it's the only one we ever use
         regex.Matcher matcher = regex.Pattern.compile("([^%])|(%(-)?((\\d+)|(\\*))?(\\.((\\d+)|(\\*)))?(.))").matcher(format);
         // The most natural way to do this would be via successive lookingAt()s,
@@ -43,10 +46,9 @@ public class Format
         while (matcher.find())
         {
             CHECK(matcher.start(0) == indexIntoFormat); // always matches at the beginning
-            indexIntoFormat = matcher.end();
             if (verboseLevel >= 1)
             {
-                System.out.println("    format = "+format);
+                System.out.println("    format = "+STRINGIFY(format)+" indexIntoFormat="+indexIntoFormat+" matched ["+matcher.start(0)+","+matcher.end()+"): "+STRINGIFY(format.substring(matcher.start(0), matcher.end())));
                 int nGroups = matcher.groupCount();
                 System.out.println("        "+nGroups+" groups");
                 for (int iGroup = 0; iGroup < nGroups+1; ++iGroup) // note the +1
@@ -54,6 +56,7 @@ public class Format
                     System.out.println("            "+iGroup+": \""+matcher.group(iGroup)+"\"");
                 }
             }
+            indexIntoFormat = matcher.end();
             String oneCharLiteralString = matcher.group(1);
             String leftJustifyString = matcher.group(3);
             String widthString = matcher.group(4);
@@ -61,10 +64,10 @@ public class Format
             String formatCharString = matcher.group(11);
             if (verboseLevel >= 1)
             {
-                System.out.println("    leftJustifyString = "+leftJustifyString);
-                System.out.println("    widthString = "+widthString);
-                System.out.println("    precisionString = "+precisionString);
-                System.out.println("    formatCharString = "+formatCharString);
+                System.out.println("    leftJustifyString = "+STRINGIFY(leftJustifyString));
+                System.out.println("    widthString = "+STRINGIFY(widthString));
+                System.out.println("    precisionString = "+STRINGIFY(precisionString));
+                System.out.println("    formatCharString = "+STRINGIFY(formatCharString));
             }
             if (oneCharLiteralString != null)
             {
@@ -81,7 +84,7 @@ public class Format
                     leftJustify = true;
                 if (widthString != null)
                 {
-                    if (widthString.length() > 0 && widthString.charAt(0) == '0')
+                    if (widthString.length() > 1 && widthString.charAt(0) == '0')
                     {
                         zeroPad = true;
                         widthString = widthString.substring(1);
@@ -95,7 +98,9 @@ public class Format
                         width = ((Integer)args[iArg++]).intValue();
                     }
                     else
+                    {
                         width = Integer.parseInt(widthString);
+                    }
                 }
                 if (precisionString != null)
                 {
@@ -182,7 +187,7 @@ public class Format
                 }
                 else
                 {
-                    throw new Error("sprintf: format char '"+formatChar+"' in \""+format+"\" unimplemented");
+                    throw new IllegalArgumentException("sprintf: format char '"+formatChar+"' in \""+format+"\" unimplemented");
                 }
                 while (thisConversionResult.length() < width) // XXX inefficient
                 {
@@ -353,18 +358,31 @@ public class Format
                 CHECK(result03.equals(result00));
             }
         }
-        if (false)
+        if (true)
         {
-            // Should exercise ones that throw exceptions too, like these
-            System.out.println(sprintf("%"));
-            System.out.println(sprintf("%-"));
-            System.out.println(sprintf("%."));
-            System.out.println(sprintf("%8."));
-            System.out.println(sprintf("%-8."));
-            System.out.println(sprintf("%8"));
-            System.out.println(sprintf("%8.8"));
-            System.out.println(sprintf("%.8"));
-            System.out.println(sprintf("%.-8g"));
+            String[] formatsThatShouldThrowExceptions = {
+              "%",
+              "%-",
+              "%.",
+              "%8.",
+              "%-8.",
+              "%8",
+              "%8.8",
+              "%.8",
+              "%.-8g",
+            };
+            for (int i = 0; i < formatsThatShouldThrowExceptions.length; ++i) {
+              String format = formatsThatShouldThrowExceptions[i];
+              System.out.print(Arrays.toStringCompact(format)+": ");
+              boolean caught = false;
+              try {
+                String formatted = sprintf(formatsThatShouldThrowExceptions[i]);
+              } catch (java.lang.IllegalArgumentException e) {
+                caught = true;
+                System.out.println("caught IllegalArgumentException as expected");
+              }
+              CHECK(caught);
+            }
         }
     } // main
 
