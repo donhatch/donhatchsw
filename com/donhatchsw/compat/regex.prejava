@@ -1305,7 +1305,7 @@ public class regex
             {
                 // return nativePattern.split(input, limit);
                 try {
-                    return (String[])patternSplitMethod.invoke(nativePattern, new Object[]{input, new Integer(limit)});
+                    return (String[])patternSplitMethod.invoke(nativePattern, new Object[]{input, Integer.valueOf(limit)});
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Pattern.split!?");
                     CHECK(false);
@@ -1350,7 +1350,7 @@ public class regex
             {
                 //return nativeMatcher.find();
                 try {
-                    return ((Boolean)matcherFind1Method.invoke(nativeMatcher, new Object[]{new Integer(inputStart)})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
+                    return ((Boolean)matcherFind1Method.invoke(nativeMatcher, new Object[]{Integer.valueOf(inputStart)})).booleanValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.find!?");
                     CHECK(false);
@@ -1410,7 +1410,7 @@ public class regex
             {
                 //return nativeMatcher.start(iGroup);
                 try {
-                    return ((Integer)matcherStartMethod.invoke(nativeMatcher, new Object[]{new Integer(iGroup)})).intValue(); // XXX why can I look in Pattern's privates?  that's messed up
+                    return ((Integer)matcherStartMethod.invoke(nativeMatcher, new Object[]{Integer.valueOf(iGroup)})).intValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.start!?");
                     CHECK(false);
@@ -1425,7 +1425,7 @@ public class regex
             {
                 //return nativeMatcher.end(iGroup);
                 try {
-                    return ((Integer)matcherEnd1Method.invoke(nativeMatcher, new Object[]{new Integer(iGroup)})).intValue(); // XXX why can I look in Pattern's privates?  that's messed up
+                    return ((Integer)matcherEnd1Method.invoke(nativeMatcher, new Object[]{Integer.valueOf(iGroup)})).intValue(); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.end!?");
                     CHECK(false);
@@ -1455,7 +1455,7 @@ public class regex
             {
                 //return nativeMatcher.group(iGroup);
                 try {
-                    return (String)matcherGroupMethod.invoke(nativeMatcher, new Object[]{new Integer(iGroup)}); // XXX why can I look in Pattern's privates?  that's messed up
+                    return (String)matcherGroupMethod.invoke(nativeMatcher, new Object[]{Integer.valueOf(iGroup)}); // XXX why can I look in Pattern's privates?  that's messed up
                 } catch (IllegalAccessException e) {
                     System.err.println("IllegalAccessException trying to invoke Matcher.group!?");
                     CHECK(false);

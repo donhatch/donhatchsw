@@ -216,64 +216,64 @@ public class Format
     /** convenience wrapper */
     public static String sprintf(String format, int arg0)
     {
-        return sprintf(format, new Object[]{new Integer(arg0)});
+        return sprintf(format, new Object[]{Integer.valueOf(arg0)});
     }
     /** convenience wrapper */
     public static String sprintf(String format, double arg0)
     {
-        return sprintf(format, new Object[]{new Double(arg0)});
+        return sprintf(format, new Object[]{Double.valueOf(arg0)});
     }
     /** convenience wrapper */
     public static String sprintf(String format, int arg0, int arg1)
     {
-        return sprintf(format, new Object[]{new Integer(arg0),
-                                            new Integer(arg1)});
+        return sprintf(format, new Object[]{Integer.valueOf(arg0),
+                                            Integer.valueOf(arg1)});
     }
     /** convenience wrapper */
     public static String sprintf(String format, int arg0, double arg1)
     {
-        return sprintf(format, new Object[]{new Integer(arg0),
-                                            new Double(arg1)});
+        return sprintf(format, new Object[]{Integer.valueOf(arg0),
+                                            Double.valueOf(arg1)});
     }
     /** convenience wrapper */
     public static String sprintf(String format, double arg0, double arg1)
     {
-        return sprintf(format, new Object[]{new Double(arg0),
-                                            new Double(arg1)});
+        return sprintf(format, new Object[]{Double.valueOf(arg0),
+                                            Double.valueOf(arg1)});
     }
     /** convenience wrapper */
     public static String sprintf(String format, int arg0, String arg1)
     {
-        return sprintf(format, new Object[]{new Integer(arg0),
+        return sprintf(format, new Object[]{Integer.valueOf(arg0),
                                             arg1});
     }
     /** convenience wrapper */
     public static String sprintf(String format, int arg0, int arg1, int arg2)
     {
-        return sprintf(format, new Object[]{new Integer(arg0),
-                                            new Integer(arg1),
-                                            new Integer(arg2)});
+        return sprintf(format, new Object[]{Integer.valueOf(arg0),
+                                            Integer.valueOf(arg1),
+                                            Integer.valueOf(arg2)});
     }
     /** convenience wrapper */
     public static String sprintf(String format, int arg0, int arg1, double arg2)
     {
-        return sprintf(format, new Object[]{new Integer(arg0),
-                                            new Integer(arg1),
-                                            new Double(arg2)});
+        return sprintf(format, new Object[]{Integer.valueOf(arg0),
+                                            Integer.valueOf(arg1),
+                                            Double.valueOf(arg2)});
     }
     /** convenience wrapper */
     public static String sprintf(String format, int arg0, double arg1, double arg2)
     {
-        return sprintf(format, new Object[]{new Integer(arg0),
-                                            new Double(arg1),
-                                            new Double(arg2)});
+        return sprintf(format, new Object[]{Integer.valueOf(arg0),
+                                            Double.valueOf(arg1),
+                                            Double.valueOf(arg2)});
     }
     /** convenience wrapper */
     public static String sprintf(String format, double arg0, double arg1, double arg2)
     {
-        return sprintf(format, new Object[]{new Double(arg0),
-                                            new Double(arg1),
-                                            new Double(arg2)});
+        return sprintf(format, new Object[]{Double.valueOf(arg0),
+                                            Double.valueOf(arg1),
+                                            Double.valueOf(arg2)});
     }
 
     /** test program, not a very good one at that */

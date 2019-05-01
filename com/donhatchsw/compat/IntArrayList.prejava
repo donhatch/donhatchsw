@@ -39,15 +39,15 @@ public class IntArrayList
     }
     public boolean contains(int element)
     {
-        return arrayList.contains(new Integer(element));
+        return arrayList.contains(Integer.valueOf(element));
     }
     public int indexOf(int element)
     {
-        return arrayList.indexOf(new Integer(element));
+        return arrayList.indexOf(Integer.valueOf(element));
     }
     public int lastIndexOf(int element)
     {
-        return arrayList.lastIndexOf(new Integer(element));
+        return arrayList.lastIndexOf(Integer.valueOf(element));
     }
     public java.lang.Object clone()
     {
@@ -73,15 +73,15 @@ public class IntArrayList
     }
     public int set(int index, int element)
     {
-        return ((Integer)arrayList.set(index, new Integer(element))).intValue();
+        return ((Integer)arrayList.set(index, Integer.valueOf(element))).intValue();
     }
     public boolean add(int element)
     {
-        return arrayList.add(new Integer(element));
+        return arrayList.add(Integer.valueOf(element));
     }
     public void add(int index, int element)
     {
-        arrayList.add(index, new Integer(element));
+        arrayList.add(index, Integer.valueOf(element));
     }
     /** the version of remove() that takes an index */
     public int removeIndex(int index)
@@ -92,7 +92,7 @@ public class IntArrayList
     /** XXX javap says boolean, some doc says it returns an Object, some other doc doesn't mention it at all... fuck it, I'm returning void. */
     public void removeElement(int element)
     {
-        arrayList.remove(new Integer(element));
+        arrayList.remove(Integer.valueOf(element));
     }
     public void clear()
     {
