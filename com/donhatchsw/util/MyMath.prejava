@@ -313,12 +313,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     acos_difference(double X, double x)
     {
-        System.err.println("WARNING: acos_difference implemented naively");
-        // Note this is also asin(X)-asin(X+x),
-        // i.e. -asin_difference(X, x)
-        // i.e. asin_difference(X+x,-x)
-        // XXX wait what? no it isn't.  what was I thinking?
-        return Math.acos(X+x) - Math.acos(X);
+        return -asin_difference(X, x);
     }
     /** asin(Y+y)-asin(Y), accurate even when y is small. */
     public static double
@@ -1088,7 +1083,8 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                             double T = Ts[iT];
                             double t = ts[it];
 
-                            if (name.equals("asin_difference")) {
+                            if (prefix_function_name.equals("asin")
+                             || prefix_function_name.equals("acos")) {
                                 // Cases the tester doesn't handle well:
                                 // when T+t is slightly >1 (and therefore outside asin's domain)
                                 // even though the nearest expressible double is 1.
