@@ -1044,37 +1044,6 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     {
         System.out.println("    in MyMath.main");
 
-        PRINT(Math.atan(Double.POSITIVE_INFINITY));
-        PRINT(Math.atan(Double.NEGATIVE_INFINITY));
-        if (true) {
-          // TODO: maybe get rid of all these, when I have asin_difference ironed out?
-
-          PRINT(Math.asin(.8+.2) - Math.asin(.8));
-          PRINT(MyMath.asin_difference(.8, .2));
-          //CHECK_ALMOST_EQ(MyMath.asin_difference(.8, .2), Math.asin(.8+.2)-Math.asin(.8), 1e-12);  // this fails-- and it *should* fail!
-
-          CHECK_ALMOST_EQ(MyMath.asin_difference(.1, .01), Math.asin(.1+.01)-Math.asin(.1), 1e-12);
-          CHECK_ALMOST_EQ(MyMath.asin_difference(.1, -.01), Math.asin(.1-.01)-Math.asin(.1), 1e-12);
-
-          // QUESTION: why doesn't sqrt_difference(0, 1e-20) fail similarly?  I'd think it would have essentially the same error behavior
-          // ANSWER: in that case, T+t is expressible exactly, so both methods give exactly 1e-10.  sqrt_difference_sqrt1pm1(-1, 1e-20) would, though.
-          PRINT(MyMath.sqrt_difference(0., 1e-20));
-          try {
-              java.lang.reflect.Method sqrt_difference = MyMath.class.getMethod("sqrt_difference", new Class[]{double.class,double.class});
-              java.lang.reflect.Method sqrt = Math.class.getMethod("sqrt", new Class[]{double.class});
-              test_difference_function_2args("sqrt_difference", sqrt_difference, sqrt, 0., 1e-20);
-          } catch (NoSuchMethodException e) {
-              CHECK(false);
-          }
-
-          PRINT(MyMath.asin_difference(1., -1e-20));  // approx -sqrt(2)*1e-10
-          CHECK_EQ(Math.asin(1.) - Math.asin(1. + -1e-20), 0.);
-          CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-9);  // this succeeds
-          //CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-12);  // this fails using non-naive (and is one of the things tested as part of the general test below)
-
-          //OUT("exiting 33"); System.exit(33);
-        }
-
         if (true)
         {
             // Difference tests.
@@ -1176,6 +1145,15 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 }
                 CHECK_GT(nFound, 0);
                 PRINT(suspicious);
+                if (nFound == 2)
+                {
+                    System.out.println("found "+prefix_function_name+" in both Math and MyMath");
+                    // The following reflects the state of Math and MyMath as of this writing.
+                    // If it ever fails, just add the new cases.
+                    CHECK(prefix_function_name.equals("cosh")
+                       || prefix_function_name.equals("sinh")
+                       || prefix_function_name.equals("tanh"));
+                }
             }
             if (false)
             {
