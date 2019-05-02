@@ -187,7 +187,10 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     sqrt_difference(double X, double x)
     {
-        if (X==0. && x==0.) return 0.; // XXX not sure this is right! think about it.   maybe condition should be something like: if X <= abs(x) return sqrt(X+x)-sqrt(x)
+        //if (X==0. && x==0.) return 0.; // XXX not sure this is right! think about it.   maybe condition for doing the special algorithm should be something like: abs(x) < X ... or maybe abs(x) < sqrt(X)? i.e. x^2 < X.  hmm maybe that's it.
+
+        if (!(x*x < X)) return Math.sqrt(X+x) - Math.sqrt(X);  // XXX how do I figure out whether this is actually the right condition?
+
         // sqrt(X+x)-sqrt(X) = (sqrt(X+x)-sqrt(X))*(sqrt(X+x)+sqrt(X))/(sqrt(X+x)+sqrt(X))
         //                   = (X+x-X) / (sqrt(X+x) + sqrt(X))
         //                   = x / (sqrt(X+x) + sqrt(X))
@@ -341,7 +344,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
           PRINT(1-Y-y);
           //double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt((1+Y+y)*(1-Y-y)));  // hack that makes Y=1 y=-1e-20 work, because the 1-Y properly exactly cancels, but Y=.5 y=.2 still fails because of slight negativity (1-Y-y = -5.551115123125783E-17)
 
-          double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt(MAX(0, (1+Y+y)*(1-Y-y) )));  // XXX this is gross, need to do something else.  clamping can't be the right solution in general
+          //double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt(MAX(0, (1+Y+y)*(1-Y-y) )));  // XXX this is gross, need to do something else.  clamping can't be the right solution in general
 
           // XXX wait, what?
           //     1-.8-.2 is slightly negative, even though .8+.2==1?
@@ -393,11 +396,14 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
           //                                   = sqrt_difference((1+Y)*(1-Y), -y*(2*Y+y))
           // and maybe let sqrt_difference figure out the smart thing, that is, don't use it if both args are zero
           // (in fact maybe only use it if abs(X)>abs(x))
+          // and don't sweat the fact that it doesn't work on .8+.2.  (make special case in test?)
           //
 
+          double temp = sqrt_difference((1+Y)*(1-Y), -y*(2*Y+y));
 
-          double dist = y * Math.hypot(temp, 1);
+          double dist = Math.hypot(temp, y);
           double answer = 2 * Math.asin(dist/2);
+          if (y < 0) answer = -answer;
           return answer;
         }
 
