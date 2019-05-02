@@ -340,6 +340,26 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     atan_difference(double Xnumerator, double Xdenominator, double x)
     {
+        // IDEA: use formula from:
+        //   https://math.stackexchange.com/questions/1262327/computing-arctan-x-in-terms-of-a-certain-collection-of-other-functions
+        // That is: atan(x) = asin(x/sqrt(1+x^2))
+        // So atan(X+x)-atan(x) = asin((X+x)/sqrt(1+(X+x)^2)) - asin(X/sqrt(1+X^2))
+        //                      = asin_difference( X/sqrt(1+X^2), (X+x)/sqrt(1+(X+x)^2)-X/sqrt(1+X^2) )
+        // What's the difference in there:
+        //    (X+x)/sqrt(1+(X+x)^2) - X/sqrt(1+X^2)
+        //    = ((X+x)/sqrt(1+(X+x)^2) - X/sqrt(1+X^2)) * ((X+x)/sqrt(1+(X+x)^2) + X/sqrt(1+X^2)) / (... + ...)
+        //    = ((X+x)^2/(1+(X+x)^2) - X^2/(1+X^2)) / (... + ...)
+        //    = ((x (x + 2 X))/((X^2 + 1) (x^2 + 2 x X + X^2 + 1))) / (... + ...) per wolframalpha
+        if (false)  // XXX doesn't work yet, needs debugging
+        {
+            System.err.println("WARNING: atan_difference Xnumerator/Xdenominator implemented naively");
+            if (Xdenominator == 0. && Xnumerator != 0. && Double.isFinite(x)) return 0.;
+            double X = Xnumerator / Xdenominator;
+            double A = ((x*(x + 2*X))/((X*X + 1)*(x*x + 2*x*X + X*X + 1)));
+            double B = (X+x)/hypot(1,X+x) + X/hypot(1,X);
+            double answer = A/B;
+            return answer;
+        }
         System.err.println("WARNING: atan_difference implemented naively");
         double X = Xnumerator / Xdenominator;
         return Math.atan(X+x) - Math.atan(X);  // note that this works even if X is infinite (if x is finite)
@@ -997,7 +1017,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             catch (IllegalAccessException e) { CHECK(false); }
             catch (java.lang.reflect.InvocationTargetException e) { PRINT(e.getCause()); CHECK(false); }
         }
-        suspicious = (t!=0. && answer==0.); // suspicious that implemented naively
+        suspicious = (t!=0. && answer==0.); // suspicious that implemented naively   CBB: actually I don't think it's suspicious if this happens if T is infinite
         if (Double.isNaN(fTplust-fT))
         {
             // all bets off. smart version might give a good answer but we can't check it.
