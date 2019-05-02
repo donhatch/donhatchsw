@@ -187,7 +187,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     sqrt_difference(double X, double x)
     {
-        if (X==0. && x==0.) return 0.; // XXX not sure this is right! think about it
+        if (X==0. && x==0.) return 0.; // XXX not sure this is right! think about it.   maybe condition should be something like: if X <= abs(x) return sqrt(X+x)-sqrt(x)
         // sqrt(X+x)-sqrt(X) = (sqrt(X+x)-sqrt(X))*(sqrt(X+x)+sqrt(X))/(sqrt(X+x)+sqrt(X))
         //                   = (X+x-X) / (sqrt(X+x) + sqrt(X))
         //                   = x / (sqrt(X+x) + sqrt(X))
@@ -312,34 +312,92 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // XXX wait what? no it isn't.  what was I thinking?
         return Math.acos(X+x) - Math.acos(X);
     }
-    /** asin(Y+y)-asin(y), accurate even when y is small. */
+    /** asin(Y+y)-asin(Y), accurate even when y is small. */
     public static double
     asin_difference(double Y, double y)
     {
-        if (false) {  // TODO: not ready for prime time; unit test fails.  Need to get the computation of temp more robust, I think, and it seems to be accurate only to sqrt of what I expect (but maybe just need to make special case?)
+        if (false) {
+          // TODO: not ready for prime time; unit test fails.  Need to get the computation of temp more robust, I think, and it seems to be accurate only to sqrt of what I expect (but maybe just need to make special case?)
+          // The problem: with T=1 t=-1e-20, we produce something like -sqrt(2)*1e-10, which I actually think is right, but test wants 0 or so, which I think is bogus
+
           // Draw the picture; it's the arc length between the following two points:
-          //   p0 = (sqrt(1-Y^2),Y)
-          //   p1 = (sqrt(1-(Y+y)^2),Y+y)
+          //   p0 = [sqrt(1-Y^2), Y]
+          //   p1 = [sqrt(1-(Y+y)^2), Y+y]
           // So the answer is 2*asin(||p1-p0||/2).
           //   dist = ||p1-p0||
           //        = hypot(sqrt(1-(Y+y)^2)-sqrt(1-Y^2), y)
           //        = hypot(y*(2*Y+y) / (sqrt(1-Y^2) + sqrt(1-(Y+y)^2)), y)
-          OUT("=============");
-          OUT("Y="+Y+" y="+y);
-          PRINT(Y+y);
-          PRINT(1-Y*Y);
-          PRINT(1-(Y+y)*(Y+y));
-          PRINT(1 - Y*Y - y*(2*Y+y));
-          //double temp = y*(2*Y + y) / (Math.sqrt(1-Y*Y) + Math.sqrt(1-(Y+y)*(Y+y)));
-          //double temp = y*(2*Y + y) / (Math.sqrt(1-Y*Y) + Math.sqrt(1 - Y*Y - y*(2*Y+y)));  // XXX hack that makes Y=1 y=-1e-20 work, doesn't seem good in general.  e.g. Y=.8 y=.2 still fails.
-          double temp = y*(2*Y + y) / (Math.sqrt(1-Y*Y) + Math.sqrt(MAX(0,1 - Y*Y - y*(2*Y+y))));  // XXX this is gross, need to do something else.  and its still not as accurate as the test would like (or the test is wrong, not sure which.  hmm actually I think it's wrong: with T=1 t=-1e-20, we produce something like -sqrt(2)*1e-10, which I think is right, but test wants 0 or so, which I think is bogus
-          PRINT(temp);
-          double dist = Math.hypot(temp, y);
-          PRINT(dist);
+          //        = y * hypot((2*Y+y) / (sqrt(1-Y^2) + sqrt(1-(Y+y)^2)), 1)
+          //        = y * hypot((2*Y+y) / (sqrt((1+Y)*(1-Y)) + sqrt((1+(Y+y))*(1-(Y+y)))), 1)  (maybe more stable)
+          // (note that pulling y out like that makes the whole thing work even if y is negative; cool)
+          // OH WAIT, that can't be good... say y=-1e-20, then dist will be approx 1e-10, which means the hypot would have to be around 1e10, that's bad!  in fact, this should work even if y is 0!
+
+          //double temp = (2*Y + y) / (Math.sqrt(1-Y*Y) + Math.sqrt(1-(Y+y)*(Y+y)));  // bad; denominator is 0 if Y=1 y=-1e-20
+          //double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt((1+(Y+y))*(1-(Y+y))));  // maybe more stable but still bad; denominator still 0 if Y=1 y=-1e-20
+
+          OUT("========");
+          PRINT2(Y, y);
+          PRINT(1+Y+y);
+          PRINT(1-Y-y);
+          //double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt((1+Y+y)*(1-Y-y)));  // hack that makes Y=1 y=-1e-20 work, because the 1-Y properly exactly cancels, but Y=.5 y=.2 still fails because of slight negativity (1-Y-y = -5.551115123125783E-17)
+
+          double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt(MAX(0, (1+Y+y)*(1-Y-y) )));  // XXX this is gross, need to do something else.  clamping can't be the right solution in general
+
+          // XXX wait, what?
+          //     1-.8-.2 is slightly negative, even though .8+.2==1?
+          //     well, 1-.8 = 0.19999999999999996
+          //     is there any smart way of rearranging that works?
+          //        Y=.8, y=.2   <---- ACTUALLY THIS IS ILLEGAL... .8+.2 is actually slightly more than 1!
+
+
+          // Let's try another derivation.
+          //   dist = ||p1-p0||
+          //        = hypot(sqrt(1-(Y+y)^2)-sqrt(1-Y^2), y)
+          //        = sqrt( (sqrt(1-(Y+y)^2)-sqrt(1-Y^2))^2 + y^2)
+          //        = sqrt( 1-(Y+y)^2 + 1-Y^2 - 2*sqrt((1-(Y+y)^2)*(1-Y^2)) + y^2)
+          //        = sqrt( 1 - Y^2 - 2*Y*y - y^2 + 1 - Y^2 - 2*sqrt((1-(Y+y)^2)*(1-Y^2)) + y^2)
+          //        = sqrt( 1 - Y^2 - 2*Y*y + 1 - Y^2 - 2*sqrt((1-(Y+y)^2)*(1-Y^2)) )
+          //        = sqrt( 2 - 2*Y^2 - 2*Y*y - 2*sqrt((1-(Y+y)^2)*(1-Y^2)) )
+          //          (nope, doesn't seem to be helping)
+          //
+          // Surely there's a numerically perspicuous expression for ||p1-p0|| ??
+          // Or, just for the x part, which is:
+          //     sqrt(1-(Y+y)^2) - sqrt(1-Y^2)
+          // It needs to behave well in the case Y=1, and also any time Y is safely between 0 and 1 and y is tiny.
+          //     = sqrt(1-Y^2-Y*y-y^2) - sqrt(1-Y^2)
+          // Maybe ask on math.stackexchange:
+          //   Q: numerically robust expression for sqrt(1-(Y+y)^2) - sqrt(1-Y^2)
+          //      I'm trying to find a numerically robust way of computing
+          //        sqrt(1-(Y+y)^2) - sqrt(1-Y^2).
+          //      Examples:
+          //        Y=1 y=0       -> should produce 0
+          //                         (naive calculation correctly produces 0, conjugation blows up)
+          //        Y=1 y=-1e-20  -> should produce sqrt(2e-20 - 1e-40) = approximately sqrt(2)*1e-10
+          //                         (naive calculation wrongly produces 0, conjugation works)
+          //        Y=0 y=0       -> should produce 0
+          //                         (naive calculation correctly produces 0, conjugation correctly produces 0 too)
+          //        Y=0 y=1e-20   -> -1e-40 / (1+sqrt(1-1e-20)) = approximately -5e-41
+          //                         (naive calculation wrongly produces 0, conjugation works)
+          //      Thoughts:
+          //      What if I hard code Y=1, what am I asking for?
+          //        sqrt(1-(1+y)^2))
+          //          = sqrt((2+y)*(-y))
+          //          = sqrt(-2*y - y^2)
+          //      And if I hard code Y=0, what am I asking for?
+          //        sqrt(1-y^2) - 1
+          //          = (sqrt(1-y^2)-1) * (sqrt(1-y^2)+1) / (sqrt(1-y^2)+1)
+          //          = -y^2 / (sqrt(1-y^2)+1)
+          // Oh wait, can I express it in terms of sqrt_difference?
+          //     sqrt(1-(Y+y)^2) - sqrt(1-Y^2) = sqrt(1-Y^2-2*Y*y-y^2) - sqrt(1-Y^2)
+          //                                   = sqrt_difference(1-Y^2, -y*(2*Y+y))
+          //                                   = sqrt_difference((1+Y)*(1-Y), -y*(2*Y+y))
+          // and maybe let sqrt_difference figure out the smart thing, that is, don't use it if both args are zero
+          // (in fact maybe only use it if abs(X)>abs(x))
+          //
+
+
+          double dist = y * Math.hypot(temp, 1);
           double answer = 2 * Math.asin(dist/2);
-          PRINT(answer);
-          if (y < 0) answer = -answer;
-          PRINT(answer);
           return answer;
         }
 
@@ -1049,11 +1107,14 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         PRINT(Math.atan(Double.POSITIVE_INFINITY));
         PRINT(Math.atan(Double.NEGATIVE_INFINITY));
         if (true) {
-          // TODO: maybe get rid of these, when I have asin_difference ironed out
+          // TODO: maybe get rid of all these, when I have asin_difference ironed out?
+
           PRINT(Math.asin(.8+.2) - Math.asin(.8));
           PRINT(MyMath.asin_difference(.8, .2));
-          CHECK_ALMOST_EQ(MyMath.asin_difference(.1, .01), Math.asin(.1+.01)-Math.asin(.1), 1e-9);
-          CHECK_ALMOST_EQ(MyMath.asin_difference(.1, -.01), Math.asin(.1-.01)-Math.asin(.1), 1e-9);
+          CHECK_ALMOST_EQ(MyMath.asin_difference(.8, .2), Math.asin(.8+.2)-Math.asin(.8), 1e-12);
+
+          CHECK_ALMOST_EQ(MyMath.asin_difference(.1, .01), Math.asin(.1+.01)-Math.asin(.1), 1e-12);
+          CHECK_ALMOST_EQ(MyMath.asin_difference(.1, -.01), Math.asin(.1-.01)-Math.asin(.1), 1e-12);
           CHECK_EQ(Math.asin(1.) - Math.asin(1. + -1e-20), 0.);
           CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-9);  // this succeeds
           CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-12);  // this fails using non-naive (and is one of the things tested as part of the general test below)
