@@ -340,7 +340,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     atan_difference(double Xnumerator, double Xdenominator, double x)
     {
-        // IDEA: use formula from:
+        // Use formula from:
         //   https://math.stackexchange.com/questions/1262327/computing-arctan-x-in-terms-of-a-certain-collection-of-other-functions
         // That is: atan(x) = asin(x/sqrt(1+x^2))
         // So atan(X+x)-atan(x) = asin((X+x)/sqrt(1+(X+x)^2)) - asin(X/sqrt(1+X^2))
@@ -350,19 +350,14 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //    = ((X+x)/sqrt(1+(X+x)^2) - X/sqrt(1+X^2)) * ((X+x)/sqrt(1+(X+x)^2) + X/sqrt(1+X^2)) / (... + ...)
         //    = ((X+x)^2/(1+(X+x)^2) - X^2/(1+X^2)) / (... + ...)
         //    = ((x (x + 2 X))/((X^2 + 1) (x^2 + 2 x X + X^2 + 1))) / (... + ...) per wolframalpha
-        if (false)  // XXX doesn't work yet, needs debugging
-        {
-            System.err.println("WARNING: atan_difference Xnumerator/Xdenominator implemented naively");
-            if (Xdenominator == 0. && Xnumerator != 0. && Double.isFinite(x)) return 0.;
-            double X = Xnumerator / Xdenominator;
-            double A = ((x*(x + 2*X))/((X*X + 1)*(x*x + 2*x*X + X*X + 1)));
-            double B = (X+x)/hypot(1,X+x) + X/hypot(1,X);
-            double answer = A/B;
-            return answer;
-        }
-        System.err.println("WARNING: atan_difference implemented naively");
+        if (Xdenominator == 0. && Xnumerator != 0. && Double.isFinite(x)) return 0.;  // CBB: think about whether can do it without special case
+        if (x == 0.) return 0.;  // XXX this is true in general, right?  but I think it's a cop-out
         double X = Xnumerator / Xdenominator;
-        return Math.atan(X+x) - Math.atan(X);  // note that this works even if X is infinite (if x is finite)
+        double A = ((x*(x + 2*X))/((X*X + 1)*(x*x + 2*x*X + X*X + 1)));
+        double B = (X+x)/hypot(1,X+x) + X/hypot(1,X);
+        double answer = asin_difference(X/hypot(1,X), A/B);
+        // CBB: can probably simplify more
+        return answer;
     }  // atan_difference
 
     /** acosh(Y+y)-acosh(Y), accurate even when y is small; Y may be infinite. */
