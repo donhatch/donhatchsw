@@ -1083,14 +1083,14 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             // all bets off. smart version might give a good answer but we can't check it.
             // example of this is asinh where T is infinity and t is finite.
             if (Double.isNaN(answer))
-                System.out.println("              good! (both NaN)");
+                System.out.print("              good! (both NaN)");
             else
-                System.out.println("              ok (naive is NaN, so can't check whether answer="+answer+" looks right");
+                System.out.print("              ok (naive is NaN, so can't check whether answer="+answer+" looks right");
         }
         else
         {
             CHECK_ALMOST_EQ(answer, fTplust-fT, tol);
-            System.out.println("              good!"+(suspicious?" (BUT SUSPICIOUS!)":""));
+            System.out.print("              good!"+(suspicious?" (BUT SUSPICIOUS!)":""));
         }
         //System.out.println("            out test_difference_common_code(T="+T+", t="+t+"), returning suspicious="+suspicious);
         return suspicious;
@@ -1098,16 +1098,22 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
 
     private static boolean test_difference_function_2args(String name, java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double T, double t)
     {
-        System.out.println("            in test_difference_function_2args("+name+", T="+T+", t="+t+")");
+        //System.out.println("            in test_difference_function_2args("+name+", T="+T+", t="+t+")");
+        System.out.print("            testing "+name+"("+T+", "+t+"): ");
+        System.out.flush();
         boolean suspicious = test_difference_function_common_code(method, mathMethod, new Object[]{Double.valueOf(T), Double.valueOf(t)}, T, t);
-        System.out.println("            out test_difference_function_2args("+name+", T="+T+", t="+t+"), returning suspicious="+suspicious);
+        //System.out.println("            out test_difference_function_2args("+name+", T="+T+", t="+t+"), returning suspicious="+suspicious);
+        System.out.println(", suspicious="+suspicious);
         return suspicious;
     }
     private static boolean test_difference_function_3args(String name, java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double Tn, double Td, double t)
     {
-        System.out.println("            in test_difference_function_3args("+name+", T="+Tn+"/"+Td+", t="+t+")");
+        //System.out.println("            in test_difference_function_3args("+name+", T="+Tn+"/"+Td+", t="+t+")");
+        System.out.print("            testing "+name+"("+Tn+"/"+Td+", "+t+"): ");
+        System.out.flush();
         boolean suspicious = test_difference_function_common_code(method, mathMethod, new Object[]{Double.valueOf(Tn), Double.valueOf(Td), Double.valueOf(t)}, Tn/Td, t);
-        System.out.println("            out test_difference_function_3args("+name+", T="+Tn+"/"+Td+", t="+t+"), returning suspicious="+suspicious);
+        //System.out.println("            out test_difference_function_3args("+name+", T="+Tn+"/"+Td+", t="+t+"), returning suspicious="+suspicious);
+        System.out.println(", suspicious="+suspicious);
         return suspicious;
     }
 
