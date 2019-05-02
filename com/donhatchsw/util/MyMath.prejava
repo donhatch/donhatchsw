@@ -187,14 +187,19 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     sqrt_difference(double X, double x)
     {
-        //if (X==0. && x==0.) return 0.; // XXX not sure this is right! think about it.   maybe condition for doing the special algorithm should be something like: abs(x) < X ... or maybe abs(x) < sqrt(X)? i.e. x^2 < X.  hmm maybe that's it.
-
-        if (!(x*x < X)) return Math.sqrt(X+x) - Math.sqrt(X);  // XXX how do I figure out whether this is actually the right condition?
-
         // sqrt(X+x)-sqrt(X) = (sqrt(X+x)-sqrt(X))*(sqrt(X+x)+sqrt(X))/(sqrt(X+x)+sqrt(X))
         //                   = (X+x-X) / (sqrt(X+x) + sqrt(X))
         //                   = x / (sqrt(X+x) + sqrt(X))
-        return x / (Math.sqrt(X+x) + Math.sqrt(X));
+        // But only do it if the original subtraction would have significant error,
+        // i.e. both terms nonzero and exponents differ by at most 1.
+        // (in particular, do *not* do it if X and x are both 0, as that would cause a zero divide)
+        double sqrt_Xplusx = Math.sqrt(X+x);
+        double sqrt_X = Math.sqrt(X);
+        if (sqrt_X*2 <= sqrt_Xplusx) {
+          return sqrt_Xplusx - sqrt_X;  // no significant cancellation
+        } else {
+          return x / (sqrt_Xplusx + sqrt_X);  // there is significant cancellation... and this implies X and x are not both zero
+        }
     }
     /** (X+x)^2-X^2, accurate even when x is small. */
     public static double
