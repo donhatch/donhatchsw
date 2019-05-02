@@ -1263,6 +1263,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_NAN(MyMath.acosh(0.));
         CHECK_NAN(MyMath.acosh(.9));
         CHECK_EQ(MyMath.acosh(1.), 0.);
+        CHECK_GT(MyMath.acosh(1.1), 0.);
         CHECK_EQ(MyMath.acosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         CHECK_NAN(MyMath.atanh(Double.NEGATIVE_INFINITY));
