@@ -213,33 +213,29 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     cos_difference(double T, double t)
     {
-        // cos(T+t)-cos(T) = cos(t)*cos(T) - sin(t)*sin(T) - cos(T) according to wolframalpha
-        //                 = cos(T)*(cos(t)-1) - sin(t)*sin(T)
-        //                 = -cosf1(t)*cos(T) - sin(t)*sin(T)
-        return -cosf1(t)*Math.cos(T) - Math.sin(t)*Math.sin(T);
+        return -2 * Math.sin(t/2) * Math.sin(T + t/2);  // according to wolframalpha
     }
     /** sin(T+t)-sin(T), accurate even when t is small. */
     public static double
     sin_difference(double T, double t)
     {
-        // sin(T+t)-sin(T) = sin(t)*cos(T) + cos(t)*sin(T) - sin(T) according to wolframalpha
-        //                 = sin(t)*cos(T) + (cos(t)-1)*sin(T)
-        //                 = sin(t)*cos(T) - cosf1(t)*sin(T)
-        return Math.sin(t)*Math.cos(T) - cosf1(t)*Math.sin(T);
+        return 2 * Math.sin(t/2) * Math.cos(T + t/2);  // according to wolframalpha
     }
     /** tan(T+t)-tan(T), accurate even when t is small. */
     public static double
     tan_difference(double T, double t)
     {
-        // tan(T+t)-tan(T) = sin(T+t)/cos(T+t) - sin(T)/cos(T)
-        //                 = (sin(T+t)cos(T) - sin(T)cos(T+t)) / (cos(T+t)cos(T))
-        //                 = sin(t) / (cos(T) * cos(T+t))  according to wolframalpha
-        return Math.sin(t) / (Math.cos(T) * Math.cos(T+t));
+        return Math.sin(t) / (Math.cos(T) * Math.cos(T+t));  // according to wolframalpha
     }
     /** cosh(X+x)-cosh(X), accurate even when x is small; X may be infinite. */
     public static double
     cosh_difference(double Xnumerator, double Xdenominator, double x)
     {
+        if (false) {
+          // TODO: wolframalpha these days says 2*sinh(t/2)*sinh(t/2 + T)  ... but still might benefit from the numerator/denominator thing.  Need to make sure the test detects badness... currently it doesn't seem to
+          double X = Xnumerator / Xdenominator;
+          return 2*Math.sinh(x/2)*sinh(X + x/2);
+        }
         // cosh(X+x)-cosh(X) = (exp(X+x)+exp(-(X+x)))/2 - (exp(X)+exp(-X))/2
         //                   = (exp(X+x)-exp(X))/2 + (exp(-X-x)-exp(-X))/2
         //                   = (exp_difference(X,x) + exp_difference(-X,-x)) / 2
@@ -277,19 +273,17 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             double X = Xnumerator/Xdenominator; // unstable in this case but not sure it matters XXX think about it
             return exp_difference(X, x)*.5 - exp_difference(-X, -x)*.5; // ordered to prevent overflow
         }
+        // TODO: wolframalpha these days says 2*sinh(t/2)*cosh(t/2 + T), but might still benefit from the numerator/denominator thing.  need to make sure the test detects badness... currently it doesn't seem to.
     }
     /** tanh(X+x)-tanh(X), accurate even when x is small; X may be infinite. */
     public static double
     tanh_difference(double Xnumerator, double Xdenominator, double x)
     {
-        System.err.println("WARNING: tanh_difference implemented naively");
+        System.err.println("WARNING: tanh_difference Xnumerator/Xdenominator implemented naively");
         double X = Xnumerator / Xdenominator;
-        return Math.tanh(X+x) - Math.tanh(X);
-
         // tanh(X+x)-tanh(X) = sinh(x)*sech(X)*sech(X+x)  according to wolframalpha
         //                   = sinh(x)/(cosh(X)*cosh(X+x))
-        // XXX not working yet.
-        //return MyMath.sinh(x) / (MyMath.cosh(X) * MyMath.cosh(X+X));
+        return sinh(x)/(cosh(X)*cosh(X+x));
     }
     /** sinc(T+t)-sinc(T), accurate even when t is small. */
     public static double
@@ -312,17 +306,57 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     acos_difference(double X, double x)
     {
         System.err.println("WARNING: acos_difference implemented naively");
-        // Note this is also asin(X)-asin(X+x)
+        // Note this is also asin(X)-asin(X+x),
+        // i.e. -asin_difference(X, x)
+        // i.e. asin_difference(X+x,-x)
+        // XXX wait what? no it isn't.  what was I thinking?
         return Math.acos(X+x) - Math.acos(X);
     }
     /** asin(Y+y)-asin(y), accurate even when y is small. */
     public static double
     asin_difference(double Y, double y)
     {
+        if (false) {  // TODO: not ready for prime time; unit test fails.  Need to get the computation of temp more robust, I think, and it seems to be accurate only to sqrt of what I expect (but maybe just need to make special case?)
+          // Draw the picture; it's the arc length between the following two points:
+          //   p0 = (sqrt(1-Y^2),Y)
+          //   p1 = (sqrt(1-(Y+y)^2),Y+y)
+          // So the answer is 2*asin(||p1-p0||/2).
+          //   dist = ||p1-p0||
+          //        = hypot(sqrt(1-(Y+y)^2)-sqrt(1-Y^2), y)
+          //        = hypot(y*(2*Y+y) / (sqrt(1-Y^2) + sqrt(1-(Y+y)^2)), y)
+          OUT("=============");
+          OUT("Y="+Y+" y="+y);
+          PRINT(Y+y);
+          PRINT(1-Y*Y);
+          PRINT(1-(Y+y)*(Y+y));
+          PRINT(1 - Y*Y - y*(2*Y+y));
+          //double temp = y*(2*Y + y) / (Math.sqrt(1-Y*Y) + Math.sqrt(1-(Y+y)*(Y+y)));
+          //double temp = y*(2*Y + y) / (Math.sqrt(1-Y*Y) + Math.sqrt(1 - Y*Y - y*(2*Y+y)));  // XXX hack that makes Y=1 y=-1e-20 work, doesn't seem good in general.  e.g. Y=.8 y=.2 still fails.
+          double temp = y*(2*Y + y) / (Math.sqrt(1-Y*Y) + Math.sqrt(MAX(0,1 - Y*Y - y*(2*Y+y))));  // XXX this is gross, need to do something else.  and its still not as accurate as the test would like (or the test is wrong, not sure which.  hmm actually I think it's wrong: with T=1 t=-1e-20, we produce something like -sqrt(2)*1e-10, which I think is right, but test wants 0 or so, which I think is bogus
+          PRINT(temp);
+          double dist = Math.hypot(temp, y);
+          PRINT(dist);
+          double answer = 2 * Math.asin(dist/2);
+          PRINT(answer);
+          if (y < 0) answer = -answer;
+          PRINT(answer);
+          return answer;
+        }
+
         System.err.println("WARNING: asin_difference implemented naively");
         // Probably equiv to something in terms of acos_difference
         return Math.asin(Y+y) - Math.asin(Y);
     }
+
+    /** atan(X+x)-atan(X), accurate even when x is small; X may be infinite. */
+    public static double
+    atan_difference(double Xnumerator, double Xdenominator, double x)
+    {
+        System.err.println("WARNING: atan_difference implemented naively");
+        double X = Xnumerator / Xdenominator;
+        return Math.atan(X+x) - Math.atan(X);  // note that this works even if X is infinite (if x is finite)
+    }  // atan_difference
+
     /** acosh(Y+y)-acosh(Y), accurate even when y is small; Y may be infinite. */
     public static double
     acosh_difference(double Ynumerator, double Ydenominator, double y)
@@ -333,7 +367,6 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     }
 
     /** asinh(T+t)-asinh(T), accurate even when t is small; T may be infinite. */
-    //private static double sqrt(double x) {return Math.sqrt(x);} // XXX get rid
     public static double
     asinh_difference(double Tnumerator, double Tdenominator, double t)
     {
@@ -403,7 +436,6 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //                       = log1p( -2*t/((1+T)*(t+T-1)) ) / 2
         return Math.log1p( 2*t/((1+T)*(1-(T+t))) ) / 2;
     }
-
 
     /** hyperbolic sine function */
     public static double
@@ -946,22 +978,29 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double sqr(double x) { return x*x; }
     public static double cub(double x) { return x*x*x; }
 
-    private static boolean test_difference_function_2args(java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double T, double t)
-    {
-        System.out.println("            in test_difference_function_2args(T="+T+", t="+t+")");
+    private static boolean test_difference_function_common_code(java.lang.reflect.Method method,
+                                                                java.lang.reflect.Method mathMethod,
+                                                                Object[] methodArgs,
+                                                                double T,
+                                                                double t) {
+        //System.out.println("                in test_difference_function_common_code(T="+T+", t="+t+")");
         boolean suspicious = false;
         double tol = 1e-12;
         double answer, fT, fTplust;
         {
             try
             {
-                // In >=1.7 we have varargs and more implicit conversions so can say these:
-                //answer = (double)method.invoke(null, T, t);
-                //fT = (double)mathMethod.invoke(null, T);
-                //fTplust = (double)mathMethod.invoke(null, T+t);
+                // In >=1.7 we have varargs and more implicit conversions so can say these (2 args):
+                //   answer = (double)method.invoke(null, T, t);
+                //   fT = (double)mathMethod.invoke(null, T);
+                //   fTplust = (double)mathMethod.invoke(null, T+t);
+                // or (3 args)::
+                //   answer = (double)method.invoke(null, Tn, Td, t);
+                //   fT = (double)mathMethod.invoke(null, Tn/Td);
+                //   fTplust = (double)mathMethod.invoke(null, Tn/Td+t);
 
                 // In <=1.4 there's no varargs and limited conversions so have to say:
-                answer = ((Double)method.invoke(null, new Object[]{Double.valueOf(T), Double.valueOf(t)})).doubleValue();
+                answer = ((Double)method.invoke(null, methodArgs)).doubleValue();
                 fT = ((Double)mathMethod.invoke(null, new Object[]{Double.valueOf(T)})).doubleValue();
                 fTplust = ((Double)mathMethod.invoke(null, new Object[]{Double.valueOf(T+t)})).doubleValue();
             }
@@ -984,55 +1023,42 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
             CHECK_ALMOST_EQ(answer, fTplust-fT, tol);
             System.out.println("              good!"+(suspicious?" (BUT SUSPICIOUS!)":""));
         }
-        System.out.println("            out test_difference_function_2args(T="+T+", t="+t+"), returning suspicious="+suspicious);
+        //System.out.println("            out test_difference_common_code(T="+T+", t="+t+"), returning suspicious="+suspicious);
         return suspicious;
-    } // test_difference_function_2args
-    private static boolean test_difference_function_3args(java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double Tn, double Td, double t)
+    }
+
+    private static boolean test_difference_function_2args(String name, java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double T, double t)
     {
-        System.out.println("            in test_difference_function_3args(T="+Tn+"/"+Td+", t="+t+")");
-        boolean suspicious = false;
-        double tol = 1e-12;
-        double answer, fT, fTplust;
-        {
-            try
-            {
-                // In >=1.7 we have varargs and more implicit conversions so can say these:
-                //answer = (double)method.invoke(null, Tn, Td, t);
-                //fT = (double)mathMethod.invoke(null, Tn/Td);
-                //fTplust = (double)mathMethod.invoke(null, Tn/Td+t);
-
-                // In <=1.4 there's no varargs and limited conversions so have to say:
-                answer = ((Double)method.invoke(null, new Object[]{Double.valueOf(Tn), Double.valueOf(Td), Double.valueOf(t)})).doubleValue();
-                fT = ((Double)mathMethod.invoke(null, new Object[]{Double.valueOf(Tn/Td)})).doubleValue();
-                fTplust = ((Double)mathMethod.invoke(null, new Object[]{Double.valueOf(Tn/Td+t)})).doubleValue();
-            }
-            catch (IllegalArgumentException e) { CHECK(false); }
-            catch (IllegalAccessException e) { CHECK(false); }
-            catch (java.lang.reflect.InvocationTargetException e) { PRINT(e.getCause()); CHECK(false); }
-        }
-        suspicious = (t!=0. && answer==0.); // suspicious that implemented naively
-        if (Double.isNaN(fTplust-fT))
-        {
-            // all bets off. smart version might give a good answer but we can't check it.
-            // example of this is asinh where T is infinity and t is finite.
-            if (Double.isNaN(answer))
-                System.out.println("              good! (both NaN)");
-            else
-                System.out.println("              ok (naive is NaN, so can't check whether answer="+answer+" looks right");
-        }
-        else
-        {
-            CHECK_ALMOST_EQ(answer, fTplust-fT, tol);
-            System.out.println("              good!"+(suspicious?" (BUT SUSPICIOUS!)":""));
-        }
-
-        System.out.println("            out test_difference_function_3args(T="+Tn+"/"+Td+", t="+t+"), returning suspicious="+suspicious);
+        System.out.println("            in test_difference_function_2args("+name+", T="+T+", t="+t+")");
+        boolean suspicious = test_difference_function_common_code(method, mathMethod, new Object[]{Double.valueOf(T), Double.valueOf(t)}, T, t);
+        System.out.println("            out test_difference_function_2args("+name+", T="+T+", t="+t+"), returning suspicious="+suspicious);
         return suspicious;
-    } // test_difference_function_3args
+    }
+    private static boolean test_difference_function_3args(String name, java.lang.reflect.Method method, java.lang.reflect.Method mathMethod, double Tn, double Td, double t)
+    {
+        System.out.println("            in test_difference_function_3args("+name+", T="+Tn+"/"+Td+", t="+t+")");
+        boolean suspicious = test_difference_function_common_code(method, mathMethod, new Object[]{Double.valueOf(Tn), Double.valueOf(Td), Double.valueOf(t)}, Tn/Td, t);
+        System.out.println("            out test_difference_function_3args("+name+", T="+Tn+"/"+Td+", t="+t+"), returning suspicious="+suspicious);
+        return suspicious;
+    }
 
     public static void main(String args[])
     {
         System.out.println("    in MyMath.main");
+
+        PRINT(Math.atan(Double.POSITIVE_INFINITY));
+        PRINT(Math.atan(Double.NEGATIVE_INFINITY));
+        if (true) {
+          // TODO: maybe get rid of these, when I have asin_difference ironed out
+          PRINT(Math.asin(.8+.2) - Math.asin(.8));
+          PRINT(MyMath.asin_difference(.8, .2));
+          CHECK_ALMOST_EQ(MyMath.asin_difference(.1, .01), Math.asin(.1+.01)-Math.asin(.1), 1e-9);
+          CHECK_ALMOST_EQ(MyMath.asin_difference(.1, -.01), Math.asin(.1-.01)-Math.asin(.1), 1e-9);
+          CHECK_EQ(Math.asin(1.) - Math.asin(1. + -1e-20), 0.);
+          CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-9);  // this succeeds
+          CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-12);  // this fails using non-naive (and is one of the things tested as part of the general test below)
+          //OUT("exiting 33"); System.exit(33);
+        }
 
         if (true)
         {
@@ -1077,7 +1103,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                         {
                             double T = Ts[iT];
                             double t = ts[it];
-                            boolean suspicious1 = test_difference_function_2args(method, mathMethod, T, t);
+                            boolean suspicious1 = test_difference_function_2args(name, method, mathMethod, T, t);
                             if (suspicious1)
                                 suspicious = true;
                         }
@@ -1101,7 +1127,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                              && ((Tn>=0&&Td>=0&&Tn<Td) // T < 1.
                               || (Tn+t*Td<Td)))        // T+t<1 i.e. Tn/Td+t<1 i.e. Tn+t*Td<Td
                                 continue;
-                            boolean suspicious1 = test_difference_function_3args(method, mathMethod, Tn, Td, t);
+                            boolean suspicious1 = test_difference_function_3args(name, method, mathMethod, Tn, Td, t);
                             if (suspicious1)
                                 suspicious = true;
                         }
@@ -1109,7 +1135,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                     else
                         CHECK(false);
                 }
-                CHECK(nFound > 0);
+                CHECK_GT(nFound, 0);
                 PRINT(suspicious);
             }
             if (false)
@@ -1142,26 +1168,25 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_EQ(MyMath.log1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         CHECK_EQ(MyMath.sinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
-        CHECK(MyMath.sinh(-.1) < 0.);
+        CHECK_LT(MyMath.sinh(-.1), 0.);
         CHECK_EQ(MyMath.sinh(0.), 0.);
         CHECK_EQ(MyMath.sinh(.1), -MyMath.sinh(-.1));
         CHECK_EQ(MyMath.sinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         CHECK_EQ(MyMath.cosh(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
-        CHECK(MyMath.cosh(-.1) > 1.);
+        CHECK_GT(MyMath.cosh(-.1), 1.);
         CHECK_EQ(MyMath.cosh(0.), 1.);
         CHECK_EQ(MyMath.cosh(.1), MyMath.cosh(-.1));
         CHECK_EQ(MyMath.cosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
         CHECK_EQ(MyMath.tanh(Double.NEGATIVE_INFINITY), -1.);
-        CHECK(MyMath.tanh(-.1) < 0.);
+        CHECK_LT(MyMath.tanh(-.1), 0.);
         CHECK_EQ(MyMath.tanh(0.), 0.);
         CHECK_EQ(MyMath.tanh(.1), -MyMath.tanh(-.1));
         CHECK_EQ(MyMath.tanh(Double.POSITIVE_INFINITY), 1.);
 
-
         CHECK_EQ(MyMath.asinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
-        CHECK(MyMath.asinh(-.1) < 0.);
+        CHECK_LT(MyMath.asinh(-.1), 0.);
         CHECK_EQ(MyMath.asinh(0.), 0.);
         CHECK_EQ(MyMath.asinh(.1), -MyMath.asinh(-.1));
         CHECK_EQ(MyMath.asinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
@@ -1176,16 +1201,21 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_NAN(MyMath.atanh(Double.NEGATIVE_INFINITY));
         CHECK_NAN(MyMath.atanh(-1.1));
         CHECK_EQ(MyMath.atanh(-1.), Double.NEGATIVE_INFINITY);
-        CHECK(MyMath.atanh(-.1) < 0.);
+        CHECK_LT(MyMath.atanh(-.1), 0.);
         CHECK_EQ(MyMath.atanh(0.), 0.);
         CHECK_EQ(MyMath.atanh(.1), -MyMath.atanh(-.1));
         CHECK_EQ(MyMath.atanh(1.), Double.POSITIVE_INFINITY);
         CHECK_NAN(MyMath.atanh(1.1));
         CHECK_NAN(MyMath.atanh(Double.POSITIVE_INFINITY));
 
+        CHECK_EQ(Math.atan(Double.NEGATIVE_INFINITY), -Math.PI/2);
+        CHECK_LT(Math.atan(-1.), 0.);
+        CHECK_EQ(Math.atan(0.), 0.);
+        CHECK_GT(Math.atan(1.), 0.);
+        CHECK_EQ(Math.atan(Double.POSITIVE_INFINITY), Math.PI/2);
 
         CHECK_EQ(MyMath.coshm1(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
-        CHECK(MyMath.coshm1(-.1) > 0.);
+        CHECK_GT(MyMath.coshm1(-.1), 0.);
         CHECK_EQ(MyMath.coshm1(0.), 0.);
         CHECK_EQ(MyMath.coshm1(.1), MyMath.coshm1(-.1));
         CHECK_EQ(MyMath.coshm1(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
@@ -1193,7 +1223,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_NAN(MyMath.acosh1p(Double.NEGATIVE_INFINITY));
         CHECK_NAN(MyMath.acosh1p(-.1));
         CHECK_EQ(MyMath.acosh1p(0.), 0.);
-        CHECK(MyMath.acosh1p(.1) > 0.);
+        CHECK_GT(MyMath.acosh1p(.1), 0.);
         CHECK_EQ(MyMath.acosh1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
 
 
@@ -1292,18 +1322,18 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
 
             if (i > 0.)
             {
-                CHECK(Math.exp(xs[i-1]) < Math.exp(xs[i]));
-                CHECK(MyMath.expm1(xs[i-1]) <= MyMath.expm1(xs[i])); // not strict < for some
-                CHECK(MyMath.sinh(xs[i-1]) < MyMath.sinh(xs[i]));
+                CHECK_LT(Math.exp(xs[i-1]), Math.exp(xs[i]));
+                CHECK_LE(MyMath.expm1(xs[i-1]), MyMath.expm1(xs[i])); // not strict < for some
+                CHECK_LT(MyMath.sinh(xs[i-1]), MyMath.sinh(xs[i]));
                 if (ABS(xs[i-1]) < ABS(xs[i]))
                 {
-                    CHECK(MyMath.cosh(xs[i-1]) < MyMath.cosh(xs[i]));
-                    CHECK(MyMath.coshm1(xs[i-1]) < MyMath.coshm1(xs[i]));
+                    CHECK_LT(MyMath.cosh(xs[i-1]), MyMath.cosh(xs[i]));
+                    CHECK_LT(MyMath.coshm1(xs[i-1]), MyMath.coshm1(xs[i]));
                 }
                 else
                 {
-                    CHECK(MyMath.cosh(xs[i-1]) > MyMath.cosh(xs[i]));
-                    CHECK(MyMath.coshm1(xs[i-1]) > MyMath.coshm1(xs[i]));
+                    CHECK_GT(MyMath.cosh(xs[i-1]), MyMath.cosh(xs[i]));
+                    CHECK_GT(MyMath.coshm1(xs[i-1]), MyMath.coshm1(xs[i]));
                 }
             }
         }
@@ -1347,7 +1377,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
 
                 if (i < 0.)
                 {
-                    CHECK(MyMath.glog(i, -1) < 0.);
+                    CHECK_LT(MyMath.glog(i, -1), 0.);
                     CHECK_NAN(MyMath.glog(i, 0));
                 }
                 else if (i == 0)
@@ -1370,8 +1400,8 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 }
                 else if (i > Math.E)
                 {
-                    CHECK(MyMath.glog(i, -1) < 1.);
-                    CHECK(MyMath.glog(i, 0) > 1.);
+                    CHECK_LT(MyMath.glog(i, -1), 1.);
+                    CHECK_GT(MyMath.glog(i, 0), 1.);
                 }
             }
         } // lambertw and glog tests
