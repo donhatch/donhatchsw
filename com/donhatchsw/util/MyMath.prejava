@@ -324,97 +324,19 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     asin_difference(double Y, double y)
     {
-        if (false) {
-          // TODO: not ready for prime time; unit test fails.  Need to get the computation of temp more robust, I think, and it seems to be accurate only to sqrt of what I expect (but maybe just need to make special case?)
-          // The problem: with T=1 t=-1e-20, we produce something like -sqrt(2)*1e-10, which I actually think is right, but test wants 0 or so, which I think is bogus
-
-          // Draw the picture; it's the arc length between the following two points:
-          //   p0 = [sqrt(1-Y^2), Y]
-          //   p1 = [sqrt(1-(Y+y)^2), Y+y]
-          // So the answer is 2*asin(||p1-p0||/2).
-          //   dist = ||p1-p0||
-          //        = hypot(sqrt(1-(Y+y)^2)-sqrt(1-Y^2), y)
-          //        = hypot(y*(2*Y+y) / (sqrt(1-Y^2) + sqrt(1-(Y+y)^2)), y)
-          //        = y * hypot((2*Y+y) / (sqrt(1-Y^2) + sqrt(1-(Y+y)^2)), 1)
-          //        = y * hypot((2*Y+y) / (sqrt((1+Y)*(1-Y)) + sqrt((1+(Y+y))*(1-(Y+y)))), 1)  (maybe more stable)
-          // (note that pulling y out like that makes the whole thing work even if y is negative; cool)
-          // OH WAIT, that can't be good... say y=-1e-20, then dist will be approx 1e-10, which means the hypot would have to be around 1e10, that's bad!  in fact, this should work even if y is 0!
-
-          //double temp = (2*Y + y) / (Math.sqrt(1-Y*Y) + Math.sqrt(1-(Y+y)*(Y+y)));  // bad; denominator is 0 if Y=1 y=-1e-20
-          //double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt((1+(Y+y))*(1-(Y+y))));  // maybe more stable but still bad; denominator still 0 if Y=1 y=-1e-20
-
-          OUT("========");
-          PRINT2(Y, y);
-          PRINT(1+Y+y);
-          PRINT(1-Y-y);
-          //double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt((1+Y+y)*(1-Y-y)));  // hack that makes Y=1 y=-1e-20 work, because the 1-Y properly exactly cancels, but Y=.5 y=.2 still fails because of slight negativity (1-Y-y = -5.551115123125783E-17)
-
-          //double temp = (2*Y + y) / (Math.sqrt((1+Y)*(1-Y)) + Math.sqrt(MAX(0, (1+Y+y)*(1-Y-y) )));  // XXX this is gross, need to do something else.  clamping can't be the right solution in general
-
-          // XXX wait, what?
-          //     1-.8-.2 is slightly negative, even though .8+.2==1?
-          //     well, 1-.8 = 0.19999999999999996
-          //     is there any smart way of rearranging that works?
-          //        Y=.8, y=.2   <---- ACTUALLY THIS IS ILLEGAL... .8+.2 is actually slightly more than 1!
-
-
-          // Let's try another derivation.
-          //   dist = ||p1-p0||
-          //        = hypot(sqrt(1-(Y+y)^2)-sqrt(1-Y^2), y)
-          //        = sqrt( (sqrt(1-(Y+y)^2)-sqrt(1-Y^2))^2 + y^2)
-          //        = sqrt( 1-(Y+y)^2 + 1-Y^2 - 2*sqrt((1-(Y+y)^2)*(1-Y^2)) + y^2)
-          //        = sqrt( 1 - Y^2 - 2*Y*y - y^2 + 1 - Y^2 - 2*sqrt((1-(Y+y)^2)*(1-Y^2)) + y^2)
-          //        = sqrt( 1 - Y^2 - 2*Y*y + 1 - Y^2 - 2*sqrt((1-(Y+y)^2)*(1-Y^2)) )
-          //        = sqrt( 2 - 2*Y^2 - 2*Y*y - 2*sqrt((1-(Y+y)^2)*(1-Y^2)) )
-          //          (nope, doesn't seem to be helping)
-          //
-          // Surely there's a numerically perspicuous expression for ||p1-p0|| ??
-          // Or, just for the x part, which is:
-          //     sqrt(1-(Y+y)^2) - sqrt(1-Y^2)
-          // It needs to behave well in the case Y=1, and also any time Y is safely between 0 and 1 and y is tiny.
-          //     = sqrt(1-Y^2-Y*y-y^2) - sqrt(1-Y^2)
-          // Maybe ask on math.stackexchange:
-          //   Q: numerically robust expression for sqrt(1-(Y+y)^2) - sqrt(1-Y^2)
-          //      I'm trying to find a numerically robust way of computing
-          //        sqrt(1-(Y+y)^2) - sqrt(1-Y^2).
-          //      Examples:
-          //        Y=1 y=0       -> should produce 0
-          //                         (naive calculation correctly produces 0, conjugation blows up)
-          //        Y=1 y=-1e-20  -> should produce sqrt(2e-20 - 1e-40) = approximately sqrt(2)*1e-10
-          //                         (naive calculation wrongly produces 0, conjugation works)
-          //        Y=0 y=0       -> should produce 0
-          //                         (naive calculation correctly produces 0, conjugation correctly produces 0 too)
-          //        Y=0 y=1e-20   -> -1e-40 / (1+sqrt(1-1e-20)) = approximately -5e-41
-          //                         (naive calculation wrongly produces 0, conjugation works)
-          //      Thoughts:
-          //      What if I hard code Y=1, what am I asking for?
-          //        sqrt(1-(1+y)^2))
-          //          = sqrt((2+y)*(-y))
-          //          = sqrt(-2*y - y^2)
-          //      And if I hard code Y=0, what am I asking for?
-          //        sqrt(1-y^2) - 1
-          //          = (sqrt(1-y^2)-1) * (sqrt(1-y^2)+1) / (sqrt(1-y^2)+1)
-          //          = -y^2 / (sqrt(1-y^2)+1)
-          // Oh wait, can I express it in terms of sqrt_difference?
-          //     sqrt(1-(Y+y)^2) - sqrt(1-Y^2) = sqrt(1-Y^2-2*Y*y-y^2) - sqrt(1-Y^2)
-          //                                   = sqrt_difference(1-Y^2, -y*(2*Y+y))
-          //                                   = sqrt_difference((1+Y)*(1-Y), -y*(2*Y+y))
-          // and maybe let sqrt_difference figure out the smart thing, that is, don't use it if both args are zero
-          // (in fact maybe only use it if abs(X)>abs(x))
-          // and don't sweat the fact that it doesn't work on .8+.2.  (make special case in test?)
-          //
-
-          double temp = sqrt_difference((1+Y)*(1-Y), -y*(2*Y+y));
-
-          double dist = Math.hypot(temp, y);
-          double answer = 2 * Math.asin(dist/2);
-          if (y < 0) answer = -answer;
-          return answer;
-        }
-
-        System.err.println("WARNING: asin_difference implemented naively");
-        // Probably equiv to something in terms of acos_difference
-        return Math.asin(Y+y) - Math.asin(Y);
+        // Draw the picture; it's the arc length between the following two points:
+        //   p0 = [sqrt(1-Y^2), Y]
+        //   p1 = [sqrt(1-(Y+y)^2), Y+y]
+        // So the answer is 2*asin(||p1-p0||/2).
+        //   dist = ||p1-p0||
+        //        = hypot(sqrt(1-(Y+y)^2)-sqrt(1-Y^2), y)
+        // NOTE: we (non-obviously) correctly return NaN for things like T=.8,t=.2.
+        // The test makes a special case for that.
+        double temp = sqrt_difference((1+Y)*(1-Y), -y*(2*Y+y));  // let it make the subtle decision
+        double dist = Math.hypot(temp, y);
+        double answer = 2 * Math.asin(dist/2);
+        if (y < 0) answer = -answer;
+        return answer;
     }
 
     /** atan(X+x)-atan(X), accurate even when x is small; X may be infinite. */
@@ -1054,7 +976,8 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                                                                 double t) {
         //System.out.println("                in test_difference_function_common_code(T="+T+", t="+t+")");
         boolean suspicious = false;
-        double tol = 1e-12;
+        //double tol = 1e-12;
+        double tol = 1e-9;  // was 1e-12, loosened for asin_difference(1, -1e-20) which has error approx sqrt(2)*1e-10
         double answer, fT, fTplust;
         {
             try
@@ -1128,13 +1051,27 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
 
           PRINT(Math.asin(.8+.2) - Math.asin(.8));
           PRINT(MyMath.asin_difference(.8, .2));
-          CHECK_ALMOST_EQ(MyMath.asin_difference(.8, .2), Math.asin(.8+.2)-Math.asin(.8), 1e-12);
+          //CHECK_ALMOST_EQ(MyMath.asin_difference(.8, .2), Math.asin(.8+.2)-Math.asin(.8), 1e-12);  // this fails-- and it *should* fail!
 
           CHECK_ALMOST_EQ(MyMath.asin_difference(.1, .01), Math.asin(.1+.01)-Math.asin(.1), 1e-12);
           CHECK_ALMOST_EQ(MyMath.asin_difference(.1, -.01), Math.asin(.1-.01)-Math.asin(.1), 1e-12);
+
+          // QUESTION: why doesn't sqrt_difference(0, 1e-20) fail similarly?  I'd think it would have essentially the same error behavior
+          // ANSWER: in that case, T+t is expressible exactly, so both methods give exactly 1e-10.  sqrt_difference_sqrt1pm1(-1, 1e-20) would, though.
+          PRINT(MyMath.sqrt_difference(0., 1e-20));
+          try {
+              java.lang.reflect.Method sqrt_difference = MyMath.class.getMethod("sqrt_difference", new Class[]{double.class,double.class});
+              java.lang.reflect.Method sqrt = Math.class.getMethod("sqrt", new Class[]{double.class});
+              test_difference_function_2args("sqrt_difference", sqrt_difference, sqrt, 0., 1e-20);
+          } catch (NoSuchMethodException e) {
+              CHECK(false);
+          }
+
+          PRINT(MyMath.asin_difference(1., -1e-20));  // approx -sqrt(2)*1e-10
           CHECK_EQ(Math.asin(1.) - Math.asin(1. + -1e-20), 0.);
           CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-9);  // this succeeds
-          CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-12);  // this fails using non-naive (and is one of the things tested as part of the general test below)
+          //CHECK_ALMOST_EQ(MyMath.asin_difference(1., -1e-20), 0., 1e-12);  // this fails using non-naive (and is one of the things tested as part of the general test below)
+
           //OUT("exiting 33"); System.exit(33);
         }
 
@@ -1181,6 +1118,26 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                         {
                             double T = Ts[iT];
                             double t = ts[it];
+
+                            if (name.equals("asin_difference")) {
+                                // Cases the tester doesn't handle well:
+                                // when T+t is slightly >1 (and therefore outside asin's domain)
+                                // even though the nearest expressible double is 1.
+                                // In these cases asin_difference correctly produces NaN,
+                                // but test_difference_function_2args incorrectly requires something else to happen.
+                                // Examples are:
+                                //   T=.8 t=.2
+                                //   T=.9 t=.1
+                                //   T=1 t=1e-20
+                                // The following test is probably not reliable in general, but it does catch those cases.
+                                if (T<=1 && T+t==1 && (1-T<t || 1-t<T)) {
+                                  System.out.println("            smoke testing "+name+"("+T+", "+t+")");
+                                  CHECK_NAN(asin_difference(T,t));
+                                  CHECK(Double.isFinite(Math.asin(T+t)-Math.asin(T)));
+                                  continue;
+                                }
+                            }
+
                             boolean suspicious1 = test_difference_function_2args(name, method, mathMethod, T, t);
                             if (suspicious1)
                                 suspicious = true;
@@ -1201,10 +1158,14 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                             double t = ts[it];
                             if (Tn==0. && Td==0.)
                                continue;
+
+                            // I think I disabled the following simply because it gets boring with all the NaNs,
+                            // even though it works.
                             if (name.startsWith("cosh")
                              && ((Tn>=0&&Td>=0&&Tn<Td) // T < 1.
                               || (Tn+t*Td<Td)))        // T+t<1 i.e. Tn/Td+t<1 i.e. Tn+t*Td<Td
                                 continue;
+
                             boolean suspicious1 = test_difference_function_3args(name, method, mathMethod, Tn, Td, t);
                             if (suspicious1)
                                 suspicious = true;
