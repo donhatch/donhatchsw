@@ -325,6 +325,8 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         // So the answer is 2*asin(||p1-p0||/2).
         //   dist = ||p1-p0||
         //        = hypot(sqrt(1-(Y+y)^2)-sqrt(1-Y^2), y)
+        //        = hypot(sqrt(1-Y^2-2*Y*y-y^2)-sqrt(1-Y^2), y)
+        //        = hypot(sqrt_difference(1-Y^2, -2*Y*y-y^2), y)
         // NOTE: we (non-obviously) correctly return NaN for things like T=.8,t=.2.
         // The test makes a special case for that.
         double temp = sqrt_difference((1+Y)*(1-Y), -y*(2*Y+y));  // let it make the subtle decision
@@ -1055,7 +1057,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 System.out.println("        prefix_function_name = "+prefix_function_name);
                 boolean suspicious = false;
                 // Find prefix method, in MyMath or Math.
-                // Some are in both (e.g. cosh,sinh,tanh, in java 1.5 and later).
+                // Some are in both (namely cosh,sinh,tanh, in java 1.5 and later).
                 Class mathClasses[] = {Math.class, MyMath.class};
                 int nFound = 0;
                 for (int iMathClass = 0; iMathClass < mathClasses.length; ++iMathClass)
@@ -1126,6 +1128,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
 
                             // I think I disabled the following simply because it gets boring with all the NaNs,
                             // even though it works.
+                            // TODO: maybe add 1 to all the T's?  it's not that trivial, need to think about it
                             if (name.startsWith("cosh")
                              && ((Tn>=0&&Td>=0&&Tn<Td) // T < 1.
                               || (Tn+t*Td<Td)))        // T+t<1 i.e. Tn/Td+t<1 i.e. Tn+t*Td<Td
