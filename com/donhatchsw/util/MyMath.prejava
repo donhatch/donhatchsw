@@ -337,26 +337,27 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     }
 
     /** atan(X+x)-atan(X), accurate even when x is small; X may be infinite. */
+    // CBB: make it 2d? i.e. an atan2_difference, maybe?
     public static double
     atan_difference(double Xnumerator, double Xdenominator, double x)
     {
-        // Use formula from:
-        //   https://math.stackexchange.com/questions/1262327/computing-arctan-x-in-terms-of-a-certain-collection-of-other-functions
-        // That is: atan(x) = asin(x/sqrt(1+x^2))
-        // So atan(X+x)-atan(x) = asin((X+x)/sqrt(1+(X+x)^2)) - asin(X/sqrt(1+X^2))
-        //                      = asin_difference( X/sqrt(1+X^2), (X+x)/sqrt(1+(X+x)^2)-X/sqrt(1+X^2) )
-        // What's the difference in there:
-        //    (X+x)/sqrt(1+(X+x)^2) - X/sqrt(1+X^2)
-        //    = ((X+x)/sqrt(1+(X+x)^2) - X/sqrt(1+X^2)) * ((X+x)/sqrt(1+(X+x)^2) + X/sqrt(1+X^2)) / (... + ...)
-        //    = ((X+x)^2/(1+(X+x)^2) - X^2/(1+X^2)) / (... + ...)
-        //    = ((x (x + 2 X))/((X^2 + 1) (x^2 + 2 x X + X^2 + 1))) / (... + ...) per wolframalpha
         if (Xdenominator == 0. && Xnumerator != 0. && Double.isFinite(x)) return 0.;  // CBB: think about whether can do it without special case
         if (x == 0.) return 0.;  // XXX this is true in general, right?  but I think it's a cop-out
         double X = Xnumerator / Xdenominator;
-        double A = ((x*(x + 2*X))/((X*X + 1)*(x*x + 2*x*X + X*X + 1)));
-        double B = (X+x)/hypot(1,X+x) + X/hypot(1,X);
-        double answer = asin_difference(X/hypot(1,X), A/B);
-        // CBB: can probably simplify more
+
+        // Similar to asin_difference, we want the arc length between two points:
+        //   p0 = [1,T] normalized
+        //      = [1,T] / sqrt(1+T^2)
+        //   p1 = [1,T+t] normalized
+        //      = [1,T+t] / sqrt(1+(T+t)^2)
+
+        // Strange, the test seems to think it's stable as soon as I express the X part
+        // as a sqrt_difference; shouldn't it require both the X and Y parts to be sqrt_difference?
+        double dist = Math.hypot(sqrt_difference(1+SQR(X), x*(2*X + x)),
+                                 sqrt_difference(SQR(X+x)*(1+SQR(X)), -x*(2*X + x)))
+                    / Math.sqrt((1+SQR(X+x))*(1+SQR(X)));
+        double answer = 2 * Math.asin(dist/2);
+        if (x < 0) answer = -answer;
         return answer;
     }  // atan_difference
 
