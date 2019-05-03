@@ -365,9 +365,13 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     acosh_difference(double Ynumerator, double Ydenominator, double y)
     {
-        System.err.println("WARNING: acosh_difference implemented naively");
-        double Y = Ynumerator / Ydenominator;
-        return MyMath.acosh(Y+y) - MyMath.acosh(Y);
+        // wolframalpha says it's:
+        //   log((sqrt(y + Y - 1)*sqrt(y + Y + 1) + y + Y)/(Y + sqrt(Y - 1)*sqrt(Y + 1)))
+        // and simplify.
+        double Y = Ynumerator / Ydenominator; // XXX does this cover everything?
+        if (Y == Double.POSITIVE_INFINITY && Double.isFinite(y)) return 0.;
+        return Math.log1p((y + sqrt_difference((Y+1)*(Y-1), y*(2*Y+y)))
+                        / (Y + Math.sqrt((Y+1)*(Y-1))));
     }
 
     /** asinh(T+t)-asinh(T), accurate even when t is small; T may be infinite. */
@@ -990,7 +994,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //System.out.println("                in test_difference_function_common_code(T="+T+", t="+t+")");
         boolean suspicious = false;
         //double tol = 1e-12;
-        double tol = 1e-9;  // was 1e-12, loosened for asin_difference(1, -1e-20) which has error approx sqrt(2)*1e-10
+        double tol = 1e-9;  // was 1e-12, loosened for asin_difference(1, -1e-20) or acosh_difference(1, 1e-20), which have error approx sqrt(2)*1e-10
         double answer, fT, fTplust;
         {
             try
@@ -1071,6 +1075,13 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 System.out.println("    Testing "+name+" ("+signature.length+" args)");
                 String prefix_function_name = name.substring(0, name.length()-"_difference".length());
                 System.out.println("        prefix_function_name = "+prefix_function_name);
+                if (false)  // hard-coded.  change to true and mess with the condition below, to focus on just one, if desired
+                {
+                    if (!prefix_function_name.equals("acosh")) {
+                        System.out.println("        not doing "+name+" because not acosh");
+                        continue;
+                    }
+                }
                 boolean suspicious = false;
                 // Find prefix method, in MyMath or Math.
                 // Some are in both (namely cosh,sinh,tanh, in java 1.5 and later).
@@ -1150,6 +1161,17 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                               || (Tn+t*Td<Td)))        // T+t<1 i.e. Tn/Td+t<1 i.e. Tn+t*Td<Td
                                 continue;
 
+                            if (prefix_function_name.equals("acosh")) {
+                              // Same issue as for asin and acos, but in this case acosh is undefined
+                              // for <1 instead of >1.
+                              // The bad example is: T=1 t=-1e-20
+                              if (Tn/Td==1 && Tn/Td+t==1 && t<0) {
+                                  System.out.println("            smoke testing "+name+"("+Tn+"/"+Td+", "+t+")");
+                                  CHECK_NAN(acosh_difference(Tn,Td, t));
+                                  continue;
+                              }
+                            }
+
                             boolean suspicious1 = test_difference_function_3args(name, method, mathMethod, Tn, Td, t);
                             if (suspicious1)
                                 suspicious = true;
@@ -1204,24 +1226,48 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_EQ(MyMath.sinh(0.), 0.);
         CHECK_EQ(MyMath.sinh(.1), -MyMath.sinh(-.1));
         CHECK_EQ(MyMath.sinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        CHECK_EQ(sinh_difference(-1.,0., -1.), Double.NEGATIVE_INFINITY);
+        CHECK_NAN(sinh_difference(-1.,0., 0.));
+        CHECK_EQ(sinh_difference(-1.,0., 1.), Double.POSITIVE_INFINITY);
+        CHECK_EQ(sinh_difference(1.,0., -1.), Double.NEGATIVE_INFINITY);
+        CHECK_NAN(sinh_difference(1.,0., 0.));
+        CHECK_EQ(sinh_difference(1.,0., 1.), Double.POSITIVE_INFINITY);
 
         CHECK_EQ(MyMath.cosh(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
         CHECK_GT(MyMath.cosh(-.1), 1.);
         CHECK_EQ(MyMath.cosh(0.), 1.);
         CHECK_EQ(MyMath.cosh(.1), MyMath.cosh(-.1));
         CHECK_EQ(MyMath.cosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        CHECK_EQ(cosh_difference(-1.,0., -1.), Double.POSITIVE_INFINITY);
+        CHECK_NAN(cosh_difference(-1.,0., 0.));
+        CHECK_EQ(cosh_difference(-1.,0., 1.), Double.NEGATIVE_INFINITY);
+        CHECK_EQ(cosh_difference(1.,0., -1.), Double.NEGATIVE_INFINITY);
+        CHECK_NAN(cosh_difference(1.,0., 0.));
+        CHECK_EQ(cosh_difference(1.,0., 1.), Double.POSITIVE_INFINITY);
 
         CHECK_EQ(MyMath.tanh(Double.NEGATIVE_INFINITY), -1.);
         CHECK_LT(MyMath.tanh(-.1), 0.);
         CHECK_EQ(MyMath.tanh(0.), 0.);
         CHECK_EQ(MyMath.tanh(.1), -MyMath.tanh(-.1));
         CHECK_EQ(MyMath.tanh(Double.POSITIVE_INFINITY), 1.);
+        CHECK_EQ(tanh_difference(-1.,0., 0.), 0.);
+        CHECK_EQ(tanh_difference(-1.,0., 1.), 0.);
+        CHECK_EQ(tanh_difference(-1.,0., -1.), 0.);
+        CHECK_EQ(tanh_difference(1.,0., 0.), 0.);
+        CHECK_EQ(tanh_difference(1.,0., 1.), 0.);
+        CHECK_EQ(tanh_difference(1.,0., -1.), 0.);
 
         CHECK_EQ(MyMath.asinh(Double.NEGATIVE_INFINITY), Double.NEGATIVE_INFINITY);
         CHECK_LT(MyMath.asinh(-.1), 0.);
         CHECK_EQ(MyMath.asinh(0.), 0.);
         CHECK_EQ(MyMath.asinh(.1), -MyMath.asinh(-.1));
         CHECK_EQ(MyMath.asinh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        CHECK_EQ(asinh_difference(-1.,0., 0.), 0.);
+        CHECK_EQ(asinh_difference(-1.,0., 1.), 0.);
+        CHECK_EQ(asinh_difference(-1.,0., -1.), 0.);
+        CHECK_EQ(asinh_difference(1.,0., 0.), 0.);
+        CHECK_EQ(asinh_difference(1.,0., 1.), 0.);
+        CHECK_EQ(asinh_difference(1.,0., -1.), 0.);
 
         CHECK_NAN(MyMath.acosh(Double.NEGATIVE_INFINITY));
         CHECK_NAN(MyMath.acosh(-1.));
@@ -1230,6 +1276,12 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_EQ(MyMath.acosh(1.), 0.);
         CHECK_GT(MyMath.acosh(1.1), 0.);
         CHECK_EQ(MyMath.acosh(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
+        CHECK_NAN(acosh_difference(-1.,0., 0.));
+        CHECK_NAN(acosh_difference(-1.,0., 1.));
+        CHECK_NAN(acosh_difference(-1.,0., -1.));
+        CHECK_EQ(acosh_difference(1.,0., 0.), 0.);
+        CHECK_EQ(acosh_difference(1.,0., 1.), 0.);
+        CHECK_EQ(acosh_difference(1.,0., -1.), 0.);
 
         CHECK_NAN(MyMath.atanh(Double.NEGATIVE_INFINITY));
         CHECK_NAN(MyMath.atanh(-1.1));
@@ -1240,12 +1292,20 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_EQ(MyMath.atanh(1.), Double.POSITIVE_INFINITY);
         CHECK_NAN(MyMath.atanh(1.1));
         CHECK_NAN(MyMath.atanh(Double.POSITIVE_INFINITY));
+        CHECK_EQ(atanh_difference(-1., .1), Double.POSITIVE_INFINITY);
+        CHECK_EQ(atanh_difference(1., -.1), Double.NEGATIVE_INFINITY);
 
         CHECK_EQ(Math.atan(Double.NEGATIVE_INFINITY), -Math.PI/2);
         CHECK_LT(Math.atan(-1.), 0.);
         CHECK_EQ(Math.atan(0.), 0.);
         CHECK_GT(Math.atan(1.), 0.);
         CHECK_EQ(Math.atan(Double.POSITIVE_INFINITY), Math.PI/2);
+        CHECK_EQ(atan_difference(-1.,0., -1.), 0.);
+        CHECK_EQ(atan_difference(-1.,0., 0.), 0.);
+        CHECK_EQ(atan_difference(-1.,0., 1.), 0.);
+        CHECK_EQ(atan_difference(1.,0., -1.), 0.);
+        CHECK_EQ(atan_difference(1.,0., 0.), 0.);
+        CHECK_EQ(atan_difference(1.,0., 1.), 0.);
 
         CHECK_EQ(MyMath.coshm1(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
         CHECK_GT(MyMath.coshm1(-.1), 0.);
@@ -1258,7 +1318,6 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_EQ(MyMath.acosh1p(0.), 0.);
         CHECK_GT(MyMath.acosh1p(.1), 0.);
         CHECK_EQ(MyMath.acosh1p(Double.POSITIVE_INFINITY), Double.POSITIVE_INFINITY);
-
 
         CHECK_EQ(MyMath.sin_over_x(Double.NEGATIVE_INFINITY), 0.);
         CHECK_EQ(MyMath.sinh_over_x(Double.NEGATIVE_INFINITY), Double.POSITIVE_INFINITY);
