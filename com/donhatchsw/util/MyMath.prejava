@@ -287,8 +287,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
     public static double
     tanh_difference(double Xnumerator, double Xdenominator, double x)
     {
-        System.err.println("WARNING: tanh_difference Xnumerator/Xdenominator implemented naively");
-        double X = Xnumerator / Xdenominator;
+        double X = Xnumerator / Xdenominator;  // seems to work fine
         // tanh(X+x)-tanh(X) = sinh(x)*sech(X)*sech(X+x)  according to wolframalpha
         //                   = sinh(x)/(cosh(X)*cosh(X+x))
         return sinh(x)/(cosh(X)*cosh(X+x));
@@ -1253,6 +1252,9 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         CHECK_EQ(tanh_difference(-1.,0., 0.), 0.);
         CHECK_EQ(tanh_difference(-1.,0., 1.), 0.);
         CHECK_EQ(tanh_difference(-1.,0., -1.), 0.);
+        CHECK_LT(tanh_difference(0.,1., -1.), 0.);
+        CHECK_EQ(tanh_difference(0.,1., 0.), 0.);
+        CHECK_GT(tanh_difference(0.,1., 1.), 0.);
         CHECK_EQ(tanh_difference(1.,0., 0.), 0.);
         CHECK_EQ(tanh_difference(1.,0., 1.), 0.);
         CHECK_EQ(tanh_difference(1.,0., -1.), 0.);
