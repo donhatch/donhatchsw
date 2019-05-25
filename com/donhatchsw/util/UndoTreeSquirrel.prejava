@@ -1601,7 +1601,7 @@ public class UndoTreeSquirrel
                 int parentIndex = nNodes-1+parentOffset;
                 iWord++;
             }
-            childrens[nNodes-1 + nodes[nNodes-1].parent].add(new Integer(-nodes[nNodes-1].parent));
+            childrens[nNodes-1 + nodes[nNodes-1].parent].add(Integer.valueOf(-nodes[nNodes-1].parent));
 
             if (iWord == words.length)
                 throw new IllegalArgumentException("UndoTreeSquirrel.fromString premature end of input trying to read item at word "+iWord+"");
