@@ -3469,7 +3469,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     * - make sure both U and V have positive determinant.
     *   If not, adjust (XXX possibly by negating the smallest singular value? possibly by swapping columns? possibly by negating a column? have to think)
     */
-    public static void svdcmpPolish(double[][] U, int m, int n, double d[], double V[][], boolean force_positive_rotations)
+    public static void svdcmpPolish(double[][] U, int m, int n, final double d[], double V[][], boolean force_positive_rotations)
     {
         // TODO: can we relax some of these?  or maybe just get rid of m and n?
         CHECK_EQ(U.length, m);
