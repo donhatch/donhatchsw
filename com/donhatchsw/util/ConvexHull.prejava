@@ -1009,6 +1009,7 @@ public class ConvexHull
             // Make sure it bounds the hull
             // (note, this is O(n^2) )
             //
+            if (true)
             {
                 double vertsCenter[] = VecMath.average(verts);
 
