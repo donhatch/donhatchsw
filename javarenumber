@@ -389,6 +389,10 @@ sub readClassFile($)
                                         ["descriptor_index", u2,2]]] :
             $tag==1 ? ["Utf8", [["length", $count=u2,2],
                                 ["bytes", bytes($count)]]] :
+            $tag==15 ? ["MethodHandle", [["reference_kind", u1,1],
+                                          ["reference_index", u2,2]]] :
+            $tag==18 ? ["InvokeDynamic", [["bootstrap_method_attr_index", u2,2],
+                                          ["name_and_type_index", u2,2]]] :
             die "Unknown cp_info tag $tag\n"
           ]
         } (1..$count-1)]], # sic
