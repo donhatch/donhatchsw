@@ -61,7 +61,7 @@ public class AppletViewer
         try
         {
             java.lang.reflect.Method setWheelScrollingEnabledMethod = scrollpane.getClass().getMethod("setWheelScrollingEnabled", new Class[]{boolean.class});
-            setWheelScrollingEnabledMethod.invoke(scrollpane, new Object[]{new Boolean(false)});
+            setWheelScrollingEnabledMethod.invoke(scrollpane, new Object[]{Boolean.valueOf(false)});
         }
         catch (NoSuchMethodException e) {}
         catch (IllegalAccessException e) {}

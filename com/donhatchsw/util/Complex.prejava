@@ -343,7 +343,10 @@ public class Complex
     // Static unary functions returning boolean or double or String, taking arg in x,y form.
     public static boolean isFinite(double x, double y)
     {
-        return Double.isFinite(x) && Double.isFinite(y);
+        // Hmm, Double.isFinite() doesn't exist until 1.8.
+        //return Double.isFinite(x) && Double.isFinite(y);
+        return !Double.isNaN(x) && !Double.isInfinite(x)
+            && !Double.isNaN(y) && !Double.isInfinite(y);
     }
     public static boolean isInfinite(double x, double y)
     {

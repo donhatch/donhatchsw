@@ -39,15 +39,15 @@ public class DoubleArrayList
     }
     public boolean contains(double element)
     {
-        return arrayList.contains(new Double(element));
+        return arrayList.contains(Double.valueOf(element));
     }
     public int indexOf(double element)
     {
-        return arrayList.indexOf(new Double(element));
+        return arrayList.indexOf(Double.valueOf(element));
     }
     public int lastIndexOf(double element)
     {
-        return arrayList.lastIndexOf(new Double(element));
+        return arrayList.lastIndexOf(Double.valueOf(element));
     }
     public java.lang.Object clone()
     {
@@ -73,15 +73,15 @@ public class DoubleArrayList
     }
     public double set(int index, double element)
     {
-        return ((Double)arrayList.set(index, new Double(element))).doubleValue();
+        return ((Double)arrayList.set(index, Double.valueOf(element))).doubleValue();
     }
     public boolean add(double element)
     {
-        return arrayList.add(new Double(element));
+        return arrayList.add(Double.valueOf(element));
     }
     public void add(int index, double element)
     {
-        arrayList.add(index, new Double(element));
+        arrayList.add(index, Double.valueOf(element));
     }
     /** the version of remove() that takes an index */
     public double removeIndex(int index)
@@ -92,7 +92,7 @@ public class DoubleArrayList
     /** XXX javap says boolean, some doc says it returns an Object, some other doc doesn't mention it at all... fuck it, I'm returning void. */
     public void removeElement(double element)
     {
-        arrayList.remove(new Double(element));
+        arrayList.remove(Double.valueOf(element));
     }
     public void clear()
     {

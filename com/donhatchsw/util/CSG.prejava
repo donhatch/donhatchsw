@@ -2057,7 +2057,7 @@ public final class CSG
                             else
                             {
                                 index = elementLists[iDim].size();
-                                elementHashTables[iDim].put(flag[iDim], new Integer(index));
+                                elementHashTables[iDim].put(flag[iDim], Integer.valueOf(index));
                                 Polytope elt = new Polytope(iDim,nDims,new SPolytope[0],new Hyperplane[0],null);
                                 if (iDim == 0)
                                 {

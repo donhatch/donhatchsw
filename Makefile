@@ -20,7 +20,7 @@
 # we use reflection to get at the API).
 
 # Uncomment one of the following sections.
-
+# To find rt.jar: locate -r '/rt.jar$'
 
 ##JAVAROOT=/usr/java/jdk1.2.2
 #JAVAROOT=/usr/java/jdk1.3.1_18
@@ -98,21 +98,33 @@
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.7 which requires -target >= 1.7
 #JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=javac -source 1.7 -target 1.7
+#JAVAC=javac -source 1.7 -target 1.7 -bootclasspath /usr/local/buildtools/java/jdk7-google-v6-64/jre/lib/rt.jar
+#JAR=jar
+#JAVADOC=javadoc
+
+# ubuntu or macbook, java 1.7 or 1.8, compiling for 1.7 which requires -target >= 1.7
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=javac -source 1.7 -target 1.7 -bootclasspath /usr/local/buildtools/java/jdk7-google-v6-64/jre/lib/rt.jar -deprecation
 #JAR=jar
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.8 which requires -target >= 1.8
 #JAVACPPFLAGS=-DOVERRIDE=@Override
-#JAVAC=javac -source 1.8 -target 1.8
+#JAVAC=javac -source 1.8 -target 1.8 -bootclasspath /usr/local/buildtools/java/jdk8-google-v7-64/jre/lib/rt.jar
 #JAR=jar
 #JAVADOC=javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling for 1.8 which requires -target >= 1.8
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=javac -source 1.8 -target 1.8 -bootclasspath /usr/local/buildtools/java/jdk8-google-v7-64/jre/lib/rt.jar -deprecation
+#JAR=jar
+#JAVADOC=javadoc
+
+# ubuntu, /usr/bin/javac seems to have more recent java versions than what's in my PATH.  need to run using /usr/bin/java, though.
 JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=javac -source 1.8 -target 1.8 -deprecation
-JAR=jar
-JAVADOC=javadoc
+JAVAC=/usr/bin/javac -source 1.10 -target 1.10 -deprecation
+JAR=/usr/bin/jar
+JAVADOC=/usr/bin/javadoc
 
 # ubuntu or macbook, java 1.7 or 1.8, compiling as modern as possible, whatever that means
 #JAVACPPFLAGS=-DOVERRIDE=@Override

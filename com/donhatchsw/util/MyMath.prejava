@@ -335,12 +335,19 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         return answer;
     }
 
+    // Double.isFinite(double) doesn't exist until java 1.8, so use this instead
+    private static boolean
+    Double_isFinite(double d)
+    {
+        return !Double.isNaN(d) && !Double.isInfinite(d);
+    }
+
     /** atan(X+x)-atan(X), accurate even when x is small; X may be infinite. */
     // CBB: make it 2d? i.e. an atan2_difference, maybe?
     public static double
     atan_difference(double Xnumerator, double Xdenominator, double x)
     {
-        if (Xdenominator == 0. && Xnumerator != 0. && Double.isFinite(x)) return 0.;  // CBB: think about whether can do it without special case
+        if (Xdenominator == 0. && Xnumerator != 0. && Double_isFinite(x)) return 0.;  // CBB: think about whether can do it without special case
         if (x == 0.) return 0.;  // XXX this is true in general, right?  but I think it's a cop-out
         double X = Xnumerator / Xdenominator;
 
@@ -368,7 +375,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
         //   log((sqrt(y + Y - 1)*sqrt(y + Y + 1) + y + Y)/(Y + sqrt(Y - 1)*sqrt(Y + 1)))
         // and simplify.
         double Y = Ynumerator / Ydenominator; // XXX does this cover everything?
-        if (Y == Double.POSITIVE_INFINITY && Double.isFinite(y)) return 0.;
+        if (Y == Double.POSITIVE_INFINITY && Double_isFinite(y)) return 0.;
         return Math.log1p((y + sqrt_difference((Y+1)*(Y-1), y*(2*Y+y)))
                         / (Y + Math.sqrt((Y+1)*(Y-1))));
     }
@@ -1126,7 +1133,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                                 if (T<=1 && T+t==1 && (1-T<t || 1-t<T)) {
                                   System.out.println("            smoke testing "+name+"("+T+", "+t+")");
                                   CHECK_NAN(asin_difference(T,t));
-                                  CHECK(Double.isFinite(Math.asin(T+t)-Math.asin(T)));
+                                  CHECK(Double_isFinite(Math.asin(T+t)-Math.asin(T)));
                                   continue;
                                 }
                             }

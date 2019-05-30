@@ -128,7 +128,7 @@ public final class Arrays
     } // full subarray with which
 
 
-    // could just do append(v, new Double(last))
+    // could just do append(v, Double.valueOf(last))
     // but that would be an unnecessary allocation
     public static double[] append(double v[], double last)
     {
@@ -530,7 +530,7 @@ public final class Arrays
     {
         // XXX this is of questionable merit
         if (startDepth == 0)
-            return new Integer(arrayLength(array, furtherDepth));
+            return Integer.valueOf(arrayLength(array, furtherDepth));
 
         int n = java.lang.reflect.Array.getLength(array);
         if (startDepth == 1)
@@ -805,11 +805,11 @@ public final class Arrays
     } // fill
     public static int[] fill(int n, int item)
     {
-        return (int[])fill(n, new Integer(item));
+        return (int[])fill(n, Integer.valueOf(item));
     }
     public static double[] fill(int n, double item)
     {
-        return (double[])fill(n, new Double(item));
+        return (double[])fill(n, Double.valueOf(item));
     }
 
     public static void reverse(int to[], int from[], int n)
@@ -1135,14 +1135,14 @@ public final class Arrays
     } // toStringCompact
 
     /** so that callers can blindly call toStringCompact(whatever)... */
-    public static String toStringCompact(byte x)    { return toStringCompact(new Byte(x)); }
-    public static String toStringCompact(double x)  { return toStringCompact(new Double(x)); }
-    public static String toStringCompact(float x)   { return toStringCompact(new Float(x)); }
-    public static String toStringCompact(int x)     { return toStringCompact(new Integer(x)); }
-    public static String toStringCompact(long x)    { return toStringCompact(new Long(x)); }
-    public static String toStringCompact(short x)   { return toStringCompact(new Short(x)); }
-    public static String toStringCompact(boolean x) { return toStringCompact(new Boolean(x)); }
-    public static String toStringCompact(char x)    { return toStringCompact(new Character(x)); }
+    public static String toStringCompact(byte x)    { return toStringCompact(Byte.valueOf(x)); }
+    public static String toStringCompact(double x)  { return toStringCompact(Double.valueOf(x)); }
+    public static String toStringCompact(float x)   { return toStringCompact(Float.valueOf(x)); }
+    public static String toStringCompact(int x)     { return toStringCompact(Integer.valueOf(x)); }
+    public static String toStringCompact(long x)    { return toStringCompact(Long.valueOf(x)); }
+    public static String toStringCompact(short x)   { return toStringCompact(Short.valueOf(x)); }
+    public static String toStringCompact(boolean x) { return toStringCompact(Boolean.valueOf(x)); }
+    public static String toStringCompact(char x)    { return toStringCompact(Character.valueOf(x)); }
 
     /** XXX might I want even the individual elements on separate lines? */
     public static String toStringNonCompact(Object array,
@@ -1345,13 +1345,13 @@ public final class Arrays
                      && s.startsWith("true", i))
                     {
                         i += 4;
-                        obj = new Boolean(true);
+                        obj = Boolean.valueOf(true);
                     }
                     else if (end-i >= 5
                           && s.startsWith("false", i))
                     {
                         i += 5;
-                        obj = new Boolean(false);
+                        obj = Boolean.valueOf(false);
                     }
                     else
                     {
@@ -1366,7 +1366,7 @@ public final class Arrays
                     CHECK(end-i >= 3
                        && s.charAt(i+0) == '\''
                        && s.charAt(i+2) == '\'');
-                    obj = new Character(s.charAt(i+1));
+                    obj = Character.valueOf(s.charAt(i+1));
                     i += 3;
                     pos.setIndex(i);
                 }
@@ -1409,17 +1409,17 @@ public final class Arrays
                     else
                     {
                         if (wrapperClass == Byte.class)    
-                            obj = new Byte(number.byteValue());
+                            obj = Byte.valueOf(number.byteValue());
                         else if (wrapperClass == Double.class)  
-                            obj = new Double(number.doubleValue());
+                            obj = Double.valueOf(number.doubleValue());
                         else if (wrapperClass == Float.class)   
-                            obj = new Float(number.floatValue());
+                            obj = Float.valueOf(number.floatValue());
                         else if (wrapperClass == Integer.class)     
-                            obj = new Integer(number.intValue());
+                            obj = Integer.valueOf(number.intValue());
                         else if (wrapperClass == Long.class)    
-                            obj = new Long(number.longValue());
+                            obj = Long.valueOf(number.longValue());
                         else if (wrapperClass == Short.class)   
-                            obj = new Short(number.shortValue());
+                            obj = Short.valueOf(number.shortValue());
                         else
                             throw new java.text.ParseException("Don't know how to parse class "+clazz.getName()+"",startPos);
                     }
@@ -1565,10 +1565,10 @@ public final class Arrays
     {
         if (true)
         {
-            Integer thisZero = new Integer(0);
-            Integer thatZero = new Integer(0);
-            Integer thisOne = new Integer(1);
-            Integer thatOne = new Integer(1);
+            Integer thisZero = Integer.valueOf(0);
+            Integer thatZero = Integer.valueOf(0);
+            Integer thisOne = Integer.valueOf(1);
+            Integer thatOne = Integer.valueOf(1);
             PRINT(thisZero == thatZero);
             PRINT(thisZero == thatOne);
             PRINT(thisZero.equals(thatZero));

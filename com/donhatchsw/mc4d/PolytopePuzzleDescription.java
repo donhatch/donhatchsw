@@ -972,7 +972,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iDim = 0; iDim < originalElements.length; ++iDim)
             for (int iElt = 0; iElt < originalElements[iDim].length; ++iElt)
             {
-                originalElements[iDim][iElt].setAux(new Integer(iElt));
+                originalElements[iDim][iElt].setAux(Integer.valueOf(iElt));
             }
         }
 
@@ -1322,7 +1322,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     CSG.Polytope[] stickers = slicedPolytope.p.getAllElements()[nDims-1];
                     for (int iSticker = 0; iSticker < stickers.length; ++iSticker)
                     {
-                        stickers[iSticker].pushAux(new Integer(iSticker));
+                        stickers[iSticker].pushAux(Integer.valueOf(iSticker));
                     }
                 }
 
@@ -1499,7 +1499,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
                     CSG.cgOfVerts(stickerCentersD[iSticker], stickers[iSticker]);
-                    stickerCentersHashTable.put(stickerCentersD[iSticker], new Integer(iSticker));
+                    stickerCentersHashTable.put(stickerCentersD[iSticker], Integer.valueOf(iSticker));
                 }
             }
             this.facetCentersF = VecMath.doubleToFloat(facetCentersD);

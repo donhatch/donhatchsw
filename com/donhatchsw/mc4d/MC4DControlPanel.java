@@ -354,6 +354,21 @@ public class MC4DControlPanel
         }
     } // class ResetButton
 
+    // String.join doesn't exist until 1.8
+    private static String String_join(String delimiter,
+                                      CharSequence... charSequences)
+    {
+        StringBuilder sb = new StringBuilder();
+        boolean didSomething = false;
+        for (CharSequence charSequence : charSequences)
+        {
+            if (didSomething) sb.append(delimiter);
+            sb.append(charSequence);
+            didSomething = true;
+        }
+        return sb.toString();
+    }
+
     private static class HelpButton extends Button
     {
         public HelpButton(final String helpWindowTitle,
@@ -371,7 +386,7 @@ public class MC4DControlPanel
                             int nCols = 0;
                             for (int i = 0; i < helpMessage.length; ++i)
                                 nCols = Math.max(nCols, helpMessage[i].length());
-                            panel = new TextArea(String.join("\n", helpMessage),
+                            panel = new TextArea(String_join("\n", helpMessage),
                                                  nRows, nCols,
 						 //TextArea.SCROLLBARS_BOTH  // not well behaved on linux-- the window starts a bit not tall enough.
 						 TextArea.SCROLLBARS_VERTICAL_ONLY // this is generally fine-- if too small horizontally, it wraps at words
