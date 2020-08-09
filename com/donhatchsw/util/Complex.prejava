@@ -43,28 +43,28 @@ public class Complex
     /** Assigns to a complex number from a real. */
     public Complex set(double x)
     {
-        return set(x, 0.);
+        return this.set(x, 0.);
     }
     /** Assigns to a complex number from another. */
     public Complex set(Complex that)
     {
-        return set(that.x, that.y);
+        return this.set(that.x, that.y);
     }
 
     /** Creates a complex number given the real and imaginary parts. */
     public Complex(double x, double y)
     {
-        set(x, y);
+        this.set(x, y);
     }
     /** Creates a complex number given only the real part. */
     public Complex(double x)
     {
-        set(x);
+        this.set(x);
     }
     /** Creates a complex number from another. */
     public Complex(Complex that)
     {
-        set(that);
+        this.set(that);
     }
 
 
@@ -74,34 +74,34 @@ public class Complex
     // and return that Complex (for chaining).
     public Complex equalsPlus(double x0, double y0, double x1, double y1)
     {
-        return set(x0 + x1,
-                   y0 + y1);
+        return this.set(x0 + x1,
+                        y0 + y1);
     }
     public Complex equalsMinus(double x0, double y0, double x1, double y1)
     {
-        return set(x0 - x1,
-                   y0 - y1);
+        return this.set(x0 - x1,
+                        y0 - y1);
     }
     /** Backwards minus. */
     public Complex equalsFrom(double x0, double y0, double x1, double y1)
     {
-        return equalsMinus(x1, y1, x0, y0);
+        return this.equalsMinus(x1, y1, x0, y0);
     }
     public Complex equalsTimes(double x0, double y0, double x1, double y1)
     {
-        return set(x0*x1 - y0*y1,
-                   x0*y1 + y0*x1);
+        return this.set(x0*x1 - y0*y1,
+                        x0*y1 + y0*x1);
     }
     public Complex equalsOver(double x0, double y0, double x1, double y1)
     {
         double denominator = x1*x1 + y1*y1;
-        return set((x0*x1 + y0*y1) / denominator,
-                   (y0*x1 - x0*y1) / denominator);
+        return this.set((x0*x1 + y0*y1) / denominator,
+                        (y0*x1 - x0*y1) / denominator);
     }
     /** Backwards over. */
     public Complex equalsUnder(double x0, double y0, double x1, double y1)
     {
-        return equalsOver(x1, y1, x0, y0);
+        return this.equalsOver(x1, y1, x0, y0);
     }
     public Complex equalsPow(double x0, double y0, double x1, double y1)
     {
@@ -111,42 +111,42 @@ public class Complex
 
     public Complex equalsNeg(double x, double y)
     {
-        return set(-x, -y);
+        return this.set(-x, -y);
     }
     public Complex equalsInverse(double x, double y)
     {
         double denominator = x*x + y*y;
-        return set(x / denominator,
-                  -y / denominator);
+        return this.set(x / denominator,
+                       -y / denominator);
     }
     public Complex equalsConj(double x, double y)
     {
-        return set(x, -y);
+        return this.set(x, -y);
     }
     public Complex equalsTransposed(double x, double y)
     {
-        return set(y, x);
+        return this.set(y, x);
     }
     public Complex equalsNormalized(double x, double y)
     {
         double magnitude = Math.hypot(x, y);
-        return magnitude==0. ? set(1., 0.)
-                             : set(x/magnitude, y/magnitude);
+        return magnitude==0. ? this.set(1., 0.)
+                             : this.set(x/magnitude, y/magnitude);
     }
     public Complex equalsPerpDot(double x, double y)
     {
-        return set(-y, x);
+        return this.set(-y, x);
     }
     public Complex equalsExp(double x, double y)
     {
         double answerMagnitude = Math.exp(x);
-        return set(answerMagnitude * Math.cos(y),
-                   answerMagnitude * Math.sin(y));
+        return this.set(answerMagnitude * Math.cos(y),
+                        answerMagnitude * Math.sin(y));
     }
     public Complex equalsLog(double x, double y)
     {
-        return set(Math.log(abs2(x, y))*.5, // = Math.log(abs(x,y)) but without the hypot (hmm, is this more overflow prone then?)
-                   arg(x, y));
+        return this.set(Math.log(abs2(x, y))*.5, // = Math.log(abs(x,y)) but without the hypot (hmm, is this more overflow prone then?)
+                        arg(x, y));
     }
     public Complex equalsExpm1(double x, double y)
     {
@@ -165,7 +165,7 @@ public class Complex
         double xAnswer = E - answerp1Magnitude * C;
         double yAnswer = answerp1Magnitude * Math.sin(y);
         CHECK(false); // XXX untested!  (is *anything* in this file tested??)
-        return set(xAnswer, yAnswer);
+        return this.set(xAnswer, yAnswer);
     }
     public Complex equalsLog1p(double x, double y)
     {
@@ -178,7 +178,7 @@ public class Complex
         double xAnswer = MyMath.log1p((x*(2+x)+y*y)/(MyMath.hypot(x+1,y)+1));
         double yAnswer = arg(1.+x, y);
         CHECK(false); // XXX untested!  (is *anything* in this file tested??)
-        return set(xAnswer, yAnswer);
+        return this.set(xAnswer, yAnswer);
     }
     //---------------------------------------------------------------------------
 
