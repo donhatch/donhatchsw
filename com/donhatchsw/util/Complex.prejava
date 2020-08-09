@@ -11,7 +11,7 @@ package com.donhatchsw.util;
 *   <li> calls things plus,minus,times,over,etc. rather than add,subtract,multiply,divide,etc.
 *   <li> exposes x,y as public fields
 *   <li> has abs2(),dot,cross,perpDot
-*   <li> has in-place operations plusEquals etc.
+*   <li> has in-place operations plusEquals etc. for maximally efficient (allocation-free) arithmetic
 *   <li> doesn't do arbitrary ComplexFields (whatever that is)
 * </ul>
 * <br> TODO: trig and hyperbolic trig?
@@ -105,8 +105,8 @@ public class Complex
     }
     public Complex equalsPow(double x0, double y0, double x1, double y1)
     {
-        // z0^z1 = exp(z1*log(z0))
-        return log(x0,y0).timesEquals(x1,y1).expEquals();
+        // z0^z1 = exp(log(z0)*z1)
+        return this.equalsLog(x0,y0).timesEquals(x1,y1).expEquals();
     }
 
     public Complex equalsNeg(double x, double y)
