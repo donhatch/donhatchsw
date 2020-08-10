@@ -1,0 +1,23 @@
+package com.donhatchsw.shims_for_deprecated;
+
+public class java_applet_Applet
+    extends java.awt.Panel
+{
+    public java_applet_Applet() {
+      // default layout is FlowLayout, just like Panel, so we need not do anything here
+    }
+    // "the implementation of this method provided by the Applet class does nothing".
+    public void init() {}
+    public void start() {}
+    public void stop() {}
+    public void destroy() {}
+
+    public final void setStub(java_applet_AppletStub stub) {
+        this.stub = stub;
+    }
+    public String getParameter(String name) {
+        return stub.getParameter(name);
+    }
+    private java_applet_AppletStub stub = null;
+}
+

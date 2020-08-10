@@ -1,0 +1,3 @@
+package com.donhatchsw.shims_for_deprecated;
+
+public interface java_applet_AppletContext {}

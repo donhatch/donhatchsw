@@ -1,0 +1,10 @@
+package com.donhatchsw.shims_for_deprecated;
+
+public interface java_applet_AppletStub {
+    public void appletResize(int width, int height);
+    public java_applet_AppletContext getAppletContext();
+    public java.net.URL getCodeBase();
+    public java.net.URL getDocumentBase();
+    public String getParameter(String name);
+    public boolean isActive();
+}

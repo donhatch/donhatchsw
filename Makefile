@@ -162,6 +162,10 @@ donhatchsw.jar: \
     com/donhatchsw/javacpp/ExpressionParser.class \
     com/donhatchsw/javacpp/Cpp.class \
     com/donhatchsw/javacpp/javacpp.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_AppletContext.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_AppletStub.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_Applet.class \
+    com/donhatchsw/shims_for_deprecated/javax_swing_JApplet.class \
     com/donhatchsw/compat/ArrayList.class \
     com/donhatchsw/compat/IntArrayList.class \
     com/donhatchsw/compat/DoubleArrayList.class \
