@@ -121,8 +121,14 @@
 #JAVADOC=javadoc
 
 # ubuntu, /usr/bin/javac seems to have more recent java versions than what's in my PATH.  need to run using /usr/bin/java, though.
+#JAVACPPFLAGS=-DOVERRIDE=@Override
+#JAVAC=/usr/bin/javac -source 1.10 -target 1.10 -deprecation
+#JAR=/usr/bin/jar
+#JAVADOC=/usr/bin/javadoc
+
+# ubuntu
 JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=/usr/bin/javac -source 1.10 -target 1.10 -deprecation
+JAVAC=/usr/bin/javac -source 11 -target 11 -deprecation
 JAR=/usr/bin/jar
 JAVADOC=/usr/bin/javadoc
 
@@ -236,6 +242,10 @@ donhatchsw.jar: \
 	(cd scratch; ${JAR} -cfm ../donhatchsw.jar ../META-INF/MANIFEST.MF \
             com/donhatchsw/javacpp/*.class \
             com/donhatchsw/javacpp/*.java \
+            com/donhatchsw/shims_for_deprecated/*.class \
+            com/donhatchsw/shims_for_deprecated/*.prejava \
+            com/donhatchsw/shims_for_deprecated/*.java \
+            com/donhatchsw/shims_for_deprecated/macros.h \
             com/donhatchsw/util/*.class \
             com/donhatchsw/util/*.prejava \
             com/donhatchsw/util/*.java \
