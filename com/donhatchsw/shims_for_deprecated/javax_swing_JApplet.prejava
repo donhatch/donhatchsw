@@ -38,6 +38,10 @@ public class javax_swing_JApplet
 	getRootPane().setJMenuBar(menuBar);
     }
 
+    public javax.swing.JMenuBar getJMenuBar() {
+        return getRootPane().getJMenuBar();
+    }
+
     // "The JApplet class is slightly incompatible with java.applet.Applet. JApplet contains a JRootPane as its only child. The contentPane should be the parent of any children of the JApplet. As a convenience add and its variants, remove and setLayout have been overridden to forward to the contentPane as necessary. This means you can write: applet.add(child)
     @Override public void remove(java.awt.Component component) {
       // " If comp is not the rootPane, this will forward the call to the contentPane. This will do nothing if comp is not a child of the JFrame or contentPane."

@@ -9,6 +9,8 @@ package com.donhatchsw.awt;
 * in a single run of a java program--
 * that is, windows such that, when there are none of them left,
 * System.exit(0) should be called (which kills all the threads).
+* QUESTION: why is this needed?  Is DISPOSE_ON_CLOSE not good enough?
+* PARTIAL ANSWER: well DISPOSE_ON_CLOSE seems to take 2s or so to figure things out
 * <p>
 * Note, the main() function is considered a "main window"
 * for the purposes of this utility.  That is so that it
