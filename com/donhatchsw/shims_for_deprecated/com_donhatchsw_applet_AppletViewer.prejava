@@ -79,9 +79,7 @@ public class com_donhatchsw_applet_AppletViewer
             }
         }
 
-
-        //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet")
-        final java.awt.Frame frame = new java.awt.Frame("Applet Viewer: "+appletClassName)
+        final javax.swing.JFrame frame = new javax.swing.JFrame("Applet Viewer: "+appletClassName)
         {
             OVERRIDE public boolean handleEvent(java.awt.Event event)
             {
@@ -160,9 +158,23 @@ public class com_donhatchsw_applet_AppletViewer
              public boolean isActive() { return true; }
         });
 
-        frame.add(applet);
+        applet.init();  // before calling getContentPane(), in case init() adds stuff
 
-        applet.init();
+        if (true && applet instanceof com.donhatchsw.shims_for_deprecated.javax_swing_JApplet)
+        {
+            // Bold new idea: take the applet's content pane child,
+            // and transplant it into the frame's content pane.
+            // OBSERVATION: this prevents the flickering on resize!!! wow!!!
+            com.donhatchsw.shims_for_deprecated.javax_swing_JApplet japplet = (com.donhatchsw.shims_for_deprecated.javax_swing_JApplet)applet;
+            java.awt.Component theCanvas = japplet.getContentPane().getComponent(0);
+            frame.getContentPane().add(theCanvas);
+            frame.setJMenuBar(japplet.getJMenuBar());
+        }
+        else
+        {
+            frame.add(applet);
+        }
+
         applet.start();
 
         //int x = 20, y = 20;
