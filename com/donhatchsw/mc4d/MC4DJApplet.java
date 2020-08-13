@@ -1,18 +1,22 @@
-// NOTE: This is deprecated!  Use MC4DJApplet instead!
-
+// TODO: make the initial window fully swing (it's currently based on AppletViewer which puts it in a frame)
+// TODO: use my JApplet shim if anything (maybe make JAppletViewer shim too?)
+// TODO: fix all deprecation warnings (can assume will always be >= 1.7 henceforth)
+// TODO: make the control panels swing
+// TODO: make the menus swing
+// TODO: @Overrides everywhere
 package com.donhatchsw.mc4d;
 
-import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
+import javax.swing.*;
 import com.donhatchsw.awt.Row;
 import com.donhatchsw.awt.Col;
 import com.donhatchsw.awt.RowLayout;
 
 
 
-public class MC4DApplet
-    extends Applet
+public class MC4DJApplet
+    extends JApplet
 {
     static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
@@ -43,9 +47,9 @@ public class MC4DApplet
     }
 
 
-    public MC4DApplet()
+    public MC4DJApplet()
     {
-        System.out.println("    in MC4DApplet ctor");
+        System.out.println("    in MC4DJApplet ctor");
         System.out.println("        java version " + System.getProperty("java.version"));
 
         if (false)
@@ -59,7 +63,7 @@ public class MC4DApplet
         at java.lang.SecurityManager.checkPermission(SecurityManager.java:532)
         at java.lang.System.checkIO(System.java:226)
         at java.lang.System.setOut(System.java:148)
-        at com.donhatchsw.mc4d.MC4DApplet.<init>(MC4DApplet.java:59)
+        at com.donhatchsw.mc4d.MC4DJApplet.<init>(MC4DJApplet.java:59)
 */
 
             // So.. should we do this if not in a browser?
@@ -87,52 +91,18 @@ public class MC4DApplet
             }
         }
 
-        System.out.println("    out MC4DApplet ctor");
+        System.out.println("    out MC4DJApplet ctor");
     }
 
-    private static Canvas makeNewMC4DViewCanvas(final MC4DViewGuts viewGuts,
+    private static Component makeNewMC4DViewCanvas(final MC4DViewGuts viewGuts,
                                                 final boolean doDoubleBuffer,
                                                 final Component menuBarForWidth[/*1*/],
                                                 final PuzzlesAndWindows allPuzzlesAndWindows) // XXX should really be local to this view window so we can change it I think
     {
-        final Canvas canvas = new Canvas() {
-            private Image backBuffer = null;
-            private Dimension backBufferSize = null;
-
-            public void update(Graphics g) { paint(g); } // don't flash
-            public void paint(Graphics frontBufferGraphics)
+        final JComponent canvas = new JComponent() {
+            public void paintComponent(Graphics g)
             {
-                //System.out.println("in canvas paint");
-                Dimension size = this.getSize();
-                int w = size.width, h = size.height;
-
-                if (doDoubleBuffer)
-                {
-                    if (backBuffer == null
-                     || !size.equals(backBufferSize))
-                    {
-                        System.out.println("    creating back buffer of size "+w+"x"+h+"");
-                        backBuffer = this.createImage(w, h);
-                        backBufferSize = size;
-                    }
-                }
-                else
-                    backBuffer = null;
-                Graphics g = doDoubleBuffer ? backBuffer.getGraphics() : frontBufferGraphics;
-
                 viewGuts.paint(this, g);
-
-                if (false)
-                {
-                    g.setColor(Color.white);
-                    g.drawString("ctrl-n for another ancient view", 10, h-50);
-                    g.drawString("ctrl-s to save to the cookie", 10, h-30);
-                    g.drawString("ctrl-l to load from the cookie", 10, h-10);
-                }
-
-                if (doDoubleBuffer)
-                    frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
-                //System.out.println("out canvas paint");
             }
             // XXX lame hack... how should I really make the canvas square and same width as menu bar?
             public Dimension getPreferredSize()
@@ -153,6 +123,7 @@ public class MC4DApplet
                 return true;
             }
         };
+
         viewGuts.setControllerComponent(canvas, true);
         viewGuts.setViewComponent(canvas);
 
@@ -264,7 +235,7 @@ public class MC4DApplet
         private static class MyMenuBar
             extends Row
         {
-            private int eventVerbose = 0;
+            private int eventVerbose = 0;  // change hard-coding to something higher to debug
             private boolean doHighlighting = false; // not ready for prime time-- sometimes background is white
             private boolean someMenuIsShowing = false; // XXX bleah! this isn't working right at all... how the hell can I tell when it pops up and down???
             public MyMenuBar()
@@ -306,6 +277,8 @@ public class MC4DApplet
 
                             if (me.getModifiers() != 0)
                             {
+                                // enter the menu title, with modifier,
+                                // is same as clicking on it (I don't remember why I did this)
                                 Component theLabel = me.getComponent();
                                 menu.show(theLabel,
                                           0, theLabel.getHeight());
@@ -353,7 +326,7 @@ public class MC4DApplet
     // new menu bar and new view canvas, inside a new panel.
     // XXX should use a real menu bar if there's a frame, and a MyMenuBar otherwise
     private static class MC4DViewerPanel
-        extends Panel
+        extends JPanel
     {
         private String name;
         public String getName()
@@ -369,7 +342,7 @@ public class MC4DApplet
         public MC4DViewerPanel(final String name,
                                final MC4DViewGuts viewGuts,
                                final boolean doDoubleBuffer,
-                               final Applet applet, // for context for cookie
+                               final JApplet applet, // for context for cookie
                                final PuzzlesAndWindows allPuzzlesAndWindows) // for save
         {
             this.name = name;
@@ -380,10 +353,10 @@ public class MC4DApplet
             final boolean isInSandbox = true; // XXX figure this out for real
 
             Component menuBarHolder[] = new Component[1]; // so that the canvas can access the menuBar later when it needs to for getPreferredSize, even though we haven't created the menu bar yet
-            final Canvas canvas = makeNewMC4DViewCanvas(viewGuts,
-                                                        doDoubleBuffer,
-                                                        menuBarHolder, // canvas wants to be square and same size as menu bar
-                                                        allPuzzlesAndWindows);
+            final Component canvas = makeNewMC4DViewCanvas(viewGuts,
+                                                           doDoubleBuffer,
+                                                           menuBarHolder, // canvas wants to be square and same size as menu bar
+                                                           allPuzzlesAndWindows);
 
             Component menuBar = null;
             if (System.getProperty("java.version").startsWith("1.1."))
@@ -442,6 +415,12 @@ public class MC4DApplet
                                 public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     System.out.println(allPuzzlesAndWindows.toString());
+                                }
+                            });
+                            add(new MyMenuItem("Debug dump ui component hierarchies") {
+                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    allPuzzlesAndWindows.dumpComponentHierarchies();
                                 }
                             });
                         }
@@ -641,7 +620,7 @@ public class MC4DApplet
                                           final boolean cloneView,
                                           final boolean cloneState,
                                           final boolean doDoubleBuffer,
-                                          final Applet applet,
+                                          final JApplet applet,
                                           final PuzzlesAndWindows allPuzzlesAndWindows)
     {
         final MC4DViewGuts newViewGuts = new MC4DViewGuts(oldViewGuts.viewParams,
@@ -659,7 +638,7 @@ public class MC4DApplet
         }
 
         final String viewName = "View "+(allPuzzlesAndWindows.nextViewerNumber++);
-        Frame frame = new Frame() {{
+        JFrame frame = new JFrame() {{
             add(new MC4DViewerPanel(viewName,
                                     newViewGuts,  
                                     doDoubleBuffer,
@@ -848,7 +827,7 @@ public class MC4DApplet
         {
             Component frameOrApplet = getTopLevelFrameOrApplet(component);
             java.awt.Rectangle bounds = frameOrApplet.getBounds();
-            String s = (frameOrApplet instanceof Applet ? "applet" :
+            String s = (frameOrApplet instanceof JApplet ? "applet" :
                         !frameOrApplet.isVisible() ? "closed" :
                         ((Frame)frameOrApplet).getState() == Frame.ICONIFIED ? "iconified" : "open");
             s += "@" + bounds.width
@@ -965,6 +944,31 @@ public class MC4DApplet
         } // updateControlPanelWindowTitles
 
 
+        public void dumpComponentHierarchies() {
+            System.out.println("================================================");
+            {
+                int n = controlPanels.size();
+                System.out.println("    "+n+" control panel"+(n==1?"":"s")+":");
+                for (int i = 0; i < n; ++i)
+                {
+                    MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(i);
+                    Component topLevelFrameOrApplet = getTopLevelFrameOrApplet(controlPanel);
+                    MC4DControlPanel.dumpComponentHierarchy(topLevelFrameOrApplet, 9,i,n);
+                }
+            }
+            {
+                int n = viewerPanels.size();
+                System.out.println("    "+n+" viewer panel"+(n==1?"":"s")+":");
+                for (int i = 0; i < n; ++i)
+                {
+                    MC4DViewerPanel viewerPanel = (MC4DViewerPanel)viewerPanels.get(i);
+                    Component topLevelFrameOrApplet = getTopLevelFrameOrApplet(viewerPanel);
+                    MC4DControlPanel.dumpComponentHierarchy(topLevelFrameOrApplet, 9,i,n);
+                }
+            }
+            System.out.println("================================================");
+        }
+
         public String toString()
         {
             StringBuffer sb = new StringBuffer();
@@ -1028,7 +1032,7 @@ public class MC4DApplet
     private PuzzlesAndWindows allPuzzlesAndWindows = new PuzzlesAndWindows();
 
     // Walk up the component hierarchy to the root,
-    // which better be a Frame or Applet.
+    // which better be a Frame or JApplet.
     // XXX hmm, empirically, when in mozilla, the applet is
     // XXX inside a class sun.plugin.viewer.frame.XNetscapeEmbeddedFrame.
     // XXX how to deal with this, do the detach/attach thing, and still be able to restore
@@ -1043,7 +1047,7 @@ public class MC4DApplet
         }
         //System.out.println("out getTopLevelFrameOrApplet ("+comp.getClass()+")");
         CHECK(comp instanceof Frame
-           || comp instanceof Applet);
+           || comp instanceof JApplet);
         return comp;
     } // getTopLevelFrameOrApplet
 
@@ -1051,7 +1055,7 @@ public class MC4DApplet
     private MC4DViewGuts mainViewGuts;
     public void init()
     {
-        System.out.println("    in MC4DApplet init");
+        System.out.println("    in MC4DJApplet init");
 
         com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, 0);
 
@@ -1084,35 +1088,35 @@ public class MC4DApplet
 
 
         String viewName = "View "+(allPuzzlesAndWindows.nextViewerNumber++);
-        Panel mainWindowPanel = new MC4DViewerPanel(viewName,
-                                                    mainViewGuts,
-                                                    doDoubleBuffer,
-                                                    MC4DApplet.this,
-                                                    allPuzzlesAndWindows);
+        JPanel mainWindowPanel = new MC4DViewerPanel(viewName,
+                                                     mainViewGuts,
+                                                     doDoubleBuffer,
+                                                     MC4DJApplet.this,
+                                                     allPuzzlesAndWindows);
 
         setLayout(new BorderLayout());
         add(mainWindowPanel);
 
-        System.out.println("    out MC4DApplet init");
+        System.out.println("    out MC4DJApplet init");
     } // init
 
     public void start()
     {
-        System.out.println("    in MC4DApplet start");
-        System.out.println("    out MC4DApplet start");
+        System.out.println("    in MC4DJApplet start");
+        System.out.println("    out MC4DJApplet start");
     } // start
     public void stop()
     {
-        System.out.println("    in MC4DApplet stop");
-        System.out.println("    out MC4DApplet stop");
+        System.out.println("    in MC4DJApplet stop");
+        System.out.println("    out MC4DJApplet stop");
     } // stop
     public void destroy()
     {
-        System.out.println("    in MC4DApplet destroy");
+        System.out.println("    in MC4DJApplet destroy");
         mainViewGuts.setModel(null);
         mainViewGuts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
         mainViewGuts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
-        System.out.println("    out MC4DApplet destroy");
+        System.out.println("    out MC4DJApplet destroy");
     } // stop
 
 
@@ -1301,7 +1305,7 @@ public class MC4DApplet
                 if (!foundParamForThisArg)
                 {
                     System.err.println();
-                    System.err.println("MC4DApplet: ERROR: Unrecognized command line argument \""+args[iArg]+"\"");
+                    System.err.println("MC4DJApplet: ERROR: Unrecognized command line argument \""+args[iArg]+"\"");
                     foundBadArg = true;
                 }
                 if (args[iArg].startsWith("puzzleDescription="))
@@ -1311,17 +1315,17 @@ public class MC4DApplet
              || (requirePuzzleDescriptionArg && !foundPuzzleDescriptionArg))
             {
                 System.err.println();
-                System.err.println("Usage: MC4DApplet puzzleDescription=\"<puzzleDescription>\" [<otherparam>=<othervalue> ... ]");
-                System.err.println("Example: MC4DApplet puzzleDescription=\"{4,3,3} 3\"");
+                System.err.println("Usage: MC4DJApplet puzzleDescription=\"<puzzleDescription>\" [<otherparam>=<othervalue> ... ]");
+                System.err.println("Example: MC4DJApplet puzzleDescription=\"{4,3,3} 3\"");
                 System.exit(1);
             }
         }
 
         String appletViewerArgs[] = new String[args.length+1];
-        appletViewerArgs[0] = "com.donhatchsw.mc4d.MC4DApplet";
+        appletViewerArgs[0] = "com.donhatchsw.mc4d.MC4DJApplet";
         for (int i = 0; i < args.length; ++i)
             appletViewerArgs[i+1] = args[i];
         com.donhatchsw.applet.AppletViewer.main(appletViewerArgs);
     } // main
 
-} // class MC4DApplet
+} // class MC4DJApplet

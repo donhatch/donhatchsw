@@ -1087,6 +1087,80 @@ public class MC4DControlPanel
     } // MC4DControlPanel ctor
 
 
+
+    // TODO: publish this somewhere more legit
+        // used by dumpComponentHierarchy
+        private static String classNameAncestors(Class classs)
+        {
+            String text = classs.getName();
+
+            if (text.indexOf("java.lang.") == 0)
+                text = text.substring(10);
+            if (text.indexOf("java.awt.") == 0)
+                text = text.substring(9);
+            if (text.indexOf("javax.swing.J") == 0)
+                text = text.substring(12);
+
+            //if (text.indexOf('$') != -1)
+            if (classs.getSuperclass() != null)
+                text += " > " + classNameAncestors(classs.getSuperclass());
+            return text;
+        } // classNameAncestors
+        // used by dumpComponentHierarchy
+        private static String xcolorstring(java.awt.Color color) {
+          if (color == null) return "null";
+          int argb = color.getRGB();
+          if (((argb >> 24)&0xff) == 0xff) {
+            return String.format("#%06x", argb&0xffffff);
+          } else {
+            return String.format("#%08x", argb);
+          }
+        }
+        // used by dumpComponentHierarchy
+        private static String colored(java.awt.Color fg, java.awt.Color bg, String text) {
+          if (fg == null || bg == null) return "";
+          int fg_rgb = fg.getRGB();
+          int bg_rgb = bg.getRGB();
+          String answer = String.format("\033[38;2;%d;%d;%dm\033[48;2;%d;%d;%dm%s\033[0m",
+                ((fg_rgb>>16)&0xff),
+                ((fg_rgb>>8)&0xff),
+                ((fg_rgb>>0)&0xff),
+                ((bg_rgb>>16)&0xff),
+                ((bg_rgb>>8)&0xff),
+                ((bg_rgb>>0)&0xff),
+                text);
+          return answer;
+        }
+    public static void dumpComponentHierarchy(java.awt.Component component, int depth, int iChildInParent, int nChildrenInParent)
+    {
+	for (int i = 0; i < depth; ++i) System.out.print(" ");
+
+	System.out.print(iChildInParent+"/"+nChildrenInParent+" ");
+	//System.out.print(component+" ");  // interesting but too much
+	System.out.print(classNameAncestors(component.getClass()));
+	System.out.print("  (fg="+xcolorstring(component.getForeground())+" bg="+xcolorstring(component.getBackground())+")");
+	System.out.print("  (name="+component.getName()+")");
+	System.out.print("  (db="+component.isDoubleBuffered()+")");
+	System.out.print(" (op="+component.isOpaque()+")");
+	System.out.print("  "+colored(component.getForeground(), component.getBackground(), " HELLO "));
+	System.out.println();
+
+	if (component instanceof java.awt.Container)
+	{
+	    java.awt.Container C = (java.awt.Container)component;
+	    if (true) {
+	      for (int i = 0; i < depth; ++i) System.out.print(" ");
+	      System.out.print("    "+C.getLayout()+(C.getLayout()==null?"":" ("+classNameAncestors(C.getLayout().getClass())+")"));
+	      System.out.println();
+	    }
+	    int n = C.getComponentCount();
+	    for (int iChild = 0; iChild < n; ++iChild)
+	    {
+		dumpComponentHierarchy(C.getComponent(iChild), depth+1, iChild, n);
+	    }
+	}
+    } // dumpComponentHierarchy
+
     // for debugging XXX should probably be in com.donhatchsw.awt somewhere, the layout stuff has it too.  also the printComponent stuff, maybe
     public static void randomlyColorize(Component c)
     {

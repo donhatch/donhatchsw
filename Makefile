@@ -235,6 +235,7 @@ donhatchsw.jar: \
     com/donhatchsw/mc4d/MC4DViewGuts.class \
     com/donhatchsw/mc4d/MC4DControlPanel.class \
     com/donhatchsw/mc4d/MC4DApplet.class \
+    com/donhatchsw/mc4d/MC4DJApplet.class \
     ${NULL}
 	/bin/rm -rf scratch
 	mkdir scratch
