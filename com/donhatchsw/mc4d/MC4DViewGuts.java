@@ -1487,6 +1487,7 @@ public class MC4DViewGuts
                 public void windowClosed(java.awt.event.WindowEvent event)
                 {
                     System.out.println("Chow!");
+                    guts.setModel(null);
                     guts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
                     guts.setViewComponent(null); // XXX make this not necessary, with weak ref I think
                     com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
@@ -1631,7 +1632,7 @@ public class MC4DViewGuts
 
         makeExampleModernViewer(model, 50,50, 300,300);
 
-        boolean doDoubleBuffer = true; // false to make it even more sucky than necessary
+        boolean doDoubleBuffer = true; // set to false to make it even more sucky than necessary
         makeExampleAncientViewer(model, 350,50, 300,300, doDoubleBuffer);
 
 
