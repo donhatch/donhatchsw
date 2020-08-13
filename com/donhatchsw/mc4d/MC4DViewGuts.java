@@ -2,7 +2,7 @@
 * All right, here's how to make everyone happy...
 * A completely generic viewer that can be stuck inside
 * an ancient Canvas or icky Applet
-* or a beautiful modern JPanel or whatever.
+* or a beautiful modern JComponent or whatever.
 *
 * We can't derive it from Canvas,
 * and we can't derive it from JComponent either...
@@ -14,7 +14,7 @@
 * For example:
 * <pre>
 *       class ModernMC4DView
-*           extends JPanel
+*           extends JComponent
 *       {
 *           public MC4DViewGuts guts; // has-a, not is-a
 *
@@ -895,7 +895,7 @@ public class MC4DViewGuts
             // do NOT call repaint... the animation advance automatically
             // notified the next guy already.  (That's why we passed
             // it our listener, so it could identify who the next guy is.)
-            // If we call repaint here and we are a JPanel,
+            // If we call repaint here and we are a JComponent,
             // it will hog all the draw time
             // from the next guy if it's a Canvas.  Hey, just call me
             // Protector Of The Innocent.
@@ -1446,7 +1446,7 @@ public class MC4DViewGuts
 
 
     //
-    // Make a modern viewer based on a JPanel.
+    // Make a modern viewer based on a JComponent.
     //
     public static void makeExampleModernViewer(final MC4DModel model,
                                                final int x, final int y,
@@ -1454,7 +1454,7 @@ public class MC4DViewGuts
     {
         final MC4DViewGuts guts = new MC4DViewGuts();
         guts.setModel(model);
-        final JPanel myPanel = new JPanel() {
+        final JComponent myJComponent = new JComponent() {
             public void paintComponent(Graphics g)
             {
                 g.setColor(new Color(20,170,235)); // sky
@@ -1472,12 +1472,12 @@ public class MC4DViewGuts
                 return true;
             }
         };
-        guts.setControllerComponent(myPanel, false);
-        guts.setViewComponent(myPanel);
-        //myPanel.setPreferredSize(new java.awt.Dimension(w,h)); // set size bottom up
+        guts.setControllerComponent(myJComponent, false);
+        guts.setViewComponent(myJComponent);
+        //myJComponent.setPreferredSize(new java.awt.Dimension(w,h)); // set size bottom up
 
 
-        JFrame jframe = new JFrame("A spiffy new JPanel") {{
+        JFrame jframe = new JFrame("A spiffy new JComponent") {{
             com.donhatchsw.awt.MainWindowCount.increment();
             addWindowListener(new java.awt.event.WindowAdapter() {
                 public void windowClosing(java.awt.event.WindowEvent event)
@@ -1498,17 +1498,17 @@ public class MC4DViewGuts
         jframe.setForeground(java.awt.Color.white);
         jframe.setBackground(java.awt.Color.black);
 
-        jframe.setContentPane(myPanel);
+        jframe.setContentPane(myJComponent);
 
         //jframe.pack();
         jframe.setSize(w,h); // set size top down
         jframe.setLocation(x,y);
         jframe.setVisible(true);
-        myPanel.requestFocus(); // seems to be needed initially, if running in <=1.3 on linux, anyway.  weird!
+        myJComponent.requestFocus(); // seems to be needed initially, if running in <=1.3 on linux, anyway.  weird!
 
         // Make it so ctrl-n spawns another view of the same model,
         // and ctrl-shift-N spawns the opposite kind of view of the same model.
-        myPanel.addKeyListener(new KeyAdapter() {
+        myJComponent.addKeyListener(new KeyAdapter() {
             public void keyTyped(KeyEvent ke)
             {
                 char c = ke.getKeyChar();
