@@ -13,8 +13,20 @@ public class AppletUtils
     // Make this class uninstantiatable...
     private AppletUtils() {}
 
+    private static String getParameter(java.awt.Container applet,  // anything with a getParameter()
+                                String name) {
+        try
+        {
+            java.lang.reflect.Method getParameterMethod = applet.getClass().getMethod("getParameter", new Class[]{String.class});
+        }
+        catch (NoSuchMethodException e) {
+            throw new Error("can't find method GetParameter(String) in class "+applet.getClass().getName());
+        }
+        return null;
+    }
 
-    public static void getParametersIntoPublicFields(java.applet.Applet applet,
+
+    public static void getParametersIntoPublicFields(java.awt.Container applet,  // java.applet.Applet or com.donhatchsw.shims_for_deprecated.java_applet_Applet or anything else with a getParameter()
                                                      int verboseLevel)
     {
         // XXX this is backwards, I think! should iterate over all the params, not all the public fields.  unfortunately I don't think there is any API for that?? oh wait, there is getParameterInfo. hmm. that requires the caller to cooperate.  hmm.
@@ -30,7 +42,10 @@ public class AppletUtils
             }
             if (verboseLevel >= 1)
                 System.out.println("Setting param "+field+" ("+field.getType()+")...");
-            String paramValueString = applet.getParameter(field.getName());
+
+            //String paramValueString = applet.getParameter(field.getName());
+            String paramValueString = getParameter(applet, field.getName());
+
             if (paramValueString == null)
             {
                 if (verboseLevel >= 1)

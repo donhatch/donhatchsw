@@ -172,6 +172,7 @@ donhatchsw.jar: \
     com/donhatchsw/shims_for_deprecated/java_applet_AppletStub.class \
     com/donhatchsw/shims_for_deprecated/java_applet_Applet.class \
     com/donhatchsw/shims_for_deprecated/javax_swing_JApplet.class \
+    com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_AppletViewer.class \
     com/donhatchsw/compat/ArrayList.class \
     com/donhatchsw/compat/IntArrayList.class \
     com/donhatchsw/compat/DoubleArrayList.class \

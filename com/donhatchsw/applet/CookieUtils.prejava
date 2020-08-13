@@ -26,7 +26,8 @@ public class CookieUtils
     //      /usr/java/jdk1.3.1_18/jre/lib/javaplugin.jar
     // XXX look for one that's compat with even older vms, although maybe it doesn't matter, it's only using the prototypes
     //
-    public static boolean setCookie(java.applet.Applet applet, String name, String rawValue)
+    public static boolean setCookie(java.awt.Container applet,  // java.applet.Applet or ...
+                                    String name, String rawValue)
     {
         try {
             System.out.println("rawValue='"+rawValue+"'");
@@ -47,7 +48,8 @@ public class CookieUtils
     } // setCookie
 
 
-    public static String getCookie(java.applet.Applet applet, String name)
+    public static String getCookie(java.awt.Container applet,  // java.applet.Applet or ...
+                                   String name)
     {
         try {
             String cookies = (String)jsEval(applet, "document.cookie");
@@ -82,7 +84,8 @@ public class CookieUtils
     *</pre>
     * Used by getCookie and setCookie.
     */
-    public static Object jsEval(java.applet.Applet applet, String stringToEval)
+    public static Object jsEval(java.awt.Container applet,  // java.applet.Applet or ...
+                                String stringToEval)
         throws java.lang.reflect.InvocationTargetException /** to print it, use e.getTargetException() */
     {
         try {

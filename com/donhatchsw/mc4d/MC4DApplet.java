@@ -2,7 +2,6 @@
 
 package com.donhatchsw.mc4d;
 
-import java.applet.Applet;
 import java.awt.*;
 import java.awt.event.*;
 import com.donhatchsw.awt.Row;
@@ -12,7 +11,7 @@ import com.donhatchsw.awt.RowLayout;
 
 
 public class MC4DApplet
-    extends Applet
+    extends com.donhatchsw.shims_for_deprecated.java_applet_Applet
 {
     static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
@@ -148,7 +147,8 @@ public class MC4DApplet
                     return super.getPreferredSize();
             }
             // So we can type immediately in it
-            public boolean isFocusTraversable()
+            // (note, it would also work to call requestFocus() in mouseEntered(), I believe)
+            public boolean isFocusable()
             {
                 return true;
             }
@@ -304,8 +304,10 @@ public class MC4DApplet
                                 setForeground(Color.white);
                             }
 
-                            if (me.getModifiers() != 0)
+                            if (me.getModifiersEx() != 0)
                             {
+                                // enter the menu title, with modifier,
+                                // is same as clicking on it (I don't remember why I did this)
                                 Component theLabel = me.getComponent();
                                 menu.show(theLabel,
                                           0, theLabel.getHeight());
@@ -369,7 +371,7 @@ public class MC4DApplet
         public MC4DViewerPanel(final String name,
                                final MC4DViewGuts viewGuts,
                                final boolean doDoubleBuffer,
-                               final Applet applet, // for context for cookie
+                               final com.donhatchsw.shims_for_deprecated.java_applet_Applet applet, // for context for cookie
                                final PuzzlesAndWindows allPuzzlesAndWindows) // for save
         {
             this.name = name;
@@ -641,7 +643,7 @@ public class MC4DApplet
                                           final boolean cloneView,
                                           final boolean cloneState,
                                           final boolean doDoubleBuffer,
-                                          final Applet applet,
+                                          final com.donhatchsw.shims_for_deprecated.java_applet_Applet applet,
                                           final PuzzlesAndWindows allPuzzlesAndWindows)
     {
         final MC4DViewGuts newViewGuts = new MC4DViewGuts(oldViewGuts.viewParams,
@@ -848,7 +850,7 @@ public class MC4DApplet
         {
             Component frameOrApplet = getTopLevelFrameOrApplet(component);
             java.awt.Rectangle bounds = frameOrApplet.getBounds();
-            String s = (frameOrApplet instanceof Applet ? "applet" :
+            String s = (frameOrApplet instanceof com.donhatchsw.shims_for_deprecated.java_applet_Applet ? "applet" :
                         !frameOrApplet.isVisible() ? "closed" :
                         ((Frame)frameOrApplet).getState() == Frame.ICONIFIED ? "iconified" : "open");
             s += "@" + bounds.width
@@ -1043,7 +1045,7 @@ public class MC4DApplet
         }
         //System.out.println("out getTopLevelFrameOrApplet ("+comp.getClass()+")");
         CHECK(comp instanceof Frame
-           || comp instanceof Applet);
+           || comp instanceof com.donhatchsw.shims_for_deprecated.java_applet_Applet);
         return comp;
     } // getTopLevelFrameOrApplet
 
@@ -1321,7 +1323,8 @@ public class MC4DApplet
         appletViewerArgs[0] = "com.donhatchsw.mc4d.MC4DApplet";
         for (int i = 0; i < args.length; ++i)
             appletViewerArgs[i+1] = args[i];
-        com.donhatchsw.applet.AppletViewer.main(appletViewerArgs);
+        //com.donhatchsw.applet.AppletViewer.main(appletViewerArgs);
+        com.donhatchsw.shims_for_deprecated.com_donhatchsw_applet_AppletViewer.main(appletViewerArgs);
     } // main
 
 } // class MC4DApplet
