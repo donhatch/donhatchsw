@@ -1738,14 +1738,11 @@ public class GenericGlue
             return zeroOutRollAndMaybeTiltOnSpinDelta(spindelta, true);
         }
 
-    /*
-     * Shamelessly copied from someone who shamelessly copied it from SwingUtilities.java since that is in JDK 1.3 and we'd like to keep this to 1.2 and below.
-     */
     public static boolean isMiddleMouseButton(MouseEvent anEvent) {
-        return ((anEvent.getModifiers() & InputEvent.BUTTON2_MASK) == InputEvent.BUTTON2_MASK);
+        return anEvent.getButton() == java.awt.event.MouseEvent.BUTTON2;
     }
     public static boolean isLeftMouseButton(MouseEvent anEvent) {
-         return ((anEvent.getModifiers() & InputEvent.BUTTON1_MASK) != 0);
+        return anEvent.getButton() == java.awt.event.MouseEvent.BUTTON1;
     }
 
 
