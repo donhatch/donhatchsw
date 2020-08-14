@@ -1308,7 +1308,7 @@ public class Cpp
                               LazyPrintWriter out,
                               FileOpener fileOpener,
                               String includePath[],
-                              java.util.Hashtable macros, // gets updated as we go
+                              java.util.Hashtable<String, Macro> macros, // gets updated as we go
                    
                               LineBuffer lineBuffer, // logically local to loop iteration but we only want to allocate it once
                               TokenStreamFromLineBufferWithPushBack tokenStream, // logically local to loop iteration but we only want to allocate it once
@@ -1587,7 +1587,7 @@ public class Cpp
                                     if (verboseLevel >= 2)
                                         System.err.println("        filter:     and there's a macro param list");
                                     // There's a macro param list.
-                                    java.util.Vector paramNamesVector = new java.util.Vector();
+                                    java.util.Vector<String> paramNamesVector = new java.util.Vector<String>();
 
                                     tokenAllocator.unrefToken(nextToken);
                                     nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
@@ -1686,7 +1686,7 @@ public class Cpp
                                 // or eof.
                                 // still using nextToken to hold the next token we are about to look at.
 
-                                java.util.Vector contentsVector = new java.util.Vector();
+                                java.util.Vector<Token> contentsVector = new java.util.Vector<Token>();
 
                                 while (nextToken.type != Token.NEWLINE)
                                 {
@@ -2256,8 +2256,8 @@ public class Cpp
 
     public static ParsedCommandLineArgs parseCommandLineArgs(String args[])
     {
-        java.util.Vector inFileNamesVector = new java.util.Vector();
-        java.util.Vector includePathVector = new java.util.Vector();
+        java.util.Vector<String> inFileNamesVector = new java.util.Vector<String>();
+        java.util.Vector<String> includePathVector = new java.util.Vector<String>();
         StringBuffer commandLineFakeInputBuffer = new StringBuffer();
         String language = "java";
         for (int iArg = 0; iArg < args.length; ++iArg)
@@ -2466,7 +2466,7 @@ public class Cpp
         TokenStreamFromLineBufferWithPushBack tokenStreamScratch = new TokenStreamFromLineBufferWithPushBack();
         TokenAllocator tokenAllocator = new TokenAllocator();
         ExpressionParser expressionParser = new ExpressionParser();
-        java.util.Hashtable macros = new java.util.Hashtable();
+        java.util.Hashtable<String, Macro> macros = new java.util.Hashtable<String, Macro>();
 
 
         // For some reason the real cpp does this at the beginning

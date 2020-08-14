@@ -22,7 +22,7 @@ public class com_donhatchsw_applet_AppletViewer
 
         com.donhatchsw.shims_for_deprecated.java_applet_Applet applet = null;
         {
-            Class appletClass = null;
+            Class<?> appletClass = null;
             {
                 try
                 {

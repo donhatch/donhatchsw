@@ -1091,14 +1091,16 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 boolean suspicious = false;
                 // Find prefix method, in MyMath or Math.
                 // Some are in both (namely cosh,sinh,tanh, in java 1.5 and later).
-                Class mathClasses[] = {Math.class, MyMath.class};
+                Class<?> mathClasses[] = {Math.class, MyMath.class};
                 int nFound = 0;
                 for (int iMathClass = 0; iMathClass < mathClasses.length; ++iMathClass)
                 {
-                    Class mathClass = mathClasses[iMathClass];
+                    Class<?> mathClass = mathClasses[iMathClass];
                     java.lang.reflect.Method mathMethod = null;
                     try
                     {
+                        // TODO: what the heck am I supposed to do with this warning?
+                        // "warning: [unchecked] unchecked call to getMethod(String,Class<?>...) as a member of the raw type Class"
                         mathMethod = mathClass.getMethod(prefix_function_name, new Class[]{double.class});
                     }
                     catch (NoSuchMethodException e)

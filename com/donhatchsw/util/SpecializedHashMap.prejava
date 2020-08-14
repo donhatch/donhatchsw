@@ -19,7 +19,7 @@ public abstract class SpecializedHashMap
 
     public SpecializedHashMap(int initialCapacity)
     {
-        this.hashMap = new java.util.HashMap(initialCapacity);
+        this.hashMap = new java.util.HashMap<KeyWrapper,Object>(initialCapacity);
     };
 
     public static class IntArrayHashMap extends SpecializedHashMap
@@ -38,7 +38,7 @@ public abstract class SpecializedHashMap
         }
     }  // IntArrayHashMap
 
-    private java.util.HashMap hashMap;  // has-a, not is-a, to prevent mistakes
+    private java.util.HashMap<KeyWrapper,Object> hashMap;  // has-a, not is-a, to prevent mistakes
 
     private class KeyWrapper {  // not static!  so it has access to our keyEquals and keyHashCode
         private Object key;

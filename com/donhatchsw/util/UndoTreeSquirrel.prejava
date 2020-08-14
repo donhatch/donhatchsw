@@ -167,7 +167,7 @@ public class UndoTreeSquirrel
 
     private UndoTree model; // set in ctor
 
-    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable privateNodeInfosHashtable, UndoTree.Node node)
+    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashtable, UndoTree.Node node)
     {
         PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
         if (info == null)
@@ -190,7 +190,7 @@ public class UndoTreeSquirrel
         public Object privateLabel = null;
         public int preferredChildIndex = -1;
     }
-    private java.util.Hashtable/*<PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable(); // XXX get rid of this, make it an array instead?  not sure
+    private java.util.Hashtable<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashtable = new java.util.Hashtable<UndoTree.Node,PrivateNodeInfo>(); // XXX get rid of this, make it an array instead?  not sure
     private int currentNodeIndex; // set in ctor
     private SmoothlyVaryingViewingParameter currentNodeFraction = new SmoothlyVaryingViewingParameter(1.); // current fraction of the way from parent to current node. Usually in (0,1] but can be outside that range in the case of a bouncy system.
 
@@ -1510,7 +1510,7 @@ public class UndoTreeSquirrel
         // We'll stick these in the created undoTree when we
         // create it at the end
         int currentNodeIndex = -1;
-        java.util.Hashtable/*<node, PrivateNodeInfo>*/ privateNodeInfosHashtable = new java.util.Hashtable();
+        java.util.Hashtable<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashtable = new java.util.Hashtable<UndoTree.Node,PrivateNodeInfo>();
 
         UndoTree.Node nodes[] = new UndoTree.Node[Math.max(words.length,1)]; // at most this many
         com.donhatchsw.compat.ArrayList/*UndoTree.Node*/ childrens[] = new com.donhatchsw.compat.ArrayList[nodes.length];

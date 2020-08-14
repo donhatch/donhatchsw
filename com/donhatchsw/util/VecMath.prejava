@@ -5967,7 +5967,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     // simplistic way, instead of enumerating
                     // all possibilities, just pick permutations
                     // at random and discard the ones we've already seen
-                    java.util.Hashtable seen = new java.util.Hashtable();
+                    java.util.Hashtable<String,int[]> seen = new java.util.Hashtable<String,int[]>();
                     for (int iPerm = 0; iPerm < 1000; ++iPerm)
                     {
                         int perm[] = randomperm(nRows*nCols, generator);

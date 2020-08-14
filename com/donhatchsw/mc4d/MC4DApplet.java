@@ -805,17 +805,17 @@ public class MC4DApplet
         }
 
         // Kind of a general purpose utility, could be put in util
-        private static class OrderedHashTable
+        private static class OrderedHashTable<K,V>
         {
             private com.donhatchsw.compat.ArrayList orderedKeys = new com.donhatchsw.compat.ArrayList();
-            private java.util.Hashtable hashTable = new java.util.Hashtable();
-            public void add(Object key, Object value)
+            private java.util.Hashtable<K,V> hashTable = new java.util.Hashtable<K,V>();
+            public void add(K key, V value)
             {
                 CHECK(hashTable.get(key) == null); // XXX throw something more legit
                 orderedKeys.add(key);
                 hashTable.put(key, value);
             }
-            public void remove(Object key)
+            public void remove(K key)
             {
                 CHECK(hashTable.get(key) != null); // XXX throw something more legit
                 orderedKeys.remove(key); // takes O(n) time
@@ -825,9 +825,9 @@ public class MC4DApplet
             {
                 return orderedKeys.get(i);
             }
-            public Object get(Object o)
+            public Object get(K key)
             {
-                return hashTable.get(o);
+                return hashTable.get(key);
             }
             public int size()
             {

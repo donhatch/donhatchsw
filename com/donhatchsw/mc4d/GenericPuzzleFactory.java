@@ -82,7 +82,7 @@ public class GenericPuzzleFactory
         try { return Class.forName(className); }
         catch (ClassNotFoundException e) { return null; }
     }
-    private static java.lang.reflect.Constructor getConstructorOrNull(Class classs, Class argTypes[])
+    private static java.lang.reflect.Constructor getConstructorOrNull(Class<?> classs, Class argTypes[])
     {
         try { return classs.getConstructor(argTypes); }
         catch (NoSuchMethodException e) { return null; }

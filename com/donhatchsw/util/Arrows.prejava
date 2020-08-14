@@ -2314,9 +2314,9 @@ public class Arrows
             Integer Inds[] = new Integer[n];
             for (int i = 0; i < n; ++i)
                 Inds[i] = Integer.valueOf(i);
-            java.util.Arrays.sort(Inds, new java.util.Comparator()
+            java.util.Arrays.sort(Inds, new java.util.Comparator<Integer>()
             {
-                OVERRIDE public int compare(Object aObj, Object bObj)
+                OVERRIDE public int compare(Integer aObj, Integer bObj)
                 {
                     int a = ((Integer)aObj).intValue();
                     int b = ((Integer)bObj).intValue();

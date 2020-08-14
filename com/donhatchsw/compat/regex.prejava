@@ -1193,8 +1193,8 @@ public class regex
         }
 
         private static boolean inited;
-        private static Class patternClass;
-        private static Class matcherClass;
+        private static Class<?> patternClass;
+        private static Class<?> matcherClass;
         private static Class charSequenceClass;
         private static java.lang.reflect.Method patternCompileMethod;
         private static java.lang.reflect.Method patternMatcherMethod;

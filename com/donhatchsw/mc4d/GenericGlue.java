@@ -529,7 +529,7 @@ public class GenericGlue
           //{"Invent my own!",}, // XXX currently done by the older code down below-- need to port and get rid of that
         }; // menuScheme
 
-        java.util.Stack menuStack = new java.util.Stack();
+        java.util.Stack<Object> menuStack = new java.util.Stack<Object>();  // of Menu or JMenu
         menuStack.push(puzzlemenu);
         for (int i = 0; i < menuScheme.length; ++i)
         {
@@ -1878,7 +1878,7 @@ public class GenericGlue
 
                 ActionListener[] listeners = null;
                 {
-                    Class childClass = child.getClass();
+                    Class<?> childClass = child.getClass();
                     java.lang.reflect.Method getListenersMethod = null;
                     try {
                         getListenersMethod = childClass.getMethod("getListeners", new Class[]{Class.class});

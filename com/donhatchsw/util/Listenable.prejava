@@ -40,7 +40,7 @@ public abstract class Listenable
         {
             if (useWeakRefs)
             {
-                java.lang.ref.WeakReference wr = new java.lang.ref.WeakReference(listener);
+                java.lang.ref.WeakReference<Listener> wr = new java.lang.ref.WeakReference<Listener>(listener);
                 listeners.add(wr);
             }
             else

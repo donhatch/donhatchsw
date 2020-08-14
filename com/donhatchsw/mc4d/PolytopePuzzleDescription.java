@@ -2090,12 +2090,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                         // First make it so that we can easily lookup from global element index to element index on a given facet...
                         int maxRelevantDim = 2;  // we're looking at elements of polygons
-                        java.util.Hashtable[/*nFacets*/][/*nRelevantDims*/] indexOfOriginalEltOnFacet = new java.util.Hashtable[nFacets][maxRelevantDim+1];
+                        // workaround 3 from https://programming.guide/java/generic-array-creation.html
+                        class HashtableIntegerInteger extends java.util.Hashtable<Integer,Integer> {}
+                        HashtableIntegerInteger[/*nFacets*/][/*nRelevantDims*/] indexOfOriginalEltOnFacet = new HashtableIntegerInteger[nFacets][maxRelevantDim+1];
                         for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                         {
                             CSG.Polytope[][] allElementsOfFacet = originalFacets[iFacet].getAllElements();
                             for (int iDim = 0; iDim <= maxRelevantDim; ++iDim) {
-                                indexOfOriginalEltOnFacet[iFacet][iDim] = new java.util.Hashtable();
+                                indexOfOriginalEltOnFacet[iFacet][iDim] = new HashtableIntegerInteger();
                                 int nFacetEltsOfDim = allElementsOfFacet[iDim].length;
                                 for (int iFacetEltOfDim = 0; iFacetEltOfDim < nFacetEltsOfDim; ++iFacetEltOfDim) {
                                     CSG.Polytope elt = allElementsOfFacet[iDim][iFacetEltOfDim];
@@ -3068,7 +3070,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             CSG.Polytope[] ridges = allSlicedElements[nDims-2];
 
             CutInfo[][] sticker2cutInfos = new CutInfo[nStickers][];
-            java.util.HashMap cutInfos2sticker = new java.util.HashMap();  // CBB: initial capacity should be number of stickers in slicemask
+            java.util.HashMap<String,Integer> cutInfos2sticker = new java.util.HashMap<String,Integer>();  // CBB: initial capacity should be number of stickers in slicemask
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
                 // CBB: we are testing these too many times!
@@ -3308,7 +3310,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     {
                         // make a map from coords to symbolic, then symbolic to symbolic is easy, then symbolic to coordso
 
-                        java.util.HashMap cutInfos2coords = new java.util.HashMap();  // CBB: initial capacity
+                        java.util.HashMap<String,double[]> cutInfos2coords = new java.util.HashMap<String,double[]>();  // CBB: initial capacity
 
                         int[] vertsThisFacet = originalIncidences[nDims-1][iFacet][0];
                         int nCoordsPerCorner = 1; for (int i = 0; i < nDims; ++i) nCoordsPerCorner *= nStickerLayers+1;  // nCoordsPerCorner = intpow(nStickerLayers+1, nDims);
