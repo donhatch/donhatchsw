@@ -8,6 +8,7 @@ import com.donhatchsw.util.Listenable;
 
 public class MC4DLegacyControlPanel
     extends Panel
+    implements MC4DControlPanelInterface
 {
     static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
@@ -551,12 +552,12 @@ public class MC4DLegacyControlPanel
 
     // XXX should this name be associated with the viewParams instead?
     private String name;
-    public String getName()
+    @Override public String getName()
     {
         return name;
     }
     private MC4DViewGuts.ViewParams viewParams;
-    public MC4DViewGuts.ViewParams getViewParams()
+    @Override public MC4DViewGuts.ViewParams getViewParams()
     {
         return viewParams;
     }
