@@ -90,7 +90,7 @@ public class CookieUtils
     {
         try {
             //return netscape.javascript.JSObject.getWindow(applet).eval(stringToEval);
-            Class JSObjectClass = Class.forName("netscape.javascript.JSObject");
+            Class<?> JSObjectClass = Class.forName("netscape.javascript.JSObject");
             return JSObjectClass.getMethod("eval",new Class[]{String.class}).invoke(JSObjectClass.getMethod("getWindow", new Class[]{Class.forName("java.applet.Applet")}).invoke(null, new Object[]{applet}), new Object[]{stringToEval}); // so there!
         }
         catch (ClassNotFoundException e) { throw new java.lang.reflect.InvocationTargetException(e); }
