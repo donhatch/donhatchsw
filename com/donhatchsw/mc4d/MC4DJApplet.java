@@ -109,8 +109,8 @@ public class MC4DJApplet
                 {
                     Dimension menuBarPreferredSize = menuBarForWidth[0].getPreferredSize();
                     return new Dimension(menuBarPreferredSize.width,
-                                         menuBarPreferredSize.width); // width, not height
-                    // XXX or can I reuse it?
+                                         menuBarPreferredSize.width); // width, not height.  so, square
+                    // XXX or can I reuse it?  seems like everyone's being overly cautious
                 }
                 else
                     return super.getPreferredSize();
@@ -244,6 +244,7 @@ public class MC4DJApplet
         } // MyJMenuItem
 
     // new menu bar and new view canvas, inside a new panel.
+    // TODO: the panel really serves no purpose any more; this is just returning a canvas,menubar pair
     private static class MC4DViewerPanel
         extends JPanel
     {
@@ -843,7 +844,6 @@ public class MC4DJApplet
             }
 
         } // updateControlPanelWindowTitles
-
 
         public void dumpComponentHierarchies() {
             System.out.println("================================================");

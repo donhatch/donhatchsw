@@ -140,8 +140,8 @@ public class MC4DApplet
                 {
                     Dimension menuBarPreferredSize = menuBarForWidth[0].getPreferredSize();
                     return new Dimension(menuBarPreferredSize.width,
-                                         menuBarPreferredSize.width); // width, not height
-                    // XXX or can I reuse it?
+                                         menuBarPreferredSize.width); // width, not height.  so, square
+                    // XXX or can I reuse it?  seems like everyone's being overly cautious
                 }
                 else
                     return super.getPreferredSize();
@@ -444,6 +444,12 @@ public class MC4DApplet
                                 public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     System.out.println(allPuzzlesAndWindows.toString());
+                                }
+                            });
+                            add(new MyMenuItem("Debug dump ui component hierarchies") {
+                                @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                                {
+                                    allPuzzlesAndWindows.dumpComponentHierarchies();
                                 }
                             });
                         }
@@ -966,6 +972,30 @@ public class MC4DApplet
 
         } // updateControlPanelWindowTitles
 
+        public void dumpComponentHierarchies() {
+            System.out.println("================================================");
+            {
+                int n = controlPanels.size();
+                System.out.println("    "+n+" control panel"+(n==1?"":"s")+":");
+                for (int i = 0; i < n; ++i)
+                {
+                    MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(i);
+                    Component topLevelFrameOrApplet = getTopLevelFrameOrApplet(controlPanel);
+                    MC4DControlPanel.dumpComponentHierarchy(topLevelFrameOrApplet, 9,i,n);
+                }
+            }
+            {
+                int n = viewerPanels.size();
+                System.out.println("    "+n+" viewer panel"+(n==1?"":"s")+":");
+                for (int i = 0; i < n; ++i)
+                {
+                    MC4DViewerPanel viewerPanel = (MC4DViewerPanel)viewerPanels.get(i);
+                    Component topLevelFrameOrApplet = getTopLevelFrameOrApplet(viewerPanel);
+                    MC4DControlPanel.dumpComponentHierarchy(topLevelFrameOrApplet, 9,i,n);
+                }
+            }
+            System.out.println("================================================");
+        }
 
         public String toString()
         {
