@@ -39,7 +39,7 @@ public class MC4DJApplet
         {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
         {"forceFuttableXXX", "boolean", "whether to force puzzle to think it's futtable.  for development."},
     };
-    public String[][] getParameterInfo()
+    public String[][] getParameterInfo()  // XXX TODO: no one ever uses this??
     {
         return parameterInfo;
     }
@@ -98,12 +98,12 @@ public class MC4DJApplet
                                                 final PuzzlesAndWindows allPuzzlesAndWindows) // XXX should really be local to this view window so we can change it I think
     {
         final JComponent canvas = new JComponent() {
-            public void paintComponent(Graphics g)
+            @Override public void paintComponent(Graphics g)
             {
                 viewGuts.paint(this, g);
             }
             // XXX lame hack... how should I really make the canvas square and same width as menu bar?
-            public Dimension getPreferredSize()
+            @Override public Dimension getPreferredSize()
             {
                 if (menuBarForWidth != null)
                 {
@@ -118,7 +118,7 @@ public class MC4DJApplet
 
             // So we can type immediately in it
             // (note, it would also work to call requestFocus() in mouseEntered(), I believe)
-            public boolean isFocusable()
+            @Override public boolean isFocusable()
             {
                 return true;
             }
@@ -128,7 +128,7 @@ public class MC4DJApplet
         viewGuts.setViewComponent(canvas);
 
         canvas.addKeyListener(new java.awt.event.KeyListener() {
-            public void keyPressed(KeyEvent ke)
+            @Override public void keyPressed(KeyEvent ke)
             {
                 if (ke.isAltDown())
                 {
@@ -215,10 +215,10 @@ public class MC4DJApplet
                 {
                 }
             }
-            public void keyTyped(KeyEvent ke)
+            @Override public void keyTyped(KeyEvent ke)
             {
             }
-            public void keyReleased(KeyEvent ke)
+            @Override public void keyReleased(KeyEvent ke)
             {
             }
         });
@@ -249,7 +249,7 @@ public class MC4DJApplet
         extends JPanel
     {
         private String name;
-        public String getName()
+        @Override public String getName()
         {
             return name;
         }
@@ -954,7 +954,7 @@ public class MC4DJApplet
 
 
     private MC4DViewGuts mainViewGuts;
-    public void init()
+    @Override public void init()
     {
         System.out.println("    in MC4DJApplet init");
 
@@ -1001,24 +1001,24 @@ public class MC4DJApplet
         System.out.println("    out MC4DJApplet init");
     } // init
 
-    public void start()
+    @Override public void start()
     {
         System.out.println("    in MC4DJApplet start");
         System.out.println("    out MC4DJApplet start");
     } // start
-    public void stop()
+    @Override public void stop()
     {
         System.out.println("    in MC4DJApplet stop");
         System.out.println("    out MC4DJApplet stop");
     } // stop
-    public void destroy()
+    @Override public void destroy()
     {
         System.out.println("    in MC4DJApplet destroy");
         mainViewGuts.setModel(null);
         mainViewGuts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
         mainViewGuts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
         System.out.println("    out MC4DJApplet destroy");
-    } // stop
+    } // destroy
 
 
     //

@@ -65,7 +65,7 @@ public class MC4DControlPanel
                 }
             });
             addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e)
+                @Override public void actionPerformed(ActionEvent e)
                 {
                     try
                     {
@@ -79,7 +79,7 @@ public class MC4DControlPanel
                 }
             });
         }
-        public Dimension getPreferredSize()
+        @Override public Dimension getPreferredSize()
         {
             // default seems taller than necessary
             // on my computer... and in recent VMs it's even worse
@@ -96,7 +96,7 @@ public class MC4DControlPanel
         // weird, the following is called during horizontal shrinking
         // but not during horizontal expanding... if we don't do this too
         // then it looks wrong when shrinking.  what a hack...
-        public Dimension getMinimumSize()
+        @Override public Dimension getMinimumSize()
         {
             Dimension minimumSize = super.getMinimumSize();
             //System.out.println("textfield.super.minimumSize() = "+minimumSize);
@@ -167,7 +167,7 @@ public class MC4DControlPanel
             });
             updateThumb(f);
         }
-        public Dimension getPreferredSize()
+        @Override public Dimension getPreferredSize()
         {
             // default seems to be 50x18 on my computer...
             // give it more horizontal space than that
@@ -187,30 +187,30 @@ public class MC4DControlPanel
             super(width, height);
             setBackground(color.get());
             addMouseListener(new MouseListener() {
-                public void mouseClicked(MouseEvent me)
+                @Override public void mouseClicked(MouseEvent me)
                 {
                     //System.out.println("mouseClicked");
                 } // mouseClicked
-                public void mousePressed(MouseEvent me)
+                @Override public void mousePressed(MouseEvent me)
                 {
                     //System.out.println("mousePressed");
                     color.set(new Color((float)Math.random(), (float)Math.random(), (float)Math.random())); // poor man's color chooser
                 } // mousePressed
-                public void mouseReleased(MouseEvent me)
+                @Override public void mouseReleased(MouseEvent me)
                 {
                     //System.out.println("mouseReleased");
                 } // mouseReleased
-                public void mouseEntered(MouseEvent me)
+                @Override public void mouseEntered(MouseEvent me)
                 {
                     //System.out.println("mouseEntered");
                 } // mouseEntered
-                public void mouseExited(MouseEvent me)
+                @Override public void mouseExited(MouseEvent me)
                 {
                     //System.out.println("mouseExited");
                 } // mouseExited
             }); // mouse listener
             color.addListener(listener = new Listenable.Listener() {
-                public void valueChanged()
+                @Override public void valueChanged()
                 {
                     ColorSwatch.this.setBackground(color.get());
                 }
@@ -305,7 +305,7 @@ public class MC4DControlPanel
             super(buttonLabel);
             // XXX to be clean, should really scrunch out null listeners here so that we don't suffer overhead for them every time the button is hit... not that anyone would ever notice though probably
             addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent e)
+                @Override public void actionPerformed(ActionEvent e)
                 {
                     for (int i = 0; i < listenables.length; ++i)
                         if (listenables[i] != null)
@@ -378,7 +378,7 @@ public class MC4DControlPanel
             if (helpMessage != null)
             {
                 addActionListener(new ActionListener() {
-                    public void actionPerformed(ActionEvent e)
+                    @Override public void actionPerformed(ActionEvent e)
                     {
                         Component panel;
                         {
@@ -819,7 +819,7 @@ public class MC4DControlPanel
                     }
                     {
                         addActionListener(new ActionListener() {
-                            public void actionPerformed(ActionEvent e)
+                            @Override public void actionPerformed(ActionEvent e)
                             {
                                 //System.out.println("Contiguous cubies button was bonked!");
                                 viewParams.faceShrink4d.set(1.f);
@@ -926,7 +926,7 @@ public class MC4DControlPanel
                      new GridBagConstraints(){{gridy = nRows;}});
             add(new Button("Frame Picture") {{
                     addActionListener(new ActionListener() {
-                        public void actionPerformed(ActionEvent e)
+                        @Override public void actionPerformed(ActionEvent e)
                         {
                             float oldScale = viewParams.viewScale2d.get();
                             if (oldScale <= 0.f)

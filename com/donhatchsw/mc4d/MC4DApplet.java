@@ -36,7 +36,7 @@ public class MC4DApplet
         {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
         {"forceFuttableXXX", "boolean", "whether to force puzzle to think it's futtable.  for development."},
     };
-    public String[][] getParameterInfo()
+    public String[][] getParameterInfo()  // XXX TODO: no one ever uses this??
     {
         return parameterInfo;
     }
@@ -98,8 +98,8 @@ public class MC4DApplet
             private Image backBuffer = null;
             private Dimension backBufferSize = null;
 
-            public void update(Graphics g) { paint(g); } // don't flash
-            public void paint(Graphics frontBufferGraphics)
+            @Override public void update(Graphics g) { paint(g); } // don't flash
+            @Override public void paint(Graphics frontBufferGraphics)
             {
                 //System.out.println("in canvas paint");
                 Dimension size = this.getSize();
@@ -134,7 +134,7 @@ public class MC4DApplet
                 //System.out.println("out canvas paint");
             }
             // XXX lame hack... how should I really make the canvas square and same width as menu bar?
-            public Dimension getPreferredSize()
+            @Override public Dimension getPreferredSize()
             {
                 if (menuBarForWidth != null)
                 {
@@ -148,7 +148,7 @@ public class MC4DApplet
             }
             // So we can type immediately in it
             // (note, it would also work to call requestFocus() in mouseEntered(), I believe)
-            public boolean isFocusable()
+            @Override public boolean isFocusable()
             {
                 return true;
             }
@@ -157,7 +157,7 @@ public class MC4DApplet
         viewGuts.setViewComponent(canvas);
 
         canvas.addKeyListener(new java.awt.event.KeyListener() {
-            public void keyPressed(KeyEvent ke)
+            @Override public void keyPressed(KeyEvent ke)
             {
                 if (ke.isAltDown())
                 {
@@ -244,10 +244,10 @@ public class MC4DApplet
                 {
                 }
             }
-            public void keyTyped(KeyEvent ke)
+            @Override public void keyTyped(KeyEvent ke)
             {
             }
-            public void keyReleased(KeyEvent ke)
+            @Override public void keyReleased(KeyEvent ke)
             {
             }
         });
@@ -329,7 +329,7 @@ public class MC4DApplet
                 }});
                 // XXX how to tell when a menu has disappeared?  this isn't the way-- it comes up in only some of the cases of what can happen
                 menu.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
+                    @Override public void actionPerformed(java.awt.event.ActionEvent e)
                     {
                         System.out.println("action on a menu");
                         someMenuIsShowing = false;
@@ -358,7 +358,7 @@ public class MC4DApplet
         extends Panel
     {
         private String name;
-        public String getName()
+        @Override public String getName()
         {
             return name;
         }
@@ -396,19 +396,19 @@ public class MC4DApplet
                         if (isInSandbox)
                         {
                             add(new MyMenuItem("Save to browser cookie") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate", viewGuts.model.toString());
                                 }
                             });
                             add(new MyMenuItem("Save to browser cookie #2") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate2", viewGuts.model.toString());
                                 }
                             });
                             add(new MyMenuItem("Load from browser cookie") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate");
                                     MC4DModel newModel = MC4DModel.fromString(modelStateString);
@@ -417,7 +417,7 @@ public class MC4DApplet
                                 }
                             });
                             add(new MyMenuItem("Load from browser cookie #2") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate2");
                                     MC4DModel newModel = MC4DModel.fromString(modelStateString);
@@ -427,7 +427,7 @@ public class MC4DApplet
                             });
                             if (true)
                                 add(new MyMenuItem("Test to/from string") {
-                                    public void actionPerformed(java.awt.event.ActionEvent e)
+                                    @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                     {
                                         MC4DModel m0 = viewGuts.model;
                                         String s1 = m0.toString();
@@ -441,7 +441,7 @@ public class MC4DApplet
                                 });
                             addSeparator();
                             add(new MyMenuItem("Experimental print app to terminal") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     System.out.println(allPuzzlesAndWindows.toString());
                                 }
@@ -464,7 +464,7 @@ public class MC4DApplet
                     }});
                     add("Edit", new PopupMenu() {{
                         add(new MyMenuItem("Reset            Ctrl-R") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 // XXX duplicated code in menu and key... should be model method
                                 com.donhatchsw.util.VecMath.copyvec(
@@ -476,14 +476,14 @@ public class MC4DApplet
                             }
                         });
                         add(new MyMenuItem("Undo             Ctrl-Z") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
                                     System.out.println("Nothing to undo.");
                             }
                         });
                         add(new MyMenuItem("Redo             Ctrl-Y") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
                                     System.out.println("Nothing to redo.");
@@ -491,7 +491,7 @@ public class MC4DApplet
                         });
                         addSeparator();
                         add(new MyMenuItem("Solve (cheat)  Ctrl-T") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
                                     ;
@@ -499,7 +499,7 @@ public class MC4DApplet
                         });
                         add(new MyMenuItem("Solve (for real)") {
                             {setEnabled(false);}
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 System.out.println("Sorry, not smart enough for that.");
                             }
@@ -510,7 +510,7 @@ public class MC4DApplet
                         {
                             final int scramblechenfrengensen = i;
                             add(new MyMenuItem(""+i+"      Ctrl-"+i) {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     System.out.println("Scramble "+scramblechenfrengensen);
                                     GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
@@ -520,7 +520,7 @@ public class MC4DApplet
                         }
                         addSeparator();
                         add(new MyMenuItem("Full   Ctrl-F") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 // XXX dup code in key listener
                                 // XXX Maybe 6 times number of faces?  not sure
@@ -545,7 +545,7 @@ public class MC4DApplet
                     }});
                     add("Windows", new PopupMenu() {{
                         add(new MyMenuItem("Control Panel                       Ctrl-C") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 openOrMakeNewControlPanelWindow(viewGuts,
                                                                 allPuzzlesAndWindows);
@@ -553,7 +553,7 @@ public class MC4DApplet
                         });
                         add(new MyMenuItem("Expert Control Panel") {
                             {setEnabled(false);}
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 // XXX implement me
                             }
@@ -561,20 +561,20 @@ public class MC4DApplet
                         addSeparator();
                         add(new MyMenuItem("Macros") {
                             {setEnabled(false);}
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                             }
                         });
                         addSeparator();
                         add(new MyMenuItem("Undo Tree                           Ctrl-U") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 makeNewUndoTreeWindow(viewGuts);
                             }
                         });
                         addSeparator();
                         add(new MyMenuItem("Shared view of shared puzzle state") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 makeNewViewWindow(viewGuts,
                                                   false, // don't clone view, share it
@@ -586,7 +586,7 @@ public class MC4DApplet
                         });
                         if (false) // this is a weird one, I don't know if it's useful
                             add(new MyMenuItem("Shared view of cloned puzzle state") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
+                                @Override public void actionPerformed(java.awt.event.ActionEvent e)
                                 {
                                     makeNewViewWindow(viewGuts,
                                                       false, // don't clone view, share it
@@ -597,7 +597,7 @@ public class MC4DApplet
                                 }
                             });
                         add(new MyMenuItem("Cloned view of shared puzzle state ") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 makeNewViewWindow(viewGuts,
                                                   true, // clone view
@@ -608,7 +608,7 @@ public class MC4DApplet
                             }
                         });
                         add(new MyMenuItem("Cloned view of cloned puzzle state ") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 makeNewViewWindow(viewGuts,
                                                   true, // clone view
@@ -621,7 +621,7 @@ public class MC4DApplet
                         addSeparator();
                         add(new MyMenuItem("Progress/diagnostics/debug") {
                             {setEnabled(false);}
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                             }
                         });
@@ -1081,7 +1081,7 @@ public class MC4DApplet
 
 
     private MC4DViewGuts mainViewGuts;
-    public void init()
+    @Override public void init()
     {
         System.out.println("    in MC4DApplet init");
 
@@ -1128,24 +1128,24 @@ public class MC4DApplet
         System.out.println("    out MC4DApplet init");
     } // init
 
-    public void start()
+    @Override public void start()
     {
         System.out.println("    in MC4DApplet start");
         System.out.println("    out MC4DApplet start");
     } // start
-    public void stop()
+    @Override public void stop()
     {
         System.out.println("    in MC4DApplet stop");
         System.out.println("    out MC4DApplet stop");
     } // stop
-    public void destroy()
+    @Override public void destroy()
     {
         System.out.println("    in MC4DApplet destroy");
         mainViewGuts.setModel(null);
         mainViewGuts.setControllerComponent(null, false); // XXX make this not necessary, with weak ref I think
         mainViewGuts.setViewComponent(null); // XXX make this not necessary. with weak ref I think
         System.out.println("    out MC4DApplet destroy");
-    } // stop
+    } // destroy
 
 
     //
