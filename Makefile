@@ -210,12 +210,6 @@ donhatchsw.jar: \
     com/donhatchsw/awt/JCol.class \
     com/donhatchsw/awt/LayoutExample.class \
     com/donhatchsw/awt/MainWindowCount.class \
-    com/donhatchsw/shims_for_deprecated/java_applet_AppletContext.class \
-    com/donhatchsw/shims_for_deprecated/java_applet_AppletStub.class \
-    com/donhatchsw/shims_for_deprecated/java_applet_Applet.class \
-    com/donhatchsw/shims_for_deprecated/javax_swing_JApplet.class \
-    com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_AppletViewer.class \
-    com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_ExampleApplet.class \
     com/donhatchsw/util/NewtonSolver.class \
     com/donhatchsw/util/GoldenSectionSearch.class \
     com/donhatchsw/util/Catenary.class \
@@ -225,9 +219,13 @@ donhatchsw.jar: \
     com/donhatchsw/util/UndoTreeViewer.class \
     com/donhatchsw/applet/DoubleBufferedCanvas.class \
     com/donhatchsw/applet/AppletUtils.class \
-    com/donhatchsw/applet/AppletViewer.class \
     com/donhatchsw/applet/CookieUtils.class \
-    com/donhatchsw/applet/ExampleApplet.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_AppletContext.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_AppletStub.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_Applet.class \
+    com/donhatchsw/shims_for_deprecated/javax_swing_JApplet.class \
+    com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_AppletViewer.class \
+    com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_ExampleApplet.class \
     com/donhatchsw/mc4d/GenericPuzzleDescription.class \
     com/donhatchsw/mc4d/GenericPuzzleFactory.class \
     com/donhatchsw/mc4d/PolytopePuzzleDescription.class \
