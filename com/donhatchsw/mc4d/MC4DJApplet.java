@@ -740,7 +740,7 @@ public class MC4DJApplet
         }
 
         // XXX should use a hash table, probably
-        private Component findControlPanelOfViewParams(MC4DViewGuts.ViewParams viewParams)
+        private Component findFirstControlPanelOfViewParams(MC4DViewGuts.ViewParams viewParams)
         {
             int n = controlPanels.size();
             for (int i = 0; i < n; ++i)
@@ -750,7 +750,7 @@ public class MC4DJApplet
                     return controlPanel;
             }
             return null;
-        } // findControlPanelOfViewParams
+        } // findFirstControlPanelOfViewParams
         private Component findUndoTreeSquirrelPanelOfSquirrel(com.donhatchsw.util.UndoTreeSquirrel squirrel)
         {
             int n = undoTreeSquirrelPanels.size();
@@ -917,7 +917,7 @@ public class MC4DJApplet
                     sb.append("        {\n");
                     sb.append("            name = "+com.donhatchsw.util.Arrays.toStringCompact(viewerPanel.getName())+",\n");
                     sb.append("            state = "+windowStateToString(viewerPanel)+",\n");
-                    Component controlPanel = findControlPanelOfViewParams(viewerPanel.getViewGuts().viewParams);
+                    Component controlPanel = findFirstControlPanelOfViewParams(viewerPanel.getViewGuts().viewParams);
                     if (controlPanel != null)
                         sb.append("            controlPanelName = "+com.donhatchsw.util.Arrays.toStringCompact(controlPanel.getName())+",\n");
                     // XXX same for undo tree window
@@ -974,8 +974,10 @@ public class MC4DJApplet
         {
             int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
             for (int i = 0; i < nControlPanelsAtStartup; ++i)
+            {
                 openOrMakeNewControlPanelWindow(mainViewGuts,
                                                 allPuzzlesAndWindows);
+            }
         }
 
         //
@@ -1028,7 +1030,7 @@ public class MC4DJApplet
                                                             PuzzlesAndWindows allPuzzlesAndWindows)
         {
             String controlPanelName = "Settings "+(allPuzzlesAndWindows.nextControlPanelNumber++);
-            Component controlPanel = allPuzzlesAndWindows.findControlPanelOfViewParams(viewGuts.viewParams);
+            Component controlPanel = allPuzzlesAndWindows.findFirstControlPanelOfViewParams(viewGuts.viewParams);
             if (controlPanel != null)
             {
                 Frame controlPanelFrame = (Frame)getTopLevelFrameOrApplet(controlPanel);
