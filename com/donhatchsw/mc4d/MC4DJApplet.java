@@ -740,18 +740,18 @@ public class MC4DJApplet
         }
 
         // XXX should use a hash table, probably
-        private MC4DControlPanel findControlPanelOfViewParams(MC4DViewGuts.ViewParams viewParams)
+        private MC4DLegacyControlPanel findControlPanelOfViewParams(MC4DViewGuts.ViewParams viewParams)
         {
             int n = controlPanels.size();
             for (int i = 0; i < n; ++i)
             {
-                MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(i);
+                MC4DLegacyControlPanel controlPanel = (MC4DLegacyControlPanel)controlPanels.get(i);
                 if (controlPanel.getViewParams() == viewParams)
                     return controlPanel;
             }
             return null;
         } // findControlPanelOfViewParams
-        private MC4DControlPanel findUndoTreeSquirrelPanelOfSquirrel(com.donhatchsw.util.UndoTreeSquirrel squirrel)
+        private MC4DLegacyControlPanel findUndoTreeSquirrelPanelOfSquirrel(com.donhatchsw.util.UndoTreeSquirrel squirrel)
         {
             int n = undoTreeSquirrelPanels.size();
             for (int i = 0; i < n; ++i)
@@ -761,14 +761,14 @@ public class MC4DJApplet
             return null;
         } // findUndoTreeSquirrelPanelOfSquirrel
 
-        public void addControlPanel(MC4DControlPanel controlPanel)
+        public void addControlPanel(MC4DLegacyControlPanel controlPanel)
         {
             {
                 // Make sure name doesn't exist...
                 String name = controlPanel.getName();
                 int n = controlPanels.size();
                 for (int i = 0; i < n; ++i)
-                    if (((MC4DControlPanel)controlPanels.get(i)).getName().equals(name))
+                    if (((MC4DLegacyControlPanel)controlPanels.get(i)).getName().equals(name))
                     {
                         throw new IllegalStateException("Tried to add a control panel named "+com.donhatchsw.util.Arrays.toStringCompact(name)+" but there is already one with that name!?");
                     }
@@ -805,7 +805,7 @@ public class MC4DJApplet
             int nViewerPanels = viewerPanels.size();
             for (int iControlPanel = 0; iControlPanel < nControlPanels; ++iControlPanel)
             {
-                MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(iControlPanel);
+                MC4DLegacyControlPanel controlPanel = (MC4DLegacyControlPanel)controlPanels.get(iControlPanel);
                 String title = "MC4D Control Panel for ";
                 int nViewsFound = 0;
                 for (int iViewerPanel = 0; iViewerPanel < nViewerPanels; ++iViewerPanel)
@@ -852,9 +852,9 @@ public class MC4DJApplet
                 System.out.println("    "+n+" control panel"+(n==1?"":"s")+":");
                 for (int i = 0; i < n; ++i)
                 {
-                    MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(i);
+                    MC4DLegacyControlPanel controlPanel = (MC4DLegacyControlPanel)controlPanels.get(i);
                     Component topLevelFrameOrApplet = getTopLevelFrameOrApplet(controlPanel);
-                    MC4DControlPanel.dumpComponentHierarchy(topLevelFrameOrApplet, 9,i,n);
+                    MC4DLegacyControlPanel.dumpComponentHierarchy(topLevelFrameOrApplet, 9,i,n);
                 }
             }
             {
@@ -864,7 +864,7 @@ public class MC4DJApplet
                 {
                     MC4DViewerPanel viewerPanel = (MC4DViewerPanel)viewerPanels.get(i);
                     Component topLevelFrameOrApplet = getTopLevelFrameOrApplet(viewerPanel);
-                    MC4DControlPanel.dumpComponentHierarchy(topLevelFrameOrApplet, 9,i,n);
+                    MC4DLegacyControlPanel.dumpComponentHierarchy(topLevelFrameOrApplet, 9,i,n);
                 }
             }
             System.out.println("================================================");
@@ -895,7 +895,7 @@ public class MC4DJApplet
                 int n = controlPanels.size();
                 for (int i = 0; i < n; ++i)
                 {
-                    MC4DControlPanel controlPanel = (MC4DControlPanel)controlPanels.get(i);
+                    MC4DLegacyControlPanel controlPanel = (MC4DLegacyControlPanel)controlPanels.get(i);
                     sb.append("        {\n");
                     sb.append("            name = "+com.donhatchsw.util.Arrays.toStringCompact(controlPanel.getName())+"\n");
                     sb.append("            state = "+windowStateToString(controlPanel)+"\n");
@@ -917,7 +917,7 @@ public class MC4DJApplet
                     sb.append("        {\n");
                     sb.append("            name = "+com.donhatchsw.util.Arrays.toStringCompact(viewerPanel.getName())+",\n");
                     sb.append("            state = "+windowStateToString(viewerPanel)+",\n");
-                    MC4DControlPanel controlPanel = findControlPanelOfViewParams(viewerPanel.getViewGuts().viewParams);
+                    MC4DLegacyControlPanel controlPanel = findControlPanelOfViewParams(viewerPanel.getViewGuts().viewParams);
                     if (controlPanel != null)
                         sb.append("            controlPanelName = "+com.donhatchsw.util.Arrays.toStringCompact(controlPanel.getName())+",\n");
                     // XXX same for undo tree window
@@ -1028,7 +1028,7 @@ public class MC4DJApplet
                                                             PuzzlesAndWindows allPuzzlesAndWindows)
         {
             String controlPanelName = "Settings "+(allPuzzlesAndWindows.nextControlPanelNumber++);
-            MC4DControlPanel controlPanel = allPuzzlesAndWindows.findControlPanelOfViewParams(viewGuts.viewParams);
+            MC4DLegacyControlPanel controlPanel = allPuzzlesAndWindows.findControlPanelOfViewParams(viewGuts.viewParams);
             if (controlPanel != null)
             {
                 Frame controlPanelFrame = (Frame)getTopLevelFrameOrApplet(controlPanel);
@@ -1039,9 +1039,9 @@ public class MC4DJApplet
             }
 
             System.out.println("Making the panel...");
-            controlPanel = new MC4DControlPanel(controlPanelName,
-                                                viewGuts.viewParams,
-                                                viewGuts.viewState); // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
+            controlPanel = new MC4DLegacyControlPanel(controlPanelName,
+                                                      viewGuts.viewParams,
+                                                      viewGuts.viewState); // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
 
             java.awt.ScrollPane controlPanelScrollPane = new java.awt.ScrollPane(ScrollPane.SCROLLBARS_AS_NEEDED);
             controlPanelScrollPane.setSize(controlPanel.getPreferredSize());  // why doesn't this work?  makes it too small.  we adjust for it later, when packing.

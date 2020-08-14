@@ -6,7 +6,7 @@ import com.donhatchsw.awt.Row;
 import com.donhatchsw.awt.Col;
 import com.donhatchsw.util.Listenable;
 
-public class MC4DControlPanel
+public class MC4DLegacyControlPanel
     extends Panel
 {
     static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
@@ -561,10 +561,9 @@ public class MC4DControlPanel
         return viewParams;
     }
 
-    public MC4DControlPanel(String name,
-                            final MC4DViewGuts.ViewParams viewParams,
-                            final MC4DViewGuts.ViewState viewState) // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
-
+    public MC4DLegacyControlPanel(String name,
+                                  final MC4DViewGuts.ViewParams viewParams,
+                                  final MC4DViewGuts.ViewState viewState) // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
     {
         this.name = name;
         this.viewParams = viewParams;
@@ -1084,7 +1083,7 @@ public class MC4DControlPanel
 
         if (false)
             randomlyColorize(this);
-    } // MC4DControlPanel ctor
+    } // MC4DLegacyControlPanel ctor
 
 
 
@@ -1190,7 +1189,7 @@ public class MC4DControlPanel
         MC4DViewGuts.ViewState viewState = new MC4DViewGuts.ViewState();
         for (int i = 0; i < 2; ++i)
         {
-            final Frame frame = new Frame("MC4DControlPanel Test");
+            final Frame frame = new Frame("MC4DLegacyControlPanel Test");
             {
                 com.donhatchsw.awt.MainWindowCount.increment();
                 frame.addWindowListener(new WindowAdapter() {
@@ -1209,7 +1208,7 @@ public class MC4DControlPanel
                 });
             }
 
-            frame.add(new MC4DControlPanel("Settings", viewParams, viewState));
+            frame.add(new MC4DLegacyControlPanel("Settings", viewParams, viewState));
             frame.pack();
             frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
         }
@@ -1217,4 +1216,4 @@ public class MC4DControlPanel
         com.donhatchsw.awt.MainWindowCount.decrementAndExitIfImTheLastOne();
     } // main
 
-} // MC4DControlPanel
+} // MC4DLegacyControlPanel
