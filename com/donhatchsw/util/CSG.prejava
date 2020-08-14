@@ -30,10 +30,7 @@
             and similarly for the other tests listed above
         Now:
             -dim=2: A&A CHECK failed at com/donhatchsw/util/CSG.prejava(251): (facet.dim)==(dim-1) (1 vs. 0)
-            -dim=2: A-C has only 3 verts? wtf?
-            -dim=2: A|C has 7 verts, wtf
             -dim=2: (A-B)u(B-A) assertion failed at com/donhatchsw/util/CSG.prejava(247): (facet.dim)==(dim-1) (1 vs. 0)
-            -dim=2: A&C Assumption failed at com/donhatchsw/util/CSG.prejava(7434): edges[contourStart].p.facets.length >= 2
         Bleah, looking it over again, it seems like the algorithm
         can't handle A&A-- it computes the boundary of the intersection
         of A&B as bd(A)&B union A&bd(B), which is null...
@@ -201,7 +198,7 @@ public final class CSG
             private PushedAuxNext pushedAuxNext;  // rest of aux stack (other than aux itself which is the top element)
             private static boolean XXXuseNewPushPopAux = false;  // XXX true seems to be causing a bug: exception in mc4d "{4,3,3} 2":  CHECK failed at com/donhatchsw/util/CSG.prejava(349): this.pushedAuxNext != null
             private double _coords[];      // if vertex, null otherwise.  XXX should probably calculate only on demand, but then need a way to differentiate between dirty and nonexistent (for example, this is needed in getBBox below). XXX ctually not currently calculated at all.
-            private double _bbox[/*2*/][]; // bounding box of all vertices, so it can be finite even if the polytope is infinite (co-finite).  calculated Lazily via getBBox().
+            private double _bbox[/*2*/][]; // bounding box of all vertices, so it can be finite even if the polytope is infinite (co-finite).  calculated Lazily via getBBox(), cleared to null if any vertex coord changes.
             private Polytope[/*dim+1*/][] _allElements; // sorted lists of vertices, edges, ..., ridges, facets, calculated lazily via getAllElements()
             private int[/*dim+1*/][][/*dim+1*/][] _allIncidences; // calculated lazily via getAllIncidences
 
@@ -263,11 +260,14 @@ public final class CSG
             // (should take a const double[]).
             public void setCoords(double coords[])
             {
+                CHECK_EQ(dim, 0);  // must be a vertex
                 _coords = coords;
+                CHECK_EQ(_bbox, null);  // danger: there's no such check for all the parent polytopes that may refer to this one!
             }
 
             // Returns a pointer to coords.
             // this must be 0-dimensional (a vertex) in some number of dimensions.
+            // Calculates it lazily if not already calculated.
             // It is illegal to modify the contents
             // (should return const double[]).
             public double[] getCoords()
@@ -277,7 +277,7 @@ public final class CSG
                 {
                     _coords = intersectHyperplanes(contributingHyperplanes);
                 }
-                CHECK(_coords != null); // XXX not sure if I'm preventing this
+                CHECK(_coords != null); // XXX not absolutely sure if I'm preventing this
                 return _coords;
             } // getCoords
 
@@ -285,7 +285,7 @@ public final class CSG
             // When this is called, it is assumed
             // that the coords and connectivity
             // will not henceforth change.
-            // XXX well I'm not completely firm on that, but if they do change, the bbox will have to be marked dirty, probably by setting it to null.
+            // XXX well I'm not completely firm on that, but if they do change, the _bbox will have to be marked dirty, probably by setting it to null.  Note that makeHypercube does this!
             //
             public double[/*2*/][] getBBox()
             {
@@ -1174,10 +1174,12 @@ public final class CSG
                                               double inRadius)
         {
             SPolytope answer = makeHypercube(center.length);
-            PRINT(answer);
             Polytope verts[] = answer.p.getAllElements()[0];
             FORI (iVert, verts.length)
             {
+                // NOTE we are doing something highly illegal here,
+                // and it invalidates every bounding box of every element of every dimension!
+                // So we'll set them all to null, below.
                 VecMath.vpsxv(verts[iVert].getCoords(),
                               center,
                               inRadius,
@@ -1190,6 +1192,15 @@ public final class CSG
                 Hyperplane hyperplane = contributingHyperplanes[0];
                 CHECK_EQ(hyperplane.offset, 1);
                 hyperplane.offset = VecMath.dot(hyperplane.normal, center) + inRadius;
+            }
+            {
+              // invalidate all the bounding boxes, of every dimension.
+              Polytope[][] allElements = answer.p.getAllElements();
+              for (int i = 0; i < allElements.length; ++i) {
+                for (int j = 0; j < allElements[i].length; ++j) {
+                    allElements[i][j]._bbox = null;
+                }
+              }
             }
             return answer;
         } // makeHypercube
@@ -6830,8 +6841,11 @@ public final class CSG
                 //
                 double bboxA[][] = A.p.getBBox();
                 double bboxB[][] = B.p.getBBox();
+                if (verboseLevel >= 2) System.out.println(indentString+"    bboxA = "+Arrays.toStringCompact(bboxA));
+                if (verboseLevel >= 2) System.out.println(indentString+"    bboxB = "+Arrays.toStringCompact(bboxB));
                 double bbox[][] = new double[2][fullDim];
                 VecMath.bboxIntersect(bbox, bboxA, bboxB);
+                if (verboseLevel >= 2) System.out.println(indentString+"    bbox = "+Arrays.toStringCompact(bbox));
                 boolean bboxIsEmpty = false; // and counting
                 FORI (iDim, fullDim)
                     if (bbox[0][iDim] > bbox[1][iDim]) // XXX should be fuzzy I think
@@ -8644,6 +8658,7 @@ public final class CSG
         }
 
 
+        System.out.println("Making A,B,C");
         SPolytope A = makeHypercube(VecMath.fillvec(dim, -1.), 2.);
         SPolytope B = makeHypercube(VecMath.fillvec(dim,  1.), 2.);
         SPolytope C = makeHypercube(VecMath.fillvec(dim,  0.), 2.);
