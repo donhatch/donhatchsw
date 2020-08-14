@@ -53,13 +53,13 @@ import javax.swing.*;
 *             is a generic puzzle (rather than a standard one).
 * 
 *     - undoAction()
-*           use in place if the usual undo action when isActive() is true
+*           use in place of the usual undo action when isActive() is true
 *     - redoAction()
-*           use in place if the usual redo action when isActive() is true
+*           use in place of the usual redo action when isActive() is true
 *     - cheatAction()
-*           use in place if the usual cheat action when isActive() is true
+*           use in place of the usual cheat action when isActive() is true
 *     - scrambleAction()
-*           use in place if the usual cheat action when isActive() is true
+*           use in place of the usual cheat action when isActive() is true
 * 
 *     - isAnimating()
 *           use in place of the usual isAnimating when isActive() is true
@@ -196,13 +196,86 @@ public class GenericGlue
             ((Label)label).setText(text);
     }
 
+    private interface MenuFactoryInterface {
+        public Object newMenu(String name);  // returns Menu or JMenu
+        public Object newMenuItem(String name, ActionListener actionListener);  // returns MenuItem or JMenuItem
+        public int getItemCount(Object menu);  // takes Menu or JMenu
+        public Object getItem(Object menu, int i);  // takes Menu or JMenu, returns MenuItem or JMenuItem
+        public void add(Object menu, Object item);  // takes menu = Menu or JMenu, item = MenuItem or JMenuItem
+        public void addSeparator(Object menu);  // takes menu = Menu or JMenu
+        public void addActionListener(Object menuItem, ActionListener actionListener);
+    };  // MenuFactoryInterface
+    private static class MenuFactory implements MenuFactoryInterface {
+        @Override public Object newMenu(String name) {
+            return new Menu(name);
+        }
+        @Override public Object newMenuItem(String name, ActionListener actionListener) {
+            return new MenuItem(name) {{
+                addActionListener(actionListener);
+            }};
+        }
+        @Override public int getItemCount(Object menu) {
+            return ((Menu)menu).getItemCount();
+        }
+        @Override public Object getItem(Object menu, int i) {
+            return ((Menu)menu).getItem(i);
+        }
+        @Override public void add(Object menu, Object item) {
+            ((Menu)menu).add((MenuItem)item);
+        }
+        @Override public void addSeparator(Object menu) {
+            ((Menu)menu).addSeparator();
+        }
+        @Override public void addActionListener(Object menuItem, ActionListener actionListener) {
+          ((MenuItem)menuItem).addActionListener(actionListener);
+        }
+    };  // MenuFactory
+    private static class JMenuFactory implements MenuFactoryInterface {
+        @Override public Object newMenu(String name) {
+            return new JMenu(name);
+        }
+        @Override public Object newMenuItem(String name, ActionListener actionListener) {
+            if (false)
+            {
+              // TODO: why on earth doesn't this work???  it gives a stack overflow when invoked!!
+              return new JMenuItem(name) {{
+                  addActionListener(actionListener);
+              }};
+            }
+            else
+            {
+              // workaround
+              JMenuItem answer = new JMenuItem(name);
+              answer.addActionListener(actionListener);
+              return answer;
+            }
+        }
+        @Override public int getItemCount(Object menu) {
+            return ((JMenu)menu).getItemCount();
+        }
+        @Override public Object getItem(Object menu, int i) {
+            return ((JMenu)menu).getItem(i);
+        }
+        @Override public void add(Object menu, Object item) {
+            ((JMenu)menu).add((JMenuItem)item);
+        }
+        @Override public void addSeparator(Object menu) {
+            ((JMenu)menu).addSeparator();
+        }
+        @Override public void addActionListener(Object menuItem, ActionListener actionListener) {
+          ((JMenuItem)menuItem).addActionListener(actionListener);
+        }
+    };  // JMenuFactory
+
     // Call this from MC4DSwing ctor right after all
     // the other menu items are added
-    public void addMoreItemsToPuzzleMenu(Menu puzzlemenu,
+    public void addMoreItemsToPuzzleMenu(Object puzzlemenu,  // Menu or JMenu
                                          final Component statusLabel, // Label or JLabel
                                          final Callback initPuzzleCallback)
     {
         if (verboseLevel >= 1) System.out.println("in GenericGlue.addMoreItemsToPuzzleMenu");
+
+        MenuFactoryInterface menuFactory = (puzzlemenu instanceof JMenu ? new JMenuFactory() : new MenuFactory());
 
         // Used for reported progress during puzzle creation,
         // which can take a long time.
@@ -216,10 +289,10 @@ public class GenericGlue
         // should have the side effect of setting
         // model to null-- that's the indicator
         // that the glue overlay mechanism is no longer active.
-        for (int i = 0; i < puzzlemenu.getItemCount(); ++i)
+        for (int i = 0; i < menuFactory.getItemCount(puzzlemenu); ++i)
         {
-            puzzlemenu.getItem(i).addActionListener(new ActionListener() {
-                public void actionPerformed(ActionEvent ae)
+            menuFactory.addActionListener(menuFactory.getItem(puzzlemenu,i), new ActionListener() {
+                @Override public void actionPerformed(ActionEvent ae)
                 {
                     if (verboseLevel >= 1) System.out.println("GenericGlue: deactivating");
                     model = null;
@@ -483,18 +556,26 @@ public class GenericGlue
             if (item0.equals("-"))
             {
                 CHECK(!isSubmenu);
-                ((Menu)menuStack.peek()).add(new MenuItem("-")); // separator
+                menuFactory.addSeparator(menuStack.peek());
             }
             else if (!isSubmenu)
             {
                 // Note, this isn't very useful yet.
-                // Need some more notation for it to take the role of a subcategory within a menu, or something.
-                ((Menu)menuStack.peek()).add(new MenuItem(item0));
+                // Need some more notation for it to take the role of a subcategory title within a menu, or something.
+                // E.g. all within one menu:
+                //      3d puzzles
+                //        this >
+                //        that >
+                //        theother >
+                CHECK(false);  // Note: this never happens. should I just remove the case?
+                menuFactory.add(menuStack.peek(), item0);  // this won't work! second arg must be Menu or JMenu; String isn't implemented (because I'm not sure there's a legit use case for it)
             }
             else
             {
-                Menu submenu = new Menu(item0+"    "); // padding so the > doesn't clobber the end of the longest names!? lame
-                ((Menu)menuStack.peek()).add(submenu);
+                Object submenu = menuFactory.newMenu(item0+"    "); // padding so the > doesn't clobber the end of the longest names!? lame
+
+                menuFactory.add(menuStack.peek(), submenu);
+
                 //System.out.println("    pushing");
                 menuStack.push(submenu);
                 if (item1 != null)
@@ -662,8 +743,9 @@ public class GenericGlue
                     for (int j = 0; j < lengthStrings.length; ++j)
                     {
                         final String finalLengthString = lengthStrings[j];
-                        submenu.add(new MenuItem(finalLengthString)).addActionListener(new ActionListener() {
-                            public void actionPerformed(ActionEvent ae)
+                        // CHECK(false);  // XXX coverage -- this is the one that is used
+                        menuFactory.add(submenu, menuFactory.newMenuItem(finalLengthString, new ActionListener() {
+                            @Override public void actionPerformed(ActionEvent ae)
                             {
                                 String name = finalName;
                                 String schlafli = finalSchlafli;
@@ -769,7 +851,7 @@ public class GenericGlue
                                 twistingFrame = new GenericPipelineUtils.Frame();
                                     { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
                             }
-                        });
+                        }));
                     } // for each length
                 } // if item1 != null
             }
@@ -788,7 +870,7 @@ public class GenericGlue
             {
                 if (table[i][0] != null && table[i][0].equals("-"))
                 {
-                    puzzlemenu.add(new MenuItem("-")); // separator
+                    menuFactory.add(puzzlemenu, "-"); // separator
                     continue;
                 }
 
@@ -807,19 +889,20 @@ public class GenericGlue
                         continue;
                 }
 
-                Menu submenu;
+                Object submenu;  // Menu or JMenu
                 if (finalSchlafli != null)
                 {
-                    submenu = new Menu(finalName+"    "); // XXX padding so the > doesn't clobber the end of the longest names!? lame
-                    puzzlemenu.add(submenu);
+                    submenu = menuFactory.newMenu(finalName+"    "); // XXX padding so the > doesn't clobber the end of the longest names!? lame
+                    menuFactory.add(puzzlemenu, submenu);
                 }
                 else
                     submenu = puzzlemenu;
                 for (int j = 0; j < lengthStrings.length; ++j)
                 {
                     final String finalLengthString = lengthStrings[j];
-                    submenu.add(new MenuItem(finalSchlafli==null ? finalName : ""+finalLengthString)).addActionListener(new ActionListener() {
-                        public void actionPerformed(ActionEvent ae)
+                    // CHECK(false);  // XXX coverage - this is used too
+                    menuFactory.add(submenu, menuFactory.newMenuItem(finalSchlafli==null ? finalName : ""+finalLengthString, new ActionListener() {
+                        @Override public void actionPerformed(ActionEvent ae)
                         {
                             String schlafli = finalSchlafli;
                             String lengthString = finalLengthString;
@@ -921,7 +1004,7 @@ public class GenericGlue
                             twistingFrame = new GenericPipelineUtils.Frame();
                                 { twistingFrame = untwistedFrame; } // XXX HACK for now, avoid any issue about clicking in the wrong one or something
                         }
-                    });
+                    }));
                 }
             }
         }

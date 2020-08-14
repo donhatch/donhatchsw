@@ -1,5 +1,4 @@
 // TODO: make the initial window fully swing (it's currently based on AppletViewer which puts it in a frame)
-// TODO: fix all deprecation warnings (can assume will always be >= 1.7 henceforth)
 // TODO: make the control panels swing
 // TODO: make the menus swing
 // TODO: @Overrides everywhere
@@ -230,102 +229,21 @@ public class MC4DJApplet
         // Define some on-the-fly convenience component classes...
         // XXX move these out into awt, maybe?
 
-        // A MenuBar has to be associated with a Frame?? wtf!?
-        // I mean, how friggin hard is this???
-        // All right, making my own that need not be associated with a frame
-        private static class MyMenuBar
-            extends Row
-        {
-            private int eventVerbose = 0;  // change hard-coding to something higher to debug
-            private boolean doHighlighting = false; // not ready for prime time-- sometimes background is white
-            private boolean someMenuIsShowing = false; // XXX bleah! this isn't working right at all... how the hell can I tell when it pops up and down???
-            public MyMenuBar()
-            {
-            }
-            public void add(final String labelText, final PopupMenu menu)
-            {
-                add(new Label(labelText) {{
-                    this.add(menu); // necessary, but doesn't really do anything except make the menu feel loved
-                    addMouseListener(new MouseListener() {
-                        public void mouseClicked(MouseEvent me)
-                        {
-                            if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseClicked");
-                        } // mouseClicked
-                        public void mousePressed(MouseEvent me)
-                        {
-                            if (eventVerbose >= 1) System.out.println("    "+labelText+": mousePressed");
-                            // XXX fooey, if another menu is up, we don't even get this event... unfriendly!  how does the real menubar fix this??
-                            Component theLabel = me.getComponent();
-                            menu.show(theLabel,
-                                      0, theLabel.getHeight());
-                            someMenuIsShowing = true;
-                        } // mousePressed
-                        public void mouseReleased(MouseEvent me)
-                        {
-                            if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseReleased");
-                        } // mouseReleased
-                        private Color savedForeground = null;
-                        public void mouseEntered(MouseEvent me)
-                        {
-                            if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseEntered");
-                            if (eventVerbose >= 2) System.out.println("        "+me);
-                            if (doHighlighting)
-                            {
-                                if (savedForeground == null)
-                                    savedForeground = getForeground();
-                                setForeground(Color.white);
-                            }
-
-                            if (me.getModifiersEx() != 0)
-                            {
-                                // enter the menu title, with modifier,
-                                // is same as clicking on it (I don't remember why I did this)
-                                Component theLabel = me.getComponent();
-                                menu.show(theLabel,
-                                          0, theLabel.getHeight());
-                            }
-                        } // mouseEntered
-                        public void mouseExited(MouseEvent me)
-                        {
-                            if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseExited");
-                            if (doHighlighting)
-                            {
-                                if (savedForeground != null)
-                                {
-                                    setForeground(savedForeground);
-                                    savedForeground = null;
-                                }
-                            }
-                        } // mouseExited
-                    });
-                }});
-                // XXX how to tell when a menu has disappeared?  this isn't the way-- it comes up in only some of the cases of what can happen
-                menu.addActionListener(new java.awt.event.ActionListener() {
-                    public void actionPerformed(java.awt.event.ActionEvent e)
-                    {
-                        System.out.println("action on a menu");
-                        someMenuIsShowing = false;
-                    }
-                });
-            }
-        } // MyMenuBar
-
-        // A MenuItem whose actionPerformed method gets called on action.
+        // A JMenuItem whose actionPerformed method gets called on action.
         // Just makes it so we don't have to call addActionListener every
         // friggin time we create a MenuItem.
-        private static abstract class MyMenuItem
-            extends MenuItem
+        private static abstract class MyJMenuItem
+            extends JMenuItem
             implements ActionListener
         {
-            public MyMenuItem(String labelText)
+            public MyJMenuItem(String labelText)
             {
                 super(labelText);
                 addActionListener(this); // so my actionPerformed will get called
             }
-        } // MyMenuItem
+        } // MyJMenuItem
 
     // new menu bar and new view canvas, inside a new panel.
-    // XXX should use a real menu bar if there's a frame, and a MyMenuBar otherwise
     private static class MC4DViewerPanel
         extends JPanel
     {
@@ -351,260 +269,242 @@ public class MC4DJApplet
 
             allPuzzlesAndWindows.addViewerPanel(this);
 
-            final boolean isInSandbox = true; // XXX figure this out for real
-
             Component menuBarHolder[] = new Component[1]; // so that the canvas can access the menuBar later when it needs to for getPreferredSize, even though we haven't created the menu bar yet
             final Component canvas = makeNewMC4DViewCanvas(viewGuts,
                                                            doDoubleBuffer,
                                                            menuBarHolder, // canvas wants to be square and same size as menu bar
                                                            allPuzzlesAndWindows);
 
-            Component menuBar = null;
-            if (System.getProperty("java.version").startsWith("1.1."))
-                System.out.println("ARGH, no menubar supported at all in java 1.1!");
-            else
-                menuBar = new MyMenuBar() {{
-                    add("File", new PopupMenu() {{ // XXX argh, this gives under 1.1: java.lang.IncompatibleClassChangeError: Unimplemented interface method   -- what does that mean?  did this exist under 1.1 or not?
-                        if (isInSandbox)
+            Component menuBar = new JMenuBar() {{
+                add(new JMenu("File") {{
+                    add(new MyJMenuItem("Save to browser cookie") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            add(new MyMenuItem("Save to browser cookie") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
-                                {
-                                    com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate", viewGuts.model.toString());
-                                }
-                            });
-                            add(new MyMenuItem("Save to browser cookie #2") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
-                                {
-                                    com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate2", viewGuts.model.toString());
-                                }
-                            });
-                            add(new MyMenuItem("Load from browser cookie") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
-                                {
-                                    String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate");
-                                    MC4DModel newModel = MC4DModel.fromString(modelStateString);
-                                    if (newModel != null)
-                                        viewGuts.setModel(newModel);
-                                }
-                            });
-                            add(new MyMenuItem("Load from browser cookie #2") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
-                                {
-                                    String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate2");
-                                    MC4DModel newModel = MC4DModel.fromString(modelStateString);
-                                    if (newModel != null)
-                                        viewGuts.setModel(newModel);
-                                }
-                            });
-                            if (true)
-                                add(new MyMenuItem("Test to/from string") {
-                                    public void actionPerformed(java.awt.event.ActionEvent e)
-                                    {
-                                        MC4DModel m0 = viewGuts.model;
-                                        String s1 = m0.toString();
-                                        System.out.println("model = "+s1);
-                                        MC4DModel m2 = MC4DModel.fromString(s1);
-                                        String s3 = m2.toString();
-                                        CHECK(s3.equals(s1));
-                                        System.out.println("Good!");
-                                        viewGuts.setModel(m2);
-                                    }
-                                });
-                            addSeparator();
-                            add(new MyMenuItem("Experimental print app to terminal") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
-                                {
-                                    System.out.println(allPuzzlesAndWindows.toString());
-                                }
-                            });
-                            add(new MyMenuItem("Debug dump ui component hierarchies") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
-                                {
-                                    allPuzzlesAndWindows.dumpComponentHierarchies();
-                                }
-                            });
+                            com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate", viewGuts.model.toString());
                         }
-                        else
+                    });
+                    add(new MyJMenuItem("Save to browser cookie #2") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            add("Open...");
-                            add("Save");
-                            add("Save to...");
+                            com.donhatchsw.applet.CookieUtils.setCookie(applet, "mc4dmodelstate2", viewGuts.model.toString());
                         }
-                        addSeparator();
-                        add("Quit");
-                    }});
-                    add("Edit", new PopupMenu() {{
-                        add(new MyMenuItem("Reset            Ctrl-R") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                // XXX duplicated code in menu and key... should be model method
-                                com.donhatchsw.util.VecMath.copyvec(
-                                    viewGuts.model.genericPuzzleState,
-                                    viewGuts.model.genericPuzzleDescription.getSticker2Face());
-                                viewGuts.model.controllerUndoTreeSquirrel.Clear();
-                                viewGuts.model.animationUndoTreeSquirrel.setCurrentNodeIndex(viewGuts.model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
-                                canvas.repaint();
-                            }
-                        });
-                        add(new MyMenuItem("Undo             Ctrl-Z") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
-                                    System.out.println("Nothing to undo.");
-                            }
-                        });
-                        add(new MyMenuItem("Redo             Ctrl-Y") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
-                                    System.out.println("Nothing to redo.");
-                            }
-                        });
-                        addSeparator();
-                        add(new MyMenuItem("Solve (cheat)  Ctrl-T") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
-                                    ;
-                            }
-                        });
-                        add(new MyMenuItem("Solve (for real)") {
-                            {setEnabled(false);}
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                System.out.println("Sorry, not smart enough for that.");
-                            }
-                        });
-                    }});
-                    add("Scramble", new PopupMenu() {{
-                        for (int i = 1; i <= 8; ++i)
+                    });
+                    add(new MyJMenuItem("Load from browser cookie") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
                         {
-                            final int scramblechenfrengensen = i;
-                            add(new MyMenuItem(""+i+"      Ctrl-"+i) {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
-                                {
-                                    System.out.println("Scramble "+scramblechenfrengensen);
-                                    GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
-                                    glue.scrambleAction(canvas, new Label(), scramblechenfrengensen, viewGuts.viewParams.futtIfPossible.get());
-                                }
-                            });
+                            String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate");
+                            MC4DModel newModel = MC4DModel.fromString(modelStateString);
+                            if (newModel != null)
+                                viewGuts.setModel(newModel);
                         }
-                        addSeparator();
-                        add(new MyMenuItem("Full   Ctrl-F") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                    });
+                    add(new MyJMenuItem("Load from browser cookie #2") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            String modelStateString = com.donhatchsw.applet.CookieUtils.getCookie(applet, "mc4dmodelstate2");
+                            MC4DModel newModel = MC4DModel.fromString(modelStateString);
+                            if (newModel != null)
+                                viewGuts.setModel(newModel);
+                        }
+                    });
+                    if (true)
+                        add(new MyJMenuItem("Test to/from string") {
+                          @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                          {
+                              MC4DModel m0 = viewGuts.model;
+                              String s1 = m0.toString();
+                              System.out.println("model = "+s1);
+                              MC4DModel m2 = MC4DModel.fromString(s1);
+                              String s3 = m2.toString();
+                              CHECK(s3.equals(s1));
+                              System.out.println("Good!");
+                              viewGuts.setModel(m2);
+                          }
+                        });
+                    addSeparator();
+                    add(new MyJMenuItem("Experimental print app to terminal") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            System.out.println(allPuzzlesAndWindows.toString());
+                        }
+                    });
+                    add(new MyJMenuItem("Debug dump ui component hierarchies") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            allPuzzlesAndWindows.dumpComponentHierarchies();
+                        }
+                    });
+                    addSeparator();
+                    add("Quit");  // TODO: does nothing.  get rid?  what should it do?
+                }});
+                add(new JMenu("Edit") {{
+                    add(new MyJMenuItem("Reset            Ctrl-R") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            // XXX duplicated code in menu and key... should be model method
+                            com.donhatchsw.util.VecMath.copyvec(
+                                viewGuts.model.genericPuzzleState,
+                                viewGuts.model.genericPuzzleDescription.getSticker2Face());
+                            viewGuts.model.controllerUndoTreeSquirrel.Clear();
+                            viewGuts.model.animationUndoTreeSquirrel.setCurrentNodeIndex(viewGuts.model.controllerUndoTreeSquirrel.getCurrentNodeIndex());
+                            canvas.repaint();
+                        }
+                    });
+                    add(new MyJMenuItem("Undo             Ctrl-Z") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            if (viewGuts.model.controllerUndoTreeSquirrel.undo() == null)
+                                System.out.println("Nothing to undo.");
+                        }
+                    });
+                    add(new MyJMenuItem("Redo             Ctrl-Y") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            if (viewGuts.model.controllerUndoTreeSquirrel.redo() == null)
+                                System.out.println("Nothing to redo.");
+                        }
+                    });
+                    addSeparator();
+                    add(new MyJMenuItem("Solve (cheat)  Ctrl-T") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            while (viewGuts.model.controllerUndoTreeSquirrel.undo() != null)
+                                ;
+                        }
+                    });
+                    add(new MyJMenuItem("Solve (for real)") {
+                        {setEnabled(false);}
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            System.out.println("Sorry, not smart enough for that.");
+                        }
+                    });
+                }});
+                add(new JMenu("Scramble") {{
+                    for (int i = 1; i <= 8; ++i)
+                    {
+                        final int scramblechenfrengensen = i;
+                        add(new MyJMenuItem(""+i+"      Ctrl-"+i) {
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
-                                // XXX dup code in key listener
-                                // XXX Maybe 6 times number of faces?  not sure
-                                int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
-                                System.out.println("Fully scrambling");
+                                System.out.println("Scramble "+scramblechenfrengensen);
                                 GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
                                 glue.scrambleAction(canvas, new Label(), scramblechenfrengensen, viewGuts.viewParams.futtIfPossible.get());
                             }
                         });
-                    }});
-                    add("Puzzle", new PopupMenu() {{
-                        final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
-                        glue.addMoreItemsToPuzzleMenu(
-                            this,
-                            new Label("dum dum"),
-                            new GenericGlue.Callback() {
-                                public void call()
-                                {
-                                    viewGuts.setModel(glue.model);
-                                }
-                            });
-                    }});
-                    add("Windows", new PopupMenu() {{
-                        add(new MyMenuItem("Control Panel                       Ctrl-C") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                    }
+                    addSeparator();
+                    add(new MyJMenuItem("Full   Ctrl-F") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            // XXX dup code in key listener
+                            // XXX Maybe 6 times number of faces?  not sure
+                            int scramblechenfrengensen = Math.random() < .5 ? 40 : 41;
+                            System.out.println("Fully scrambling");
+                            GenericGlue glue = new GenericGlue(viewGuts.model); // XX lame! need to not do this, make it call something more legit... glue needs to go away!
+                            glue.scrambleAction(canvas, new Label(), scramblechenfrengensen, viewGuts.viewParams.futtIfPossible.get());
+                        }
+                    });
+                }});
+                add(new JMenu("Puzzle") {{
+                    final GenericGlue glue = new GenericGlue(viewGuts.model);  // XXX lame! need to not do this, make it call something more legit... glue needs to go away!
+                    glue.addMoreItemsToPuzzleMenu(
+                        this,
+                        new Label("dum dum"),
+                        new GenericGlue.Callback() {
+                            public void call()
                             {
-                                openOrMakeNewControlPanelWindow(viewGuts,
-                                                                allPuzzlesAndWindows);
+                                viewGuts.setModel(glue.model);
                             }
                         });
-                        add(new MyMenuItem("Expert Control Panel") {
-                            {setEnabled(false);}
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                // XXX implement me
-                            }
-                        });
-                        addSeparator();
-                        add(new MyMenuItem("Macros") {
-                            {setEnabled(false);}
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                            }
-                        });
-                        addSeparator();
-                        add(new MyMenuItem("Undo Tree                           Ctrl-U") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                makeNewUndoTreeWindow(viewGuts);
-                            }
-                        });
-                        addSeparator();
-                        add(new MyMenuItem("Shared view of shared puzzle state") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
+                }});
+                add(new JMenu("Windows") {{
+                    add(new MyJMenuItem("Control Panel                       Ctrl-C") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            openOrMakeNewControlPanelWindow(viewGuts,
+                                                            allPuzzlesAndWindows);
+                        }
+                    });
+                    add(new MyJMenuItem("Expert Control Panel") {
+                        {setEnabled(false);}
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            // XXX implement me
+                        }
+                    });
+                    addSeparator();
+                    add(new MyJMenuItem("Macros") {
+                        {setEnabled(false);}
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                        }
+                    });
+                    addSeparator();
+                    add(new MyJMenuItem("Undo Tree                           Ctrl-U") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            makeNewUndoTreeWindow(viewGuts);
+                        }
+                    });
+                    addSeparator();
+                    add(new MyJMenuItem("Shared view of shared puzzle state") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            makeNewViewWindow(viewGuts,
+                                              false, // don't clone view, share it
+                                              false, // don't clone puzzle state, share it
+                                              doDoubleBuffer,
+                                              applet,
+                                              allPuzzlesAndWindows);
+                        }
+                    });
+                    if (false) // this is a weird one, I don't know if it's useful
+                        add(new MyJMenuItem("Shared view of cloned puzzle state") {
+                            @Override public void actionPerformed(java.awt.event.ActionEvent e)
                             {
                                 makeNewViewWindow(viewGuts,
                                                   false, // don't clone view, share it
-                                                  false, // don't clone puzzle state, share it
-                                                  doDoubleBuffer,
-                                                  applet,
-                                                  allPuzzlesAndWindows);
-                            }
-                        });
-                        if (false) // this is a weird one, I don't know if it's useful
-                            add(new MyMenuItem("Shared view of cloned puzzle state") {
-                                public void actionPerformed(java.awt.event.ActionEvent e)
-                                {
-                                    makeNewViewWindow(viewGuts,
-                                                      false, // don't clone view, share it
-                                                      true, // clone puzzle state
-                                                      doDoubleBuffer,
-                                                      applet,
-                                                      allPuzzlesAndWindows);
-                                }
-                            });
-                        add(new MyMenuItem("Cloned view of shared puzzle state ") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                makeNewViewWindow(viewGuts,
-                                                  true, // clone view
-                                                  false, // don't clone puzzle state, share it
-                                                  doDoubleBuffer,
-                                                  applet,
-                                                  allPuzzlesAndWindows);
-                            }
-                        });
-                        add(new MyMenuItem("Cloned view of cloned puzzle state ") {
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                                makeNewViewWindow(viewGuts,
-                                                  true, // clone view
                                                   true, // clone puzzle state
                                                   doDoubleBuffer,
                                                   applet,
                                                   allPuzzlesAndWindows);
                             }
                         });
-                        addSeparator();
-                        add(new MyMenuItem("Progress/diagnostics/debug") {
-                            {setEnabled(false);}
-                            public void actionPerformed(java.awt.event.ActionEvent e)
-                            {
-                            }
-                        });
-                    }});
-                    add("Help", new PopupMenu() {{
-                        add("About...");
-                    }});
-                    // XXX MyMenuBar should do this automatically-- what is the cleanest way?
-                    add(new Label(""),
-                        new GridBagConstraints(){{fill=HORIZONTAL;weightx=1.;}}); // stretch
-                }}; // menuBar
+                    add(new MyJMenuItem("Cloned view of shared puzzle state ") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            makeNewViewWindow(viewGuts,
+                                              true, // clone view
+                                              false, // don't clone puzzle state, share it
+                                              doDoubleBuffer,
+                                              applet,
+                                              allPuzzlesAndWindows);
+                        }
+                    });
+                    add(new MyJMenuItem("Cloned view of cloned puzzle state ") {
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                            makeNewViewWindow(viewGuts,
+                                              true, // clone view
+                                              true, // clone puzzle state
+                                              doDoubleBuffer,
+                                              applet,
+                                              allPuzzlesAndWindows);
+                        }
+                    });
+                    addSeparator();
+                    add(new MyJMenuItem("Progress/diagnostics/debug") {
+                        {setEnabled(false);}
+                        @Override public void actionPerformed(java.awt.event.ActionEvent e)
+                        {
+                        }
+                    });
+                }});
+                add(new JMenu("Help") {{
+                    add("About...");
+                }});
+            }};  // menuBar
 
             menuBarHolder[0] = menuBar;
 
