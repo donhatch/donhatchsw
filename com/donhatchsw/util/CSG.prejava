@@ -631,23 +631,23 @@ public final class CSG
             public String toString(String indentString,
                                    boolean showAux,
                                    boolean showGoryDetails,
-                                   java.util.HashMap<Object,Object> printedAlready)
+                                   java.util.HashSet<Object> printedAlready)
             {
                 String nl = System.getProperty("line.separator");
                 if (printedAlready == null)
-                    printedAlready = new java.util.HashMap<Object,Object>();
+                    printedAlready = new java.util.HashSet<Object>();
 
                 StringBuffer sb = new StringBuffer();
                 if (showGoryDetails)
                 {
                     sb.append("Polytope "+id+" {" + nl);
-                    if (printedAlready.containsKey(this))
+                    if (printedAlready.contains(this))
                     {
                         sb.append(indentString + "    (printed already)" + nl);
                     }
                     else
                     {
-                        printedAlready.put(this,this);
+                        printedAlready.add(this);
 
                         if (showAux)
                             sb.append(indentString + "    (aux="+aux+")");
@@ -681,14 +681,14 @@ public final class CSG
                     }
 
                     //sb.append("[");
-                    if (printedAlready.containsKey(this))
+                    if (printedAlready.contains(this))
                     {
                         if (true)
                             sb.append(" (see above)");
                     }
                     else
                     {
-                        printedAlready.put(this,this);
+                        printedAlready.add(this);
                         FORI (iHyperplane, contributingHyperplanes.length)
                         {
                             sb.append("  (" + contributingHyperplanes[iHyperplane] + ")");
@@ -950,23 +950,23 @@ public final class CSG
             public String toString(String indentString,
                                    boolean showAux,
                                    boolean showGoryDetails,
-                                   java.util.HashMap<Object,Object> printedAlready)  // stores both SPolytype,SPolytope and Polytope,Polytope, I believe
+                                   java.util.HashSet<Object> printedAlready)  // stores both SPolytype,SPolytope and Polytope,Polytope, I believe
             {
                 String nl = System.getProperty("line.separator");
                 if (printedAlready == null)
-                    printedAlready = new java.util.HashMap<Object,Object>();
+                    printedAlready = new java.util.HashSet<Object>();
 
                 StringBuffer sb = new StringBuffer();
                 if (showGoryDetails)
                 {
                     sb.append("SPolytope "+id+" {" + nl);
-                    if (printedAlready.containsKey(this))
+                    if (printedAlready.contains(this))
                     {
                         sb.append(indentString + "    (printed already)" + nl);
                     }
                     else
                     {
-                        printedAlready.put(this,this);
+                        printedAlready.add(this);
 
                         sb.append(indentString + "    initialDensity = " + initialDensity + nl);
                         sb.append(indentString + "    sign = " + sign + nl);
