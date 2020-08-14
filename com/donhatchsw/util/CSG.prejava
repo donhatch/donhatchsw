@@ -24,10 +24,16 @@
             -dim=2: A&A CHECK failed at CSG.prejava(1240): Arrays.indexOf(slicee.p.contributingHyperplanes, hyperplane) == -1
             -dim=2: A-A same assertion failure
             -dim=2: A|A same assertion failure
-        Now:
+        Then was:
             -dim=1: A&A gives bogus bombed-out structure
             -dim=2: A&A Assumption failed at CSG.prejava(2392): n == list.length
-            and simlarly for the other tests listed above
+            and similarly for the other tests listed above
+        Now:
+            -dim=2: A&A CHECK failed at com/donhatchsw/util/CSG.prejava(251): (facet.dim)==(dim-1) (1 vs. 0)
+            -dim=2: A-C has only 3 verts? wtf?
+            -dim=2: A|C has 7 verts, wtf
+            -dim=2: (A-B)u(B-A) assertion failed at com/donhatchsw/util/CSG.prejava(247): (facet.dim)==(dim-1) (1 vs. 0)
+            -dim=2: A&C Assumption failed at com/donhatchsw/util/CSG.prejava(7434): edges[contourStart].p.facets.length >= 2
         Bleah, looking it over again, it seems like the algorithm
         can't handle A&A-- it computes the boundary of the intersection
         of A&B as bd(A)&B union A&bd(B), which is null...
@@ -1168,12 +1174,10 @@ public final class CSG
                                               double inRadius)
         {
             SPolytope answer = makeHypercube(center.length);
+            PRINT(answer);
             Polytope verts[] = answer.p.getAllElements()[0];
             FORI (iVert, verts.length)
             {
-                VecMath.vxs(verts[iVert].getCoords(),
-                            verts[iVert].getCoords(),
-                            inRadius);
                 VecMath.vpsxv(verts[iVert].getCoords(),
                               center,
                               inRadius,
@@ -6914,6 +6918,7 @@ public final class CSG
                     }
                     else
                     {
+                        CHECK(flotsam == null);
                         // It was previously computed and came out null.
                         if (verboseLevel >= 1)
                         {
@@ -7158,7 +7163,9 @@ public final class CSG
             if (result != null)
                 ocean.put(key, result.p);
             else
-                ocean.put(key, new Object()); // means null when fished out
+            {
+                ocean.put(key, null);  // not legal for Hashtable, but legal for HashMap
+            }
 
             if (verboseLevel >= 2)
                 System.out.println(indentString+"    result = "+(result==null?"(null)":result.toString(indentString+"             ", false, false, null)));
@@ -8480,6 +8487,7 @@ public final class CSG
         if (args.length < 1)
         {
             System.err.println("Usage: CSG <dim> [<expr>]");
+            System.err.println("(omitting expr gives an interactive shell)");
             System.exit(1);
         }
 
@@ -8493,7 +8501,7 @@ public final class CSG
             return;
         }
 
-        if (true)
+        if (false)  // XXX need different modes!
         {
             Object testCases[][] = new Object[0][];
             if (true)
@@ -8624,14 +8632,14 @@ public final class CSG
                         PRINT(sliced);
                     }
                     CHECK(isOrientedDeep(sliced.p));
+                    CHECK(isBinaryDensityDeep(sliced));
                 }
                 System.out.println("=============================================");
                 System.out.println("finished: "+description);
                 System.out.println("=============================================");
 
             } // for iTestCase
-            System.out.println("Did "+testCases.length+" test case"+(testCases.length==1?"":"s"));
-
+            System.out.println("Did "+testCases.length+" test case"+(testCases.length==1?"":"s")+"; exiting");
             return;
         }
 
