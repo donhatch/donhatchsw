@@ -215,6 +215,7 @@ donhatchsw.jar: \
     com/donhatchsw/shims_for_deprecated/java_applet_Applet.class \
     com/donhatchsw/shims_for_deprecated/javax_swing_JApplet.class \
     com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_AppletViewer.class \
+    com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_ExampleApplet.class \
     com/donhatchsw/util/NewtonSolver.class \
     com/donhatchsw/util/GoldenSectionSearch.class \
     com/donhatchsw/util/Catenary.class \

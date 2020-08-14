@@ -1,0 +1,537 @@
+/* vim: set filetype=java: */
+/**
+* Example applet to use as a starting point.
+* I usually copy this file and make changes.
+*
+*/
+
+package com.donhatchsw.shims_for_deprecated;  // APP-SPECIFIC: remove or change this as desired
+
+
+
+#include "macros.h"
+
+public class com_donhatchsw_applet_ExampleApplet
+    extends com.donhatchsw.shims_for_deprecated.java_applet_Applet
+{
+    //
+    // Note, all public fields are settable as params
+    // from the web page (e.g. <PARAM NAME='eventVerbose' VALUE='4'>)
+    // or command line (e.g. "eventVerbose=4")
+    //
+    public int eventVerbose = 0;
+            // eventVerbose values:
+            //     0: nothing
+            //     1: applet ctor/create/destroy/start/stop/resize stuff
+            //     2: and key and mouse press/release/click   XXX should separate into a simple key one with minimum of fluff, I think
+            //     3: and mouse drags
+            //     4: and update/paint
+            //     5: and enter/exit (can be obnoxious)
+            //     6: and mouse motion (can be obnoxious)
+            //     7: and stack trace of every paint
+    public boolean doDoubleBuffer = true;
+
+
+    private boolean controlIsDown = false;
+    private boolean button1IsDown = false;
+    private boolean button2IsDown = false;
+    private boolean button3IsDown = false;
+
+
+    // APP-SPECIFIC: begin
+    /**
+     * The Model contains all the objects in the simulation--
+     * image, velocity field, pressure field.
+     */
+    private class Model
+    {
+        private int width = 256;
+        private int height = 256;
+        private int depth = 1;
+        private double v[][][][] = new double[depth][height][width][3]; // velocity field
+        private double p[][][] = new double[depth][height][width]; // pressure field
+
+    } // private class Model
+
+    /**
+     * Viewing parameters.
+     */
+    private class View
+    {
+        private double velocityArrowsScale = 1.;
+    } // View
+
+    /**
+     * Stuff that can be done to a model.
+     * Static methods for now, but may make it an object
+     * if there is state that needs to persist.
+     */
+    private class Simulation
+    {
+    } // Simulation
+    // APP-SPECIFIC: end
+
+    /**
+     * Constructor
+     */
+    public com_donhatchsw_applet_ExampleApplet()
+    {
+        if (eventVerbose >= 1) System.out.println("in ctor"); // note this is before eventVerbose is fetched
+
+                { setBackground(java.awt.Color.RED); } // applet is red
+        final java.awt.Component canvas = new com.donhatchsw.applet.DoubleBufferedCanvas() {
+                { setBackground(java.awt.Color.YELLOW); } // canvas is yellow
+            //
+            // Make it so we get keyboard focus on startup,
+            // without having to click first.  Thanks, Melinda!
+            // The state of things seems to be:
+            //      - Buttons and TextFields are apparently "focus traversable"
+            //        by default.  Canvases and Applets aren't,
+            //        implying (not obvious) that you need to click to type
+            //        when the app starts,
+            //        which is almost never the desired behavior.
+            //        You can change this by overriding isFocusable(),
+            //        which we do below.
+            //      - Other approaches using requestFocus():
+            //        A Canvas calling requestFocus() doesn't seem to do
+            //        anything.  An Applet calling requestFocus() doesn't
+            //        do anything during init(), but I think it works
+            //        if you put it in the mouseEntered handler or something,
+            //        though this can lead to various unpredictabilities.
+            //        The isFocusable() fix is better in any case.
+            //
+            OVERRIDE public boolean isFocusable()
+            {
+                return true;
+            }
+
+//int foo = 0; // XXX
+            // override to not clear...
+            OVERRIDE public void update(java.awt.Graphics g)
+            {
+//com_donhatchsw_applet_ExampleApplet.this.setBounds(5 + (foo++%5),28,100,100); // XXX total hack... and THIS is where the bogus clear is.  how can I do it without the clear?
+                if (eventVerbose >= 4) System.out.println("in update");
+                paint(g);
+                if (eventVerbose >= 4) System.out.println("out update");
+            }
+            // PAINT
+            java.awt.Dimension requestedSize = null;
+            OVERRIDE public void paint(java.awt.Graphics frontBufferGraphics)
+            {
+                if (eventVerbose >= 4) System.out.println("    in paint");
+                java.awt.Dimension size = getSize();
+                if (true)
+                {
+                    //
+                    // If we are inside a ScrollPane with policy NEVER,
+                    // assume the purpose of that ScrollPane
+                    // is to keep us from flashing by never resizing us.
+                    // In that case we draw into the size of the ScrollPane
+                    // (which may be smaller than our size but won't be larger).
+                    // XXX should maybe assert its size is <= ours?
+                    //
+                    if (true)
+                    {
+                        OUT("=========================");
+                        PRINT(getClass().getSuperclass());
+                        PRINT(getSize());
+                        PRINT(getParent().getClass().getSuperclass());
+                        PRINT(getParent().getSize());
+                        PRINT(getParent().getParent().getClass().getSuperclass());
+                        PRINT(getParent().getParent().getSize());
+                        if (getParent().getParent().getParent() != null)
+                        {
+                            PRINT(getParent().getParent().getParent().getClass().getSuperclass());
+                            PRINT(getParent().getParent().getParent().getSize());
+                        }
+                        OUT("=========================");
+                    }
+                    java.awt.Container parent = getParent();
+                    while (parent != null && !(parent instanceof java.awt.ScrollPane))
+                        parent = parent.getParent();
+                    if (parent != null
+                     && parent instanceof java.awt.ScrollPane
+                     && ((java.awt.ScrollPane)parent).getScrollbarDisplayPolicy()
+                       == java.awt.ScrollPane.SCROLLBARS_NEVER)
+                    {
+                        if (eventVerbose >= 4) System.out.println("        parent is a scrollpane without scrollbars; using its size "+parent.getSize().width+","+parent.getSize().height+" instead of mine "+size.width+","+size.height+"");
+                        size = parent.getSize();
+                    }
+                }
+                double centerX = size.width*.5;
+                double centerY = size.height*.5;
+
+                java.awt.Graphics g = frontBufferGraphics;
+                java.awt.Image backBuffer = null;
+                if (doDoubleBuffer)
+                {
+                    // from DoubleBufferedCanvas base class...
+                    backBuffer = getBackBufferCache(size.width, size.height, eventVerbose);
+                    g = backBuffer.getGraphics();
+                }
+
+                //
+                // Clear to white...
+                //
+                g.setColor(java.awt.Color.WHITE);
+                g.fillRect(0, 0, size.width, size.height);
+
+                // APP-SPECIFIC PAINT STUFF HERE
+                {
+                    // draw an X
+                    g.setColor(java.awt.Color.BLUE);
+                    g.drawLine(0,0, size.width, size.height);
+                    g.drawLine(0,size.height, size.width, 0);
+                }
+
+                if (backBuffer != null)
+                {
+                    // XXX hmm, not sure about what to do when
+                    // XXX the image is not ready... it always
+                    // XXX seems to be ready for me,
+                    // XXX so I don't know how to test it
+
+                    //frontBufferGraphics.drawImage(backBuffer, 0, 0, this);
+                    int mag = 1; // can mess around with different values
+                    int x0 = -size.width*(mag-1)/2;
+                    int y0 = -size.height*(mag-1)/2;
+                    frontBufferGraphics.drawImage(backBuffer,
+                                                  x0,
+                                                  y0,
+                                                  mag*size.width,
+                                                  mag*size.height,
+                                                  this);
+                    if (false) // XXX argh, causes flicker when we do this in the front buffer... we'd need another mag buffer to do this right.
+                    if (mag > 1)
+                    {
+                        frontBufferGraphics.setColor(java.awt.Color.BLACK);
+                        FORI (y, size.height+1)
+                            frontBufferGraphics.drawLine(0,         y0+mag*y,
+                                                         size.width,y0+mag*y);
+                        FORI (x, size.width+1)
+                            frontBufferGraphics.drawLine(x0+mag*x, 0,
+                                                         x0+mag*x, size.height);
+                    }
+                }
+
+                if (eventVerbose >= 4)
+                {
+                    System.out.println("    out paint");
+                    //System.out.println();
+                    //System.out.println();
+                }
+
+            } // paint
+        }; // canvas
+
+        this.setLayout(new java.awt.GridBagLayout());
+
+        /*
+            Possible configurations:
+
+                frame
+                    applet
+                        canvas
+                                    FLASHES
+
+                frame
+                    scrollpane
+                        applet
+                            canvas
+                                    GOOD EVERYWHERE  or maybe not
+                frame
+                    applet
+                        scrollpane
+                            canvas
+                                    GOOD ON 1.5 BUT FLASHES ON 1.4
+                frame
+                    scrollpane
+                        applet
+                            scrollpane
+                                canvas
+                                    GOOD EVERYWHERE BUT OVERKILL I GUESS  or maybe not
+
+
+        */
+
+
+        this.add(canvas, new java.awt.GridBagConstraints() {
+            {
+                // stretch or shrink child scrollpane to fit parent
+                fill = java.awt.GridBagConstraints.BOTH;
+                weightx = 1.;
+                weighty = 1.;
+            }
+        });
+
+        //canvas.setSize(1280, 1024); // greedy initial size, so we never see that flashing! (may not be appropriate-- think about this!)
+
+        makeAndAddTheEventListeners(canvas);
+
+        if (eventVerbose >= 1) System.out.println("out ctor");
+    } // com_donhatchsw_applet_ExampleApplet ctor
+
+    // XXX not sure this should go here
+    // Propagate repaints down to child.
+    // This is silly, should just be the child, get rid of the extra level of heirarchy...
+    // maybe.
+    OVERRIDE public void repaint()
+    {
+        getComponent(0).repaint();
+        super.repaint();
+    }
+
+
+    //
+    // Implementing Applet methods...
+    //
+
+        // Constructor-type stuff.
+        public void init()
+        {
+            // Bootstrap eventVerbose-- we need it before
+            // we call getParametersIntoPublicFields.
+            String paramValueString = getParameter("eventVerbose");
+            if (paramValueString != null)
+                eventVerbose = com.donhatchsw.applet.AppletUtils.parseInt(paramValueString);
+
+            if (eventVerbose >= 1) System.out.println("in init");
+            com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, eventVerbose);
+            if (eventVerbose >= 1) System.out.println("out init");
+        }
+
+        // In mozilla, when I go to another web page,
+        // I get stop() and destroy().
+        public void start()
+        {
+            if (eventVerbose >= 1) System.out.println("in start");
+            if (eventVerbose >= 1) System.out.println("out start");
+        }
+        public void stop()
+        {
+            if (eventVerbose >= 1) System.out.println("in stop");
+            if (eventVerbose >= 1) System.out.println("out stop");
+        }
+        public void destroy()
+        {
+            if (eventVerbose >= 1) System.out.println("in destroy");
+            if (eventVerbose >= 1) System.out.println("out destroy");
+        }
+
+
+    private interface MouseAndMotionListener
+        extends java.awt.event.MouseListener,
+                java.awt.event.MouseMotionListener
+    {
+        // so there!
+    }
+
+    private void makeAndAddTheEventListeners(java.awt.Component canvas)
+    {
+        MouseAndMotionListener mouseAndMotionListener = new MouseAndMotionListener() {
+            public void mousePressed(java.awt.event.MouseEvent me)
+            {
+                if (eventVerbose >= 2) System.out.println("in mousePressed (at "+me.getPoint().x+","+me.getPoint().y+")");
+                if (eventVerbose >= 2) System.out.println("out mousePressed (at "+me.getPoint().x+","+me.getPoint().y+")");
+            }
+            public void mouseReleased(java.awt.event.MouseEvent me)
+            {
+                if (eventVerbose >= 2) System.out.println("in mouseReleased (at "+me.getPoint().x+","+me.getPoint().y+")");
+                if (eventVerbose >= 2) System.out.println("out mouseReleased (at "+me.getPoint().x+","+me.getPoint().y+")");
+            }
+            // NOTE various vms have bugs that make mouseClicked usually
+            // not a very good thing to use.
+            public void mouseClicked(java.awt.event.MouseEvent me)
+            {
+                if (eventVerbose >= 2) System.out.println("in mouseClicked (at "+me.getPoint().x+","+me.getPoint().y+")");
+                if (eventVerbose >= 2) System.out.println("out mouseClicked (at "+me.getPoint().x+","+me.getPoint().y+")");
+            }
+            public void mouseDragged(java.awt.event.MouseEvent me)
+            {
+                if (eventVerbose >= 3) System.out.println("    in mouseDragged (to "+me.getPoint().x+","+me.getPoint().y+")");
+                if (eventVerbose >= 3) System.out.println("    out mouseDragged (to "+me.getPoint().x+","+me.getPoint().y+")");
+            }
+            public void mouseEntered(java.awt.event.MouseEvent me)
+            {
+                if (eventVerbose >= 5) System.out.println("in mouseEntered (at "+me.getPoint().x+","+me.getPoint().y+")");
+                if (eventVerbose >= 5) System.out.println("out mouseEntered (at "+me.getPoint().x+","+me.getPoint().y+")");
+            }
+            public void mouseExited(java.awt.event.MouseEvent me)
+            {
+                if (eventVerbose >= 5) System.out.println("in mouseExited (at "+me.getPoint().x+","+me.getPoint().y+")");
+                if (eventVerbose >= 5) System.out.println("out mouseExited (at "+me.getPoint().x+","+me.getPoint().y+")");
+            }
+            public void mouseMoved(java.awt.event.MouseEvent me)
+            {
+                if (eventVerbose >= 6) System.out.println("    in mouseMoved (to "+me.getPoint().x+","+me.getPoint().y+")");
+                if (eventVerbose >= 6) System.out.println("    out mouseMoved (to "+me.getPoint().x+","+me.getPoint().y+")");
+            }
+        };
+        canvas.addMouseListener(mouseAndMotionListener);
+        canvas.addMouseMotionListener(mouseAndMotionListener);
+        canvas.addKeyListener(new java.awt.event.KeyListener() {
+                public void keyPressed(java.awt.event.KeyEvent e)
+                {
+                    if (eventVerbose >= 2) System.out.println("in keyPressed: "+e);
+                    if (eventVerbose >= 2) PRINT((int)e.getKeyChar()+0); // XXX +0 necessary, don't know why
+                    if (eventVerbose >= 2) PRINT(e.isControlDown());
+                    if (e.isControlDown())
+                        controlIsDown = true;
+                    else
+                        controlIsDown = false;
+
+                    int keyCode = e.getKeyCode();
+                    switch (keyCode)
+                    {
+                        case java.awt.event.KeyEvent.VK_LEFT:
+                            break;
+                        case java.awt.event.KeyEvent.VK_RIGHT:
+                            break;
+                        case java.awt.event.KeyEvent.VK_UP:
+                            break;
+                        case java.awt.event.KeyEvent.VK_DOWN:
+                            break;
+                        case java.awt.event.KeyEvent.VK_CONTROL:
+                            break;
+                        default:
+                            break;
+                    }
+                    if (eventVerbose >= 2) PRINT(e.isControlDown());
+                    if (eventVerbose >= 2) PRINT(e.isShiftDown());
+                    if (eventVerbose >= 2) System.out.println("out keyPressed: "+e);
+                }
+                public void keyTyped(java.awt.event.KeyEvent e)
+                {
+                    if (eventVerbose >= 2) System.out.println("in keyTyped: "+e);
+                    if (e.isControlDown())
+                        controlIsDown = true;
+                    // but absence of mask is not definitive in keyTyped (java 1.1 netscape)
+                    char c = e.getKeyChar();
+                    switch (c)
+                    {
+                        // XXX clean this up
+                        case 'V': // cycle event verbosity-- upper-case to minimize possibility of hitting it by accident thus causing subsequent perfomance degradation with no visible reason if Java Console is not visible
+                            System.out.print("eventVerbose "+eventVerbose);
+                            eventVerbose = (eventVerbose+1) % 8;
+                            System.out.println(" -> "+eventVerbose);
+                            break;
+
+    #define TOGGLE(var) {var ^= true; System.out.println(#var + " -> " + var); }
+
+                        case ' ': // just repaint
+                            e.getComponent().repaint();
+                            break;
+                        case 'J': // toggle doRandomJitter
+                            //TOGGLE(doRandomJitter);
+                            e.getComponent().repaint();
+                            break;
+                        case 'z': case 'Z':
+                            break;
+#define CTRL(lowerCaseLetter) ((lowerCaseLetter)-'a'+1)
+                        case CTRL('r'): // reset but same size
+                            //reset(false);
+                            e.getComponent().repaint();
+                            break;
+                        default:
+                            System.out.println("Unknown key '"+c+"' typed"); // XXX escapify
+                            break;
+                    } // switch (c)
+                if (eventVerbose >= 2) System.out.println("out keyTyped: "+e);
+            } // keyTyped
+
+            public void keyReleased(java.awt.event.KeyEvent e)
+            {
+                if (eventVerbose >= 2) System.out.println("in keyReleased: "+e);
+                switch (e.getKeyCode())
+                {
+                    case java.awt.event.KeyEvent.VK_CONTROL:
+                        controlIsDown = false;
+                        return;
+                }
+
+                // do this after the switch, so we will properly
+                // set it to true in the (unlikely) case
+                // that both ctrl keys were down and one was released
+                if (e.isControlDown())
+                    controlIsDown = true;
+                else
+                    controlIsDown = false;
+
+                if (eventVerbose >= 2) System.out.println("out keyReleased: "+e);
+            } // keyReleased
+        }); //
+    } // makeAndAddTheEventListeners
+
+    public static void main(final String[] args)
+    {
+        System.out.println("in main");
+
+        final com_donhatchsw_applet_ExampleApplet applet = new com_donhatchsw_applet_ExampleApplet();
+
+        //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
+        final java.awt.Frame frame = new java.awt.Frame("Example Applet");
+
+        // overriding handleEvent() no longer seems to work as of java 1.5.
+        // So we have to use a listener.
+        {
+            frame.addWindowListener(new java.awt.event.WindowAdapter() {
+                OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)
+                {
+                    System.out.println("ciao!");
+                    frame.dispose(); // hide() doesn't delete the windows
+                }
+                OVERRIDE public void windowClosed(java.awt.event.WindowEvent we)
+                {
+                    System.exit(0);
+                }
+            });
+        }
+
+        // The following seems to be necessary, or getParameter() will crash, at least in 1.4.
+        // And we need it anyway, to send params from the command line.
+        // XXX need a clever way to detect spurious extra params! not sure there is a way when in a web page, but if using main's args, could remove them as we read them and see if anything is left over
+        applet.setStub(new com.donhatchsw.shims_for_deprecated.java_applet_AppletStub() {
+             public void appletResize(int width, int height) 
+             {
+                /* should resize frame, but an com_donhatchsw_applet_ExampleApplet never asks to be resized */
+                // XXX for now, print this... not sure when this gets called, if ever
+                System.out.println("in appletResize(width="+width+", height="+height+")");
+             }
+             public com.donhatchsw.shims_for_deprecated.java_applet_AppletContext getAppletContext() { return null;}
+             public java.net.URL getCodeBase() { return null; }
+             public java.net.URL getDocumentBase() { return null; }
+             public String getParameter(String name)
+             {
+                 // case insensitive... and unfortunately there's no
+                 // startsWithIgnoreCase
+                 String prefix = name.toLowerCase() + "=";
+                 // search backwards from end, so later ones take precedence...
+                 for (int i = args.length-1; i >= 0; --i)
+                     if (args[i].toLowerCase().startsWith(prefix))
+                         return args[i].substring(prefix.length());
+                 return null;
+             }
+             // XXX what's this mean?
+             public boolean isActive() { return true; }
+        });
+
+        frame.add(applet);
+
+        applet.init();
+        applet.start();
+
+        //frame.pack();
+        //frame.setLocation(20,20);
+        frame.setLocation(400,20);
+
+        // XXX needs to be a command line param
+        //frame.setSize(512, 512);
+        frame.setSize(800, 800);
+        //frame.setSize(1100, 1100);
+
+        frame.setVisible(true);  // available in java 1.5, replaces deprecated show()
+
+        System.out.println("out main");
+    } // main
+
+} // com_donhatchsw_applet_ExampleApplet
