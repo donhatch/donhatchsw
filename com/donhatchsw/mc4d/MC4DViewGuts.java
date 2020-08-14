@@ -408,6 +408,7 @@ public class MC4DViewGuts
                         // in 1.6 it returns 1 for ctrl-alt-'a', (good).
                         // but in 1.3 and 1.2 it returns 65535 (unknown).
                         // So, have to use key codes instead.
+                        // TODO: modernize since we now support only >=1.7
 
                         if (ke.isControlDown()
                          && ke.isAltDown())
@@ -477,7 +478,7 @@ public class MC4DViewGuts
                                   && keyCode != KeyEvent.VK_CONTROL
                                   && keyCode != KeyEvent.VK_SHIFT)
                             {
-                                System.out.println("Unrecognized key sequence ctrl-alt-(keyCode="+keyCode+")");
+                                System.out.println("Unrecognized key sequence ctrl-alt-(keyCode="+keyCode+"=\""+KeyEvent.getKeyText(keyCode)+"\" keyChar="+(ke.getKeyChar()>=32&&ke.getKeyChar()<=126?String.format("%c",ke.getKeyChar()):String.format("ord %d",0+ke.getKeyChar()))+")");
                             }
                         }
                     }
