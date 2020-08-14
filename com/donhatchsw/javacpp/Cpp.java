@@ -1742,7 +1742,7 @@ public class Cpp
                                 }
                                 Token contents[] = new Token[contentsVector.size()];
                                 for (int i = 0; i < contents.length; ++i)
-                                    contents[i] = (Token)contentsVector.get(i);
+                                    contents[i] = contentsVector.get(i);
                                 {
                                     // in place, compress all consecutive comments and spaces
                                     // into a single space, and
@@ -1805,7 +1805,7 @@ public class Cpp
                                                         token.inColumnNumber);
                                 if (verboseLevel >= 2)
                                     System.err.println("        filter:     defining macro \""+macroName+"\": "+macro);
-                                Macro previousMacro = (Macro)macros.get(macroName);
+                                Macro previousMacro = macros.get(macroName);
                                 if (previousMacro != null)
                                 {
                                     if (macroName == "__LINE__"
@@ -1873,7 +1873,7 @@ public class Cpp
                                     if (macroName == "__LINE__"
                                      || macroName == "__FILE__")
                                         throw new Error(token.inFileName+":"+(token.inLineNumber+1)+":"+(token.inColumnNumber+1)+": can't undefine \""+macroName+"\""); // gcc just gives a warning
-                                    Macro macro = (Macro)macros.get(macroName);
+                                    Macro macro = macros.get(macroName);
                                     if (macro != null)
                                         tokenAllocator.unrefTokensInMacro(macro);
                                     macros.remove(macroName);
@@ -2668,10 +2668,10 @@ public class Cpp
         //
         if (inputDebugLevel >= DEBUG_OVERALL)
             System.err.println("    freeing macros");
-        for (java.util.Enumeration e = macros.keys(); e.hasMoreElements(); )
+        for (java.util.Enumeration<String> e = macros.keys(); e.hasMoreElements(); )
         {
-            String name = (String)e.nextElement();
-            Macro macro = (Macro)macros.get(name); // XXX TODO: weird, is it not possible to iterate through the name/value pairs without calling the hash function?
+            String name = e.nextElement();
+            Macro macro = macros.get(name); // XXX TODO: weird, is it not possible to iterate through the name/value pairs without calling the hash function?
             // XXX maybe need macroDebugLevel
             //System.err.println("        "+name+" : "+macro+"");
             tokenAllocator.unrefTokensInMacro(macro);

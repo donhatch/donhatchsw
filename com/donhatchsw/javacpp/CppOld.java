@@ -694,7 +694,7 @@ public class CppOld
         private TokenReader tokenReader;
         public String inFileName;
         public String extraCrap; // gets put at the end of # line directives referring to this file, to imitate the real cpp
-        private java.util.LinkedList lookaheadBuffer = new java.util.LinkedList();
+        private java.util.LinkedList<Token> lookaheadBuffer = new java.util.LinkedList<Token>();
 
         public boolean hasLookahead()
         {
@@ -716,7 +716,7 @@ public class CppOld
             boolean lookedahead;
             if (!lookaheadBuffer.isEmpty())
             {
-                token = (Token)lookaheadBuffer.removeFirst();
+                token = lookaheadBuffer.removeFirst();
                 lookedahead = true;
             }
             else
@@ -736,7 +736,7 @@ public class CppOld
                 Token token = tokenReader.readToken();
                 lookaheadBuffer.add(token);
             }
-            return (Token)lookaheadBuffer.get(index);
+            return lookaheadBuffer.get(index);
         }
         public void pushBackToken(Token token)
         {
@@ -748,10 +748,10 @@ public class CppOld
                 lookaheadBuffer.add(0, tokens[i]);
 
         }
-        public void pushBackTokens(java.util.Vector tokensVector)
+        public void pushBackTokens(java.util.Vector<Token> tokensVector)
         {
             for (int i = tokensVector.size()-1; i >= 0; --i)
-                lookaheadBuffer.add(0, (Token)tokensVector.get(i));
+                lookaheadBuffer.add(0, tokensVector.get(i));
 
         }
         public void setFileName(String fileName)
@@ -759,10 +759,10 @@ public class CppOld
             inFileName = fileName;
             tokenReader.setFileName(fileName);
 
-            java.util.ListIterator iter = lookaheadBuffer.listIterator(0);
+            java.util.ListIterator<Token> iter = lookaheadBuffer.listIterator(0);
             while (iter.hasNext())
             {
-                Token token = (Token)iter.next();
+                Token token = iter.next();
                 token.fileName = fileName;
             }
         }
@@ -773,10 +773,10 @@ public class CppOld
 
             tokenReader.setLineNumber(lineNumber);
 
-            java.util.ListIterator iter = lookaheadBuffer.listIterator(0);
+            java.util.ListIterator<Token> iter = lookaheadBuffer.listIterator(0);
             while (iter.hasNext())
             {
-                Token token = (Token)iter.next();
+                Token token = iter.next();
                 System.err.println("    changing from "+token.lineNumber+" to "+lineNumber+" on a "+Token.typeToName(token.type));
                 token.lineNumber = lineNumber;
                 // count number of newlines in text, add that to lineNumber
@@ -842,7 +842,7 @@ public class CppOld
 
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
                                                         int lineNumber,
-                                                        java.util.Hashtable macros,
+                                                        java.util.Hashtable<String,Macro> macros,
                                                         boolean evaluateDefineds)
         throws java.io.IOException
     {
@@ -889,7 +889,7 @@ public class CppOld
     // The implementation of readTokenWithMacroSubstitution except for token pasting
     private static Token _readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
                                                          int lineNumber, // XXX TODO: is this needed any more?  I think it's stored in the token itself now, should check to make sure
-                                                         java.util.Hashtable macros,
+                                                         java.util.Hashtable<String,Macro> macros,
                                                          boolean evaluateDefineds)
         throws java.io.IOException
     {
@@ -934,7 +934,7 @@ public class CppOld
                     return new Token(Token.INT_LITERAL, "0", token.fileName, token.lineNumber, token.columnNumber);
             }
 
-            Macro macro = (Macro)macros.get(token.text);
+            Macro macro = macros.get(token.text);
             if (macro == null)
             {
                 if (evaluateDefineds) // XXX assume if we are evaluating defineds, then we are in an #if or #elif which means we also want to turn unrecognized identifiers into 0.  evaluateDefineds may not be a good name for this any more
@@ -1009,7 +1009,7 @@ public class CppOld
                 Token args[][] = new Token[macro.numParams][];
                 for (int iArg = 0; iArg < macro.numParams; ++iArg)
                 {
-                    java.util.Vector thisArgTokensVector = new java.util.Vector();
+                    java.util.Vector<Token> thisArgTokensVector = new java.util.Vector<Token>();
                     // read tokens up to a comma or right paren.
                     int parenLevel = 1;
                     while (true)
@@ -1049,12 +1049,12 @@ public class CppOld
 
                     args[iArg] = new Token[thisArgTokensVector.size()];
                     for (int j = 0; j < args[iArg].length; ++j)
-                        args[iArg][j] = (Token)thisArgTokensVector.get(j);
+                        args[iArg][j] = thisArgTokensVector.get(j);
                 }
 
                 // Now substitute the args
                 // into the macro contents
-                java.util.Vector resultsVector = new java.util.Vector();
+                java.util.Vector<Token> resultsVector = new java.util.Vector<Token>();
                 for (int iContent = 0; iContent < macro.contents.length; ++iContent)
                 {
                     Token contentToken = macro.contents[iContent];
@@ -1233,7 +1233,7 @@ public class CppOld
                               FileOpener fileOpener,
                               String includePath[],
                               LineCountingPrintWriter out,
-                              java.util.Hashtable macros, // gets updated as we go
+                              java.util.Hashtable<String,Macro> macros, // gets updated as we go
                               ExpressionParser expressionParser,
                               boolean commentOutLineDirectives,
                               int recursionLevel)
@@ -1245,9 +1245,9 @@ public class CppOld
         if (verboseLevel >= 1)
             System.err.println("    in filter");
 
-        java.util.Stack ifStack = new java.util.Stack(); // of #ifwhatever tokens, for the file,line,column information
+        java.util.Stack<Token> ifStack = new java.util.Stack<Token>(); // of #ifwhatever tokens, for the file,line,column information
         int highestTrueIfStackLevel = 0;
-        java.util.Stack endifMultiplierStack = new java.util.Stack();
+        java.util.Stack<Integer> endifMultiplierStack = new java.util.Stack<Integer>();
 
         int lineNumber = 0;
         int columnNumber = 0;
@@ -1343,13 +1343,13 @@ public class CppOld
 
                         ifStack.push(token);
                         // Increment the prevailing #endif multiplier...
-                        endifMultiplierStack.push(new Integer((((Integer)endifMultiplierStack.pop()).intValue()+1)));
+                        endifMultiplierStack.push(endifMultiplierStack.pop()+1);
                     }
                     else // #if
                     {
                         ifStack.push(token);
                         // Just do the #if thing, pushing a multiplier of 1.
-                        endifMultiplierStack.push(new Integer(1));
+                        endifMultiplierStack.push(1);
                     }
 
                     if (ifStack.size()-1 <= highestTrueIfStackLevel)
@@ -1477,8 +1477,8 @@ public class CppOld
 
                     if (token.text.equals("#undef"))
                     {
-                        if (macroName == "__LINE__"
-                         || macroName == "__FILE__")
+                        if (macroName.equals("__LINE__")
+                         || macroName.equals("__FILE__"))
                             throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't undefine \""+macroName+"\"");
                         macros.remove(macroName);
                     }
@@ -1503,7 +1503,7 @@ public class CppOld
                         }
 
                         ifStack.push(token);
-                        endifMultiplierStack.push(new Integer(1));
+                        endifMultiplierStack.push(1);
                     }
 
 
@@ -1555,7 +1555,7 @@ public class CppOld
                         if (verboseLevel >= 2)
                             System.err.println("        filter:     and there's a macro param list");
                         // There's a macro param list.
-                        java.util.Vector paramNamesVector = new java.util.Vector();
+                        java.util.Vector<String> paramNamesVector = new java.util.Vector<String>();
 
                         nextToken = in.readTokenDiscardingEscapedNewlines(); // WITHOUT macro substitution, so that macros get expanded lazily
 
@@ -1641,7 +1641,7 @@ public class CppOld
                     // or eof.
                     // still using nextToken to hold the next token we are about to look at.
 
-                    java.util.Vector contentsVector = new java.util.Vector();
+                    java.util.Vector<Token> contentsVector = new java.util.Vector<Token>();
 
                     while (nextToken.type != Token.NEWLINE_UNESCAPED
                         && nextToken.type != Token.EOF)
@@ -1689,7 +1689,7 @@ public class CppOld
                     }
                     Token contents[] = new Token[contentsVector.size()];
                     for (int i = 0; i < contents.length; ++i)
-                        contents[i] = (Token)contentsVector.get(i);
+                        contents[i] = contentsVector.get(i);
                     {
                         // in place, compress all consecutive comments and spaces
                         // into a single space, and
@@ -1736,11 +1736,11 @@ public class CppOld
                                             token.columnNumber);
                     if (verboseLevel >= 2)
                         System.err.println("        filter:     defining macro \""+macroName+"\": "+macro);
-                    Macro previousMacro = (Macro)macros.get(macroName);
+                    Macro previousMacro = macros.get(macroName);
                     if (previousMacro != null)
                     {
-                        if (macroName == "__LINE__"
-                         || macroName == "__FILE__")
+                        if (macroName.equals("__LINE__")
+                         || macroName.equals("__FILE__"))
                             throw new Error(in.inFileName+":"+(token.lineNumber+1)+":"+(token.columnNumber+1)+": can't redefine \""+macroName+"\"");
 
 
@@ -1987,7 +1987,7 @@ public class CppOld
                         throw new Error(in.inFileName+":"+(lineNumber+1)+":"+(columnNumber+1)+": \""+escapify(fileNameToken.text)+"\" is not a valid filename");
                     }
                     nextToken = readTokenWithMacroSubstitution(in, lineNumber, macros, false);
-                    java.util.Vector flagsVector = new java.util.Vector();
+                    java.util.Vector<String> flagsVector = new java.util.Vector<String>();
                     while (true)
                     {
                         while (nextToken.type == Token.SPACES
@@ -2006,7 +2006,7 @@ public class CppOld
                     //System.err.println("got "+flagsVector.size()+" int flags");
                     String flags[] = new String[flagsVector.size()];
                     for (int i = 0; i < flags.length; ++i)
-                        flags[i] = (String)flagsVector.get(i);
+                        flags[i] = flagsVector.get(i);
 
                     // imitate cpp's screwy logic
                     String reason = "";
@@ -2163,7 +2163,7 @@ public class CppOld
 
         if (!ifStack.empty())
         {
-            Token unterminatedIfToken = (Token)ifStack.peek();
+            Token unterminatedIfToken = ifStack.peek();
             throw new Error(unterminatedIfToken.fileName+":"+(unterminatedIfToken.lineNumber+1)+":"+(unterminatedIfToken.columnNumber+1)+": unterminated "+unterminatedIfToken.text);
         }
         CHECK(endifMultiplierStack.empty()); // always in sync with ifStack
@@ -3519,7 +3519,7 @@ public class CppOld
             System.exit(1);
         }
         String includePath[] = {};
-        java.util.Hashtable macros = new java.util.Hashtable();
+        java.util.Hashtable<String,Macro> macros = new java.util.Hashtable<String,Macro>();
         LineCountingPrintWriter writer = new LineCountingPrintWriter(
                                          new java.io.BufferedWriter( // is this recommended??
                                          new java.io.OutputStreamWriter(System.out)));
@@ -3617,7 +3617,7 @@ public class CppOld
             // behave like actual cpp
             String inFileName = null;
             StringBuffer commandLineFakeInput = new StringBuffer();
-            java.util.Vector includePathVector = new java.util.Vector();
+            java.util.Vector<String> includePathVector = new java.util.Vector<String>();
             String language = "java";
 
             for (int iArg = 0; iArg < args.length; ++iArg)
@@ -3747,7 +3747,7 @@ public class CppOld
             }
 
             String includePath[] = (String[])includePathVector.toArray(new String[0]);
-            java.util.Hashtable macros = new java.util.Hashtable();
+            java.util.Hashtable<String,Macro> macros = new java.util.Hashtable<String,Macro>();
 
 
             LineCountingPrintWriter writer = new LineCountingPrintWriter(
