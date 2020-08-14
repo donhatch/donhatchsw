@@ -79,37 +79,12 @@ public class com_donhatchsw_applet_AppletViewer
             }
         }
 
-        final javax.swing.JFrame frame = new javax.swing.JFrame("Applet Viewer: "+appletClassName)
-        {
-            OVERRIDE public boolean handleEvent(java.awt.Event event)
-            {
-                switch(event.id)
-                {
-                    case java.awt.Event.WINDOW_DESTROY:
-                        System.out.println("bye!");
-                        // Empirically, either of the following
-                        // cause the app to exit-- do both to be safe!
-                        // (XXX I've heard rumors that just doing dispose()
-                        //  messes up the debugger)
-                        // (XXX but doing exit is evil)
-                        dispose(); // hide() doesn't delete the windows
-                        System.exit(0);
-                        return true;
-                }
-                return super.handleEvent(event);
-            }
+        // Doesn't hurt too much to use a JFrame even if we're doing an Applet.
+        // (well, except for the flicker on resize problem)
+        final javax.swing.JFrame frame = new javax.swing.JFrame("Applet Viewer: "+appletClassName);
 
-            // can't override dispatchEvent because it's final
-            public void dispatchEventImpl(java.awt.AWTEvent g)
-            {
-                System.out.println("        in frame.dispatchEventImpl");
-                System.out.println("        out frame.dispatchEventImpl");
-            }
-
-        };
-        // The above handleEvent no longer seems to work as of java 1.5.
+        // overriding handleEvent() no longer seems to work as of java 1.5.
         // So we have to use a listener.
-        // XXX not sure how far back this exists, may need to use reflection to get it
         {
             com.donhatchsw.awt.MainWindowCount.increment();
             final com.donhatchsw.shims_for_deprecated.java_applet_Applet finalApplet = applet;

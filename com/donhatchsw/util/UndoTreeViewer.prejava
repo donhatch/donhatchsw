@@ -1516,13 +1516,10 @@ public class UndoTreeViewer
     } // main
 
 
-    /*
-     * Shamelessly copied from someone who shamelessly copied it from SwingUtilities.java since that is in JDK 1.3 and we'd like to keep this to 1.2 and below.
-     */
     public static boolean isMiddleMouseButton(java.awt.event.MouseEvent anEvent) {
-        return ((anEvent.getModifiers() & java.awt.event.InputEvent.BUTTON2_MASK) == java.awt.event.InputEvent.BUTTON2_MASK);
+        return anEvent.getButton() == java.awt.event.MouseEvent.BUTTON2;
     }
     public static boolean isLeftMouseButton(java.awt.event.MouseEvent anEvent) {
-         return ((anEvent.getModifiers() & java.awt.event.InputEvent.BUTTON1_MASK) != 0);
+        return anEvent.getButton() == java.awt.event.MouseEvent.BUTTON1;
     }
 } // class UndoTreeViewer

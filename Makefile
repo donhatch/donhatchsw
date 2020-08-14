@@ -282,6 +282,7 @@ clean:
             com/donhatchsw/compat/*.java{,.lines} \
             com/donhatchsw/applet/*.java{,.lines} \
             com/donhatchsw/awt/*.java{,.lines} \
+            com/donhatchsw/shims_for_deprecated/*.java{,.lines} \
             *.html \
             *.css \
             resources/ \

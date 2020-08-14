@@ -1523,7 +1523,8 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
 
             // Make it so we get keyboard focus on startup,
             // without having to click first.  Thanks, Melinda!
-            OVERRIDE public boolean isFocusTraversable()
+            // (For more info on inferior approaches, see ExampleApplet.prejava)
+            OVERRIDE public boolean isFocusable()
             {
                 return true;
             }
@@ -2401,7 +2402,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                 addKeyListener(new java.awt.event.KeyAdapter() {
                     public void keyPressed(java.awt.event.KeyEvent e)
                     {
-                        boolean controlIsDown = ((e.getModifiers() & java.awt.event.InputEvent.CTRL_MASK) != 0);
+                        boolean controlIsDown = e.isControlDown();
                         int keyCode = e.getKeyCode();
                         char c = e.getKeyChar();
                         if (eventVerbose >= 1) System.out.println("    in keyPressed, keyEvent = "+e+" keyChar = (char)"+(int)c+"");

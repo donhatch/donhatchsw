@@ -90,7 +90,7 @@ public class ExampleApplet
             //        implying (not obvious) that you need to click to type
             //        when the app starts,
             //        which is almost never the desired behavior.
-            //        You can change this by overriding isFocusTraversable(),
+            //        You can change this by overriding isFocusable(),
             //        which we do below.
             //      - Other approaches using requestFocus():
             //        A Canvas calling requestFocus() doesn't seem to do
@@ -98,9 +98,9 @@ public class ExampleApplet
             //        do anything during init(), but I think it works
             //        if you put it in the mouseEntered handler or something,
             //        though this can lead to various unpredictabilities.
-            //        The isFocusTraversable() fix is better in any case.
+            //        The isFocusable() fix is better in any case.
             //
-            OVERRIDE public boolean isFocusTraversable()
+            OVERRIDE public boolean isFocusable()
             {
                 return true;
             }
@@ -374,8 +374,8 @@ public class ExampleApplet
                 {
                     if (eventVerbose >= 2) System.out.println("in keyPressed: "+e);
                     if (eventVerbose >= 2) PRINT((int)e.getKeyChar()+0); // XXX +0 necessary, don't know why
-                    if (eventVerbose >= 2) PRINT(e.getModifiers());
-                    if ((e.getModifiers() & java.awt.event.InputEvent.CTRL_MASK) != 0)
+                    if (eventVerbose >= 2) PRINT(e.isControlDown());
+                    if (e.isControlDown())
                         controlIsDown = true;
                     else
                         controlIsDown = false;
@@ -403,7 +403,7 @@ public class ExampleApplet
                 public void keyTyped(java.awt.event.KeyEvent e)
                 {
                     if (eventVerbose >= 2) System.out.println("in keyTyped: "+e);
-                    if ((e.getModifiers() & java.awt.event.InputEvent.CTRL_MASK) != 0)
+                    if (e.isControlDown())
                         controlIsDown = true;
                     // but absence of mask is not definitive in keyTyped (java 1.1 netscape)
                     char c = e.getKeyChar();
@@ -452,7 +452,7 @@ public class ExampleApplet
                 // do this after the switch, so we will properly
                 // set it to true in the (unlikely) case
                 // that both ctrl keys were down and one was released
-                if ((e.getModifiers() & java.awt.event.InputEvent.CTRL_MASK) != 0)
+                if (e.isControlDown())
                     controlIsDown = true;
                 else
                     controlIsDown = false;
@@ -469,36 +469,10 @@ public class ExampleApplet
         final ExampleApplet applet = new ExampleApplet();
 
         //final javax.swing.JFrame frame = new javax.swing.JFrame("Example Applet") {
-        final java.awt.Frame frame = new java.awt.Frame("Example Applet") {
-            OVERRIDE public boolean handleEvent(java.awt.Event event)
-            {
-                switch(event.id)
-                {
-                    case java.awt.Event.WINDOW_DESTROY:
-                        System.out.println("bye!");
-                        // Empirically, either of the following
-                        // cause the app to exit-- do both to be safe!
-                        // (XXX I've heard rumors that just doing dispose()
-                        //  messes up the debugger)
-                        // (XXX but doing exit is evil)
-                        dispose(); // hide() doesn't delete the windows
-                        System.exit(0);
-                        return true;
-                }
-                return super.handleEvent(event);
-            }
+        final java.awt.Frame frame = new java.awt.Frame("Example Applet");
 
-            // can't override dispatchEvent because it's final
-            public void dispatchEventImpl(java.awt.AWTEvent g)
-            {
-                System.out.println("        in frame.dispatchEventImpl");
-                System.out.println("        out frame.dispatchEventImpl");
-            }
-
-        };
-        // The above handleEvent no longer seems to work as of java 1.5.
+        // overriding handleEvent() no longer seems to work as of java 1.5.
         // So we have to use a listener.
-        // XXX not sure how far back this exists, may need to use reflection to get it
         {
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
                 OVERRIDE public void windowClosing(java.awt.event.WindowEvent we)

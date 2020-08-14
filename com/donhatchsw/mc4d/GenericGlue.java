@@ -209,7 +209,7 @@ public class GenericGlue
         @Override public Object newMenu(String name) {
             return new Menu(name);
         }
-        @Override public Object newMenuItem(String name, ActionListener actionListener) {
+        @Override public Object newMenuItem(String name, final ActionListener actionListener) {
             return new MenuItem(name) {{
                 addActionListener(actionListener);
             }};
@@ -235,9 +235,10 @@ public class GenericGlue
             return new JMenu(name);
         }
         @Override public Object newMenuItem(String name, ActionListener actionListener) {
-            if (false)
+            if (true)
             {
               // TODO: why on earth doesn't this work???  it gives a stack overflow when invoked!!
+              // TODO: and why does the override in the other class require "final" in 1.7, but this one doesn't?? related?
               return new JMenuItem(name) {{
                   addActionListener(actionListener);
               }};
