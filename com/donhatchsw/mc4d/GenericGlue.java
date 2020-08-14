@@ -235,7 +235,7 @@ public class GenericGlue
             return new JMenu(name);
         }
         @Override public Object newMenuItem(String name, ActionListener actionListener) {
-            if (true)
+            if (false)
             {
               // TODO: why on earth doesn't this work???  it gives a stack overflow when invoked!!
               // TODO: and why does the override in the other class require "final" in 1.7, but this one doesn't?? related?
