@@ -168,11 +168,6 @@ donhatchsw.jar: \
     com/donhatchsw/javacpp/ExpressionParser.class \
     com/donhatchsw/javacpp/Cpp.class \
     com/donhatchsw/javacpp/javacpp.class \
-    com/donhatchsw/shims_for_deprecated/java_applet_AppletContext.class \
-    com/donhatchsw/shims_for_deprecated/java_applet_AppletStub.class \
-    com/donhatchsw/shims_for_deprecated/java_applet_Applet.class \
-    com/donhatchsw/shims_for_deprecated/javax_swing_JApplet.class \
-    com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_AppletViewer.class \
     com/donhatchsw/compat/ArrayList.class \
     com/donhatchsw/compat/IntArrayList.class \
     com/donhatchsw/compat/DoubleArrayList.class \
@@ -215,6 +210,11 @@ donhatchsw.jar: \
     com/donhatchsw/awt/JCol.class \
     com/donhatchsw/awt/LayoutExample.class \
     com/donhatchsw/awt/MainWindowCount.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_AppletContext.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_AppletStub.class \
+    com/donhatchsw/shims_for_deprecated/java_applet_Applet.class \
+    com/donhatchsw/shims_for_deprecated/javax_swing_JApplet.class \
+    com/donhatchsw/shims_for_deprecated/com_donhatchsw_applet_AppletViewer.class \
     com/donhatchsw/util/NewtonSolver.class \
     com/donhatchsw/util/GoldenSectionSearch.class \
     com/donhatchsw/util/Catenary.class \
