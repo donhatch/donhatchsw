@@ -842,7 +842,7 @@ public class CppOld
 
     private static Token readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
                                                         int lineNumber,
-                                                        java.util.Hashtable<String,Macro> macros,
+                                                        java.util.HashMap<String,Macro> macros,
                                                         boolean evaluateDefineds)
         throws java.io.IOException
     {
@@ -889,7 +889,7 @@ public class CppOld
     // The implementation of readTokenWithMacroSubstitution except for token pasting
     private static Token _readTokenWithMacroSubstitution(TokenReaderWithLookahead in,
                                                          int lineNumber, // XXX TODO: is this needed any more?  I think it's stored in the token itself now, should check to make sure
-                                                         java.util.Hashtable<String,Macro> macros,
+                                                         java.util.HashMap<String,Macro> macros,
                                                          boolean evaluateDefineds)
         throws java.io.IOException
     {
@@ -1233,7 +1233,7 @@ public class CppOld
                               FileOpener fileOpener,
                               String includePath[],
                               LineCountingPrintWriter out,
-                              java.util.Hashtable<String,Macro> macros, // gets updated as we go
+                              java.util.HashMap<String,Macro> macros, // gets updated as we go
                               ExpressionParser expressionParser,
                               boolean commentOutLineDirectives,
                               int recursionLevel)
@@ -3519,7 +3519,7 @@ public class CppOld
             System.exit(1);
         }
         String includePath[] = {};
-        java.util.Hashtable<String,Macro> macros = new java.util.Hashtable<String,Macro>();
+        java.util.HashMap<String,Macro> macros = new java.util.HashMap<String,Macro>();
         LineCountingPrintWriter writer = new LineCountingPrintWriter(
                                          new java.io.BufferedWriter( // is this recommended??
                                          new java.io.OutputStreamWriter(System.out)));
@@ -3747,7 +3747,7 @@ public class CppOld
             }
 
             String includePath[] = (String[])includePathVector.toArray(new String[0]);
-            java.util.Hashtable<String,Macro> macros = new java.util.Hashtable<String,Macro>();
+            java.util.HashMap<String,Macro> macros = new java.util.HashMap<String,Macro>();
 
 
             LineCountingPrintWriter writer = new LineCountingPrintWriter(

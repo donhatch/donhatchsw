@@ -2091,13 +2091,13 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         // First make it so that we can easily lookup from global element index to element index on a given facet...
                         int maxRelevantDim = 2;  // we're looking at elements of polygons
                         // workaround 3 from https://programming.guide/java/generic-array-creation.html
-                        class HashtableIntegerInteger extends java.util.Hashtable<Integer,Integer> {}
-                        HashtableIntegerInteger[/*nFacets*/][/*nRelevantDims*/] indexOfOriginalEltOnFacet = new HashtableIntegerInteger[nFacets][maxRelevantDim+1];
+                        class HashMapIntegerInteger extends java.util.HashMap<Integer,Integer> {}
+                        HashMapIntegerInteger[/*nFacets*/][/*nRelevantDims*/] indexOfOriginalEltOnFacet = new HashMapIntegerInteger[nFacets][maxRelevantDim+1];
                         for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                         {
                             CSG.Polytope[][] allElementsOfFacet = originalFacets[iFacet].getAllElements();
                             for (int iDim = 0; iDim <= maxRelevantDim; ++iDim) {
-                                indexOfOriginalEltOnFacet[iFacet][iDim] = new HashtableIntegerInteger();
+                                indexOfOriginalEltOnFacet[iFacet][iDim] = new HashMapIntegerInteger();
                                 int nFacetEltsOfDim = allElementsOfFacet[iDim].length;
                                 for (int iFacetEltOfDim = 0; iFacetEltOfDim < nFacetEltsOfDim; ++iFacetEltOfDim) {
                                     CSG.Polytope elt = allElementsOfFacet[iDim][iFacetEltOfDim];

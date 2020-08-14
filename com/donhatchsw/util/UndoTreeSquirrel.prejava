@@ -167,13 +167,13 @@ public class UndoTreeSquirrel
 
     private UndoTree model; // set in ctor
 
-    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.Hashtable<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashtable, UndoTree.Node node)
+    private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.HashMap<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashMap, UndoTree.Node node)
     {
-        PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
+        PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfosHashMap.get(node);
         if (info == null)
         {
             info = new PrivateNodeInfo();
-            privateNodeInfosHashtable.put(node, info);
+            privateNodeInfosHashMap.put(node, info);
         }
         return info;
     } // PrivateNodeInfo
@@ -190,14 +190,14 @@ public class UndoTreeSquirrel
         public Object privateLabel = null;
         public int preferredChildIndex = -1;
     }
-    private java.util.Hashtable<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashtable = new java.util.Hashtable<UndoTree.Node,PrivateNodeInfo>(); // XXX get rid of this, make it an array instead?  not sure
+    private java.util.HashMap<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashMap = new java.util.HashMap<UndoTree.Node,PrivateNodeInfo>(); // XXX get rid of this, make it an array instead?  not sure
     private int currentNodeIndex; // set in ctor
     private SmoothlyVaryingViewingParameter currentNodeFraction = new SmoothlyVaryingViewingParameter(1.); // current fraction of the way from parent to current node. Usually in (0,1] but can be outside that range in the case of a bouncy system.
 
     // XXX these haven't been thought out well... probably should not be here, are not safe... bleah bleah bleah
     public void setCurrentNodeIndex(int currentNodeIndex)
     {
-        synchronized(privateNodeInfosHashtable)
+        synchronized(privateNodeInfosHashMap)
         {
             this.currentNodeIndex = currentNodeIndex;
             // Correct the preferred child path from the root // XXX this is more costly than it should be!  there should be an O(1) way to do this! maybe
@@ -210,7 +210,7 @@ public class UndoTreeSquirrel
                     int iParent = iChild + child.parent;
                     UndoTree.Node parent = (UndoTree.Node)model.nodes.get(iParent);
                     int childIndex = Arrays.indexOf(parent.children, -child.parent);
-                    PrivateNodeInfo parentInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, parent);
+                    PrivateNodeInfo parentInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, parent);
                     parentInfo.preferredChildIndex = childIndex;
                     iChild = iParent;
                     child = parent;
@@ -291,7 +291,7 @@ public class UndoTreeSquirrel
                     // XXX and do this lazily when someone wants something?
                     currentNodeIndex = 0; // XXX hmm, this is destructive, puzzle state needs to be reset if this happens
                     currentNodeFraction.snap(1.);
-                    privateNodeInfosHashtable.clear();
+                    privateNodeInfosHashMap.clear();
                 }
                 CHECK(currentNodeIndex < UndoTreeSquirrel.this.model.nodes.size()); // XXX will need to do something more sophisticated if pruning is implemented; for now, the only destructive operation is Clear which we just handled
 
@@ -341,7 +341,7 @@ public class UndoTreeSquirrel
                 int newChildIndex_and_newChildIndexInCurrent[] = model.Do(currentNodeIndex, item, timeStampMillis);
                 int newChildIndex = newChildIndex_and_newChildIndexInCurrent[0];
                 int newChildIndexInCurrent = newChildIndex_and_newChildIndexInCurrent[1];
-                PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, (UndoTree.Node)model.nodes.get(currentNodeIndex));
+                PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, (UndoTree.Node)model.nodes.get(currentNodeIndex));
                 currentNodeInfo.preferredChildIndex = newChildIndexInCurrent;
 
                 currentNodeIndex = newChildIndex; // XXX could just do a redo?
@@ -384,7 +384,7 @@ public class UndoTreeSquirrel
         UndoTree.Node currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
         if (currentNode.children.length == 0)
             return null;
-        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
+        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, currentNode);
         if (currentNodeInfo.preferredChildIndex == -1)
             currentNodeInfo.preferredChildIndex = currentNode.children.length-1; // we didn't create any of currentNode's children nor have we traversed any of them, so we don't have a preference... just take the last one XXX maybe should prefer the preferred one of whoever made it? or of the latest child that *anyone* traversed or has been hanging out in? hmm...
         currentNodeIndex += currentNode.children[currentNodeInfo.preferredChildIndex]; // relative
@@ -399,7 +399,7 @@ public class UndoTreeSquirrel
     public boolean preferOlderChild()
     {
         UndoTree.Node currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
-        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
+        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, currentNode);
         synchronized(currentNode)
         {
             if (currentNodeInfo.preferredChildIndex == -1)
@@ -417,7 +417,7 @@ public class UndoTreeSquirrel
     public boolean preferYoungerChild()
     {
         UndoTree.Node currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
-        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
+        PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, currentNode);
         synchronized(currentNode)
         {
             if (currentNodeInfo.preferredChildIndex == -1)
@@ -448,7 +448,7 @@ public class UndoTreeSquirrel
         synchronized(this)
         {
             UndoTree.Node currentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex);
-            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
+            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, currentNode);
             privateNodeInfo.privateLabel = privateLabel;
         }
         notifyListenersSomethingChanged(viewListeners);
@@ -546,10 +546,10 @@ public class UndoTreeSquirrel
                 // a little next time,
                 // and it will never be noticed by the user.
                 // XXX unless someone calls Clear.... then we might be screwed
-                PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, currentNode);
-                synchronized(otherView.privateNodeInfosHashtable) // XXX I'm positive this is the wrong thing
+                PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, currentNode);
+                synchronized(otherView.privateNodeInfosHashMap) // XXX I'm positive this is the wrong thing
                 {
-                    PrivateNodeInfo currentNodeInfoInOtherView = (PrivateNodeInfo)otherView.privateNodeInfosHashtable.get(currentNode);
+                    PrivateNodeInfo currentNodeInfoInOtherView = (PrivateNodeInfo)otherView.privateNodeInfosHashMap.get(currentNode);
                     if (currentNodeInfoInOtherView == null
                      || currentNodeInfoInOtherView.preferredChildIndex == -1)
                         currentNodeInfo.preferredChildIndex = currentNode.children.length-1;
@@ -780,10 +780,10 @@ public class UndoTreeSquirrel
             if (currentNodeIndex != 0)
             {
                 UndoTree.Node parentNode = (UndoTree.Node)model.nodes.get(currentNodeIndex+currentNode.parent);
-                PrivateNodeInfo parentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, parentNode);
-                synchronized(otherView.privateNodeInfosHashtable) // XXX I'm positive this is the wrong thing
+                PrivateNodeInfo parentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, parentNode);
+                synchronized(otherView.privateNodeInfosHashMap) // XXX I'm positive this is the wrong thing
                 {
-                    PrivateNodeInfo parentNodeInfoInOtherView = (PrivateNodeInfo)otherView.privateNodeInfosHashtable.get(parentNode);
+                    PrivateNodeInfo parentNodeInfoInOtherView = (PrivateNodeInfo)otherView.privateNodeInfosHashMap.get(parentNode);
                     if (parentNodeInfoInOtherView == null
                      || parentNodeInfoInOtherView.preferredChildIndex == -1)
                         parentNodeInfo.preferredChildIndex = parentNode.children.length-1;
@@ -947,7 +947,7 @@ public class UndoTreeSquirrel
                 for (int iNode = 0; iNode < nNodes; ++iNode)
                 {
                     UndoTree.Node node = (UndoTree.Node)model.nodes.get(iNode);
-                    PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashtable.get(node);
+                    PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashMap.get(node);
                     snapshot.parents[iNode] = iNode + node.parent; // change relative to absolute
                     snapshot.edgeItems[iNode] = node.itemOnEdgeFromParentToMe;
                     snapshot.sharedLabels[iNode] = node.sharedLabel;
@@ -1085,7 +1085,7 @@ public class UndoTreeSquirrel
         for (int iNode = nNodes-1; iNode >= 0; iNode--)
         {
             UndoTree.Node node = (UndoTree.Node)model.nodes.get(iNode);
-            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node); // XXX shouldn't make it if it doesn't exist, that's lame
+            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, node); // XXX shouldn't make it if it doesn't exist, that's lame
             if (node.children.length == 0)
             {
                 x[iNode] = 2*xstarts[iNode]+1;
@@ -1193,7 +1193,7 @@ public class UndoTreeSquirrel
             }
             if (node.sharedLabel != null)
                 annotations[y[iNode]].append(" sharedLabel="+Arrays.toStringCompact(node.sharedLabel));
-            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node); // XXX shouldn't make it if it doesn't exist, that's lame
+            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, node); // XXX shouldn't make it if it doesn't exist, that's lame
             if (privateNodeInfo.privateLabel != null)
                 annotations[y[iNode]].append(" privateLabel="+Arrays.toStringCompact(privateNodeInfo.privateLabel));
         }
@@ -1434,7 +1434,7 @@ public class UndoTreeSquirrel
                 sb.append(itemString).append(" ");
             }
 
-            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, node);
+            PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, node);
             // If printing private label and there's no shared label,
             // print "null" for the shared label
 
@@ -1510,7 +1510,7 @@ public class UndoTreeSquirrel
         // We'll stick these in the created undoTree when we
         // create it at the end
         int currentNodeIndex = -1;
-        java.util.Hashtable<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashtable = new java.util.Hashtable<UndoTree.Node,PrivateNodeInfo>();
+        java.util.HashMap<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashMap = new java.util.HashMap<UndoTree.Node,PrivateNodeInfo>();
 
         UndoTree.Node nodes[] = new UndoTree.Node[Math.max(words.length,1)]; // at most this many
         com.donhatchsw.compat.ArrayList/*UndoTree.Node*/ childrens[] = new com.donhatchsw.compat.ArrayList[nodes.length];
@@ -1543,7 +1543,7 @@ public class UndoTreeSquirrel
             //
             if (doubleQuotedStringMatcher.reset(words[iWord]).matches())
             {
-                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, nodes[nNodes-1]);
+                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, nodes[nNodes-1]);
                 privateNodeInfo.privateLabel = words[iWord].substring(1,words[iWord].length()-1); // XXX need to unescapify!
                 iWord++;
             }
@@ -1570,7 +1570,7 @@ public class UndoTreeSquirrel
             //
             if (regex.matches(words[iWord], "\\(-?\\d+\\)"))
             {
-                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashtable, nodes[nNodes-1]);
+                PrivateNodeInfo privateNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, nodes[nNodes-1]);
                 privateNodeInfo.preferredChildIndex = Integer.parseInt(words[iWord].substring(1,words[iWord].length()-1));
                 // XXX should bounds check, but have to do that at the end!
                 iWord++;
@@ -1636,7 +1636,7 @@ public class UndoTreeSquirrel
             {
                 nodes[iNode].children[iChild] = ((Integer)childrens[iNode].get(iChild)).intValue();
             }
-            PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashtable.get(nodes[iNode]);
+            PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashMap.get(nodes[iNode]);
             if (privateNodeInfo != null
              && (privateNodeInfo.preferredChildIndex < -1 // -1 is always okay
               || privateNodeInfo.preferredChildIndex >= nodes[iNode].children.length))
@@ -1647,7 +1647,7 @@ public class UndoTreeSquirrel
 
         UndoTreeSquirrel squirrel = new UndoTreeSquirrel();
         squirrel.currentNodeIndex = currentNodeIndex;
-        squirrel.privateNodeInfosHashtable = privateNodeInfosHashtable;
+        squirrel.privateNodeInfosHashMap = privateNodeInfosHashMap;
         squirrel.model.nodes = new com.donhatchsw.compat.ArrayList(nNodes);
         for (int iNode = 0; iNode < nNodes; ++iNode)
             squirrel.model.nodes.add(nodes[iNode]);

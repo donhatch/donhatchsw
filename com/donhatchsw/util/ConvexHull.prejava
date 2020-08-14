@@ -937,7 +937,7 @@ public class ConvexHull
                 // to an array of two arrays:
                 // the facets containing the ridge with parity 0,
                 // and the facets containing the ridge with parity 1.
-                java.util.Hashtable<IntArrayHashKey,int[][]> ridgeParityToFacets = new java.util.Hashtable<IntArrayHashKey,int[][]>();
+                java.util.HashMap<IntArrayHashKey,int[][]> ridgeParityToFacets = new java.util.HashMap<IntArrayHashKey,int[][]>();
                 FORI (iFacet, hull.length)
                 {
                     int facet[] = hull[iFacet];
@@ -977,10 +977,10 @@ public class ConvexHull
                     }
                 }
                 boolean okSoFar = true;
-                for (java.util.Enumeration e = ridgeParityToFacets.keys(); e.hasMoreElements();)
-                {
-                    IntArrayHashKey ridgeKey = (IntArrayHashKey)e.nextElement();
-                    int value[][] = (int[][])ridgeParityToFacets.get(ridgeKey);
+                for (java.util.Map.Entry<IntArrayHashKey,int[][]> entry : ridgeParityToFacets.entrySet()) {
+                    IntArrayHashKey ridgeKey = entry.getKey();
+                    int value[][] = entry.getValue();
+
                     CHECK_EQ(value.length, 3);
                     int ridge[] = value[2];
                     if (value[0].length != 1

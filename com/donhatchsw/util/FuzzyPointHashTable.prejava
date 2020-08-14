@@ -39,7 +39,7 @@ public class FuzzyPointHashTable
     private double bigTol;
     private double tol; // (littleTol+bigTol)/2
     private double invBucketSize; // 1./bucketSize
-    private java.util.Hashtable<FuzzyPoint,Object> hashtable;
+    private java.util.HashMap<FuzzyPoint,Object> hashtable;
 
     /**
     * Construct a fuzzy point hash table.
@@ -81,7 +81,7 @@ public class FuzzyPointHashTable
         this.tol = (littleTol+bigTol)*.5;
         this.invBucketSize = 1./bucketSize;
 
-        this.hashtable = new java.util.Hashtable<FuzzyPoint,Object>();
+        this.hashtable = new java.util.HashMap<FuzzyPoint,Object>();
     } // ctor
 
     private class FuzzyPoint

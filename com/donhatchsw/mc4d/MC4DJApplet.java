@@ -681,7 +681,7 @@ public class MC4DJApplet
         private static class OrderedHashTable<K,V>
         {
             private com.donhatchsw.compat.ArrayList orderedKeys = new com.donhatchsw.compat.ArrayList();
-            private java.util.Hashtable<K,V> hashTable = new java.util.Hashtable<K,V>();
+            private java.util.HashMap<K,V> hashTable = new java.util.HashMap<K,V>();
             public void add(K key, V value)
             {
                 CHECK(hashTable.get(key) == null); // XXX throw something more legit

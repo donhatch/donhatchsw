@@ -1308,7 +1308,7 @@ public class Cpp
                               LazyPrintWriter out,
                               FileOpener fileOpener,
                               String includePath[],
-                              java.util.Hashtable<String, Macro> macros, // gets updated as we go
+                              java.util.HashMap<String, Macro> macros, // gets updated as we go
                    
                               LineBuffer lineBuffer, // logically local to loop iteration but we only want to allocate it once
                               TokenStreamFromLineBufferWithPushBack tokenStream, // logically local to loop iteration but we only want to allocate it once
@@ -2466,7 +2466,7 @@ public class Cpp
         TokenStreamFromLineBufferWithPushBack tokenStreamScratch = new TokenStreamFromLineBufferWithPushBack();
         TokenAllocator tokenAllocator = new TokenAllocator();
         ExpressionParser expressionParser = new ExpressionParser();
-        java.util.Hashtable<String, Macro> macros = new java.util.Hashtable<String, Macro>();
+        java.util.HashMap<String, Macro> macros = new java.util.HashMap<String, Macro>();
 
 
         // For some reason the real cpp does this at the beginning
@@ -2668,10 +2668,9 @@ public class Cpp
         //
         if (inputDebugLevel >= DEBUG_OVERALL)
             System.err.println("    freeing macros");
-        for (java.util.Enumeration<String> e = macros.keys(); e.hasMoreElements(); )
-        {
-            String name = e.nextElement();
-            Macro macro = macros.get(name); // XXX TODO: weird, is it not possible to iterate through the name/value pairs without calling the hash function?
+        for (java.util.Map.Entry<String,Macro> entry: macros.entrySet()) {
+            String name = entry.getKey();
+            Macro macro = entry.getValue();
             // XXX maybe need macroDebugLevel
             //System.err.println("        "+name+" : "+macro+"");
             tokenAllocator.unrefTokensInMacro(macro);
@@ -2702,11 +2701,4 @@ public class Cpp
     } // main
 
 } // public class Cpp
-
-
-
-
-
-
-
 

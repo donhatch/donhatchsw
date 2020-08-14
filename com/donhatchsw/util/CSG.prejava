@@ -631,11 +631,11 @@ public final class CSG
             public String toString(String indentString,
                                    boolean showAux,
                                    boolean showGoryDetails,
-                                   java.util.Hashtable<Object,Object> printedAlready)
+                                   java.util.HashMap<Object,Object> printedAlready)
             {
                 String nl = System.getProperty("line.separator");
                 if (printedAlready == null)
-                    printedAlready = new java.util.Hashtable<Object,Object>();
+                    printedAlready = new java.util.HashMap<Object,Object>();
 
                 StringBuffer sb = new StringBuffer();
                 if (showGoryDetails)
@@ -950,11 +950,11 @@ public final class CSG
             public String toString(String indentString,
                                    boolean showAux,
                                    boolean showGoryDetails,
-                                   java.util.Hashtable<Object,Object> printedAlready)  // stores both SPolytype,SPolytope and Polytope,Polytope, I believe
+                                   java.util.HashMap<Object,Object> printedAlready)  // stores both SPolytype,SPolytope and Polytope,Polytope, I believe
             {
                 String nl = System.getProperty("line.separator");
                 if (printedAlready == null)
-                    printedAlready = new java.util.Hashtable<Object,Object>();
+                    printedAlready = new java.util.HashMap<Object,Object>();
 
                 StringBuffer sb = new StringBuffer();
                 if (showGoryDetails)
@@ -1537,7 +1537,7 @@ public final class CSG
             // and a maximal chain (i.e. a flag) of p is a vertex of the omni,
             // and the null set chain is the whole omni.
             //
-            java.util.Hashtable<HashableSortedArray,Polytope> omniEltsHashTable = new java.util.Hashtable<HashableSortedArray,Polytope>();
+            java.util.HashMap<HashableSortedArray,Polytope> omniEltsHashTable = new java.util.HashMap<HashableSortedArray,Polytope>();
 
             FORI (iFlag, flags.size())
             {
@@ -1593,7 +1593,7 @@ public final class CSG
             //
             if (true)
             {
-                java.util.Hashtable<Polytope,Polytope> deadList = new java.util.Hashtable<Polytope,Polytope>();
+                java.util.HashMap<Polytope,Polytope> deadList = new java.util.HashMap<Polytope,Polytope>();
                 Polytope allElements[][] = somni.p.getAllElements();
                 MergeFind mergeFind = new MergeFind((int)(nIds-baseId));
                 Polytope bulletinBoard[] = new Polytope[(int)(nIds-baseId)];
@@ -5684,7 +5684,7 @@ public final class CSG
 
             Polytope p = _join(A.p, A.p.fullDim, y0,
                                B.p, B.p.fullDim, y1,
-                               /*ocean=*/new java.util.Hashtable<HashablePair,Polytope>(),
+                               /*ocean=*/new java.util.HashMap<HashablePair,Polytope>(),
                                /*indentString=*/"        ");
             // The vertices of p should now be:
             //     - for each vertex a of A: (   a,    y0, 0,...,0)
@@ -5743,7 +5743,7 @@ public final class CSG
         // TODO: reexamine this description as soon as I fumble through to success
         private static Polytope _join(Polytope A, int AfullDim, double y0,
                                       Polytope B, int BfullDim, double y1,
-                                      java.util.Hashtable<HashablePair,Polytope> ocean, // hashtable of crossings already done
+                                      java.util.HashMap<HashablePair,Polytope> ocean, // hashtable of crossings already done
                                       String indentString) // for debugging
         {
             int verboseLevel = 0;
@@ -5933,7 +5933,7 @@ public final class CSG
                                          A.sign*B.sign,
                                          _cross(A.p,
                                                 B.p,
-                                                /*ocean=*/new java.util.Hashtable<HashablePair,Polytope>(),
+                                                /*ocean=*/new java.util.HashMap<HashablePair,Polytope>(),
                                                 ""));
 
             // If I was smart, _cross would simply get the signs right
@@ -5956,7 +5956,7 @@ public final class CSG
         // doesn't even try to get the signs right.
         private static Polytope _cross(Polytope A,
                                        Polytope B,
-                                       java.util.Hashtable<HashablePair,Polytope> ocean, // hashtable of crossings already done
+                                       java.util.HashMap<HashablePair,Polytope> ocean, // hashtable of crossings already done
                                        String indentString) // for debugging
         {
             String subIndentString = null;
@@ -6062,7 +6062,7 @@ public final class CSG
                    returnBelowCapFacet, returnBelowCapFacetIndex,
                    returnAboveCapFacet, returnAboveCapFacetIndex,
                    returnAbove,         returnAboveIndex,
-                   /*ocean=*/new java.util.Hashtable<Polytope,Object[]>(),
+                   /*ocean=*/new java.util.HashMap<Polytope,Object[]>(),
                    "");
         } // slice
 
@@ -6086,7 +6086,7 @@ public final class CSG
                                               hyperplane,
                                               aux,
                                               sizes,
-                                              /*ocean=*/new java.util.Hashtable<Polytope,Object[]>(),
+                                              /*ocean=*/new java.util.HashMap<Polytope,Object[]>(),
                                               "");
             return answer;
         } // sliceElements
@@ -6096,7 +6096,7 @@ public final class CSG
                                                 Hyperplane hyperplane,
                                                 Object aux,
                                                 int sizes[],
-                                                java.util.Hashtable<Polytope,Object[]> ocean,
+                                                java.util.HashMap<Polytope,Object[]> ocean,
                                                 String indentString)
         {
             String subIndentString = null;
@@ -6231,7 +6231,7 @@ public final class CSG
                                    SPolytope returnBelowCapFacet[], int returnBelowCapFacetIndex,
                                    SPolytope returnAboveCapFacet[], int returnAboveCapFacetIndex,
                                    SPolytope returnAbove[],         int returnAboveIndex,
-                                   java.util.Hashtable<Polytope,Object[]> ocean, // hashtable of slicings already done
+                                   java.util.HashMap<Polytope,Object[]> ocean, // hashtable of slicings already done
                                    String indentString) // for debugging
         {
             String subIndentString = null;
@@ -6797,7 +6797,7 @@ public final class CSG
         // recursive work function used by intersect()
         private static SPolytope _intersect(SPolytope A,
                                             SPolytope B,
-                                            java.util.Hashtable<HashableSortedArray,Object> ocean, // hashtable of intersection polytopes created, keyed by contributing hyperplanes.  value type is Object: Polytope for something, new Object() to represent null
+                                            java.util.HashMap<HashableSortedArray,Object> ocean, // hashtable of intersection polytopes created, keyed by contributing hyperplanes.  value type is Object: Polytope for something, new Object() to represent null
                                             String indentString) // for debugging
         {
             String subIndentString = null;
@@ -7173,7 +7173,7 @@ public final class CSG
                                           SPolytope B)
         {
             SPolytope result = _intersect(A, B,
-                                          /*ocean=*/new java.util.Hashtable<HashableSortedArray,Object>(),
+                                          /*ocean=*/new java.util.HashMap<HashableSortedArray,Object>(),
                                           "");
 
             // _intersect returns an empty polytope
@@ -7623,7 +7623,7 @@ public final class CSG
             {
                 FORI (iFacet, nFacets)
                     facetNeighbors[iFacet] = new int[facets[iFacet].p.facets.length][/*2*/];
-                java.util.Hashtable<Polytope,int[]> firstFacetContainingRidge = new java.util.Hashtable<Polytope,int[]>();
+                java.util.HashMap<Polytope,int[]> firstFacetContainingRidge = new java.util.HashMap<Polytope,int[]>();
                 FORI (iFacet, nFacets)
                 {
                     Polytope facet = facets[iFacet].p;
