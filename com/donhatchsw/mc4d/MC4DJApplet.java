@@ -1,7 +1,6 @@
 // TODO: make the initial window fully swing (it's currently based on AppletViewer which puts it in a frame)
 // TODO: make the control panels swing
-// TODO: make the menus swing
-// TODO: @Overrides everywhere
+// TODO: @Overrides everywhere  (TODO: can I automatically detect violations?)
 package com.donhatchsw.mc4d;
 
 import java.awt.*;

@@ -23,7 +23,7 @@ public class MC4DLegacyControlPanel
         public Font getFont()
         {
             Font superfont = super.getFont();
-            //System.out.println("label superfont = "+superfont);
+            //System.out.println("BigBoldLabel superfont = "+superfont);
             Font superduperfont = new Font(superfont.getName(), Font.BOLD, superfont.getSize()+1);
             return superduperfont;
         }
@@ -311,6 +311,7 @@ public class MC4DLegacyControlPanel
                     for (int i = 0; i < listenables.length; ++i)
                         if (listenables[i] != null)
                             listenables[i].resetToDefault();
+                    //System.out.println("nNonDefault = "+nNonDefault);
                     CHECK(nNonDefault == 0); // due to our valueChanged getting called
                 }
             });
@@ -390,7 +391,7 @@ public class MC4DLegacyControlPanel
                             panel = new TextArea(String_join("\n", helpMessage),
                                                  nRows, nCols,
 						 //TextArea.SCROLLBARS_BOTH  // not well behaved on linux-- the window starts a bit not tall enough.
-						 TextArea.SCROLLBARS_VERTICAL_ONLY // this is generally fine-- if too small horizontally, it wraps at words
+						 TextArea.SCROLLBARS_VERTICAL_ONLY // this is generally fine-- if too small horizontally, it wraps at words rather than making a horizontal scrollbar
 						 ) {{
                                 setEditable(false);
                             }};
@@ -1162,7 +1163,7 @@ public class MC4DLegacyControlPanel
     } // dumpComponentHierarchy
 
     // for debugging XXX should probably be in com.donhatchsw.awt somewhere, the layout stuff has it too.  also the printComponent stuff, maybe
-    public static void randomlyColorize(Component c)
+    public static void randomlyColorize(java.awt.Component c)
     {
         c.setBackground(new java.awt.Color((float)Math.random(),
                                            (float)Math.random(),
@@ -1170,9 +1171,9 @@ public class MC4DLegacyControlPanel
         c.setForeground(new java.awt.Color((float)Math.random(),
                                            (float)Math.random(),
                                            (float)Math.random()));
-        if (c instanceof Container)
+        if (c instanceof java.awt.Container)
         {
-            Container C = (Container)c;
+            java.awt.Container C = (java.awt.Container)c;
             int n = C.getComponentCount();
             for (int i = 0; i < n; ++i)
                 randomlyColorize(C.getComponent(i));

@@ -1,49 +1,57 @@
+// TODO: 4D Eye Distance "Reset to default" is enabled by default? and throws when clicked
+// TODO: convert from JScrollBars to JSliders
+// TODO: color swatches aren't showing yet
 package com.donhatchsw.mc4d;
 
-import java.awt.*;
+//import java.awt.*;
 import java.awt.event.*;
+import javax.swing.*;
 import com.donhatchsw.awt.Row;
 import com.donhatchsw.awt.Col;
 import com.donhatchsw.util.Listenable;
 
 public class MC4DSwingControlPanel
-    extends Panel
+    extends JPanel
     implements MC4DControlPanelInterface
 {
     static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
 
     // a label in the default font, except bold and one point size larger.
-    private static class BigBoldLabel extends Label
+    private static class BigBoldLabel extends JLabel
     {
         public BigBoldLabel(String labelString)
         {
             super(labelString);
         }
-        public Font getFont()
+        public java.awt.Font getFont()
         {
-            Font superfont = super.getFont();
-            //System.out.println("label superfont = "+superfont);
-            Font superduperfont = new Font(superfont.getName(), Font.BOLD, superfont.getSize()+1);
+            java.awt.Font superfont = super.getFont();
+            if (superfont == null) {
+                System.err.println("XXX ERROR: not sure how to make a JLabel font bolder and one point size larger");
+                return null;
+            }
+            //System.out.println("BigBoldLabel superfont = "+superfont);
+            java.awt.Font superduperfont = new java.awt.Font(superfont.getName(), java.awt.Font.BOLD, superfont.getSize()+1);
             return superduperfont;
         }
     }
 
-    private static class CanvasOfSize extends Canvas
+    private static class CanvasOfSize extends JComponent
     {
-        private Dimension preferredSize;
+        private java.awt.Dimension preferredSize;
         public CanvasOfSize(int width, int height)
         {
             super();
-            preferredSize = new Dimension(width, height);
+            preferredSize = new java.awt.Dimension(width, height);
         }
-        public Dimension getPreferredSize()
+        public java.awt.Dimension getPreferredSize()
         {
             return preferredSize;
         }
     }
 
-    public static class TextFieldForFloat extends TextField
+    public static class TextFieldForFloat extends JTextField
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
 
@@ -80,7 +88,7 @@ public class MC4DSwingControlPanel
                 }
             });
         }
-        @Override public Dimension getPreferredSize()
+        @Override public java.awt.Dimension getPreferredSize()
         {
             // default seems taller than necessary
             // on my computer... and in recent VMs it's even worse
@@ -88,7 +96,7 @@ public class MC4DSwingControlPanel
             // Fudge it a bit...
             // XXX not sure this will look good on all systems... if it doesn't, we can just remove it
             // XXX hmm, actually makes things mess up when growing and shrinking, that's weird
-            Dimension preferredSize = super.getPreferredSize();
+            java.awt.Dimension preferredSize = super.getPreferredSize();
             //System.out.println("textfield.super.preferredSize() = "+preferredSize);
             if (true)
                 preferredSize.height -= 2;
@@ -97,9 +105,9 @@ public class MC4DSwingControlPanel
         // weird, the following is called during horizontal shrinking
         // but not during horizontal expanding... if we don't do this too
         // then it looks wrong when shrinking.  what a hack...
-        @Override public Dimension getMinimumSize()
+        @Override public java.awt.Dimension getMinimumSize()
         {
-            Dimension minimumSize = super.getMinimumSize();
+            java.awt.Dimension minimumSize = super.getMinimumSize();
             //System.out.println("textfield.super.minimumSize() = "+minimumSize);
             if (true)
                 minimumSize.height -= 2;
@@ -107,7 +115,7 @@ public class MC4DSwingControlPanel
         }
     } // TextFieldForFloat
 
-    public static class SliderForFloat extends Scrollbar
+    public static class SliderForFloat extends JScrollBar
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
 
@@ -121,7 +129,7 @@ public class MC4DSwingControlPanel
 
         public SliderForFloat(final Listenable.Number f)
         {
-            super(Scrollbar.HORIZONTAL);
+            super(JScrollBar.HORIZONTAL);
 
             // 3 significant digits seems reasonable...
             int min = (int)Math.round(f.minDouble()*1000);
@@ -168,11 +176,11 @@ public class MC4DSwingControlPanel
             });
             updateThumb(f);
         }
-        @Override public Dimension getPreferredSize()
+        @Override public java.awt.Dimension getPreferredSize()
         {
             // default seems to be 50x18 on my computer...
             // give it more horizontal space than that
-            Dimension preferredSize = super.getPreferredSize();
+            java.awt.Dimension preferredSize = super.getPreferredSize();
             //System.out.println("scrollbar.super.preferredSize() = "+preferredSize);
             preferredSize.width = 200;
             return preferredSize;
@@ -195,7 +203,7 @@ public class MC4DSwingControlPanel
                 @Override public void mousePressed(MouseEvent me)
                 {
                     //System.out.println("mousePressed");
-                    color.set(new Color((float)Math.random(), (float)Math.random(), (float)Math.random())); // poor man's color chooser
+                    color.set(new java.awt.Color((float)Math.random(), (float)Math.random(), (float)Math.random())); // poor man's color chooser
                 } // mousePressed
                 @Override public void mouseReleased(MouseEvent me)
                 {
@@ -225,15 +233,15 @@ public class MC4DSwingControlPanel
 
         private Listenable.Color color;
         private Listenable.Boolean b;
-        private Canvas swatch;
-        private Checkbox checkbox;
+        private JComponent swatch;
+        private JCheckBox checkbox;
 
         private void updateShownValues()
         {
             if (color != null)
                 swatch.setBackground(color.get());
             if (b != null)
-                checkbox.setState(b.get());
+                checkbox.setSelected(b.get());
         }
 
         public ColorSwatchMaybeAndCheckBoxMaybe(
@@ -243,16 +251,16 @@ public class MC4DSwingControlPanel
         {
             if (initcolor != null)
                 super.add(new ColorSwatch(initcolor,16,16));
-            super.add(initb==null ? (Component)new Label(name) : (Component)new Checkbox(name));
-            super.add(new Label(""), new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            super.add(initb==null ? (JComponent)new JLabel(name) : (JComponent)new JCheckBox(name));
+            super.add(new JLabel(""), new java.awt.GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
 
             // awkward, but we can't set members
             // until the super ctor is done
             int i = 0;
             if (initcolor != null)
-                this.swatch = (Canvas)this.getComponent(i++);
+                this.swatch = (JComponent)this.getComponent(i++);
             if (initb != null)
-                this.checkbox = (Checkbox)this.getComponent(i++);
+                this.checkbox = (JCheckBox)this.getComponent(i++);
             this.color = initcolor;
             this.b = initb;
 
@@ -295,7 +303,7 @@ public class MC4DSwingControlPanel
 
     // A button whose action resets one or more listenables,
     // and is enabled iff any of those listenables is non-default.
-    private static class ResetButton extends Button
+    private static class ResetButton extends JButton
     {
         private Listenable.Listener keepalive[]; // need to keep strong refs to them for as long as I'm alive
         private boolean wasDefault[]; // one for each listenable
@@ -311,6 +319,7 @@ public class MC4DSwingControlPanel
                     for (int i = 0; i < listenables.length; ++i)
                         if (listenables[i] != null)
                             listenables[i].resetToDefault();
+                    //System.out.println("nNonDefault = "+nNonDefault);
                     CHECK(nNonDefault == 0); // due to our valueChanged getting called
                 }
             });
@@ -370,7 +379,7 @@ public class MC4DSwingControlPanel
         return sb.toString();
     }
 
-    private static class HelpButton extends Button
+    private static class HelpButton extends JButton
     {
         public HelpButton(final String helpWindowTitle,
                           final String helpMessage[])
@@ -381,22 +390,21 @@ public class MC4DSwingControlPanel
                 addActionListener(new ActionListener() {
                     @Override public void actionPerformed(ActionEvent e)
                     {
-                        Component panel;
+                        JComponent panel;
                         {
                             int nRows = helpMessage.length;
                             int nCols = 0;
                             for (int i = 0; i < helpMessage.length; ++i)
                                 nCols = Math.max(nCols, helpMessage[i].length());
-                            panel = new TextArea(String_join("\n", helpMessage),
-                                                 nRows, nCols,
-						 //TextArea.SCROLLBARS_BOTH  // not well behaved on linux-- the window starts a bit not tall enough.
-						 TextArea.SCROLLBARS_VERTICAL_ONLY // this is generally fine-- if too small horizontally, it wraps at words
-						 ) {{
-                                setEditable(false);
-                            }};
+                            panel = new JScrollPane(
+                                new JTextArea(String_join("\n", helpMessage), nRows, nCols) {{ setEditable(false); }},
+                                JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+                                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+                                // this is generally fine-- if too small horizontally, it wraps at words rather than making a horizontal scrollbar.
+                                // Note that both ALWAYS is not well behaved on linux-- the window starts a bit not all enough.  TODO: check whether this is still true for swing; it was true for legacy
                         }
 
-                        final Frame helpWindow = new Frame("MC4D Help: "+helpWindowTitle);
+                        final JFrame helpWindow = new JFrame("MC4D Help: "+helpWindowTitle);
                         helpWindow.add(panel);
                         helpWindow.setLocation(200,200); // XXX do I really want this? can I center it instead?  doing it so the help window doesn't end up in same place as main window.
                         helpWindow.pack();
@@ -457,24 +465,24 @@ public class MC4DSwingControlPanel
     // GridBagLayout, no matter how hard it tries,
     // is just defective, I think
     private int nRows = 0;
-    private void addSingleLabelRow(Label label)
+    private void addSingleLabelRow(JLabel label)
     {
         // A label on a row by itself gets left justified
-        this.add(label, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
+        this.add(label, new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
                                                   anchor = WEST;}});
         nRows++;
     }
-    private void addSingleButtonRow(Button button)
+    private void addSingleButtonRow(JButton button)
     {
         // A button on a row by itself gets centered
-        this.add(button, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
+        this.add(button, new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
                                                    anchor = CENTER;}});
         nRows++;
     }
-    private void addSingleComponentRow(Component component)
+    private void addSingleComponentRow(JComponent component)
     {
         // Any other component on a row by itself gets stretched
-        this.add(component, new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
+        this.add(component, new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER;
                                                       fill = HORIZONTAL; weightx = 1.;}});
         nRows++;
     }
@@ -483,16 +491,16 @@ public class MC4DSwingControlPanel
                                            String helpMessage[])
     {
         this.add(new CanvasOfSize(20,10), // indent
-                 new GridBagConstraints(){{gridy = nRows;}});
-        this.add(new Label(labelString),
-                 new GridBagConstraints(){{anchor = WEST;
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
+        this.add(new JLabel(labelString),
+                 new java.awt.GridBagConstraints(){{anchor = WEST;
                                            gridwidth = 3;
                                            gridy = nRows;}});
         this.add(new ResetButton("Reset to default", listenable),
-                 new GridBagConstraints(){{gridy = nRows;}});
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
-                     new GridBagConstraints(){{gridy = nRows;}});
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
         nRows++;
     }
     private void addFloatSliderRow(String labelString,
@@ -500,20 +508,20 @@ public class MC4DSwingControlPanel
                         String helpMessage[])
     {
         this.add(new CanvasOfSize(20,10), // indent
-                 new GridBagConstraints(){{gridy = nRows;}});
-        this.add(new Label(labelString+":"),
-                 new GridBagConstraints(){{anchor = WEST;
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
+        this.add(new JLabel(labelString+":"),
+                 new java.awt.GridBagConstraints(){{anchor = WEST;
                                            gridy = nRows;}});
         this.add(new TextFieldForFloat(f),
-                 new GridBagConstraints(){{gridy = nRows;}});
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
         this.add(new SliderForFloat(f),
-                 new GridBagConstraints(){{gridy = nRows;
+                 new java.awt.GridBagConstraints(){{gridy = nRows;
                                            fill = HORIZONTAL; weightx = 1.;}});
         this.add(new ResetButton("Reset to default", f),
-                 new GridBagConstraints(){{gridy = nRows;}});
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
-                     new GridBagConstraints(){{gridy = nRows;}});
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
         nRows++;
     }
     private void addCheckboxRow(String labelString,
@@ -521,15 +529,15 @@ public class MC4DSwingControlPanel
                         String helpMessage[])
     {
         this.add(new CanvasOfSize(20,10), // indent
-                 new GridBagConstraints(){{gridy = nRows;}});
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
         this.add(new CheckboxThing(b, labelString),
-                 new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
+                 new java.awt.GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
                                            gridwidth = 3; gridy = nRows;}});
         this.add(new ResetButton("Reset to default", b),
-                 new GridBagConstraints(){{gridy = nRows;}});
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
-                     new GridBagConstraints(){{gridy = nRows;}});
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
         nRows++;
     }
     private void addColorSwatchAndCheckboxRow(String labelString,
@@ -538,15 +546,15 @@ public class MC4DSwingControlPanel
                         String helpMessage[])
     {
         this.add(new CanvasOfSize(20,10), // indent
-                 new GridBagConstraints(){{gridy = nRows;}});
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
         this.add(new ColorSwatchMaybeAndCheckBoxMaybe(color, b, labelString),
-                 new GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
+                 new java.awt.GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;
                                            gridwidth = 3; gridy = nRows;}});
         this.add(new ResetButton("Reset to default", new Listenable[]{color, b}),
-                 new GridBagConstraints(){{gridy = nRows;}});
+                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
         if (helpMessage != null)
             this.add(new HelpButton(labelString, helpMessage),
-                     new GridBagConstraints(){{gridy = nRows;}});
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
         nRows++;
     }
 
@@ -569,7 +577,7 @@ public class MC4DSwingControlPanel
         this.name = name;
         this.viewParams = viewParams;
 
-        this.setLayout(new GridBagLayout());
+        this.setLayout(new java.awt.GridBagLayout());
         addSingleLabelRow(new BigBoldLabel("Behavior"));
         addFloatSliderRow(
             "Twist duration",
@@ -708,7 +716,7 @@ public class MC4DSwingControlPanel
                  "          e.g. \"notfrucht*{} 3(4)\"  (not-frucht prism)",
                  "",
             });
-        addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
+        addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(java.awt.Color.black);}}); // Totally lame separator
         addSingleLabelRow(new BigBoldLabel("Appearance"));
         addFloatSliderRow(
             "4d Face Shrink",
@@ -808,8 +816,8 @@ public class MC4DSwingControlPanel
         if (true)
         {
             add(new CanvasOfSize(20,10), // indent
-                     new GridBagConstraints(){{gridy = nRows;}});
-            add(new Button("Contiguous cubies") {
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
+            add(new JButton("Contiguous cubies") {
                     private Listenable.Listener listener; // need to keep a strong ref to the listener for as long as I'm alive
                     private void updateShownValue()
                     {
@@ -840,8 +848,8 @@ public class MC4DSwingControlPanel
                         updateShownValue();
                     }
                 },
-                new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
-            super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+                new java.awt.GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
+            super.add(new JLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
             add(new HelpButton("Contiguous cubies",
                                new String[] {
                                    "Pressing the Contiguous Cubies button",
@@ -852,21 +860,21 @@ public class MC4DSwingControlPanel
                                    "",
                                    "This button is enabled only when not already contiguous.",
                                 }),
-                new GridBagConstraints(){{gridy = nRows;}});
+                new java.awt.GridBagConstraints(){{gridy = nRows;}});
             nRows++;
         } // contiguous cubies button row
 
         if (false) // XXX just get rid of this, I think
         {
             add(new CanvasOfSize(20,10), // indent
-                     new GridBagConstraints(){{gridy = nRows;}});
-            add(new Checkbox("Contiguous cubies") {
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
+            add(new JCheckBox("Contiguous cubies") {
                     private Listenable.Listener listener; // need to keep a strong ref to the listener for as long as I'm alive
                     private void updateShownValue()
                     {
-                        setState(viewParams.faceShrink4d.get() == 1.f
-                              && viewParams.faceShrink3d.get() == 1.f
-                              && viewParams.stickersShrinkTowardsFaceBoundaries.get() == 1.f);
+                        setSelected(viewParams.faceShrink4d.get() == 1.f
+                                 && viewParams.faceShrink3d.get() == 1.f
+                                 && viewParams.stickersShrinkTowardsFaceBoundaries.get() == 1.f);
                     }
                     {
                         addItemListener(new ItemListener() {
@@ -903,8 +911,8 @@ public class MC4DSwingControlPanel
                         updateShownValue();
                     }
                 },
-                new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
-            super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+                new java.awt.GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
+            super.add(new JLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
             add(new HelpButton("Contiguous cubies",
                                new String[] {
                                    "Checking the Contiguous Cubies checkbox",
@@ -916,15 +924,15 @@ public class MC4DSwingControlPanel
                                    "any of those three parameters to a value",
                                    "other than 1.",
                                 }),
-                new GridBagConstraints(){{gridy = nRows;}});
+                new java.awt.GridBagConstraints(){{gridy = nRows;}});
             nRows++;
         } // contiguous cubies checkbox row
 
         if (true)
         {
             add(new CanvasOfSize(20,10), // indent
-                     new GridBagConstraints(){{gridy = nRows;}});
-            add(new Button("Frame Picture") {{
+                     new java.awt.GridBagConstraints(){{gridy = nRows;}});
+            add(new JButton("Frame Picture") {{
                     addActionListener(new ActionListener() {
                         @Override public void actionPerformed(ActionEvent e)
                         {
@@ -967,8 +975,8 @@ public class MC4DSwingControlPanel
                         }
                     });
                 }},
-                new GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
-            super.add(new Label(""), new GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+                new java.awt.GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
+            super.add(new JLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
             add(new HelpButton("Frame Picture",
                                new String[] {
                                    "Pressing the Frame Picture button",
@@ -978,7 +986,7 @@ public class MC4DSwingControlPanel
                                    "of the two directions (width or height)",
                                    "and at most that in the other direction.",
                                 }),
-                new GridBagConstraints(){{gridy = nRows;}});
+                new java.awt.GridBagConstraints(){{gridy = nRows;}});
             nRows++;
         } // frame picture button row
 
@@ -1041,10 +1049,10 @@ public class MC4DSwingControlPanel
             null, // no checkbox
             null); // no help string
         {
-            add(new Label("Face Colors:"),
-                new GridBagConstraints(){{gridy = nRows; anchor = WEST; gridwidth = 4;}});
+            add(new JLabel("Face Colors:"),
+                new java.awt.GridBagConstraints(){{gridy = nRows; anchor = WEST; gridwidth = 4;}});
             add(new ResetButton("Reset to default", viewParams.faceColors),
-                new GridBagConstraints(){{gridy = nRows;}});
+                new java.awt.GridBagConstraints(){{gridy = nRows;}});
             nRows++;
         }
         {
@@ -1060,7 +1068,7 @@ public class MC4DSwingControlPanel
                 final int nFacesThisRow = Math.min(nFaces - iRow*nFacesPerRow, nFacesPerRow);
 
                 this.add(new CanvasOfSize(20,swatchHeight), // overall additional indent
-                         new GridBagConstraints(){{gridy = nRows;}});
+                         new java.awt.GridBagConstraints(){{gridy = nRows;}});
                 Row row = new Row() {{
 
                     add(new CanvasOfSize(indent,swatchHeight));
@@ -1073,11 +1081,11 @@ public class MC4DSwingControlPanel
                     }
                 }};
                 add(row,
-                    new GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER; anchor = WEST;}});
+                    new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = REMAINDER; anchor = WEST;}});
                 nRows++;
             }
         }
-        addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(Color.black);}}); // Totally lame separator
+        addSingleComponentRow(new CanvasOfSize(1,1){{setBackground(java.awt.Color.black);}}); // Totally lame separator
         addSingleButtonRow(new ResetButton(
             "Reset All To Defaults",
             Listenable.allListenablesInObject(viewParams)));
@@ -1162,7 +1170,7 @@ public class MC4DSwingControlPanel
     } // dumpComponentHierarchy
 
     // for debugging XXX should probably be in com.donhatchsw.awt somewhere, the layout stuff has it too.  also the printComponent stuff, maybe
-    public static void randomlyColorize(Component c)
+    public static void randomlyColorize(java.awt.Component c)
     {
         c.setBackground(new java.awt.Color((float)Math.random(),
                                            (float)Math.random(),
@@ -1170,9 +1178,9 @@ public class MC4DSwingControlPanel
         c.setForeground(new java.awt.Color((float)Math.random(),
                                            (float)Math.random(),
                                            (float)Math.random()));
-        if (c instanceof Container)
+        if (c instanceof java.awt.Container)
         {
-            Container C = (Container)c;
+            java.awt.Container C = (java.awt.Container)c;
             int n = C.getComponentCount();
             for (int i = 0; i < n; ++i)
                 randomlyColorize(C.getComponent(i));
@@ -1190,7 +1198,7 @@ public class MC4DSwingControlPanel
         MC4DViewGuts.ViewState viewState = new MC4DViewGuts.ViewState();
         for (int i = 0; i < 2; ++i)
         {
-            final Frame frame = new Frame("MC4DSwingControlPanel Test");
+            final JFrame frame = new JFrame("MC4DSwingControlPanel Test");
             {
                 com.donhatchsw.awt.MainWindowCount.increment();
                 frame.addWindowListener(new WindowAdapter() {
