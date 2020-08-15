@@ -808,7 +808,8 @@ public class MC4DJApplet
             for (int iControlPanel = 0; iControlPanel < nControlPanels; ++iControlPanel)
             {
                 Component controlPanel = (Component)controlPanels.get(iControlPanel);
-                String title = "MC4D Control Panel for ";
+                String title = controlPanel instanceof MC4DLegacyControlPanel ? "MC4D Legacy Control Panel for "
+                                                                              : "MC4D Control Panel for ";
                 int nViewsFound = 0;
                 for (int iViewerPanel = 0; iViewerPanel < nViewerPanels; ++iViewerPanel)
                 {
@@ -1053,14 +1054,34 @@ public class MC4DJApplet
         private static void makeNewSwingControlPanelWindow(MC4DViewGuts viewGuts,
                                                             PuzzlesAndWindows allPuzzlesAndWindows)
         {
+            System.out.println("Making the swing control panel component...");
+            String controlPanelName = "Settings "+(allPuzzlesAndWindows.nextControlPanelNumber++);
+            Component controlPanel = new MC4DSwingControlPanel(controlPanelName,
+                                                               viewGuts.viewParams,
+                                                               viewGuts.viewState);
+
+            System.out.println("Making the window...");
             JFrame frame = new JFrame("MC4D Swing Control Panel");
-            frame.setSize(new Dimension(600,200));
+            frame.getContentPane().add(new JScrollPane(controlPanel) {{
+              // from ShephardsPlayApplet:
+              // "if we don't do the following, it will screw up and pick a width that forces a horizontal scrollbar... lame!"
+              // TODO: figure out what I meant.  is it relevant?  the scrollbar doesn't appear in that applet anyway, so I don't understand what's happening
+              //this.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_ALWAYS);
+            }});
+
+            allPuzzlesAndWindows.addControlPanel(controlPanel); // needs the frame before doing this, so it can set window titles
+
+            frame.setLocation(675,0);
+            System.out.println("Packing the window...");
+            frame.pack();
+            System.out.println("Showing the window...");
             frame.setVisible(true);
+            System.out.println("Done.");
         }  // makeNewSwingControlPanelWindow
         private static void makeNewLegacyControlPanelWindow(MC4DViewGuts viewGuts,
                                                             PuzzlesAndWindows allPuzzlesAndWindows)
         {
-            System.out.println("Making the panel...");
+            System.out.println("Making the legacy control panel component...");
             String controlPanelName = "Settings "+(allPuzzlesAndWindows.nextControlPanelNumber++);
             Component controlPanel = new MC4DLegacyControlPanel(controlPanelName,
                                                                 viewGuts.viewParams,

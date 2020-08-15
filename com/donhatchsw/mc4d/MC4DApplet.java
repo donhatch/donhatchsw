@@ -935,7 +935,8 @@ public class MC4DApplet
             for (int iControlPanel = 0; iControlPanel < nControlPanels; ++iControlPanel)
             {
                 Component controlPanel = (Component)controlPanels.get(iControlPanel);
-                String title = "MC4D Control Panel for ";
+                String title = controlPanel instanceof MC4DLegacyControlPanel ? "MC4D Legacy Control Panel for "
+                                                                              : "MC4D Control Panel for ";
                 int nViewsFound = 0;
                 for (int iViewerPanel = 0; iViewerPanel < nViewerPanels; ++iViewerPanel)
                 {
