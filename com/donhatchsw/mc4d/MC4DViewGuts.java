@@ -853,7 +853,7 @@ public class MC4DViewGuts
     // PAINT
     void paint(Component view, Graphics g)
     {
-        if (viewParams.eventVerboseLevel.get() >= 3) System.out.println("            painting on a "+view.getClass().getSuperclass().getName());
+        if (viewParams.eventVerboseLevel.get() >= 3) System.out.println("            begin painting on a "+view.getClass().getSuperclass().getName());
 
         // stole from MC4DView.updateViewFactors
         Dimension viewSize = view.getSize(); // getWidth,getHeight don't exist in 1.1
@@ -862,7 +862,10 @@ public class MC4DViewGuts
             H = viewSize.height,
             min = W>H ? H : W;
         if(W*H == 0)
+        {
+            if (viewParams.eventVerboseLevel.get() >= 3) System.out.println("            end painting on a "+view.getClass().getSuperclass().getName()+" (W*H==0)");
             return;
+        }
 
         g.setColor(viewParams.backgroundColor.get());
         g.fillRect(0, 0, W, H);
@@ -885,10 +888,13 @@ public class MC4DViewGuts
         {
             //System.out.println("model says it's still beforehand");
         }
-        model.advanceAnimation(modelListener,
-                               viewParams.nFrames90.get(),
-                               viewParams.bounce.get()
-                               );
+        if (!viewParams.frozenForDebugging.get())
+        {
+            model.advanceAnimation(modelListener,
+                                   viewParams.nFrames90.get(),
+                                   viewParams.bounce.get()
+                                   );
+        }
         boolean isMoving = model.isMoving();
         if (isMoving)
         {
@@ -1078,6 +1084,7 @@ public class MC4DViewGuts
             com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
             mg.drawString("("+viewState.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.);
         }
+        if (viewParams.eventVerboseLevel.get() >= 3) System.out.println("            end painting on a "+view.getClass().getSuperclass().getName());
     } // paint
 
 
