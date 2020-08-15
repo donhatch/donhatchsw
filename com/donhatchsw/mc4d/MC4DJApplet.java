@@ -71,7 +71,7 @@ public class MC4DJApplet
             {
                 final java.io.PrintStream origOut = System.out;
                 java.io.PrintStream newOut = new java.io.PrintStream(new java.io.OutputStream() {
-                    public void write(int b) throws java.io.IOException {
+                    @Override public void write(int b) throws java.io.IOException {
                         origOut.print("["+(char)b+"]");
                         origOut.flush();
                     }
@@ -81,7 +81,7 @@ public class MC4DJApplet
             {
                 final java.io.PrintStream origErr = System.err;
                 java.io.PrintStream newErr = new java.io.PrintStream(new java.io.OutputStream() {
-                    public void write(int b) throws java.io.IOException {
+                    @Override public void write(int b) throws java.io.IOException {
                         origErr.print("{"+(char)b+"}");
                         origErr.flush();
                     }
@@ -414,7 +414,7 @@ public class MC4DJApplet
                         this,
                         new Label("dum dum"),
                         new GenericGlue.Callback() {
-                            public void call()
+                            @Override public void call()
                             {
                                 viewGuts.setModel(glue.model);
                             }
@@ -551,7 +551,7 @@ public class MC4DJApplet
 
             com.donhatchsw.awt.MainWindowCount.increment();
             addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we)
+                @Override public void windowClosing(java.awt.event.WindowEvent we)
                 {
                     System.out.println("in windowClosing from makeNewViewWindow");
                     dispose();
@@ -562,7 +562,7 @@ public class MC4DJApplet
                 // then again when applet is destroyed.  So,
                 // we keep track of whether we are already closed.
                 private boolean closedAlreadyYouMoron = false;
-                public void windowClosed(java.awt.event.WindowEvent we)
+                @Override public void windowClosed(java.awt.event.WindowEvent we)
                 {
                     if (!closedAlreadyYouMoron)
                     {
@@ -872,7 +872,7 @@ public class MC4DJApplet
             System.out.println("================================================");
         }
 
-        public String toString()
+        @Override public String toString()
         {
             StringBuffer sb = new StringBuffer();
             sb.append("applet = {\n");
@@ -1094,7 +1094,7 @@ public class MC4DJApplet
             final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4D Legacy Control Panel");
             // XXX the following is probably not what I want
             controlPanelFrame.addWindowListener(new WindowAdapter() {
-                public void windowClosing(WindowEvent we) {
+                @Override public void windowClosing(WindowEvent we) {
                     //controlPanelFrame.dispose();
                     controlPanelFrame.setVisible(false);
                     // no exit, this isn't a main window
@@ -1139,7 +1139,7 @@ public class MC4DJApplet
 
             com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer lengthizer = new com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer() {
                 // XXX this is duplicated in MC4DModel
-                public double length(Object item)
+                @Override public double length(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     CHECK(twist != null);
@@ -1153,7 +1153,7 @@ public class MC4DJApplet
                 }
             };
             com.donhatchsw.util.UndoTreeViewer.ItemColorizer colorizer = new com.donhatchsw.util.UndoTreeViewer.ItemColorizer() {
-                public java.awt.Color color(Object item)
+                @Override public java.awt.Color color(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
@@ -1161,7 +1161,7 @@ public class MC4DJApplet
                     int face = viewGuts.model.genericPuzzleDescription.getGrip2Face()[grip];
                     return faceColor[face % faceColor.length];
                 }
-                public String leftLabel(Object item)
+                @Override public String leftLabel(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
@@ -1173,7 +1173,7 @@ public class MC4DJApplet
                     else
                         return ""+(360/order)+degrees; // XXX this does integer, is that okay?  don't want it to take forever
                 }
-                public String rightLabel(Object item)
+                @Override public String rightLabel(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     return twist.toString();

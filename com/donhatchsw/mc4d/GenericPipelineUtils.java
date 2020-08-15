@@ -770,7 +770,7 @@ public class GenericPipelineUtils
 
                 final float finalPolyCentersZ[][] = polyCentersZ;
                 com.donhatchsw.util.SortStuff.sort(drawList, 0, drawListSize, new com.donhatchsw.util.SortStuff.Comparator() { // XXX ALLOCATION! (need to make sort smarter)
-                    public int compare(Object i, Object j)
+                    @Override public int compare(Object i, Object j)
                     {
                         int[] i0i1 = (int[])i;
                         int[] j0j1 = (int[])j;
@@ -1553,7 +1553,7 @@ public class GenericPipelineUtils
                         {
                             com.donhatchsw.util.SortStuff.sort(nodeSortOrder, componentStarts[iComponent], componentSize,
                                 new com.donhatchsw.util.SortStuff.IntComparator() { // XXX ALLOCATION! (need to make sort smarter)
-                                    public int compare(int i, int j)
+                                    @Override public int compare(int i, int j)
                                     {
                                         // will be too big if it's a group begin or end token;
                                         // just stick those at the end for now, they

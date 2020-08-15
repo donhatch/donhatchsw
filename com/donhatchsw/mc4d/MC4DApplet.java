@@ -69,7 +69,7 @@ public class MC4DApplet
             {
                 final java.io.PrintStream origOut = System.out;
                 java.io.PrintStream newOut = new java.io.PrintStream(new java.io.OutputStream() {
-                    public void write(int b) throws java.io.IOException {
+                    @Override public void write(int b) throws java.io.IOException {
                         origOut.print("["+(char)b+"]");
                         origOut.flush();
                     }
@@ -79,7 +79,7 @@ public class MC4DApplet
             {
                 final java.io.PrintStream origErr = System.err;
                 java.io.PrintStream newErr = new java.io.PrintStream(new java.io.OutputStream() {
-                    public void write(int b) throws java.io.IOException {
+                    @Override public void write(int b) throws java.io.IOException {
                         origErr.print("{"+(char)b+"}");
                         origErr.flush();
                     }
@@ -272,16 +272,16 @@ public class MC4DApplet
             public MyMenuBar()
             {
             }
-            public void add(final String labelText, final PopupMenu menu)
+            /* not @Override */ public void add(final String labelText, final PopupMenu menu)
             {
                 add(new Label(labelText) {{
                     this.add(menu); // necessary, but doesn't really do anything except make the menu feel loved
                     addMouseListener(new MouseListener() {
-                        public void mouseClicked(MouseEvent me)
+                        @Override public void mouseClicked(MouseEvent me)
                         {
                             if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseClicked");
                         } // mouseClicked
-                        public void mousePressed(MouseEvent me)
+                        @Override public void mousePressed(MouseEvent me)
                         {
                             if (eventVerbose >= 1) System.out.println("    "+labelText+": mousePressed");
                             // XXX fooey, if another menu is up, we don't even get this event... unfriendly!  how does the real menubar fix this??
@@ -290,12 +290,12 @@ public class MC4DApplet
                                       0, theLabel.getHeight());
                             someMenuIsShowing = true;
                         } // mousePressed
-                        public void mouseReleased(MouseEvent me)
+                        @Override public void mouseReleased(MouseEvent me)
                         {
                             if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseReleased");
                         } // mouseReleased
                         private Color savedForeground = null;
-                        public void mouseEntered(MouseEvent me)
+                        @Override public void mouseEntered(MouseEvent me)
                         {
                             if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseEntered");
                             if (eventVerbose >= 2) System.out.println("        "+me);
@@ -315,7 +315,7 @@ public class MC4DApplet
                                           0, theLabel.getHeight());
                             }
                         } // mouseEntered
-                        public void mouseExited(MouseEvent me)
+                        @Override public void mouseExited(MouseEvent me)
                         {
                             if (eventVerbose >= 1) System.out.println("    "+labelText+": mouseExited");
                             if (doHighlighting)
@@ -539,7 +539,7 @@ public class MC4DApplet
                             this,
                             new Label("dum dum"),
                             new GenericGlue.Callback() {
-                                public void call()
+                                @Override public void call()
                                 {
                                     viewGuts.setModel(glue.model);
                                 }
@@ -679,7 +679,7 @@ public class MC4DApplet
 
             com.donhatchsw.awt.MainWindowCount.increment();
             addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we)
+                @Override public void windowClosing(java.awt.event.WindowEvent we)
                 {
                     System.out.println("in windowClosing from makeNewViewWindow");
                     dispose();
@@ -690,7 +690,7 @@ public class MC4DApplet
                 // then again when applet is destroyed.  So,
                 // we keep track of whether we are already closed.
                 private boolean closedAlreadyYouMoron = false;
-                public void windowClosed(java.awt.event.WindowEvent we)
+                @Override public void windowClosed(java.awt.event.WindowEvent we)
                 {
                     if (!closedAlreadyYouMoron)
                     {
@@ -1000,7 +1000,7 @@ public class MC4DApplet
             System.out.println("================================================");
         }
 
-        public String toString()
+        @Override public String toString()
         {
             StringBuffer sb = new StringBuffer();
             sb.append("applet = {\n");
@@ -1187,7 +1187,7 @@ public class MC4DApplet
             final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4D Control Panel");
             // XXX the following is probably not what I want
             controlPanelFrame.addWindowListener(new WindowAdapter() {
-                public void windowClosing(WindowEvent we) {
+                @Override public void windowClosing(WindowEvent we) {
                     //controlPanelFrame.dispose();
                     controlPanelFrame.setVisible(false);
                     // no exit, this isn't a main window
@@ -1232,7 +1232,7 @@ public class MC4DApplet
 
             com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer lengthizer = new com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer() {
                 // XXX this is duplicated in MC4DModel
-                public double length(Object item)
+                @Override public double length(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     CHECK(twist != null);
@@ -1246,7 +1246,7 @@ public class MC4DApplet
                 }
             };
             com.donhatchsw.util.UndoTreeViewer.ItemColorizer colorizer = new com.donhatchsw.util.UndoTreeViewer.ItemColorizer() {
-                public java.awt.Color color(Object item)
+                @Override public java.awt.Color color(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
@@ -1254,7 +1254,7 @@ public class MC4DApplet
                     int face = viewGuts.model.genericPuzzleDescription.getGrip2Face()[grip];
                     return faceColor[face % faceColor.length];
                 }
-                public String leftLabel(Object item)
+                @Override public String leftLabel(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
@@ -1266,7 +1266,7 @@ public class MC4DApplet
                     else
                         return ""+(360/order)+degrees; // XXX this does integer, is that okay?  don't want it to take forever
                 }
-                public String rightLabel(Object item)
+                @Override public String rightLabel(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     return twist.toString();

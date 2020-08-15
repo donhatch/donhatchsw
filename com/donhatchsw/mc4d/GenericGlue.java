@@ -1451,10 +1451,10 @@ public class GenericGlue
         // steal PolygonManager's stuff-- this should be an interface but that's not allowed here for some reason
         abstract class InterpFunc { public abstract float func(float f); }
         InterpFunc sine_interp = new InterpFunc() {
-            public float func(float x) { return (float)(Math.sin((x - .5) * Math.PI) + 1) / 2; }
+            @Override public float func(float x) { return (float)(Math.sin((x - .5) * Math.PI) + 1) / 2; }
         };
         InterpFunc linear_interp = new InterpFunc() {
-            public float func(float x) { return x; }
+            @Override public float func(float x) { return x; }
         };
         InterpFunc interp = sine_interp;
         //InterpFunc interp = linear_interp;
@@ -1822,10 +1822,10 @@ public class GenericGlue
             return zeroOutRollAndMaybeTiltOnSpinDelta(spindelta, true);
         }
 
-    public static boolean isMiddleMouseButton(MouseEvent anEvent) {
+    private static boolean isMiddleMouseButton(MouseEvent anEvent) {
         return anEvent.getButton() == java.awt.event.MouseEvent.BUTTON2;
     }
-    public static boolean isLeftMouseButton(MouseEvent anEvent) {
+    private static boolean isLeftMouseButton(MouseEvent anEvent) {
         return anEvent.getButton() == java.awt.event.MouseEvent.BUTTON1;
     }
 
@@ -1841,7 +1841,7 @@ public class GenericGlue
         GenericGlue glue = new GenericGlue(null);
         java.awt.Menu puzzlemenu = new Menu();
         Label statusLabel = new Label(); // Label or JLabel
-        Callback initPuzzleCallback = new Callback() { public void call() {} };
+        Callback initPuzzleCallback = new Callback() { @Override public void call() {} };
         int skip = (args.length > 0 ? Integer.parseInt(args[0]) : 0);
         glue.addMoreItemsToPuzzleMenu(puzzlemenu,
                                       statusLabel,

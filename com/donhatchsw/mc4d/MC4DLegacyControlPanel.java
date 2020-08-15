@@ -20,7 +20,7 @@ public class MC4DLegacyControlPanel
         {
             super(labelString);
         }
-        public Font getFont()
+        @Override public Font getFont()
         {
             Font superfont = super.getFont();
             //System.out.println("BigBoldLabel superfont = "+superfont);
@@ -37,7 +37,7 @@ public class MC4DLegacyControlPanel
             super();
             preferredSize = new Dimension(width, height);
         }
-        public Dimension getPreferredSize()
+        @Override public Dimension getPreferredSize()
         {
             return preferredSize;
         }
@@ -60,7 +60,7 @@ public class MC4DLegacyControlPanel
             super("99.99"); // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
             updateText(f);
             f.addListener(listener = new Listenable.Listener() {
-                public void valueChanged()
+                @Override public void valueChanged()
                 {
                     updateText(f);
                 }
@@ -135,13 +135,13 @@ public class MC4DLegacyControlPanel
             setBlockIncrement(10); // .01 units
 
             f.addListener(listener = new Listenable.Listener() {
-                public void valueChanged()
+                @Override public void valueChanged()
                 {
                     updateThumb(f);
                 }
             });
             addAdjustmentListener(new AdjustmentListener() {
-                public void adjustmentValueChanged(AdjustmentEvent e)
+                @Override public void adjustmentValueChanged(AdjustmentEvent e)
                 {
                     if (false)
                     {
@@ -259,13 +259,13 @@ public class MC4DLegacyControlPanel
             if (b != null)
             {
                 b.addListener(listener = new Listenable.Listener() {
-                    public void valueChanged()
+                    @Override public void valueChanged()
                     {
                         updateShownValues();
                     }
                 });
                 checkbox.addItemListener(new ItemListener() {
-                    public void itemStateChanged(ItemEvent e)
+                    @Override public void itemStateChanged(ItemEvent e)
                     {
                         //System.out.println("in checkbox callback");
                         b.set(e.getStateChange() == ItemEvent.SELECTED);
@@ -326,7 +326,7 @@ public class MC4DLegacyControlPanel
                 if (!(wasDefault[i] = listenables[i].isDefault()))
                     nNonDefault++;
                 Listenable.Listener listener = new Listenable.Listener() {
-                    public void valueChanged()
+                    @Override public void valueChanged()
                     {
                         boolean isDefault = listenables[i].isDefault();
                         if (wasDefault[i] && !isDefault)
@@ -404,7 +404,7 @@ public class MC4DLegacyControlPanel
                         helpWindow.setVisible(true);
 
                         helpWindow.addWindowListener(new WindowAdapter() {
-                            public void windowClosing(WindowEvent we) {
+                            @Override public void windowClosing(WindowEvent we) {
                                 helpWindow.dispose();
                             }
                         });
@@ -829,7 +829,7 @@ public class MC4DLegacyControlPanel
                             }
                         });
                         listener = new Listenable.Listener() {
-                            public void valueChanged()
+                            @Override public void valueChanged()
                             {
                                 //System.out.println("One of the 3 float values changed");
                                 updateShownValue();
@@ -871,7 +871,7 @@ public class MC4DLegacyControlPanel
                     }
                     {
                         addItemListener(new ItemListener() {
-                            public void itemStateChanged(ItemEvent e)
+                            @Override public void itemStateChanged(ItemEvent e)
                             {
                                 if (e.getStateChange() == ItemEvent.SELECTED)
                                 {
@@ -892,7 +892,7 @@ public class MC4DLegacyControlPanel
                             }
                         });
                         listener = new Listenable.Listener() {
-                            public void valueChanged()
+                            @Override public void valueChanged()
                             {
                                 //System.out.println("One of the 3 float values changed");
                                 updateShownValue();
@@ -1195,11 +1195,11 @@ public class MC4DLegacyControlPanel
             {
                 com.donhatchsw.awt.MainWindowCount.increment();
                 frame.addWindowListener(new WindowAdapter() {
-                    public void windowClosing(WindowEvent we)
+                    @Override public void windowClosing(WindowEvent we)
                     {
                         frame.dispose();
                     }
-                    public void windowClosed(WindowEvent we)
+                    @Override public void windowClosed(WindowEvent we)
                     {
                         if (com.donhatchsw.awt.MainWindowCount.howMany() == 1)
                             System.out.println("Ciao!!");

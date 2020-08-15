@@ -13,7 +13,7 @@
     .870 -> .87
 */
 
-// TODO: strange, clicking on right side of slider doesn't do anything.  works better in ShephardsPlayApplet
+// TODO: strange, clicking on right side of slider doesn't do anything.  works better in ShephardsPlayApplet.  (may have something to do with the above).  right arrow key nothing too.
 // TODO: help windows are way too wide, wtf?  even worse than legacy
 package com.donhatchsw.mc4d;
 
@@ -58,7 +58,7 @@ public class MC4DSwingControlPanel
             super(labelString);
         }
         // Empirically, overriding this takes precedence over anything set by setFont().
-        public java.awt.Font getFont()
+        @Override public java.awt.Font getFont()
         {
             return new java.awt.Font("Dialog", java.awt.Font.BOLD, 13);
         }
@@ -72,7 +72,7 @@ public class MC4DSwingControlPanel
             super();
             preferredSize = new java.awt.Dimension(width, height);
         }
-        public java.awt.Dimension getPreferredSize()
+        @Override public java.awt.Dimension getPreferredSize()
         {
             return preferredSize;
         }
@@ -415,13 +415,13 @@ public class MC4DSwingControlPanel
             if (b != null)
             {
                 b.addListener(listener = new Listenable.Listener() {
-                    public void valueChanged()
+                    @Override public void valueChanged()
                     {
                         updateShownValues();
                     }
                 });
                 checkbox.addItemListener(new ItemListener() {
-                    public void itemStateChanged(ItemEvent e)
+                    @Override public void itemStateChanged(ItemEvent e)
                     {
                         //System.out.println("in checkbox callback");
                         b.set(e.getStateChange() == ItemEvent.SELECTED);
@@ -482,7 +482,7 @@ public class MC4DSwingControlPanel
                 if (!(wasDefault[i] = listenables[i].isDefault()))
                     nNonDefault++;
                 Listenable.Listener listener = new Listenable.Listener() {
-                    public void valueChanged()
+                    @Override public void valueChanged()
                     {
                         boolean isDefault = listenables[i].isDefault();
                         if (wasDefault[i] && !isDefault)
@@ -984,7 +984,7 @@ public class MC4DSwingControlPanel
                             }
                         });
                         listener = new Listenable.Listener() {
-                            public void valueChanged()
+                            @Override public void valueChanged()
                             {
                                 //System.out.println("One of the 3 float values changed");
                                 updateShownValue();
@@ -1026,7 +1026,7 @@ public class MC4DSwingControlPanel
                     }
                     {
                         addItemListener(new ItemListener() {
-                            public void itemStateChanged(ItemEvent e)
+                            @Override public void itemStateChanged(ItemEvent e)
                             {
                                 if (e.getStateChange() == ItemEvent.SELECTED)
                                 {
@@ -1047,7 +1047,7 @@ public class MC4DSwingControlPanel
                             }
                         });
                         listener = new Listenable.Listener() {
-                            public void valueChanged()
+                            @Override public void valueChanged()
                             {
                                 //System.out.println("One of the 3 float values changed");
                                 updateShownValue();
@@ -1352,11 +1352,11 @@ public class MC4DSwingControlPanel
             {
                 com.donhatchsw.awt.MainWindowCount.increment();
                 frame.addWindowListener(new WindowAdapter() {
-                    public void windowClosing(WindowEvent we)
+                    @Override public void windowClosing(WindowEvent we)
                     {
                         frame.dispose();
                     }
-                    public void windowClosed(WindowEvent we)
+                    @Override public void windowClosed(WindowEvent we)
                     {
                         if (com.donhatchsw.awt.MainWindowCount.howMany() == 1)
                             System.out.println("Ciao!!");

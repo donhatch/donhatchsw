@@ -2230,7 +2230,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     // XXX get clear on exactly what is required here...
     // XXX another way of doing it would be to just let each of the subclasses of GenericPuzzleInterface try, with its fromString()... but I don't think that would work with delay loading
-    public String toString()
+    @Override public String toString()
     {
         return "new PolytopePuzzleDescription("+com.donhatchsw.util.Arrays.toStringCompact(prescription)+")"; // escapifies
     }
@@ -2248,7 +2248,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.iFacet = iFacet;
                 this.iCutThisFacet = iCutThisFacet;
             }
-            public String toString()
+            @Override public String toString()
             {
                 return "("+iFacet+":"+iCutThisFacet+")";
             }
@@ -2529,70 +2529,70 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     // BEGIN GENERICPUZZLEDESCRIPTION INTERFACE METHODS
     //
 
-        public int nDims()
+        @Override public int nDims()
         {
             return slicedPolytope.p.fullDim;
         }
-        public int nDisplayDims()
+        @Override public int nDisplayDims()
         {
             return _nDisplayDims;
         }
-        public int nVerts()
+        @Override public int nVerts()
         {
             return vertsF.length;
         }
-        public int nFaces()  // GenericPuzzleDescription interface calls it faces, but it's really facets
+        @Override public int nFaces()  // GenericPuzzleDescription interface calls it faces, but it's really facets
         {
             return originalPolytope.p.facets.length;
         }
-        public int nCubies()
+        @Override public int nCubies()
         {
             return _nCubies;
         }
-        public int nStickers()
+        @Override public int nStickers()
         {
             return slicedPolytope.p.facets.length;
         }
-        public int nGrips()
+        @Override public int nGrips()
         {
             return grip2face.length;
         }
-        public float circumRadius()
+        @Override public float circumRadius()
         {
             return _circumRadius;
         }
-        public float inRadius()
+        @Override public float inRadius()
         {
             return _inRadius;
         }
 
-        public int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/]
+        @Override public int[/*nStickers*/][/*nPolygonsThisSticker*/][/*nVertsThisPolygon*/]
             getStickerInds()
         {
             return stickerInds;
         }
-        public void computeGripVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
+        @Override public void computeGripVertsAtRest(float verts[/*nVerts*/][/*nDims*/],
                                            float facetShrink,
                                            float stickerShrink)
         {
             throw new RuntimeException("unimplemented");
         }
-        public int[/*nGrips*/][/*nPolygonsThisGrip*/][/*nVertsThisPolygon*/]
+        @Override public int[/*nGrips*/][/*nPolygonsThisGrip*/][/*nVertsThisPolygon*/]
             getGripInds()
         {
             throw new RuntimeException("unimplemented");
         }
-        public int[/*nGrips*/]
+        @Override public int[/*nGrips*/]
             getGripSymmetryOrders(boolean futtIfPossible)
         {
             return futtIfPossible && this.futtable ? gripSymmetryOrdersFutted : gripSymmetryOrders;
         }
 
-        public double[][] getFaceInwardNormals()
+        @Override public double[][] getFaceInwardNormals()
         {
             return facetInwardNormals;
         }
-        public double[][] getFaceCutOffsets()
+        @Override public double[][] getFaceCutOffsets()
         {
             return facetCutOffsets;
         }
@@ -2603,7 +2603,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         // This is called using
         // facetCenter, polyCenter-stickerCenter.
         // XXX NEED TO TOTALLY REPLACE THE MATH TOO, WITH SOMETHING PRINCIPLED
-        public int getClosestGrip(float unNormalizedDir[/*4*/],
+        @Override public int getClosestGrip(float unNormalizedDir[/*4*/],
                                   float unNormalizedOff[/*4*/])
         {
             // should already be orthogonal
@@ -2647,7 +2647,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         } // getClosestGrip
 
         // no need to normalize pickCoords, since all the nice points are normalized-- closest will be same in either case
-        public float[/*nDims*/] getClosestNicePointToRotateToCenter(float pickCoords[])
+        @Override public float[/*nDims*/] getClosestNicePointToRotateToCenter(float pickCoords[])
         {
             int bestIndex = -1;
             float bestDistSqrd = Float.MAX_VALUE;
@@ -2665,7 +2665,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return nicePointsToRotateToCenter[bestIndex];
         }
 
-        public void
+        @Override public void
             computeVertsAndShrinkToPointsAtRest(
                 float outVerts[/*nVerts*/][/*nDisplayDims*/],
                 float outStickerCenters[/*nStickers*/][/*nDisplayDims*/],
@@ -3031,7 +3031,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }  // getFrom2toFacetsForFutt
 
         private static SortStuff.Comparator cutInfoCompare = new SortStuff.Comparator() {
-            public int compare(Object aObject, Object bObject)
+            @Override public int compare(Object aObject, Object bObject)
             {
                 CutInfo a = (CutInfo)aObject;
                 CutInfo b = (CutInfo)bObject;
@@ -3180,7 +3180,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             return from2toStickerCenters;
         }  // getFrom2toStickersForFutt
 
-        public void
+        @Override public void
             computeVertsAndShrinkToPointsPartiallyTwisted(
                 float outVerts[/*nVerts*/][/*nDisplayDims*/],
                 float outStickerCenters[/*nStickers*/][/*nDisplayDims*/],
@@ -3504,40 +3504,40 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
 
 
-        public int[/*nStickers*/] getSticker2Face()
+        @Override public int[/*nStickers*/] getSticker2Face()
         {
             // Make sure caller didn't mess it up from last time!!
             if (!VecMath.equals(sticker2face, sticker2faceShadow))
                 throw new RuntimeException("PolytopePuzzleDescription.getSticker2Facet: caller modified previously returned sticker2face! BAD! BAD! BAD!");
             return sticker2face;
         }
-        public int[/*nStickers*/] getSticker2Cubie()
+        @Override public int[/*nStickers*/] getSticker2Cubie()
         {
             return sticker2cubie;
         }
-        public int[/*nFacets*/] getGrip2Face()
+        @Override public int[/*nFacets*/] getGrip2Face()
         {
             return grip2face;
         }
-        public int[/*nStickers*/][/*nPolygonsThisSticker*/] getStickerPoly2Grip()
+        @Override public int[/*nStickers*/][/*nPolygonsThisSticker*/] getStickerPoly2Grip()
         {
             return stickerPoly2Grip;
         }
-        public int[/*nFacets*/] getFace2OppositeFace()
+        @Override public int[/*nFacets*/] getFace2OppositeFace()
         {
             return facet2OppositeFacet;
         }
-        public int[][/*2*/][/*2*/]
+        @Override public int[][/*2*/][/*2*/]
             getAdjacentStickerPairs()
         {
             return adjacentStickerPairs;
         }
-        public float[/*nFacets*/][/*nDisplayDims*/]
+        @Override public float[/*nFacets*/][/*nDisplayDims*/]
             getFaceCentersAtRest()
         {
             return facetCentersF;
         }
-        public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
+        @Override public int[/*nStickers*/] applyTwistToState(int state[/*nStickers*/],
                                                     int gripIndex,
                                                     int dir,
                                                     int slicemask,

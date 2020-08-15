@@ -65,13 +65,13 @@ public class MC4DViewGuts
     //
         public static interface InterpFunc { public float func(float f); }
         public static InterpFunc sine_interp = new InterpFunc() {
-            public float func(float x) { return (float)(Math.sin((x - .5) * Math.PI) + 1) / 2; }
+            @Override public float func(float x) { return (float)(Math.sin((x - .5) * Math.PI) + 1) / 2; }
         };
         public static InterpFunc linear_interp = new InterpFunc() {
-            public float func(float x) { return x; }
+            @Override public float func(float x) { return x; }
         };
         public static InterpFunc quad_interp = new InterpFunc() {
-            public float func(float x)
+            @Override public float func(float x)
             {
                 if (x <= .5f)
                     return x*x*2.f;
@@ -226,7 +226,7 @@ public class MC4DViewGuts
         // String representation includes all current values of
         // all fields that are Listenables
         // (but not their mins, maxes, or defaults).
-        public String toString()
+        @Override public String toString()
         {
             StringBuffer sb = new StringBuffer();
             sb.append("{");
@@ -324,7 +324,7 @@ public class MC4DViewGuts
     // XXX think about doing this automatically, maybe having a Listenable that's just a version number or something
     //
     MC4DModel.Listener modelListener = new MC4DModel.Listener() {
-        public void movingNotify()
+        @Override public void movingNotify()
         {
             if (viewComponent != null)
                 viewComponent.repaint();
@@ -388,7 +388,7 @@ public class MC4DViewGuts
             }
 
             controllerComponent.addKeyListener(this.keyListener = new KeyListener() {
-                public void keyPressed(KeyEvent ke)
+                @Override public void keyPressed(KeyEvent ke)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("keyPressed "+ke);
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
@@ -483,7 +483,7 @@ public class MC4DViewGuts
                         }
                     }
                 } // keyPressed
-                public void keyReleased(KeyEvent ke)
+                @Override public void keyReleased(KeyEvent ke)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("keyReleased "+ke);
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("    isShiftDown = "+ke.isShiftDown());
@@ -494,7 +494,7 @@ public class MC4DViewGuts
                 } // keyReleased
 
                 // NOTE-- on my HP pavilion laptop running vista, keyTyped can't be used to detect things like ctrl-alt-v: once ctrl-alt is down, v no longer generates a keyTyped at all (only a key pressed and key released).  So, I moved all the ctrl-alt stuff to the keyPressed section.
-                public void keyTyped(KeyEvent ke)
+                @Override public void keyTyped(KeyEvent ke)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("keyTyped");
                     char c = ke.getKeyChar();
@@ -513,7 +513,7 @@ public class MC4DViewGuts
                 } // keyTyped
             }); // key listener
             controllerComponent.addMouseListener(this.mouseListener = new MouseListener() {
-                public void mouseClicked(MouseEvent me)
+                @Override public void mouseClicked(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseClicked on a "+controllerComponent.getClass().getSuperclass().getName());
                     if (viewParams.requireCtrlTo3dRotate.get())
@@ -671,7 +671,7 @@ public class MC4DViewGuts
                             System.out.println("missed");
                     }
                 } // mouseClicked
-                public void mousePressed(MouseEvent me)
+                @Override public void mousePressed(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mousePressed on a "+controllerComponent.getClass().getSuperclass().getName());
                     viewState.lastDrag = new int[]{me.getX(), me.getY()};
@@ -682,7 +682,7 @@ public class MC4DViewGuts
                         viewState.dragDelta = null;
                     }
                 } // mousePressed
-                public void mouseReleased(MouseEvent me)
+                @Override public void mouseReleased(MouseEvent me)
                 {
                     long timedelta = me.getWhen() - viewState.lastDragTime;
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseReleased on a "+controllerComponent.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-viewState.time0)/1000.+", timedelta = "+timedelta);
@@ -713,18 +713,18 @@ public class MC4DViewGuts
                         viewState.dragDelta = null; // no longer dragging
                     }
                 } // mouseReleased
-                public void mouseEntered(MouseEvent me)
+                @Override public void mouseEntered(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 4) System.out.println("mouseExited on a "+controllerComponent.getClass().getSuperclass().getName());
                 }
-                public void mouseExited(MouseEvent me)
+                @Override public void mouseExited(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 4) System.out.println("mouseExited on a "+controllerComponent.getClass().getSuperclass().getName());
                 }
             }); // mouse listener
             // watch for dragging gestures to rotate the 3D view
             controllerComponent.addMouseMotionListener(this.mouseMotionListener = new MouseMotionListener() {
-                public void mouseDragged(MouseEvent me)
+                @Override public void mouseDragged(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 1) System.out.println("mouseDragged on a "+controllerComponent.getClass().getSuperclass().getName()+", time = "+(me.getWhen()-viewState.time0)/1000.);
                     if (viewState.lastDrag == null)
@@ -753,7 +753,7 @@ public class MC4DViewGuts
                     if (viewComponent != null)
                         viewComponent.repaint();
                 } // mouseDragged
-                public void mouseMoved(MouseEvent me)
+                @Override public void mouseMoved(MouseEvent me)
                 {
                     if (viewParams.eventVerboseLevel.get() >= 5) System.out.println("        mouseMoved on a "+controllerComponent.getClass().getSuperclass().getName());
 
@@ -827,7 +827,7 @@ public class MC4DViewGuts
         for (int i = 0; i < listenables.length; ++i)
         {
             Listenable.Listener listener = new Listenable.Listener() {
-                public void valueChanged()
+                @Override public void valueChanged()
                 {
                     if (viewComponent != null)
                         viewComponent.repaint();
@@ -839,7 +839,7 @@ public class MC4DViewGuts
 
         {
             Listenable.Listener listener = new Listenable.Listener() {
-                public void valueChanged()
+                @Override public void valueChanged()
                 {
                     viewParams.setRestrictRoll(model, viewComponent, viewState, viewParams.restrictRoll.get());
                 }
@@ -1251,10 +1251,10 @@ public class MC4DViewGuts
         }
 
 
-    public static boolean isMiddleMouseButton(MouseEvent anEvent) {
+    private static boolean isMiddleMouseButton(MouseEvent anEvent) {
         return anEvent.getButton() == java.awt.event.MouseEvent.BUTTON2;
     }
-    public static boolean isLeftMouseButton(MouseEvent anEvent) {
+    private static boolean isLeftMouseButton(MouseEvent anEvent) {
         return anEvent.getButton() == java.awt.event.MouseEvent.BUTTON1;
     }
 
@@ -1453,7 +1453,7 @@ public class MC4DViewGuts
         final MC4DViewGuts guts = new MC4DViewGuts();
         guts.setModel(model);
         final JComponent myJComponent = new JComponent() {
-            public void paintComponent(Graphics g)
+            @Override public void paintComponent(Graphics g)
             {
                 g.setColor(new Color(20,170,235)); // sky
                 g.fillRect(0, 0, getWidth(), getHeight());
@@ -1466,7 +1466,7 @@ public class MC4DViewGuts
             }
             // So we can type immediately in it
             // (note, it would also work to call requestFocus() in mouseEntered(), I believe)
-            public boolean isFocusable()
+            @Override public boolean isFocusable()
             {
                 return true;
             }
@@ -1479,11 +1479,11 @@ public class MC4DViewGuts
         JFrame jframe = new JFrame("A spiffy new JComponent") {{
             com.donhatchsw.awt.MainWindowCount.increment();
             addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent event)
+                @Override public void windowClosing(java.awt.event.WindowEvent event)
                 {
                     dispose();
                 }
-                public void windowClosed(java.awt.event.WindowEvent event)
+                @Override public void windowClosed(java.awt.event.WindowEvent event)
                 {
                     System.out.println("Chow!");
                     guts.setModel(null);
@@ -1508,7 +1508,7 @@ public class MC4DViewGuts
         // Make it so ctrl-n spawns another view of the same model,
         // and ctrl-shift-N spawns the opposite kind of view of the same model.
         myJComponent.addKeyListener(new KeyAdapter() {
-            public void keyTyped(KeyEvent ke)
+            @Override public void keyTyped(KeyEvent ke)
             {
                 char c = ke.getKeyChar();
                 if (c == 'N'-'A'+1) // ctrl-N
@@ -1534,8 +1534,8 @@ public class MC4DViewGuts
         final Canvas myCanvas = new Canvas() {
             private Image backBuffer = null;
             private int bbw=0, bbh=0;
-            public void update(Graphics g) { paint(g); } // don't flash
-            public void paint(Graphics frontBufferGraphics)
+            @Override public void update(Graphics g) { paint(g); } // don't flash
+            @Override public void paint(Graphics frontBufferGraphics)
             {
                 if (doDoubleBuffer)
                 {
@@ -1565,7 +1565,7 @@ public class MC4DViewGuts
             }
             // So we can type immediately in it
             // (note, it would also work to call requestFocus() in mouseEntered(), I believe)
-            public boolean isFocusable()
+            @Override public boolean isFocusable()
             {
                 return true;
             }
@@ -1579,11 +1579,11 @@ public class MC4DViewGuts
         {
             com.donhatchsw.awt.MainWindowCount.increment();
             frame.addWindowListener(new java.awt.event.WindowAdapter() {
-                public void windowClosing(java.awt.event.WindowEvent we)
+                @Override public void windowClosing(java.awt.event.WindowEvent we)
                 {
                     frame.dispose();
                 }
-                public void windowClosed(java.awt.event.WindowEvent we)
+                @Override public void windowClosed(java.awt.event.WindowEvent we)
                 {
                     System.out.println("ciao!!");
                     guts.setModel(null);
@@ -1603,7 +1603,7 @@ public class MC4DViewGuts
         // Make it so ctrl-n spawns another view of the same model,
         // and ctrl-shift-N spawns the opposite kind of view of the same model.
         myCanvas.addKeyListener(new KeyAdapter() {
-            public void keyTyped(KeyEvent ke)
+            @Override public void keyTyped(KeyEvent ke)
             {
                 char c = ke.getKeyChar();
                 if (c == 'N'-'A'+1) // ctrl-N
@@ -1645,7 +1645,7 @@ public class MC4DViewGuts
 
             com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer lengthizer = new com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer() {
                 // XXX this is duplicated in MC4DModel
-                public double length(Object item)
+                @Override public double length(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     CHECK(twist != null);
@@ -1659,7 +1659,7 @@ public class MC4DViewGuts
                 }
             };
             com.donhatchsw.util.UndoTreeViewer.ItemColorizer colorizer = new com.donhatchsw.util.UndoTreeViewer.ItemColorizer() {
-                public java.awt.Color color(Object item)
+                @Override public java.awt.Color color(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
@@ -1667,7 +1667,7 @@ public class MC4DViewGuts
                     int face = model.genericPuzzleDescription.getGrip2Face()[grip];
                     return faceColor[face % faceColor.length];
                 }
-                public String leftLabel(Object item)
+                @Override public String leftLabel(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     int grip = twist.grip;
@@ -1679,7 +1679,7 @@ public class MC4DViewGuts
                     else
                         return ""+(360/order)+degrees; // XXX this does integer, is that okay?  don't want it to take forever
                 }
-                public String rightLabel(Object item)
+                @Override public String rightLabel(Object item)
                 {
                     MC4DModel.Twist twist = (MC4DModel.Twist)item;
                     return twist.toString();

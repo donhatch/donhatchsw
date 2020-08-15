@@ -51,7 +51,7 @@ public class MC4DModel
             this.futtIfPossible = futtIfPossible;
         }
 
-        public String toString()
+        @Override public String toString()
         {
             return (dir == 1 ? "" : dir==-1 ? "-" : ""+dir+"*")
                  + grip
@@ -105,7 +105,7 @@ public class MC4DModel
         * would be the cleanest way to do it.
         * But, just doing it using equals for now.
         */
-        public boolean equals(Object thatObject)
+        @Override public boolean equals(Object thatObject)
         {
             Twist that = (Twist)thatObject;
             return this.grip == that.grip
@@ -209,7 +209,7 @@ public class MC4DModel
             // I haven't even written that part yet!)
             // This will start things pumping.
             controllerUndoTreeSquirrel.addListener(new com.donhatchsw.util.UndoTreeSquirrel.Listener() {
-                public void somethingChanged()
+                @Override public void somethingChanged()
                 {
                     // controllerUndoTreeSquirrel changed.
                     // actually all we have to do is call repaint;
@@ -367,7 +367,7 @@ public class MC4DModel
                 // XXX don't need to make this every time!
                 // XXX and this is duplicated in MC4DViewGuts
                 new com.donhatchsw.util.UndoTreeSquirrel.ItemLengthizer() {
-                    public double length(Object item)
+                    @Override public double length(Object item)
                     {
                         Twist twist = (Twist)item;
                         CHECK(twist != null);
@@ -463,7 +463,7 @@ public class MC4DModel
         * Convert the model to a string,
         * suitable for saving in a save file or whatever.
         */
-        public String toString()
+        @Override public String toString()
         {
             String nl = System.getProperty("line.separator"); // XXX ACK! this will mess up everything on the mac!!!  I think maybe I should just use '\n'!
 
@@ -478,11 +478,11 @@ public class MC4DModel
             sb.append("    history = "
                      +controllerUndoTreeSquirrel.toString(
                           new com.donhatchsw.util.UndoTreeSquirrel.ItemToString() {
-                              public String regex()
+                              @Override public String regex()
                               {
                                   return Twist.regex();
                               }
-                              public String itemToString(Object item)
+                              @Override public String itemToString(Object item)
                               {
                                   return ((Twist)item).toString();
                               }
@@ -524,11 +524,11 @@ public class MC4DModel
 
             com.donhatchsw.compat.regex.replaceAll(historyString, "\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
             com.donhatchsw.util.UndoTreeSquirrel controllerUndoTreeSquirrel = com.donhatchsw.util.UndoTreeSquirrel.fromString(historyString, new com.donhatchsw.util.UndoTreeSquirrel.ItemFromString() {
-                public String regex()
+                @Override public String regex()
                 {
                     return Twist.regex();
                 }
-                public Object itemFromString(String s)
+                @Override public Object itemFromString(String s)
                 {
                     return Twist.fromString(s);
                 }
