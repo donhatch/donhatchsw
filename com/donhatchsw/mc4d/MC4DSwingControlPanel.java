@@ -31,7 +31,24 @@ public class MC4DSwingControlPanel
     static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
 
 
-    // CBB:  lots of font hackery here.  surely there's a simpler way?
+    // We want to make the font plain, on:
+    //   - JLabels (except the BigBoldJLabels)
+    //   - JCheckBoxes
+    //   - JButtons
+    // Empirically, we can do that by just calling setFont() on everything;
+    // that will be ignored by BigBoldJLabel since that has its own override of getFont()
+    // CBB: that's weird behavior to be taking advantage of
+    private static void SetFontAll(java.awt.Component c, java.awt.Font font) {
+        c.setFont(font);
+        if (c instanceof java.awt.Container) {
+            java.awt.Container C = (java.awt.Container)c;
+	    int n = C.getComponentCount();
+	    for (int i = 0; i < n; ++i)
+	    {
+		SetFontAll(C.getComponent(i), font);
+	    }
+        }
+    }
 
     // a label in the default font, except bold (which is the default for JLabel anyway) and one point size larger.
     private static class BigBoldJLabel extends JLabel
@@ -40,53 +57,10 @@ public class MC4DSwingControlPanel
         {
             super(labelString);
         }
+        // Empirically, overriding this takes precedence over anything set by setFont().
         public java.awt.Font getFont()
         {
-            java.awt.Font superfont = super.getFont();
-            if (superfont == null) {
-                //System.err.println("XXX ERROR: not sure how to get JLabel font for BigBoldJLabel");
-                superfont = new java.awt.Font("Dialog", java.awt.Font.PLAIN, 12);  // seems to be the effective default
-            }
-            System.out.println("BigBoldJLabel superfont = "+superfont);
-            java.awt.Font superduperfont = new java.awt.Font(superfont.getName(), java.awt.Font.BOLD, superfont.getSize()+1);
-            return superduperfont;
-        }
-    }
-    // a label in the default font, except plain (which is the default for Label but not JLabel).
-    private static class LittleNonBoldJLabel extends JLabel
-    {
-        public LittleNonBoldJLabel(String labelString)
-        {
-            super(labelString);
-        }
-        public java.awt.Font getFont()
-        {
-            java.awt.Font superfont = super.getFont();
-            if (superfont == null) {
-                //System.err.println("XXX ERROR: not sure how to get JLabel font for LittleNonBoldJLabel");
-                superfont = new java.awt.Font("Dialog", java.awt.Font.PLAIN, 12);  // seems to be the effective default
-            }
-            //System.out.println("LittleNonBoldJLabel superfont = "+superfont);
-            java.awt.Font superduperfont = new java.awt.Font(superfont.getName(), java.awt.Font.PLAIN, superfont.getSize());
-            return superduperfont;
-        }
-    }
-    private static class LittleNonBoldJCheckBox extends JCheckBox
-    {
-        public LittleNonBoldJCheckBox(String labelString)
-        {
-            super(labelString);
-        }
-        public java.awt.Font getFont()
-        {
-            java.awt.Font superfont = super.getFont();
-            if (superfont == null) {
-                System.err.println("XXX ERROR: not sure how to get JLabel font for LittleNonBoldJLabel");
-                superfont = new java.awt.Font("Dialog", java.awt.Font.PLAIN, 12);  // XXX hack.  default is actually bold for JLabel.
-            }
-            //System.out.println("LittleNonBoldJLabel superfont = "+superfont);
-            java.awt.Font superduperfont = new java.awt.Font(superfont.getName(), java.awt.Font.PLAIN, superfont.getSize());
-            return superduperfont;
+            return new java.awt.Font("Dialog", java.awt.Font.BOLD, 13);
         }
     }
 
@@ -304,8 +278,8 @@ public class MC4DSwingControlPanel
         {
             if (initcolor != null)
                 super.add(new ColorSwatch(initcolor,16,16));
-            super.add(initb==null ? (JComponent)new LittleNonBoldJLabel(name) : (JComponent)new LittleNonBoldJCheckBox(name));
-            super.add(new LittleNonBoldJLabel(""), new java.awt.GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            super.add(initb==null ? (JComponent)new JLabel(name) : (JComponent)new JCheckBox(name));
+            super.add(new JLabel(""), new java.awt.GridBagConstraints(){{fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
 
             // awkward, but we can't set members
             // until the super ctor is done
@@ -313,7 +287,7 @@ public class MC4DSwingControlPanel
             if (initcolor != null)
                 this.swatch = (JComponent)this.getComponent(i++);
             if (initb != null)
-                this.checkbox = (LittleNonBoldJCheckBox)this.getComponent(i++);
+                this.checkbox = (JCheckBox)this.getComponent(i++);
             this.color = initcolor;
             this.b = initb;
 
@@ -545,7 +519,7 @@ public class MC4DSwingControlPanel
     {
         this.add(new CanvasOfSize(20,10), // indent
                  new java.awt.GridBagConstraints(){{gridy = nRows;}});
-        this.add(new LittleNonBoldJLabel(labelString),
+        this.add(new JLabel(labelString),
                  new java.awt.GridBagConstraints(){{anchor = WEST;
                                            gridwidth = 3;
                                            gridy = nRows;}});
@@ -562,7 +536,7 @@ public class MC4DSwingControlPanel
     {
         this.add(new CanvasOfSize(20,10), // indent
                  new java.awt.GridBagConstraints(){{gridy = nRows;}});
-        this.add(new LittleNonBoldJLabel(labelString+":"),
+        this.add(new JLabel(labelString+":"),
                  new java.awt.GridBagConstraints(){{anchor = WEST;
                                            gridy = nRows;}});
         this.add(new TextFieldForFloat(f),
@@ -902,7 +876,7 @@ public class MC4DSwingControlPanel
                     }
                 },
                 new java.awt.GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
-            super.add(new LittleNonBoldJLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            super.add(new JLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
             add(new HelpButton("Contiguous cubies",
                                new String[] {
                                    "Pressing the Contiguous Cubies button",
@@ -921,7 +895,7 @@ public class MC4DSwingControlPanel
         {
             add(new CanvasOfSize(20,10), // indent
                      new java.awt.GridBagConstraints(){{gridy = nRows;}});
-            add(new LittleNonBoldJCheckBox("Contiguous cubies") {
+            add(new JCheckBox("Contiguous cubies") {
                     private Listenable.Listener listener; // need to keep a strong ref to the listener for as long as I'm alive
                     private void updateShownValue()
                     {
@@ -965,7 +939,7 @@ public class MC4DSwingControlPanel
                     }
                 },
                 new java.awt.GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
-            super.add(new LittleNonBoldJLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            super.add(new JLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
             add(new HelpButton("Contiguous cubies",
                                new String[] {
                                    "Checking the Contiguous Cubies checkbox",
@@ -1029,7 +1003,7 @@ public class MC4DSwingControlPanel
                     });
                 }},
                 new java.awt.GridBagConstraints(){{gridy = nRows; anchor = WEST;}});
-            super.add(new LittleNonBoldJLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
+            super.add(new JLabel(""), new java.awt.GridBagConstraints(){{gridy = nRows; gridwidth = 3; fill = HORIZONTAL; weightx = 1.;}}); // just stretchable space
             add(new HelpButton("Frame Picture",
                                new String[] {
                                    "Pressing the Frame Picture button",
@@ -1102,7 +1076,7 @@ public class MC4DSwingControlPanel
             null, // no checkbox
             null); // no help string
         {
-            add(new LittleNonBoldJLabel("Face Colors:"),
+            add(new JLabel("Face Colors:"),
                 new java.awt.GridBagConstraints(){{gridy = nRows; anchor = WEST; gridwidth = 4;}});
             add(new ResetButton("Reset to default", viewParams.faceColors),
                 new java.awt.GridBagConstraints(){{gridy = nRows;}});
@@ -1145,6 +1119,8 @@ public class MC4DSwingControlPanel
 
         if (false)
             randomlyColorize(this);
+
+        SetFontAll(this, new java.awt.Font("Dialog", java.awt.Font.PLAIN, 12));
     } // MC4DSwingControlPanel ctor
 
 
