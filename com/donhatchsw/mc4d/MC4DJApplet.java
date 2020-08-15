@@ -976,8 +976,8 @@ public class MC4DJApplet
             for (int i = 0; i < nControlPanelsAtStartup; ++i)
             {
                 // not openOrMake!
-                makeNewControlPanelWindow(mainViewGuts,
-                                          allPuzzlesAndWindows);
+                makeNewLegacyControlPanelWindow(mainViewGuts,
+                                                allPuzzlesAndWindows);
             }
         }
 
@@ -1039,9 +1039,9 @@ public class MC4DJApplet
                 controlPanelFrame.setVisible(true);  // available in java 1.5, replaces deprecated show()
                 return;
             }
-            makeNewControlPanelWindow(viewGuts, allPuzzlesAndWindows);
+            makeNewLegacyControlPanelWindow(viewGuts, allPuzzlesAndWindows);
         }
-        private static void makeNewControlPanelWindow(MC4DViewGuts viewGuts,
+        private static void makeNewLegacyControlPanelWindow(MC4DViewGuts viewGuts,
                                                             PuzzlesAndWindows allPuzzlesAndWindows)
         {
             System.out.println("Making the panel...");
