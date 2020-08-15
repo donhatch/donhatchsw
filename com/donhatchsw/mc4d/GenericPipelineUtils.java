@@ -1233,17 +1233,17 @@ public class GenericPipelineUtils
         public static int sortStickersBackToFront(
                 final int nStickers, // can be less than actual number, for debugging
                 int adjacentStickerPairs[][/*2*/][/*2*/],
-                final boolean stickerVisibilities[/*nStickers*/],
-                boolean stickerPolyIsStrictlyBackfacing[/*nStickers*/][/*nPolysThisSticker*/],
-                float eye[],
-                float cutNormal[],
-                float cutOffsets[], // in increasing order
-                int sticker2Slice[],
-                int returnStickerSortOrder[/*nStickers*/],
-                int returnPartialOrderOptionalForDebugging[][][], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the partial order
-                final float stickerCentersZ[],
-                float polyCenters3d[][][],
-                float polyNormals3d[][][])
+                final boolean stickerVisibilities[/*>=nStickers*/],
+                boolean stickerPolyIsStrictlyBackfacing[/*>=nStickers*/][/*nPolysThisSticker*/],
+                float eye[/*nDisplayDims*/],
+                float cutNormal[/*nDisplayDims*/],
+                float cutOffsets[/*nCuts*/], // in increasing order
+                int sticker2Slice[/*>=nStickers*/],
+                int returnStickerSortOrder[/*>=nStickers*/],
+                int returnPartialOrderOptionalForDebugging[/*1*/][][/*2*/], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the int[][2] partial order
+                final float stickerCentersZ[/*>=nStickers*/],
+                float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
+                float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
         {
             int nSlices = cutOffsets.length + 1;
             int nCompressedSlices = nSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
@@ -1259,7 +1259,7 @@ public class GenericPipelineUtils
             // Initialize parents and depths...
             {
                 //
-                // Figure out which compressed slice the eye is in.
+                // Figure out which compressed slice the (4d) eye is in.
                 // That slice will be the root of a simple tree,
                 // with two branches of groups:
                 //                whichSliceEyeIsIn
@@ -1296,7 +1296,7 @@ public class GenericPipelineUtils
                         parents[iNode] = -1;
                         depths[iNode] = 0;
                     }
-                    // The node position nSticker+2*iSlice+1 is not used;
+                    // For each iSlice, the node position nStickers+2*iSlice+1 is not used;
                     // it is just an end token for the group,
                     // so that when we need a sticker to be > an entire group,
                     // we have to specify only one inequality instead
@@ -1414,6 +1414,26 @@ public class GenericPipelineUtils
                             // XXX in 3-space.  I *think* if both are backfacing
                             // XXX it should mean either draw order is okay though.
 
+                            // XXX nope, on further thought, "either draw order is okay" is not okay! it ends up screwing up everything!
+                            //     here's an example where sticker A doesn't realize there's anything in front of it,
+                            //     because it seems like there isn't anything *immediately* in front of it.
+                            //     That is, we have only B<D C<D.
+                            //     We also need either A<B or A<C, too, otherwise A might be drawn after D!
+                            /*
+                                        *
+                                       / \
+                                      *   *
+                                     / \ / \
+                                  _ *   *   * _
+                                *    \ / \ /    *
+                                 \  _ * A * _  /
+                                  *B / \ / \ C*
+                                 /_ *   *   * _\
+                                *               *
+                                      _ * _
+                                    * _ D _ *
+                                        *
+                            */
                             // System.out.println("WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!!");
                             continue;
                         }
@@ -1442,9 +1462,13 @@ public class GenericPipelineUtils
                         // iSticker is adjacent to a group containing jSticker.
                         // The group is twisted, so jSticker's
                         // orientation of the poly is not relevant
-                        // (in fact jSticker might not even be visible);
+                        // (in fact jSticker might not even be visible, even if both are visible when stationary);
                         // only iSticker's orientation of the poly is relevant.
                         // XXX I thought that was true but then I got cycles in the 2x hypercube... think about this
+
+                        // XXX oh, it's not true. it might be that the group (containg jSticker) is stationary and the rest of the puzzle (containing iSticker) is moving, and iSticker might not be visible even if both are visible when stationary!!
+                        // XXX otoh maybe it's all relative and this is still the correct thing to do?  in that case, need a better description of it.
+
                         if (!iStickerIsVisible)
                             continue;
                         //System.out.println("    sticker "+iSticker+" is adjacent to sticker "+jSticker+"'s slice "+sticker2Slice[jSticker]+"");
