@@ -29,6 +29,7 @@ public class MC4DJApplet
     public boolean doDoubleBuffer = true; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean futtIfPossible = false; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean forceFuttableXXX = false;
+    public int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
         {"x", "integer", "x position for initial and spawned viewers"},  // XXX does this work for spawned?
@@ -38,6 +39,7 @@ public class MC4DJApplet
         {"doDoubleBuffer", "boolean", "whether to double buffer"},
         {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
         {"forceFuttableXXX", "boolean", "whether to force puzzle to think it's futtable.  for development."},
+        {"nControlPanelsAtStartup", "integer", "number of control panels to open at startup.  they should all stay in sync.  even numbered are legacy; odd numbered are swing."},
     };
     public String[][] getParameterInfo()  // XXX TODO: no one ever uses this??
     {
@@ -958,7 +960,7 @@ public class MC4DJApplet
     {
         System.out.println("    in MC4DJApplet init");
 
-        com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, 0);
+        com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, /*verboseLevel=*/0);
 
         if (forceFuttableXXX)  // must do this before constructing any polytope puzzles, since it affects construction
         {
@@ -972,12 +974,19 @@ public class MC4DJApplet
         // Initial control panel window(s)
         //
         {
-            int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
-            for (int i = 0; i < nControlPanelsAtStartup; ++i)
+            for (int i = 0; i < this.nControlPanelsAtStartup; ++i)
             {
                 // not openOrMake!
-                makeNewLegacyControlPanelWindow(mainViewGuts,
-                                                allPuzzlesAndWindows);
+                if (i % 2 == 0)
+                {
+                    makeNewLegacyControlPanelWindow(mainViewGuts,
+                                                    allPuzzlesAndWindows);
+                }
+                else
+                {
+                    makeNewSwingControlPanelWindow(mainViewGuts,
+                                                   allPuzzlesAndWindows);
+                }
             }
         }
 
@@ -1041,6 +1050,13 @@ public class MC4DJApplet
             }
             makeNewLegacyControlPanelWindow(viewGuts, allPuzzlesAndWindows);
         }
+        private static void makeNewSwingControlPanelWindow(MC4DViewGuts viewGuts,
+                                                            PuzzlesAndWindows allPuzzlesAndWindows)
+        {
+            JFrame frame = new JFrame("MC4D Swing Control Panel");
+            frame.setSize(new Dimension(600,200));
+            frame.setVisible(true);
+        }  // makeNewSwingControlPanelWindow
         private static void makeNewLegacyControlPanelWindow(MC4DViewGuts viewGuts,
                                                             PuzzlesAndWindows allPuzzlesAndWindows)
         {
@@ -1055,7 +1071,7 @@ public class MC4DJApplet
             controlPanelScrollPane.add(controlPanel);
 
             System.out.println("Making the window...");
-            final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4D Control Panel");
+            final java.awt.Frame controlPanelFrame = new java.awt.Frame("MC4D Legacy Control Panel");
             // XXX the following is probably not what I want
             controlPanelFrame.addWindowListener(new WindowAdapter() {
                 public void windowClosing(WindowEvent we) {
@@ -1086,7 +1102,7 @@ public class MC4DJApplet
             System.out.println("Showing the window...");
             controlPanelFrame.setVisible(true);  // available in java 1.5, replaces deprecated show()
             System.out.println("Done.");
-        } // openOrMakeNewControlPanelWindow
+        }  // makeNewLegacyControlPanelWindow
 
         private class MC4DUndoTreeWindow
             extends Frame

@@ -26,6 +26,7 @@ public class MC4DApplet
     public boolean doDoubleBuffer = true; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean futtIfPossible = false; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean forceFuttableXXX = false;
+    public int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
         {"x", "integer", "x position for initial and spawned viewers"},  // XXX does this work for spawned?
@@ -35,6 +36,7 @@ public class MC4DApplet
         {"doDoubleBuffer", "boolean", "whether to double buffer"},
         {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
         {"forceFuttableXXX", "boolean", "whether to force puzzle to think it's futtable.  for development."},
+        {"nControlPanelsAtStartup", "integer", "number of control panels to open at startup.  they should all stay in sync."},
     };
     public String[][] getParameterInfo()  // XXX TODO: no one ever uses this??
     {
@@ -1085,7 +1087,7 @@ public class MC4DApplet
     {
         System.out.println("    in MC4DApplet init");
 
-        com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, 0);
+        com.donhatchsw.applet.AppletUtils.getParametersIntoPublicFields(this, /*verboseLevel=*/0);
 
         if (forceFuttableXXX)  // must do this before constructing any polytope puzzles, since it affects construction
         {
@@ -1099,8 +1101,7 @@ public class MC4DApplet
         // Initial control panel window(s)
         //
         {
-            int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
-            for (int i = 0; i < nControlPanelsAtStartup; ++i)
+            for (int i = 0; i < this.nControlPanelsAtStartup; ++i)
             {
                 // not openOrMake!
                 makeNewLegacyControlPanelWindow(mainViewGuts,
