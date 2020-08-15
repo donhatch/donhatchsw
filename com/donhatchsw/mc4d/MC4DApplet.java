@@ -1102,8 +1102,9 @@ public class MC4DApplet
             int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
             for (int i = 0; i < nControlPanelsAtStartup; ++i)
             {
-                openOrMakeNewControlPanelWindow(mainViewGuts,
-                                                allPuzzlesAndWindows);
+                // not openOrMake!
+                makeNewControlPanelWindow(mainViewGuts,
+                                          allPuzzlesAndWindows);
             }
         }
 
@@ -1156,7 +1157,6 @@ public class MC4DApplet
         private static void openOrMakeNewControlPanelWindow(MC4DViewGuts viewGuts,
                                                             PuzzlesAndWindows allPuzzlesAndWindows)
         {
-            String controlPanelName = "Settings "+(allPuzzlesAndWindows.nextControlPanelNumber++);
             Component controlPanel = allPuzzlesAndWindows.findFirstControlPanelOfViewParams(viewGuts.viewParams);
             if (controlPanel != null)
             {
@@ -1166,11 +1166,16 @@ public class MC4DApplet
                 controlPanelFrame.setVisible(true);  // available in java 1.5, replaces deprecated show()
                 return;
             }
-
+            makeNewControlPanelWindow(viewGuts, allPuzzlesAndWindows);
+        }
+        private static void makeNewControlPanelWindow(MC4DViewGuts viewGuts,
+                                                            PuzzlesAndWindows allPuzzlesAndWindows)
+        {
             System.out.println("Making the panel...");
-            controlPanel = new MC4DLegacyControlPanel(controlPanelName,
-                                                      viewGuts.viewParams,
-                                                      viewGuts.viewState); // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
+            String controlPanelName = "Settings "+(allPuzzlesAndWindows.nextControlPanelNumber++);
+            Component controlPanel = new MC4DLegacyControlPanel(controlPanelName,
+                                                                viewGuts.viewParams,
+                                                                viewGuts.viewState); // for "Frame Picture", kind of hacky, violates the idea that control panels are 1-to-1 with viewParams
 
             java.awt.ScrollPane controlPanelScrollPane = new java.awt.ScrollPane(ScrollPane.SCROLLBARS_AS_NEEDED);
             controlPanelScrollPane.setSize(controlPanel.getPreferredSize());  // why doesn't this work?  makes it too small.  we adjust for it later, when packing.
