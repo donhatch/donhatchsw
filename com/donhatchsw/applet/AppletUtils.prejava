@@ -15,14 +15,18 @@ public class AppletUtils
 
     private static String getParameter(java.awt.Container applet,  // anything with a getParameter()
                                 String name) {
-        try
-        {
+        try {
             java.lang.reflect.Method getParameterMethod = applet.getClass().getMethod("getParameter", new Class[]{String.class});
-        }
-        catch (NoSuchMethodException e) {
+            try {
+                return (String)getParameterMethod.invoke(applet, new Object[]{name});
+            } catch (IllegalAccessException e) {
+                throw new AssertionError(e);
+            } catch (java.lang.reflect.InvocationTargetException e) {
+                throw new AssertionError(e.getTargetException());
+            }
+        } catch (NoSuchMethodException e) {
             throw new Error("can't find method GetParameter(String) in class "+applet.getClass().getName());
         }
-        return null;
     }
 
 
