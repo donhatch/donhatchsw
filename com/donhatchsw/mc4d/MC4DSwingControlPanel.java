@@ -13,7 +13,6 @@
     .870 -> .87
 */
 // TODO: convert from JScrollBars to JSliders
-// TODO: color swatches aren't showing yet
 // TODO: help windows are way too wide, wtf?  even worse than legacy
 package com.donhatchsw.mc4d;
 
@@ -64,7 +63,7 @@ public class MC4DSwingControlPanel
         }
     }
 
-    private static class CanvasOfSize extends JComponent
+    private static class CanvasOfSize extends JPanel  // dog science: if I derive from JComponent, background doesn't get drawn (and setOpaque(true) doesn't help).  deriving from JPanel instead makes it work, don't know why
     {
         private java.awt.Dimension preferredSize;
         public CanvasOfSize(int width, int height)
