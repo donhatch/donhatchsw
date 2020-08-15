@@ -1,4 +1,4 @@
-// TODO: 4D Eye Distance "Reset to default" is enabled by default? and throws when clicked.  something about .867 (the default) getting changed to 865???
+// TODO: 4D Eye Distance "Reset to default" is enabled by default? and throws when clicked.  something about .867 (the default) getting changed to 865???  and it got even worse with JSliderForFloat :-(
 /*
     .860 -> .86
     .861 -> .861 (ok)
@@ -12,7 +12,8 @@
     .869 -> .869 (ok)
     .870 -> .87
 */
-// TODO: convert from JScrollBars to JSliders
+
+// TODO: strange, clicking on right side of slider doesn't do anything.  works better in ShephardsPlayApplet
 // TODO: help windows are way too wide, wtf?  even worse than legacy
 package com.donhatchsw.mc4d;
 
@@ -77,30 +78,124 @@ public class MC4DSwingControlPanel
         }
     }
 
-    public static class TextFieldForFloat extends JTextField
+    // Stolen from ShepardsPlayApplet
+    // A textfield that turns green or red when editing and not yet committed.
+    // Esc reverts.
+    private static class JValidatingTextField extends JTextField
+    {
+	// subclass can override this
+	public boolean validate(String text)
+	{
+	    return true; // it's all good by default
+	}
+
+	private String committedText;
+	public JValidatingTextField(String text)
+	{
+	    super(text);
+	    committedText = getText();
+
+	    getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+		private void anyUpdate(javax.swing.event.DocumentEvent e)
+		{
+		    if (!getText().equals(committedText)) // TODO: == doesn't work here?  I forget the difference
+		    {
+			if (validate(getText()))
+			{
+			    // TODO: if value semantically equals committed value, turn white instead.  hmm, can build this into validate() by having it return a value (Object), maybe?
+			    setBackground(new java.awt.Color(192,255,192)); // light green
+			}
+			else
+			    setBackground(new java.awt.Color(255,192,192)); // pink
+		    }
+		    else
+			setBackground(java.awt.Color.WHITE);
+		}
+		@Override public void insertUpdate(javax.swing.event.DocumentEvent e)  {anyUpdate(e);}
+		@Override public void removeUpdate(javax.swing.event.DocumentEvent e)  {anyUpdate(e);}
+		@Override public void changedUpdate(javax.swing.event.DocumentEvent e) {anyUpdate(e);}
+	    });
+	    addKeyListener(new java.awt.event.KeyAdapter() {
+		@Override public void keyPressed(java.awt.event.KeyEvent e)
+		{
+		    if (e.getKeyCode() == java.awt.event.KeyEvent.VK_ESCAPE)
+		    {
+			setText(committedText);
+		    }
+		}
+	    });
+	    addActionListener(new java.awt.event.ActionListener() {
+		@Override public void actionPerformed(java.awt.event.ActionEvent e)
+		{
+		    if (validate(getText()))
+		    {
+			committedText = getText();
+			setBackground(java.awt.Color.WHITE);
+		    }
+		}
+	    });
+	}
+	@Override public void setText(String text)
+	{
+	    super.setText(text);
+	    if (validate(getText()))
+	    {
+		committedText = getText();
+		setBackground(java.awt.Color.WHITE);
+	    }
+	}
+    } // JValidatingTextField
+
+    // Stolen from ShephardsPlayApplet (which claims it stole it from MC4DControlPanel.java,
+    // but then must have made improvements)
+    public static class JTextFieldForNumber extends JValidatingTextField
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
+        private Listenable.Number f;
+
+        @Override public boolean validate(String text)
+        {
+            try {
+                // attempt to parse, ignore return value
+                if (f instanceof Listenable.Int)
+                    Integer.parseInt(text);
+                else if (f instanceof Listenable.Long)
+                    Long.parseLong(text);
+                else
+                    Double.parseDouble(text);
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
 
         private void updateText(Listenable.Number f)
         {
-            if (f instanceof Listenable.Float)
+            if (f instanceof Listenable.Int)
+                setText(""+((Listenable.Int)f).get());
+            else if (f instanceof Listenable.Long)
+                setText(""+((Listenable.Long)f).get());
+            else if (f instanceof Listenable.Float)
                 setText(""+((Listenable.Float)f).get());
             else
                 setText(""+(float)((Listenable.Double)f).get()); // XXX ARGH! we lose precision with this (float) cast, but if we don't do it, we can get, for example, 37.092999999999996 which looks lame.  should figure out another way to prevent that.
         }
 
-        public TextFieldForFloat(final Listenable.Number f)
+        public JTextFieldForNumber(final Listenable.Number f)
         {
-            super("99.99"); // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
+            super(f instanceof Listenable.Int ? ""+((Listenable.Int)f).max() // XXX not quite right, min may be longer string than max
+                : f instanceof Listenable.Long ? ""+((Listenable.Long)f).max()
+                : "99.99"); // give it enough space for 99.999 (on my computer, always seems to give an extra space, which we don't need)
+            this.f = f;
             updateText(f);
             f.addListener(listener = new Listenable.Listener() {
-                public void valueChanged()
+                @Override public void valueChanged()
                 {
                     updateText(f);
                 }
             });
-            addActionListener(new ActionListener() {
-                @Override public void actionPerformed(ActionEvent e)
+            addActionListener(new java.awt.event.ActionListener() {
+                @Override public void actionPerformed(java.awt.event.ActionEvent e)
                 {
                     try
                     {
@@ -116,6 +211,7 @@ public class MC4DSwingControlPanel
         }
         @Override public java.awt.Dimension getPreferredSize()
         {
+            //System.out.println("in JTextFieldForNumber.getPreferredSize()");
             // default seems taller than necessary
             // on my computer... and in recent VMs it's even worse
             // (changed from 29 to 31).
@@ -126,6 +222,19 @@ public class MC4DSwingControlPanel
             //System.out.println("textfield.super.preferredSize() = "+preferredSize);
             if (true)
                 preferredSize.height -= 2;
+
+            // XXX another hack, wtf?
+            if (true)
+            {
+                if (f instanceof Listenable.Int)
+                    preferredSize.width = 50;
+                else if (f instanceof Listenable.Long)
+                    preferredSize.width = 100;
+                else
+                    preferredSize.width = 50;  // seems to be what I want for this particular app
+            }
+
+            //System.out.println("out JTextFieldForNumber.getPreferredSize(), returning "+preferredSize);
             return preferredSize;
         }
         // weird, the following is called during horizontal shrinking
@@ -133,85 +242,98 @@ public class MC4DSwingControlPanel
         // then it looks wrong when shrinking.  what a hack...
         @Override public java.awt.Dimension getMinimumSize()
         {
+            //System.out.println("in JTextFieldForNumber.getMinimumSize()");
             java.awt.Dimension minimumSize = super.getMinimumSize();
             //System.out.println("textfield.super.minimumSize() = "+minimumSize);
             if (true)
                 minimumSize.height -= 2;
+
+            // XXX another hack, wtf?
+            if (true)
+            {
+                if (f instanceof Listenable.Int)
+                    minimumSize.width = 50;
+                else if (f instanceof Listenable.Long)
+                    minimumSize.width = 100;
+                else
+                    minimumSize.width = 50;  // seems to be what I want for this particular app
+            }
+
+            //System.out.println("out JTextFieldForNumber.getMinimumSize(), returning "+minimumSize);
             return minimumSize;
         }
-    } // TextFieldForFloat
+    } // JTextFieldForNumber
 
-    public static class SliderForFloat extends JScrollBar
+    // stolen from ShephardsPlayApplet.
+    public static class JSliderForFloat extends JSlider
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
 
+        // private helper function
         private void updateThumb(Listenable.Number f)
         {
             double value = f.getDouble();
             double defaultValue = f.defaultDouble();
             double frac = (value-f.minDouble())/(f.maxDouble()-f.minDouble());
-            setValue((int)(getMinimum() + ((getMaximum()-getVisibleAmount())-getMinimum())*frac));
+
+            //setValue((int)(getMinimum() + ((getMaximum()-getVisibleAmount())-getMinimum())*frac));
+            setValue((int)(getMinimum() + (getMaximum()-getMinimum())*frac));
         }
 
-        public SliderForFloat(final Listenable.Number f)
+        public JSliderForFloat(final Listenable.Number f)
         {
-            super(JScrollBar.HORIZONTAL);
-
             // 3 significant digits seems reasonable...
-            int min = (int)Math.round(f.minDouble()*1000);
-            int max = (int)Math.round(f.maxDouble()*1000);
-            int vis = (int)Math.round(.1*(max-min));
-            setValues(0,   // value (we'll set it right later)
-                      vis,
-                      min,
-                      max+vis);
-            setUnitIncrement(1);   // .001 units
-            setBlockIncrement(10); // .01 units
+            /*
+            super(JSlider.HORIZONTAL,
+                  (int)Math.round(f.minDouble()*1000),
+                  (int)Math.round(f.maxDouble()*1000),
+                  (int)Math.round(f.getDouble())*1000);
+            */
+            super(JSlider.HORIZONTAL, 0, 1000, 500);
 
+            if (false)
+            {
+                System.out.println("getMinimum() = "+getMinimum());
+                System.out.println("getMaximum() = "+getMaximum());
+                System.out.println("getValue() = "+getValue());
+            }
+
+            setMinorTickSpacing(1);  // .001 units
+            setMajorTickSpacing(10); // .01 units
             f.addListener(listener = new Listenable.Listener() {
-                public void valueChanged()
+                @Override public void valueChanged()
                 {
                     updateThumb(f);
                 }
             });
-            addAdjustmentListener(new AdjustmentListener() {
-                public void adjustmentValueChanged(AdjustmentEvent e)
+            addChangeListener(new javax.swing.event.ChangeListener() {
+                @Override public void stateChanged(javax.swing.event.ChangeEvent e)
                 {
                     if (false)
                     {
                         System.out.println("==================");
                         System.out.println("    min = "+getMinimum());
                         System.out.println("    max = "+getMaximum());
-                        System.out.println("    visible = "+getVisibleAmount());
-                        System.out.println("    max-vis-min = "+(getMaximum()-getVisibleAmount()-getMinimum()));
-                        System.out.println("    e.getValue() = "+e.getValue());
+                        System.out.println("    max-min = "+(getMaximum()-getMinimum()));
                         System.out.println("    getValue() = "+getValue());
-                        System.out.println("    getUnitIncrement() = "+getUnitIncrement());
-                        System.out.println("    getBlockIncrement() = "+getBlockIncrement());
+                        System.out.println("    getMinorTickSpacing() = "+getMinorTickSpacing());
+                        System.out.println("    getMajorTickSpacing() = "+getMajorTickSpacing());
                         System.out.println("    getSize() = "+getSize());
                         System.out.println("    getPreferredSize() = "+getPreferredSize());
                     }
                     // Doing the following in double precision makes a difference;
                     // if we do it in float, we get ugly values in the textfield
-                    double frac = (double)(e.getValue()-getMinimum())
-                                / (double)((getMaximum()-getVisibleAmount())-getMinimum());
+                    double frac = (double)(getValue()-getMinimum())
+                                / (double)(getMaximum()-getMinimum());
                     f.setDouble(f.minDouble() + frac*(f.maxDouble()-f.minDouble()));
                     // will trigger valueChanged()
                     // which will call updateThumb()
                 }
             });
-            updateThumb(f);
+            updateThumb(f); // because we fucked it up in the contructor?
         }
-        @Override public java.awt.Dimension getPreferredSize()
-        {
-            // default seems to be 50x18 on my computer...
-            // give it more horizontal space than that
-            java.awt.Dimension preferredSize = super.getPreferredSize();
-            //System.out.println("scrollbar.super.preferredSize() = "+preferredSize);
-            preferredSize.width = 200;
-            return preferredSize;
-        }
-    } // SliderForFloat
+    } // JSliderForFloat
+
 
     private static class ColorSwatch extends CanvasOfSize
     {
@@ -538,9 +660,9 @@ public class MC4DSwingControlPanel
         this.add(new JLabel(labelString+":"),
                  new java.awt.GridBagConstraints(){{anchor = WEST;
                                            gridy = nRows;}});
-        this.add(new TextFieldForFloat(f),
+        this.add(new JTextFieldForNumber(f),
                  new java.awt.GridBagConstraints(){{gridy = nRows;}});
-        this.add(new SliderForFloat(f),
+        this.add(new JSliderForFloat(f),
                  new java.awt.GridBagConstraints(){{gridy = nRows;
                                            fill = HORIZONTAL; weightx = 1.;}});
         this.add(new ResetButton("Reset to default", f),
