@@ -27,6 +27,7 @@ public class MC4DApplet
     public boolean futtIfPossible = false; // XXX get this from viewing params? currently this must match viewing params' default value
     public boolean forceFuttableXXX = false;
     public int nControlPanelsAtStartup = 0; // can set this to more, to experiment... they should all stay in sync
+    public String modelStateString = null;
     private final static String parameterInfo[][] = {
         {"puzzleDescription", "string", "puzzle description, e.g. \"{4,3,3} 3\""},
         {"x", "integer", "x position for initial and spawned viewers"},  // XXX does this work for spawned?
@@ -37,6 +38,7 @@ public class MC4DApplet
         {"futtIfPossible", "boolean", "whether to try to futt (i.e. allow topologically valid twists that may require morphing)"},
         {"forceFuttableXXX", "boolean", "whether to force puzzle to think it's futtable.  for development."},
         {"nControlPanelsAtStartup", "integer", "number of control panels to open at startup.  they should all stay in sync."},
+        {"modelStateString", "string", "full description of puzzle / state / history, as previously dumped by \"Test to/from string\""},
     };
     public String[][] getParameterInfo()  // XXX TODO: no one ever uses this??
     {
@@ -1095,7 +1097,11 @@ public class MC4DApplet
             PolytopePuzzleDescription.forceFuttableXXX = true;
         }
         mainViewGuts = new MC4DViewGuts();
-        mainViewGuts.setModel(new MC4DModel(puzzleDescription));
+        if (modelStateString != null) {
+            mainViewGuts.setModel(MC4DModel.fromString(modelStateString));
+        } else {
+            mainViewGuts.setModel(new MC4DModel(puzzleDescription));
+        }
         mainViewGuts.viewParams.futtIfPossible.set(futtIfPossible);
 
         //
@@ -1321,13 +1327,17 @@ public class MC4DApplet
     *         <li> w
     *         <li> h
     *         <li> doDoubleBuffer
+    *         <li> futtIfPossible
+    *         <li> forceFuttableXXX
+    *         <li> nControlPanelsAtStartup
+    *         <li> modelStateString
     *     </ul>
     */
     public static void main(String args[])
     {
         // Check to make sure each of the command line args
         // is of the form param=value for some valid param name,
-        // and that one of them is puzzleDescription.
+        // and that one of them is puzzleDescription (TODO: or modelStateString, but not both).
         // XXX is there a way we can make AppletViewer do this automatically?
         {
             boolean requirePuzzleDescriptionArg = false; // XXX ARGH! I want this to be true when run from the command line, but it has to be false when launching through a jar's manifest.mf because you can't pass args through there :-(
