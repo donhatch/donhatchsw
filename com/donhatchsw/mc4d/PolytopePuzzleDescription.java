@@ -500,7 +500,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private float[/*nFacets*/][/*nDisplayDims*/] facetCentersF;
 
-    private int[][/*2*/][/*2*/] adjacentStickerPairs;
+    private int[][/*2*/][/*2: iSticker,iPolyThisSticker*/] adjacentStickerPairs;
     private int[/*nFacets*/] facet2OppositeFacet;
     private int[/*nStickers*/] sticker2face;
     private int[/*nStickers*/] sticker2faceShadow; // so we can detect nefariousness
@@ -1736,7 +1736,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             //
             if (nDims == 4) // XXX need to figure this out for nDims==3 too!
             {
-                int[][][] stickerIncidences = slicedPolytope.p.getAllIncidences()[nDims-1];
+                // Hmm, if Polytope provided back index information, we could just iterate over that,
+                // but it doesn't.
+
+                int[/*nStickers*/][/*nDims+1 or so*/][/*nEltsThisStickerThisDim*/] stickerIncidences = slicedPolytope.p.getAllIncidences()[nDims-1];
                 int nPolygons = slicedPolytope.p.getAllElements()[2].length;
                 this.adjacentStickerPairs = new int[nPolygons][2][];
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
@@ -1753,6 +1756,23 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 for (int iPoly = 0; iPoly < adjacentStickerPairs.length; ++iPoly)
                     for (int j = 0; j < 2; j++)
                         CHECK(adjacentStickerPairs[iPoly][j] != null);
+
+                // We now have adjacentStickerPairs with respect to orderings before we swapped polys around.
+                // Fix that.
+                {
+                    int[][] originalStickerPolyToStickerPoly = new int[nStickers][];
+                    for (int iSticker = 0; iSticker < originalStickerPolyToStickerPoly.length; ++iSticker) {
+                        originalStickerPolyToStickerPoly[iSticker] = (int[])VecMath.invertperm(stickerPolyToOriginalStickerPoly[iSticker]);
+                    }
+                    for (int iPair = 0; iPair < this.adjacentStickerPairs.length; ++iPair) {
+                        for (int iStickerThisPair = 0; iStickerThisPair < 2; ++iStickerThisPair) {
+                            int iSticker = this.adjacentStickerPairs[iPair][iStickerThisPair][0];
+                            int iPolyThisStickerOld = this.adjacentStickerPairs[iPair][iStickerThisPair][1];
+                            int iPolyThisStickerNew = originalStickerPolyToStickerPoly[iSticker][iPolyThisStickerOld];
+                            this.adjacentStickerPairs[iPair][iStickerThisPair][1] = iPolyThisStickerNew;
+                        }
+                    }
+                }
             }
             else
             {

@@ -1202,7 +1202,10 @@ public class GenericPipelineUtils
                     // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
                     g.drawPolygon(xs, ys, poly.length);
                 }
-//if (iSticker == 63 || iSticker == 219) // XXX get rid
+// uncomment something like the following for debugging specific interactions
+//if (iSticker == 63 || iSticker == 219)
+//if (iSticker == 16 || iSticker == 17 || iSticker == 0)
+//if (iSticker == 17 || iSticker == 0 || iSticker == 41 || iSticker == 33 || iSticker == 32)
                 if (drawLabels)
                 {
                     String label = ""+iSticker+"("+iPolyThisSticker+")";
@@ -1232,7 +1235,7 @@ public class GenericPipelineUtils
         // Function return value is number of stickers to draw
         public static int sortStickersBackToFront(
                 final int nStickers, // can be less than actual number, for debugging
-                int adjacentStickerPairs[][/*2*/][/*2*/],
+                int adjacentStickerPairs[][/*2*/][/*2: iSticker,iPolyThisSticker*/],
                 final boolean stickerVisibilities[/*>=nStickers*/],
                 boolean stickerPolyIsStrictlyBackfacing[/*>=nStickers*/][/*nPolysThisSticker*/],
                 float eye[/*nDisplayDims*/],
@@ -1245,6 +1248,12 @@ public class GenericPipelineUtils
                 float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
                 float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
         {
+            int verboseLevel = 0;
+            if (verboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
+            if (verboseLevel >= 2) {
+                if (verboseLevel >= 1) System.out.println("      adjacentStickerPairs = "+com.donhatchsw.util.Arrays.toStringCompact(adjacentStickerPairs));
+            }
+
             int nSlices = cutOffsets.length + 1;
             int nCompressedSlices = nSlices; // XXX should combine adjacent slices that are moving together... but maybe it doesn't hurt to just pretend all the slices are twisting separately, it keeps things simple?  Not sure.
             int nNodes = nStickers + 2*nCompressedSlices;
@@ -1296,7 +1305,7 @@ public class GenericPipelineUtils
                         parents[iNode] = -1;
                         depths[iNode] = 0;
                     }
-                    // For each iSlice, the node position nStickers+2*iSlice+1 is not used;
+                    // For each iSlice, the odd node position nStickers+2*iSlice+1 is not used;
                     // it is just an end token for the group,
                     // so that when we need a sticker to be > an entire group,
                     // we have to specify only one inequality instead
@@ -1471,14 +1480,15 @@ public class GenericPipelineUtils
 
                         if (!iStickerIsVisible)
                             continue;
-                        //System.out.println("    sticker "+iSticker+" is adjacent to sticker "+jSticker+"'s slice "+sticker2Slice[jSticker]+"");
                         boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        if (verboseLevel >= 1) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+") (which is "+(iStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+") is adjacent to sticker "+jSticker+"("+jPolyThisSticker+")'s slice "+sticker2Slice[jSticker]+"");
                         if (iStickerHasPolyBackfacing)
                         {
                             int jIndGroupEndToken = jGroup+1;
                             //add "jIndGroupEndToken < iSticker";
                             partialOrder[partialOrderSize][0] = jIndGroupEndToken;
                             partialOrder[partialOrderSize][1] = iSticker;
+                            if (verboseLevel >= 1) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                         else
@@ -1487,6 +1497,7 @@ public class GenericPipelineUtils
                             //add "iSticker < jIndGroupStartToken;
                             partialOrder[partialOrderSize][0] = iSticker;
                             partialOrder[partialOrderSize][1] = jIndGroupStartToken;
+                            if (verboseLevel >= 1) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                     }
@@ -1495,14 +1506,15 @@ public class GenericPipelineUtils
                         // same as previous case but reversed
                         if (!jStickerIsVisible)
                             continue;
-                        //System.out.println("    sticker "+iSticker+"'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"");
                         boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+                        if (verboseLevel >= 1) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+")'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"("+jPolyThisSticker+") (which is "+(jStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+")");
                         if (jStickerHasPolyBackfacing)
                         {
                             int iIndGroupEndToken = iGroup+1;
                             //add "iIndGroupEndToken < jSticker";
                             partialOrder[partialOrderSize][0] = iIndGroupEndToken;
                             partialOrder[partialOrderSize][1] = jSticker;
+                            if (verboseLevel >= 1) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                         else
@@ -1511,6 +1523,7 @@ public class GenericPipelineUtils
                             //add "jSticker < iIndGroupStartToken;
                             partialOrder[partialOrderSize][0] = jSticker;
                             partialOrder[partialOrderSize][1] = iIndGroupStartToken;
+                            if (verboseLevel >= 1) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                     }
@@ -1569,7 +1582,7 @@ public class GenericPipelineUtils
                     int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
                     if (componentSize >= 2)
                     {
-                        if (cycleVerboseLevel >= 1) System.out.println("    there's a cycle of length "+componentSize+"");
+                        if (cycleVerboseLevel >= 1) System.out.println("    there's a cycle (actually connected component) of length "+componentSize+"");
                         //
                         // z-sort within the strongly connected component
                         //
@@ -1626,7 +1639,7 @@ public class GenericPipelineUtils
                     for (int iComponent = 0; iComponent < nComponents; ++iComponent)
                     {
                         int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
-                        if (componentSize >= 2)
+                        if (componentSize > 1)
                         {
                             // Okay to be verbose since they are debugging
                             System.out.println("    found a cycle (well at least a connected component) of length "+componentSize+"");
@@ -1667,12 +1680,55 @@ public class GenericPipelineUtils
                                     break;
                             }
                             System.out.println();
+                            System.out.println("    that actual cycle has length "+justTheCyclesSize);
                         }
+                    }
+                    if (true) {
+                        justTheCycles = (int[][])com.donhatchsw.util.Arrays.subarray(justTheCycles, 0, justTheCyclesSize);
+                        System.out.println("================================");
+                        System.out.println("nStickers = "+nStickers);
+                        System.out.println("justTheCyclesSize = "+justTheCyclesSize);
+                        System.out.println("justTheCycles = "+com.donhatchsw.util.Arrays.toStringCompact(justTheCycles));
+                        // Attempt to dump a full-ish description of the cycle.
+                        System.out.print("    A cycle, of length "+justTheCycles.length+":  ");
+                        for (int ii = 0; ii < justTheCycles.length+1; ++ii) {
+                            int i = ii % (justTheCycles.length);
+                            CHECK(justTheCycles[i][1] == justTheCycles[(i+1)%justTheCycles.length][0]);
+                            if (ii > 0) System.out.print(" -> ");
+                            int iii = justTheCycles[i][0];
+                            String description = iii<nStickers ? ""+iii :
+                                                 iii%2 == 0 ? ""+iii+"{" :
+                                                              "}"+iii;
+                            System.out.print(description);
+                        }
+                        System.out.println();
+
+                        System.out.println("    The slices:");
+                        for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
+                            int groupBeginTokenIndex = nStickers + 2*iSlice;
+                            int groupEndTokenIndex = nStickers + 2*iSlice+1;
+                            System.out.print("        slice "+iSlice+"/"+nCompressedSlices+": begin token "+groupBeginTokenIndex+", end token "+groupEndTokenIndex+": ");
+                            for (int iSticker = 0; iSticker < nStickers; ++iSticker) {
+                                CHECK((parents[iSticker] == groupBeginTokenIndex) == (sticker2Slice[iSticker]==iSlice));
+                                if (parents[iSticker] == groupBeginTokenIndex) {
+                                    System.out.print(" "+iSticker);
+                                }
+                            }
+                            System.out.println();
+                            int parentSliceBeginTokenIndex = parents[groupBeginTokenIndex];
+                            int parentSlice;
+                            if (parentSliceBeginTokenIndex == -1)
+                                parentSlice = -1;
+                            else {
+                                CHECK((parentSliceBeginTokenIndex-nStickers)%2 == 0);
+                                parentSlice = (parentSliceBeginTokenIndex-nStickers)/2;
+                            }
+                            System.out.println("            parent slice = "+parentSlice);
+                        }
+                        System.out.println("================================");
                     }
                     partialOrder = justTheCycles;
                     partialOrderSize = justTheCyclesSize;
-                    //System.out.println("justTheCyclesSize = "+justTheCyclesSize);
-                    //System.out.println("justTheCycles = "+com.donhatchsw.util.Arrays.toStringCompact(justTheCycles));
                 }
             }
 
@@ -1699,6 +1755,7 @@ public class GenericPipelineUtils
                 returnPartialOrderOptionalForDebugging[0] = (int[][])com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize);
             }
 
+            if (verboseLevel >= 1) System.out.println("    out sortStickersBackToFront, returning nCompressedSorted="+nCompressedSorted);
             return nCompressedSorted;
         } // sortStickersBackToFront
     } // class VeryCleverPaintersSortingOfStickers

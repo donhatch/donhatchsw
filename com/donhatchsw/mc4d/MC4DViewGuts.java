@@ -1028,7 +1028,7 @@ public class MC4DViewGuts
             viewParams.useTopsort.get(),
             viewParams.showPartialOrder.get());
 
-        if (false)  // TODO: make this a mode; it's useful either way
+        if (true)  // TODO: make this a mode; it's useful either way
         {
             // Hack to make the shown partial order diagram freeze too
             if (viewParams.frozenForDebugging.get())
