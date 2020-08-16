@@ -7,7 +7,7 @@ public class FuzzyPointHashSet
 {
     public FuzzyPointHashSet(double littleTol, double bigTol, double bucketSize)
     {
-      this.table = new FuzzyPointHashTable(littleTol, bigTol, bucketSize);
+      this.table = new FuzzyPointHashTable<Object>(littleTol, bigTol, bucketSize);
     }
     public boolean add(double key[])
     {
@@ -17,7 +17,7 @@ public class FuzzyPointHashSet
     {
       return table.get(key) != null;
     }
-    private FuzzyPointHashTable table;
+    private FuzzyPointHashTable<Object> table;
     private static Object dummy = new Object();  // must be distinct from null
 }  // class FuzzyPointHashSet
 

@@ -524,7 +524,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     private double[][] stickerCentersD; // for very accurate which-slice determination
     private float[][] stickerCentersF; // for just shoving through display pipeline
     private float[][] stickerAltCentersF; // alternate sticker shrink-to points, on facet boundary
-    private FuzzyPointHashTable stickerCentersHashTable;
+    private FuzzyPointHashTable<Integer> stickerCentersHashTable;
 
     private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
     private static void Assumpt(boolean condition) { if (!condition) throw new Error("Assumption failed"); }
@@ -1022,7 +1022,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         //
         this.facet2OppositeFacet = new int[nFacets];
         {
-            FuzzyPointHashTable table = new FuzzyPointHashTable(1e-9, 1e-8, 1./64);  // 1e-9, 1e-8, 1/128 made something hit a wall on the omnitruncated 120cell
+            FuzzyPointHashTable<CSG.Polytope> table = new FuzzyPointHashTable<CSG.Polytope>(1e-9, 1e-8, 1./64);  // 1e-9, 1e-8, 1/128 made something hit a wall on the omnitruncated 120cell
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                 table.put(facetInwardNormals[iFacet], originalFacets[iFacet]);
             double[] oppositeNormalScratch = new double[nDims];
@@ -1491,7 +1491,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                     CSG.cgOfVerts(facetCentersD[iFacet], originalFacets[iFacet]);
             }
             this.stickerCentersD = new double[nStickers][nDims];
-            this.stickerCentersHashTable = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
+            this.stickerCentersHashTable = new FuzzyPointHashTable<Integer>(1e-9, 1e-8, 1./128);
             {
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
@@ -1791,7 +1791,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 this.adjacentStickerPairs = new int[nAdjsExpected][][];
                 int nAdjsFound = 0;
 
-                FuzzyPointHashTable polyCenter2stickerAndPolyIndices = new FuzzyPointHashTable(1e-9, 1e-8, 1./64);
+                FuzzyPointHashTable<int[][]> polyCenter2stickerAndPolyIndices = new FuzzyPointHashTable<int[][]>(1e-9, 1e-8, 1./64);
 
                 double[] polycenter = new double[4];  // scratch for loop
                 for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker) {
@@ -1804,7 +1804,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             VecMath.vpv(polycenter, polycenter, vert);
                         }
                         VecMath.vxs(polycenter, polycenter, 1./poly.length);
-                        int[][] entry = (int[][])polyCenter2stickerAndPolyIndices.get(polycenter);
+                        int[][] entry = polyCenter2stickerAndPolyIndices.get(polycenter);
                         //System.out.println("      stickerpoly "+iSticker+"("+iPolyThisSticker+") center: "+com.donhatchsw.util.Arrays.toStringCompact(polycenter));
                         if (entry == null) {
                             entry = new int[][] {{iSticker, iPolyThisSticker}, {-1,-1}};
@@ -3373,7 +3373,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
                 // populate outVerts
                 {
-                    FuzzyPointHashTable from2toVertCoords = new FuzzyPointHashTable(1e-9, 1e-8, 1./128);
+                    FuzzyPointHashTable<double[]> from2toVertCoords = new FuzzyPointHashTable<double[]>(1e-9, 1e-8, 1./128);
                     {
                         // make a map from coords to symbolic, then symbolic to symbolic is easy, then symbolic to coordso
 
@@ -3486,7 +3486,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         {
                             double[] from = vertsDForFutt[iVert];
                             //double[] to = (double[])finalMorphDestinations.get(from);
-                            double[] to = (double[])from2toVertCoords.get(from);
+                            double[] to = from2toVertCoords.get(from);
                             if (futtVerboseLevel >= 3) System.out.println("          found vert from="+VecMath.toString(from)+" -> to="+VecMath.toString(to));
                             if (to == null)
                             {
@@ -3651,7 +3651,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                            thisFaceCutOffsets))
                     {
                         VecMath.vxm(scratchVert, stickerCentersD[iSticker], matD);
-                        Integer whereIstickerGoes = (Integer)stickerCentersHashTable.get(scratchVert);
+                        Integer whereIstickerGoes = stickerCentersHashTable.get(scratchVert);
                         CHECK(whereIstickerGoes != null);
                         newState[whereIstickerGoes.intValue()] = state[iSticker];
                     }

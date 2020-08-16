@@ -1991,9 +1991,9 @@ public final class CSG
             //
             com.donhatchsw.compat.ArrayList flagList = new com.donhatchsw.compat.ArrayList();
             {
-                FuzzyPointHashTable flagHashTable = new FuzzyPointHashTable(1e-9,
-                                                                            1e-8,
-                                                                            1./512);
+                FuzzyPointHashTable<double[][]> flagHashTable = new FuzzyPointHashTable<double[][]>(1e-9,
+                                                                                                    1e-8,
+                                                                                                    1./512);
                 flagList.add(initialFlag);
                 flagHashTable.put(VecMath.flatten(initialFlag), initialFlag);
 
@@ -2043,14 +2043,16 @@ public final class CSG
             if (verbose) PRINT(wholeThing.id);
             {
                 com.donhatchsw.compat.ArrayList elementLists[] = new com.donhatchsw.compat.ArrayList[nDims+1];
-                FuzzyPointHashTable elementHashTables[] = new FuzzyPointHashTable[nDims+1];
+                // workaround 3 from https://programming.guide/java/generic-array-creation.html
+                class FuzzyPointHashTable_Integer extends FuzzyPointHashTable<Integer> { public FuzzyPointHashTable_Integer(double a, double b, double c) { super(a,b,c); } };
+                FuzzyPointHashTable_Integer elementHashTables[] = new FuzzyPointHashTable_Integer[nDims+1];
 
                 FORI (iDim, nDims+1)
                 {
                     elementLists[iDim] = new com.donhatchsw.compat.ArrayList();
-                    elementHashTables[iDim] = new FuzzyPointHashTable(1e-9,
-                                                                      1e-8,
-                                                                      1./512);
+                    elementHashTables[iDim] = new FuzzyPointHashTable_Integer(1e-9,
+                                                                              1e-8,
+                                                                              1./512);
                 }
                 // The whole one, which isn't mentioned explicitly
                 // in the flags.  Don't need to put it in the hash table
@@ -5198,19 +5200,18 @@ public final class CSG
             //double littleTol = 1e-8, bigTol = 1e-7; // another similar error
             double littleTol = 1e-10, bigTol = 1e-9;
 
-            FuzzyPointHashTable hashTable = new FuzzyPointHashTable(littleTol,
-                                                                    bigTol,
-                                                                    1./512);
+            FuzzyPointHashSet hashSet = new FuzzyPointHashSet(littleTol,
+                                                              bigTol,
+                                                              1./512);
             Polytope verts[] = p.getAllElements()[0];
             int nVerts = verts.length;
             {
-                Object something = new Object();
                 FORI (iVert, nVerts)
                 {
                     double vertCoords[] = verts[iVert].getCoords();
                     while (vertCoords.length < nDims)
                         vertCoords = Arrays.append(vertCoords, 0.);
-                    hashTable.put(vertCoords, something);
+                    hashSet.add(vertCoords);
                 }
             }
 
@@ -5237,7 +5238,7 @@ public final class CSG
                     while (vertCoords.length < nDims)
                         vertCoords = Arrays.append(vertCoords, 0.);
                     VecMath.vxm(scratchVert, vertCoords, mat);
-                    if (hashTable.get(scratchVert) == null)
+                    if (!hashSet.contains(scratchVert))
                     {
                         //System.err.print("(HEY! order "+order+"/"+maxPossibleOrder+" didn't work!)");
                         break; // no good!

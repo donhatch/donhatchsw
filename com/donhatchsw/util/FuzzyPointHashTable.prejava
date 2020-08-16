@@ -32,14 +32,14 @@ package com.donhatchsw.util;
 
 // Doesn't derived from anything,
 // because I only felt like implementing a small number of methods (get and put).
-public class FuzzyPointHashTable
+public class FuzzyPointHashTable<V>
 {
     private double bucketSize;
     private double littleTol;
     private double bigTol;
     private double tol; // (littleTol+bigTol)/2
     private double invBucketSize; // 1./bucketSize
-    private java.util.HashMap<FuzzyPoint,Object> hashtable;
+    private java.util.HashMap<FuzzyPoint,V> hashtable;
 
     /**
     * Construct a fuzzy point hash table.
@@ -81,7 +81,7 @@ public class FuzzyPointHashTable
         this.tol = (littleTol+bigTol)*.5;
         this.invBucketSize = 1./bucketSize;
 
-        this.hashtable = new java.util.HashMap<FuzzyPoint,Object>();
+        this.hashtable = new java.util.HashMap<FuzzyPoint,V>();
     } // ctor
 
     private class FuzzyPoint
@@ -91,6 +91,7 @@ public class FuzzyPointHashTable
         {
             this.point = point;
         }
+        @SuppressWarnings("unchecked")  // TODO: get rid of this if possible
         public boolean equals(Object that)
         {
             double thatPoint[] = ((FuzzyPoint)that).point;
@@ -169,7 +170,7 @@ public class FuzzyPointHashTable
     /**
     * Gets the value assocated with key, or null if there is none.
     **/
-    public Object get(double key[])
+    public V get(double key[])
     {
         scratchForGet.point = key; // XXX hey, why can I do this? scratchForGet.point is supposed to be private!!!
         return hashtable.get(scratchForGet);
@@ -179,8 +180,8 @@ public class FuzzyPointHashTable
     * Puts the value into the table with given key (assumed immutable),
     * returning the previous value (or null if there was none)
     */
-    public Object put(double key[],
-                      Object value)
+    public V put(double key[],
+                 V value)
     {
         return hashtable.put(new FuzzyPoint(key), value);
     }
