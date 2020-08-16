@@ -1023,7 +1023,7 @@ public class GenericPipelineUtils
             // XXX possible to see the loop structure
             int predecessors[][] = null;
             float partialOrderNodeCenters2d[][] = null;
-            if (showPartialOrder)
+            if (showPartialOrder && frame.partialOrder != null)
             {
                 int partialOrderSize = frame.partialOrder.length;
                 int nStickers = puzzleDescription.nStickers();
@@ -1097,7 +1097,7 @@ public class GenericPipelineUtils
                 int iSticker = drawList[iItem][0];
                 int iPolyThisSticker = drawList[iItem][1];
 
-                if (showPartialOrder
+                if (showPartialOrder && frame.partialOrder != null
                         && (iItem==0 || drawList[iItem][0] != drawList[iItem-1][0]))
                 {
                     int nStickers = puzzleDescription.nStickers();

@@ -1082,9 +1082,15 @@ public class MC4DViewGuts
         ++viewState.nPaintsDone;
         if (viewParams.showNumPaintsDone.get())
         {
-            g.setColor(java.awt.Color.black);
+            g.setColor(java.awt.Color.BLACK);
             com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
-            mg.drawString("("+viewState.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2, 2, 1, -1.);
+            mg.drawString("("+viewState.nPaintsDone+" paint"+(viewState.nPaintsDone==1?"":"s")+")", W-2., 2., 1., -1.);
+        }
+        if (viewParams.frozenForDebugging.get()) {
+            g.setColor(java.awt.Color.RED);
+            com.donhatchsw.awt.MyGraphics mg = new com.donhatchsw.awt.MyGraphics(g, viewSize, 0,W,H,0);
+            mg.drawString("FROZEN FOR DEBUGGING", 0., 0., -1., -1.);
+            mg.drawString("(ctrl-alt-space to unfreeze)", 0., g.getFontMetrics().getHeight(), -1., -1.);
         }
         if (viewParams.eventVerboseLevel.get() >= 3) System.out.println("            end painting on a "+view.getClass().getSuperclass().getName());
     } // paint
