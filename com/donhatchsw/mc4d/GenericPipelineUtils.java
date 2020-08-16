@@ -779,6 +779,7 @@ public class GenericPipelineUtils
             // Sort drawlist polygons back-to-front,
             // using the z values that we retained from before the 3d->2d projection
             // (but there's less work to do now that we culled back faces).
+            // TODO: should do this per sticker I think; it would solve a lot of the immediate problems on 3d and 2d puzzles!
             //
             {
                 float polyCentersZ[/*nStickers*/][/*nPolysThisSticker*/] = new float[nStickers][]; // XXX ALLOCATION!
@@ -1278,10 +1279,10 @@ public class GenericPipelineUtils
                 float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
                 float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
         {
-            int verboseLevel = 0;  // hard-code to something higher to debug
-            if (verboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
-            if (verboseLevel >= 3) {
-                if (verboseLevel >= 1) System.out.println("      adjacentStickerPairs = "+com.donhatchsw.util.Arrays.toStringCompact(adjacentStickerPairs));
+            int localVerboseLevel = 0;  // hard-code to something higher to debug
+            if (localVerboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
+            if (localVerboseLevel >= 3) {
+                if (localVerboseLevel >= 1) System.out.println("      adjacentStickerPairs = "+com.donhatchsw.util.Arrays.toStringCompact(adjacentStickerPairs));
             }
 
             int nSlices = cutOffsets.length + 1;
@@ -1421,7 +1422,7 @@ public class GenericPipelineUtils
                             if (VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter) < -1e-3
                              || VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter) > 1e-3)
                             {
-                                if (verboseLevel >= 1 || returnPartialOrderOptionalForDebugging != null)
+                                if (localVerboseLevel >= 1 || returnPartialOrderOptionalForDebugging != null)
                                 {
                                     System.out.println("HA!  I don't CARE because it's SO WARPED! stickers "+iSticker+"("+iPolyThisSticker+") "+jSticker+"("+jPolyThisSticker+")");
                                     System.out.println("    inormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[iSticker][iPolyThisSticker]));
@@ -1476,7 +1477,7 @@ public class GenericPipelineUtils
                                     * _ D _ *
                                         *
                             */
-                            if (verboseLevel >= 1 || returnPartialOrderOptionalForDebugging != null) System.out.println("WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!!");
+                            if (localVerboseLevel >= 1 || returnPartialOrderOptionalForDebugging != null) System.out.println("WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!!");
                             continue;
                         }
                         else
@@ -1514,14 +1515,14 @@ public class GenericPipelineUtils
                         if (!iStickerIsVisible)
                             continue;
                         boolean iStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
-                        if (verboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+") (which is "+(iStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+") is adjacent to sticker "+jSticker+"("+jPolyThisSticker+")'s slice "+sticker2Slice[jSticker]+"");
+                        if (localVerboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+") (which is "+(iStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+") is adjacent to sticker "+jSticker+"("+jPolyThisSticker+")'s slice "+sticker2Slice[jSticker]+"");
                         if (iStickerHasPolyBackfacing)
                         {
                             int jIndGroupEndToken = jGroup+1;
                             //add "jIndGroupEndToken < iSticker";
                             partialOrder[partialOrderSize][0] = jIndGroupEndToken;
                             partialOrder[partialOrderSize][1] = iSticker;
-                            if (verboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                         else
@@ -1530,7 +1531,7 @@ public class GenericPipelineUtils
                             //add "iSticker < jIndGroupStartToken;
                             partialOrder[partialOrderSize][0] = iSticker;
                             partialOrder[partialOrderSize][1] = jIndGroupStartToken;
-                            if (verboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                     }
@@ -1540,14 +1541,14 @@ public class GenericPipelineUtils
                         if (!jStickerIsVisible)
                             continue;
                         boolean jStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
-                        if (verboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+")'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"("+jPolyThisSticker+") (which is "+(jStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+")");
+                        if (localVerboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+")'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"("+jPolyThisSticker+") (which is "+(jStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+")");
                         if (jStickerHasPolyBackfacing)
                         {
                             int iIndGroupEndToken = iGroup+1;
                             //add "iIndGroupEndToken < jSticker";
                             partialOrder[partialOrderSize][0] = iIndGroupEndToken;
                             partialOrder[partialOrderSize][1] = jSticker;
-                            if (verboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                         else
@@ -1556,7 +1557,7 @@ public class GenericPipelineUtils
                             //add "jSticker < iIndGroupStartToken;
                             partialOrder[partialOrderSize][0] = jSticker;
                             partialOrder[partialOrderSize][1] = iIndGroupStartToken;
-                            if (verboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (localVerboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                     }
@@ -1788,7 +1789,7 @@ public class GenericPipelineUtils
                 returnPartialOrderOptionalForDebugging[0] = (int[][])com.donhatchsw.util.Arrays.subarray(partialOrder, 0, partialOrderSize);
             }
 
-            if (verboseLevel >= 1) System.out.println("    out sortStickersBackToFront, returning nCompressedSorted="+nCompressedSorted);
+            if (localVerboseLevel >= 1) System.out.println("    out sortStickersBackToFront, returning nCompressedSorted="+nCompressedSorted);
             return nCompressedSorted;
         } // sortStickersBackToFront
     } // class VeryCleverPaintersSortingOfStickers
