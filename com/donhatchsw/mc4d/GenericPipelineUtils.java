@@ -231,6 +231,8 @@ public class GenericPipelineUtils
                 fracIntoTwist);
         }
 
+        float[][] verts_unshrunk = VecMath.copymat(verts);  // XXX MEMORY ALLOCATION
+
         //
         // Shrink the vertices towards the shrink-to points in 4d.
         // And, shrink the sticker centers towards the face centers,
@@ -255,8 +257,8 @@ public class GenericPipelineUtils
             }
         }
 
-        // The three arrays we need to rotate and project...
-        float arrays[][][] = {verts, stickerShrinkPoints, perStickerFaceCenters};
+        // The four arrays we need to rotate and project...
+        float arrays[][][] = {verts_unshrunk, verts, stickerShrinkPoints, perStickerFaceCenters};
         
         //
         // Rotate/scale in 4d.
@@ -280,7 +282,7 @@ public class GenericPipelineUtils
                 }
             }
         }
-        if (verboseLevel >= 4) System.out.println("        after 4d rot/scale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
+        if (verboseLevel >= 4) System.out.println("        after 4d rotscale/trans: verts = "+com.donhatchsw.util.Arrays.toStringCompact(verts));
 
         //
         // Clip to the 4d eye's front clipping plane
@@ -292,7 +294,7 @@ public class GenericPipelineUtils
 
         //
         // Project down to 3d.
-        // Verts, face centers, and sticker shrink-to points.
+        // Unshrunk verts, verts, face centers, and sticker shrink-to points.
         //
         {
             for (int iArray = 0; iArray < arrays.length; ++iArray)
@@ -355,7 +357,7 @@ public class GenericPipelineUtils
         // XXX could try to do this on only vertices that passed the culls
         // XXX need to do this with the xformed and projected shrink-to point,
         // XXX not calculate screwy centers on the fly here.
-        // XXX Q: should the sticker shrink-to point always be shrunk towards the face shrink-to point in 4d?  Or does 3d make sense?  Well, 4d would be more robust, since that shrinking could prevent having to do with projected original points that could end up behind the eye.  So that's what we do.
+        // Q: should the sticker shrink-to point always be shrunk towards the face shrink-to point in 4d?  Or does 3d make sense?  Well, 4d would be more robust, since that shrinking could prevent having to do with projected original points that could end up behind the eye.  So that's what we do.
         //
         if (stickerShrink3d != 1.f)
             for (int iVert = 0; iVert < verts.length; ++iVert)
@@ -372,6 +374,14 @@ public class GenericPipelineUtils
             if (verboseLevel >= 4) System.out.println("rot3d = "+com.donhatchsw.util.Arrays.toStringCompact(rot3d));
             float tempIn[] = new float[3]; // XXX MEMORY ALLOCATION
             float tempOut[] = new float[3]; // XXX MEMORY ALLOCATION
+            for (int iVert = 0; iVert < verts_unshrunk.length; ++iVert)
+            {
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    tempIn[i] = verts_unshrunk[iVert][i];
+                VecMath.vxm(tempOut, tempIn, rot3d); // only first 3... however the matrix can be 3x3 or 4x3
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    verts_unshrunk[iVert][i] = tempOut[i];
+            }
             for (int iVert = 0; iVert < verts.length; ++iVert)
             {
                 for (int i = 0; i < 3; ++i) // 3 out of 4
@@ -472,6 +482,8 @@ public class GenericPipelineUtils
         // XXX since we're doing this anyway, could do the backface culling here too
         // XXX instead of later on the 2d polygons
         //
+        // TODO: revisit whether we still need this at all.  it was for a sanity check inside the sort function that is maybe defunct.
+        //
         float polyCenters3d[][][] = null;
         float polyNormals3d[][][] = null;
         if (useTopsort)
@@ -552,8 +564,12 @@ public class GenericPipelineUtils
         if (verboseLevel >= 2) if (shadowVerts != null) System.out.println("        after 3d->3d project: shadowVerts[0] = "+com.donhatchsw.util.Arrays.toStringCompact(shadowVerts[0]));
 
         boolean stickerPolyIsStrictlyBackfacing[][] = new boolean[nStickers][];
+        boolean unshrunkStickerPolyIsStrictlyBackfacing[][] = new boolean[nStickers][];
         for (int iSticker = 0; iSticker < nStickers; ++iSticker)
+        {
             stickerPolyIsStrictlyBackfacing[iSticker] = new boolean[stickerInds[iSticker].length];
+            unshrunkStickerPolyIsStrictlyBackfacing[iSticker] = new boolean[stickerInds[iSticker].length];
+        }
 
         //
         // Back-face cull
@@ -575,16 +591,30 @@ public class GenericPipelineUtils
             {
                 int i0i1[] = drawList[i];
                 int poly[] = stickerInds[i0i1[0]][i0i1[1]];
-                float v0[] = verts[poly[0]];
-                float v1[] = verts[poly[1]];
-                float v2[] = verts[poly[2]];
-                VecMath.vmv(2, mat[0], v1, v0); // 2 out of 4
-                VecMath.vmv(2, mat[1], v2, v0); // 2 out of 4
-                float area = VecMath.vxv2(mat[0], mat[1]);
-                boolean thisStickerPolyIsStrictlyBackfacing = area < 0.f; // retain *front* facing polygons-- note we haven't inverted Y yet so this test looks as expected
-                if (!thisStickerPolyIsStrictlyBackfacing)
-                    drawList[nFrontFacing++] = i0i1;
-                stickerPolyIsStrictlyBackfacing[i0i1[0]][i0i1[1]] = thisStickerPolyIsStrictlyBackfacing;
+
+                {
+                    float v0[] = verts[poly[0]];
+                    float v1[] = verts[poly[1]];
+                    float v2[] = verts[poly[2]];
+                    VecMath.vmv(2, mat[0], v1, v0); // 2 out of 4
+                    VecMath.vmv(2, mat[1], v2, v0); // 2 out of 4
+                    float area = VecMath.vxv2(mat[0], mat[1]);
+                    boolean thisStickerPolyIsStrictlyBackfacing = area < 0.f; // retain *front* facing polygons-- note we haven't inverted Y yet so this test looks as expected
+                    if (!thisStickerPolyIsStrictlyBackfacing)
+                        drawList[nFrontFacing++] = i0i1;
+                    stickerPolyIsStrictlyBackfacing[i0i1[0]][i0i1[1]] = thisStickerPolyIsStrictlyBackfacing;
+                }
+                // same for unshrunk, to compute unshrunkStickerPolyIsStrictlyBackfacing, but do *not* append to drawlist
+                {
+                    float v0[] = verts_unshrunk[poly[0]];
+                    float v1[] = verts_unshrunk[poly[1]];
+                    float v2[] = verts_unshrunk[poly[2]];
+                    VecMath.vmv(2, mat[0], v1, v0); // 2 out of 4
+                    VecMath.vmv(2, mat[1], v2, v0); // 2 out of 4
+                    float area = VecMath.vxv2(mat[0], mat[1]);
+                    boolean thisStickerPolyIsStrictlyBackfacing = area < 0.f; // retain *front* facing polygons-- note we haven't inverted Y yet so this test looks as expected
+                    unshrunkStickerPolyIsStrictlyBackfacing[i0i1[0]][i0i1[1]] = thisStickerPolyIsStrictlyBackfacing;
+                }
             }
             drawListSize = nFrontFacing;
 
@@ -714,7 +744,7 @@ public class GenericPipelineUtils
                     nStickersToSort,
                     puzzleDescription.getAdjacentStickerPairs(),
                     stickerVisibilities,
-                    stickerPolyIsStrictlyBackfacing,
+                    unshrunkStickerPolyIsStrictlyBackfacing,
                     VecMath.mxv(rot4d, new float[]{0,0,0,eyeW}), // in opposite order so we multiply the eye by the *inverse* of the matrix, to get it into object space  XXX put this elsewhere
                     cutNormal,
                     cutOffsets,
@@ -1237,7 +1267,7 @@ public class GenericPipelineUtils
                 final int nStickers, // can be less than actual number, for debugging
                 int adjacentStickerPairs[][/*2*/][/*2: iSticker,iPolyThisSticker*/],
                 final boolean stickerVisibilities[/*>=nStickers*/],
-                boolean stickerPolyIsStrictlyBackfacing[/*>=nStickers*/][/*nPolysThisSticker*/],
+                boolean unshrunkStickerPolyIsStrictlyBackfacing[/*>=nStickers*/][/*nPolysThisSticker*/],
                 float eye[/*nDisplayDims*/],
                 float cutNormal[/*nDisplayDims*/],
                 float cutOffsets[/*nCuts*/], // in increasing order
@@ -1248,9 +1278,9 @@ public class GenericPipelineUtils
                 float polyCenters3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/],
                 float polyNormals3d[/*>=nStickers*/][/*nPolysThisSticker*/][/*3*/])
         {
-            int verboseLevel = 0;
+            int verboseLevel = 0;  // hard-code to something higher to debug
             if (verboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
-            if (verboseLevel >= 2) {
+            if (verboseLevel >= 3) {
                 if (verboseLevel >= 1) System.out.println("      adjacentStickerPairs = "+com.donhatchsw.util.Arrays.toStringCompact(adjacentStickerPairs));
             }
 
@@ -1375,6 +1405,8 @@ public class GenericPipelineUtils
                     // that the polygons are facing away from each other...
                     // If so, then this polygon should not restrict anything.
                     //
+                    // TODO: this may be no longer necessary since we are now computing backfaces
+                    //       based on unshrunk; not sure!  Revisit.  How?
                     if (true)
                     {
                         if (iStickerIsVisible && jStickerIsVisible
@@ -1383,12 +1415,13 @@ public class GenericPipelineUtils
                             VecMath.vmv(jPolyCenterMinusIPolyCenter,
                                         polyCenters3d[jSticker][jPolyThisSticker],
                                         polyCenters3d[iSticker][iPolyThisSticker]);
+
                             // we add a tiny bit of slop to make sure we consider
                             // the adjacency valid if the faces are coincident
                             if (VecMath.dot(polyNormals3d[iSticker][iPolyThisSticker], jPolyCenterMinusIPolyCenter) < -1e-3
                              || VecMath.dot(polyNormals3d[jSticker][jPolyThisSticker], jPolyCenterMinusIPolyCenter) > 1e-3)
                             {
-                                if (false)
+                                if (verboseLevel >= 1 || returnPartialOrderOptionalForDebugging != null)
                                 {
                                     System.out.println("HA!  I don't CARE because it's SO WARPED! stickers "+iSticker+"("+iPolyThisSticker+") "+jSticker+"("+jPolyThisSticker+")");
                                     System.out.println("    inormal = "+com.donhatchsw.util.Arrays.toStringCompact(polyNormals3d[iSticker][iPolyThisSticker]));
@@ -1412,22 +1445,22 @@ public class GenericPipelineUtils
                         if (!iStickerIsVisible || !jStickerIsVisible)
                             continue;
                         //System.out.println("    stickers "+iSticker+","+jSticker+" in same slice "+sticker2Slice[iSticker]+"");
-                        boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
-                        boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+                        boolean iStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        boolean jStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
                         if (iStickerHasPolyBackfacing && jStickerHasPolyBackfacing)
                         {
-                            // XXX ARGH!  This wouldn't happen if we were
-                            // XXX projecting the original non-shrunken
-                            // XXX hyperfaces, but unfortunately we shrink them
-                            // XXX so it makes the two polygons not parallel
-                            // XXX in 3-space.  I *think* if both are backfacing
-                            // XXX it should mean either draw order is okay though.
+                            // Note that this cannot happen any more unless
+                            // we are viewing the polygon essentially edge-on
+                            // and the math got degenerate, since the backfacing flags
+                            // were computed preshrunk, which means the two polys
+                            // should exactly match.
 
-                            // XXX nope, on further thought, "either draw order is okay" is not okay! it ends up screwing up everything!
-                            //     here's an example where sticker A doesn't realize there's anything in front of it,
-                            //     because it seems like there isn't anything *immediately* in front of it.
-                            //     That is, we have only B<D C<D.
-                            //     We also need either A<B or A<C, too, otherwise A might be drawn after D!
+                            // For posterity, here's a picture of why "either draw order is ok"
+                            // is not ok:
+                            // A doesn't realize there's anything in front of it,
+                            // because it seems like there isn't anything *immediately* in front of it.
+                            // That is, we have only B<D C<D.
+                            // We also need either A<B or A<C, too, otherwise A might be drawn after D!
                             /*
                                         *
                                        / \
@@ -1443,7 +1476,7 @@ public class GenericPipelineUtils
                                     * _ D _ *
                                         *
                             */
-                            // System.out.println("WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!!");
+                            if (verboseLevel >= 1 || returnPartialOrderOptionalForDebugging != null) System.out.println("WARNING: sticker "+iSticker+"("+iPolyThisSticker+") and "+jSticker+"("+jPolyThisSticker+") both have poly backfacing!!");
                             continue;
                         }
                         else
@@ -1480,15 +1513,15 @@ public class GenericPipelineUtils
 
                         if (!iStickerIsVisible)
                             continue;
-                        boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
-                        if (verboseLevel >= 1) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+") (which is "+(iStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+") is adjacent to sticker "+jSticker+"("+jPolyThisSticker+")'s slice "+sticker2Slice[jSticker]+"");
+                        boolean iStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        if (verboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+") (which is "+(iStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+") is adjacent to sticker "+jSticker+"("+jPolyThisSticker+")'s slice "+sticker2Slice[jSticker]+"");
                         if (iStickerHasPolyBackfacing)
                         {
                             int jIndGroupEndToken = jGroup+1;
                             //add "jIndGroupEndToken < iSticker";
                             partialOrder[partialOrderSize][0] = jIndGroupEndToken;
                             partialOrder[partialOrderSize][1] = iSticker;
-                            if (verboseLevel >= 1) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (verboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                         else
@@ -1497,7 +1530,7 @@ public class GenericPipelineUtils
                             //add "iSticker < jIndGroupStartToken;
                             partialOrder[partialOrderSize][0] = iSticker;
                             partialOrder[partialOrderSize][1] = jIndGroupStartToken;
-                            if (verboseLevel >= 1) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (verboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                     }
@@ -1506,15 +1539,15 @@ public class GenericPipelineUtils
                         // same as previous case but reversed
                         if (!jStickerIsVisible)
                             continue;
-                        boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
-                        if (verboseLevel >= 1) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+")'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"("+jPolyThisSticker+") (which is "+(jStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+")");
+                        boolean jStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+                        if (verboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+")'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"("+jPolyThisSticker+") (which is "+(jStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+")");
                         if (jStickerHasPolyBackfacing)
                         {
                             int iIndGroupEndToken = iGroup+1;
                             //add "iIndGroupEndToken < jSticker";
                             partialOrder[partialOrderSize][0] = iIndGroupEndToken;
                             partialOrder[partialOrderSize][1] = jSticker;
-                            if (verboseLevel >= 1) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (verboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                         else
@@ -1523,7 +1556,7 @@ public class GenericPipelineUtils
                             //add "jSticker < iIndGroupStartToken;
                             partialOrder[partialOrderSize][0] = jSticker;
                             partialOrder[partialOrderSize][1] = iIndGroupStartToken;
-                            if (verboseLevel >= 1) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
+                            if (verboseLevel >= 2) System.out.println("        so added "+com.donhatchsw.util.Arrays.toStringCompact(partialOrder[partialOrderSize]));
                             partialOrderSize++;
                         }
                     }
@@ -1761,7 +1794,7 @@ public class GenericPipelineUtils
     } // class VeryCleverPaintersSortingOfStickers
 
 
-    private static float tmpTWAf1[] = new float[2], tmpTWAf2[] = new float[2]; // scratch vars
+    private static float tmpTWAf1[] = new float[2], tmpTWAf2[] = new float[2]; // scratch vars.  not thread safe!
     private static float twice_triangle_area(float v0[], float v1[], float v2[])
     {
         //float tmpTNf1[] = new float[2], tmpTNf2[] = new float[2];

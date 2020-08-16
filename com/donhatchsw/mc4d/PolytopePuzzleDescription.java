@@ -1522,6 +1522,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         }
 
         // We'll need to keep track of any swaps we do...
+        // (Note, in this case "original" means after slicing but before
+        // swapping; it doesn't refer to pre-sliced)
         int[][] stickerPolyToOriginalStickerPoly = new int[nStickers][];
 
         //
