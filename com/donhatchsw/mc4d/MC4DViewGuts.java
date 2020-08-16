@@ -1028,15 +1028,17 @@ public class MC4DViewGuts
             viewParams.useTopsort.get(),
             viewParams.showPartialOrder.get());
 
-        /*
-        if (viewParams.frozenForDebugging.get())
+        if (false)  // TODO: make this a mode; it's useful either way
         {
-            if (frozenPartialOrderForDebugging != null)
-                glueFrameToDrawInto.partialOrder = frozenPartialOrderForDebugging;
-            else
-                frozenPartialOrderForDebugging = glueFrameToDrawInto.partialOrder;
+            // Hack to make the shown partial order diagram freeze too
+            if (viewParams.frozenForDebugging.get())
+            {
+                if (viewParams.frozenPartialOrderForDebugging != null)
+                    frameToDrawInto.partialOrder = viewParams.frozenPartialOrderForDebugging;
+                else
+                    viewParams.frozenPartialOrderForDebugging = frameToDrawInto.partialOrder;
+            }
         }
-        */
 
         // XXX figure out cleaner way to manage this
         float faceRGB[][] = new float[model.genericPuzzleDescription.nFaces()][3];
