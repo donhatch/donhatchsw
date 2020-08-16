@@ -77,8 +77,6 @@
                for all types of moves).
             - Better depth sorting of polygons
                (still doesn't always work though)
-               (works for only generic puzzles currently)
-               (and only 4d generic puzzles, doesn't work for 3d ones at all)
             - Lots of new puzzle types available from the Puzzle menu,
                of dimension 2,3, and 4.
                These are called "generic puzzles" and they are a work
@@ -380,7 +378,6 @@
               that eyeW > 1 so that it's safe by default, for all puzzles.
 
         AWT/APPLET/GUI LAYOUT:
-            - menu bar not supported at all in 1.1 currently (something about popupmenu api?)
             - MyMenuBar menus don't pop down nicely when others opened
             - clicking twist duration down from 30 to 29.99 takes 8 clicks, back up takes 12???  turn on the block of debugging messages in SliderForFloat to see.  damn, looks like this is a bug in Scrollbar??
 
@@ -1528,7 +1525,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         //
         // Get the rest verts (with no shrinkage)
-        // and the sticker polygon indices (i.e. mapping from sticker-and-polyThisSticker to vert).
+        // and the sticker polygon indices stickerInds
+        // (i.e. mapping from sticker-and-polyThisSticker to vert indices).
         // This is dimension-specific.
         //
         double restVerts[][];
@@ -1567,7 +1565,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         for (int iVert = 0; iVert < stickerVerts4d.length; ++iVert)
                         {
                             stickerVerts4d[iVert].pushAux(-1);
-                            stickerVerts4d[iVert].getCoords()[3] *= -1; // XXX FUDGE-- and this is not really legal... should do this afterwards
+                            stickerVerts4d[iVert].getCoords()[3] *= -1; // XXX FUDGE-- and this is totally illegal... should do this afterwards
                         }
                     }
                     // XXX note, we MUST step through the polys in the order in which they appear in getAllElements, NOT the order in which they appear in the facets list.  however, we need to get the sign from the facets list!
@@ -1736,14 +1734,20 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             //
             // Get adjacent sticker pairs into this.adjacentStickerPairs...
             //
-            if (nDims == 4) // XXX need to figure this out for nDims==3 too!
+            if (nDims == 4)
             {
+                // TODO: try to do it this way for nDims==3 and nDims==2 too... or just remove this way
+                // and use the "BRAIN DEAD WAY" that should work in general (but is not discrete
+                // so is theoretically not as airtight).
+
                 // Hmm, if Polytope provided back index information, we could just iterate over that,
                 // but it doesn't.
 
                 int[/*nStickers*/][/*nDims+1 or so*/][/*nEltsThisStickerThisDim*/] stickerIncidences = slicedPolytope.p.getAllIncidences()[nDims-1];
-                int nPolygons = slicedPolytope.p.getAllElements()[2].length;
-                this.adjacentStickerPairs = new int[nPolygons][2][];
+                // The expected number of adjacencies is exactly the number of ridges in the sliced polytope.
+                // That is: nPolygons if nDims==4, nEdges if nDims==3, nVerts if nDims==2.
+                int nAdjsExpected = slicedPolytope.p.getAllElements()[nDims-2].length;
+                this.adjacentStickerPairs = new int[nAdjsExpected][2][];
                 for (int iSticker = 0; iSticker < nStickers; ++iSticker)
                 {
                     int[] thisStickersIncidentPolygons = stickerIncidences[iSticker][nDims-2];
@@ -1778,8 +1782,49 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             }
             else
             {
-                // XXX stopgap for now
-                //this.adjacentStickerPairs = new int[0][2][];
+                // BRAIN DEAD WAY that would actually work for nDims=4 as well--
+                // just consider two polys coincidental if their sticker centers are the same.
+
+                // The expected number of adjacencies is exactly the number of ridges in the sliced polytope.
+                // That is: nPolygons if nDims==4, nEdges if nDims==3, nVerts if nDims==2.
+                int nAdjsExpected = slicedPolytope.p.getAllElements()[nDims-2].length;
+                this.adjacentStickerPairs = new int[nAdjsExpected][][];
+                int nAdjsFound = 0;
+
+                FuzzyPointHashTable polyCenter2stickerAndPolyIndices = new FuzzyPointHashTable(1e-9, 1e-8, 1./64);
+
+                double[] polycenter = new double[4];  // scratch for loop
+                for (int iSticker = 0; iSticker < stickerInds.length; ++iSticker) {
+                    for (int iPolyThisSticker = 0; iPolyThisSticker < stickerInds[iSticker].length; ++iPolyThisSticker) {
+                        int poly[] = stickerInds[iSticker][iPolyThisSticker];
+                        VecMath.zerovec(polycenter);
+                        for (int iVertThisPoly = 0; iVertThisPoly < poly.length; ++iVertThisPoly) {
+                            double[] vert = restVerts[poly[iVertThisPoly]];
+                            CHECK(vert.length == 4);
+                            VecMath.vpv(polycenter, polycenter, vert);
+                        }
+                        VecMath.vxs(polycenter, polycenter, 1./poly.length);
+                        int[][] entry = (int[][])polyCenter2stickerAndPolyIndices.get(polycenter);
+                        //System.out.println("      stickerpoly "+iSticker+"("+iPolyThisSticker+") center: "+com.donhatchsw.util.Arrays.toStringCompact(polycenter));
+                        if (entry == null) {
+                            entry = new int[][] {{iSticker, iPolyThisSticker}, {-1,-1}};
+                            polyCenter2stickerAndPolyIndices.put(VecMath.copyvec(polycenter), entry);
+                            //System.out.println("          not found -> "+com.donhatchsw.util.Arrays.toStringCompact(entry));
+                        } else {
+                            CHECK(entry[0][0] != -1);
+                            CHECK(entry[0][1] != -1);
+                            CHECK(entry[1][0] == -1);
+                            CHECK(entry[1][1] == -1);
+                            entry[1][0] = iSticker;
+                            entry[1][1] = iPolyThisSticker;
+                            //System.out.println("          found -> "+com.donhatchsw.util.Arrays.toStringCompact(entry));
+                            this.adjacentStickerPairs[nAdjsFound++] = entry;
+                        }
+                    }
+                }
+                CHECK(nAdjsFound == nAdjsExpected);
+                // Note that, if nDims<4, there will be a bunch of unmatched faces still in the table;
+                // that's fine.
             }
         }
         else // nDims >= 5
