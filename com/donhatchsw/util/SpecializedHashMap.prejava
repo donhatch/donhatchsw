@@ -11,46 +11,49 @@ package com.donhatchsw.util;
 *  HashMap with custom keyEquals and keyHashCode.
 *  Screwy that every get() and put() have an extra memory allocation :-(
 */
-public abstract class SpecializedHashMap
+public abstract class SpecializedHashMap<K,V>
+  // TODO: extends java.util.AbstractMap<K,V>
 {
     // These must be provided by concrete subclass
-    public abstract boolean keyEquals(Object a, Object b);
-    public abstract int keyHashCode(Object object);
+    public abstract boolean keyEquals(K a, K b);
+    public abstract int keyHashCode(K key);
 
     public SpecializedHashMap(int initialCapacity)
     {
-        this.hashMap = new java.util.HashMap<KeyWrapper,Object>(initialCapacity);
+        this.hashMap = new java.util.HashMap<KeyWrapper,V>(initialCapacity);
     };
 
-    public static class IntArrayHashMap extends SpecializedHashMap
+    public static class IntArrayHashMap<V> extends SpecializedHashMap<int[],V>
     {
         public IntArrayHashMap(int initialCapacity)
         {
             super(initialCapacity);
         }
-        public boolean keyEquals(Object a, Object b)
+        public boolean keyEquals(int[] a, int[] b)
         {
-            return java.util.Arrays.equals((int[])a, (int[])b);
+            return java.util.Arrays.equals(a, b);
         }
-        public int keyHashCode(Object object)
+        public int keyHashCode(int[] key)
         {
-            return java.util.Arrays.hashCode((int[])object);
+            return java.util.Arrays.hashCode(key);
         }
     }  // IntArrayHashMap
 
-    private java.util.HashMap<KeyWrapper,Object> hashMap;  // has-a, not is-a, to prevent mistakes
+    private java.util.HashMap<KeyWrapper,V> hashMap;  // has-a, not is-a, to prevent mistakes
 
     private class KeyWrapper {  // not static!  so it has access to our keyEquals and keyHashCode
-        private Object key;
-        public KeyWrapper(Object key)
+        private K key;
+        public KeyWrapper(K key)
         {
             this.key = key;
         }
-        public boolean equals(Object that)
+        @SuppressWarnings("unchecked")  // TODO: get rid of this if possible
+        @Override public boolean equals(Object that)
         {
+            // TODO: warns. wtf?  "warning: [unchecked] unchecked cast" required: SpecializedHashMap<K,V>.KeyWrapper; found: Object
             return keyEquals(this.key, ((KeyWrapper)that).key);
         }
-        public int hashCode()
+        @Override public int hashCode()
         {
             return keyHashCode(this.key);
         }
@@ -64,7 +67,7 @@ public abstract class SpecializedHashMap
     * Returns the value to which the specified key is mapped,
     * or null if there is none.
     **/
-    public Object get(Object key)
+    public V get(K key)
     {
         scratchKeyWrapper.key = key;
         return this.hashMap.get(scratchKeyWrapper);
@@ -74,8 +77,8 @@ public abstract class SpecializedHashMap
     * Puts the value into the table with given key (assumed immutable),
     * returning the previous value (or null if there was none)
     */
-    public Object put(Object key,
-                      Object value)
+    public Object put(K key,
+                      V value)
     {
         // Note that this is the only one of the basic
         // operations that can't use scratchKeyWrapper.
@@ -85,21 +88,21 @@ public abstract class SpecializedHashMap
     /**
     * Removes the mapping for the specified key from this map if present.
     */
-    public Object remove(Object key)
+    public Object remove(K key)
     {
         scratchKeyWrapper.key = key;
         return this.hashMap.remove(scratchKeyWrapper);
     }
 
     /** Returns true if this map contains a mapping for the specified key. */
-    public boolean containsKey(Object key)
+    public boolean containsKey(K key)
     {
         scratchKeyWrapper.key = key;
         return this.hashMap.containsKey(scratchKeyWrapper);
     }
 
     /** Returns true if this map maps one or more keys to the specific value. */
-    public boolean containsValue(Object value)
+    public boolean containsValue(V value)
     {
         return this.hashMap.containsValue(value);
     }
@@ -111,14 +114,14 @@ public abstract class SpecializedHashMap
     public static void main(String args[])
     {
         System.out.println("in SpecializedHashMap main");
-        SpecializedHashMap map = new SpecializedHashMap(0) {
-            public boolean keyEquals(Object a, Object b)
+        SpecializedHashMap<int[],String> map = new SpecializedHashMap<int[],String>(0) {
+            @Override public boolean keyEquals(int[] a, int[] b)
             {
                 return java.util.Arrays.equals((int[])a, (int[])b);
             }
-            public int keyHashCode(Object object)
+            @Override public int keyHashCode(int[] key)
             {
-                return java.util.Arrays.hashCode((int[])object);
+                return java.util.Arrays.hashCode(key);
             }
         };
 
