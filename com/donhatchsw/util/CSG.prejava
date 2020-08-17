@@ -414,17 +414,19 @@ public final class CSG
                         }
                     }
 
-                    com.donhatchsw.compat.ArrayList lists[] = new com.donhatchsw.compat.ArrayList[dim+1];
+                    // workaround 3 from https://programming.guide/java/generic-array-creation.html
+                    class ArrayList_Polytope extends java.util.ArrayList<Polytope> {}
+                    ArrayList_Polytope lists[] = new ArrayList_Polytope[dim+1];
                     {
                         FORI (iDim, dim+1)
-                            lists[iDim] = new com.donhatchsw.compat.ArrayList();
-                        com.donhatchsw.compat.ArrayList flatList = new com.donhatchsw.compat.ArrayList();
+                            lists[iDim] = new ArrayList_Polytope();
+                        java.util.ArrayList<Polytope> flatList = new java.util.ArrayList<Polytope>();
 
                         this.aux = new VisitedAux(this.aux); // mark it visited when queued
                         flatList.add(this);
                         FORI (flatIndex, flatList.size()) // while flatList.size() is increasing!
                         {
-                            Polytope elt = (Polytope)flatList.get(flatIndex);
+                            Polytope elt = flatList.get(flatIndex);
                             lists[elt.dim].add(elt);
                             FORI (iFacet, elt.facets.length)
                             {
@@ -1468,13 +1470,13 @@ public final class CSG
             // The vertices of the omni correspond to the flags of p.
             // So enumerate all the flags...
             //
-            com.donhatchsw.compat.ArrayList/*<Polytope[]>*/ flags = new com.donhatchsw.compat.ArrayList();
+            java.util.ArrayList<Polytope[]> flags = new java.util.ArrayList<Polytope[]>();
             {
-                com.donhatchsw.compat.ArrayList/*<Polytope[]>*/ partialFlags = new com.donhatchsw.compat.ArrayList();
+                java.util.ArrayList<Polytope[]> partialFlags = new java.util.ArrayList<Polytope[]>();
                 partialFlags.add(new Polytope[]{p});
                 FORI (iPartialFlag, partialFlags.size()) // while growing
                 {
-                    Polytope partialFlag[] = (Polytope[])partialFlags.get(iPartialFlag);
+                    Polytope partialFlag[] = partialFlags.get(iPartialFlag);
                     //System.out.println("    Looking at partial flag "+flagToString(partialFlag));
                     Polytope elt = partialFlag[partialFlag.length-1];
                     FORI (iFacet, elt.facets.length)
@@ -1525,7 +1527,7 @@ public final class CSG
                 int nDims = p.dim;
                 CHECK_EQ(p.fullDim, nDims);
                 double flagMat[][] = new double[nDims][nDims];
-                Polytope[] flag = (Polytope[])flags.get(0); // some flag
+                Polytope[] flag = flags.get(0); // some flag
                 FORI (iDim, nDims)
                 {
                     cgOfVerts(flagMat[iDim], flag[iDim]);
@@ -1556,7 +1558,7 @@ public final class CSG
 
             FORI (iFlag, flags.size())
             {
-                Polytope flag[] = (Polytope[])flags.get(iFlag);
+                Polytope flag[] = flags.get(iFlag);
                 Polytope omniVert = new Polytope(0,p.fullDim,new SPolytope[0],new Hyperplane[0],null);
                 double coords[] = new double[p.fullDim];
                 VecMath.copyvec(coords, originalCG); // start here
@@ -1574,11 +1576,11 @@ public final class CSG
                 omniEltsHashTable.put(new HashableSortedArray<Polytope>(flag), omniVert);
             }
 
-            com.donhatchsw.compat.ArrayList subFlags = flags;
+            java.util.ArrayList<Polytope[]> subFlags = flags;
             flags = null;
             FORI (iSubFlag, subFlags.size()) // while growing
             {
-                Polytope subFlag[] = (Polytope[])subFlags.get(iSubFlag);
+                Polytope subFlag[] = subFlags.get(iSubFlag);
                 //System.out.println("    Looking at subFlag "+flagToString(subFlag));
                 Polytope subFlagOmniElt = omniEltsHashTable.get(new HashableSortedArray<Polytope>(subFlag));
                 FORI (i, subFlag.length)
@@ -1989,7 +1991,7 @@ public final class CSG
             // Reflect the initial flag in all possible ways
             // using the generators repeatedly.
             //
-            com.donhatchsw.compat.ArrayList flagList = new com.donhatchsw.compat.ArrayList();
+            java.util.ArrayList<double[][]> flagList = new java.util.ArrayList<double[][]>();
             {
                 FuzzyPointHashTable<double[][]> flagHashTable = new FuzzyPointHashTable<double[][]>(1e-9,
                                                                                                     1e-8,
@@ -2001,7 +2003,7 @@ public final class CSG
                 double scratchFlagFlattened[] = new double[nDims*nDims];
                 FORI (iFlag, flagList.size()) // while it's growing
                 {
-                    double flag[][] = (double[][])flagList.get(iFlag);
+                    double flag[][] = flagList.get(iFlag);
                     FORI (iGen, nDims)
                     {
                         VecMath.mxm(scratchFlag,
@@ -2042,14 +2044,16 @@ public final class CSG
             Polytope wholeThing = new Polytope(nDims,nDims,new SPolytope[0],new Hyperplane[0],null);
             if (verbose) PRINT(wholeThing.id);
             {
-                com.donhatchsw.compat.ArrayList elementLists[] = new com.donhatchsw.compat.ArrayList[nDims+1];
+                // workaround 3 from https://programming.guide/java/generic-array-creation.html
+                class ArrayList_Polytope extends java.util.ArrayList<Polytope> {}
+                ArrayList_Polytope elementLists[] = new ArrayList_Polytope[nDims+1];
                 // workaround 3 from https://programming.guide/java/generic-array-creation.html
                 class FuzzyPointHashTable_Integer extends FuzzyPointHashTable<Integer> { public FuzzyPointHashTable_Integer(double a, double b, double c) { super(a,b,c); } };
                 FuzzyPointHashTable_Integer elementHashTables[] = new FuzzyPointHashTable_Integer[nDims+1];
 
                 FORI (iDim, nDims+1)
                 {
-                    elementLists[iDim] = new com.donhatchsw.compat.ArrayList();
+                    elementLists[iDim] = new ArrayList_Polytope();
                     elementHashTables[iDim] = new FuzzyPointHashTable_Integer(1e-9,
                                                                               1e-8,
                                                                               1./512);
@@ -2063,7 +2067,7 @@ public final class CSG
                 Polytope flagElements[] = new Polytope[nDims+1];
                 FORI (iFlag, flagList.size())
                 {
-                    double flag[][] = (double[][])flagList.get(iFlag);
+                    double flag[][] = flagList.get(iFlag);
                     FORI (iDim, nDims)
                     {
                         int index;
@@ -2092,7 +2096,7 @@ public final class CSG
                                 elementLists[iDim].add(elt);
                             }
                         }
-                        flagElements[iDim] = (Polytope)elementLists[iDim].get(index);
+                        flagElements[iDim] = elementLists[iDim].get(index);
                     }
                     //
                     // For each iDim, make the iDim-dimensional element
@@ -5421,7 +5425,7 @@ public final class CSG
             }
             double v0coords[] = v0.getCoords();
 
-            com.donhatchsw.compat.ArrayList simplicesList = new com.donhatchsw.compat.ArrayList();
+            java.util.ArrayList<double[][]> simplicesList = new java.util.ArrayList<double[][]>();
             {
                 SPolytope facets[] = p.facets;
                 int nFacets = facets.length;

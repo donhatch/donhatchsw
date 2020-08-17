@@ -1285,7 +1285,7 @@ public final class Arrays
                         }
                         else
                         {
-                            com.donhatchsw.compat.ArrayList list = new com.donhatchsw.compat.ArrayList();
+                            java.util.ArrayList<Object> list = new java.util.ArrayList<Object>();
                             while (true)
                             {
                                 pos.setIndex(i);
