@@ -60,8 +60,8 @@ public class MC4DModel
         }
         public static Twist fromString(String s)
         {
-            com.donhatchsw.compat.regex.Matcher matcher =
-            com.donhatchsw.compat.regex.Pattern.compile(
+            java.util.regex.Matcher matcher =
+            java.util.regex.Pattern.compile(
                 "\\s*((-)|(-?\\d+)\\*)?(\\d+)(:(-?\\d+))?(futt)?\\s*"
             ).matcher(s);
             if (!matcher.matches())
@@ -507,17 +507,16 @@ public class MC4DModel
                 return null; // XXX not sure I want this, maybe should throw an illegal argument exception
             // First replace anything that looks like it could be
             // a line separator with a single newline, for consistency...
-            s = com.donhatchsw.compat.regex.replaceAll(s, "\n|\r\n|\r", "\n"); // XXX hasn't been tested yet
+            s = s.replaceAll("\n|\r\n|\r", "\n"); // XXX hasn't been tested yet
             // XXX doing it all in one bite like this is powerful, but unfortunately it doesn't let us give very good error messages :-(
             // I can write the pattern more clearly if I use a single space
             // whenever I mean \s*, and then convert...
-            //com.donhatchsw.compat.regex.verboseLevel = 1;
             String prepattern = " \\{ genericPuzzleDescription = ([^\n]+) , \n genericPuzzleState = ([^\n]+) , \n history = ([^\n]+) \\} "; // XXX I think } should be in the excluded part near the end
                    //prepattern = " \\{ genericPuzzleDescription = ([^\n]+) ,  (.|\r|\n)*"; // XXX
-            String pattern = com.donhatchsw.compat.regex.replaceAll(prepattern, " ", "\\\\s*");
+            String pattern = prepattern.replaceAll(" ", "\\\\s*");
             System.out.println("pattern = "+com.donhatchsw.util.Arrays.toStringCompact(pattern)+"");
-            com.donhatchsw.compat.regex.Matcher matcher =
-            com.donhatchsw.compat.regex.Pattern.compile(pattern).matcher(s);
+            java.util.regex.Matcher matcher =
+            java.util.regex.Pattern.compile(pattern).matcher(s);
             if (!matcher.matches())
                 throw new IllegalArgumentException("MC4DModel.fromString called on a bad string of length "+s.length()+": "+com.donhatchsw.util.Arrays.toStringCompact(s)+"");
             CHECK(matcher.groupCount() == 3);
@@ -531,7 +530,7 @@ public class MC4DModel
                 System.out.println("historyString = "+historyString);
             }
 
-            com.donhatchsw.compat.regex.replaceAll(historyString, "\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
+            historyString.replaceAll("\\[(.*)\\]", "$1"); // silly way to get rid of the surrounding brackets that Arrays.toString put there when printing the Vector
             com.donhatchsw.util.UndoTreeSquirrel controllerUndoTreeSquirrel = com.donhatchsw.util.UndoTreeSquirrel.fromString(historyString, new com.donhatchsw.util.UndoTreeSquirrel.ItemFromString() {
                 @Override public String regex()
                 {

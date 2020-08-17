@@ -1,5 +1,4 @@
 package com.donhatchsw.mc4d;
-import com.donhatchsw.compat.regex;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -582,9 +581,9 @@ public class GenericGlue
                 if (item1 != null)
                 {
                     final String finalName = item0; // including the schlafli symbol
-                    final String finalSchlafli = (item0.equalsIgnoreCase("Grand Antiprism") ? item0 : regex.split(item0, " ")[0]);
+                    final String finalSchlafli = (item0.equalsIgnoreCase("Grand Antiprism") ? item0 : item0.split(" ")[0]);
                     // Special case: if finalSchlafli is a nonuniform (or not) box such as (4)x(3)x(2), then don't split up item1, just treat it as one length specification
-                    String lengthStrings[] = regex.matches(finalSchlafli, "\\(\\d+\\)(x\\(\\d+\\))*") ? new String[] {item1} : regex.split(item1, ",");
+                    String lengthStrings[] = finalSchlafli.matches("\\(\\d+\\)(x\\(\\d+\\))*") ? new String[] {item1} : item1.split(",");
 
                     boolean sanityCheckMenuScheme = false; // XXX make option for this?  hardcoding for now
                     if (sanityCheckMenuScheme)
@@ -643,8 +642,8 @@ public class GenericGlue
                                 try {
                                     //System.out.println("lengthString = "+lengthString);
 
-                                    com.donhatchsw.compat.regex.Matcher matcher =
-                                    com.donhatchsw.compat.regex.Pattern.compile(
+                                    java.util.regex.Matcher matcher =
+                                    java.util.regex.Pattern.compile(
                                         "(\\d+)\\((.*)\\)"
                                     ).matcher(lengthString);
                                     if (matcher.matches())
@@ -778,7 +777,7 @@ public class GenericGlue
                                             initPuzzleCallback.call(); // XXX really just want a repaint I think
                                             return; // cancelled
                                         }
-                                        String schlafliAndLength[] = regex.split(reply.trim(), "\\s+");
+                                        String schlafliAndLength[] = reply.trim().split("\\s+");
                                         if (schlafliAndLength.length != 2)
                                         {
                                             prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length (or comma-separated list of lengths, with optional overrides, one for each dimension). Try again! (during sanity check)";
@@ -876,7 +875,7 @@ public class GenericGlue
                 }
 
                 final String finalSchlafli = table[i][0];
-                String lengthStrings[] = regex.split(table[i][1], ",");
+                String lengthStrings[] = table[i][1].split(",");
                 final String finalName = (finalSchlafli==null ? table[i][2] :
                                           finalSchlafli + "  " + table[i][2]);
 
@@ -930,7 +929,7 @@ public class GenericGlue
                                         initPuzzleCallback.call(); // XXX really just want a repaint I think
                                         return; // cancelled
                                     }
-                                    String schlafliAndLength[] = regex.split(reply.trim(), "\\s+");
+                                    String schlafliAndLength[] = reply.trim().split("\\s+");
                                     if (schlafliAndLength.length != 2)
                                     {
                                         prompt = "Your invention sucks!\nYou must specify the schlafli product symbol (with no spaces),\nfollowed by a space, followed by the puzzle length (or comma-separated list of lengths, with optional overrides, one for each dimension). Try again!";

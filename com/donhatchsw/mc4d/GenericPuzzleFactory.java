@@ -18,8 +18,8 @@ public class GenericPuzzleFactory
     */
     public static GenericPuzzleDescription construct(String s, java.io.PrintWriter progressWriter)
     {
-        com.donhatchsw.compat.regex.Matcher matcher =
-        com.donhatchsw.compat.regex.Pattern.compile(
+        java.util.regex.Matcher matcher =
+        java.util.regex.Pattern.compile(
             "\\s*new\\s+([._a-zA-Z][._a-zA-Z0-9]*)\\s*\\(\"(([^\\\\]|\\\\.)*)\"\\s*\\)\\s*"
         ).matcher(s);
         if (!matcher.matches())
@@ -33,7 +33,7 @@ public class GenericPuzzleFactory
 
         System.out.println("className = "+className);
         System.out.println("argWithEscapes = "+argWithEscapes);
-        String arg = com.donhatchsw.compat.regex.replaceAll(argWithEscapes, "\\\\(.)", "\\1"); // XXX backrefs don't work yet!
+        String arg = argWithEscapes.replaceAll("\\\\(.)", "\\1"); // XXX backrefs don't work yet!
         System.out.println("arg = "+arg);
 
 

@@ -886,7 +886,7 @@ public class MC4DApplet
         // Turn "View 1,View 2" into "Views 1,2".
         // Doesn't necessarily complete in one application-- run it
         // until length doesn't change.
-        private final static com.donhatchsw.compat.regex.Pattern viewStringCompressionPattern = com.donhatchsw.compat.regex.Pattern.compile("Views? (\\d+(,\\d+)*),\\s*Views? (\\d+(,\\d+)*)");
+        private final static java.util.regex.Pattern viewStringCompressionPattern = java.util.regex.Pattern.compile("Views? (\\d+(,\\d+)*),\\s*Views? (\\d+(,\\d+)*)");
         private final static String viewStringCompressionReplacement = "Views $1,$3";
 
         // Title will be something like "MC4D Control Panel for Views 0,1,47)"

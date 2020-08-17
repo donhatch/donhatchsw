@@ -471,7 +471,6 @@
 */
 
 package com.donhatchsw.mc4d;
-import com.donhatchsw.compat.regex;
 import com.donhatchsw.util.CSG;
 import com.donhatchsw.util.FuzzyPointHashTable;
 import com.donhatchsw.util.SortStuff;
@@ -609,14 +608,12 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     */
     public PolytopePuzzleDescription(String prescription, java.io.PrintWriter progressWriter)
     {
-        prescription = com.donhatchsw.compat.regex.replaceAll(prescription,
-                                                              "Grand Antiprism",
-                                                              "Grand_Antiprism");
+        prescription = prescription.replaceAll("Grand Antiprism",
+                                               "Grand_Antiprism");
 
-        //com.donhatchsw.compat.regex.verboseLevel = 2;
         // TODO: Document this not-yet-documented feature: can be more than one length (each with optional double override), specifying a different cut scheme for each dimension.  The one chosen for a given facet is the one whose index is the index of the coord axis most closely aligned with the facet normal.  Probably makes sense for only axis-aligned boxes.
-        com.donhatchsw.compat.regex.Matcher matcher =
-        com.donhatchsw.compat.regex.Pattern.compile(
+        java.util.regex.Matcher matcher =
+        java.util.regex.Pattern.compile(
             "\\s*([^ ]+)\\s+((\\d+)(\\((.*)\\))?(,(\\d+)(\\((.*)\\))?)*)"
         ).matcher(prescription);
         if (!matcher.matches())
@@ -624,7 +621,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
         String schlafliProductString = matcher.group(1);
         String commaSeparatedLengthsString = matcher.group(2);
-        String[] lengthStrings = regex.split(commaSeparatedLengthsString, ",");
+        String[] lengthStrings = commaSeparatedLengthsString.split(",");
         int[] intLengths = new int[lengthStrings.length];
         double[] doubleLengths = new double[lengthStrings.length];
 
@@ -641,8 +638,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 try {
                     //System.out.println("lengthString = "+lengthString);
 
-                    com.donhatchsw.compat.regex.Matcher submatcher =
-                    com.donhatchsw.compat.regex.Pattern.compile(
+                    java.util.regex.Matcher submatcher =
+                    java.util.regex.Pattern.compile(
                         "(\\d+)\\((.*)\\)"
                     ).matcher(lengthString);
                     if (submatcher.matches())
