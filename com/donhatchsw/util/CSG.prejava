@@ -6914,9 +6914,9 @@ public final class CSG
 
             // Look in the ocean for already computed...
             {
-                Object flotsam = ocean.get(key);
-                if (flotsam != null)
+                if (ocean.containsKey(key))  // use this rather than checking for get()==null, since we insert null sometimes
                 {
+                    Object flotsam = ocean.get(key);
                     // Found it in the ocean, so it was previously computed.
                     if (verboseLevel >= 1)
                         System.out.println(indentString+"        found it in the ocean");
@@ -7179,7 +7179,7 @@ public final class CSG
                 ocean.put(key, result.p);
             else
             {
-                ocean.put(key, null);  // not legal for Hashtable, but legal for HashMap
+                ocean.put(key, null);  // not legal for Hashtable, but legal for HashMap.  retriever must distinguish, though!
             }
 
             if (verboseLevel >= 2)
