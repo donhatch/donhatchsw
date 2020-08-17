@@ -1366,9 +1366,9 @@ public class GenericPipelineUtils
       rather than looking at anything currently on child1 (the differently twisted slice).
     - child1 is a slice, child0 is a sticker
       This is just the previous case, with the two children reversed.
-    - (child0 and child1 both slices: this can't happen: only the root
-      has two children that are slices, and those two children are not
-      physically adjacent)
+    - (The case where child0 and child1 both slices can't happen:
+      the only node that can have two children is the root, and in that case
+      the two children are not physically adjacent.)
 
     Note: The above description is the conceptual flow; in actuality,
     we just create one giant dag, with markers for the beginning and end
@@ -1519,8 +1519,9 @@ public class GenericPipelineUtils
                     // See whether things are so inside out
                     // that the polygons are facing away from each other...
                     // If so, then this polygon should not restrict anything.
+                    // This can be observed to happen, e.g. on 5,3,3 in default position, with 4d eye distance increased until nothing behind the 4d eye.
                     //
-                    // TODO: this may be no longer necessary since we are now computing backfaces
+                    // TODO: this protection may be no longer necessary since we are now computing backfaces
                     //       based on unshrunk; not sure!  Revisit.  How?
                     if (true)
                     {
@@ -1789,7 +1790,7 @@ public class GenericPipelineUtils
                         int componentSize = componentStarts[iComponent+1] - componentStarts[iComponent];
                         if (componentSize > 1)
                         {
-                            // Okay to be verbose since they are debugging
+                            // Okay to be verbose since user is debugging
                             System.out.println("    found a cycle (well at least a connected component) of length "+componentSize+"");
 
                             int iNode0 = nodeSortOrder[componentStarts[iComponent]];
@@ -1837,19 +1838,21 @@ public class GenericPipelineUtils
                         System.out.println("nStickers = "+nStickers);
                         System.out.println("justTheCyclesSize = "+justTheCyclesSize);
                         System.out.println("justTheCycles = "+com.donhatchsw.util.Arrays.toStringCompact(justTheCycles));
-                        // Attempt to dump a full-ish description of the cycle.
-                        System.out.print("    A cycle, of length "+justTheCycles.length+":  ");
-                        for (int ii = 0; ii < justTheCycles.length+1; ++ii) {
-                            int i = ii % (justTheCycles.length);
-                            CHECK(justTheCycles[i][1] == justTheCycles[(i+1)%justTheCycles.length][0]);
-                            if (ii > 0) System.out.print(" -> ");
-                            int iii = justTheCycles[i][0];
-                            String description = iii<nStickers ? ""+iii :
-                                                 iii%2 == 0 ? ""+iii+"{" :
-                                                              "}"+iii;
-                            System.out.print(description);
+
+                        System.out.print("firstCycle = ( ");
+                        int firstCycleSize = 0;
+                        for (int i = 0; i < justTheCycles.length; ++i) {
+                            firstCycleSize++;
+                            int ii = justTheCycles[i][0];
+                            String description = ii<nStickers ? ""+ii : ii%2==0 ? ""+ii+"{" : "}"+ii;
+                            System.out.print(""+description+" -> ");
+                            if (justTheCycles[i][1] == justTheCycles[0][0]) {
+                              int ii0 = justTheCycles[0][0];
+                              String description0 = ii0<nStickers ? ""+ii0 : ii0%2==0 ? ""+ii0+"{" : "}"+ii0;
+                              System.out.println(""+description0+" ) of length "+firstCycleSize);
+                              break;
+                            }
                         }
-                        System.out.println();
 
                         System.out.println("    The slices:");
                         for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice) {
