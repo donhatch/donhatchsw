@@ -28,7 +28,7 @@ public class regex
     *    2: more detail, print out the FSM and execution trace and everything
     * </pre>
     */
-    public static int verboseLevel = 2;
+    public static int verboseLevel = 0;
 
     /**
     * An IllegalArgumentException
