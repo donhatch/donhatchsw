@@ -575,9 +575,10 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     *     Standard 3x3x3 hypercube: "{4,4,3} 3"
     *     Standard 3x3x3 hypercube with very shallow cuts: "{4,3,3} 3(6)"
     *
-    * The following schlafli product symbols are supported;
-    * note that they are all uniform, and every vertex has exactly
-    * nDims incident facets and edges (things would go crazy otherwise).
+    * The following schlafli product symbols are supported,
+    * using 'x' or '*' for the binary product operator.
+    * Note that the following are all uniform, and every vertex has exactly
+    * nDims incident facets and edges (things can go a bit crazy otherwise).
     *
     *   3-dimensional:
     *     {3,3}
@@ -606,6 +607,9 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
     *
     * Note that {4} can also be expressed as {}x{} in any of the above.
     *
+    * Other uniform polyhedra and polychora are also supported;
+    * for details on the notation, see the doc for CSG.makeRegularStarPolytopeProductFromString();
+    * however, note that, when used here, the schlafli product part can't contain any spaces.
     */
     public PolytopePuzzleDescription(String prescription, java.io.PrintWriter progressWriter)
     {

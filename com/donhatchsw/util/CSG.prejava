@@ -2268,6 +2268,8 @@ public final class CSG
         * Makes a product of regular (star) polytopes from a string specification,
         * for example <code>"{4,3}x{}x{5,3,3}xGrand_Antiprismx{3}x {3, 3,3,3,3 }x{} x {5/2,5} "</code>.
         * '*' can be used in place of 'x' as well.
+        * There is also a join operator 'v' (see discussion of products and joins in
+        * https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol#Prismatic_polytopes).
         * {2} or 2 can be used in place of {}.
         * <p>
         * Also instead of {5,3,3}, any of the following will do:
@@ -2302,8 +2304,10 @@ public final class CSG
         * into schlafli symbols (numerators and denominators)
         * and respective wythoff symbols.
         * <p>
-        * {@link #makeRegularStarPolytopeProductFromString makeRegularStarPolytopeProductFromString}(s) works by calling this
-        * and then calling {@link #makeRegularStarPolytopeProduct makeRegularStarPolytopeProduct} on the result.
+        * For examples, see the doc for
+        * {@link #makeRegularStarPolytopeProductFromString makeRegularStarPolytopeProductFromString}(s),
+        * which works by calling this and then calling
+        * {@link #makeRegularStarPolytopeProduct makeRegularStarPolytopeProduct} on the result.
         */
         public static Object[][] makeRegularStarPolytopeProductSchlaflisAndWythoffsFromString(String s)
         {
@@ -5624,7 +5628,10 @@ public final class CSG
             return covarianceOfVerts(p, cgOfVerts(p));
         }  // covarianceOfVertsAboutCG
 
-        /** See discussion of joins in https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol#Prismatic_polytopes .  */
+        /**
+        * See discussion of (products and) joins in https://en.wikipedia.org/wiki/Schl%C3%A4fli_symbol#Prismatic_polytopes .
+        * TODO: that wikipedia page also supports bipyramids; support those too!
+        */
         public static SPolytope join(SPolytope A,
                                      SPolytope B)
         {
