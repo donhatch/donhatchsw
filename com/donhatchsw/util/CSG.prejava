@@ -5166,6 +5166,7 @@ public final class CSG
         } // contains
 
         /**
+        * The order returned will be a factor of maxPossibleOrder.
         *  usefulMat should be an orthogonal matrix
         *  whose last two rows are in the plane of the desired rotation.
         * So a rotation of any angle in that plane can be computed as:

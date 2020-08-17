@@ -1261,6 +1261,120 @@ public class GenericPipelineUtils
 
 
 
+    /*
+    A very clever back-to-front painter's sorting of stickers
+    =========================================================
+
+    We start with a simple idea: make a dag, whose nodes are the stickers,
+    with an edge sticker0->sticker1 if the two stickers (non-shrunk)
+    are physically adjacent and sticker0 is "behind" sticker1
+    in the current picture; i.e. if the polygon
+    they share is frontfacing on sticker0 and backfacing on sticker1.
+    Topologically sort the dag, producing a good back-to-front rendering order.
+    This is simple and robust, as long as no twist is in progress.
+    If a twist *is* in progress, we have to think harder.
+
+    Let's say the currently in-progress twist
+    involves parallel slices 0,1,2,3,4.
+    Label slice 0's stickers 0a,0b,0c,... and slice 1's stickers 1a,1b,... etc.
+    In the most general scenario, each of the slices is being twisted
+    independently, so imagine each slice having a slightly different twist,
+    with respect to the following picture.
+
+                  ----+ +---+ +-------------+ +---+
+              +    \ 0g\ \ 1a\ \     2a    / / 3a/    +
+              |\    +---+ +---+ +---------+ +---+    /|
+              |0+    +---+ +---+ +-------+ +---+    +3|
+              +a| +   \ 0h\ \ 1b\ \  2b / / 3b/   + |k+
+              +\| |\   +---+ +---+ +---+ +---+   /| |/+
+              |\+ |0+                           +3| +/|
+              | + +d|  +---+ +---+ +---+ +---+  |h+ + |
+              | | +\|  | 0i| | 1c| | 2c| | 3c|  |/+ | |
+              | | |\+  +---+ +---+ +---+ +---+  +/| | |
+              | | | +  +---+ +---+ +---+ +---+  + | | |
+              |0| |0|  | 0j| | 1d| | 2d| | 3d|  |3| |3|
+              |b| |e+  +---+ +---+ +---+ +---+  +i| |l|
+              | | |/+  +---+ +---+ +---+ +---+  +\| | |
+              | | +/|  | 0k| | 1e| | 2e| | 3e|  |\+ | |
+              | + +0|  +---+ +---+ +---+ +---+  |3+ + |
+              |/+ |f+                           +j| +\|
+              +/| |/   +---+ +---+ +---+ +---+   \| |\+
+              +0| +   / 0l/ / 1f/ /  2f \ \ 3f\   + |3+
+              |c+    +---+ +---+ +-------+ +---+    +m|
+              |/    +---+ +---+ +---------+ +---+    \|
+              +    / 0m/ / 1g/ /     2g    \ \ 3g\    +
+                  +---+ +---+ +-------------+ +---+
+
+    We arrange the slices and stickers into a tree,
+    whose leaves are the stickers,
+    and whose internal nodes are the slices.
+    The root node is the slice in which the *4d* eye resides
+    (although in this picture we are down 1 dimension, so it's the slice
+    in which the *3d* eye resides, in this case slice 2).
+    The children of any non-leaf node (slice) are:
+      - the stickers in that slice
+      - the adjacent slice(s) one step further from the eye.
+
+    So the tree structure in this case is as follows:
+                              +-------+
+                              |Slice 2|
+                              +-------+
+                             / |  |  | \
+                    +-------+  |  |  |  +-------+
+                    |Slice 1|  2a 2b... |Slice 3|
+                    +-------+           +-------+
+                   / |  |  |             |  |  |
+          +-------+  |  |  |             |  |  |
+          |Slice 0|  1a 1b...            3a 3b...
+          +-------+
+           |  |  |
+           0a 0b...
+
+    The goal is to produce a reasonable "back-to-front" ordering of all the
+    stickers, with respect to the 3d eye in the real puzzle
+    (or, in this picture, with respect to a 2d eye; imagine the 2d eye
+    is anywhere around the perimeter of the above picture).
+
+    The rendering order is determined by a tree traversal starting at the root:
+        RENDER(node) {
+            if node is a leaf (sticker):
+                render the sticker
+            else:
+                topologically sort node's children, back to front (see below)
+                for each child, back to front:
+                    RENDER(child)
+        }
+
+    The "topologically sort node's children back to front" step is done as
+    follows: a dag is created on node's children, where edge child0->child1
+    is in the dag iff child0 is physically adjacent to child1
+    and child0 is *behind* child1 (i.e. the polygon
+    shared by child0 and child1, in the non-shrunk projected puzzle,
+    is frontfacing on child0, and backfacing on child1.
+    In the case that children are on two different slices that have been
+    twisted differently, we use the polygon's current orientation on the more
+    rootmost of the two children.
+
+    So, in more detail, there are 3 cases:
+    - child0 is a sticker, child1 is a sticker (both in the same slice).
+      E.g. 2a vs. 2b.
+      In this case both stickers have been twisted by the same twist matrix;
+      we use that orientation of their shared polygon to determine which is in front.
+    - child0 is a sticker, child1 is a slice.  E.g. 2b vs. Slice 3.
+      In this case they may be twisted by two different twist matrices.
+      We use the current orientation of the polygon on child0 (the sticker)
+      rather than looking at anything currently on child1 (the differently twisted slice).
+    - child1 is a slice, child0 is a sticker
+      This is just the previous case, with the two children reversed.
+    - (child0 and child1 both slices: this can't happen: only the root
+      has two children that are slices, and those two children are not
+      physically adjacent)
+
+    Note: The above description is the conceptual flow; in actuality,
+    we just create one giant dag, with markers for the beginning and end
+    of subtrees, and do just one big topsort.
+
+    */
     private static class VeryCleverPaintersSortingOfStickers
     {
         // Function return value is number of stickers to draw
