@@ -146,23 +146,15 @@
 
     BUGS / URGENT TODOS:
     ===================
+        - "5x5 2" and "4x5 2" strange flickering of some stickers during twists! and in some views (rotate things to center), some wildly inside out stickers showing.
+        - topsort seems to succed but gives bogus order, in "{3,3,4} 2"  in fact, "{3,3,3} 2" !  (the latter includes the "I DON'T CARE BECAUSE SO WARPED" thing, but even if I comment that out, there is still some screwy inside-outedness there.  maybe that's the thing Roice fixed??"
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)
         - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)
         - can't fling on laptop (neither macboox nor glinux box)
-        - "{4,3,3} 2,3,3" and in fact "{4,3,3} 2" assert-fails now?  (oh, something about further cuts together with new push/pop logic).  currently XXXuseNewPushPopAux is set to false in CSG.prejava because it's not ready yet
-	      Exception in thread "main" java.lang.Error: CHECK failed at com/donhatchsw/util/CSG.prejava(331): this.pushedAuxNext != null
-		      at com.donhatchsw.util.CSG$Polytope.popAux(com/donhatchsw/util/CSG.prejava:331)
-		      at com.donhatchsw.mc4d.PolytopePuzzleDescription.init(PolytopePuzzleDescription.java:1191)
-		      at com.donhatchsw.mc4d.PolytopePuzzleDescription.<init>(PolytopePuzzleDescription.java:642)
-		      at com.donhatchsw.mc4d.MC4DModel.<init>(MC4DModel.java:192)
-		      at com.donhatchsw.mc4d.MC4DApplet.init(MC4DApplet.java:1055)
-		      at com.donhatchsw.applet.AppletViewer.main(com/donhatchsw/applet/AppletViewer.prejava:242)
-		      at com.donhatchsw.mc4d.MC4DApplet.main(MC4DApplet.java:1316)
         - '{4,3} 3(4)' with nonzero stickers-shrink-to-face-boundaries is asymmetric (due to the one-of-opposite-pairs-doing-all-the-cuts-for-both-of-them thing, I think)
         - make && java -jar donhatchsw.jar puzzleDescription="Fruity 3(9)" shouldn't require such a shallow cut specification!  isn't it supposed to be using the edge that would give the shallowest cut?
         - `java -jar donhatchsw.jar puzzleDescription='{4,3} 2,3,4'`, twisting gives CHECK failure: "CHECK(whereIstickerGoes != null);", 	at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:2402)
         - >=5 dimensional puzzles on command line non-gracefully excepts
-        - ctrl-alt-space for debugging... doesn't stop things any more?? (does for rotates, not for twists)
         - with multiple windows, animation doesn't go by itself any more
         - doFurtherCuts issues:
           - in '4,3,3 2', rotate-element-to-center not working right when element is an edge-- it rotates a vert to center instead. (both with old and new poly-to-grip code). ah, I think it's getting confused and assuming stickers, grips, and elements-rotatable-to-center are all the same.
@@ -280,13 +272,14 @@
                 ()v()v()v()
                 ()v()v()v()v()
                 etc.
-                {}v()
-                3v()
-                4v()
+                {}v()  (triangle)
+                3v()  (tetrahedron)
+                4v()  (square pyramid!)
                 etc.
                 4,3v()
                 5,3v()
                 3v3 (gets different ArrayIndexOutOfBoundsException 0 just because it's 5 dimensional, but that's a different bug)
+            - still TODO: naturally bipyramid, too (+ operator)
 
         FUTT:
             - it's picking the wrong edge sometimes, in frucht, some of the 7-gon edges  (that is, clicking on some 2faces of vert pieces choose some wacky axis)
@@ -329,6 +322,13 @@
 
         NONUNIFORM BOXES:
             - "{4,3} 2,3,4" strangely asymmetric now?  and throws on click.  (oh, that was never the way to do a nonuniform box.  it was "(2)x(3)x(4) 2,3,4".  but, should fix the throw)
+            - "{4,3,3} 2,3,3" gives irregular stickers :-(  OH this is same as previous-- this is NOT the way to do a nonuniform box!  I keep getting this wrong, need to make this more discoverable!
+            - "{4,3,3} 2,3,3" CHECK fail on some twists:  (more cases of the above)
+                Exception in thread "AWT-EventQueue-0" java.lang.Error: CHECK failed: whereIstickerGoes != null
+                  at com.donhatchsw.mc4d.PolytopePuzzleDescription.CHECK(PolytopePuzzleDescription.java:539)
+                  at com.donhatchsw.mc4d.PolytopePuzzleDescription.applyTwistToState(PolytopePuzzleDescription.java:3667)
+                  at com.donhatchsw.mc4d.MC4DModel.advanceAnimation(MC4DModel.java:402)
+                  at com.donhatchsw.mc4d.MC4DViewGuts.paint(MC4DViewGuts.java:893)
 
         SPECIFICATION:
             - be able to specify initial orientation
