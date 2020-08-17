@@ -1261,7 +1261,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         // the square of the apparent fraction of items done.
                         if ((nTotalCuts-iTotalCut)%10 == 0)
                         {
-                            progressWriter.print("("+com.donhatchsw.compat.Format.sprintf("%.2g", (double)100*iTotalCut*iTotalCut/nTotalCuts/nTotalCuts)+"%)");
+                            progressWriter.print("("+String.format("%.2g", (double)100*iTotalCut*iTotalCut/nTotalCuts/nTotalCuts)+"%)");
                         }
 
                         progressWriter.flush();
