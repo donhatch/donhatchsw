@@ -75,8 +75,6 @@
 
 package com.donhatchsw.util;
 
-import com.donhatchsw.compat.regex;
-
 #include "macros.h"
 
 
@@ -773,7 +771,8 @@ public final class CSG
                     int fullDim = -1;
                     Polytope facets[] = null;
 
-                    String lines[] = regex.split(s.trim(), "\\s*\n\\s*");
+                    String lines[] = s.trim().split("\\s*\n\\s*");
+
                     int iLine = 0;
                     for (int iDim = 0; ; iDim++)
                     {
@@ -781,7 +780,7 @@ public final class CSG
                             break;
                         String line = lines[iLine++];
                         // scan "%d %d-cel%*[^:]:", &nCells, &shouldBeIDim
-                        regex.Matcher matcher = regex.Pattern.compile("(\\d+) (\\d+)-cell[^:]*:").matcher(line);
+                        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("(\\d+) (\\d+)-cell[^:]*:").matcher(line);
                         if (!matcher.matches())
                             throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected number of "+iDim+"-cells, got \""+line+"\"!");
                         int nCells = Integer.parseInt(matcher.group(1));
@@ -801,7 +800,7 @@ public final class CSG
                             // Read the index and colon.  This is for human-readability
                             // and sanity checking.
                             // scan "%d:", &shouldBeICell
-                            matcher = regex.Pattern.compile("(\\d+):(.*)").matcher(line);
+                            matcher = java.util.regex.Pattern.compile("(\\d+):(.*)").matcher(line);
                             if (!matcher.matches())
                                 throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected "+iDim+"-cell "+iCell+", got \""+line+"\"!");
                             int shouldBeICell = Integer.parseInt(matcher.group(1));
@@ -809,7 +808,7 @@ public final class CSG
 
                             if (shouldBeICell != iCell)
                                 throw new IllegalArgumentException("Polytope.fromStringInPcalcFormat: expected "+iDim+"-cell "+iCell+", got "+shouldBeICell+"!");
-                            String tokens[] = regex.split(rest.trim(), "\\s+");
+                            String tokens[] = rest.trim().split("\\s+");
                             if (iDim == 0)
                             {
                                 //
@@ -2243,7 +2242,7 @@ public final class CSG
                 // punt, just so I don't have to think about what zero terms means here
                 return makeRegularStarPolytopeProductFromString(s);
             }
-            String termStrings[] = regex.split(s.trim(), "v");
+            String termStrings[] = s.trim().split("v");
             SPolytope join = null;
             for (int i = 0; i < termStrings.length; ++i)
             {
@@ -2308,17 +2307,17 @@ public final class CSG
             // So we smuggle in grand antiprism as {5,0,3}.
             // Can't use negative numbers because '-' means something else
             // so the parsing would get confused.
-            s = regex.replaceAll(s, "[Gg]rand.[Aa]nti[Pp]rism", "{5,0,3}");
+            s = s.replaceAll("[Gg]rand.[Aa]nti[Pp]rism", "{5,0,3}");
 
             // Similarly for frucht, smuggle it in as {7,0},
             // and not-frucht as 77,0.
-            s = regex.replaceAll(s, "[Nn]ot-?[Ff]rucht", "{77,0}");
-            s = regex.replaceAll(s, "[Ff]rucht", "{7,0}");
+            s = s.replaceAll("[Nn]ot-?[Ff]rucht", "{77,0}");
+            s = s.replaceAll("[Ff]rucht", "{7,0}");
 
             // Similarly for fruity, smuggle it in as {7,0,0}.
-            s = regex.replaceAll(s, "[Ff]ruity", "{7,0,0}");
+            s = s.replaceAll("[Ff]ruity", "{7,0,0}");
 
-            String factors[] = regex.split(s.trim(), "[x*]");
+            String factors[] = s.trim().split("[x*]");
 
             // Discard any factors that are "()", since they are awkward
             // and they don't contribute to the product.
@@ -2360,17 +2359,17 @@ public final class CSG
                     // Extract wythoff stuff
                     if (factor.endsWith(","))
                         factor += "3"; // so that we get the right number of (0)'s
-                    factor = regex.replaceAll(factor, ",", "(0)");
+                    factor = factor.replaceAll(",", "(0)");
                     if (!factor.startsWith("("))
                         factor = "(1)"+factor;
                     if (!factor.endsWith(")"))
                         factor += "(0)";
-                    factor = regex.replaceAll(factor, "\\)-*\\(", ")3("); // 3's in the input schlafli symbol are implicit; make them explicit
+                    factor = factor.replaceAll("\\)-*\\(", ")3("); // 3's in the input schlafli symbol are implicit; make them explicit
 
                     String foo = factor;
 
-                    factor = regex.replaceAll(factor, "-",""); // XXX seems unscientific
-                    factor = regex.replaceAll(factor, "\\([^)]+\\)", ","); // done with the (w), change back to comma
+                    factor = factor.replaceAll("-",""); // XXX seems unscientific
+                    factor = factor.replaceAll("\\([^)]+\\)", ","); // done with the (w), change back to comma
                     if (factor.startsWith(","))
                         factor = factor.substring(1);
                     if (factor.endsWith(","))
@@ -2395,7 +2394,7 @@ public final class CSG
                     wythoffs[iFactor] = wythoff;
                 }
 
-                String fractions[] = regex.split(factor, ",");
+                String fractions[] = factor.split(",");
                 if (factor.equals(""))
                     fractions = new String[0]; // to be safe (I don't trust split)
                 schlaflis[iFactor] = new int[fractions.length];
@@ -2403,7 +2402,7 @@ public final class CSG
                 FORI (iFraction, fractions.length)
                 {
                     String fraction = fractions[iFraction].trim();
-                    String n_and_d[] = regex.split(fraction, "/");
+                    String n_and_d[] = fraction.split("/");
                     if (n_and_d.length == 2)
                     {
                         schlaflis[iFactor][iFraction] = Integer.parseInt(n_and_d[0]);
