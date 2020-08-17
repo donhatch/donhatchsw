@@ -117,7 +117,7 @@ public abstract class SpecializedHashMap<K,V>
         SpecializedHashMap<int[],String> map = new SpecializedHashMap<int[],String>(0) {
             @Override public boolean keyEquals(int[] a, int[] b)
             {
-                return java.util.Arrays.equals((int[])a, (int[])b);
+                return java.util.Arrays.equals(a, b);
             }
             @Override public int keyHashCode(int[] key)
             {

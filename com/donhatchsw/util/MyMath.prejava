@@ -1077,7 +1077,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                 String name = method.getName();
                 if (!name.endsWith("_difference"))
                     continue;
-                Class[] signature = method.getParameterTypes();
+                Class<?>[] signature = method.getParameterTypes();
                 System.out.println("    Testing "+name+" ("+signature.length+" args)");
                 String prefix_function_name = name.substring(0, name.length()-"_difference".length());
                 System.out.println("        prefix_function_name = "+prefix_function_name);
@@ -1099,9 +1099,7 @@ http://kristopherjohnson.net/twiki/pub/Main/MathLibFunctions/alg.html
                     java.lang.reflect.Method mathMethod = null;
                     try
                     {
-                        // TODO: what the heck am I supposed to do with this warning?
-                        // "warning: [unchecked] unchecked call to getMethod(String,Class<?>...) as a member of the raw type Class"
-                        mathMethod = mathClass.getMethod(prefix_function_name, new Class[]{double.class});
+                        mathMethod = mathClass.getMethod(prefix_function_name, double.class);
                     }
                     catch (NoSuchMethodException e)
                     {

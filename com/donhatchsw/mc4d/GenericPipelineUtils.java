@@ -1064,7 +1064,7 @@ public class GenericPipelineUtils
                 predecessors = new int[nNodes][0];
                 for (int i = 0; i < partialOrderSize; ++i)
                 {
-                    predecessors[frame.partialOrder[i][1]] = (int[])com.donhatchsw.util.Arrays.append(predecessors[frame.partialOrder[i][1]], frame.partialOrder[i][0]);
+                    predecessors[frame.partialOrder[i][1]] = com.donhatchsw.util.Arrays.append(predecessors[frame.partialOrder[i][1]], frame.partialOrder[i][0]);
                 }
 
                 partialOrderNodeCenters2d = new float[nNodes][2]; // zeros
@@ -1666,7 +1666,7 @@ public class GenericPipelineUtils
                     {
                         int i = partialOrder[iPair][0];
                         int j = partialOrder[iPair][1];
-                        successors[i] = (int[])com.donhatchsw.util.Arrays.append(successors[i], j); // potentially O(n^2) but number of successors is usually at most 3 so whatever
+                        successors[i] = com.donhatchsw.util.Arrays.append(successors[i], j); // potentially O(n^2) but number of successors is usually at most 3 so whatever
                     }
                     int justTheCycles[][] = new int[partialOrderSize][];
                     int justTheCyclesSize = 0;

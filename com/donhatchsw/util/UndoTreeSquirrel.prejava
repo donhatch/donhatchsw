@@ -149,7 +149,7 @@ public class UndoTreeSquirrel
 
             Node parentNode = (Node)nodes.get(parentNodeIndex);
             int newChildIndexInCurrent = parentNode.children.length;
-            parentNode.children = (int[])Arrays.append(parentNode.children, newChildIndex-parentNodeIndex);
+            parentNode.children = Arrays.append(parentNode.children, newChildIndex-parentNodeIndex);
             notifyListenersSomethingChanged(modelListeners);
             return new int[]{newChildIndex, newChildIndexInCurrent};
         } // UndoTree.Do
@@ -169,7 +169,7 @@ public class UndoTreeSquirrel
 
     private static PrivateNodeInfo getOrMakePrivateNodeInfo(java.util.HashMap<UndoTree.Node,PrivateNodeInfo> privateNodeInfosHashMap, UndoTree.Node node)
     {
-        PrivateNodeInfo info = (PrivateNodeInfo)privateNodeInfosHashMap.get(node);
+        PrivateNodeInfo info = privateNodeInfosHashMap.get(node);
         if (info == null)
         {
             info = new PrivateNodeInfo();
@@ -549,7 +549,7 @@ public class UndoTreeSquirrel
                 PrivateNodeInfo currentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, currentNode);
                 synchronized(otherView.privateNodeInfosHashMap) // XXX I'm positive this is the wrong thing
                 {
-                    PrivateNodeInfo currentNodeInfoInOtherView = (PrivateNodeInfo)otherView.privateNodeInfosHashMap.get(currentNode);
+                    PrivateNodeInfo currentNodeInfoInOtherView = otherView.privateNodeInfosHashMap.get(currentNode);
                     if (currentNodeInfoInOtherView == null
                      || currentNodeInfoInOtherView.preferredChildIndex == -1)
                         currentNodeInfo.preferredChildIndex = currentNode.children.length-1;
@@ -783,7 +783,7 @@ public class UndoTreeSquirrel
                 PrivateNodeInfo parentNodeInfo = getOrMakePrivateNodeInfo(privateNodeInfosHashMap, parentNode);
                 synchronized(otherView.privateNodeInfosHashMap) // XXX I'm positive this is the wrong thing
                 {
-                    PrivateNodeInfo parentNodeInfoInOtherView = (PrivateNodeInfo)otherView.privateNodeInfosHashMap.get(parentNode);
+                    PrivateNodeInfo parentNodeInfoInOtherView = otherView.privateNodeInfosHashMap.get(parentNode);
                     if (parentNodeInfoInOtherView == null
                      || parentNodeInfoInOtherView.preferredChildIndex == -1)
                         parentNodeInfo.preferredChildIndex = parentNode.children.length-1;
@@ -947,7 +947,7 @@ public class UndoTreeSquirrel
                 for (int iNode = 0; iNode < nNodes; ++iNode)
                 {
                     UndoTree.Node node = (UndoTree.Node)model.nodes.get(iNode);
-                    PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashMap.get(node);
+                    PrivateNodeInfo privateNodeInfo = privateNodeInfosHashMap.get(node);
                     snapshot.parents[iNode] = iNode + node.parent; // change relative to absolute
                     snapshot.edgeItems[iNode] = node.itemOnEdgeFromParentToMe;
                     snapshot.sharedLabels[iNode] = node.sharedLabel;
@@ -1636,7 +1636,7 @@ public class UndoTreeSquirrel
             {
                 nodes[iNode].children[iChild] = ((Integer)childrens[iNode].get(iChild)).intValue();
             }
-            PrivateNodeInfo privateNodeInfo = (PrivateNodeInfo)privateNodeInfosHashMap.get(nodes[iNode]);
+            PrivateNodeInfo privateNodeInfo = privateNodeInfosHashMap.get(nodes[iNode]);
             if (privateNodeInfo != null
              && (privateNodeInfo.preferredChildIndex < -1 // -1 is always okay
               || privateNodeInfo.preferredChildIndex >= nodes[iNode].children.length))

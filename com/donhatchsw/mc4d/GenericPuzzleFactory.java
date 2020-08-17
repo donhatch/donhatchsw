@@ -37,12 +37,13 @@ public class GenericPuzzleFactory
         System.out.println("arg = "+arg);
 
 
-        Class theClass = classForNameOrNull(className);
+        // TODO: we expect it to be a subclass of GenericPuzzleDescription.  Can we say that in the template?
+        Class<?> theClass = classForNameOrNull(className);
         if (theClass == null)
             theClass = classForNameOrNull("com.donhatchsw.mc4d."+className);
         if (theClass == null)
             throw new IllegalArgumentException("GenericPuzzleFactor.construct failed to find a class called either "+className+" or com.donhatchsw.mc4d."+className+"");
-        java.lang.reflect.Constructor constructor = getConstructorOrNull(theClass, new Class[]{String.class, java.io.PrintWriter.class});
+        java.lang.reflect.Constructor<?> constructor = getConstructorOrNull(theClass, new Class<?>[]{String.class, java.io.PrintWriter.class});
         if (constructor == null)
             throw new IllegalArgumentException("GenericPuzzleFactory.construct: "+theClass.getName()+" has no constructor that takes a String and a PrintWriter!");
         Object object = null;
@@ -77,12 +78,13 @@ public class GenericPuzzleFactory
         return (GenericPuzzleDescription)object;
     } // fromString
 
-    private static Class classForNameOrNull(String className)
+    private static Class<?> classForNameOrNull(String className)
     {
         try { return Class.forName(className); }
         catch (ClassNotFoundException e) { return null; }
     }
-    private static java.lang.reflect.Constructor getConstructorOrNull(Class<?> classs, Class argTypes[])
+    // TODO: make this varargs like getConstructor is
+    private static java.lang.reflect.Constructor<?> getConstructorOrNull(Class<?> classs, Class<?>[] argTypes)
     {
         try { return classs.getConstructor(argTypes); }
         catch (NoSuchMethodException e) { return null; }

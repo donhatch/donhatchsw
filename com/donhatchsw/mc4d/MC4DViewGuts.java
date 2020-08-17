@@ -231,12 +231,12 @@ public class MC4DViewGuts
             StringBuffer sb = new StringBuffer();
             sb.append("{");
 
-            Class myClass = getClass();
+            Class<? extends ViewParams> myClass = this.getClass();
             java.lang.reflect.Field[] fields = myClass.getFields();
             for (int iField = 0; iField < fields.length; iField++)
             {
                 java.lang.reflect.Field field = fields[iField];
-                Class fieldType = field.getType();
+                Class<?> fieldType = field.getType();
                 if (Listenable.class.isAssignableFrom(fieldType))
                 {
                     try {
@@ -1009,7 +1009,7 @@ public class MC4DViewGuts
             twist.dir,
             twist.slicemask,
             twist.futtIfPossible,
-            (float)fractionOfWayThroughTwist,
+            fractionOfWayThroughTwist,
 
             VecMath.mxs(viewParams.viewMat4d.get(), scaleFudge4d),
             viewParams.eyeW.get(),

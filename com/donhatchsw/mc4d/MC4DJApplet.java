@@ -680,46 +680,6 @@ public class MC4DJApplet
             Object object;
         }
 
-        // Kind of a general purpose utility, could be put in util
-        private static class OrderedHashTable<K,V>
-        {
-            private com.donhatchsw.compat.ArrayList orderedKeys = new com.donhatchsw.compat.ArrayList();
-            private java.util.HashMap<K,V> hashTable = new java.util.HashMap<K,V>();
-            public void add(K key, V value)
-            {
-                CHECK(hashTable.get(key) == null); // XXX throw something more legit
-                orderedKeys.add(key);
-                hashTable.put(key, value);
-            }
-            public void remove(K key)
-            {
-                CHECK(hashTable.get(key) != null); // XXX throw something more legit
-                orderedKeys.remove(key); // takes O(n) time
-                hashTable.remove(key);
-            }
-            public Object get(int i)
-            {
-                return orderedKeys.get(i);
-            }
-            public Object get(K key)
-            {
-                return hashTable.get(key);
-            }
-            public int size()
-            {
-                return orderedKeys.size();
-            }
-        } // OrderedHashTable
-
-        OrderedHashTable puzzlePrescriptionToUndoTree = new OrderedHashTable();
-        OrderedHashTable nameToUndoTreePanel = new OrderedHashTable();
-        OrderedHashTable nameToControlPanelPanel = new OrderedHashTable();
-        OrderedHashTable nameToViewerPanel = new OrderedHashTable();
-
-        OrderedHashTable viewerPanelToControlPanel = new OrderedHashTable();
-        OrderedHashTable viewerPanelToPuzzlePrescription = new OrderedHashTable();
-        // XXX do I even need any of the above?
-
         public com.donhatchsw.compat.ArrayList puzzleDescriptionsAndUndoTrees = new com.donhatchsw.compat.ArrayList();
         private com.donhatchsw.compat.ArrayList viewerPanels = new com.donhatchsw.compat.ArrayList();
         private com.donhatchsw.compat.ArrayList controlPanels = new com.donhatchsw.compat.ArrayList();

@@ -329,7 +329,7 @@ public final class Arrays
      */
     public static Object getMany(Object array, Object indices)
     {
-        Class indicesClass = indices.getClass();
+        Class<?> indicesClass = indices.getClass();
 
         // Not necessary, but optimize for most common case...
         if (true)
@@ -559,12 +559,12 @@ public final class Arrays
     public static int getDim(Object array)
     {
         int dim = 0;
-        Class c = array.getClass();
+        Class<?> c = array.getClass();
         while ((c = c.getComponentType()) != null)
             dim++;
         return dim;
     } // getDim
-    private static Class getClassOfArrayOf(Class clazz, int dim)
+    private static Class<?> getClassOfArrayOf(Class<?> clazz, int dim)
     {
         FORI (i, dim)
             clazz = java.lang.reflect.Array.newInstance(clazz,0).getClass();
@@ -572,7 +572,7 @@ public final class Arrays
     } // getClassOfArrayOf
 
     // XXX should handle negative depth?
-    private static Class getComponentType(Class clazz, int depth)
+    private static Class<?> getComponentType(Class<?> clazz, int depth)
     {
         FORI (i, depth)
             clazz = clazz.getComponentType();
@@ -584,11 +584,11 @@ public final class Arrays
     //    double b = {1,1};
     //    Object array[] = new Object[]{a0,a1,a2,a3};
     // XXX should handle negative depth?
-    private static Class getComponentType(Object array, int depth)
+    private static Class<?> getComponentType(Object array, int depth)
     {
         // Try the other way first...
         {
-            Class c = getComponentType(array.getClass(), depth);
+            Class<?> c = getComponentType(array.getClass(), depth);
             if (c != null)
                 return c;
         }
@@ -597,7 +597,7 @@ public final class Arrays
         int n = java.lang.reflect.Array.getLength(array);
         FORI (i, n)
         {
-            Class c = getComponentType(java.lang.reflect.Array.get(array, i), depth-1);
+            Class<?> c = getComponentType(java.lang.reflect.Array.get(array, i), depth-1);
             if (c != null)
                 return c;
         }
@@ -613,7 +613,7 @@ public final class Arrays
     {
         if (array == null)
             return 0; // XXX maybe
-        Class c = array.getClass();
+        Class<?> c = array.getClass();
         if (!c.isArray())
             return 0;
         int n = java.lang.reflect.Array.getLength(array);
@@ -718,7 +718,7 @@ public final class Arrays
 
         // if furtherdepth == 2, result component type is array's
         // component type squashed by 1, etc.
-        Class componentType = getComponentType(getUnwrappedClass(array), furtherDepth);
+        Class<?> componentType = getComponentType(getUnwrappedClass(array), furtherDepth);
         // that might have failed (returned null),
         // if somewhere between the top level
         // and depth is something of type Object[] instead of array
@@ -926,7 +926,7 @@ public final class Arrays
      * XXX then need to figure out the isAssignableFrom() thing or whatever.
      * XXX look into maybe using Integer.TYPE etc.
      */
-    public static Class getUnwrappedClass(Object item)
+    public static Class<?> getUnwrappedClass(Object item)
     {
         return item instanceof Number ?
                    item instanceof Byte ? byte.class :
@@ -940,7 +940,7 @@ public final class Arrays
                item instanceof Character ? char.class :
                item.getClass();
     } // getUnwrappedClass
-    public static Class getWrapperClass(Class c)
+    public static Class<?> getWrapperClass(Class<?> c)
     {
         if (!c.isPrimitive())
             return c;
@@ -975,8 +975,8 @@ public final class Arrays
             //  XXX so putting that first... haven't tested much of this)
 
 
-            Class c0 = array0.getClass().getComponentType();
-            Class c1 = array1.getClass().getComponentType();
+            Class<?> c0 = array0.getClass().getComponentType();
+            Class<?> c1 = array1.getClass().getComponentType();
 
             return c0 == double.class || c1 == double.class ?
                                    java.lang.reflect.Array.getDouble(array0,i0)
@@ -1258,7 +1258,7 @@ public final class Arrays
             public Object parseObject(String s,
                                       java.text.ParsePosition pos,
                                       int end,
-                                      Class clazz)
+                                      Class<?> clazz)
                 throws java.text.ParseException
             {
                 s = removeComments(s); // XXX eek, should only do this at top level
@@ -1372,7 +1372,7 @@ public final class Arrays
                 }
                 else
                 {
-                    Class wrapperClass = getWrapperClass(clazz);
+                    Class<?> wrapperClass = getWrapperClass(clazz);
                     if (!Number.class.isAssignableFrom(wrapperClass)) // if Number is not a superclass of wrapperClass
                         throw new java.text.ParseException("Don't know how to parse class "+clazz.getName()+"",pos.getIndex());
 
@@ -1433,7 +1433,7 @@ public final class Arrays
         // XXX JAVADOC GROUP
         //
 
-            private static Class guessClass(String s, int start, int end)
+            private static Class<?> guessClass(String s, int start, int end)
                 throws java.text.ParseException
             {
                 /**
@@ -1445,18 +1445,18 @@ public final class Arrays
                 // e.g. boolean.class is of type Class<boolean>.
                 // And once we've done that, it's necessary to parenthesize the (int.class)
                 // or whatever, or the 1.2 compiler gets confused.  Whee compatibility is fun!
-                Class primType = (s.indexOf("true") != -1 ? (Class)(boolean.class) : // XXX should ignore case
-                                  s.indexOf("false") != -1 ? (Class)(boolean.class) : // XXX should ignore case
-                                  s.indexOf(".") != -1 ? (Class)(double.class) :
-                                  s.indexOf("E") != -1 ? (Class)(double.class) :
-                                  s.indexOf("e") != -1 ? (Class)(double.class) :
-                                  s.indexOf("f") != -1 ? (Class)(float.class) :
-                                  s.indexOf("F") != -1 ? (Class)(float.class) :
+                Class<?> primType = (s.indexOf("true") != -1 ? (Class)(boolean.class) : // XXX should ignore case
+                                     s.indexOf("false") != -1 ? (Class)(boolean.class) : // XXX should ignore case
+                                     s.indexOf(".") != -1 ? (Class)(double.class) :
+                                     s.indexOf("E") != -1 ? (Class)(double.class) :
+                                     s.indexOf("e") != -1 ? (Class)(double.class) :
+                                     s.indexOf("f") != -1 ? (Class)(float.class) :
+                                     s.indexOf("F") != -1 ? (Class)(float.class) :
 #ifdef NOTYET // XXX this messes up when there's a "null" 
-                                  s.indexOf("L") != -1 ? (Class)(long.class) :
-                                  s.indexOf("l") != -1 ? (Class)(long.class) :
+                                     s.indexOf("L") != -1 ? (Class)(long.class) :
+                                     s.indexOf("l") != -1 ? (Class)(long.class) :
 #endif // NOTYET
-                                  s.indexOf("'") != -1 ? (Class)(char.class) : (Class)(int.class));
+                                     s.indexOf("'") != -1 ? (Class)(char.class) : (Class)(int.class));
                 int nDims = braceDepth(s, start, end);
 
                 /**
@@ -1464,7 +1464,7 @@ public final class Arrays
                  * If all arrays are ultimately empty,
                  * the maximum brace depth will be used.
                  */
-                Class clazz;
+                Class<?> clazz;
                 {
                     // XXX is there a better way to do this?
                     clazz = primType;
@@ -1576,9 +1576,9 @@ public final class Arrays
             PRINT(5.f == (long)5);
             PRINT(.5f == (long)5);
             PRINT(((long)1<<(long)34)
-               == ((float)((float)(1<<17)*(float)(1<<17))));
+               == (((float)(1<<17)*(float)(1<<17))));
             PRINT((((long)1<<(long)34) + (long)1)
-               == (float)((float)((float)(1<<17)*(float)(1<<17)) + (float)1));
+               == (((float)(1<<17)*(float)(1<<17)) + (float)1));
             // ooh, yuck! that returned true but it shouldn't have!
             // I think the long is getting converted to float!
 

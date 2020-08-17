@@ -627,7 +627,7 @@ public class MiniBall
                 int nFound = 0;
                 points = new double[nExpected][];
 
-                long b = (long)Math.round(Math.sqrt(l2));
+                long b = Math.round(Math.sqrt(l2));
                 for (long a = 0; a*a + a*a <= l2; ++a)
 
                 //double b = Math.round(Math.sqrt(l2));
@@ -641,7 +641,7 @@ public class MiniBall
                     {
                         CHECK(0 < a);
                         CHECK(a < b);
-                        System.out.println("    "+(long)a+" "+(long)b+"");
+                        System.out.println("    "+a+" "+b+"");
                         points[nFound++] = new double[] {a,b};
                         points[nFound++] = new double[] {a,-b};
                         points[nFound++] = new double[] {-a,b};

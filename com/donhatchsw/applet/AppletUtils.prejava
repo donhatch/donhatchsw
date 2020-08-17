@@ -16,7 +16,7 @@ public class AppletUtils
     private static String getParameter(java.awt.Container applet,  // anything with a getParameter()
                                 String name) {
         try {
-            java.lang.reflect.Method getParameterMethod = applet.getClass().getMethod("getParameter", new Class[]{String.class});
+            java.lang.reflect.Method getParameterMethod = applet.getClass().getMethod("getParameter", String.class);
             try {
                 return (String)getParameterMethod.invoke(applet, new Object[]{name});
             } catch (IllegalAccessException e) {
@@ -34,7 +34,7 @@ public class AppletUtils
                                                      int verboseLevel)
     {
         // XXX this is backwards, I think! should iterate over all the params, not all the public fields.  unfortunately I don't think there is any API for that?? oh wait, there is getParameterInfo. hmm. that requires the caller to cooperate.  hmm.
-        Class appletClass = applet.getClass();
+        Class<? extends java.awt.Container> appletClass = applet.getClass();
         java.lang.reflect.Field[] fields = appletClass.getFields();
         for (int i = 0; i < fields.length; i++)
         {
@@ -56,7 +56,7 @@ public class AppletUtils
                     System.out.println("    (no value given)");
                 continue;
             }
-            Class fieldType = field.getType();
+            Class<?> fieldType = field.getType();
             try {
                 if (fieldType.equals(boolean.class)) {
                     //field.setBoolean(applet, Boolean.valueOf(paramValueString).booleanValue());

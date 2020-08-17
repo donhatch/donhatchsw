@@ -965,7 +965,7 @@ public class ConvexHull
 
                         IntArrayHashKey ridgeKey = new IntArrayHashKey(ridge);
 
-                        int parityToFacets[][] = (int[][])ridgeParityToFacets.get(ridgeKey);
+                        int parityToFacets[][] = ridgeParityToFacets.get(ridgeKey);
                         if (parityToFacets == null)
                         {
                             parityToFacets = new int[3][0];

@@ -1248,7 +1248,7 @@ public class MC4DSwingControlPanel
 
     // TODO: publish this somewhere more legit
         // used by dumpComponentHierarchy
-        private static String classNameAncestors(Class classs)
+        private static String classNameAncestors(Class<?> classs)
         {
             String text = classs.getName();
 

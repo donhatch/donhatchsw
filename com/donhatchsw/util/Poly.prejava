@@ -138,7 +138,7 @@ public class Poly
     {
         int nPolys = polys.length;
         assumpt(nPolys >= 1); // otherwise how can we know dimensions?
-        Class vertType = null, indsType = null, auxType = null;
+        Class<?> vertType = null, indsType = null, auxType = null;
         {
             FORI (iPoly, nPolys)
             {
@@ -250,7 +250,7 @@ public class Poly
         int nVerts0 = verts0.length;
         Object inds0 = p0.inds;
         int nInds0 = java.lang.reflect.Array.getLength(inds0);
-        Class indsComponentType = inds0.getClass().getComponentType();
+        Class<?> indsComponentType = inds0.getClass().getComponentType();
         CHECK(indsComponentType != null); // must be a list
         Object aux0 = p0.aux;
         int nAux0 = (aux0 == null ? 0 : java.lang.reflect.Array.getLength(aux0));
@@ -450,7 +450,7 @@ public class Poly
                         if (iNeighbor == edgeEnd[iMin].length)
                         {
                             // didn't find it; append new subdivided edge
-                            edgeEnd[iMin] = (int[])Arrays.append(edgeEnd[iMin], iMax);
+                            edgeEnd[iMin] = Arrays.append(edgeEnd[iMin], iMax);
                             edges[iMin] = (int[][])Arrays.append(edges[iMin], new int[n+1]);
                             edges[iMin][iNeighbor][0] = oldToNewVerts[iMin];
                             for (int k = 1; k <= n-1; ++k)
@@ -766,7 +766,7 @@ public class Poly
                         // The derivation inds for every inner contour vertex
                         // on this polygon is the outer contour together with
                         // the cell center...
-                        int outerContourAndCellCenter[] = (int[])Arrays.append(
+                        int outerContourAndCellCenter[] = Arrays.append(
                                                         outerContour, nVerts+iCell);
 
                         FORI (iInnerContour, nContours-1)
@@ -889,7 +889,7 @@ public class Poly
                         {
                             int iVert = tri[iVertThisTri];
                             // XXX this is inefficient-- should allocate once up front, and should notice sharing
-                            indsOfPointsInFinalTesselatedVerts = (int[])Arrays.append(indsOfPointsInFinalTesselatedVerts, iVert);
+                            indsOfPointsInFinalTesselatedVerts = Arrays.append(indsOfPointsInFinalTesselatedVerts, iVert);
                         }
                     }
                     double points[][] = (double[][])Arrays.getMany(tesselatedVerts, indsOfPointsInFinalTesselatedVerts);

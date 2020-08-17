@@ -19,7 +19,7 @@ public abstract class Listenable
     private static boolean weakRefsExist()
     {
         try {
-            Class dummy = Class.forName("java.lang.ref.WeakReference");
+            Class<?> dummy = Class.forName("java.lang.ref.WeakReference");
             return true;
         } catch (ClassNotFoundException e) {
             //System.out.println("BONK! weak refs do not exist");
@@ -57,7 +57,7 @@ public abstract class Listenable
             {
                 if (useWeakRefs)
                 {
-                    java.lang.ref.WeakReference wr = (java.lang.ref.WeakReference)listeners.get(i);
+                    java.lang.ref.WeakReference<?> wr = (java.lang.ref.WeakReference<?>)listeners.get(i);  // TODO: WeakReference<Listener>, when I get something properly templatized
                     if (wr.get() == listener)
                     {
                         listeners.remove(i);
@@ -329,11 +329,11 @@ public abstract class Listenable
         OVERRIDE public java.lang.String toString() { return ""+get(); }
 
         // Number overrides
-        OVERRIDE public double getDouble() { return (double)value; }
-        OVERRIDE public void setDouble(double newValue) { set((double)newValue); }
-        OVERRIDE public double minDouble() { return (double)minValue; }
-        OVERRIDE public double maxDouble() { return (double)maxValue; }
-        OVERRIDE public double defaultDouble() { return (double)defaultValue; }
+        OVERRIDE public double getDouble() { return value; }
+        OVERRIDE public void setDouble(double newValue) { set(newValue); }
+        OVERRIDE public double minDouble() { return minValue; }
+        OVERRIDE public double maxDouble() { return maxValue; }
+        OVERRIDE public double defaultDouble() { return defaultValue; }
     }
     public static class String extends Listenable
     {
@@ -476,12 +476,12 @@ public abstract class Listenable
     {
         com.donhatchsw.compat.ArrayList list = new com.donhatchsw.compat.ArrayList();
 
-        Class objClass = obj.getClass();
+        Class<?> objClass = obj.getClass();
         java.lang.reflect.Field[] fields = objClass.getFields();
         for (int iField = 0; iField < fields.length; iField++)
         {
             java.lang.reflect.Field field = fields[iField];
-            Class fieldType = field.getType();
+            Class<?> fieldType = field.getType();
             try {
                 if (Listenable.class.isAssignableFrom(fieldType)) // if Listenable is a superclass of fieldType
                 {

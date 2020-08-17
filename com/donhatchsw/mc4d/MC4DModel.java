@@ -113,6 +113,15 @@ public class MC4DModel
                 && this.slicemask == that.slicemask
                 && this.futtIfPossible == that.futtIfPossible;
         }
+        @Override public int hashCode() {
+            // if we were >= 1.7, we could use Objects.hash()
+            int answer = 17;
+            answer = answer * 37 + this.grip;
+            answer = answer * 37 + this.dir;
+            answer = answer * 37 + this.slicemask;
+            answer = answer * 37 + (this.futtIfPossible ? 1 : 0);
+            return answer;
+        }
     } // Twist
 
 

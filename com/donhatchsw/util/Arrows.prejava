@@ -2318,8 +2318,8 @@ public class Arrows
             {
                 OVERRIDE public int compare(Integer aObj, Integer bObj)
                 {
-                    int a = ((Integer)aObj).intValue();
-                    int b = ((Integer)bObj).intValue();
+                    int a = aObj.intValue();
+                    int b = bObj.intValue();
                     return A[a] < A[b] ? -1 :
                            A[a] > A[b] ? 1 : 0;
                 }
@@ -2690,7 +2690,7 @@ public class Arrows
         // not really efficient, but who cares.
         // XXX sort of lame, can't tell the different
         // XXX between null success and failure
-        public Object parseArray(String s, Class type)
+        public Object parseArray(String s, Class<?> type)
         {
             int index[] = {0};
             Object result =  _parseArray(s, type, index);
@@ -2699,7 +2699,7 @@ public class Arrows
 
         // recursive work function used by parseArray()
         private Object _parseArray(String s,
-                                   Class type,
+                                   Class<?> type,
                                    int _index[/*1*/]) // input/output
         {
             //System.out.println("in _parseArray(s=\""+s+"\", type = "+type+", index = "+_index[0]+"");
@@ -2739,7 +2739,7 @@ public class Arrows
                 if (index < len
                  && s.charAt(index) == '{')
                 {
-                    Class componentType = type.getComponentType();
+                    Class<?> componentType = type.getComponentType();
                     Object result = java.lang.reflect.Array.newInstance(
                                                             componentType, 0);
                     index++;

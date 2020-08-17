@@ -1038,19 +1038,19 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
             // It should find xy, while checking that all its refinements
             // on the way to finding xy are correct.
             CatenaryRotated scratchCatenaryRotated = new CatenaryRotated();
-            //double nXsteps = 1000;
-            //double nYsteps = 1000;
-            double nXsteps = 500;
-            double nYsteps = 500;
-            //double nXsteps = 200;
-            //double nYsteps = 200;
-            //double nXsteps = 100;
-            //double nYsteps = 100;
-            //double nXsteps = 50;
-            //double nYsteps = 50;
-            //double nXsteps = 10;
-            //double nYsteps = 10;
-            for (double iY = 0; iY < nYsteps+1; ++iY)
+            //int nXsteps = 1000;
+            //int nYsteps = 1000;
+            int nXsteps = 500;
+            int nYsteps = 500;
+            //int nXsteps = 200;
+            //int nYsteps = 200;
+            //int nXsteps = 100;
+            //int nYsteps = 100;
+            //int nXsteps = 50;
+            //int nYsteps = 50;
+            //int nXsteps = 10;
+            //int nYsteps = 10;
+            for (int iY = 0; iY < nYsteps+1; ++iY)
             {
                 double y = LERP(-1., 1., iY/(double)nYsteps);
                 if (y > 0.)
@@ -1059,7 +1059,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     continue;
                 }
                 System.out.println("            y = "+y);
-                for (double iX = 0; iX < nXsteps+1; ++iX)
+                for (int iX = 0; iX < nXsteps+1; ++iX)
                 {
                     double x = LERP(-1., 1., iX/(double)nXsteps);
 
@@ -2097,7 +2097,7 @@ public class CatenaryRotated extends Catenary.FlippedMaybe
                     // namely on the axes
                     double slack0 = 0.;
                     double slack1 = 1.;
-                    double nSlackSteps = 20.;
+                    int nSlackSteps = 20;
                     for (int iSlack = 0; iSlack < nSlackSteps+1; ++iSlack)
                     {
                         double slack = LERP(slack0, slack1, iSlack/(double)nSlackSteps);

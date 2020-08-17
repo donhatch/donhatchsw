@@ -1664,7 +1664,7 @@ public class Cpp
                                     tokenAllocator.unrefToken(nextToken);
                                     nextToken = tokenStream.readToken(inComment); // XXX WITHOUT macro substitution, so that macros get expanded lazily
 
-                                    paramNames = (String[])paramNamesVector.toArray(new String[0]);
+                                    paramNames = paramNamesVector.toArray(new String[0]);
                                 }
                                 else if (nextToken.type == Token.SPACES
                                       || nextToken.type == Token.COMMENT
@@ -2221,7 +2221,7 @@ public class Cpp
 
     // weird that java.util.Vector doesn't have this...
     // I think its toArray api is broken
-    private static Object toArray(java.util.Vector vector, Class arrayType)
+    private static Object toArray(java.util.Vector<?> vector, Class<?> arrayType)
     {
         int arrayLength = vector.size();
         Object array = java.lang.reflect.Array.newInstance(

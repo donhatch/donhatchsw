@@ -1513,7 +1513,7 @@ public class GenericGlue
             slicemask = genericGlue.twistSliceMask;
             futtIfPossible = genericGlue.twistFuttIfPossible;
 
-            fracIntoTwist = (float)interp.func((genericGlue.iTwist+1)/(float)genericGlue.nTwist);
+            fracIntoTwist = interp.func((genericGlue.iTwist+1)/(float)genericGlue.nTwist);
             //System.out.println("    "+genericGlue.iTwist+"/"+genericGlue.nTwist+" -> "+(genericGlue.iTwist+1)+"/"+genericGlue.nTwist+"");
 
             if (!frozenForDebugging)
@@ -1881,7 +1881,7 @@ public class GenericGlue
                     Class<?> childClass = child.getClass();
                     java.lang.reflect.Method getListenersMethod = null;
                     try {
-                        getListenersMethod = childClass.getMethod("getListeners", new Class[]{Class.class});
+                        getListenersMethod = childClass.getMethod("getListeners", Class.class);
                     } catch (NoSuchMethodException e) {
                         System.err.println("NoSuchMethodException trying to get method getListeners on "+childClass);
                         System.err.println("I think that method was introduced in java 1.3, are you using <= 1.2?");

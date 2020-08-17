@@ -128,7 +128,7 @@
 
 # ubuntu
 JAVACPPFLAGS=-DOVERRIDE=@Override
-JAVAC=/usr/bin/javac -source 1.10 -target 1.10 -deprecation -Xlint:unchecked
+JAVAC=/usr/bin/javac -source 1.6 -target 1.6 -deprecation -Xlint:unchecked -Xlint:all
 JAR=/usr/bin/jar
 JAVADOC=/usr/bin/javadoc
 

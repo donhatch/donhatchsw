@@ -1013,7 +1013,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static void zerovec(int n, int result[])
     {
         FORI (i, n)
-            result[i] = (int)0;
+            result[i] = 0;
     }
 
     /** zero a vector */
@@ -1032,7 +1032,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     public static void zerovec(int result[])
     {
         FORIDOWN (i, result.length)
-            result[i] = (int)0;
+            result[i] = 0;
     }
     /** zero a matrix */
     public static void zeromat(double result[][])
@@ -1324,7 +1324,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         FOR (i, nRows)
         {
             int m_i[] = m[i];
-            int sum = (int)0;
+            int sum = /*(int)*/0;
             FOR (j, v.length)
             {
                 sum += m_i[j] * v[j];
@@ -1427,7 +1427,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
     /** vector distance squared */
     public static int distsqrd(int n, int v0[], int v1[])
     {
-        int result = (int)0;
+        int result = /*(int)*/0;
         FORI (i, n)
         {
             int diff = v1[i]-v0[i];
@@ -1891,8 +1891,8 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                                          Object inds) // array of ints, dim >= 1
         {
             int nDims = coords[0].length;
-            Class indsClass = inds.getClass();
-            Class componentType = indsClass.getComponentType();
+            Class<?> indsClass = inds.getClass();
+            Class<?> componentType = indsClass.getComponentType();
             CHECK(componentType != null); // inds must be an array
             if (componentType.isArray())
             {
@@ -2353,7 +2353,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         CHECK(nPoints >= 1);
         double relativeTo[] = points[nPoints-1];
         if (!destructive)
-            points = (double[][])copymat(nPoints-1, dim, points); // can omit relativeTo
+            points = copymat(nPoints-1, dim, points); // can omit relativeTo
         FORI (iPoint, nPoints-1)
             vmv(dim, points[iPoint], points[iPoint], relativeTo);
         return detUsingLQ(nPoints-1, dim, points, true); // fine for it to be destructive now
@@ -2676,7 +2676,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
         else
         {
             double minusU1[] = sxv(n, (double)-1,u1);
-            return (double)(Math.PI - 2*Math.asin(.5*dist(n, u0,minusU1)));
+            return Math.PI - 2*Math.asin(.5*dist(n, u0,minusU1));
         }
     }
     public static double angleBetweenUnitVectors(double u0[], double u1[])
@@ -3251,11 +3251,11 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                 flag=true;
                 for (l=k;l>=0;l--) { /* Test for splitting. */
                     nm=l-1; /* Note that rv1[1] is always zero. */
-                    if ((double)(Math.abs(rv1[l])+anorm) == anorm) {
+                    if (Math.abs(rv1[l])+anorm == anorm) {
                         flag=false;
                         break;
                     }
-                    if ((double)(Math.abs(w[nm])+anorm) == anorm) break;
+                    if (Math.abs(w[nm])+anorm == anorm) break;
                 }
                 if (flag) {
                     c=0.0; /* Cancellation of rv1[l], if l > 1. */
@@ -3263,7 +3263,7 @@ PRINTVEC(vxmxm(new double[]{0,1,2,3,4,5},M,pva));
                     for (i=l;i<=k;i++) {
                         f=s*rv1[i];
                         rv1[i]=c*rv1[i];
-                        if ((double)(Math.abs(f)+anorm) == anorm) break;
+                        if (Math.abs(f)+anorm == anorm) break;
                         g=w[i];
                         h=Math.hypot(f,g);
                         w[i]=h;

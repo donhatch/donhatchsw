@@ -28,7 +28,7 @@ public class regex
     *    2: more detail, print out the FSM and execution trace and everything
     * </pre>
     */
-    public static int verboseLevel = 0;
+    public static int verboseLevel = 2;
 
     /**
     * An IllegalArgumentException
@@ -133,7 +133,7 @@ public class regex
                 if (verboseLevel >= 1) System.out.println("    theirs = "+Arrays.toStringCompact(theirs));
                 if (verboseLevel >= 1) System.out.println("    mine = "+Arrays.toStringCompact(mine));
                 CHECK(theirs != null && mine != null);
-                CHECK_EQ(theirs.length, mine.length);
+                CHECK_EQ(theirs.length, mine.length);   // TODO: this fails somewhere in the unit test! fix this!
                 for (int i = 0; i < theirs.length; ++i)
                     CHECK(theirs[i].equals(mine[i]));
             }
@@ -1195,7 +1195,7 @@ public class regex
         private static boolean inited;
         private static Class<?> patternClass;
         private static Class<?> matcherClass;
-        private static Class charSequenceClass;
+        private static Class<?> charSequenceClass;
         private static java.lang.reflect.Method patternCompileMethod;
         private static java.lang.reflect.Method patternMatcherMethod;
         private static java.lang.reflect.Method patternSplitMethod;
@@ -1232,20 +1232,20 @@ public class regex
             }
 
             try {
-                patternCompileMethod = patternClass.getMethod("compile", new Class[]{String.class});
-                patternMatcherMethod = patternClass.getMethod("matcher", new Class[]{charSequenceClass});
-                patternSplitMethod = patternClass.getMethod("split", new Class[]{charSequenceClass, int.class});
-                matcherReset0Method = matcherClass.getMethod("reset", new Class[]{});
-                matcherReset1Method = matcherClass.getMethod("reset", new Class[]{charSequenceClass});
-                matcherFind0Method = matcherClass.getMethod("find", new Class[]{});
-                matcherFind1Method = matcherClass.getMethod("find", new Class[]{int.class});
-                matcherMatchesMethod = matcherClass.getMethod("matches", new Class[]{});
-                matcherGroupCountMethod = matcherClass.getMethod("groupCount", new Class[]{});
-                matcherStartMethod = matcherClass.getMethod("start", new Class[]{int.class});
-                matcherEnd0Method = matcherClass.getMethod("end", new Class[]{});
-                matcherEnd1Method = matcherClass.getMethod("end", new Class[]{int.class});
-                matcherGroupMethod = matcherClass.getMethod("group", new Class[]{int.class});
-                matcherReplaceAllMethod = matcherClass.getMethod("replaceAll", new Class[]{String.class});
+                patternCompileMethod = patternClass.getMethod("compile", String.class);
+                patternMatcherMethod = patternClass.getMethod("matcher", charSequenceClass);
+                patternSplitMethod = patternClass.getMethod("split", charSequenceClass, int.class);
+                matcherReset0Method = matcherClass.getMethod("reset");
+                matcherReset1Method = matcherClass.getMethod("reset", charSequenceClass);
+                matcherFind0Method = matcherClass.getMethod("find");
+                matcherFind1Method = matcherClass.getMethod("find", int.class);
+                matcherMatchesMethod = matcherClass.getMethod("matches");
+                matcherGroupCountMethod = matcherClass.getMethod("groupCount");
+                matcherStartMethod = matcherClass.getMethod("start", int.class);
+                matcherEnd0Method = matcherClass.getMethod("end");
+                matcherEnd1Method = matcherClass.getMethod("end", int.class);
+                matcherGroupMethod = matcherClass.getMethod("group", int.class);
+                matcherReplaceAllMethod = matcherClass.getMethod("replaceAll", String.class);
 
             } catch (NoSuchMethodException e) {
                 System.err.println("java_util_regex.Pattern: something went dreadfully wrong: "+e);

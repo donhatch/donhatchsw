@@ -1029,7 +1029,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
                 VecMath.vxs(oppositeNormalScratch, facetInwardNormals[iFacet], -1.);
-                CSG.Polytope opposite = (CSG.Polytope)table.get(oppositeNormalScratch);
+                CSG.Polytope opposite = table.get(oppositeNormalScratch);
                 facet2OppositeFacet[iFacet] = opposite==null ? -1 : (Integer)opposite.getAux();
                 //System.err.print("("+iFacet+":"+facet2OppositeFacet[iFacet]+")");
             }
@@ -1768,7 +1768,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 {
                     int[][] originalStickerPolyToStickerPoly = new int[nStickers][];
                     for (int iSticker = 0; iSticker < originalStickerPolyToStickerPoly.length; ++iSticker) {
-                        originalStickerPolyToStickerPoly[iSticker] = (int[])VecMath.invertperm(stickerPolyToOriginalStickerPoly[iSticker]);
+                        originalStickerPolyToStickerPoly[iSticker] = VecMath.invertperm(stickerPolyToOriginalStickerPoly[iSticker]);
                     }
                     for (int iPair = 0; iPair < this.adjacentStickerPairs.length; ++iPair) {
                         for (int iStickerThisPair = 0; iStickerThisPair < 2; ++iStickerThisPair) {
@@ -1844,14 +1844,14 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
         {
             for (int iSticker = 0; iSticker < nStickers; ++iSticker)
             {
-                stickerCentersD[iSticker] = (double[])com.donhatchsw.util.Arrays.append(stickerCentersD[iSticker], 0.);
-                stickerCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerCentersF[iSticker], 0.f);
-                stickerAltCentersF[iSticker] = (float[])com.donhatchsw.util.Arrays.append(stickerAltCentersF[iSticker], 0.f);
+                stickerCentersD[iSticker] = com.donhatchsw.util.Arrays.append(stickerCentersD[iSticker], 0.);
+                stickerCentersF[iSticker] = com.donhatchsw.util.Arrays.append(stickerCentersF[iSticker], 0.f);
+                stickerAltCentersF[iSticker] = com.donhatchsw.util.Arrays.append(stickerAltCentersF[iSticker], 0.f);
             }
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
-                facetCentersF[iFacet] = (float[])com.donhatchsw.util.Arrays.append(facetCentersF[iFacet], 0.f);
-                facetInwardNormals[iFacet] = (double[])com.donhatchsw.util.Arrays.append(facetInwardNormals[iFacet], 0.f);
+                facetCentersF[iFacet] = com.donhatchsw.util.Arrays.append(facetCentersF[iFacet], 0.f);
+                facetInwardNormals[iFacet] = com.donhatchsw.util.Arrays.append(facetInwardNormals[iFacet], 0.f);
             }
         }
 
@@ -2158,7 +2158,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         // First make it so that we can easily lookup from global element index to element index on a given facet...
                         int maxRelevantDim = 2;  // we're looking at elements of polygons
                         // workaround 3 from https://programming.guide/java/generic-array-creation.html
-                        class HashMapIntegerInteger extends java.util.HashMap<Integer,Integer> {}
+                        @SuppressWarnings("serial") class HashMapIntegerInteger extends java.util.HashMap<Integer,Integer> {}
                         HashMapIntegerInteger[/*nFacets*/][/*nRelevantDims*/] indexOfOriginalEltOnFacet = new HashMapIntegerInteger[nFacets][maxRelevantDim+1];
                         for (int iFacet = 0; iFacet < nFacets; ++iFacet)
                         {
@@ -2206,7 +2206,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                                         {
                                             int iOriginalElt = (Integer)aux;
                                             CHECK(iOriginalElt != -1);
-                                            Integer iOriginalEltOnThisFacet = (Integer)indexOfOriginalEltOnFacet[iFacet][iOriginalEltDim].get(iOriginalElt);
+                                            Integer iOriginalEltOnThisFacet = indexOfOriginalEltOnFacet[iFacet][iOriginalEltDim].get(iOriginalElt);
                                             CHECK(iOriginalEltOnThisFacet != null);
                                             int iGrip = originalFacetElt2grip[iFacet][iOriginalEltDim][iOriginalEltOnThisFacet];
                                             CHECK(this.stickerPoly2Grip[iSticker][iPolyThisSticker] == -1);
@@ -2893,7 +2893,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                         {
                             VecMath.copyvec(key, flagsOfInterest[iFlag]);
                             key[iDim] = -1;
-                            Integer neighbor = (Integer)unmatchedPartialFlag2Index.get(key);
+                            Integer neighbor = unmatchedPartialFlag2Index.get(key);
                             if (neighbor == null)
                             {
                                 // put requires a more permanent copy of the scratch key
@@ -3448,8 +3448,8 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             String fromCutInfosString = java.util.Arrays.toString(fromCutInfos);
                             String toCutInfosString = java.util.Arrays.toString(toCutInfos);
 
-                            double[] fromCoords = (double[])cutInfos2coords.get(fromCutInfosString);
-                            double[] toCoords = (double[])cutInfos2coords.get(toCutInfosString);
+                            double[] fromCoords = cutInfos2coords.get(fromCutInfosString);
+                            double[] toCoords = cutInfos2coords.get(toCutInfosString);
                             CHECK(fromCoords != null);
                             CHECK(toCoords != null);
                             if (nDims == 4)

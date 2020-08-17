@@ -34,11 +34,11 @@ public class com_donhatchsw_applet_AppletViewer
                     System.exit(1);
                 }
             }
-            java.lang.reflect.Constructor appletConstructor = null;
+            java.lang.reflect.Constructor<?> appletConstructor = null;
             {
                 try
                 {
-                    appletConstructor = appletClass.getConstructor(new Class[]{});
+                    appletConstructor = appletClass.getConstructor();
                 }
                 catch (NoSuchMethodException e)
                 {
