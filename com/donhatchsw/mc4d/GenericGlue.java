@@ -141,7 +141,7 @@ public class GenericGlue
             this.futtIfPossible = futtIfPossible;
         }
     }
-    public com.donhatchsw.compat.ArrayList undoq = new com.donhatchsw.compat.ArrayList(); // of HistoryNode
+    public java.util.ArrayList<HistoryNode> undoq = new java.util.ArrayList<HistoryNode>();
     public int undoPartSize = 0; // undoq has undo part followed by redo part
 
     //
@@ -1025,7 +1025,7 @@ public class GenericGlue
                 return;
             }
 
-            GenericGlue.HistoryNode node = (GenericGlue.HistoryNode)glue.undoq.get(--glue.undoPartSize);
+            GenericGlue.HistoryNode node = glue.undoq.get(--glue.undoPartSize);
 
             //
             // Initiate the undo twist (opposite dir from original)
@@ -1064,7 +1064,7 @@ public class GenericGlue
                 return;
             }
 
-            GenericGlue.HistoryNode node = (GenericGlue.HistoryNode)glue.undoq.get(glue.undoPartSize++);
+            GenericGlue.HistoryNode node = glue.undoq.get(glue.undoPartSize++);
 
             //
             // Initiate the redo twist (same dir as original)
@@ -1637,7 +1637,7 @@ public class GenericGlue
                 // Initiate the next undo twist in the cheat.
                 // XXX duplicate code from the undo menu item-- make a function out of this
 
-                GenericGlue.HistoryNode node = (GenericGlue.HistoryNode)genericGlue.undoq.get(--genericGlue.undoPartSize);
+                GenericGlue.HistoryNode node = genericGlue.undoq.get(--genericGlue.undoPartSize);
 
                 //
                 // Initiate the undo twist (opposite dir from original)

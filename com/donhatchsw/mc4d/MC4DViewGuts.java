@@ -310,7 +310,7 @@ public class MC4DViewGuts
     private Component viewComponent = null;
     public ViewParams viewParams = new ViewParams(); // XXX not sure if it should be public or what
     public ViewState viewState = new ViewState(); // XXX made public so that the Frame Picture button can use it to get the bbox of the most recent frame... maybe should be accessors to get this info instead, expecially since there are probably race conditions with it now
-    private com.donhatchsw.compat.ArrayList keepalive = new com.donhatchsw.compat.ArrayList(); // keeps my listeners alive with strong refs for as long as I'm alive
+    private java.util.ArrayList<Listenable.Listener> keepalive = new java.util.ArrayList<Listenable.Listener>(); // keeps my listeners alive with strong refs for as long as I'm alive
 
 
 
@@ -339,10 +339,10 @@ public class MC4DViewGuts
     private MouseListener mouseListener;
     private MouseMotionListener mouseMotionListener;
 
-    // To restore when I detach from this controller Component
-    private com.donhatchsw.compat.ArrayList savedKeyListeners;
-    private com.donhatchsw.compat.ArrayList savedMouseListeners;
-    private com.donhatchsw.compat.ArrayList savedMouseMotionListeners;
+    // To restore when I detach from this controller Component  (XXX apparently not implemented)
+    private java.util.ArrayList<java.awt.event.KeyListener> savedKeyListeners;
+    private java.util.ArrayList<java.awt.event.MouseListener> savedMouseListeners;
+    private java.util.ArrayList<java.awt.event.MouseMotionListener> savedMouseMotionListeners;
 
 
     /** Detaches this view guts from its old model (if any), and attaches to the new one (if any). */
