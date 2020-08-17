@@ -2570,8 +2570,9 @@ public final class CSG
                 // this is awesome!  works with any of the above as a start, I think.
                 // "frucht 3(4)" or "frucht 5(7)" or "frucht 7(10)" or "frucht 9(13)"
                 // TODO: this apparently works best with only the first or third version above.  should make it better so that it always relaxes to the same thing.  I bet that will happen if I actually re-polytope-ize after each iteration (currently it doesn't actually re-planarize each face on each iteration, so maybe it gets happy in situations it shouldn't be and then gets a rude awakening only at the end when polytope-ized)
-                OUT("================================");
-                OUT("ATTEMPTING TO REGULARIZE "+(notFruchtFlag?"NOT-FRUCHT":"FRUCHT")+"");
+                int localVerboseLevel = 0;
+                if (localVerboseLevel >= 1) OUT("================================");
+                if (localVerboseLevel >= 1) OUT("ATTEMPTING TO REGULARIZE "+(notFruchtFlag?"NOT-FRUCHT":"FRUCHT")+"");
                 // Try to regularize.
                 // Goal is to make all the faces as close to regular polygons as possible, right?
                 // So, repeatedly:
@@ -3230,8 +3231,8 @@ public final class CSG
                           /*returnAbove=*/null, /*returnAboveIndex=*/-1);
                     answer = returnBelow[0];
                 }
-                OUT("DONE ATTEMPTING TO REGULARIZE "+(notFruchtFlag?"NOT-FRUCHT":"FRUCHT")+"");
-                OUT("================================");
+                if (localVerboseLevel >= 1) OUT("DONE ATTEMPTING TO REGULARIZE "+(notFruchtFlag?"NOT-FRUCHT":"FRUCHT")+"");
+                if (localVerboseLevel >= 1) OUT("================================");
             }  // regularize
 
             return answer;
