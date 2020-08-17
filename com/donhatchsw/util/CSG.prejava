@@ -5493,7 +5493,7 @@ public final class CSG
         * Otherwise it will be scaled by the volume
         * of the parallelepiped spanned by those normals.
         */
-        private static double volume(SPolytope sp)
+        public static double volume(SPolytope sp)
         {
             int nNormals = sp.p.contributingHyperplanes.length;
             double simplices[][][] = simpliciallySubdivide(sp.p);

@@ -1597,7 +1597,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                             {
                                 iVert = nVerts++;
                                 restVerts[iVert] = vertex.getCoords(); // okay to share with it, we aren't going to change it
-                                vertex.setAux(iVert);
+                                vertex.setAux(Integer.valueOf(iVert));
                             }
                             stickerInds[iSticker][iPolyThisSticker][iVertThisPoly] = iVert;
                         }
