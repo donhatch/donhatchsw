@@ -26,9 +26,9 @@ package com.donhatchsw.util;
 * The implementation uses Kosaraju's algorithm:
 *      <a href="http://en.wikipedia.org/wiki/Strongly_connected_component">http://en.wikipedia.org/wiki/Strongly_connected_component</a>
 * <p>
-* Note, the number of connected components is returned, but if it's not n,
-* there is no way of telling exactly what the connected components are.
-* (It wouldn't be too hard to fix it so it does.)
+* The number of connected components is returned,
+* and optionally the starting indices of each connected component
+* (terminated by n).
 */
 public class TopSorter
 {

@@ -1569,7 +1569,9 @@ public class GenericPipelineUtils
                     // This can be observed to happen, e.g. on 5,3,3 in default position, with 4d eye distance increased until nothing behind the 4d eye.
                     //
                     // TODO: this protection may be no longer necessary since we are now computing backfaces
-                    //       based on unshrunk; not sure!  Revisit.  How?
+                    //       based on unshrunk; not sure!  And, in fact, it may be screwing
+                    //       some things up (that is, the only thing keeping a particular
+                    ///      sticker properly behind others are these warped adjacencies).  Revisit.  How?
                     if (true)
                     {
                         if (iStickerIsVisible && jStickerIsVisible
