@@ -152,7 +152,7 @@
 
         - topsort still fundamentally broken when 4dfaceshrink<1: demonstrate:
           - example: "3,3,4 2" after a twist: red stickers in center appear in front of yellow stickers that are nearer
-          - example: "3,4 3",  initial position, just set sticker shrink to 1 (face shrink still .4).  red/orange faces in wrong order
+          - example: "3,4 3",  initial position, set sticker shrink to 1 and face shrink to almost 1. some cracks appear.   clearer what's going on when flatten.
           - example: "3,4 4",  same.
 
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)

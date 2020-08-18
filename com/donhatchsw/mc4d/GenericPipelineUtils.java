@@ -232,7 +232,8 @@ public class GenericPipelineUtils
                 fracIntoTwist);
         }
 
-        float[][] verts_unshrunk = VecMath.copymat(verts);  // XXX MEMORY ALLOCATION
+        float[][] verts_totally_unshrunk = VecMath.copymat(verts);  // XXX MEMORY ALLOCATION
+        float[][] verts_yesfaceshrink_nostickershrink = VecMath.copymat(verts);  // XXX MEMORY ALLOCATION
 
         //
         // Shrink the vertices towards the shrink-to points in 4d.
@@ -255,11 +256,19 @@ public class GenericPipelineUtils
                              stickerShrinkPoints[iSticker], verts[iVert], stickerShrink4d);
                 VecMath.lerp(verts[iVert],
                              perStickerFaceCenters[iSticker], verts[iVert], faceShrink4d);
+                VecMath.lerp(verts_yesfaceshrink_nostickershrink[iVert],
+                             perStickerFaceCenters[iSticker], verts_yesfaceshrink_nostickershrink[iVert], faceShrink4d);
             }
         }
 
-        // The four arrays we need to rotate and project...
-        float arrays[][][] = {verts_unshrunk, verts, stickerShrinkPoints, perStickerFaceCenters};
+        // The five arrays we need to rotate and project...
+        float arrays[][][] = {
+            verts_totally_unshrunk,
+            verts_yesfaceshrink_nostickershrink,
+            verts,
+            stickerShrinkPoints,
+            perStickerFaceCenters,
+        };
         
         //
         // Rotate/scale in 4d.
@@ -375,13 +384,22 @@ public class GenericPipelineUtils
             if (verboseLevel >= 4) System.out.println("rot3d = "+com.donhatchsw.util.Arrays.toStringCompact(rot3d));
             float tempIn[] = new float[3]; // XXX MEMORY ALLOCATION
             float tempOut[] = new float[3]; // XXX MEMORY ALLOCATION
-            for (int iVert = 0; iVert < verts_unshrunk.length; ++iVert)
+            // TODO: dup code.  maybe should use the "five arrays" trick used above
+            for (int iVert = 0; iVert < verts_totally_unshrunk.length; ++iVert)
             {
                 for (int i = 0; i < 3; ++i) // 3 out of 4
-                    tempIn[i] = verts_unshrunk[iVert][i];
+                    tempIn[i] = verts_totally_unshrunk[iVert][i];
                 VecMath.vxm(tempOut, tempIn, rot3d); // only first 3... however the matrix can be 3x3 or 4x3
                 for (int i = 0; i < 3; ++i) // 3 out of 4
-                    verts_unshrunk[iVert][i] = tempOut[i];
+                    verts_totally_unshrunk[iVert][i] = tempOut[i];
+            }
+            for (int iVert = 0; iVert < verts_yesfaceshrink_nostickershrink.length; ++iVert)
+            {
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    tempIn[i] = verts_yesfaceshrink_nostickershrink[iVert][i];
+                VecMath.vxm(tempOut, tempIn, rot3d); // only first 3... however the matrix can be 3x3 or 4x3
+                for (int i = 0; i < 3; ++i) // 3 out of 4
+                    verts_yesfaceshrink_nostickershrink[iVert][i] = tempOut[i];
             }
             for (int iVert = 0; iVert < verts.length; ++iVert)
             {
@@ -540,13 +558,21 @@ public class GenericPipelineUtils
         // XXX could try to do this on only vertices that passed the culls
         //
         {
-            for (int i = 0; i < verts_unshrunk.length; ++i)
+            for (int i = 0; i < verts_totally_unshrunk.length; ++i)
             {
-                float z = eyeZ - verts_unshrunk[i][2];
+                float z = eyeZ - verts_totally_unshrunk[i][2];
                 float invZ = 1.f/z;
                 for (int j = 0; j < 2; ++j)
-                    verts_unshrunk[i][j] *= invZ;
-                verts_unshrunk[i][2] = z; // keep this for future reference
+                    verts_totally_unshrunk[i][j] *= invZ;
+                verts_totally_unshrunk[i][2] = z; // keep this for future reference
+            }
+            for (int i = 0; i < verts_yesfaceshrink_nostickershrink.length; ++i)
+            {
+                float z = eyeZ - verts_yesfaceshrink_nostickershrink[i][2];
+                float invZ = 1.f/z;
+                for (int j = 0; j < 2; ++j)
+                    verts_yesfaceshrink_nostickershrink[i][j] *= invZ;
+                verts_yesfaceshrink_nostickershrink[i][2] = z; // keep this for future reference
             }
             for (int i = 0; i < verts.length; ++i)
             {
@@ -574,10 +600,12 @@ public class GenericPipelineUtils
 
         boolean stickerPolyIsStrictlyBackfacing[][] = new boolean[nStickers][];
         boolean unshrunkStickerPolyIsStrictlyBackfacing[][] = new boolean[nStickers][];
+        boolean partiallyShrunkStickerPolyIsStrictlyBackfacing[][] = new boolean[nStickers][];
         for (int iSticker = 0; iSticker < nStickers; ++iSticker)
         {
             stickerPolyIsStrictlyBackfacing[iSticker] = new boolean[stickerInds[iSticker].length];
             unshrunkStickerPolyIsStrictlyBackfacing[iSticker] = new boolean[stickerInds[iSticker].length];
+            partiallyShrunkStickerPolyIsStrictlyBackfacing[iSticker] = new boolean[stickerInds[iSticker].length];
         }
 
         //
@@ -615,14 +643,25 @@ public class GenericPipelineUtils
                 }
                 // same for unshrunk, to compute unshrunkStickerPolyIsStrictlyBackfacing, but do *not* append to drawlist
                 {
-                    float v0[] = verts_unshrunk[poly[0]];
-                    float v1[] = verts_unshrunk[poly[1]];
-                    float v2[] = verts_unshrunk[poly[2]];
+                    float v0[] = verts_totally_unshrunk[poly[0]];
+                    float v1[] = verts_totally_unshrunk[poly[1]];
+                    float v2[] = verts_totally_unshrunk[poly[2]];
                     VecMath.vmv(2, mat[0], v1, v0); // 2 out of 4
                     VecMath.vmv(2, mat[1], v2, v0); // 2 out of 4
                     float area = VecMath.vxv2(mat[0], mat[1]);
                     boolean thisStickerPolyIsStrictlyBackfacing = area < 0.f; // retain *front* facing polygons-- note we haven't inverted Y yet so this test looks as expected
                     unshrunkStickerPolyIsStrictlyBackfacing[i0i1[0]][i0i1[1]] = thisStickerPolyIsStrictlyBackfacing;
+                }
+                // likewise for partially
+                {
+                    float v0[] = verts_yesfaceshrink_nostickershrink[poly[0]];
+                    float v1[] = verts_yesfaceshrink_nostickershrink[poly[1]];
+                    float v2[] = verts_yesfaceshrink_nostickershrink[poly[2]];
+                    VecMath.vmv(2, mat[0], v1, v0); // 2 out of 4
+                    VecMath.vmv(2, mat[1], v2, v0); // 2 out of 4
+                    float area = VecMath.vxv2(mat[0], mat[1]);
+                    boolean thisStickerPolyIsStrictlyBackfacing = area < 0.f; // retain *front* facing polygons-- note we haven't inverted Y yet so this test looks as expected
+                    partiallyShrunkStickerPolyIsStrictlyBackfacing[i0i1[0]][i0i1[1]] = thisStickerPolyIsStrictlyBackfacing;
                 }
             }
             drawListSize = nFrontFacing;
@@ -755,10 +794,12 @@ public class GenericPipelineUtils
                     puzzleDescription.getAdjacentStickerPairs(),
                     stickerVisibilities,
                     unshrunkStickerPolyIsStrictlyBackfacing,
+                    partiallyShrunkStickerPolyIsStrictlyBackfacing,
                     VecMath.mxv(rot4d, new float[]{0,0,0,eyeW}), // in opposite order so we multiply the eye by the *inverse* of the matrix, to get it into object space  XXX put this elsewhere
                     cutNormal,
                     cutOffsets,
                     sticker2Slice,
+                    puzzleDescription.getSticker2Face(),
                     stickerSortOrder,
                     partialOrderAddress,
                     XXXmoreInformationAddress,
@@ -1418,10 +1459,12 @@ public class GenericPipelineUtils
                 int adjacentStickerPairs[][/*2*/][/*2: iSticker,iPolyThisSticker*/],
                 final boolean stickerVisibilities[/*>=nStickers*/],
                 boolean unshrunkStickerPolyIsStrictlyBackfacing[/*>=nStickers*/][/*nPolysThisSticker*/],
+                boolean partiallyShrunkStickerPolyIsStrictlyBackfacing[/*>=nStickers*/][/*nPolysThisSticker*/],
                 float eye[/*nDisplayDims*/],
                 float cutNormal[/*nDisplayDims*/],
                 float cutOffsets[/*nCuts*/], // in increasing order
                 int sticker2Slice[/*>=nStickers*/],
+                int sticker2face[/*>=nStickers*/],
                 int returnStickerSortOrder[/*>=nStickers*/],
                 int returnPartialOrderOptionalForDebugging[/*1*/][][/*2*/], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with the int[][2] partial order
                 int XXXreturnMoreInformationForDebugging[/*1*/][][/*2*/], // null if caller doesn't care, otherwise it's a singleton array that gets filled in with more of the int[][2] partial order (-ish).  TODO: describe this better
@@ -1610,6 +1653,8 @@ public class GenericPipelineUtils
                         }
                     }
 
+                    boolean inSameFace = sticker2face[iSticker] == sticker2face[jSticker];
+                    boolean stickerPolyIsStrictlyBackfacing[][] = (inSameFace ? partiallyShrunkStickerPolyIsStrictlyBackfacing : unshrunkStickerPolyIsStrictlyBackfacing);
 
                     if (iGroup == iSticker && jGroup == jSticker)
                     {
@@ -1619,8 +1664,9 @@ public class GenericPipelineUtils
                         if (!iStickerIsVisible || !jStickerIsVisible)
                             continue;
                         //System.out.println("    stickers "+iSticker+","+jSticker+" in same slice "+sticker2Slice[iSticker]+"");
-                        boolean iStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
-                        boolean jStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+                        boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+
                         if (iStickerHasPolyBackfacing && jStickerHasPolyBackfacing)
                         {
                             // Note that this cannot happen any more unless
@@ -1687,7 +1733,7 @@ public class GenericPipelineUtils
 
                         if (!iStickerIsVisible)
                             continue;
-                        boolean iStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
+                        boolean iStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[iSticker][iPolyThisSticker];
                         if (localVerboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+") (which is "+(iStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+") is adjacent to sticker "+jSticker+"("+jPolyThisSticker+")'s slice "+sticker2Slice[jSticker]+"");
                         if (iStickerHasPolyBackfacing)
                         {
@@ -1719,7 +1765,7 @@ public class GenericPipelineUtils
                         // same as previous case but reversed
                         if (!jStickerIsVisible)
                             continue;
-                        boolean jStickerHasPolyBackfacing = unshrunkStickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
+                        boolean jStickerHasPolyBackfacing = stickerPolyIsStrictlyBackfacing[jSticker][jPolyThisSticker];
                         if (localVerboseLevel >= 2) System.out.println("    sticker "+iSticker+"("+iPolyThisSticker+")'s slice "+sticker2Slice[iSticker]+" is adjacent to sticker "+jSticker+"("+jPolyThisSticker+") (which is "+(jStickerHasPolyBackfacing ? "backfacing" : "not backfacing")+")");
                         if (jStickerHasPolyBackfacing)
                         {
@@ -1753,6 +1799,7 @@ public class GenericPipelineUtils
                         // (That is, one is the left child of the root,
                         // and the other is the right child of the root).
                         // This can't happen.
+                        // (Partially due to de-duping of cuts during puzzle creation.)
                         CHECK(false);
                     }
                 }
