@@ -1257,13 +1257,12 @@ public class GenericPipelineUtils
                 if(!isShadows && shrunkStickerOutlineColor != null) {
                     g.setColor(shrunkStickerOutlineColor);
                     // uncomment the following line for an alternate outlining idea -MG
-                    // g.setColor(new Color(faceRGB[cs][0], faceRGB[cs][1], faceRGB[cs][2]));
+                    //g.setColor(new Color(faceRGBThisSticker[0], faceRGBThisSticker[1], faceRGBThisSticker[2]));
                     g.drawPolygon(xs, ys, poly.length);
                 }
 // uncomment something like the following for debugging specific interactions
 //if (iSticker == 63 || iSticker == 219)
 //if (iSticker == 16 || iSticker == 17 || iSticker == 0)
-//if (iSticker == 17 || iSticker == 0 || iSticker == 41 || iSticker == 33 || iSticker == 32)
                 if (drawLabels)
                 {
                     String label = ""+iSticker+"("+iPolyThisSticker+")";
@@ -1424,6 +1423,9 @@ public class GenericPipelineUtils
             int localVerboseLevel = 0;  // hard-code to something higher to debug
             if (localVerboseLevel >= 1) System.out.println("    in sortStickersBackToFront");
             if (localVerboseLevel >= 3) {
+                if (localVerboseLevel >= 1) System.out.println("      cutNormal = "+com.donhatchsw.util.Arrays.toStringCompact(cutNormal));
+                if (localVerboseLevel >= 1) System.out.println("      cutOffsets = "+com.donhatchsw.util.Arrays.toStringCompact(cutOffsets));
+                if (localVerboseLevel >= 1) System.out.println("      sticker2Slice = "+com.donhatchsw.util.Arrays.toStringCompact(sticker2Slice));
                 if (localVerboseLevel >= 1) System.out.println("      adjacentStickerPairs = "+com.donhatchsw.util.Arrays.toStringCompact(adjacentStickerPairs));
             }
 
@@ -1442,6 +1444,17 @@ public class GenericPipelineUtils
                                     + adjacentStickerPairs.length;
             int partialOrder[][] = new int[maxPartialOrderSize][2];
             int partialOrderSize = 0;
+
+            // Sanity check: for each pair of adjacent stickers,
+            // they are either in the same slice or in adjacent slices.
+            // (This used to fail since there were two cuts too close together;
+            // in that case the caller needs to merge those two cuts
+            // and kill the zero-thickness slice.)
+            for (int iPair = 0; iPair < adjacentStickerPairs.length; ++iPair) {
+                int iSlice = sticker2Slice[adjacentStickerPairs[iPair][0][0]];
+                int jSlice = sticker2Slice[adjacentStickerPairs[iPair][1][0]];
+                CHECK(jSlice == iSlice-1 || jSlice == iSlice || jSlice == iSlice+1);
+            }
 
             // Initialize parents and depths...
             {
@@ -1464,6 +1477,7 @@ public class GenericPipelineUtils
                         && eyeOffset > cutOffsets[eyeSlice])
                         eyeSlice++;
                 }
+                if (localVerboseLevel >= 1) System.out.println("      eyeSlice = "+eyeSlice);
 
                 for (int iSlice = 0; iSlice < nCompressedSlices; ++iSlice)
                 {
@@ -1724,7 +1738,9 @@ public class GenericPipelineUtils
                     else
                     {
                         // This would mean the two stickers are adjacent
-                        // but the two different groups they are in are not.
+                        // but the two different groups they are in are not
+                        // (That is, one is the left child of the root,
+                        // and the other is the right child of the root).
                         // This can't happen.
                         CHECK(false);
                     }

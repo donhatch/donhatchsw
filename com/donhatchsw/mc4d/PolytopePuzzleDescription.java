@@ -151,10 +151,10 @@
           In fact in "3,3,4 2" after a twist, I get bogus order even with 4dfaceshrink=1 4dstickershink=.5
           In fact even with all shrinks 1!!  Ok that's definitely a bug, maybe in the thinking.
           it may turn out that we need to z-assist the whole thing.
+
           IDEA:  can I stress-test the painters sort 1 dimension down?  I.e. on a 3d puzzle, projected into 2d, with a 2d eye.  Try lots of cases and try to find good clear counterexamples that are easier to visualize.
           GOT IT! "3,4 4",  flatten, twist center, view edge on.  screws up even with shrinks=1 !
           also "3,4 3", screws up a bit when the interface poly is close to edge on.
-          "3,4 2": flatten, twist center, view edge on. screws up even with shrinks=1
 
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)
         - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)
@@ -536,6 +536,7 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
 
     private static void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
     private static void Assumpt(boolean condition) { if (!condition) throw new Error("Assumption failed"); }
+    private static String $(Object obj) { return com.donhatchsw.util.Arrays.toStringCompact(obj); }  // convenience
 
     private static String millisToSecsString(long millis)
     {
@@ -1110,24 +1111,6 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 }
                 CHECK(fullThickness != 0.); // XXX actually this fails if puzzle dimension <= 1, maybe should disallow
 
-                boolean isPrismOfThisFacet;
-                {
-                  // We guess it's a prism of this facet if all the number of elements
-                  // match.  I suspect that's a sufficient condition, but I haven't proved it.
-                  isPrismOfThisFacet = true;  // until proven otherwise;
-                  for (int iDim = 0; iDim < nDims; ++iDim)
-                  {
-                    int nLesserDimensionalEltsThisFacet = iDim==0 ? 0 : originalIncidences[nDims-1][iFacet][iDim-1].length;
-                    int nThisDimensionalEltsThisFacet = originalIncidences[nDims-1][iFacet][iDim].length;
-                    int nThisDimensionalEltsTotal = originalIncidences[nDims][0][iDim].length;
-                    if (nThisDimensionalEltsTotal != 2 * nThisDimensionalEltsThisFacet + nLesserDimensionalEltsThisFacet)
-                    {
-                      isPrismOfThisFacet = false;
-                      break;
-                    }
-                  }
-                }
-
                 double sliceThickness = fullThickness / doubleLength;
 
                 /*
@@ -1144,13 +1127,28 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
                 */
 
                 int nNearCuts = intLength / 2; // (n-1)/2 if odd, n/2 if even
-                int nFarCuts = facet2OppositeFacet[iFacet]==-1 ? 0 :
-                               intLength%2==0 && isPrismOfThisFacet ? nNearCuts-1 :
-                               nNearCuts;
+                int nFarCuts = facet2OppositeFacet[iFacet]==-1 ? 0 : nNearCuts;
+
+                // In some cases, notably an even length prism or antiprism of this face,
+                // the middle cut is the same from either side: it goes through the origin.
+                // In that case, we'd like to do it only as a near cut, so nFarCuts
+                // should be nNearCuts-1.
+                //
+                // HOWEVER, there are other cases where the last cut on the two sides are equal,
+                // notably truncated tetrahedron with carefully chosen cut depth: "(1)3(1)3(0) 2(1)"
+                // (and truncated simplex in 4d, too, probably), and there's no way
+                // of predicting when this will happen.
+                // In fact, we can cause similar problems even for odd numbers of slices on standard puzzles:
+                //      "{4,3,3} 7(6)"
+                //      "{4,3,3} 7(4)"
+                // Given that, what we do is as follows: make the list of cuts (even though nNearCuts
+                // may be too many), then sort and remove dups (and near dups) at the end.
+
                 facetCutOffsets[iFacet] = new double[nNearCuts + nFarCuts];
 
                 for (int iNearCut = 0; iNearCut < nNearCuts; ++iNearCut)
                     facetCutOffsets[iFacet][iNearCut] = facetOffsets[iFacet] + (iNearCut+1)*sliceThickness;
+
                 // we'll fill in the far cuts in another pass
             } // for iFacet
 
@@ -1163,10 +1161,42 @@ public class PolytopePuzzleDescription implements GenericPuzzleDescription {
             for (int iFacet = 0; iFacet < nFacets; ++iFacet)
             {
                 int iOppositeFacet = facet2OppositeFacet[iFacet];
-                int nNearCuts = intLengths[whichLengthToUseForFacet[iFacet]] / 2; // same as in previous pass
-                int nFarCuts = facetCutOffsets[iFacet].length - nNearCuts;  // this will be 0 if there's no opposite face
-                for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
-                    facetCutOffsets[iFacet][nNearCuts+nFarCuts-1-iFarCut] = -facetCutOffsets[iOppositeFacet][iFarCut];
+                if (iOppositeFacet != -1) {
+                  int nNearCuts = intLengths[whichLengthToUseForFacet[iFacet]] / 2; // same as in previous pass
+                  int nFarCuts = facetCutOffsets[iFacet].length - nNearCuts;
+                  for (int iFarCut = 0; iFarCut < nFarCuts; ++iFarCut)
+                      facetCutOffsets[iFacet][nNearCuts+nFarCuts-1-iFarCut] = -facetCutOffsets[iOppositeFacet][iFarCut];
+                }
+            }
+            // Now sort and de-dup as promised.
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
+            {
+                SortStuff.sort(facetCutOffsets[iFacet]);
+                int nCutsRemaining = 0;
+                for (int iCut = 0; iCut < facetCutOffsets[iFacet].length; ++iCut)
+                {
+                    if (nCutsRemaining == 0
+                     || facetCutOffsets[iFacet][iCut] > facetCutOffsets[iFacet][nCutsRemaining-1] + 1e-6)
+                    {
+                        facetCutOffsets[iFacet][nCutsRemaining++] = facetCutOffsets[iFacet][iCut];
+                    }
+                }
+                facetCutOffsets[iFacet] = (double[])com.donhatchsw.util.Arrays.subarray(facetCutOffsets[iFacet], 0, nCutsRemaining);
+            }
+            // Finally, make sure opposite cut sets are *exactly* opposite.  They might not be,
+            // if de-duping made different choices.
+            for (int iFacet = 0; iFacet < nFacets; ++iFacet)
+            {
+                int iOppositeFacet = facet2OppositeFacet[iFacet];
+                if (iOppositeFacet > iFacet)
+                {
+                    int nCuts = facetCutOffsets[iFacet].length;
+                    CHECK(nCuts == facetCutOffsets[iOppositeFacet].length); // careful analysis of the deduping probably would show this can't fail, but check anyway
+                    for (int iCut = 0; iCut < nCuts; ++iCut) {
+                        CHECK(Math.abs(facetCutOffsets[iOppositeFacet][nCuts-1-iCut] - -facetCutOffsets[iFacet][iCut]) < 1e-3);  // rough check, much coarser than the dedup tolerance that was used
+                        facetCutOffsets[iOppositeFacet][nCuts-1-iCut] = -facetCutOffsets[iFacet][iCut];
+                    }
+                }
             }
         }
 
