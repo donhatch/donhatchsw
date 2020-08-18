@@ -152,11 +152,8 @@
 
         - topsort still fundamentally broken when 4dfaceshrink<1: demonstrate:
           - example: "3,3,4 2" after a twist: red stickers in center appear in front of yellow stickers that are nearer
-
-        - Different problem I think ("mostly edge-on" problem)
-            "3,4 4",  flatten, (don't even need to twist center), view edge on.  screws up even with shrinks=1 !
-            also "3,4 3", screws up a bit when the interface poly is close to edge on.
-            and then shrinking 4dfaceshrink makes it really egregious.
+          - example: "3,4 3",  initial position, just set sticker shrink to 1 (face shrink still .4).  red/orange faces in wrong order
+          - example: "3,4 4",  same.
 
         - CHECK fail on 3d puzzle when 1color sticker gonality isn't same as the facet gonality: puzzleDescription="(.25)4(2)3 3(1.4)": CHECK(cutWeight >= -1e-9 && cutWeight <= 1.) (cutWeight is -.75)
         - 5-dimensional puzzles get ArrayIndexOutOfBoundException when trying to view them (should just get rejected, I think)

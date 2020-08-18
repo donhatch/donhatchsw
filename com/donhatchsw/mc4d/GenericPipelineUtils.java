@@ -90,6 +90,7 @@ public class GenericPipelineUtils
     } // class Frame
 
     static private void CHECK(boolean condition) { if (!condition) throw new Error("CHECK failed"); }
+    private static String $(Object obj) { return com.donhatchsw.util.Arrays.toStringCompact(obj); }  // convenience
 
     public interface Callback { public void call(); }
 
@@ -539,6 +540,14 @@ public class GenericPipelineUtils
         // XXX could try to do this on only vertices that passed the culls
         //
         {
+            for (int i = 0; i < verts_unshrunk.length; ++i)
+            {
+                float z = eyeZ - verts_unshrunk[i][2];
+                float invZ = 1.f/z;
+                for (int j = 0; j < 2; ++j)
+                    verts_unshrunk[i][j] *= invZ;
+                verts_unshrunk[i][2] = z; // keep this for future reference
+            }
             for (int i = 0; i < verts.length; ++i)
             {
                 float z = eyeZ - verts[i][2];
