@@ -35,6 +35,7 @@ public class regex
     * whose message does the cool point-to-the-error-in-the-regex thing.
     * XXX probably it doesn't work right if the regex has newlines and stuff in it
     */
+    @SuppressWarnings("serial")
     public static class PatternSyntaxException extends IllegalArgumentException
     {
         public PatternSyntaxException(String description,

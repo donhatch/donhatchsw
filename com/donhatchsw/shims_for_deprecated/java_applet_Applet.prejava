@@ -1,5 +1,6 @@
 package com.donhatchsw.shims_for_deprecated;
 
+@SuppressWarnings("serial")
 public class java_applet_Applet
     extends java.awt.Panel
 {

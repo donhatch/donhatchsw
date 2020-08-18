@@ -11,6 +11,7 @@ package com.donhatchsw.shims_for_deprecated;  // APP-SPECIFIC: remove or change 
 
 #include "macros.h"
 
+@SuppressWarnings("serial")
 public class com_donhatchsw_applet_ExampleApplet
     extends com.donhatchsw.shims_for_deprecated.java_applet_Applet
 {

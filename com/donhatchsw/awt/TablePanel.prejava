@@ -14,6 +14,7 @@ package com.donhatchsw.awt;
  * @see JCol
  * @see JTablePanel
  */
+@SuppressWarnings("serial")
 public class TablePanel
     extends java.awt.Panel
 {

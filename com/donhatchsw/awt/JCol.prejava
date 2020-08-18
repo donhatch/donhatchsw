@@ -12,6 +12,7 @@ package com.donhatchsw.awt;
  * @see JRow
  * @see JTablePanel
  */
+@SuppressWarnings("serial")
 public class JCol
     extends javax.swing.JPanel
 {

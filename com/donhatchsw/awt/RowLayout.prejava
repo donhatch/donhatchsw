@@ -27,6 +27,7 @@ import java.awt.GridBagConstraints;
  * @see JCol
  * @see JTablePanel
  */
+@SuppressWarnings("serial")
 public class RowLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
 {
     public RowLayout()

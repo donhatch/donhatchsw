@@ -24,6 +24,7 @@ import com.donhatchsw.awt.Row;
 import com.donhatchsw.awt.Col;
 import com.donhatchsw.util.Listenable;
 
+@SuppressWarnings("serial")
 public class MC4DSwingControlPanel
     extends JPanel
     implements MC4DControlPanelInterface
@@ -51,6 +52,7 @@ public class MC4DSwingControlPanel
     }
 
     // a label in the default font, except bold (which is the default for JLabel anyway) and one point size larger.
+    @SuppressWarnings("serial")
     private static class BigBoldJLabel extends JLabel
     {
         public BigBoldJLabel(String labelString)
@@ -64,6 +66,7 @@ public class MC4DSwingControlPanel
         }
     }
 
+    @SuppressWarnings("serial")
     private static class CanvasOfSize extends JPanel  // dog science: if I derive from JComponent, background doesn't get drawn (and setOpaque(true) doesn't help).  deriving from JPanel instead makes it work, don't know why
     {
         private java.awt.Dimension preferredSize;
@@ -81,6 +84,7 @@ public class MC4DSwingControlPanel
     // Stolen from ShepardsPlayApplet
     // A textfield that turns green or red when editing and not yet committed.
     // Esc reverts.
+    @SuppressWarnings("serial")
     private static class JValidatingTextField extends JTextField
     {
 	// subclass can override this
@@ -148,6 +152,7 @@ public class MC4DSwingControlPanel
 
     // Stolen from ShephardsPlayApplet (which claims it stole it from MC4DControlPanel.java,
     // but then must have made improvements)
+    @SuppressWarnings("serial")
     public static class JTextFieldForNumber extends JValidatingTextField
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
@@ -265,6 +270,7 @@ public class MC4DSwingControlPanel
     } // JTextFieldForNumber
 
     // stolen from ShephardsPlayApplet.
+    @SuppressWarnings("serial")
     public static class JSliderForFloat extends JSlider
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
@@ -335,6 +341,7 @@ public class MC4DSwingControlPanel
     } // JSliderForFloat
 
 
+    @SuppressWarnings("serial")
     private static class ColorSwatch extends CanvasOfSize
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
@@ -375,6 +382,7 @@ public class MC4DSwingControlPanel
         }
     } // ColorSwatch
 
+    @SuppressWarnings("serial")
     private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
@@ -440,6 +448,7 @@ public class MC4DSwingControlPanel
     } // ColorSwatchMaybeAndCheckBoxMaybe ctor
 
     // XXX think of a name
+    @SuppressWarnings("serial")
     private static class CheckboxThing extends ColorSwatchMaybeAndCheckBoxMaybe
     {
         public CheckboxThing(Listenable.Boolean b,
@@ -451,6 +460,7 @@ public class MC4DSwingControlPanel
 
     // A button whose action resets one or more listenables,
     // and is enabled iff any of those listenables is non-default.
+    @SuppressWarnings("serial")
     private static class ResetButton extends JButton
     {
         private Listenable.Listener keepalive[]; // need to keep strong refs to them for as long as I'm alive
@@ -527,6 +537,7 @@ public class MC4DSwingControlPanel
         return sb.toString();
     }
 
+    @SuppressWarnings("serial")
     private static class HelpButton extends JButton
     {
         public HelpButton(final String helpWindowTitle,

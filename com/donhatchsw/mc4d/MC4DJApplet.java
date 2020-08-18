@@ -12,6 +12,7 @@ import com.donhatchsw.awt.RowLayout;
 
 
 
+@SuppressWarnings("serial")
 public class MC4DJApplet
     extends com.donhatchsw.shims_for_deprecated.javax_swing_JApplet
 {
@@ -235,6 +236,7 @@ public class MC4DJApplet
         // A JMenuItem whose actionPerformed method gets called on action.
         // Just makes it so we don't have to call addActionListener every
         // friggin time we create a MenuItem.
+        @SuppressWarnings("serial")
         private static abstract class MyJMenuItem
             extends JMenuItem
             implements ActionListener
@@ -248,6 +250,7 @@ public class MC4DJApplet
 
     // new menu bar and new view canvas, inside a new panel.
     // TODO: the panel really serves no purpose any more; this is just returning a canvas,menubar pair
+    @SuppressWarnings("serial")
     private static class MC4DViewerPanel
         extends JPanel
     {
@@ -1090,6 +1093,7 @@ public class MC4DJApplet
             System.out.println("Done.");
         }  // makeNewLegacyControlPanelWindow
 
+        @SuppressWarnings("serial")
         private class MC4DUndoTreeWindow
             extends Frame
         {

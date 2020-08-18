@@ -2,6 +2,7 @@
 
 package com.donhatchsw.shims_for_deprecated;
 
+@SuppressWarnings("serial")
 public class javax_swing_JApplet
     extends java_applet_Applet
     implements javax.swing.RootPaneContainer

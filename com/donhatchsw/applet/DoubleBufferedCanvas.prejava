@@ -12,6 +12,7 @@
 
 package com.donhatchsw.applet; // APP-SPECIFIC: remove or change this as desired
 
+@SuppressWarnings("serial")
 public class DoubleBufferedCanvas
     extends java.awt.Canvas
 {

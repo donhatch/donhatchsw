@@ -194,6 +194,7 @@ public class FuzzyPointHashTable<V>
     * I.e. this exception gets thrown if any max-norm
     * distance between two points is in the forbidden interval (littleTol, bigTol].
     */
+    @SuppressWarnings("serial")
     public static class FuzzyException extends RuntimeException
     {
         FuzzyException(String description)

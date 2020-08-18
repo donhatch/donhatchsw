@@ -12,6 +12,7 @@ package com.donhatchsw.awt;
  * @see JCol
  * @see JTablePanel
  */
+@SuppressWarnings("serial")
 public class Col
     extends java.awt.Panel
 {

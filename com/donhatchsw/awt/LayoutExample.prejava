@@ -34,6 +34,7 @@ public class LayoutExample
         </pre>
     */
 
+    @SuppressWarnings("serial")
     private static class LabeledCol
         extends Col
     {

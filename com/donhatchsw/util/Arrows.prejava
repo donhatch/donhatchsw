@@ -874,11 +874,13 @@ public class Arrows
     //-----------------------------------------------------------------------
 
 
+    @SuppressWarnings("serial")
     public static class MyDemoPanel
         extends javax.swing.JPanel
     {
         int paintCount = 0;
 
+        @SuppressWarnings("serial")
         public class MyCanvas
             extends javax.swing.JPanel
         {

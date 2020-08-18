@@ -37,6 +37,7 @@ import java.awt.Button;
  * @see JCol
  * @see JTablePanel
  */
+@SuppressWarnings("serial")
 public class TableLayout extends GridBagLayoutInWhichRELATIVEMeansSomethingUseful
 {
     public TableLayout()

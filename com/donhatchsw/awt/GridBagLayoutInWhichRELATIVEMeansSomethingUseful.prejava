@@ -38,6 +38,7 @@ import java.awt.GridBagConstraints;
  * <br>
  * XXX know what, these are less than useful the way I'm usually using it.  probably should make a string parser instead.
  */
+@SuppressWarnings("serial")
 public abstract class GridBagLayoutInWhichRELATIVEMeansSomethingUseful extends GridBagLayout
 {
     protected int nextGridx = 0, nextGridy = 0;

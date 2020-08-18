@@ -66,6 +66,7 @@ package com.donhatchsw.awt;
 * to rendezvous and all find a common counter to use.
 */
 
+@SuppressWarnings("serial")
 public class MainWindowCount
 {
     private MainWindowCount() {} // non-instantiatable

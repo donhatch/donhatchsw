@@ -10,6 +10,7 @@ import com.donhatchsw.awt.RowLayout;
 
 
 
+@SuppressWarnings("serial")
 public class MC4DApplet
     extends com.donhatchsw.shims_for_deprecated.java_applet_Applet
 {
@@ -265,6 +266,7 @@ public class MC4DApplet
         // A MenuBar has to be associated with a Frame?? wtf!?
         // I mean, how friggin hard is this???
         // All right, making my own that need not be associated with a frame
+        @SuppressWarnings("serial")
         private static class MyMenuBar
             extends Row
         {
@@ -345,6 +347,7 @@ public class MC4DApplet
         // A MenuItem whose actionPerformed method gets called on action.
         // Just makes it so we don't have to call addActionListener every
         // friggin time we create a MenuItem.
+        @SuppressWarnings("serial")
         private static abstract class MyMenuItem
             extends MenuItem
             implements ActionListener
@@ -358,6 +361,7 @@ public class MC4DApplet
 
     // new menu bar and new view canvas, inside a new panel.
     // XXX should use a real menu bar if there's a frame, and a MyMenuBar otherwise
+    @SuppressWarnings("serial")
     private static class MC4DViewerPanel
         extends Panel
     {
@@ -1183,6 +1187,7 @@ public class MC4DApplet
             System.out.println("Done.");
         } // openOrMakeNewControlPanelWindow
 
+        @SuppressWarnings("serial")
         private class MC4DUndoTreeWindow
             extends Frame
         {

@@ -6,6 +6,7 @@ import com.donhatchsw.awt.Row;
 import com.donhatchsw.awt.Col;
 import com.donhatchsw.util.Listenable;
 
+@SuppressWarnings("serial")
 public class MC4DLegacyControlPanel
     extends Panel
     implements MC4DControlPanelInterface
@@ -14,6 +15,7 @@ public class MC4DLegacyControlPanel
 
 
     // a label in the default font, except bold and one point size larger.
+    @SuppressWarnings("serial")
     private static class BigBoldLabel extends Label
     {
         public BigBoldLabel(String labelString)
@@ -29,6 +31,7 @@ public class MC4DLegacyControlPanel
         }
     }
 
+    @SuppressWarnings("serial")
     private static class CanvasOfSize extends Canvas
     {
         private Dimension preferredSize;
@@ -43,6 +46,7 @@ public class MC4DLegacyControlPanel
         }
     }
 
+    @SuppressWarnings("serial")
     public static class TextFieldForFloat extends TextField
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
@@ -107,6 +111,7 @@ public class MC4DLegacyControlPanel
         }
     } // TextFieldForFloat
 
+    @SuppressWarnings("serial")
     public static class SliderForFloat extends Scrollbar
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
@@ -179,6 +184,7 @@ public class MC4DLegacyControlPanel
         }
     } // SliderForFloat
 
+    @SuppressWarnings("serial")
     private static class ColorSwatch extends CanvasOfSize
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
@@ -219,6 +225,7 @@ public class MC4DLegacyControlPanel
         }
     } // ColorSwatch
 
+    @SuppressWarnings("serial")
     private static class ColorSwatchMaybeAndCheckBoxMaybe extends Row
     {
         private Listenable.Listener listener; // need to keep a strong ref to it for as long as I'm alive
@@ -284,6 +291,7 @@ public class MC4DLegacyControlPanel
     } // ColorSwatchMaybeAndCheckBoxMaybe ctor
 
     // XXX think of a name
+    @SuppressWarnings("serial")
     private static class CheckboxThing extends ColorSwatchMaybeAndCheckBoxMaybe
     {
         public CheckboxThing(Listenable.Boolean b,
@@ -295,6 +303,7 @@ public class MC4DLegacyControlPanel
 
     // A button whose action resets one or more listenables,
     // and is enabled iff any of those listenables is non-default.
+    @SuppressWarnings("serial")
     private static class ResetButton extends Button
     {
         private Listenable.Listener keepalive[]; // need to keep strong refs to them for as long as I'm alive
@@ -371,6 +380,7 @@ public class MC4DLegacyControlPanel
         return sb.toString();
     }
 
+    @SuppressWarnings("serial")
     private static class HelpButton extends Button
     {
         public HelpButton(final String helpWindowTitle,

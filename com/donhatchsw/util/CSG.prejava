@@ -415,7 +415,7 @@ public final class CSG
                     }
 
                     // workaround 3 from https://programming.guide/java/generic-array-creation.html
-                    class ArrayList_Polytope extends java.util.ArrayList<Polytope> {}
+                    @SuppressWarnings("serial") class ArrayList_Polytope extends java.util.ArrayList<Polytope> {}
                     ArrayList_Polytope lists[] = new ArrayList_Polytope[dim+1];
                     {
                         FORI (iDim, dim+1)
@@ -2045,7 +2045,7 @@ public final class CSG
             if (verbose) PRINT(wholeThing.id);
             {
                 // workaround 3 from https://programming.guide/java/generic-array-creation.html
-                class ArrayList_Polytope extends java.util.ArrayList<Polytope> {}
+                @SuppressWarnings("serial") class ArrayList_Polytope extends java.util.ArrayList<Polytope> {}
                 ArrayList_Polytope elementLists[] = new ArrayList_Polytope[nDims+1];
                 // workaround 3 from https://programming.guide/java/generic-array-creation.html
                 class FuzzyPointHashTable_Integer extends FuzzyPointHashTable<Integer> { public FuzzyPointHashTable_Integer(double a, double b, double c) { super(a,b,c); } };

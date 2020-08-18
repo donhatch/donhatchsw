@@ -1193,6 +1193,7 @@ public final class Arrays
      * is by using Arrays.toString(Object array) for printing,
      * or Arrays.fromString(String s) for parsing.
      */
+    @SuppressWarnings("serial")
     public static class ArrayFormat
         extends java.text.Format
     {
